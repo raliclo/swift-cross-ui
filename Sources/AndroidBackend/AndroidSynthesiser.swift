@@ -254,6 +254,12 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 try dispatchKey(key, action: keyActionDown)
                 try dispatchKey(key, action: keyActionUp)
 
+            case .tapLabel(let label):
+                let position = try reveal(label: label)
+                lastPoint = position
+                let downTime = try dispatch(action: actionDown, at: position, downTime: nil)
+                _ = try dispatch(action: actionUp, at: position, downTime: downTime)
+
             case .orientation(let name):
                 // The activity asks for the orientation, which is how an Android
                 // app is turned without a person holding the device; the
@@ -357,6 +363,33 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         return position
     }
 
+
+    /// Where the view showing `label` is, after scrolling the root so that it is
+    /// on screen. The position is read from the view itself, so it holds whatever
+    /// the layout has become. 顯示 `label` 的 view 在哪裡(先把根捲到讓它在螢幕上)。位置讀自 view 本身，所以不論版面變成怎樣都成立。
+    private func reveal(label: String) throws -> (x: Double, y: Double) {
+        let found = Self.onMainThread { () -> [Int32] in
+            guard
+                let window = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
+                    .window,
+                let content = window.content
+            else { return [] }
+            let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
+            let centre = helpers.centreOfLabel(AndroidBackend.activity, label)
+            guard centre.count == 2 else { return [] }
+            let moved = helpers.rootScrollReveal(content, centre[0], centre[1])
+            guard moved.count == 2 else { return centre }
+            return [centre[0] - moved[0], centre[1] - moved[1], moved[0], moved[1]]
+        }
+        guard found.count >= 2 else {
+            throw SynthesiserError.unsupported("taplabel: no shown view has the text \"\(label)\"")
+        }
+        if found.count == 4 {
+            revealShift.x += Int(found[2])
+            revealShift.y += Int(found[3])
+        }
+        return (Double(found[0]), Double(found[1]))
+    }
 
     private func resolve(
         _ point: Point?,

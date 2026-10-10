@@ -230,6 +230,11 @@ public enum ActionFile {
             case "keydown": return .keyDown(try key())
             case "keyup": return .keyUp(try key())
             case "key": return .key(try key())
+            case "taplabel":
+                guard let label = value(5), !label.isEmpty else {
+                    throw ActionFileError.missingKey(verb: verb, line: line)
+                }
+                return .tapLabel(label)
             case "focus":
                 // Column 9 (`target`), a tenth column older files do not have.
                 // `value(_:)` returns nil for an index past the end, so every

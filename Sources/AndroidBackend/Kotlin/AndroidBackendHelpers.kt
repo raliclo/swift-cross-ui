@@ -154,6 +154,28 @@ class AndroidBackendHelpers {
 
     // RootScrollHost.reveal for the host `view` sits in, or 0,0 when it is in
     // none. 取 `view` 所在宿主的 RootScrollHost.reveal,沒有宿主時為 0,0。
+    // For the action file's `taplabel`: where the first shown TextView (a Button is
+    // one) with exactly this text is, as the middle of it on screen. Empty when
+    // nothing shows it. The view may be past the screen's edge; the caller scrolls.
+    // 供動作檔的 `taplabel` 使用：第一個顯示中、文字完全相同的 TextView(Button 也是)在哪裡，以它在螢幕上的中心表示。
+    // 沒有 view 顯示它時為空。該 view 可能在螢幕邊緣之外；由呼叫端負責捲動。
+    fun centreOfLabel(activity: Activity, label: String): IntArray {
+        fun find(view: View): View? {
+            if (view.visibility != View.VISIBLE) return null
+            if (view is android.widget.TextView && view.text?.toString() == label) return view
+            if (view is android.view.ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    find(view.getChildAt(i))?.let { return it }
+                }
+            }
+            return null
+        }
+        val found = find(activity.window.decorView) ?: return IntArray(0)
+        val origin = IntArray(2)
+        found.getLocationOnScreen(origin)
+        return intArrayOf(origin[0] + found.width / 2, origin[1] + found.height / 2)
+    }
+
     fun rootScrollReveal(view: View, x: Int, y: Int): IntArray {
         var parent = view.parent
         while (parent != null) {

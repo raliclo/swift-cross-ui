@@ -91,8 +91,8 @@ class WheelColumn(context: Context) : View(context) {
         val middle =
             if (light) {
                 Color.rgb(
-                    Color.red(foreground) * 9 / 10, Color.green(foreground) * 9 / 10,
-                    Color.blue(foreground) * 9 / 10,
+                    Color.red(foreground) * 230 / 255, Color.green(foreground) * 230 / 255,
+                    Color.blue(foreground) * 232 / 255,
                 )
             } else foreground
         for (row in nearest - 5..nearest + 5) {
@@ -106,9 +106,9 @@ class WheelColumn(context: Context) : View(context) {
             // 238 at the fourth (on dark: their complements).
             val shade =
                 164f + 40f * (away - 2f).coerceIn(0f, 1f) + 34f * (away - 3f).coerceIn(0f, 1f)
-            // On dark the complement, less 2 as UIKit's measure (89 beside the middle), and the
-            // middle row is the label colour at 90% (230). 深色時取補色再減 2(中央旁是 89),中央列是標籤色的 90%(230)。
-            val grey = shade.roundToInt().let { if (light) 253 - it else it }
+            // On dark the complement, less 4 as UIKit's measure (87 beside the middle), and the
+            // middle row is the label colour at (230, 230, 232) of 255. 深色時取補色再減 4(中央旁是 87),中央列是標籤色的 (230, 230, 232)/255。
+            val grey = shade.roundToInt().let { if (light) 251 - it else it }
             val red = Color.red(middle) + ((grey - Color.red(middle)) * near).roundToInt()
             val green = Color.green(middle) + ((grey - Color.green(middle)) * near).roundToInt()
             val blue = Color.blue(middle) + ((grey - Color.blue(middle)) * near).roundToInt()

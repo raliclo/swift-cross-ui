@@ -104,7 +104,10 @@ public enum InputAction: Equatable, Sendable {
             // 自己的參數,不是位置。
             // `orientation` turns the device, not the pointer.
             // `orientation` 轉的是裝置,不是指標。
-            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate, .orientation: nil
+            // `tapLabel` names a view by its text; where that is, is the point of asking.
+            // `tapLabel` 以文字指名 view;它在哪裡，正是要問的事。
+            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate, .orientation,
+                 .tapLabel: nil
         }
     }
 
@@ -237,6 +240,23 @@ public enum InputAction: Equatable, Sendable {
     /// **手機與平板的動作。**iOS runner 以 `XCUIDevice.shared.orientation` 驅動它,就像一個人轉動裝置那樣旋轉模擬器——
     /// P14 的「跨旋轉的尺寸提議」在那裡唯一能被驅動的方式。桌面合成器以理由拒絕它:視窗有尺寸,沒有方向。
     case orientation(String)
+
+    /// Taps the view showing this text, wherever it is laid out; the text is in
+    /// the `key` column.
+    ///
+    /// A coordinate is a claim about one layout. P10's Android file aimed at the
+    /// hidden button by position and was re-aimed twice in eight days as the
+    /// page moved under it (2026-10-02, 2026-10-10), the second time at a button
+    /// with 12 of its points on screen. The iOS runner has had `taplabel` since
+    /// 2026-10-02; AndroidSynthesiser finds the view in the activity's tree and
+    /// scrolls the root to it. The desktop synthesisers refuse it: they send
+    /// events to the system and have no view tree to search.
+    ///
+    /// 點顯示這段文字的 view,不論它被排在哪裡；文字寫在 `key` 欄。座標是對某一個版面的主張:P10 的 Android 檔以位置瞄準
+    /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次(2026-10-02、2026-10-10),第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 自
+    /// 2026-10-02 起就有 `taplabel`;AndroidSynthesiser 在 activity 的樹裡找出那個 view,並把根捲到它那裡。桌面合成器拒絕它:
+    /// 它們把事件送給系統，沒有可供搜尋的 view 樹。
+    case tapLabel(String)
 }
 
 /// A position and the origin it is measured from.

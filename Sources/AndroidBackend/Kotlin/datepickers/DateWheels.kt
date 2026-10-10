@@ -35,6 +35,7 @@ class DateWheels(context: Context) : LinearLayout(context) {
         set(value) {
             field = value
             month.items = DateFormatSymbols(value).months.take(12)
+            arrange()
         }
 
     var foreground: Int = Color.BLACK
@@ -59,22 +60,43 @@ class DateWheels(context: Context) : LinearLayout(context) {
             day.index = newValue.dayOfMonth - 1
         }
 
+    // Day before month where the locale writes it so, as UIKit orders its wheels:
+    // en_GB is "24 | August | 2025" with the day centred on x 42.2 and the month from
+    // x 90.3; en_US is "August | 24 | 2025". The year stays centred on 256.5.
+    // (A year-first locale is laid out month, day, year: not measured on UIKit.)
+    // 地區把日寫在月之前時，日那一欄也排在前面，與 UIKit 排滾輪的順序相同:en_GB 是「24 | August | 2025」,日置中於 x 42.2、
+    // 月自 x 90.3 起;en_US 是「August | 24 | 2025」。年維持置中於 256.5。(年在最前的地區仍排成月、日、年:未在 UIKit 上量過。)
+    private fun arrange() {
+        val pattern =
+            android.icu.text.DateTimePatternGenerator.getInstance(locale).getBestPattern("yMMMMd")
+        val dayFirst = pattern.indexOf('d') in 0 until pattern.indexOf('M').coerceAtLeast(0)
+        val height = Math.round(216 * density)
+        removeAllViews()
+        if (dayFirst) {
+            day.anchor = 33.2f
+            month.anchor = 21.3f
+            addView(day, LayoutParams(Math.round(60 * density), height))
+            addView(month, LayoutParams(Math.round(136 * density), height))
+        } else {
+            month.anchor = 18f
+            day.anchor = 25f
+            addView(month, LayoutParams(Math.round(146 * density), height))
+            addView(day, LayoutParams(Math.round(50 * density), height))
+        }
+        year.anchor = 51.5f
+        addView(year, LayoutParams(Math.round(103 * density), height))
+    }
+
     init {
         orientation = HORIZONTAL
         setWillNotDraw(false)
         setPadding(Math.round(9 * density), 0, 0, 0)
         month.align = Paint.Align.LEFT
-        month.anchor = 18f
         month.wraps = true
         day.wraps = true
-        day.anchor = 25f
-        year.anchor = 51.5f
         month.items = DateFormatSymbols(locale).months.take(12)
         year.items = (firstYear..lastYear).map { it.toString() }
-        val height = Math.round(216 * density)
-        addView(month, LayoutParams(Math.round(146 * density), height))
-        addView(day, LayoutParams(Math.round(50 * density), height))
-        addView(year, LayoutParams(Math.round(103 * density), height))
+        arrange()
         val changed: (Int) -> Unit = {
             // The day column follows the month's length. 日那一欄跟著該月的天數。
             val current = value

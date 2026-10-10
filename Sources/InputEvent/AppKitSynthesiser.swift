@@ -1014,6 +1014,14 @@
                             in: window
                         )
 
+                    case .tapLabel:
+                        // AndroidSynthesiser and the iOS runner search a view tree;
+                        // this synthesiser sends events to the system and has none.
+                        // AndroidSynthesiser 與 iOS runner 搜尋 view 樹；本合成器把事件送給系統，沒有樹可搜。
+                        throw SynthesiserError.unsupported(
+                            "taplabel: this synthesiser has no view tree to search; click a position instead"
+                        )
+
                     case .orientation:
                         // A phone and tablet verb; a Mac window has a size, not an
                         // orientation. 手機與平板的動作;Mac 視窗有尺寸,沒有方向。

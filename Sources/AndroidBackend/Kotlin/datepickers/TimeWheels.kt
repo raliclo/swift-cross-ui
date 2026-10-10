@@ -117,7 +117,14 @@ class TimeWheels(context: Context) : FrameLayout(context) {
     private fun arrange() {
         day.visibility = GONE
         period.visibility = GONE
-        if (showsDay) {
+        if (showsDay && is24Hour) {
+            // en_GB on UIKit (2026-10-10): the day right-aligned at 163.3, 09 centred on
+            // 192.3, 46 on 257. UIKit 的 en_GB(2026-10-10):日靠右於 163.3,09 置中於 192.3,46 置中於 257。
+            hour.align = Paint.Align.CENTER
+            place(day, 0f, 172f, 163.3f)
+            place(hour, 172f, 222f, 192.3f)
+            place(minute, 222f, 300f, 257f)
+        } else if (showsDay) {
             hour.align = Paint.Align.RIGHT
             place(day, 0f, 146f, 138.5f)
             place(hour, 146f, 190f, 178.5f)
@@ -143,7 +150,14 @@ class TimeWheels(context: Context) : FrameLayout(context) {
         val from = around.minusYears(3).let { if (it.isBefore(minDate)) minDate else it }
         val to = around.plusYears(3).let { if (it.isAfter(maxDate)) maxDate else it }
         firstDay = from
-        val format = DateTimeFormatter.ofPattern("EEE MMM d", locale)
+        // Weekday, month and day in the locale's order, without the comma UIKit also
+        // leaves out: "Sun Aug 24" in en_US, "Sun 24 Aug" in en_GB.
+        // 星期、月、日依地區的順序，並去掉 UIKit 同樣省略的逗號:en_US 是「Sun Aug 24」,en_GB 是「Sun 24 Aug」。
+        val pattern =
+            android.icu.text.DateTimePatternGenerator.getInstance(locale)
+                .getBestPattern("EEEMMMd")
+                .replace(",", "")
+        val format = DateTimeFormatter.ofPattern(pattern, locale)
         val today = LocalDate.now()
         val count = ChronoUnit.DAYS.between(from, to).toInt().coerceAtLeast(0)
         day.items =

@@ -277,6 +277,14 @@
                         "pinch and rotate under X11: XTEST has no gesture events"
                     )
 
+                case .tapLabel:
+                    // AndroidSynthesiser and the iOS runner search a view tree; this
+                    // synthesiser sends events to the system and has none.
+                    // AndroidSynthesiser 與 iOS runner 搜尋 view 樹；本合成器把事件送給系統，沒有樹可搜。
+                    throw SynthesiserError.unsupported(
+                        "taplabel: this synthesiser has no view tree to search; click a position instead"
+                    )
+
                 case .orientation:
                     // A phone and tablet verb (2026-09-29, added from the Mac side
                     // for iOS). An X11 window has a size, not an orientation.
