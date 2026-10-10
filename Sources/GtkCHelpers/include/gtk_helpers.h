@@ -95,6 +95,16 @@ GtkWidget *gtk_passthrough_drawing_area_new(void);
 // 點擊穿透；填實的形狀則不應。
 void gtk_passthrough_drawing_area_set_opaque(GtkWidget *widget, gboolean opaque);
 
+// Sets a draw function whose drawing may run `overflow` points past the widget on
+// every side -- a stroke is centred on its path, so half of it lies outside the
+// frame. See gtk_passthrough_drawing_area.c.
+// 設定一個繪製函式，其繪製可以在每一邊超出 widget `overflow` 點——線條以路徑為中心，所以有一半落在框之外。
+// 見 gtk_passthrough_drawing_area.c。
+void gtk_passthrough_drawing_area_set_overflowing_draw_func(
+    GtkWidget *widget, double overflow, GtkDrawingAreaDrawFunc draw, gpointer data,
+    GDestroyNotify destroy
+);
+
 // A GtkFixed that clips its children to its own size request rather than letting
 // them draw past it. This is the #389 clip: a plain GtkFixed measures to the
 // bounding box of its children, so a child larger than the frame makes the

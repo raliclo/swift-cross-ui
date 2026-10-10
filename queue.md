@@ -58,9 +58,13 @@
     WinUIBackend sets none, so the row reaches Win32Synthesiser, whose refusal
     (`case .tapLabel`, like XdotoolSynthesiser's) is written from the Mac and not
     compiled -- a non-exhaustive-switch error there is this.
-  - [ ] **GTK draws P89's 14 x 14 stroked Circle as a rounded square** (macOS,
-    gtk4 4.24.1, p89-macos-gtk4-final-20261010-202735.png); a circle on AppKit,
-    UIKit and Android. Not looked into.
+  - [x] **GTK drew P89's 14 x 14 stroked Circle as a rounded square** (fixed
+    2026-10-10). GtkDrawingArea draws through a cairo node the size of the widget,
+    so the half of a stroke that lies outside the shape's frame was cut off flat.
+    The path widget now draws through its own snapshot with room for the stroke
+    (`gtk_passthrough_drawing_area_set_overflowing_draw_func`). Seen on macOS with
+    gtk4 4.24.1: P89's ring is round, P43's fills and gradient stroke unchanged.
+    Not run on Linux/WSL or Windows GTK.
 
 ## 2026-10-09 SVG in Image (user request, priority one)
 

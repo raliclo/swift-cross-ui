@@ -1294,3 +1294,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,macos,appkit,P10,ok,ok,window,default,"taplabel (actions/mac/P10-taplabel.csv): Click me, Click me too and Hidden button found by text; Direct 1, Covered 1, Hidden 1."
 2026-10-10,macos,gtk4,P10,ok,ok,window,default,"taplabel on GtkBackend (macOS, TEST_BACKEND=gtk4), same file: Direct 1, Covered 1, Hidden 1."
 2026-10-10,ios,uikit,P89,ok,n/a,window,default,"iPad Pro 11-inch (M5) simulator, freshly erased and reinstalled: after state, all five on the red line; the late view D keeps its offset."
+2026-10-10,macos,gtk4,P89,ok,n/a,window,default,The stroked Circle is a circle now (it was cut flat at the widget's bounds); all five still on the red line.
+2026-10-10,macos,gtk4,P43,ok,n/a,window,default,"After the stroke-overflow change: gradient circle, flat circle, rectangle and gradient-stroked circle all drawn whole."

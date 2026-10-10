@@ -5411,7 +5411,23 @@ public final class GtkBackend:
 
         // We don't actually care about leaking backends, but might as well use
         // a weak reference anyway.
-        drawingArea.setDrawFunc { [weak self] cairo, _, _ in
+        // Room for what the stroke adds outside the path: half its width, or that
+        // times the miter limit where joins are mitred. See
+        // gtk_passthrough_drawing_area.c for the circle that was a rounded square.
+        // 留給線條在路徑之外所增加的部分：線寬的一半；接合為 miter 時再乘上 miter limit。那個變成圓角方塊的圓見
+        // gtk_passthrough_drawing_area.c。
+        let outline = overrideStrokeStyle ?? path.path?.strokeStyle
+        var overflow = 0.0
+        if let outline, strokeColor.opacity > 0 {
+            var reach = outline.width / 2
+            if case .miter(let limit) = outline.join { reach *= max(limit, 1) }
+            overflow = min(reach.rounded(.up) + 1, 256)
+        }
+        final class DrawBox {
+            let draw: (OpaquePointer) -> Void
+            init(_ draw: @escaping (OpaquePointer) -> Void) { self.draw = draw }
+        }
+        let draw: (OpaquePointer) -> Void = { [weak self] cairo in
             guard let self, let path = path.path else {
                 return
             }
@@ -5486,6 +5502,15 @@ public final class GtkBackend:
             cairo_stroke(cairo)
             cairo_pattern_destroy(strokePattern)
         }
+        gtk_passthrough_drawing_area_set_overflowing_draw_func(
+            drawingArea.widgetPointer,
+            overflow,
+            { _, cairo, _, _, data in
+                Unmanaged<DrawBox>.fromOpaque(data!).takeUnretainedValue().draw(cairo!)
+            },
+            Unmanaged.passRetained(DrawBox(draw)).toOpaque(),
+            { data in Unmanaged<DrawBox>.fromOpaque(data!).release() }
+        )
     }
 
     /// Builds the Cairo pattern for a fill style, in the path's own coordinates.
