@@ -1270,3 +1270,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P36,ok,n/a,screen,default,"Rounded text field 32 dp tall and enclosing its text (was 24 dp, border through the text); plain fields 20 dp. P31 re-run: unchanged look, typed 'abc'."
 2026-10-10,ios,uikit,P37,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P37,ok,n/a,screen,default,"CJK lines one line height each (last Chinese line was half clipped); wrapped Text as wide as its widest line. Remaining 10 pt of left offset is the fonts: Roboto fits one more word on line 3, so the centred column is wider."
+2026-10-10,ios,uikit,P38,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P38,ok,n/a,screen,default,Aligned with iOS; the page itself is each platform's web engine.
+2026-10-10,ios,uikit,P39,ok,n/a,window,default,"Filters now computed on sRGB values (CIContext without a working colour space): saturation 0 of (0,158,254) is 131 (Rec.709 on gamma values; was 152 in linear light), brightness 0.4 lifts black to 103 (was 170)."
+2026-10-10,android,android,P39,ok,n/a,screen,default,"Layout aligned; saturation and brightness follow the same arithmetic as iOS now. The whole Android screen is x0.925 (white = 236), cause not found -- open."
