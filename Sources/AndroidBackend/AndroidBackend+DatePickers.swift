@@ -85,11 +85,6 @@ extension AndroidBackend: BackendFeatures.DatePickers {
                     datePicker = compactDatePicker
                     frame.addView(compactDatePicker!)
                 }
-
-                compactDatePicker!
-                    .setForegroundColor(
-                        environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
-                    )
             case .graphical:
                 if datePicker?.is(GraphicalDatePicker.self) != true {
                     frame.removeAllViews()
@@ -122,6 +117,10 @@ extension AndroidBackend: BackendFeatures.DatePickers {
             preconditionFailure("datePicker must be set by switch above, but was not")
         }
 
+        // Every style: the calendar and the wheels draw their own text. 每種樣式都要：月曆與滾輪自己畫文字。
+        datePicker.setForegroundColor(
+            environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
+        )
         datePicker.setComponents(Int32(components.rawValue))
         datePicker.setRange(
             min: Self.getLocalDateTime(date: range.lowerBound, timeZone: environment.timeZone),

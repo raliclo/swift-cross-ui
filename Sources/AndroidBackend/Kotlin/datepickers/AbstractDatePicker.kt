@@ -97,4 +97,7 @@ abstract class AbstractDatePicker(context: Context) : LinearLayout(context) {
     }
 
     abstract fun setLocale(locale: Locale)
+
+    /** The label colour of the surrounding text. 周圍文字的標籤色。 */
+    open fun setForegroundColor(color: Int) {}
 }

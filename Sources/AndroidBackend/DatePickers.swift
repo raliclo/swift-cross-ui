@@ -11,6 +11,9 @@ class AbstractDatePicker: AndroidKit.LinearLayout {
     func setAction(_ action: SwiftAction?)
 
     @JavaMethod
+    func setForegroundColor(_ color: Int32)
+
+    @JavaMethod
     func getValue() -> LocalDateTime!
 
     @JavaMethod
@@ -36,9 +39,6 @@ class CompactDatePicker: AbstractDatePicker {
         _ activity: FragmentActivity!,
         environment: JNIEnvironment? = nil
     )
-
-    @JavaMethod
-    func setForegroundColor(_ color: Int32)
 }
 
 @JavaClass(

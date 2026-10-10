@@ -2,44 +2,30 @@ package dev.swiftcrossui.androidbackend.datepickers
 
 import android.content.Context
 import android.text.format.DateFormat
-import android.icu.util.Calendar
-import android.widget.DatePicker
 import android.widget.TimePicker
 import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
  * The `.wheel` date picker style on Android.
  *
- * Identical to [GraphicalDatePicker] except for the Context its two children are built with, and
- * that difference is the whole style: `DatePicker` and `TimePicker` choose calendar or spinner from
- * the theme they resolve against, and the app's Material theme resolves to calendar.
+ * The date is [DateWheels], drawn to UIDatePicker's measurements. Until 2026-10-10 it was the
+ * platform's Holo spinner `DatePicker`, chosen so that this repository would not own month
+ * lengths and leap years; those now come from `java.time` (`YearMonth.lengthOfMonth`), and
+ * what the Holo picker drew -- three flat rows between blue rules, abbreviated months, a
+ * month calendar beside them -- was not the wheel the other backends show (P41).
  *
- * **`android:datePickerMode="spinner"` is not the only way to ask.** The comment this class
- * replaces said the style had to wait for swift-bundler to support XML resources in libraries,
- * because that attribute can only be set in XML. It can only be *set* there; it can be *defaulted*
- * by a theme, and `Theme.Holo.Light` is a platform theme -- `android.R.style`, not an app resource
- * -- whose DatePicker and TimePicker defaults are the spinners. So the style needs no resource of
- * ours at all, only a `ContextThemeWrapper`.
- *
- * Holo is deprecated and still shipped; the wheels it draws are the platform's own, not a
- * reimplementation. Composing three `NumberPicker`s was the other candidate and would have been
- * this repository inventing a date picker -- including its month lengths, its leap years and its
- * locale ordering.
+ * The time is still the Holo spinner `TimePicker`: `Theme.Holo.Light` is a platform theme
+ * whose pickers default to spinners, so a `ContextThemeWrapper` is all it needs.
  *
  * Android 上的 `.wheel` 日期選擇器樣式。
  *
- * 除了「用來建構其兩個子元件的 Context」之外，與 [GraphicalDatePicker] 完全相同，而那個差異就是 這個樣式的全部：`DatePicker` 與
- * `TimePicker` 是從它們所解析的主題來決定要用日曆還是滾輪的， 而 app 的 Material 主題解析出來的是日曆。
+ * 日期是 [DateWheels],依 UIDatePicker 的尺寸繪製。2026-10-10 之前用的是平台的 Holo 滾輪 `DatePicker`,當時的理由是
+ * 不讓本倉庫自己負責月份天數與閏年；那些現在來自 `java.time`(`YearMonth.lengthOfMonth`),而 Holo 畫出來的——兩條藍線
+ * 之間三列平的、縮寫月份、旁邊還有一個月曆——並不是其他 backend 顯示的那種滾輪(P41)。
  *
- * **`android:datePickerMode="spinner"` 並不是唯一的詢問方式。** 本類別所取代的那則註解說，這個 樣式必須等到 swift-bundler 支援函式庫中的
- * XML 資源，因為該屬性只能在 XML 中設定。它確實只能在 那裡被**設定**，但它可以被主題**預設**——而 `Theme.Holo.Light` 是一個平台主題（位於
- * `android.R.style`，不是 app 的資源），其 DatePicker 與 TimePicker 的預設值正是滾輪。因此這個 樣式完全不需要我們自己的任何資源，只需要一個
+ * 時間仍是 Holo 滾輪 `TimePicker`:`Theme.Holo.Light` 是平台主題，其 picker 預設就是滾輪，所以只需要一個
  * `ContextThemeWrapper`。
- *
- * Holo 已被標記為棄用，但仍然隨系統提供；它所繪製的滾輪是平台自己的，而非重新實作的版本。另一個 候選做法是以三個 `NumberPicker`
- * 組合出來，那等於由本倉庫自行發明一個日期選擇器——連同它的月份 天數、閏年與地區順序。
  */
 class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
     // Declared before the two views, because they are built from it and Kotlin
@@ -50,19 +36,22 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
     private val spinnerContext =
         android.view.ContextThemeWrapper(context, android.R.style.Theme_Holo_Light)
 
-    protected override val dateView = DatePicker(spinnerContext)
+    protected override val dateView = DateWheels(context)
     protected override val timeView = TimePicker(spinnerContext)
 
     protected override var currentValue = LocalDateTime.now()
 
     init {
-        dateView.setOnDateChangedListener { _, year, month, day ->
-            if (isApplyingDate) {
-                return@setOnDateChangedListener
-            }
-            currentValue = currentValue.withYear(year).withMonth(month + 1).withDayOfMonth(day)
+        dateView.onChange = {
+            currentValue = LocalDateTime.of(dateView.value, currentValue.toLocalTime())
 
             adjustTimeForBounds()
+            // Back inside the range when the wheels were let go outside it.
+            // 滾輪停在範圍外時，拉回範圍內。
+            val kept = value.toLocalDate()
+            if (kept != dateView.value) {
+                dateView.value = kept
+            }
 
             action?.call()
         }
@@ -79,13 +68,10 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
             action?.call()
         }
 
-        // The wheels alone, 216 high as UIDatePicker's: the Holo picker also shows a
-        // month calendar beside them and measured about 260 (P41, 2026-10-10).
-        // 只有滾輪，高 216,與 UIDatePicker 相同:Holo 的 picker 還會在旁邊顯示一個月曆，量出來約 260(P41,2026-10-10)。
-        @Suppress("DEPRECATION")
-        dateView.calendarViewShown = false
+        // The time wheels stay the Holo TimePicker, 216 high as the date wheels.
+        // 時間滾輪仍是 Holo 的 TimePicker,高 216,與日期滾輪相同。
         val wheelHeight = Math.round(216 * resources.displayMetrics.density)
-        addView(dateView, LayoutParams(LayoutParams.WRAP_CONTENT, wheelHeight))
+        addView(dateView)
         addView(timeView, LayoutParams(LayoutParams.WRAP_CONTENT, wheelHeight))
     }
 
@@ -110,20 +96,19 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
     override fun setLocale(locale: Locale) {
         if (locale == this.locale) return
         this.locale = locale
-        dateView.firstDayOfWeek = Calendar.getInstance(locale).firstDayOfWeek
+        dateView.locale = locale
         timeView.setIs24HourView(is24HourLocale(locale))
     }
 
     protected override fun applyRange(min: LocalDateTime, max: LocalDateTime) {
-        dateView.minDate = Constants.EPOCH.until(min, ChronoUnit.MILLIS)
-        dateView.maxDate = Constants.EPOCH.until(max, ChronoUnit.MILLIS)
+        dateView.setRange(min.toLocalDate(), max.toLocalDate())
 
         adjustTimeForBounds()
     }
 
     protected override fun applyDate(value: LocalDateTime) {
         isApplyingDate = true
-        dateView.updateDate(value.year, value.monthValue - 1, value.dayOfMonth)
+        dateView.value = value.toLocalDate()
         timeView.hour = value.hour
         timeView.minute = value.minute
         isApplyingDate = false
@@ -133,5 +118,9 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
         val time = value
         timeView.hour = time.hour
         timeView.minute = time.minute
+    }
+
+    override fun setForegroundColor(color: Int) {
+        dateView.foreground = color
     }
 }

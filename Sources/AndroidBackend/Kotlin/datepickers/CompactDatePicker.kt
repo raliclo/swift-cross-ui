@@ -49,7 +49,7 @@ class CompactDatePicker(activity: FragmentActivity) : AbstractDatePicker(activit
         timeView.value = value.toLocalTime()
     }
 
-    fun setForegroundColor(color: Int) {
+    override fun setForegroundColor(color: Int) {
         dateView.setTextColor(color)
         timeView.setTextColor(color)
     }
