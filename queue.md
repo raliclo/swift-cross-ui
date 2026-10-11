@@ -680,6 +680,41 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     45 -> 47 hovered, 39 held, 50 released). The click fires: the app shows
     'pressed: destructive, bordered'. Earlier this line read "Hover/pressed not
     driven (input blocked by an elevated ASUS window at the time)".
+## 2026-10-12 open after the origin rule (a5ccf75d, c1431f14) -- iOS and Android
+
+A layout larger than the screen now starts at its root view's frame instead of
+at the blank the centring left (user, 2026-10-11, from P50). It moved far more
+than P50: most apps ask for a layout taller than a phone and sat vertically
+centred in it. Measured by comparing each app's capture before and after.
+
+比螢幕大的版面現在從根 view 的外框開始，而不是從置中留下的空白開始(使用者,2026-10-11,起因是 P50)。
+受影響的遠不只 P50:多數 app 要求的版面比手機高，原本垂直置中在裡面。以下是比較每個 app 前後擷取圖量出來的。
+
+- [ ] **iOS and Android action files measured before 2026-10-12 are stale wherever the
+  content moved.** About 60 apps moved on at least one platform: up by 60-290 pt
+  (P0, P1, P4, P5, P7-P12, P52-P83, P85), left by 6-150 pt (P13, P15, P17-P20,
+  P28-P30, P34, P37-P43, P47, P50, P86, P89). Unmoved on both: P14, P16, P21-P26,
+  P31-P33, P35, P36, P44-P46, P48, P51. Each moved app's `actions/ios` and
+  `actions/android` files need their coordinates re-measured and a replay; a click
+  made at rest moves by the same amount as the content, one made after a scroll
+  does not, because the scroll range changed too.
+  凡是內容移動過的 app,2026-10-12 之前量的 iOS 與 Android 動作檔座標都過期了。約 60 個 app 至少在一個平台上移動：
+  上移 60-290 pt、左移 6-150 pt(清單見上)。兩邊都沒動的：P14、P16、P21-P26、P31-P33、P35、P36、P44-P46、P48、P51。
+  每個移動過的 app 的 `actions/ios` 與 `actions/android` 檔案都要重量座標並重播；靜止時的點擊與內容移動同樣的量，
+  捲動之後的點擊則不然，因為可捲範圍也變了。
+- [ ] **The mode button covers the start of the first line** on both platforms now
+  that content starts at the top-left; the centring blank used to clear it. Waiting
+  on the user. 內容貼到左上角後，模式按鈕在兩個平台上都蓋住第一行開頭；以前是置中的空白讓開它。等使用者決定。
+- [ ] **P89 leads by 40 pt on iOS and 16 dp on Android**: its 440-wide layout fits
+  the iPhone and not the 411 dp emulator. Waiting on the user.
+  P89 在 iOS 左邊 40 pt、Android 16 dp:它 440 寬的版面塞得進 iPhone、塞不進 411 dp 的模擬器。等使用者決定。
+- [ ] P74: the wheel is about 50 dp wide on Android and about 220 pt on iOS.
+  P74:滾輪在 Android 約 50 dp 寬，iOS 約 220 pt。
+- [ ] P53: Android's toolbar is a row of text buttons; iOS shows symbols in the bar.
+  P53:Android 的工具列是一列文字按鈕;iOS 在導覽列顯示圖示。
+- [ ] P57: `rows built / held` reads 0 / 0 on Android at launch and 4 / 4 on iOS.
+  P57:`rows built / held` 啟動時在 Android 是 0 / 0,iOS 是 4 / 4。
+
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew
