@@ -1359,3 +1359,43 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-12,android,android,P69,ok,n/a,screen,default,"iOS/Android comparison: aligned in layout. iOS shows the read-back line at launch, Android says 'not read yet'."
 2026-10-12,ios,uikit,P70,ok,n/a,window,default,iOS/Android comparison: aligned; the disabled button is paler on Android.
 2026-10-12,android,android,P70,ok,n/a,screen,default,iOS/Android comparison: aligned; the disabled button is paler on Android.
+2026-10-12,ios,uikit,P71,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P71,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P72,ok,n/a,window,default,iOS/Android comparison: aligned; the cube was caught at a different angle.
+2026-10-12,android,android,P72,ok,n/a,screen,default,iOS/Android comparison: aligned; the cube was caught at a different angle.
+2026-10-12,ios,uikit,P73,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P73,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P74,ok,n/a,window,default,iOS/Android comparison: aligned in layout. Segmented and radio controls are each platform's own. Open: the wheel is about 50 dp wide on Android and about 220 pt on iOS.
+2026-10-12,android,android,P74,ok,n/a,screen,default,iOS/Android comparison: aligned in layout. Segmented and radio controls are each platform's own. Open: the wheel is about 50 dp wide on Android and about 220 pt on iOS.
+2026-10-12,ios,uikit,P75,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P75,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P76,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P76,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P77,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P77,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P78,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P78,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P79,ok,n/a,window,default,iOS/Android comparison: aligned; iOS carries one more line of app text (the dismantle note).
+2026-10-12,android,android,P79,ok,n/a,screen,default,iOS/Android comparison: aligned; iOS carries one more line of app text (the dismantle note).
+2026-10-12,ios,uikit,P80,ok,n/a,window,default,iOS/Android comparison: aligned; the cursor arrows are drawn by each platform's emoji font.
+2026-10-12,android,android,P80,ok,n/a,screen,default,iOS/Android comparison: aligned; the cursor arrows are drawn by each platform's emoji font.
+2026-10-12,ios,uikit,P81,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P81,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P82,ok,n/a,window,default,iOS/Android comparison: aligned; iOS carries a 'keyboard toolbar check' line; the bordered destructive button is a pill on iOS and a rectangle on Android.
+2026-10-12,android,android,P82,ok,n/a,screen,default,iOS/Android comparison: aligned; iOS carries a 'keyboard toolbar check' line; the bordered destructive button is a pill on iOS and a rectangle on Android.
+2026-10-12,ios,uikit,P83,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P83,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P84,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P84,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P85,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P85,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P86,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P86,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P87,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P87,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P88,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P88,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P89,ok,n/a,window,default,"iOS/Android comparison: same content, different leading edge: 40 pt on iOS, 16 dp on Android. The layout asks for 440 wide, which fits the iPhone (440 pt, so it stays centred) and not the Android screen (411 dp, so it starts at the padding)."
+2026-10-12,android,android,P89,ok,n/a,screen,default,"iOS/Android comparison: same content, different leading edge: 40 pt on iOS, 16 dp on Android. The layout asks for 440 wide, which fits the iPhone (440 pt, so it stays centred) and not the Android screen (411 dp, so it starts at the padding)."
+2026-10-12,ios,uikit,P90,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P90,ok,n/a,screen,default,iOS/Android comparison: aligned.

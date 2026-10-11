@@ -378,12 +378,12 @@ final class RootScrollHost: UIScrollView {
                 // and its content is narrower than that, so it sat centred in the
                 // layout with a blank beside and above it -- 101 pt on iOS and 107 dp
                 // on Android, the difference being the two fonts' widths. On an axis
-                // where the layout is larger than the screen the inset goes negative
+                // where the layout is larger than the screen the content is moved over
                 // and hides that blank; the root's own padding is kept. An axis that
                 // fits is left alone, so content centred on the screen stays centred.
                 // **比螢幕大的版面從內容開始，而不是從置中留下的空白開始(使用者,2026-10-11)。**P50 要求 780 x 900,
                 // 內容比它窄，所以置中在版面裡，旁邊與上方留有空白——iOS 101 pt、Android 107 dp,差別來自兩種字型的寬度。
-                // 版面比螢幕大的那個軸上，inset 變為負值把空白藏起來；根自己的 padding 保留。塞得下的軸不動，
+                // 版面比螢幕大的那個軸上，把內容移過去藏起空白；根自己的 padding 保留。塞得下的軸不動，
                 // 所以置中在螢幕上的內容仍然置中。
                 // The layout is not a view here -- the content view is the window's size and
                 // the root sits where the centring put it -- so the size comes from the
@@ -394,17 +394,31 @@ final class RootScrollHost: UIScrollView {
                 let heightens = (requestedSize?.height ?? 0) > bounds.height
                 let leadX = -min(box.minX, rootFrame?.minX ?? box.minX)
                 let leadY = -min(box.minY, rootFrame?.minY ?? box.minY)
+                // **The blank is hidden by moving the content, not by a negative inset.**
+                // A negative inset held for P50, whose content still overflows once the
+                // blank is gone. Content that then fits the screen leaves a scroll view
+                // nothing to scroll, and it will not keep an offset for that; moving the
+                // content does not depend on it. The amount is fixed by the layout, so
+                // this is not the per-pass shift by the overflow that was removed on
+                // 2026-09-27; overflow past the origin is still an inset.
+                // **空白是靠移動內容藏起來的，不是負的 inset。**負的 inset 對 P50 有效，因為它去掉空白後仍然溢出。去掉空白後塞得進螢幕的
+                // 內容，會讓捲動視圖沒有東西可捲，它就不會為此保留位移；移動內容則不依賴這一點。這個量由版面決定，
+                // 所以不是 2026-09-27 移除的那種「每一輪依溢出量平移」;超出原點的溢出仍然放在 inset。
+                let shift = CGPoint(
+                    x: widens ? min(leadX, 0) : 0,
+                    y: heightens ? min(leadY, 0) : 0
+                )
                 let overflow = UIEdgeInsets(
-                    top: heightens ? leadY : max(leadY, 0),
-                    left: widens ? leadX : max(leadX, 0),
+                    top: max(leadY, 0),
+                    left: max(leadX, 0),
                     bottom: 0,
                     right: 0
                 )
                 if content.transform != .identity {
                     content.transform = .identity
                 }
-                if content.frame.origin != .zero {
-                    content.frame.origin = .zero
+                if content.frame.origin != shift {
+                    content.frame.origin = shift
                 }
                 if contentInset != overflow {
                     contentInset = overflow
@@ -412,8 +426,8 @@ final class RootScrollHost: UIScrollView {
                 // The trailing edge keeps the root padding too, as the leading one does.
                 // 尾端也保留根的 padding，與前端相同。
                 let size = CGSize(
-                    width: max(box.maxX, widens ? rootFrame?.maxX ?? 0 : 0, 0),
-                    height: max(box.maxY, heightens ? rootFrame?.maxY ?? 0 : 0, 0)
+                    width: max(box.maxX, widens ? rootFrame?.maxX ?? 0 : 0, 0) + shift.x,
+                    height: max(box.maxY, heightens ? rootFrame?.maxY ?? 0 : 0, 0) + shift.y
                 )
                 if contentSize != size {
                     contentSize = size
