@@ -12,4 +12,9 @@ class ShortcutHostLayout: AndroidKit.LinearLayout {
     )
 
     @JavaMethod func setShortcutListener(_ listener: SwiftUnhandledKeyListener?)
+
+    /// See ShortcutHostLayout.kt. 見 ShortcutHostLayout.kt。
+    @JavaMethod func setOnChromeChange(_ action: SwiftAction?)
+
+    @JavaMethod func hasTopChrome() -> Bool
 }

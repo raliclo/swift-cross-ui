@@ -1,7 +1,9 @@
 package dev.swiftcrossui.androidbackend
 
+import android.app.Activity
 import android.content.Context
 import android.view.KeyEvent
+import android.view.View
 import android.widget.LinearLayout
 
 /**
@@ -50,6 +52,56 @@ import android.widget.LinearLayout
  */
 class ShortcutHostLayout(context: Context) : LinearLayout(context) {
     var shortcutListener: SwiftUnhandledKeyListener? = null
+
+    // **The rows above the content start below the status bar, whichever row is first.**
+    // Only the navigation title kept clear of it, by padding itself; a `.toolbar` row or
+    // the `.refreshable` button was the first child instead and sat at y = 0, its buttons
+    // drawn through the clock and the battery, while the content below still left the
+    // inset blank (P53 and P54, 2026-10-12). The stack takes the inset once, as padding,
+    // when it holds anything besides the content, and tells the backend so the content
+    // stops adding its own.
+    // **內容上方的各列從狀態列下方開始，不論哪一列排第一。**原本只有導覽標題靠自己的 padding 避開；`.toolbar` 那一列或
+    // `.refreshable` 的按鈕若是第一個子元件，就落在 y = 0,按鈕畫在時鐘與電池上，而下方的內容仍然留著那段空白
+    // (P53 與 P54,2026-10-12)。堆疊只要除了內容之外還有別的東西，就以 padding 的形式吃下這段內縮一次，
+    // 並通知 backend,讓內容不再自己加。
+    private var onChromeChange: SwiftAction? = null
+    private var hadChrome = false
+
+    fun setOnChromeChange(action: SwiftAction?) {
+        onChromeChange = action
+    }
+
+    fun hasTopChrome(): Boolean = childCount > 1
+
+    private fun chromeChanged() {
+        val has = childCount > 1
+        if (has == hadChrome) return
+        hadChrome = has
+        val activity = context as? Activity
+        val top =
+            if (has && activity != null) {
+                Math.round(
+                    AndroidBackendHelpers().getSafeAreaTopInset(activity) *
+                        resources.displayMetrics.density
+                )
+            } else {
+                0
+            }
+        setPadding(paddingLeft, top, paddingRight, paddingBottom)
+        // Posted: a row is added while the backend is in the middle of an update.
+        // 以 post 送出：加入一列時 backend 正在更新途中。
+        post { onChromeChange?.call() }
+    }
+
+    override fun onViewAdded(child: View?) {
+        super.onViewAdded(child)
+        chromeChanged()
+    }
+
+    override fun onViewRemoved(child: View?) {
+        super.onViewRemoved(child)
+        chromeChanged()
+    }
 
     init {
         // **A key event follows the FOCUS CHAIN, and without this the override below is never

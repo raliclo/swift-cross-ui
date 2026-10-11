@@ -332,6 +332,22 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         params.leftMargin = leftInset + margin
         params.topMargin = topInset + margin
         addView(made, params)
+        // The inset is measured from the window, and this host is not always at its
+        // top: under a title, a toolbar or a refresh row it already starts below the
+        // status bar, and the full inset on top of that put the button over the
+        // content's second line (P53, 2026-10-12). Only what is left of it is added.
+        // 內縮是從視窗頂端量的，而這個 host 不一定在視窗頂端：在標題、工具列或 refresh 列之下，它本來就從狀態列下方開始，
+        // 再加上整段內縮就把按鈕放到內容的第二行上(P53,2026-10-12)。只加還沒被吃掉的那一段。
+        addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val at = IntArray(2)
+            getLocationInWindow(at)
+            val want = maxOf(0, topInset - at[1]) + margin
+            val current = made.layoutParams as? android.view.ViewGroup.MarginLayoutParams
+            if (current != null && current.topMargin != want) {
+                current.topMargin = want
+                made.layoutParams = current
+            }
+        }
         button = made
         made.setDark(chromeDark)
     }
@@ -555,6 +571,20 @@ private class Stage(context: Context) : ViewGroup(context) {
                 // 比螢幕大的版面從內容開始、也在內容結束，而不是置中留下的空白——見 UIKitBackend 的 RootScrollHost
                 // (使用者,2026-10-11:P50 的 780 x 900 版面在 Android 從 107 dp 處開始、iOS 從 101 pt 處開始)。
                 // 塞得下的軸維持舊規則，所以置中在螢幕上的內容仍然置中。
+                //
+                // The root is the safe child's own child. One that fills the layout is the
+                // frame itself: the walk above would pass it and stop at whatever its
+                // padding holds, and the padding went with it (P57, 2026-10-12: a root
+                // holding a list fills 640 dp, and its 16 dp padding was scrolled away).
+                // 根是 safe 子元件自己的子元件。填滿版面的根本身就是外框：上面的走訪會越過它，停在它的 padding 所包住的東西上，
+                // padding 就跟著不見了(P57,2026-10-12:包著清單的根填滿 640 dp,它的 16 dp padding 被捲掉)。
+                val root = (safe as? ViewGroup)?.takeIf { it.childCount == 1 }?.getChildAt(0)
+                if (root != null && root.width == safe.width && root.height == safe.height) {
+                    frameLeft = 0
+                    frameTop = 0
+                    frameRight = safe.width
+                    frameBottom = safe.height
+                }
                 if (safe.width > viewportWidth) {
                     box.left = minOf(inner.left, frameLeft)
                     box.right = maxOf(inner.right, frameRight)

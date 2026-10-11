@@ -595,6 +595,15 @@ public final class AndroidBackend: BaseAppBackend {
         window.rootStack = stack.as(AndroidKit.LinearLayout.self)
         stack.setShortcutListener(Self.applicationShortcutListener)
         window.content = container
+        // The rows above the content change where the content starts; lay out again.
+        // 內容上方的各列會改變內容的起點；重新排版。
+        stack.setOnChromeChange(
+            SwiftAction(environment: Self.env) { [weak self, weak window] in
+                guard let self, let window else { return }
+                self.updateInsets(ofWindow: window)
+                window.resizeHandler?(self.size(ofWindow: window))
+            }
+        )
         // The mode control changes what size the window reports; lay out again.
         // 模式切換控制項會改變視窗回報的尺寸;重新排版。
         window.scrollHost?.setOnModeChange(
@@ -634,10 +643,14 @@ public final class AndroidBackend: BaseAppBackend {
 
         let insetsActivity = activity(of: window) ?? Self.activity
         let leftInset = Int(helpers.getSafeAreaLeftInset(insetsActivity))
-        // A navigation title sits under the status bar and carries that inset itself.
-        // 導覽標題位於狀態列下方，自己帶著那段內縮。
+        // A row above the content -- title, toolbar or refresh -- carries the status-bar
+        // inset in the stack; the content adds it only when it is alone there.
+        // 內容上方有任何一列(標題、工具列或 refresh)時，狀態列的內縮由堆疊負責；只有內容獨自在那裡時才由內容自己加。
+        let hasChrome =
+            (window.rootStack ?? Self.rootStack)?.as(ShortcutHostLayout.self)?.hasTopChrome()
+            ?? false
         let topInset =
-            hasNavigationTitle(window) ? 0 : Int(helpers.getSafeAreaTopInset(insetsActivity))
+            hasChrome ? 0 : Int(helpers.getSafeAreaTopInset(insetsActivity))
         let fullWindowSize = SIMD2(Int(matchParent), Int(matchParent))
         setSize(of: container, to: fullWindowSize)
         setPosition(ofChildAt: 0, in: container, to: SIMD2(leftInset, topInset))

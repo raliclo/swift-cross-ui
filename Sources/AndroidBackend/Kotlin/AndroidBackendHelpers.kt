@@ -931,14 +931,15 @@ class AndroidBackendHelpers {
     // TextView——狀態列裡的灰色小字(P50,2026-10-11)。
     fun styleNavigationTitle(activity: Activity, label: android.widget.TextView) {
         val density = activity.resources.displayMetrics.density
-        val top = Math.round(getSafeAreaTopInset(activity) * density)
+        // The status-bar inset is the root stack's (ShortcutHostLayout), not this label's.
+        // 狀態列的內縮由根堆疊(ShortcutHostLayout)負責，不是這個標籤。
         label.gravity = android.view.Gravity.CENTER
         label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
         label.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, 600, false)
         label.maxLines = 1
         label.ellipsize = android.text.TextUtils.TruncateAt.END
-        label.setPadding(Math.round(16 * density), top, Math.round(16 * density), 0)
-        label.minHeight = top + Math.round(44 * density)
+        label.setPadding(Math.round(16 * density), 0, Math.round(16 * density), 0)
+        label.minHeight = Math.round(44 * density)
         val value = android.util.TypedValue()
         if (activity.theme.resolveAttribute(android.R.attr.textColorPrimary, value, true)) {
             label.setTextColor(

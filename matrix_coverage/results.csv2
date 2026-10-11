@@ -1321,3 +1321,41 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-11,android,android,P49,ok,n/a,screen,default,Aligned with iOS. Status-bar clock and icons now dark on the light window (were white on white).
 2026-10-11,android,android,P50,ok,n/a,screen,default,"Navigation title now a bar under the status bar -- centred, semibold 17, 44 high -- as UIKit's; it was small grey text inside the status bar. Content laid out below it."
 2026-10-11,android,android,P51,ok,n/a,screen,default,"Aligned with iOS: LazyVGrid three columns, Grid 3x3 with the spanning row."
+2026-10-12,ios,uikit,P52,ok,n/a,window,default,"iOS/Android comparison: aligned -- same grid, wraps and rows."
+2026-10-12,android,android,P52,ok,n/a,screen,default,"iOS/Android comparison: aligned -- same grid, wraps and rows."
+2026-10-12,ios,uikit,P53,ok,n/a,window,default,"iOS/Android comparison: toolbar. Android's row sat at y 0 under the status bar; the root stack now carries the inset. Open: Android shows text buttons (Add, Info, Delete) in a row, iOS shows symbols in the navigation bar."
+2026-10-12,android,android,P53,ok,n/a,screen,default,"iOS/Android comparison: toolbar. Android's row sat at y 0 under the status bar; the root stack now carries the inset. Open: Android shows text buttons (Add, Info, Delete) in a row, iOS shows symbols in the navigation bar."
+2026-10-12,ios,uikit,P54,ok,n/a,window,default,"iOS/Android comparison: refreshable. Android's Refresh row sat under the status bar; fixed with P53. The affordance differs by design (pull on iOS, a row on Android)."
+2026-10-12,android,android,P54,ok,n/a,screen,default,"iOS/Android comparison: refreshable. Android's Refresh row sat under the status bar; fixed with P53. The affordance differs by design (pull on iOS, a row on Android)."
+2026-10-12,ios,uikit,P55,ok,n/a,window,default,"iOS/Android comparison: aligned. total draws differs (18 iOS, 2 Android) -- a count, not a layout."
+2026-10-12,android,android,P55,ok,n/a,screen,default,"iOS/Android comparison: aligned. total draws differs (18 iOS, 2 Android) -- a count, not a layout."
+2026-10-12,ios,uikit,P56,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P56,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P57,ok,n/a,window,default,iOS/Android comparison: aligned after a fix: a root that fills the layout lost its 16 dp padding on Android under the new origin rule. Open: rows built/held reads 4/4 on iOS and 0/0 on Android.
+2026-10-12,android,android,P57,ok,n/a,screen,default,iOS/Android comparison: aligned after a fix: a root that fills the layout lost its 16 dp padding on Android under the new origin rule. Open: rows built/held reads 4/4 on iOS and 0/0 on Android.
+2026-10-12,ios,uikit,P58,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P58,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P59,ok,n/a,window,default,iOS/Android comparison: aligned. iOS has no second-window button and says so; its stored drafts were AAA from an earlier run.
+2026-10-12,android,android,P59,ok,n/a,screen,default,iOS/Android comparison: aligned. iOS has no second-window button and says so; its stored drafts were AAA from an earlier run.
+2026-10-12,ios,uikit,P60,ok,n/a,window,default,"iOS/Android comparison: aligned; settings is a sheet on iOS and a window on Android, as the page states."
+2026-10-12,android,android,P60,ok,n/a,screen,default,"iOS/Android comparison: aligned; settings is a sheet on iOS and a window on Android, as the page states."
+2026-10-12,ios,uikit,P61,ok,n/a,window,default,iOS/Android comparison: aligned; the slider is Material on Android (accepted).
+2026-10-12,android,android,P61,ok,n/a,screen,default,iOS/Android comparison: aligned; the slider is Material on Android (accepted).
+2026-10-12,ios,uikit,P62,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P62,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P63,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P63,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P64,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P64,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P65,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P65,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P66,ok,n/a,window,default,iOS/Android comparison: aligned in layout; the capture caught the animation at offset 134 on iOS and 20 on Android.
+2026-10-12,android,android,P66,ok,n/a,screen,default,iOS/Android comparison: aligned in layout; the capture caught the animation at offset 134 on iOS and 20 on Android.
+2026-10-12,ios,uikit,P67,ok,n/a,window,default,"iOS/Android comparison: aligned in layout. iOS shows the names line at launch, Android says 'not dumped yet'."
+2026-10-12,android,android,P67,ok,n/a,screen,default,"iOS/Android comparison: aligned in layout. iOS shows the names line at launch, Android says 'not dumped yet'."
+2026-10-12,ios,uikit,P68,ok,n/a,window,default,iOS/Android comparison: aligned.
+2026-10-12,android,android,P68,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-12,ios,uikit,P69,ok,n/a,window,default,"iOS/Android comparison: aligned in layout. iOS shows the read-back line at launch, Android says 'not read yet'."
+2026-10-12,android,android,P69,ok,n/a,screen,default,"iOS/Android comparison: aligned in layout. iOS shows the read-back line at launch, Android says 'not read yet'."
+2026-10-12,ios,uikit,P70,ok,n/a,window,default,iOS/Android comparison: aligned; the disabled button is paler on Android.
+2026-10-12,android,android,P70,ok,n/a,screen,default,iOS/Android comparison: aligned; the disabled button is paler on Android.
