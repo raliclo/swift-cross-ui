@@ -529,6 +529,8 @@ private class Stage(context: Context) : ViewGroup(context) {
                 // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的 RootScrollHost(`rootFrame`)。
                 var frameLeft = Int.MAX_VALUE
                 var frameTop = Int.MAX_VALUE
+                var frameRight = Int.MIN_VALUE
+                var frameBottom = Int.MIN_VALUE
                 var v: View = safe
                 var ox = 0
                 var oy = 0
@@ -539,12 +541,32 @@ private class Stage(context: Context) : ViewGroup(context) {
                     if (c.width != safe.width || c.height != safe.height) {
                         frameLeft = ox
                         frameTop = oy
+                        frameRight = ox + c.width
+                        frameBottom = oy + c.height
                         break
                     }
                     v = c
                 }
-                box.left = minOf(0, inner.left, frameLeft)
-                box.top = minOf(0, inner.top, frameTop)
+                // A layout larger than the screen starts at its content and ends at
+                // it, not at the blank the centring left -- see UIKitBackend's
+                // RootScrollHost (user, 2026-10-11: P50's 780 x 900 layout began
+                // 107 dp in on Android and 101 pt in on iOS). An axis that fits keeps
+                // the old rule, so content centred on the screen stays centred.
+                // 比螢幕大的版面從內容開始、也在內容結束，而不是置中留下的空白——見 UIKitBackend 的 RootScrollHost
+                // (使用者,2026-10-11:P50 的 780 x 900 版面在 Android 從 107 dp 處開始、iOS 從 101 pt 處開始)。
+                // 塞得下的軸維持舊規則，所以置中在螢幕上的內容仍然置中。
+                if (safe.width > viewportWidth) {
+                    box.left = minOf(inner.left, frameLeft)
+                    box.right = maxOf(inner.right, frameRight)
+                } else {
+                    box.left = minOf(0, inner.left, frameLeft)
+                }
+                if (safe.height > viewportHeight) {
+                    box.top = minOf(inner.top, frameTop)
+                    box.bottom = maxOf(inner.bottom, frameBottom)
+                } else {
+                    box.top = minOf(0, inner.top, frameTop)
+                }
             }
         }
 

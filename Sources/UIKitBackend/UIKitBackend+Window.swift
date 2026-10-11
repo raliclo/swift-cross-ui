@@ -8,7 +8,13 @@ final class RootViewController: UIViewController {
     private var childWidget: (any WidgetProtocol)?
     private let scrollHost = RootScrollHost()
     /// The size the app asked for (`.defaultSize`). App 要求的尺寸(`.defaultSize`)。
-    var defaultSize: SIMD2<Int>?
+    var defaultSize: SIMD2<Int>? {
+        didSet {
+            scrollHost.requestedSize = DebugFeatures.allowsRootScrollControl
+                ? defaultSize.map { CGSize(width: $0.x, height: $0.y) }
+                : nil
+        }
+    }
 
     /// The size the app is laid out at. actualView lays an app out at the size
     /// it asked for, as on a desktop, not at the phone's -- a layout that

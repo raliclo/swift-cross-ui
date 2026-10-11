@@ -71,6 +71,11 @@ final class RootScrollHost: UIScrollView {
     }
 
     private(set) var mode: Mode = .actualView
+    /// The size the app is laid out at when that is not the screen's (`.defaultSize`
+    /// in actualView), or nil. 當 app 排版所用的尺寸不是螢幕的尺寸時(actualView 下的 `.defaultSize`),否則為 nil。
+    var requestedSize: CGSize? {
+        didSet { if requestedSize != oldValue { setNeedsLayout() } }
+    }
     private weak var content: UIView?
     /// Whether a person -- or an action file -- has dragged the content yet.
     ///
@@ -367,9 +372,31 @@ final class RootScrollHost: UIScrollView {
                 // 就能構到溢出的部分而不移動任何東西:內容在畫面上留在原地,只有捲動視圖構得到的範圍改變。
                 //
                 // 捲動位置只在第一次拿到真正的 box 時放到內容的左上角一次,所以啟動時的樣子與原本完全相同。
+                //
+                // **A layout larger than the screen starts at its content, not at the
+                // blank the centring left (user, 2026-10-11).** P50 asks for 780 x 900
+                // and its content is narrower than that, so it sat centred in the
+                // layout with a blank beside and above it -- 101 pt on iOS and 107 dp
+                // on Android, the difference being the two fonts' widths. On an axis
+                // where the layout is larger than the screen the inset goes negative
+                // and hides that blank; the root's own padding is kept. An axis that
+                // fits is left alone, so content centred on the screen stays centred.
+                // **比螢幕大的版面從內容開始，而不是從置中留下的空白開始(使用者,2026-10-11)。**P50 要求 780 x 900,
+                // 內容比它窄，所以置中在版面裡，旁邊與上方留有空白——iOS 101 pt、Android 107 dp,差別來自兩種字型的寬度。
+                // 版面比螢幕大的那個軸上，inset 變為負值把空白藏起來；根自己的 padding 保留。塞得下的軸不動，
+                // 所以置中在螢幕上的內容仍然置中。
+                // The layout is not a view here -- the content view is the window's size and
+                // the root sits where the centring put it -- so the size comes from the
+                // controller. Android reads it off its safe-area container.
+                // 這裡版面不是一個 view——內容 view 是視窗的尺寸，根就放在置中算出的位置——所以尺寸由 controller 傳入。
+                // Android 則是從它的 safe-area 容器讀到。
+                let widens = (requestedSize?.width ?? 0) > bounds.width
+                let heightens = (requestedSize?.height ?? 0) > bounds.height
+                let leadX = -min(box.minX, rootFrame?.minX ?? box.minX)
+                let leadY = -min(box.minY, rootFrame?.minY ?? box.minY)
                 let overflow = UIEdgeInsets(
-                    top: max(-min(box.minY, rootFrame?.minY ?? box.minY), 0),
-                    left: max(-min(box.minX, rootFrame?.minX ?? box.minX), 0),
+                    top: heightens ? leadY : max(leadY, 0),
+                    left: widens ? leadX : max(leadX, 0),
                     bottom: 0,
                     right: 0
                 )
@@ -382,7 +409,12 @@ final class RootScrollHost: UIScrollView {
                 if contentInset != overflow {
                     contentInset = overflow
                 }
-                let size = CGSize(width: max(box.maxX, 0), height: max(box.maxY, 0))
+                // The trailing edge keeps the root padding too, as the leading one does.
+                // 尾端也保留根的 padding，與前端相同。
+                let size = CGSize(
+                    width: max(box.maxX, widens ? rootFrame?.maxX ?? 0 : 0, 0),
+                    height: max(box.maxY, heightens ? rootFrame?.maxY ?? 0 : 0, 0)
+                )
                 if contentSize != size {
                     contentSize = size
                 }
