@@ -94,24 +94,29 @@ extension AndroidBackend: BackendFeatures.Toolbars {
             Self.toolbar = bar
         }
 
-        // Ordered rather than placed. Android's action area is one region, so
-        // `leading` and `trailing` cannot be opposite ends of anything -- what
-        // survives the mapping is the sequence, and this is the sequence the
-        // other backends put their items in.
-        // 這裡是「排序」而非「配置」。Android 的動作區只有一塊,因此 `leading` 與 `trailing` 不可能是
-        // 任何東西的兩端——在這個對應中存活下來的是順序,而這正是其他 backend 擺放其項目的順序。
+        // Leading items on the left, the rest on the right, as UIKit's bar places
+        // them; within a side the order is the one the other backends use. Until
+        // 2026-10-12 every item was a text button packed from the left (P53). The
+        // symbol goes through the same table `Image(systemName:)` uses.
+        // 前導項目靠左、其餘靠右，與 UIKit 的導覽列相同；同一側之內的順序沿用其他 backend 的順序。2026-10-12 之前每個項目
+        // 都是從左排起的文字按鈕(P53)。符號走的是與 `Image(systemName:)` 相同的那張表。
+        helpers.styleToolbar(Self.activity, bar)
+        var placedSpacer = false
         for item in items.sorted(by: { Self.order(of: $0.placement) < Self.order(of: $1.placement) })
         {
-            let button = AndroidKit.Button(Self.activity, environment: Self.env)
-            button.setText(Self.charSequence(from: item.label))
-            button.setAllCaps(false)
-            button.setEnabled(item.isEnabled)
+            if !placedSpacer, item.placement != .leading {
+                helpers.addToolbarSpacer(Self.activity, bar)
+                placedSpacer = true
+            }
             let action = item.action
-            button.setOnClickListener(
-                ViewOnClickListener(action: { action() }, environment: Self.env)
-                    .as(AndroidView.View.OnClickListener.self)
+            helpers.addToolbarItem(
+                Self.activity,
+                bar,
+                item.label,
+                item.systemImage.flatMap { SystemSymbol.named($0)?.name } ?? "",
+                item.isEnabled,
+                SwiftAction(environment: Self.env) { action() }
             )
-            bar.addView(button)
         }
     }
 

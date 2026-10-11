@@ -347,6 +347,10 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
                 current.topMargin = want
                 made.layoutParams = current
             }
+            // Posted: this runs inside a layout pass, and the stage has to be measured again.
+            // 用 post:這裡在排版過程中執行，而 stage 必須重新量測。
+            val rest = Rect(made.left, made.top, made.right, made.bottom)
+            if (made.width > 0 && rest != stage.avoided) post { stage.avoided = rest }
         }
         button = made
         made.setDark(chromeDark)
@@ -402,6 +406,18 @@ private class Stage(context: Context) : ViewGroup(context) {
     private var content: View? = null
     private val box = Rect()
     private var scale = 1f
+    // How far the content is pushed down to clear the mode button; see onMeasure.
+    // 內容為了讓開模式按鈕而下移的量；見 onMeasure。
+    private var lift = 0
+
+    /// The mode button's resting frame in this view's coordinates, or null without one.
+    /// 模式按鈕的原位(本 view 的座標)，沒有按鈕時為 null。
+    var avoided: Rect? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            requestLayout()
+        }
     private var lastLoggedState = ""
 
     /// Where the content's own (0,0) sits inside this view, in pixels.
@@ -536,6 +552,7 @@ private class Stage(context: Context) : ViewGroup(context) {
         // (`updateInsets`),所以往上溢出的內容伸進了狀態列：自從改為從左上角開始捲動(與 iOS 相同),P2 的標題就落在
         // 狀態列底下，而 iOS 把它顯示在狀態列正下方。改從安全子元件量，最上面的像素就落在 inset 處。沒有溢出的內容不變：
         // 它的子元件溢出為零。
+        lift = 0
         val safe = (child as? ViewGroup)?.takeIf { it.childCount > 0 }?.getChildAt(0)
         if (safe != null) {
             val inner = Rect()
@@ -586,8 +603,19 @@ private class Stage(context: Context) : ViewGroup(context) {
                     frameBottom = safe.height
                 }
                 if (safe.width > viewportWidth) {
-                    box.left = minOf(inner.left, frameLeft)
-                    box.right = maxOf(inner.right, frameRight)
+                    // A root that fits the viewport is centred in it (user, 2026-10-12,
+                    // from P89): half the surplus on each side, where starting at the
+                    // root left all of it on the right. UIKitBackend does the same.
+                    // 塞得進 viewport 的根置中(使用者,2026-10-12,起因是 P89):多出來的左右各一半，而從根開始會全留在右邊。
+                    // UIKitBackend 做法相同。
+                    val slack =
+                        if (frameLeft != Int.MAX_VALUE) {
+                            maxOf((viewportWidth - (frameRight - frameLeft)) / 2, 0)
+                        } else {
+                            0
+                        }
+                    box.left = minOf(inner.left, frameLeft - slack)
+                    box.right = maxOf(inner.right, frameRight + slack)
                 } else {
                     box.left = minOf(0, inner.left, frameLeft)
                 }
@@ -596,6 +624,27 @@ private class Stage(context: Context) : ViewGroup(context) {
                     box.bottom = maxOf(inner.bottom, frameBottom)
                 } else {
                     box.top = minOf(0, inner.top, frameTop)
+                }
+                // **Content that would start under the mode button starts below it.**
+                // Since 2026-10-11 an oversized layout starts at its root, which is the
+                // corner the button rests in; the centring blank used to clear it. Only
+                // the resting place counts, and content that already clears it is not
+                // moved. UIKitBackend's RootScrollHost does the same.
+                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**2026-10-11 起，比螢幕大的版面從根開始，而那正是按鈕停放的角落；
+                // 以前是置中的空白讓開它。只看按鈕的原位，已經讓開的內容不動。UIKitBackend 的 RootScrollHost 做法相同。
+                val avoid = avoided
+                if (avoid != null && mode == RootScrollHost.MODE_ACTUAL_VIEW) {
+                    val lead =
+                        if (frameLeft != Int.MAX_VALUE) {
+                            Rect(frameLeft, frameTop, frameRight, frameBottom)
+                        } else {
+                            Rect(inner)
+                        }
+                    // The frame is measured from the safe-area child, which sits below
+                    // the status bar inside the stage; the button is measured from the stage.
+                    // 外框是從 safe-area 子元件量的，而它在 stage 裡位於狀態列下方；按鈕則是從 stage 量的。
+                    lead.offset(safe.x.toInt() - box.left, safe.y.toInt() - box.top)
+                    if (Rect.intersects(lead, avoid)) lift = avoid.bottom - lead.top
                 }
             }
         }
@@ -611,7 +660,7 @@ private class Stage(context: Context) : ViewGroup(context) {
                 1f
             }
 
-        setMeasuredDimension((box.width() * scale).toInt(), (box.height() * scale).toInt())
+        setMeasuredDimension((box.width() * scale).toInt(), (box.height() * scale).toInt() + lift)
         // Logged when it changes, not on every measure pass. `onMeasure` runs
         // several times per layout -- fillViewport alone causes a second pass --
         // and a line per pass buries whatever else the app is saying. What this
@@ -621,7 +670,7 @@ private class Stage(context: Context) : ViewGroup(context) {
         // 在它改變時記錄，而不是每一次量測都記錄。`onMeasure` 在一次版面計算中會執行數次——光是
         // fillViewport 就會造成第二次——而每一次都記一行會把 app 想說的其他話全部淹沒。這一行所回報的
         // 正是螢幕截圖看不出來的那件事：視口之外還有多少內容，以及在哪一側。
-        val state = "$box $scale $mode"
+        val state = "$box $scale $mode $lift"
         if (state != lastLoggedState) {
             lastLoggedState = state
             Log.d(
@@ -662,7 +711,7 @@ private class Stage(context: Context) : ViewGroup(context) {
         // 捲動視圖的捲動範圍是從零開始的。
         child.layout(0, 0, child.measuredWidth, child.measuredHeight)
         child.translationX = -box.left * scale
-        child.translationY = -box.top * scale
+        child.translationY = -box.top * scale + lift
     }
 }
 

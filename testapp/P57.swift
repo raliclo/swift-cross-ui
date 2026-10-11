@@ -722,6 +722,18 @@ struct P57RootView: View {
             let started = Self.startedAt ?? Date()
             let seconds = Date().timeIntervalSince(started)
             renderedIn = String(format: "%.3f s", seconds)
+            // **One re-read after the first frame, on every run.** The row counters are
+            // plain globals, read when the `Text` above is rendered. UIKit builds its
+            // first rows before this handler runs; Android's `ListView` builds them in
+            // the frame after it, so without `--debug` (and its ticker) the launch
+            // capture read 0 / 0 over four visible rows (2026-10-12). Not a timer: it
+            // fires once.
+            // **每次執行都在第一個畫面之後重讀一次。**列數計數器是普通的全域變數，在上方那個 `Text` 被算繪時讀取。UIKit 在這個
+            // handler 執行前就建好最初幾列;Android 的 `ListView` 則在它之後的那個畫面才建，所以沒有 `--debug`(與它的計時器)時，
+            // 啟動擷圖在四列可見的清單上讀到 0 / 0(2026-10-12)。這不是計時器：只觸發一次。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                MainActor.assumeIsolated { tick += 1 }
+            }
             P57Diagnostics.write(
                 "rows=\(rowCount) firstRender=\(String(format: "%.3f", seconds))s residentMB=\(P57Memory.residentMegabytes)"
             )

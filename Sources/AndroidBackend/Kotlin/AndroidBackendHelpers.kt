@@ -948,6 +948,78 @@ class AndroidBackendHelpers {
         }
     }
 
+    // A toolbar as UIKit's navigation bar shows one: 44 high, a symbol per item in the
+    // primary text colour, leading items on the left and the rest on the right. It was
+    // a row of grey raised text buttons from the left (P53, 2026-10-12). An item
+    // without a symbol, or with a name Material Symbols does not have, shows its label,
+    // which is what UIKit does too.
+    // 工具列照 UIKit 導覽列的樣子：高 44、每個項目一個主要文字色的符號、前導項目靠左、其餘靠右。原本是從左排起的一列灰色凸起
+    // 文字按鈕(P53,2026-10-12)。沒有符號、或 Material Symbols 沒有該名稱的項目顯示標籤，UIKit 也是如此。
+    fun styleToolbar(activity: Activity, bar: android.widget.LinearLayout) {
+        val density = activity.resources.displayMetrics.density
+        bar.gravity = android.view.Gravity.CENTER_VERTICAL
+        bar.minimumHeight = Math.round(44 * density)
+        bar.setPadding(Math.round(8 * density), 0, Math.round(8 * density), 0)
+    }
+
+    fun addToolbarSpacer(activity: Activity, bar: android.widget.LinearLayout) {
+        bar.addView(View(activity), android.widget.LinearLayout.LayoutParams(0, 1, 1f))
+    }
+
+    fun addToolbarItem(
+        activity: Activity,
+        bar: android.widget.LinearLayout,
+        label: String,
+        symbol: String,
+        enabled: Boolean,
+        action: SwiftAction,
+    ) {
+        val density = activity.resources.displayMetrics.density
+        val side = Math.round(44 * density)
+        val value = TypedValue()
+        var color = android.graphics.Color.BLACK
+        if (activity.theme.resolveAttribute(android.R.attr.textColorPrimary, value, true)) {
+            color = if (value.resourceId != 0) activity.getColor(value.resourceId) else value.data
+        }
+        val ripple = TypedValue()
+        activity.theme.resolveAttribute(
+            android.R.attr.selectableItemBackgroundBorderless, ripple, true)
+
+        val glyph = MaterialSymbolView(activity)
+        val item: View
+        if (symbol.isNotEmpty() && glyph.setSymbol(symbol)) {
+            glyph.setColor(color)
+            val frame = android.widget.FrameLayout(activity)
+            val inner = Math.round(24 * density)
+            frame.addView(
+                glyph,
+                android.widget.FrameLayout.LayoutParams(inner, inner, android.view.Gravity.CENTER),
+            )
+            frame.layoutParams = android.widget.LinearLayout.LayoutParams(side, side)
+            item = frame
+        } else {
+            val text = TextView(activity)
+            text.text = label
+            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+            text.setTextColor(color)
+            text.gravity = android.view.Gravity.CENTER
+            text.minWidth = side
+            text.setPadding(Math.round(8 * density), 0, Math.round(8 * density), 0)
+            text.layoutParams =
+                android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, side)
+            item = text
+        }
+        item.contentDescription = label
+        item.isClickable = true
+        item.isFocusable = true
+        item.isEnabled = enabled
+        item.alpha = if (enabled) 1f else 0.38f
+        if (ripple.resourceId != 0) item.setBackgroundResource(ripple.resourceId)
+        item.setOnClickListener { action.call() }
+        bar.addView(item)
+    }
+
     fun setHitTesting(view: android.view.View, allowsHitTesting: Boolean) {
         HitTesting.setHitTesting(view, allowsHitTesting)
     }

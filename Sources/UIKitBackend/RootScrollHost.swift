@@ -76,6 +76,11 @@ final class RootScrollHost: UIScrollView {
     var requestedSize: CGSize? {
         didSet { if requestedSize != oldValue { setNeedsLayout() } }
     }
+    /// The mode button's resting frame in the superview's coordinates, or nil when
+    /// there is no button. 模式按鈕的原位(superview 座標)，沒有按鈕時為 nil。
+    var avoidedRect: CGRect? {
+        didSet { if avoidedRect != oldValue { setNeedsLayout() } }
+    }
     private weak var content: UIView?
     /// Whether a person -- or an action file -- has dragged the content yet.
     ///
@@ -392,7 +397,15 @@ final class RootScrollHost: UIScrollView {
                 // Android 則是從它的 safe-area 容器讀到。
                 let widens = (requestedSize?.width ?? 0) > bounds.width
                 let heightens = (requestedSize?.height ?? 0) > bounds.height
-                let leadX = -min(box.minX, rootFrame?.minX ?? box.minX)
+                // **A root that fits the screen is centred on it** (user, 2026-10-12, from
+                // P89): a 440-wide layout does not fit a 411 dp phone, its 392-wide root
+                // does, and starting at the root left the whole surplus on the right.
+                // Half of it goes on each side. A root wider than the screen has no
+                // surplus and still starts at its own edge.
+                // **塞得進螢幕的根置中在螢幕上**(使用者,2026-10-12,起因是 P89):440 寬的版面塞不進 411 dp 的手機，
+                // 392 寬的根卻塞得下，而從根開始會把多出來的全留在右邊。現在左右各一半。比螢幕寬的根沒有多餘，仍從自己的邊緣開始。
+                let slack = widens ? max((bounds.width - (rootFrame?.width ?? bounds.width)) / 2, 0) : 0
+                let leadX = -min(box.minX, (rootFrame?.minX ?? box.minX) - slack)
                 let leadY = -min(box.minY, rootFrame?.minY ?? box.minY)
                 // **The blank is hidden by moving the content, not by a negative inset.**
                 // A negative inset held for P50, whose content still overflows once the
@@ -404,7 +417,7 @@ final class RootScrollHost: UIScrollView {
                 // **空白是靠移動內容藏起來的，不是負的 inset。**負的 inset 對 P50 有效，因為它去掉空白後仍然溢出。去掉空白後塞得進螢幕的
                 // 內容，會讓捲動視圖沒有東西可捲，它就不會為此保留位移；移動內容則不依賴這一點。這個量由版面決定，
                 // 所以不是 2026-09-27 移除的那種「每一輪依溢出量平移」;超出原點的溢出仍然放在 inset。
-                let shift = CGPoint(
+                var shift = CGPoint(
                     x: widens ? min(leadX, 0) : 0,
                     y: heightens ? min(leadY, 0) : 0
                 )
@@ -414,6 +427,19 @@ final class RootScrollHost: UIScrollView {
                     bottom: 0,
                     right: 0
                 )
+                // **Content that would start under the mode button starts below it.**
+                // Since 2026-10-11 an oversized layout starts at its root, which is the
+                // corner the button rests in; the centring blank used to clear it. Only
+                // the resting place counts -- a dragged button is the user's to place --
+                // and content that already clears it is not moved.
+                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**2026-10-11 起，比螢幕大的版面從根開始，而那正是按鈕停放的角落；
+                // 以前是置中的空白讓開它。只看按鈕的原位——拖走的按鈕由使用者自己擺——已經讓開的內容不動。
+                let lead = (rootFrame ?? box).offsetBy(dx: shift.x, dy: shift.y)
+                if let avoided = avoidedRect?.offsetBy(dx: -frame.minX, dy: -frame.minY),
+                    lead.intersects(avoided)
+                {
+                    shift.y += avoided.maxY - lead.minY
+                }
                 if content.transform != .identity {
                     content.transform = .identity
                 }
@@ -426,7 +452,7 @@ final class RootScrollHost: UIScrollView {
                 // The trailing edge keeps the root padding too, as the leading one does.
                 // 尾端也保留根的 padding，與前端相同。
                 let size = CGSize(
-                    width: max(box.maxX, widens ? rootFrame?.maxX ?? 0 : 0, 0) + shift.x,
+                    width: max(box.maxX, widens ? (rootFrame?.maxX ?? 0) + slack : 0, 0) + shift.x,
                     height: max(box.maxY, heightens ? rootFrame?.maxY ?? 0 : 0, 0) + shift.y
                 )
                 if contentSize != size {
@@ -532,8 +558,13 @@ final class ViewModeButton: UIButton {
         onToggle?(mode)
     }
 
+    /// Set by the first drag. A button that was never dragged follows the safe area.
+    /// 第一次拖曳時設定。沒被拖過的按鈕會跟著安全區域走。
+    private(set) var wasDragged = false
+
     @objc private func dragged(_ gesture: UIPanGestureRecognizer) {
         guard let superview else { return }
+        wasDragged = true
         let translation = gesture.translation(in: superview)
         center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
         gesture.setTranslation(.zero, in: superview)

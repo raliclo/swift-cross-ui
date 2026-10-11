@@ -258,7 +258,24 @@ final class RootViewController: UIViewController {
         // 的正是 release 這個預設值，因為 release 建置恰恰是你無法靠重新建置來看見該控制項的那種
         // 建置——因此有了 `-allow-rootscroll`，由
         // ``DebugFeatures/allowsRootScrollControl`` 在所有建置中讀取。
-        guard DebugFeatures.allowsRootScrollControl, viewModeButton == nil else { return }
+        guard DebugFeatures.allowsRootScrollControl else { return }
+        // **The resting place follows the safe area.** A navigation bar arrives after
+        // the first layout pass (`.toolbar`, `.navigationTitle`) and pushes the safe
+        // area down; the button stayed where it was first put, over the bar's leading
+        // item (P53's Add, 2026-10-12).
+        // **原位跟著安全區域走。**導覽列在第一輪排版之後才出現(`.toolbar`、`.navigationTitle`),把安全區域往下推；
+        // 按鈕卻留在最初的位置，蓋住導覽列的前導項目(P53 的 Add,2026-10-12)。
+        if let button = viewModeButton {
+            // The host, not the safe area: the bar is this controller's own and moves
+            // the host down by a constant on its top constraint.
+            // 用 host 而不是安全區域：導覽列是這個 controller 自己的，它靠頂端約束上的常數把 host 往下移。
+            let rest = CGPoint(x: scrollHost.frame.minX + 8, y: scrollHost.frame.minY + 8)
+            if !button.wasDragged, button.frame.origin != rest {
+                button.frame.origin = rest
+                scrollHost.avoidedRect = button.frame
+            }
+            return
+        }
         let button = ViewModeButton.make(initial: scrollHost.mode) { [weak self] mode in
             self?.scrollHost.setMode(mode)
             // actualView and rwdView lay the app out at different sizes.
@@ -277,6 +294,9 @@ final class RootViewController: UIViewController {
             y: view.safeAreaLayoutGuide.layoutFrame.minY + 8
         )
         viewModeButton = button
+        // Where the button rests, for the host to keep the content clear of it.
+        // 按鈕的原位，讓 host 把內容讓開。
+        scrollHost.avoidedRect = button.frame
     }
 }
 

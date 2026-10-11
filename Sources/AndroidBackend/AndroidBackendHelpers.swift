@@ -99,6 +99,23 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleNavigationTitle(_ activity: Activity?, _ label: AndroidKit.TextView?)
 
+    /// See AndroidBackendHelpers.kt. 見 AndroidBackendHelpers.kt。
+    @JavaMethod
+    func styleToolbar(_ activity: Activity?, _ bar: AndroidKit.LinearLayout?)
+
+    @JavaMethod
+    func addToolbarSpacer(_ activity: Activity?, _ bar: AndroidKit.LinearLayout?)
+
+    @JavaMethod
+    func addToolbarItem(
+        _ activity: Activity?,
+        _ bar: AndroidKit.LinearLayout?,
+        _ label: String,
+        _ symbol: String,
+        _ enabled: Bool,
+        _ action: SwiftAction?
+    )
+
     @JavaMethod
     func setHitTesting(_ view: AndroidKit.View?, _ allowsHitTesting: Bool)
 
