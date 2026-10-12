@@ -15,7 +15,13 @@ action,x,y,origin,button,key,micros,note,platform
 # (#324)正是那段歷史存在的理由。2026-09-29 之前沒有任何東西能從動作檔旋轉模擬器,所以 iOS 那一格一直是 "-"。
 # `orient` 動作經由 XCUIDevice 轉動裝置。最後的擷圖又是直向,所以證據是歷史那一行:它必須依序出現直向寬度、較大的
 # 橫向寬度、再一次直向寬度——從未旋轉過的一次跑不出這三筆。
+#
+# Since 2026-10-12 the file first switches to rwdView: actualView lays the app out at its
+# .defaultSize whichever way the phone is held, so only rwdView has a width that follows the screen.
+# 2026-10-12 起，本檔先切到 rwdView:actualView 不論手機怎麼拿都以 .defaultSize 排版，所以只有 rwdView 的寬度會跟著螢幕變。
 sleep,,,,,,1500000,let P14 render,ios
+click,53,84,client,left,,,"the mode button, to rwdView -- actualView lays P14 out at its own default size, which a rotation does not change (the history read 388 four times on 2026-10-12); rwdView lays it out at the screens size, which is what this file turns",ios
+sleep,,,,,,1200000,let the layout follow the mode,ios
 orient,,,,,landscapeLeft,,turn the device left -- the proposed width must grow,ios
 sleep,,,,,,2500000,let the rotation finish and the width be recorded,ios
 orient,,,,,portrait,,and back -- the width must return,ios

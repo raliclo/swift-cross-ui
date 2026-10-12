@@ -318,4 +318,15 @@ case "$(uname -s)" in
         ;;
 esac
 
+# A root ScrollView with a .defaultSize is grown to the screen on a phone; say so before
+# the build, where a compiler warning would be if the compiler could see it. Advice only.
+# 帶有 .defaultSize 的根 ScrollView 在手機上會長到螢幕的高度;在建置之前說出來——如果編譯器看得到，
+# 編譯器警告就會出現在這個位置。僅為建議。
+case " ${forward_args[*]-} " in
+    *" --ios "*|*" --android "*)
+        python3 "$script_dir/test_support/root_scroll_warning.py" \
+            "$script_dir/${test_name%%-*}.swift" >&2 || true
+        ;;
+esac
+
 exec zsh "$test_script" "${forward_args[@]}"

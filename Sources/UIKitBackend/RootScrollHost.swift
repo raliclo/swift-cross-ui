@@ -224,6 +224,23 @@ final class RootScrollHost: UIScrollView {
     func host(_ view: UIView) {
         content = view
         addSubview(view)
+        // **A press reaches a control at once.** A scroll view holds a touch back for
+        // about 150 ms to see whether it becomes a drag, and delivers a quick tap's
+        // down and up together -- so the button's action ran and its pressed state was
+        // never drawn (P55: clicks 2, pressed draws 0, once actualView made this host
+        // scrollable). A drag that starts on a control still scrolls: see
+        // `touchesShouldCancel(in:)`.
+        // **按壓立刻送到控制項。**捲動視圖會把觸控扣住約 150 ms,看它會不會變成拖曳,並把一次快速點擊的按下與放開
+        // 一起送出——於是按鈕的 action 有執行,按下狀態卻從未被畫出來(P55:clicks 2、pressed draws 0,出現在
+        // actualView 讓這個 host 可以捲動之後)。從控制項上開始的拖曳仍然會捲動:見 `touchesShouldCancel(in:)`。
+        delaysContentTouches = false
+        canCancelContentTouches = true
+    }
+
+    /// A drag that starts on a button still scrolls the content. 從按鈕上開始的拖曳仍然會捲動內容。
+    override func touchesShouldCancel(in view: UIView) -> Bool {
+        if view is UISlider || view is UISwitch || view is UITextInput { return super.touchesShouldCancel(in: view) }
+        return true
     }
 
     /// Asks the `RootScrollHost` above `view`, if there is one, to lay out again.
