@@ -83,7 +83,12 @@ struct P31RootView: View {
                 }
             }
 
-            Text("Missing APIs: @FocusState, .focused, .focusable, .keyboardShortcut, KeyEquivalent, CommandGroup")
+            // Four of the six this line used to name exist now: @FocusState and .focused
+            // (#122, P70), .keyboardShortcut and KeyEquivalent (#121, P71). Checked
+            // against Sources/SwiftCrossUI on 2026-10-12.
+            // 這一行原本列的六項裡，四項現在已經存在:@FocusState 與 .focused(#122,P70)、.keyboardShortcut 與
+            // KeyEquivalent(#121,P71)。2026-10-12 對照 Sources/SwiftCrossUI 查過。
+            Text("Missing APIs: .focusable, CommandGroup. Now present: @FocusState, .focused (P70), .keyboardShortcut, KeyEquivalent (P71)")
                 .font(.system(size: 13))
         }
         .padding(18)

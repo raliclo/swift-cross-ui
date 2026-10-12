@@ -680,6 +680,40 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     45 -> 47 hovered, 39 held, 50 released). The click fires: the app shows
     'pressed: destructive, bordered'. Earlier this line read "Hover/pressed not
     driven (input blocked by an elevated ASUS window at the time)".
+## 2026-10-12 API gaps P31 still names: `.focusable` and `CommandGroup`
+
+P31's "Missing APIs" line named six. Checked against `Sources/SwiftCrossUI` on
+2026-10-12, four exist -- `@FocusState` and `.focused` (#122, P70),
+`.keyboardShortcut` and `KeyEquivalent` (#121, P71) -- and the line in `P31.swift`
+now says so. The two below do not exist. They were not written then because the
+question was whether the line was still true; the user asked for them to be queued.
+Each is a feature for all five backends (CLAUDE.md), not a line in one file.
+
+P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Sources/SwiftCrossUI`,四項已存在——`@FocusState` 與
+`.focused`(#122,P70)、`.keyboardShortcut` 與 `KeyEquivalent`(#121,P71)——`P31.swift` 的那一行也已改成這樣寫。
+下面兩項不存在。當時沒有動手寫，因為問題是「那行字還對不對」;使用者要求把它們排進來。每一項都是五個 backend 都要做的
+功能(CLAUDE.md),不是某個檔案裡的一行。
+
+- [ ] **`.focusable(_:)`** -- lets a view that is not a control take keyboard focus, so
+  `@FocusState` / `.focused` and `onKeyPress` reach it. `grep -rn "func focusable"
+  Sources/SwiftCrossUI` finds nothing. Wanted on GtkBackend, WinUIBackend,
+  AppKitBackend, UIKitBackend and AndroidBackend, with a test app that tabs to a
+  plain view and types into it (P70 is where focus is driven today).
+  **`.focusable(_:)`**——讓一個不是控制項的 view 能取得鍵盤焦點，使 `@FocusState`/`.focused` 與 `onKeyPress`
+  到得了它。`grep -rn "func focusable" Sources/SwiftCrossUI` 找不到任何東西。五個 backend 都要：GtkBackend、
+  WinUIBackend、AppKitBackend、UIKitBackend、AndroidBackend,並要有一支測試 app 用 Tab 走到一個普通 view 再對它
+  打字(目前驅動焦點的是 P70)。
+- [ ] **`CommandGroup`** -- placing menu commands relative to the system's own groups
+  (`CommandGroup(replacing:)`, `before:`, `after:`). Menus go through
+  `.commands { }` (`Scenes/Modifiers/CommandsModifier.swift`) with `CommandMenu`
+  only; there is no `CommandGroup` type. Wanted on the same five backends; on iOS
+  and Android, where there is no menu bar, the first thing to settle is what a
+  command group maps to (P19, P20 and P71 are where menus and shortcuts are shown).
+  **`CommandGroup`**——把選單指令放在系統自有群組的相對位置(`CommandGroup(replacing:)`、`before:`、`after:`)。
+  選單目前經由 `.commands { }`(`Scenes/Modifiers/CommandsModifier.swift`),只有 `CommandMenu`;沒有
+  `CommandGroup` 這個型別。同樣五個 backend 都要;iOS 與 Android 沒有選單列，第一件要定的是指令群組對應到什麼
+  (選單與快捷鍵目前顯示在 P19、P20 與 P71)。
+
 ## 2026-10-12 open after the origin rule (a5ccf75d, c1431f14) -- iOS and Android
 
 A layout larger than the screen now starts at its root view's frame instead of
