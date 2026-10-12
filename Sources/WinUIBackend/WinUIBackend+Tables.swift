@@ -17,6 +17,10 @@ extension WinUIBackend: BackendFeatures.Tables {
         WinUITable()
     }
 
+    public func headerHeight(ofTable table: Widget) -> Int {
+        (table as! WinUITable).headerHeight
+    }
+
     public func setRowCount(ofTable table: Widget, to rows: Int) {
         (table as! WinUITable).setRowCount(rows)
     }
@@ -166,6 +170,19 @@ final class WinUITable: WinUI.Grid {
     /// 哪些，其狀態成本高於重建——而表頭本身也是子元件，因此少了這個陣列，它們會在第一次資料更新時
     /// 消失。
     private var headerLabels: [WinUI.TextBlock] = []
+
+    /// The height of the header row, which is an `auto` grid row: the tallest
+    /// header block, measured with no limit, as the grid itself will size it.
+    /// 標題列的高度；它是一個 `auto` 的 grid 列：不設上限量出來的最高那個標題 block,與 grid 自己決定的大小相同。
+    var headerHeight: Int {
+        var tallest = 0.0
+        for label in headerLabels {
+            try? label.measure(
+                WindowsFoundation.Size(width: .infinity, height: .infinity))
+            tallest = max(tallest, Double(label.desiredSize.height))
+        }
+        return Int(tallest.rounded(.up))
+    }
     /// The column titles as given, without any sort arrow. See
     /// ``setColumnLabels(_:environment:)``.
     /// 欄位標題的原始字串,不含任何排序箭頭。見 ``setColumnLabels(_:environment:)``。

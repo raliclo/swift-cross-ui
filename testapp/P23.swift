@@ -118,6 +118,17 @@ let p23Rows: [P23Row] = (1...24).map { index in
     )
 }
 
+/// How many rows the table is tall enough to show: 5, or the `N` of
+/// `-visible-rows N`.
+/// 表格的高度足以顯示幾列:5,或 `-visible-rows N` 的 `N`。
+let p23VisibleRows: Int = {
+    let arguments = CommandLine.arguments
+    guard let flag = arguments.firstIndex(of: "-visible-rows"), flag + 1 < arguments.count,
+        let count = Int(arguments[flag + 1]), count > 0
+    else { return 5 }
+    return count
+}()
+
 @main
 @HotReloadable
 struct P23TablesApp: App {
@@ -345,6 +356,12 @@ struct P23RootView: View {
                     TableColumn("Short") { (row: P23Row) in Text(row.long) }
                     TableColumn("Number") { (row: P23Row) in Text(row.number) }
                 }
+                // Exactly this many rows tall, so the last row in view is whole on every
+                // backend: left to the offered height, Android showed more of row 6 than
+                // iOS did (user, 2026-10-12). `-visible-rows N` asks for another count.
+                // 高度剛好是這麼多列，讓畫面上最後一列在每個 backend 上都是完整的：若交給被給予的高度決定,Android 露出的
+                // 第 6 列比 iOS 多(使用者,2026-10-12)。`-visible-rows N` 可指定別的列數。
+                .visibleRowCount(p23VisibleRows)
                 .tableTextSelection(isSelectable)
             }
 

@@ -34,7 +34,7 @@ final class TableWidget: BaseViewWidget {
 
     /// Kept because the header occupies a row that is not in `rowHeights`.
     /// 保留此值，因為表頭佔用了一列，而該列並不在 `rowHeights` 之中。
-    private let headerHeight: CGFloat = 24
+    let headerHeight: CGFloat = 24
 
     // MARK: Row selection (#125)
 
@@ -399,6 +399,10 @@ final class TableWidget: BaseViewWidget {
 }
 
 extension UIKitBackend: BackendFeatures.Tables {
+    public func headerHeight(ofTable table: Widget) -> Int {
+        Int((table as! TableWidget).headerHeight)
+    }
+
     public func createTable() -> Widget {
         let table = TableWidget()
         // Nothing draws outside the table's frame, as AndroidBackend's

@@ -21,6 +21,18 @@ extension BackendFeatures {
         /// - Returns: A table.
         func createTable() -> Widget
 
+        /// The height of the header row of `table`, in points.
+        ///
+        /// What `Table.visibleRowCount(_:)` adds to the heights of the rows it
+        /// shows. Read from the table rather than declared as a constant,
+        /// because on some backends the header is as tall as its font makes it.
+        ///
+        /// `table` 標題列的高度(點)。
+        ///
+        /// 這是 `Table.visibleRowCount(_:)` 加在「要顯示的那幾列的高度」之上的量。從 table 讀取、而不是
+        /// 宣告成常數，因為在某些 backend 上標題列的高度取決於它的字型。
+        func headerHeight(ofTable table: Widget) -> Int
+
         /// Sets the number of rows of a table.
         ///
         /// Existing rows outside of the new bounds should be deleted.

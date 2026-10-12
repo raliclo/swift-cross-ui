@@ -1433,6 +1433,13 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         return scrollView
     }
 
+    public func headerHeight(ofTable table: Widget) -> Int {
+        // The header NSTableView itself drew, as tall as AppKit made it.
+        // NSTableView 自己畫的標題列，高度由 AppKit 決定。
+        let table = (table as! NSScrollView).documentView as! NSCustomTableView
+        return Int((table.headerView?.frame.height ?? 0).rounded(.up))
+    }
+
     public func setRowCount(ofTable table: Widget, to rowCount: Int) {
         let table = (table as! NSScrollView).documentView as! NSCustomTableView
         table.customDelegate.rowCount = rowCount

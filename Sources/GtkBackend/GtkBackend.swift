@@ -5707,6 +5707,10 @@ public final class GtkBackend:
         Gtk.Table()
     }
 
+    public func headerHeight(ofTable table: Widget) -> Int {
+        (table as! Gtk.Table).headerHeight
+    }
+
     public func setRowCount(ofTable table: Widget, to rows: Int) {
         (table as! Gtk.Table).setRowCount(rows)
     }

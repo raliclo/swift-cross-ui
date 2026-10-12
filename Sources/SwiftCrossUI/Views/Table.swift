@@ -43,6 +43,31 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     /// 由 **app** 重新排列自己的 `rows`。為何別無選擇見 ``BackendFeatures/TableColumnSorting``:
     /// 一個欄位是 closure、不是 key path,因此在點擊與 app 之間沒有任何一層知道兩列該怎麼比較。
     private var sortOrder: Binding<TableSortOrder?>?
+    /// How many rows the table is tall enough to show; see `visibleRowCount(_:)`.
+    /// 表格的高度足以顯示幾列;見 `visibleRowCount(_:)`。
+    private var visibleRows: Int?
+
+    /// Makes the table exactly as tall as its header and `count` rows.
+    ///
+    /// Without it a table takes whatever height it is offered, and the last
+    /// row in view is cut wherever that height happens to end -- by a different
+    /// amount on each backend, since row heights follow the font (user,
+    /// 2026-10-12, from P22 and P23: Android showed more of a sixth row than
+    /// iOS did). With fewer rows than `count` the table keeps the height of
+    /// `count` rows, so adding a row does not move what is below it. `nil`
+    /// restores the offered height.
+    ///
+    /// 讓表格的高度剛好等於標題列加上 `count` 列。
+    ///
+    /// 沒有它時，表格會佔用被給予的高度，而畫面上最後一列被切在那個高度剛好結束的地方——每個 backend 切掉的量
+    /// 不同，因為列高跟著字型走(使用者,2026-10-12,起因是 P22 與 P23:Android 露出的第六列比 iOS 多)。
+    /// 列數少於 `count` 時，表格仍保持 `count` 列的高度，所以新增一列不會移動它下方的東西。傳 `nil` 則恢復
+    /// 為被給予的高度。
+    public func visibleRowCount(_ count: Int?) -> Self {
+        var table = self
+        table.visibleRows = count.map { max($0, 0) }
+        return table
+    }
 
     /// Creates a table that computes its cell values based on a collection of
     /// rows.
@@ -155,13 +180,13 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
 
     @CastBackend<BackendFeatures.Tables>
     func computeLayout<Backend: BaseAppBackend>(
-        _: Backend.Widget,
+        _ widget: Backend.Widget,
         children: Children,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        let size = proposedSize
+        var size = proposedSize
         var cellResults: [ViewLayoutResult] = []
         children.rowContent = rows.map(columns.content(for:)).map(RowView.init(_:))
         let columnLabels = columns.labels
@@ -274,6 +299,18 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
             rowHeights.append(rowHeight)
         }
         children.rowHeights = rowHeights
+
+        // `visibleRowCount`: the header and that many rows, whatever was offered.
+        // Rows the table does not have yet count at the height of an empty row.
+        // `visibleRowCount`:標題列加上那麼多列，不論被給予多少高度。表格還沒有的列，以空白列的高度計。
+        if let visibleRows {
+            let emptyRow =
+                max(backend.defaultTableRowContentHeight, 0)
+                + backend.defaultTableCellVerticalPadding * 2
+            let shown = rowHeights.prefix(visibleRows).reduce(0, +)
+            let missing = max(visibleRows - rowHeights.count, 0) * (rowHeights.last ?? emptyRow)
+            size.height = Double(backend.headerHeight(ofTable: widget) + shown + missing)
+        }
 
         return ViewLayoutResult(
             size: size.replacingUnspecifiedDimensions(by: .zero),

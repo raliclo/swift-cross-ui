@@ -689,6 +689,10 @@ public final class DummyBackend:
         imageView.pixelHeight = height
     }
 
+    public func headerHeight(ofTable table: Widget) -> Int {
+        defaultTableRowContentHeight + 2 * defaultTableCellVerticalPadding
+    }
+
     public func createTable() -> Widget {
         Table()
     }

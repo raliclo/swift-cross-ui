@@ -323,7 +323,17 @@ class AndroidBackendHelpers {
         filled.cornerRadius = 6 * density
         filled.setColor(primary)
         val background = android.graphics.drawable.StateListDrawable()
-        background.addState(intArrayOf(android.R.attr.state_checked), filled)
+        // The fill reaches 6 dp past the label on each side without taking part in
+        // the layout, as UIKit's does: the two labels of P12's on and off toggles are
+        // the same distance apart on both platforms, and iOS's fill is 6 pt wider
+        // than its label at each end where this one was 2 dp (user, 2026-10-12).
+        // 填色在標籤左右各多出 6 dp,而且不參與排版，與 UIKit 相同:P12 的開、關兩個開關的標籤在兩個平台上相距一樣遠，
+        // 而 iOS 的填色兩端各比標籤寬 6 pt,這裡原本只有 2 dp(使用者,2026-10-12)。
+        val outset = -(6 * density).toInt()
+        background.addState(
+            intArrayOf(android.R.attr.state_checked),
+            android.graphics.drawable.InsetDrawable(filled, outset, 0, outset, 0),
+        )
         background.addState(intArrayOf(), android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         button.background = background
         button.backgroundTintList = null

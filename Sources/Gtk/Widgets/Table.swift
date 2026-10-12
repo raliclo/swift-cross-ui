@@ -29,6 +29,13 @@ import GtkCHelpers
 public class Table: ScrolledWindow {
     private let grid = Grid()
     private var headerLabels: [Label] = []
+
+    /// The height of the header row: the tallest header label, measured, since
+    /// a GtkLabel is as tall as its font and theme make it.
+    /// 標題列的高度：量出來的最高那個標題 label，因為 GtkLabel 的高度取決於它的字型與主題。
+    public var headerHeight: Int {
+        headerLabels.map { $0.getNaturalSize().height }.max() ?? 0
+    }
     /// The column titles as given, without any sort arrow.
     ///
     /// Kept because a `GtkLabel`'s current text is not a reliable source for

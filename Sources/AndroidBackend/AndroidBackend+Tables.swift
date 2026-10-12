@@ -46,6 +46,10 @@ extension AndroidBackend: BackendFeatures.Tables {
     /// UIKitBackend 的 `TableWidget` 用的也是 24，因此兩個手機 backend 會把第一列放在同一個位置。
     private static var headerHeightInPoints: Int { 24 }
 
+    public func headerHeight(ofTable table: Widget) -> Int {
+        Self.headerHeightInPoints
+    }
+
     public func setRowCount(ofTable table: Widget, to rows: Int) {
         // Nothing to do: `setCells` carries the rows and their heights, and it
         // is always called after this. UIKitBackend's is empty for the same
