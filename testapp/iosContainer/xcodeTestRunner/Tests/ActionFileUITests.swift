@@ -478,6 +478,28 @@ final class ActionFileUITests: XCTestCase {
             }
         }
 
+        // With `IOS_AIM` or `IOS_AIM_FILE`, every label on screen at the end. Two
+        // replays of one file that pressed the same controls end with the same
+        // labels -- a counter, a selection, a status line -- so the list from the
+        // build the anchors were recorded on is what a re-aimed replay is checked
+        // against. A screenshot cannot be compared that way once the layout moved.
+        // 設了 `IOS_AIM` 或 `IOS_AIM_FILE` 時,印出結束時畫面上的每一個標籤。同一份檔案的兩次重放若按到相同的
+        // 控制項,結束時的標籤就相同——計數、選取、狀態列——所以「記錄錨點的那個建置」留下的清單,就是用來檢查
+        // 重新瞄準後那次重放的依據。版面一旦移動,截圖就無法那樣比對。
+        let environment = ProcessInfo.processInfo.environment
+        if environment["IOS_AIM"] != nil || environment["IOS_AIM_FILE"] != nil,
+            let root = try? app.snapshot()
+        {
+            var elements: [XCUIElementSnapshot] = []
+            Self.flatten(root, into: &elements)
+            let labels = elements.filter(Self.canAnchor).map(\.label).filter { !$0.isEmpty }.sorted()
+            if let data = try? JSONEncoder().encode(labels) {
+                FileHandle.standardError.write(
+                    Data("-actionfile: labels \(String(decoding: data, as: UTF8.self))\n".utf8)
+                )
+            }
+        }
+
         FileHandle.standardError.write(
             Data("-actionfile: replayed \(fileName)\n".utf8)
         )
@@ -631,6 +653,262 @@ final class ActionFileUITests: XCTestCase {
         return best ?? window
     }
 
+    /// What a point in an action file was aimed AT, so the point can be found
+    /// again after the layout has moved.
+    ///
+    /// A file holds window points, and every change to where a root view starts
+    /// or how wide an app is laid out leaves all of them stale at once
+    /// (2026-10-12: three such changes in three days, 101 files). The element
+    /// under a point survives those changes; the point does not.
+    ///
+    /// `inside` is the smallest element containing the point. `near` is the
+    /// closest element that has a label, kept because `inside` is often an
+    /// unlabelled container known only by its position in the tree, and a tree
+    /// that gained or lost a node renumbers those.
+    ///
+    /// 動作檔裡的一個點原本瞄準的**是什麼**,好讓版面移動之後還能把那個點找回來。
+    ///
+    /// 檔案存的是視窗座標,而「根 view 從哪裡開始」或「app 以多寬排版」每改一次,所有座標就同時過期
+    /// (2026-10-12:三天內改了三次,101 份檔案)。點底下的元素撐得過那些改動;點本身撐不過。
+    ///
+    /// `inside` 是框住該點的最小元素。`near` 是最近的、帶標籤的元素;留著它,是因為 `inside` 常常是一個
+    /// 沒有標籤、只能靠它在樹中的位置辨認的容器,而一棵多了或少了一個節點的樹會讓那些位置重新編號。
+    private struct Anchor: Codable {
+        var key: String
+        var ordinal: Int
+        var dx: Double
+        var dy: Double
+        var width: Double
+        var height: Double
+    }
+
+    private struct Aim: Codable {
+        var line: Int
+        var x: Double
+        var y: Double
+        var inside: Anchor?
+        var near: Anchor?
+    }
+
+    /// The anchors `IOS_AIM_FILE` holds, by action-file line; empty without it.
+    /// `IOS_AIM_FILE` 所存的錨點,以動作檔行號為鍵;沒有該變數時為空。
+    private lazy var aims: [Int: Aim] = {
+        guard let path = ProcessInfo.processInfo.environment["IOS_AIM_FILE"],
+            let text = try? String(contentsOfFile: path, encoding: .utf8)
+        else { return [:] }
+        var result: [Int: Aim] = [:]
+        for line in text.split(whereSeparator: \.isNewline) {
+            if let aim = try? JSONDecoder().decode(Aim.self, from: Data(line.utf8)) {
+                result[aim.line] = aim
+            }
+        }
+        return result
+    }()
+
+    private static func flatten(
+        _ node: XCUIElementSnapshot, into list: inout [XCUIElementSnapshot]
+    ) {
+        list.append(node)
+        for child in node.children { flatten(child, into: &list) }
+    }
+
+    /// Type, identifier and label: what an element is, apart from where it is.
+    /// 型別、identifier 與標籤:一個元素「是什麼」,不含它「在哪裡」。
+    private static func key(_ element: XCUIElementSnapshot) -> String {
+        "\(element.elementType.rawValue)|\(element.identifier)|\(element.label)"
+    }
+
+    /// The mode button floats over the content and does not move with it, a
+    /// scroll indicator belongs to the viewport, and the application and window
+    /// contain every point.
+    /// 模式按鈕浮在內容之上、不隨內容移動;捲動指示條屬於視口;application 與 window 則框住每一個點。
+    private static func canAnchor(_ element: XCUIElementSnapshot) -> Bool {
+        element.elementType != .application && element.elementType != .window
+            && element.frame.width > 0 && element.frame.height > 0
+            && element.label != "actualView" && element.label != "rwdView"
+            && !element.label.contains("scroll bar")
+    }
+
+    /// `IOS_AIM=record` prints the anchors of a point; `IOS_AIM_FILE` moves the
+    /// point to where those anchors are now. Neither set: the point unchanged.
+    ///
+    /// Recording is done on a build where the file is known to land, applying
+    /// on the build it has to land on. Both print a line per row, because a
+    /// point that was moved and a point that could not be matched replay alike.
+    ///
+    /// `IOS_AIM=record` 印出一個點的錨點;`IOS_AIM_FILE` 把該點移到那些錨點現在的位置。兩者皆未設:點不變。
+    ///
+    /// 記錄在「已知該檔會點中」的建置上進行,套用則在它必須點中的那個建置上。兩者每一列都印一行,因為
+    /// 「被移動過的點」與「對不上的點」重放起來一模一樣。
+    private func aim(_ action: Action, window: CGRect, in app: XCUIApplication) -> CGPoint {
+        let original = CGPoint(x: action.x, y: action.y)
+        let recording = ProcessInfo.processInfo.environment["IOS_AIM"] == "record"
+        let wanted = aims[action.line]
+        guard recording || wanted != nil, let root = try? app.snapshot() else { return original }
+        let onScreen = CGPoint(x: window.minX + original.x, y: window.minY + original.y)
+
+        var elements: [XCUIElementSnapshot] = []
+        Self.flatten(root, into: &elements)
+        var seen: [String: Int] = [:]
+        var entries: [(element: XCUIElementSnapshot, key: String, ordinal: Int)] = []
+        for element in elements {
+            let key = Self.key(element)
+            let ordinal = seen[key, default: 0]
+            seen[key] = ordinal + 1
+            if Self.canAnchor(element) { entries.append((element, key, ordinal)) }
+        }
+
+        if recording {
+            func anchor(_ entry: (element: XCUIElementSnapshot, key: String, ordinal: Int)) -> Anchor {
+                Anchor(
+                    key: entry.key, ordinal: entry.ordinal,
+                    dx: Double(onScreen.x - entry.element.frame.minX),
+                    dy: Double(onScreen.y - entry.element.frame.minY),
+                    width: Double(entry.element.frame.width),
+                    height: Double(entry.element.frame.height)
+                )
+            }
+            func distance(_ frame: CGRect) -> CGFloat {
+                let dx = max(frame.minX - onScreen.x, 0, onScreen.x - frame.maxX)
+                let dy = max(frame.minY - onScreen.y, 0, onScreen.y - frame.maxY)
+                return (dx * dx + dy * dy).squareRoot()
+            }
+            func area(_ frame: CGRect) -> CGFloat { frame.width * frame.height }
+            // `<=` so a later element of the same size wins: it is drawn on top.
+            // 用 `<=`,讓同樣大小時較後面的元素勝出:它畫在上面。
+            var inside: (element: XCUIElementSnapshot, key: String, ordinal: Int)?
+            var near: (element: XCUIElementSnapshot, key: String, ordinal: Int)?
+            for entry in entries {
+                let frame = entry.element.frame
+                if frame.contains(onScreen),
+                    inside.map({ area(frame) <= area($0.element.frame) }) ?? true
+                {
+                    inside = entry
+                }
+                guard !entry.element.label.isEmpty else { continue }
+                if let best = near {
+                    let (new, old) = (distance(frame), distance(best.element.frame))
+                    if new < old || (new == old && area(frame) <= area(best.element.frame)) {
+                        near = entry
+                    }
+                } else {
+                    near = entry
+                }
+            }
+            let aim = Aim(
+                line: action.line, x: Double(original.x), y: Double(original.y),
+                inside: inside.map(anchor), near: near.map(anchor)
+            )
+            if let data = try? JSONEncoder().encode(aim) {
+                FileHandle.standardError.write(
+                    Data("-actionfile: aim \(String(decoding: data, as: UTF8.self))\n".utf8)
+                )
+            }
+            return original
+        }
+
+        guard let wanted else { return original }
+        typealias Entry = (element: XCUIElementSnapshot, key: String, ordinal: Int)
+        // Where the anchors put the point in a given tree, which anchor decided,
+        // and how far apart the two put it.
+        // 在給定的樹中錨點把該點放在哪裡、由哪個錨點決定、以及兩個錨點算出的位置相距多遠。
+        func locate(in entries: [Entry]) -> (point: CGPoint, by: String, apart: String)? {
+            // `scaled` stretches the offset with the element, which is right inside
+            // it and wrong beside it.
+            // `scaled` 讓位移隨元素伸縮——在元素之內是對的,在元素旁邊則不對。
+            func resolve(_ anchor: Anchor?, scaled: Bool) -> (point: CGPoint, sameSize: Bool)? {
+                guard let anchor,
+                    let entry = entries.first(where: {
+                        $0.key == anchor.key && $0.ordinal == anchor.ordinal
+                    })
+                else { return nil }
+                let frame = entry.element.frame
+                let sx = Double(frame.width) / anchor.width
+                let sy = Double(frame.height) / anchor.height
+                let point = CGPoint(
+                    x: Double(frame.minX - window.minX) + anchor.dx * (scaled ? sx : 1),
+                    y: Double(frame.minY - window.minY) + anchor.dy * (scaled ? sy : 1)
+                )
+                return (point, (0.8...1.25).contains(sx) && (0.8...1.25).contains(sy))
+            }
+            let inside = resolve(wanted.inside, scaled: true)
+            let near = resolve(wanted.near, scaled: false)
+            let labelled = wanted.inside.map { !$0.key.hasSuffix("||") } ?? false
+            let apart: String
+            if let inside, let near {
+                let (dx, dy) = (inside.point.x - near.point.x, inside.point.y - near.point.y)
+                apart = String(format: "%.0f", Double((dx * dx + dy * dy).squareRoot()))
+            } else {
+                apart = "n/a"
+            }
+            // An unlabelled container is trusted only at its old size, because a tree
+            // that gained or lost a node renumbers those.
+            // 沒有標籤的容器只在大小不變時才採信,因為一棵多了或少了節點的樹會讓它們重新編號。
+            if let inside, labelled || inside.sameSize { return (inside.point, "inside", apart) }
+            if let near { return (near.point, "near", apart) }
+            if let inside { return (inside.point, "inside-resized", apart) }
+            return nil
+        }
+        func anchors(of root: XCUIElementSnapshot) -> [Entry] {
+            var elements: [XCUIElementSnapshot] = []
+            Self.flatten(root, into: &elements)
+            var seen: [String: Int] = [:]
+            var result: [Entry] = []
+            for element in elements {
+                let key = Self.key(element)
+                let ordinal = seen[key, default: 0]
+                seen[key] = ordinal + 1
+                if Self.canAnchor(element) { result.append((element, key, ordinal)) }
+            }
+            return result
+        }
+
+        var chosen = locate(in: entries)
+        // **A point the layout has put off the screen is scrolled to first**, by the
+        // drag a `move` to the middle of the window and a `scroll` row would make,
+        // and both are printed as the rows to add to the file. The point is then
+        // found again, because a drag does not move the content by exactly its own
+        // length. Clear of the status bar, the mode button and the home indicator.
+        // **被版面放到螢幕外的點,先捲過去**——用的是「一列 `move` 到視窗中央、再一列 `scroll`」會做的那個拖曳,
+        // 並把兩者印成要加進檔案的列。之後重新找一次該點,因為拖曳帶動內容的距離不會剛好等於它自己的長度。
+        // 要讓開狀態列、模式按鈕與 home 指示條。
+        let reach = CGRect(x: 24, y: 110, width: window.width - 48, height: window.height - 170)
+        if let found = chosen, !reach.contains(found.point) {
+            let dx = found.point.x < reach.minX
+                ? found.point.x - reach.minX : max(found.point.x - reach.maxX, 0)
+            let dy = found.point.y < reach.minY
+                ? found.point.y - reach.minY : max(found.point.y - reach.maxY, 0)
+            let notches = CGVector(
+                dx: (dx / Self.pointsPerNotch).rounded(.awayFromZero),
+                dy: (dy / Self.pointsPerNotch).rounded(.awayFromZero)
+            )
+            let centre = app.windows.firstMatch.coordinate(
+                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            centre.press(
+                forDuration: 0.05,
+                thenDragTo: centre.withOffset(CGVector(
+                    dx: -notches.dx * Self.pointsPerNotch,
+                    dy: -notches.dy * Self.pointsPerNotch
+                ))
+            )
+            Thread.sleep(forTimeInterval: 0.6)
+            FileHandle.standardError.write(Data((
+                "-actionfile: reveal line \(action.line) move "
+                    + String(format: "(%.0f, %.0f)", Double(window.width / 2), Double(window.height / 2))
+                    + " scroll (\(Int(notches.dx)), \(Int(notches.dy)))\n"
+            ).utf8))
+            if let root = try? app.snapshot() { chosen = locate(in: anchors(of: root)) }
+        }
+        let moved = chosen?.point ?? original
+        let visible = window.contains(CGPoint(x: window.minX + moved.x, y: window.minY + moved.y))
+        FileHandle.standardError.write(Data((
+            "-actionfile: aimed line \(action.line) (\(original.x), \(original.y)) -> "
+                + String(format: "(%.0f, %.0f)", Double(moved.x), Double(moved.y))
+                + " by=\(chosen?.by ?? "unmatched") apart=\(chosen?.apart ?? "n/a") visible=\(visible)\n"
+        ).utf8))
+        return moved
+    }
+
     private func coordinate(
         for action: Action,
         in app: XCUIApplication
@@ -679,9 +957,12 @@ final class ActionFileUITests: XCTestCase {
             + "normalized=(\(action.x / frame.width), \(action.y / frame.height))\n"
         FileHandle.standardError.write(Data(message.utf8))
 
+        // `IOS_AIM`: the point as the file has it, or as the anchors move it.
+        // `IOS_AIM`:檔案裡的那個點,或是錨點把它移到的地方。
+        let point = aim(action, window: frame, in: app)
         return window.coordinate(withNormalizedOffset: CGVector(
-            dx: action.x / frame.width,
-            dy: action.y / frame.height
+            dx: point.x / frame.width,
+            dy: point.y / frame.height
         ))
     }
 

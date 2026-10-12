@@ -466,6 +466,26 @@ if [ -n "$action_file" ]; then
             || /usr/libexec/PlistBuddy -c "Set :iOSActionFileRunner:TestingEnvironmentVariables:IOS_DUMP_TREE 1" "$xctestrun_path"
     fi
 
+    # Re-aiming, when asked for (ActionFileUITests.swift, `aim`): `IOS_AIM=record`
+    # prints what each point is aimed at, `IOS_AIM_FILE` moves each point to where
+    # those anchors are now. Deleted when unset, because the .xctestrun is reused and
+    # a key left from the last run would re-aim this one. The file is staged for the
+    # same reason the action file is.
+    # 要求時才重新瞄準(ActionFileUITests.swift 的 `aim`):`IOS_AIM=record` 印出每個點瞄準的是什麼,
+    # `IOS_AIM_FILE` 把每個點移到那些錨點現在的位置。未設定時刪除，因為 .xctestrun 會重複使用，上一次留下的
+    # 鍵會讓這一次也被重新瞄準。該檔與動作檔基於同樣的理由先暫存。
+    for aim_key in IOS_AIM IOS_AIM_FILE; do
+        /usr/libexec/PlistBuddy -c "Delete :iOSActionFileRunner:TestingEnvironmentVariables:$aim_key" "$xctestrun_path" 2>/dev/null || true
+        aim_value="${(P)aim_key:-}"
+        [ -n "$aim_value" ] || continue
+        if [ "$aim_key" = IOS_AIM_FILE ] && [[ "$aim_value" == /Volumes/* ]]; then
+            mkdir -p "${TMPDIR:-/tmp}/scui-ios-actions"
+            cp "$aim_value" "${TMPDIR:-/tmp}/scui-ios-actions/${aim_value:t}"
+            aim_value="${TMPDIR:-/tmp}/scui-ios-actions/${aim_value:t}"
+        fi
+        /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:$aim_key string $aim_value" "$xctestrun_path"
+    done
+
     # `-derivedDataPath` here too. Without it the test step wrote its logs and
     # TestResults into ~/Library/Developer/Xcode/DerivedData under a new
     # iOSActionFileRunner-<hash> on each run: 166 of them on 2026-10-04, on the

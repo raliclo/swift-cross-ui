@@ -337,7 +337,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         reveal: Bool
     ) throws -> (x: Int, y: Int) {
         let raw = try geometry.screenPosition(of: point)
-        var position = (x: raw.x - revealShift.x, y: raw.y - revealShift.y)
+        var position = aim((x: raw.x - revealShift.x, y: raw.y - revealShift.y))
         guard reveal else { return position }
         let target = position
         let moved = Self.onMainThread { () -> [Int32] in
@@ -389,6 +389,77 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             revealShift.y += Int(found[3])
         }
         return (Double(found[0]), Double(found[1]))
+    }
+
+    /// How many points `place` has resolved; the key a point is re-aimed by.
+    /// `place` 已解析過幾個點;重新瞄準時用來辨認一個點的鍵。
+    private var placeCount = 0
+
+    /// The records in `<action file>.aims`, by the order `place` meets them;
+    /// empty when there is no such file. See `aim`.
+    /// `<動作檔>.aims` 裡的紀錄,依 `place` 遇到它們的順序;沒有該檔時為空。見 `aim`。
+    private lazy var aims: [Int: String] = {
+        guard let file = ActionFileReplay.requestedFile,
+            let text = try? String(contentsOfFile: file.path + ".aims", encoding: .utf8)
+        else { return [:] }
+        var result: [Int: String] = [:]
+        for line in text.split(whereSeparator: \.isNewline) {
+            let parts = line.split(separator: "\t", maxSplits: 3, omittingEmptySubsequences: false)
+            if parts.count == 4, let index = Int(parts[0]) { result[index] = String(parts[3]) }
+        }
+        return result
+    }()
+
+    /// The pixel a file point means, moved to where the view it was aimed at is
+    /// now when `<action file>.aims` says which view that was.
+    ///
+    /// A file holds positions, and each change to where a root starts or how
+    /// wide an app is laid out leaves every one of them stale (2026-10-12).
+    /// Without an `.aims` file this prints what each pixel is aimed at -- the
+    /// record to keep from a build the file is known to land on. With one, it
+    /// moves each pixel to that view on this build and prints both, because a
+    /// point that was moved and one that could not be matched replay alike.
+    /// AndroidBackendHelpers.kt, `aimDescribe`, has the matching rule.
+    ///
+    /// 檔案中的一個點所代表的像素;當 `<動作檔>.aims` 說得出它原本瞄準哪個 view 時,移到那個 view 現在的位置。
+    ///
+    /// 檔案存的是位置,而「根從哪裡開始」或「app 以多寬排版」每改一次,每一個位置都會過期(2026-10-12)。
+    /// 沒有 `.aims` 檔時,這裡印出每個像素瞄準的是什麼——要從「已知該檔會點中」的建置上留下來的紀錄。
+    /// 有的時候,把每個像素移到本建置上的那個 view,並把兩者都印出來,因為「被移動過的點」與「對不上的點」
+    /// 重放起來一模一樣。比對規則見 AndroidBackendHelpers.kt 的 `aimDescribe`。
+    private func aim(_ position: (x: Int, y: Int)) -> (x: Int, y: Int) {
+        placeCount += 1
+        let index = placeCount
+        let record = aims[index]
+        let answer = Self.onMainThread { () -> (described: String, resolved: [Int32]) in
+            guard let activity = AndroidBackend.activity else { return ("", []) }
+            let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
+            if let record { return ("", helpers.aimResolve(activity, record)) }
+            let described = helpers.aimDescribe(activity, Int32(position.x), Int32(position.y))
+            return (described?.toString() ?? "", [])
+        }
+        guard record != nil else {
+            FileHandle.standardError.write(
+                Data("-actionfile: aim \(index)\t\(position.x)\t\(position.y)\t\(answer.described)\n".utf8)
+            )
+            return position
+        }
+        let resolved = answer.resolved
+        let by = ["unmatched", "inside", "near", "inside-resized"]
+        guard resolved.count == 4, resolved[2] != 0 else {
+            FileHandle.standardError.write(
+                Data("-actionfile: aimed \(index) (\(position.x), \(position.y)) by=unmatched\n".utf8)
+            )
+            return position
+        }
+        let moved = (x: Int(resolved[0]), y: Int(resolved[1]))
+        FileHandle.standardError.write(
+            Data(
+                ("-actionfile: aimed \(index) (\(position.x), \(position.y)) -> (\(moved.x), \(moved.y)) "
+                    + "by=\(by[Int(resolved[2])]) apart=\(resolved[3])\n").utf8
+            )
+        )
+        return moved
     }
 
     private func resolve(

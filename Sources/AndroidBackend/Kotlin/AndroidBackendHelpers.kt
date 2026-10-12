@@ -176,6 +176,121 @@ class AndroidBackendHelpers {
         return intArrayOf(origin[0] + found.width / 2, origin[1] + found.height / 2)
     }
 
+    // Re-aiming an action file's points after the layout has moved. A file holds
+    // positions, and each change to where a root starts or how wide an app is
+    // laid out leaves all of them stale at once; the view under a point survives
+    // those changes. `aimDescribe` says which views a pixel is aimed at -- the
+    // smallest one containing it, and the nearest one with text -- and
+    // `aimResolve` says where that record puts the pixel now. The iOS runner does
+    // the same thing (ActionFileUITests.swift, `aim`). A view is known by class,
+    // text and its order among views with the same two.
+    // 在版面移動之後，重新瞄準動作檔裡的點。檔案存的是位置，而「根從哪裡開始」或「app 以多寬排版」每改一次，所有
+    // 位置就同時過期；點底下的 view 撐得過那些改動。`aimDescribe` 說出一個像素瞄準的是哪些 view——框住它的最小
+    // 者，以及最近的帶文字者——`aimResolve` 說出那筆紀錄現在把該像素放在哪裡。iOS 的 runner 做同一件事
+    // (ActionFileUITests.swift 的 `aim`)。一個 view 以類別、文字、以及它在「這兩者相同的 view」之中的順序辨認。
+    private class AimEntry(val view: View, val key: String, val ordinal: Int, val left: Int, val top: Int)
+
+    private fun aimEntries(activity: Activity): List<AimEntry> {
+        val entries = ArrayList<AimEntry>()
+        val seen = HashMap<String, Int>()
+        val origin = IntArray(2)
+        fun walk(view: View) {
+            // The mode button floats over the content and does not move with it.
+            // 模式按鈕浮在內容之上，不隨內容移動。
+            if (view.visibility != View.VISIBLE || view.javaClass.simpleName == "ViewModeButton") return
+            val label = ((view as? android.widget.TextView)?.text ?: view.contentDescription ?: "")
+                .toString().replace('\t', ' ').replace('\n', ' ')
+            val key = view.javaClass.simpleName + "|" + label
+            val ordinal = seen[key] ?: 0
+            seen[key] = ordinal + 1
+            if (view.width > 0 && view.height > 0) {
+                view.getLocationOnScreen(origin)
+                entries.add(AimEntry(view, key, ordinal, origin[0], origin[1]))
+            }
+            if (view is android.view.ViewGroup) {
+                for (i in 0 until view.childCount) walk(view.getChildAt(i))
+            }
+        }
+        walk(activity.window.decorView)
+        return entries
+    }
+
+    // Twelve tab-separated fields: key, ordinal, the pixel's offset from the
+    // view's corner, and the view's size -- for the containing view, then for the
+    // nearest one with text. A key of "-" means there was none.
+    // 十二個以 tab 分隔的欄位：鍵、順序、像素相對 view 角落的位移、view 的大小——先是框住它的 view,再是最近的
+    // 帶文字者。鍵為 "-" 代表沒有。
+    fun aimDescribe(activity: Activity, x: Int, y: Int): String {
+        var inside: AimEntry? = null
+        var near: AimEntry? = null
+        var nearDistance = Double.MAX_VALUE
+        fun area(entry: AimEntry) = entry.view.width.toLong() * entry.view.height
+        for (entry in aimEntries(activity)) {
+            val right = entry.left + entry.view.width
+            val bottom = entry.top + entry.view.height
+            // `<=` so a later view of the same size wins: it is drawn on top.
+            // 用 `<=`,讓同樣大小時較後面的 view 勝出：它畫在上面。
+            if (x >= entry.left && x < right && y >= entry.top && y < bottom &&
+                inside.let { it == null || area(entry) <= area(it) }
+            ) inside = entry
+            if (entry.key.endsWith("|")) continue
+            val distance = Math.hypot(
+                maxOf(entry.left - x, 0, x - right).toDouble(),
+                maxOf(entry.top - y, 0, y - bottom).toDouble(),
+            )
+            if (distance < nearDistance ||
+                (distance == nearDistance && near.let { it == null || area(entry) <= area(it) })
+            ) {
+                near = entry
+                nearDistance = distance
+            }
+        }
+        fun field(entry: AimEntry?) =
+            if (entry == null) "-\t0\t0\t0\t0\t0"
+            else "${entry.key}\t${entry.ordinal}\t${x - entry.left}\t${y - entry.top}" +
+                "\t${entry.view.width}\t${entry.view.height}"
+        return field(inside) + "\t" + field(near)
+    }
+
+    // x, y, which anchor placed it (0 none, 1 the containing view, 2 the nearest
+    // text, 3 a containing view whose size changed), and how far apart the two
+    // anchors put it (-1 when only one was found). An unlabelled container is
+    // trusted only at its old size, because a tree that gained or lost a view
+    // renumbers those.
+    // x、y、由哪個錨點決定(0 無、1 框住它的 view、2 最近的文字、3 大小已變的框住者),以及兩個錨點算出的位置相距多遠
+    // (只找到一個時為 -1)。沒有標籤的容器只在大小不變時才採信，因為一棵多了或少了 view 的樹會讓它們重新編號。
+    fun aimResolve(activity: Activity, record: String): IntArray {
+        val fields = record.split('\t')
+        if (fields.size < 12) return IntArray(0)
+        val entries = aimEntries(activity)
+        fun at(start: Int, scaled: Boolean): IntArray? {
+            val ordinal = fields[start + 1].toIntOrNull() ?: return null
+            val entry = entries.firstOrNull { it.key == fields[start] && it.ordinal == ordinal }
+                ?: return null
+            val width = fields[start + 4].toDoubleOrNull() ?: return null
+            val height = fields[start + 5].toDoubleOrNull() ?: return null
+            val sx = if (width > 0) entry.view.width / width else 1.0
+            val sy = if (height > 0) entry.view.height / height else 1.0
+            val dx = (fields[start + 2].toDoubleOrNull() ?: 0.0) * (if (scaled) sx else 1.0)
+            val dy = (fields[start + 3].toDoubleOrNull() ?: 0.0) * (if (scaled) sy else 1.0)
+            val same = sx in 0.8..1.25 && sy in 0.8..1.25
+            return intArrayOf((entry.left + dx).toInt(), (entry.top + dy).toInt(), if (same) 1 else 0)
+        }
+        val inside = at(0, true)
+        val near = at(6, false)
+        val apart =
+            if (inside != null && near != null)
+                Math.hypot((inside[0] - near[0]).toDouble(), (inside[1] - near[1]).toDouble()).toInt()
+            else -1
+        return when {
+            inside != null && (!fields[0].endsWith("|") || inside[2] == 1) ->
+                intArrayOf(inside[0], inside[1], 1, apart)
+            near != null -> intArrayOf(near[0], near[1], 2, apart)
+            inside != null -> intArrayOf(inside[0], inside[1], 3, apart)
+            else -> intArrayOf(0, 0, 0, apart)
+        }
+    }
+
     fun rootScrollReveal(view: View, x: Int, y: Int): IntArray {
         var parent = view.parent
         while (parent != null) {

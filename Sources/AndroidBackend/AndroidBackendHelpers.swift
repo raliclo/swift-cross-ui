@@ -59,6 +59,16 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func centreOfLabel(_ activity: Activity?, _ label: String) -> [Int32]
 
+    /// Which views the screen pixel `x`,`y` is aimed at; see `aimDescribe` in
+    /// AndroidBackendHelpers.kt. 螢幕像素 `x`,`y` 瞄準的是哪些 view;見 AndroidBackendHelpers.kt 的 `aimDescribe`。
+    @JavaMethod
+    func aimDescribe(_ activity: Activity?, _ x: Int32, _ y: Int32) -> JavaString?
+
+    /// Where a record from `aimDescribe` puts its pixel now: x, y, the anchor
+    /// used, and how far apart the two anchors are. `aimDescribe` 的一筆紀錄現在把它的像素放在哪裡:x、y、所用的錨點、兩個錨點相距多遠。
+    @JavaMethod
+    func aimResolve(_ activity: Activity?, _ record: String) -> [Int32]
+
     /// Tints a ToggleButton by its checked state.
     @JavaMethod
     func styleToggleButton(_ button: AndroidKit.ToggleButton?)

@@ -396,7 +396,16 @@ final class RootScrollHost: UIScrollView {
                 // 這裡版面不是一個 view——內容 view 是視窗的尺寸，根就放在置中算出的位置——所以尺寸由 controller 傳入。
                 // Android 則是從它的 safe-area 容器讀到。
                 let widens = (requestedSize?.width ?? 0) > bounds.width
-                let heightens = (requestedSize?.height ?? 0) > bounds.height
+                // **Vertically the content always starts at the top**, whether or not the
+                // layout fits the screen (user, 2026-10-12: "put all content on the top if
+                // content length is less than screen height, not centred"). A layout
+                // shorter than the screen used to keep the blank its own centring left
+                // above the content; now only a layout narrower than the screen is still
+                // centred, and that is the horizontal axis.
+                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕(使用者,2026-10-12:「內容比螢幕矮時全部放在頂端，
+                // 不要置中」)。比螢幕矮的版面以前會保留它自己置中時留在內容上方的空白;現在只有比螢幕窄的版面仍然置中，
+                // 而那是水平軸。
+                let heightens = true
                 // **A root that fits the screen is centred on it** (user, 2026-10-12, from
                 // P89): a 440-wide layout does not fit a 411 dp phone, its 392-wide root
                 // does, and starting at the root left the whole surplus on the right.
@@ -434,7 +443,17 @@ final class RootScrollHost: UIScrollView {
                 // and content that already clears it is not moved.
                 // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**2026-10-11 起，比螢幕大的版面從根開始，而那正是按鈕停放的角落；
                 // 以前是置中的空白讓開它。只看按鈕的原位——拖走的按鈕由使用者自己擺——已經讓開的內容不動。
-                let lead = (rootFrame ?? box).offsetBy(dx: shift.x, dy: shift.y)
+                // Measured where the content is SHOWN, which is `overflow` further in than
+                // its frame says: what spills above or to the left of the frame is brought
+                // into view by the inset, not by moving the frame. Left out, the spill was
+                // counted twice (user, 2026-10-12: P2 began 93 pt below the button and
+                // P6 54 pt, which pushed P6's "Current" row off the screen; Android, which
+                // measures on screen, began both just below the button).
+                // 以內容**顯示**的位置來量——它比 frame 所說的再往內 `overflow`:溢出到 frame 上方或左方的部分是靠 inset 帶進
+                // 畫面，而不是靠移動 frame。漏掉它，溢出量就被算了兩次(使用者,2026-10-12:P2 從按鈕下方 93 pt 處開始、
+                // P6 從 54 pt 處開始，把 P6 的「Current」那一列擠出螢幕;Android 是在螢幕上量的，兩者都從按鈕正下方開始)。
+                let lead = (rootFrame ?? box).offsetBy(
+                    dx: shift.x + overflow.left, dy: shift.y + overflow.top)
                 if let avoided = avoidedRect?.offsetBy(dx: -frame.minX, dy: -frame.minY),
                     lead.intersects(avoided)
                 {

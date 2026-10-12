@@ -480,6 +480,18 @@ if [ -n "$action_file" ]; then
     ANDROID_SERIAL="$serial" "$adb" push "$action_file" "$device_action_file" >/dev/null \
         || die "Could not push the action file to the device"
     app_args=(--debug -actionfile "$device_action_file")
+    # Re-aiming, when asked for (AndroidSynthesiser.swift, `aim`): the replay reads
+    # `<action file>.aims` beside the file it was given. Removed when not asked
+    # for, because /data/local/tmp outlives the run and one left behind would
+    # re-aim the next replay of this app.
+    # 要求時才重新瞄準(AndroidSynthesiser.swift 的 `aim`):重放會讀它拿到的檔案旁邊的 `<動作檔>.aims`。
+    # 沒有要求時移除，因為 /data/local/tmp 活得比這次執行久，留下的那一份會讓這支 app 的下一次重放被重新瞄準。
+    ANDROID_SERIAL="$serial" "$adb" shell rm -f "$device_action_file.aims" >/dev/null 2>&1
+    if [ -n "${ANDROID_AIM_FILE:-}" ]; then
+        [ -f "$ANDROID_AIM_FILE" ] || die "No such aim file: $ANDROID_AIM_FILE"
+        ANDROID_SERIAL="$serial" "$adb" push "$ANDROID_AIM_FILE" "$device_action_file.aims" >/dev/null \
+            || die "Could not push the aim file to the device"
+    fi
 fi
 
 # The arguments a file needs, read from the file, and TEST_APP_ARGS -- the two

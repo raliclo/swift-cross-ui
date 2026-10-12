@@ -429,7 +429,7 @@ private class Stage(context: Context) : ViewGroup(context) {
     ///
     /// 宿主會捲到此處一次,好讓第一個畫面顯示 app 實際排出來的東西,而不是它左側的空白邊界。
     val originOffset: android.graphics.Point
-        get() = android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt())
+        get() = android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt() + lift)
 
     var mode: Int = RootScrollHost.MODE_ACTUAL_VIEW
         set(value) {
@@ -619,9 +619,20 @@ private class Stage(context: Context) : ViewGroup(context) {
                 } else {
                     box.left = minOf(0, inner.left, frameLeft)
                 }
-                if (safe.height > viewportHeight) {
+                // **Vertically the content always starts at the top**, whether or not the
+                // layout fits the screen (user, 2026-10-12: "put all content on the top if
+                // content length is less than screen height, not centred"); rwdView keeps
+                // the window origin. UIKitBackend does the same.
+                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕(使用者,2026-10-12:「內容比螢幕矮時全部放在頂端，
+                // 不要置中」);rwdView 維持視窗原點。UIKitBackend 做法相同。
+                if (safe.height > viewportHeight || mode == RootScrollHost.MODE_ACTUAL_VIEW) {
                     box.top = minOf(inner.top, frameTop)
-                    box.bottom = maxOf(inner.bottom, frameBottom)
+                    // The bottom is measured from the stage, where the safe child sits
+                    // `safe.y` down. Left in the safe child's own terms, the last status
+                    // bar's height of content was cut off (P14, P18, 2026-10-12).
+                    // 下緣從 stage 量，而 safe 子元件在其中往下 `safe.y`。若留在 safe 子元件自己的座標裡，內容最後
+                    // 「一個狀態列高」的部分會被切掉(P14、P18,2026-10-12)。
+                    box.bottom = maxOf(inner.bottom, frameBottom) + safe.y.toInt()
                 } else {
                     box.top = minOf(0, inner.top, frameTop)
                 }
