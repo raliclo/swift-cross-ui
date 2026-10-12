@@ -1326,6 +1326,10 @@ struct P52RootView: View {
             }
             .padding(14)
         }
+        // The root scroll view takes whatever height the window has: on a phone that is the
+        // screen, not the .defaultSize below (test_support/root_scroll_warning.py asks for this).
+        // 根捲動視圖佔滿視窗給的高度:在手機上那是螢幕，而不是下方的 .defaultSize(test_support/root_scroll_warning.py 要求寫明)。
+        .frame(maxHeight: .infinity)
         .onAppear {
             P52Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P52Diagnostics.write(

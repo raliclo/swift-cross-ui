@@ -8,12 +8,15 @@ more content than that height is grown to the screen's height (RootScrollHost, i
 Android, 2026-10-12), so the height the scene asks for is not the height on screen. The
 framework cannot say so when it compiles: the root is a view whose `body` is opaque, and
 the screen is only known when the app runs. This reads the source instead, and prints one
-compiler-style line per finding. It never fails a build.
+compiler-style line per finding. It never fails a build. An app that writes
+`.frame(maxHeight: .infinity)` on that root has said the height is the window's, and is
+not warned.
 
 建置時，當 app 的根 view 是 ScrollView 而 scene 又設了 .defaultSize 時發出警告。手機上的 actualView 以
 .defaultSize 排版;內容比那個高度多的根 ScrollView 會長到螢幕的高度(RootScrollHost,iOS 與 Android,
 2026-10-12),所以 scene 要求的高度不是畫面上的高度。框架在編譯時說不出這件事:根是一個 `body` 不透明的 view,
 而螢幕要到 app 執行時才知道。本腳本改讀原始碼，每個發現印一行編譯器格式的訊息，而且永遠不會讓建置失敗。
+在那個根上寫了 `.frame(maxHeight: .infinity)` 的 app 已經說明高度是視窗的高度，不會被警告。
 """
 import os
 import re
@@ -68,19 +71,31 @@ def main(path):
             )
             if body:
                 i, text = first_statement(lines, body)
-                if text.startswith("ScrollView"):
+                if re.match(r"ScrollView\b", text):
                     at = i
         if at is None:
+            continue
+        # An app that says its root scroll view takes the window's height has nothing to be
+        # told. 已經寫明「根捲動視圖佔滿視窗高度」的 app 沒有需要被提醒的事。
+        indent = len(lines[at]) - len(lines[at].lstrip())
+        close = next(
+            (i for i in range(at + 1, len(lines)) if lines[i].rstrip() == " " * indent + "}"), None
+        )
+        if close is not None and first_statement(lines, close)[1].startswith(
+            ".frame(maxHeight: .infinity"
+        ):
             continue
         height = size[1].group(2)
         print(
             f"{name}:{at + 1}: warning: the root view is a ScrollView and the scene asks for "
             f".defaultSize(height: {height}) on line {size[0] + 1}; on a phone (actualView) a root "
-            f"ScrollView with more content than {height} is grown to the screen's height."
+            f"ScrollView with more content than {height} is grown to the screen's height. "
+            "Write .frame(maxHeight: .infinity) after it to say that is intended."
         )
         print(
             f"{name}:{at + 1}: 警告:根 view 是 ScrollView,而 scene 在第 {size[0] + 1} 行要求 "
             f".defaultSize(height: {height});在手機上(actualView),內容超過 {height} 的根 ScrollView 會長到螢幕的高度。"
+            "若這是預期的行為，請在它後面寫上 .frame(maxHeight: .infinity)。"
         )
 
 

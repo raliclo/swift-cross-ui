@@ -241,6 +241,10 @@ struct P48RootView: View {
             }
             .padding(16)
         }
+        // The root scroll view takes whatever height the window has: on a phone that is the
+        // screen, not the .defaultSize below (test_support/root_scroll_warning.py asks for this).
+        // 根捲動視圖佔滿視窗給的高度:在手機上那是螢幕，而不是下方的 .defaultSize(test_support/root_scroll_warning.py 要求寫明)。
+        .frame(maxHeight: .infinity)
         .onAppear {
             P48Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P48Diagnostics.write("grids flexible-3 fixed-90.5x2 adaptive-120 hgrid-fixed34x2 hgrid-aligned3")
