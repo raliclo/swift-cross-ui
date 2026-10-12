@@ -1,7 +1,9 @@
 action,x,y,origin,button,key,micros,note,platform
-move,220,500,client,,,,park mid-screen,ios
+move,198,536,client,,,,park mid-screen,ios
 scroll,0,14,client,,,,scroll down,ios
 sleep,,,,,,600000,settle,ios
-move,400,120,client,,,,park right,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,0,-1,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+move,378,403,client,,,,park right,ios
 scroll,13,0,client,,,,scroll right,ios
 sleep,,,,,,800000,settle,ios

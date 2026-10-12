@@ -50,7 +50,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 2026-09-02 於 iPhone 16 模擬器上量測：視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView。
-move,60,700,client,,,,"the left margin, clear of every date picker",ios
+move,78,732,client,,,,"the left margin, clear of every date picker",ios
 sleep,,,,,,300000,,ios
 scroll,0,8,,,,,"the page must move up far enough to show .hourAndMinute (VERIFIED: it renders 9:46 AM over 2025-08-24 09:46, and .compact is still on screen above it)",ios
 sleep,,,,,,900000,let the scroll settle,ios

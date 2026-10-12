@@ -2,11 +2,14 @@ package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Rect
+import android.os.Build
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
@@ -184,6 +187,50 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 
     fun host(view: View) {
         stage.host(view)
+    }
+
+    /**
+     * How far the status bar and the gesture bar reach into this host, in px: (top, bottom).
+     *
+     * The host fills an edge-to-edge window and the app starts below the status bar. Scrolled,
+     * its content used to pass under the status bar's icons and under the gesture bar (seen on P6
+     * and P21, 2026-10-12); UIKitBackend's host ends at the safe area on both sides. Nothing is
+     * drawn in either strip now, and the stage is told the lower one so the last row can still be
+     * scrolled clear of it. Zero on a window that is not edge to edge.
+     *
+     * 狀態列與手勢列伸進這個 host 多少(px):(上, 下)。host 佔滿 edge-to-edge 的視窗，而 app 從狀態列下方開始。捲動之後，
+     * 內容以前會穿過狀態列的圖示底下、也穿過手勢列底下(2026-10-12 在 P6 與 P21 看到);UIKitBackend 的 host 兩端都停在
+     * 安全區。現在這兩條範圍內都不繪製，並把下方那條告訴 stage,讓最後一列仍然能捲到它上方。視窗不是 edge-to-edge 時為零。
+     */
+    private fun barClip(): IntArray {
+        if (Build.VERSION.SDK_INT < 30) return intArrayOf(0, 0)
+        val bars =
+            rootWindowInsets?.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+                ?: return intArrayOf(0, 0)
+        val at = IntArray(2)
+        getLocationInWindow(at)
+        val windowHeight = rootView?.height ?: return intArrayOf(0, 0)
+        return intArrayOf(
+            maxOf(bars.top - at[1], 0),
+            maxOf(at[1] + height - (windowHeight - bars.bottom), 0),
+        )
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        stage.bottomInset = barClip()[1]
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        val clip = barClip()
+        if (clip[0] == 0 && clip[1] == 0) {
+            super.dispatchDraw(canvas)
+            return
+        }
+        canvas.save()
+        canvas.clipRect(0, clip[0], width, height - clip[1])
+        super.dispatchDraw(canvas)
+        canvas.restore()
     }
 
     // Starts at the content's top-left, as UIKitBackend's host does.
@@ -420,6 +467,9 @@ private class Stage(context: Context) : ViewGroup(context) {
     var fillHeight = 0
     private var fillViewport = 0
     var onFill: (() -> Unit)? = null
+    // The gesture bar's height in px where this host lies under it, else 0; set by the host.
+    // 這個 host 位於手勢列底下時，手勢列的高度(px),否則為 0;由 host 設定。
+    var bottomInset = 0
 
     /// The mode button's resting frame in this view's coordinates, or null without one.
     /// 模式按鈕的原位(本 view 的座標)，沒有按鈕時為 null。
@@ -680,7 +730,7 @@ private class Stage(context: Context) : ViewGroup(context) {
                     fillHeight = 0
                     post { onFill?.invoke() }
                 }
-                val room = viewportHeight - safe.y.toInt() - lift
+                val room = viewportHeight - safe.y.toInt() - lift - bottomInset
                 if (
                     mode == RootScrollHost.MODE_ACTUAL_VIEW && fillHeight == 0 && room > safe.height
                 ) {
@@ -714,7 +764,12 @@ private class Stage(context: Context) : ViewGroup(context) {
                 1f
             }
 
-        setMeasuredDimension((box.width() * scale).toInt(), (box.height() * scale).toInt() + lift)
+        // Content that reaches the gesture bar gets that much more to scroll, so its last
+        // row can be brought above the bar, where the host stops drawing; see `barClip`.
+        // 內容碰到手勢列時多給這麼多可捲動的距離，最後一列才能捲到手勢列上方——host 只畫到那裡;見 `barClip`。
+        val reach = (box.height() * scale).toInt() + lift
+        val tail = if (reach > viewportHeight - bottomInset) bottomInset else 0
+        setMeasuredDimension((box.width() * scale).toInt(), reach + tail)
         // Logged when it changes, not on every measure pass. `onMeasure` runs
         // several times per layout -- fillViewport alone causes a second pass --
         // and a line per pass buries whatever else the app is saying. What this

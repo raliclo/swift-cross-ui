@@ -1,3 +1,3 @@
 action,x,y,origin,button,key,micros,note,platform
-click,195,400,client,left,,,tap the center of the P14 view,ios
+click,195,276,client,left,,,tap the center of the P14 view,ios
 sleep,,,,,,500000,allow the action to settle,ios
