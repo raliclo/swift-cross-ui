@@ -675,7 +675,7 @@ public final class AndroidBackend: BaseAppBackend {
             let defaultSize = window.defaultSize,
             (window.scrollHost?.getModeIndex() ?? 0) == 0
         {
-            return defaultSize
+            return SIMD2(defaultSize.x, max(defaultSize.y, Int(window.scrollHost?.getFillHeight() ?? 0)))
         }
         // A later window before its activity exists measures as the first: the
         // same screen, and the activity will report its own size once it runs.

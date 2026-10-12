@@ -257,12 +257,17 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 
     fun setOnModeChange(action: SwiftAction?) {
         onModeChange = action
+        stage.onFill = { onModeChange?.call() }
     }
 
     fun getModeIndex(): Int = stage.mode
 
+    /** The grown height of a root ScrollView in dp, or 0. 根 ScrollView 長到的高度(dp),沒有時為 0。 */
+    fun getFillHeight(): Int = (stage.fillHeight / resources.displayMetrics.density).toInt()
+
     fun setModeIndex(mode: Int) {
         stage.mode = mode
+        stage.fillHeight = 0
         button?.setModeIndex(mode)
     }
 
@@ -326,6 +331,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 
         val made = ViewModeButton(context, stage.mode) { mode ->
             stage.mode = mode
+            stage.fillHeight = 0
             onModeChange?.call()
         }
         val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -409,6 +415,11 @@ private class Stage(context: Context) : ViewGroup(context) {
     // How far the content is pushed down to clear the mode button; see onMeasure.
     // 內容為了讓開模式按鈕而下移的量；見 onMeasure。
     private var lift = 0
+    // The height (px) a root ScrollView with more content than room grows to, or 0; see onMeasure.
+    // 內容比空間多的根 ScrollView 所長到的高度(px),沒有時為 0;見 onMeasure。
+    var fillHeight = 0
+    private var fillViewport = 0
+    var onFill: (() -> Unit)? = null
 
     /// The mode button's resting frame in this view's coordinates, or null without one.
     /// 模式按鈕的原位(本 view 的座標)，沒有按鈕時為 null。
@@ -656,6 +667,38 @@ private class Stage(context: Context) : ViewGroup(context) {
                     // 外框是從 safe-area 子元件量的，而它在 stage 裡位於狀態列下方；按鈕則是從 stage 量的。
                     lead.offset(safe.x.toInt() - box.left, safe.y.toInt() - box.top)
                     if (Rect.intersects(lead, avoid)) lift = avoid.bottom - lead.top
+                }
+                // **A root ScrollView cut short by the layout grows to the screen** (user,
+                // 2026-10-12, from P21: 720 dp high with room below, its last row cut through
+                // the text). Only when the single-child chain ends in a vertical scroller with
+                // more content than room; any other root keeps the height it asked for. Found
+                // once per mode and screen height, then Swift lays the app out again.
+                // **被版面截短的根 ScrollView 會長到螢幕的高度**(使用者,2026-10-12,起因是 P21:只有 720 dp 高而下方還有
+                // 空間,最後一列從文字中間被切掉)。只在單一子元件鏈以「內容比空間多的垂直捲動元件」結尾時才這麼做;
+                // 其他的根維持它要求的高度。每個模式、每個螢幕高度只找一次,之後由 Swift 重新排版。
+                if (fillHeight != 0 && fillViewport != viewportHeight) {
+                    fillHeight = 0
+                    post { onFill?.invoke() }
+                }
+                val room = viewportHeight - safe.y.toInt() - lift
+                if (
+                    mode == RootScrollHost.MODE_ACTUAL_VIEW && fillHeight == 0 && room > safe.height
+                ) {
+                    var s: View = safe
+                    while (s is ViewGroup && s.childCount == 1 && s !is ScrollView) {
+                        s = s.getChildAt(0)
+                    }
+                    if (s is ScrollView && s.childCount > 0 && s.getChildAt(0).height > s.height) {
+                        fillHeight = room
+                        fillViewport = viewportHeight
+                        Log.w(
+                            "swift",
+                            "warning: the root ScrollView is ${safe.height} px high from " +
+                                ".defaultSize and has more content than that; grown to $room px " +
+                                "to fill the screen (actualView)",
+                        )
+                        post { onFill?.invoke() }
+                    }
                 }
             }
         }

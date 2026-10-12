@@ -50,6 +50,9 @@ class RootScrollHost: AndroidView.View {
     func installModeButton(_ activity: Activity?)
 
     @JavaMethod
+    func getFillHeight() -> Int32
+
+    @JavaMethod
     func setOnModeChange(_ action: SwiftAction?)
 
     @JavaMethod

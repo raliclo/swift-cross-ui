@@ -82,6 +82,14 @@ final class RootScrollHost: UIScrollView {
         didSet { if avoidedRect != oldValue { setNeedsLayout() } }
     }
     private weak var content: UIView?
+    /// The height a root ScrollView with more content than room grows to, or nil
+    /// when the root is not one -- see `layoutSubviews`. Cleared by a mode change
+    /// and a rotation. 內容比空間多的根 ScrollView 所長到的高度;根不是這種情況時為 nil——見 `layoutSubviews`。
+    /// 切換模式與旋轉時清除。
+    private(set) var fillHeight: CGFloat?
+    /// Called when `fillHeight` is found, to lay the app out again. 找到 `fillHeight` 時呼叫,用來重新排版 app。
+    var onFillHeightChange: (() -> Void)?
+    func clearFillHeight() { fillHeight = nil }
     /// Whether a person -- or an action file -- has dragged the content yet.
     ///
     /// Until then every layout puts the scroll position at the content's top-left;
@@ -267,7 +275,7 @@ final class RootScrollHost: UIScrollView {
 
     func setMode(_ newMode: Mode) {
         mode = newMode
-        userHasScrolled = false
+        userHasScrolled = false; fillHeight = nil
         setNeedsLayout()
     }
 
@@ -458,6 +466,34 @@ final class RootScrollHost: UIScrollView {
                     lead.intersects(avoided)
                 {
                     shift.y += avoided.maxY - lead.minY
+                }
+                // **A root ScrollView cut short by the layout grows to the screen** (user,
+                // 2026-10-12, from P21: 720 high on a phone with room below, its last row
+                // cut through the text on Android). Only when the app's single-child chain
+                // ends in a scroll view that has more content than room -- any other root
+                // keeps the height it asked for, so nothing that is centred moves. Found
+                // once per mode and rotation; the controller lays the app out again.
+                // **被版面截短的根 ScrollView 會長到螢幕的高度**(使用者,2026-10-12,起因是 P21:在下方還有空間的手機上只有
+                // 720 高,Android 的最後一列從文字中間被切掉)。只在 app 的單一子 view 鏈以「內容比空間多的捲動視圖」結尾時
+                // 才這麼做——其他的根維持它要求的高度,所以置中的東西都不會動。每個模式、每次旋轉只找一次;由 controller 重新排版。
+                if fillHeight == nil, let requestedSize, requestedSize.height < bounds.height {
+                    var view: UIView = content
+                    var scroller: UIScrollView?
+                    while view.subviews.count == 1, scroller == nil {
+                        view = view.subviews[0]
+                        scroller = view as? UIScrollView
+                    }
+                    let top = (rootFrame ?? box).minY + shift.y + overflow.top
+                    let room = (bounds.height - max(top, 0)).rounded(.down)
+                    if let scroller, room > requestedSize.height,
+                        scroller.contentSize.height > scroller.bounds.height + 0.5
+                    {
+                        fillHeight = room
+                        logger.warning(
+                            "the root ScrollView is \(requestedSize.height) pt high from .defaultSize and has more content than that; grown to \(room) pt to fill the screen (actualView)"
+                        )
+                        DispatchQueue.main.async { [weak self] in self?.onFillHeightChange?() }
+                    }
                 }
                 if content.transform != .identity {
                     content.transform = .identity

@@ -29,7 +29,7 @@ final class RootViewController: UIViewController {
         guard DebugFeatures.allowsRootScrollControl, scrollHost.mode == .actualView,
             let defaultSize
         else { return screen }
-        return CGSize(width: defaultSize.x, height: defaultSize.y)
+        return CGSize(width: CGFloat(defaultSize.x), height: max(CGFloat(defaultSize.y), scrollHost.fillHeight ?? 0))
     }
     private var viewModeButton: ViewModeButton?
 
@@ -100,7 +100,7 @@ final class RootViewController: UIViewController {
         to size: CGSize,
         with coordinator: any UIViewControllerTransitionCoordinator
     ) {
-        resizeHandler?(size)
+        scrollHost.clearFillHeight(); resizeHandler?(size)
         super.viewWillTransition(to: size, with: coordinator)
     }
 
@@ -124,6 +124,10 @@ final class RootViewController: UIViewController {
         // 為何「縮放」不等於「重新排版」，見該檔案的說明。
         if scrollHost.superview == nil {
             view.addSubview(scrollHost)
+            scrollHost.onFillHeightChange = { [weak self] in
+                guard let self else { return }
+                self.resizeHandler?(self.view.safeAreaLayoutGuide.layoutFrame.size)
+            }
             scrollHost.translatesAutoresizingMaskIntoConstraints = false
             let scrollHostTop = scrollHost.topAnchor.constraint(
                 equalTo: view.safeAreaLayoutGuide.topAnchor
