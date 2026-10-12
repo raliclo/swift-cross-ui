@@ -2047,8 +2047,34 @@ for app_name in $app_names; do
         plain_suffix="-gtk4"
     fi
     exe_path=""
+    # Ask the build where it put the product before guessing. Swift 6.4's default
+    # build system, swiftbuild, writes to .build/out/Products/<Config>-<platform>/,
+    # not .build/<triple>/<config>/. Measured 2026-10-12, the first 6.4.0 build in
+    # a tree last built by 6.3.3: the guess below found the 6.3.3 binary still
+    # sitting at the old path, copied THAT to output/, and printed "-> ...exe" as
+    # if it were new. It then died at launch with 0xC0000139 (entry point not
+    # found) against the 6.4.0 runtime -- which reads as a broken build, not as a
+    # stale copy. The two files differed in size (158479360 old, 156823040 new)
+    # and by 42 minutes; nothing else said so.
+    # 先問建置把產物放在哪裡，再去猜。Swift 6.4 的預設建置系統 swiftbuild 寫到
+    # .build/out/Products/<Config>-<platform>/,而不是 .build/<triple>/<config>/。2026-10-12 實測，在一棵上次由
+    # 6.3.3 建置的樹上第一次用 6.4.0 建置：下方的猜測找到仍留在舊路徑的 6.3.3 執行檔，把**它**複製到 output/,
+    # 並印出「-> ...exe」彷彿是新的。它隨後在啟動時以 0xC0000139(找不到進入點)死於 6.4.0 的 runtime——
+    # 那看起來像建置壞了，而不是複製到舊檔。兩個檔案大小不同、時間差 42 分鐘，除此之外沒有任何東西指出這件事。
+    bin_dir="$("$swift_bin" build --package-path "$package_dir" -c "$build_config" \
+        "${debug_feature_flags[@]}" "${gtk_build_flags[@]}" --show-bin-path 2>/dev/null \
+        | tr -d '\r' | tail -n 1 || true)"
+    if [ -n "$bin_dir" ] && command -v cygpath >/dev/null 2>&1; then
+        bin_dir="$(cygpath -u "$bin_dir")"
+    fi
     triple_dir="$(find "$package_dir/.build" -maxdepth 1 -type d -name '*-*-*' | head -n 1 || true)"
-    if [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name.exe" ]; then
+    if [ -n "$bin_dir" ] && [ -f "$bin_dir/$app_name.exe" ]; then
+        exe_path="$bin_dir/$app_name.exe"
+        output_path="$output_dir/$app_name$backend_suffix.exe"
+    elif [ -n "$bin_dir" ] && [ -f "$bin_dir/$app_name" ]; then
+        exe_path="$bin_dir/$app_name"
+        output_path="$output_dir/$app_name$plain_suffix"
+    elif [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name.exe" ]; then
         exe_path="$triple_dir/$build_config/$app_name.exe"
         output_path="$output_dir/$app_name$backend_suffix.exe"
     elif [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name" ]; then
@@ -2071,7 +2097,12 @@ for app_name in $app_names; do
     manifest_record "$(basename "$output_path")" "$app_name" \
         "$manifest_host_os" "$manifest_backend"
 
+    # Beside the product first, for the same reason the product is asked for
+    # above: an old tree still holds the 6.3.3 `.resources` at the triple path.
+    # 先找產物旁邊的，理由同上方的產物查詢：舊的樹在 triple 路徑下仍留著 6.3.3 的 `.resources`。
     for resource_dir in \
+        "${exe_path:h}/swift-winui_CWinAppSDK.bundle" \
+        "${exe_path:h}/swift-winui_CWinAppSDK.resources" \
         "$triple_dir/$build_config/swift-winui_CWinAppSDK.resources" \
         "$triple_dir/$build_config/swift-winui_CWinAppSDK.bundle" \
         "$package_dir/.build/$build_config/swift-winui_CWinAppSDK.resources" \

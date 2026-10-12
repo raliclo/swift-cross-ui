@@ -35,7 +35,16 @@ set -euo pipefail
 # zsh 中函式內的 $0 是函式名稱而非腳本本身，因此在頂層先捕捉路徑，此時它仍代表檔案。
 script_path="${0:A}"
 
-SWIFT_VERSION="${SWIFT_VERSION:-6.3.3}"
+# 6.3.3 until 2026-10-12. Moved with the Windows side: once Swift 6.4.0 was the
+# only toolchain there, 6.3.3-built Swift programs stopped loading (the runtimes
+# are not compatible on Windows) and the Android SDK had already moved to 6.4.0
+# on 2026-10-05, so one version across the hosts is the state that can be reasoned
+# about. The Linux archive was checked to exist on 2026-10-12 (HTTP 200, 1.1 GB):
+#   curl -sI https://download.swift.org/swift-6.4.0-release/ubuntu2404/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE-ubuntu24.04.tar.gz
+# 2026-10-12 之前是 6.3.3。隨 Windows 那一側一起移動：Windows 上只剩 Swift 6.4.0 之後，用 6.3.3 編的 Swift 程式
+# 就載入不了(Windows 上 runtime 版本互不相容),而 Android SDK 已於 2026-10-05 換到 6.4.0,各主機用同一個版本
+# 才是能推理的狀態。Linux 的封存檔於 2026-10-12 確認存在(HTTP 200,1.1 GB),指令見上。
+SWIFT_VERSION="${SWIFT_VERSION:-6.4.0}"
 SWIFT_PLATFORM="${SWIFT_PLATFORM:-ubuntu24.04}"
 SWIFT_PREFIX="${SWIFT_PREFIX:-/usr/local/swift}"
 COMPAT_DIR="/usr/local/lib/swift-compat"
@@ -291,8 +300,15 @@ if [ "${VERSION_ID:-}" = "26.04" ]; then
 fi
 
 section "Installing Swift $SWIFT_VERSION ($SWIFT_PLATFORM build)"
+# Matched on the release tag, with a trailing ".0" dropped: 6.4.0 announces
+# itself as "Swift version 6.4 (swift-6.4-RELEASE)", so grepping for "6.4.0"
+# never matches and every run would download 1.1 GB and reinstall. Measured on
+# the Windows 6.4.0 toolchain, 2026-10-12. "6.3.3" is unchanged by the trim.
+# 以 release 標籤比對，並去掉結尾的「.0」:6.4.0 自稱「Swift version 6.4 (swift-6.4-RELEASE)」,grep「6.4.0」
+# 永遠不會命中，每次執行都會下載 1.1 GB 並重裝。2026-10-12 於 Windows 的 6.4.0 toolchain 實測。「6.3.3」不受影響。
 if [ -x "$SWIFT_PREFIX/usr/bin/swift" ] \
-    && "$SWIFT_PREFIX/usr/bin/swift" --version 2>/dev/null | grep -q "$SWIFT_VERSION"; then
+    && "$SWIFT_PREFIX/usr/bin/swift" --version 2>/dev/null \
+        | grep -qF "swift-${SWIFT_VERSION%.0}-RELEASE"; then
     printf '  already installed at %s\n' "$SWIFT_PREFIX"
 else
     # `platform_path`, not `path`: assigning to `path` in zsh rewrites PATH,

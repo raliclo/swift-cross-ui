@@ -2,6 +2,7 @@ import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
 import WinUI
+import WindowsFoundation
 
 // `defaultTableRowContentHeight` and `defaultTableCellVerticalPadding` are not
 // here: they were already declared on the type in WinUIBackend.swift, beside the

@@ -132,9 +132,24 @@ if let backend = env["SCUI_DEFAULT_BACKEND"] {
                 condition: .when(platforms: [.iOS, .tvOS, .macCatalyst, .visionOS])
             ),
         ]
-    #else
+    #elseif os(Windows)
+        // Split from the Linux branch on 2026-10-12, for the reason the macOS
+        // branch above is an #if: a platform condition does not keep a
+        // dependency from being COMPILED. Swift 6.4's default build system,
+        // swiftbuild, built GtkBackend's C target for a WinUI app on Windows --
+        // `gtk_helpers.h: fatal error: 'gtk/gtk.h' file not found`, three times,
+        // then "Build failed" -- where 6.3.3's native build system had pruned
+        // it. A -gtk4 build names its backend through SCUI_DEFAULT_BACKEND and
+        // never reaches this branch.
+        // 2026-10-12 自 Linux 分支拆出，理由與上方 macOS 分支用 #if 相同：平台條件並不會讓一個相依 target
+        // 免於被**編譯**。Swift 6.4 的預設建置系統 swiftbuild 在 Windows 上為 WinUI app 編了 GtkBackend 的
+        // C target——`gtk_helpers.h: fatal error: 'gtk/gtk.h' file not found` 三次，接著「Build failed」——
+        // 而 6.3.3 的 native 建置系統會把它剪掉。-gtk4 建置經由 SCUI_DEFAULT_BACKEND 指定 backend,不會走到此分支。
         defaultBackendDependencies = [
             .target(name: "WinUIBackend", condition: .when(platforms: [.windows])),
+        ]
+    #else
+        defaultBackendDependencies = [
             .target(name: "GtkBackend", condition: .when(platforms: [.linux])),
         ]
     #endif
