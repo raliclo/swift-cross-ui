@@ -2518,7 +2518,7 @@ Checked, not assumed:
 |---|---|
 | WSL | Ubuntu 26.04 LTS, WSL2, running |
 | WSLg | available -- `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, so GTK windows display natively |
-| Swift | **6.3.3**, installed from the official tarball into `/usr/local/swift` |
+| Swift | **6.4.0**, installed from the official tarball into `/usr/local/swift` |
 | GTK 4 | **4.22.4** (`libgtk-4-dev`, installed) |
 | GTK 3 | not installed, and deliberately so |
 
@@ -2736,7 +2736,7 @@ checkout you are reading. Stated per machine rather than per file:
 | Platform | Windows workstation | macOS workstation |
 | --- | --- | --- |
 | 🪟 Windows | ✅ native | 🚫 |
-| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.3.3 | 🚫 |
+| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.4.0 | 🚫 |
 | 🐧 Linux | 🚫 no desktop session | 🚫 |
 | 🍎 macOS | 🚫 | ✅ native |
 | 📱 iOS | 🚫 | ✅ Simulator, iOS 18.4 |

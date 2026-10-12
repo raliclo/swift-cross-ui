@@ -2204,7 +2204,7 @@ Notes:
 |---|---|
 | WSL | Ubuntu 26.04 LTS, WSL2, running |
 | WSLg | 可用 -- `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`，所以 GTK windows 會 native 顯示 |
-| Swift | **6.3.3**，從官方 tarball 安裝到 `/usr/local/swift` |
+| Swift | **6.4.0**，從官方 tarball 安裝到 `/usr/local/swift` |
 | GTK 4 | **4.22.4**（已安裝 `libgtk-4-dev`） |
 | GTK 3 | 未安裝，而且是刻意不安裝 |
 
@@ -2352,7 +2352,7 @@ WSLg 和 Linux 分成不同欄位，因為兩者會有差異。WSLg 是 Wayland 
 | Platform | Windows workstation | macOS workstation |
 | --- | --- | --- |
 | 🪟 Windows | ✅ native | 🚫 |
-| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.3.3 | 🚫 |
+| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.4.0 | 🚫 |
 | 🐧 Linux | 🚫 no desktop session | 🚫 |
 | 🍎 macOS | 🚫 | ✅ native |
 | 📱 iOS | 🚫 | ✅ Simulator, iOS 18.4 |
