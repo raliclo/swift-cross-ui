@@ -46,7 +46,7 @@ action,x,y,origin,button,key,micros,note,platform
 # macOS 那邊是五格產生**一個** dy 80.00 的 `notched` 事件——形狀不同、符號相同,因為
 # `ScrollGestureValue` 把符號固定在框架裡,而不是交給各 backend 各自決定。
 sleep,,,,,,2000000,let P72 lay out and the clock run,ios
-move,196,350,client,,,,the centre of the mesh view -- the drag must stay inside it,ios
+move,185,363,client,,,,the centre of the mesh view -- the drag must stay inside it,ios
 sleep,,,,,,300000,,ios
 scroll,0,4,,,,,four notches down: many precise events and the camera must come CLOSER,ios
 sleep,,,,,,800000,let the readout settle,ios

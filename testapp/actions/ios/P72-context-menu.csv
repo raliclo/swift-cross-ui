@@ -66,11 +66,11 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 預期:CONTEXT MENU reset the camera: dist 3.40 high 1.30
 sleep,,,,,,2000000,let P72 lay out,ios
-move,200,310,client,,,,the centre of the mesh view,ios
+move,189,323,client,,,,the centre of the mesh view,ios
 sleep,,,,,,300000,,ios
 scroll,0,4,,,,,"four notches: the camera comes closer, so dist drops below 3.40",ios
 sleep,,,,,,1000000,let the readout settle,ios
-longpress,200,310,client,,,700000,hold on the mesh view -- the context menu must open,ios
+longpress,189,323,client,,,700000,hold on the mesh view -- the context menu must open,ios
 sleep,,,,,,2500000,let the menu finish presenting; it animates for about half a second,ios
-click,118,494,client,left,,,"tap 'Reset the camera' -- dist must read exactly 3.40 again",ios
+click,118,507,client,left,,,"tap 'Reset the camera' -- dist must read exactly 3.40 again",ios
 sleep,,,,,,1500000,,ios

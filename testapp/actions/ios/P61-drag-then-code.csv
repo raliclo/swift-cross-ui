@@ -7,13 +7,13 @@ action,x,y,origin,button,key,micros,note,platform
 # y 489-511.
 # P61 在 iOS 上:onEditingChanged 只回報拖曳。通過:一次拖曳加一次「從程式移動」之後 began 1、ended 1。
 sleep,,,,,,1200000,let P61 lay out,ios
-mousedown,177,464,client,left,,,press on the thumb,ios
+mousedown,176,284,client,left,,,press on the thumb,ios
 sleep,,,,,,200000,,ios
-move,230,464,client,,,,drag,ios
+move,229,284,client,,,,drag,ios
 sleep,,,,,,150000,,ios
-move,290,464,client,,,,drag further,ios
+move,289,284,client,,,,drag further,ios
 sleep,,,,,,150000,,ios
-mouseup,290,464,client,left,,,let go -- one begin and one end so far,ios
+mouseup,289,284,client,left,,,let go -- one begin and one end so far,ios
 sleep,,,,,,600000,,ios
-click,110,500,client,left,,,"move it from code -- the counts must NOT change",ios
+click,109,320,client,left,,,"move it from code -- the counts must NOT change",ios
 sleep,,,,,,800000,,ios

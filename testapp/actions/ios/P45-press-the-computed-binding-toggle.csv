@@ -58,9 +58,11 @@ action,x,y,origin,button,key,micros,note,platform
 #     setter writes: 1, button presses: 0
 # 因此兄弟狀態存活、setter 恰好執行一次,且沒有任何按鈕被按下。**被回報的子樹重建在 iOS 上並未重現。**
 sleep,,,,,,1500000,let P45 render,ios
-click,65,641,client,left,,,"(re-aimed 2026-10-01 at native size: 'selection = 2' spans 16-114 x 630-652) seed the sibling selection -- the line must read ""selection: 2""",ios
+click,65,594,client,left,,,"(re-aimed 2026-10-01 at native size: 'selection = 2' spans 16-114 x 630-652) seed the sibling selection -- the line must read ""selection: 2""",ios
 sleep,,,,,,400000,,ios
-click,182,641,client,left,,,"('typed = seeded' spans 122-242 x 630-652) seed the sibling field -- the line must read typed: ""seeded""",ios
+click,182,594,client,left,,,"('typed = seeded' spans 122-242 x 630-652) seed the sibling field -- the line must read typed: ""seeded""",ios
 sleep,,,,,,400000,,ios
-click,394,396,client,left,,,"(re-aimed 2026-10-01: the second Switch, 363-426 x 382-410) the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,394,393,client,left,,,"(re-aimed 2026-10-01: the second Switch, 363-426 x 382-410) the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",ios
 sleep,,,,,,1200000,let any rebuild settle,ios

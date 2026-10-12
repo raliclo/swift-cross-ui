@@ -72,7 +72,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 垂直方向不需要任何動作：內容高約 740 點、視窗高 852 點，因此第四列——只有 `hueRotation 120`
 # 一格——在本檔執行之前就已經在畫面上了。
-move,380,500,client,,,,"the right margin, level with the saturation row and clear of the floating actualView button in the top-left corner",ios
+move,398,437,client,,,,"the right margin, level with the saturation row and clear of the floating actualView button in the top-left corner",ios
 sleep,,,,,,400000,let the pointer settle before the drag begins,ios
 scroll,7,0,,,,,"the page must move left far enough to show the whole third column: blur 3, saturation 2.5 and grayscale 1 (VERIFIED: all three are fully on screen and none is cut. blur 3 softens the caption -- ""Hamburgefonstiv 123"" is visibly smeared next to the sharp one under saturation 2.5 -- while its gradient is indistinguishable from the control, which is exactly what P39's own comment says a blurred gradient looks like. saturation 2.5 is the most vivid cell in the app, and grayscale 1 is fully grey. The cost is the left column and the two title lines, which go off the left edge; the fourth row is a single cell in column one, so hueRotation 120 leaves the screen too and the resting capture is still the evidence for it. Nothing moved vertically -- every row label sits at the same y as before the drag.)",ios
 sleep,,,,,,900000,let the scroll settle and any bounce return,ios

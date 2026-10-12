@@ -39,5 +39,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p16-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。P16 塞得進寬度。
-click,314,146,client,left,,,"Switch to 3 column -- a middle pane must appear, the label must become Switch to 2 column, and detail must narrow from 239 to 161 (VERIFIED)",ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,4,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,228,182,client,left,,,"Switch to 3 column -- a middle pane must appear, the label must become Switch to 2 column, and detail must narrow from 239 to 161 (VERIFIED)",ios
 sleep,,,,,,900000,let the three panes settle,ios

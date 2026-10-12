@@ -21,5 +21,5 @@ action,x,y,origin,button,key,micros,note,platform
 # **2026-09-29:本檔能與不能證明的。**能證明選擇器有呈現——擷圖就是文件選擇器,只有點擊命中才會出現。不能證明結果那一行:
 # 選擇器是跨行程的遠端 view,從這個 runner 點它的關閉按鈕、或從頂端往下拖 sheet,都到不了它。這與 macOS 的開檔/存檔面板
 # 是同一道牆,AppKit 那邊已用 HID 事件越過;XCUITest 在這裡沒有對應的方法。「open -> cancelled」那一半只由 macOS 的 P18 涵蓋。
-click,68,432,client,left,,,"Open a file -- the document picker must present (VERIFIED 2026-09-29: Recents / Shared / Browse on every capture)",ios
+click,67,220,client,left,,,"Open a file -- the document picker must present (VERIFIED 2026-09-29: Recents / Shared / Browse on every capture)",ios
 sleep,,,,,,2500000,let the presentation finish animating in,ios

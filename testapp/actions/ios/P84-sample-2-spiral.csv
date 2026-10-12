@@ -4,5 +4,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: left and right images both show the spiral board; difference max <= 96, mean <= 0.5; unsupported: none
 # P84(ios):sample 2: softpcb_spiral。通過條件見上方英文；座標與幾何同上。
 sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
-click,114,314,client,left,,,"sample 2: softpcb_spiral (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+click,119,128,client,left,,,"sample 2: softpcb_spiral (VERIFIED 2026-10-09: capture shows the stated pass)",ios
 sleep,,,,,,4000000,hold for the capture,ios

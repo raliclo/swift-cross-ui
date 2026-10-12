@@ -4,5 +4,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the left image has magenta outlines (gradient fill, clip-path, filter, text, image) and a magenta corner flag; 'unsupported: 6' and six lines listing them; reference: none
 # P84(ios):sample 5: unsupported。通過條件見上方英文；座標與幾何同上。
 sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
-click,170,314,client,left,,,"sample 5: unsupported (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+click,177,128,client,left,,,"sample 5: unsupported (VERIFIED 2026-10-09: capture shows the stated pass)",ios
 sleep,,,,,,4000000,hold for the capture,ios

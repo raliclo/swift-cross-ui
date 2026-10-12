@@ -5,5 +5,5 @@ action,x,y,origin,button,key,micros,note,platform
 # x 23-161, y 528-550.
 # P49 在 iOS 上:popover。通過:popover 錨定在按鈕上而非視窗正中,popover opens 讀到 1。
 sleep,,,,,,1500000,let P49 render,ios
-click,92,539,client,left,,,"Show the popover -- anchored to the button",ios
+click,116,434,client,left,,,"Show the popover -- anchored to the button",ios
 sleep,,,,,,1500000,let the popover animate in,ios

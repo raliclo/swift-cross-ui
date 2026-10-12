@@ -5,5 +5,5 @@ action,x,y,origin,button,key,micros,note,platform
 # x 23-141, y 438-460.
 # P49 在 iOS 上:fullScreenCover。通過:cover 覆蓋整個視窗、沒有拖曳指示器,cover opens 讀到 1。
 sleep,,,,,,1500000,let P49 render,ios
-click,82,449,client,left,,,"Show the cover -- the cover must fill the window",ios
+click,101,366,client,left,,,"Show the cover -- the cover must fill the window",ios
 sleep,,,,,,1500000,let the presentation animate in,ios

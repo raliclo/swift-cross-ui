@@ -9,10 +9,12 @@ action,x,y,origin,button,key,micros,note,platform
 # P31: focus and keyboard are the point of this app and neither is reachable --
 # the iOS runner rejects key rows so Tab Space Return Escape and Ctrl+Q cannot be
 # sent. What a tap can do is press the button and move the two controls beside it.
-click,59,522,client,left,,,Button 0 -- the label must become Button 1,ios
+click,59,270,client,left,,,Button 0 -- the label must become Button 1,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,167,523,client,left,,,the switch -- it must flip on,ios
+click,167,255,client,left,,,the switch -- it must flip on,ios
 sleep,,,,,,400000,let the switch animate,ios
-mousedown,261,524,client,left,,,"take hold of the slider knob -- it sits on the same row as the switch, at (261, 524) on p31-ios-final-20260928-055655.png; the (226, 464) this row had was 60 points above the slider and the knob never moved",ios
-mouseup,415,524,client,left,,,"drag it right -- the slider must end near its maximum (the track ends at about x 422) (VERIFIED 2026-09-28: knob at the right end, Button 1, switch on, p31-ios-final-20260928-063920.png)",ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,5,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+mousedown,261,272,client,left,,,"take hold of the slider knob -- it sits on the same row as the switch, at (261, 524) on p31-ios-final-20260928-055655.png; the (226, 464) this row had was 60 points above the slider and the knob never moved",ios
+mouseup,415,272,client,left,,,"drag it right -- the slider must end near its maximum (the track ends at about x 422) (VERIFIED 2026-09-28: knob at the right end, Button 1, switch on, p31-ios-final-20260928-063920.png)",ios
 sleep,,,,,,500000,let the slider settle,ios

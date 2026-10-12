@@ -30,11 +30,11 @@ action,x,y,origin,button,key,micros,note,platform
 # y 476-496;第一次按下之後它變成兩行的 "Window appeared. Incremented @AppStorage to N.",整塊變高並重新
 # 置中,文字移到約 464-484。在 486 只有第一下命中——五次執行讀到 1、2、3、4、5,每次只多一;四下都命中
 # 應該每次都是 2。480 在兩種版面裡都落在按鈕內。
-click,193,480,client,left,,,Increment @AppStorage -- makes the stored value non-zero before Reset,ios
+click,233,248,client,left,,,Increment @AppStorage -- makes the stored value non-zero before Reset,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,321,480,client,left,,,Reset -- the stored value to 0,ios
+click,361,248,client,left,,,Reset -- the stored value to 0,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,193,480,client,left,,,Increment -- 0 -> 1,ios
+click,233,248,client,left,,,Increment -- 0 -> 1,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,193,480,client,left,,,"Increment -- 1 -> 2: the capture must read Launch count stored in @AppStorage: 2 (VERIFIED 2026-09-28: 2 on three runs in a row starting from a stored 5, p0-ios-final-20260928-073824/073839/073855.png)",ios
+click,233,248,client,left,,,"Increment -- 1 -> 2: the capture must read Launch count stored in @AppStorage: 2 (VERIFIED 2026-09-28: 2 on three runs in a row starting from a stored 5, p0-ios-final-20260928-073824/073839/073855.png)",ios
 sleep,,,,,,500000,let the last state settle,ios

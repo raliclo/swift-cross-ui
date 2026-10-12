@@ -17,5 +17,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 視窗**留著**、close handler 不執行、stdout 出現 UIKitBackend 的說明「dismissWindow() left the app's only
 # window open」。多 scene 的路徑（iPad、Catalyst）則會結束 scene session。
 sleep,,,,,,1500000,let P75 render,ios
-click,164,640,client,left,,,Close this window,ios
+click,164,419,client,left,,,Close this window,ios
 sleep,,,,,,2500000,let anything the close started finish,ios

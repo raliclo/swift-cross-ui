@@ -4,5 +4,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the twelve-cell feature sheet on both sides, same shapes and colours; difference within the golden bounds; unsupported: none
 # P84(ios):sample 4: features。通過條件見上方英文；座標與幾何同上。
 sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
-click,151,314,client,left,,,"sample 4: features (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+click,157,128,client,left,,,"sample 4: features (VERIFIED 2026-10-09: capture shows the stated pass)",ios
 sleep,,,,,,4000000,hold for the capture,ios

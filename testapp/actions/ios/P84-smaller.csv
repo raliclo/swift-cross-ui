@@ -4,5 +4,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the size line reads 96 x 60 pt and the raster line 288 x 180 px
 # P84(ios):smaller: 96 x 60 pt。通過條件見上方英文；座標與幾何同上。
 sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
-click,58,375,client,left,,,"smaller: 96 x 60 pt (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+click,58,190,client,left,,,"smaller: 96 x 60 pt (VERIFIED 2026-10-09: capture shows the stated pass)",ios
 sleep,,,,,,4000000,hold for the capture,ios

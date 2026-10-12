@@ -213,13 +213,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
 # 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
-click,68,606,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note (VERIFIED 2026-09-27: glTF 2360 bytes)",ios
+click,57,619,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note (VERIFIED 2026-09-27: glTF 2360 bytes)",ios
 sleep,,,,,,1500000,"a full 1.5s: 300ms was not enough and the next tap was swallowed",ios
-click,159,606,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note (VERIFIED 2026-09-27: 1020x720, 3 colours)",ios
+click,148,619,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note (VERIFIED 2026-09-27: 1020x720, 3 colours)",ios
 sleep,,,,,,300000,,ios
-click,77,575,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going (VERIFIED 2026-09-27)",ios
+click,66,588,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going (VERIFIED 2026-09-27)",ios
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
-click,195,575,client,left,,,"Stop the clock -- writes STOPPED at frame N (VERIFIED 2026-09-27: 682)",ios
+click,184,588,client,left,,,"Stop the clock -- writes STOPPED at frame N (VERIFIED 2026-09-27: 682)",ios
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
-click,310,575,client,left,,,"Check again -- writes CHECK at frame M and the delta (VERIFIED 2026-09-27: 685, delta 3)",ios
+click,299,588,client,left,,,"Check again -- writes CHECK at frame M and the delta (VERIFIED 2026-09-27: 685, delta 3)",ios
 sleep,,,,,,500000,let the readout settle,ios

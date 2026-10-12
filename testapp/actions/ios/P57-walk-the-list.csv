@@ -93,7 +93,7 @@ action,x,y,origin,button,key,micros,note,platform
 # Coordinates in points; capture 1320 x 2868 px, so px/3.
 # 座標以點計;擷取 1320 x 2868 px,故為 px/3。
 sleep,,,,,,1200000,let the list settle and report its launch count,ios
-move,200,810,client,,,,"onto the list -- without this every drag starts at the window centre, on text, and moves nothing",ios
+move,200,755,client,,,,"onto the list -- without this every drag starts at the window centre, on text, and moves nothing",ios
 scroll,0,6,client,,,,,ios
 sleep,,,,,,200000,,ios
 scroll,0,6,client,,,,,ios
@@ -207,5 +207,5 @@ sleep,,,,,,200000,,ios
 scroll,0,-6,client,,,,,ios
 sleep,,,,,,200000,,ios
 sleep,,,,,,800000,back at the top,ios
-click,109,242,client,left,,,Select last -- a state change so the readout re-renders,ios
+click,109,253,client,left,,,Select last -- a state change so the readout re-renders,ios
 sleep,,,,,,1200000,,ios

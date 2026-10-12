@@ -114,6 +114,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 什麼、以及為什麼的紀錄。本列現在要求相反的事:這次捲動必須把 B: clipped() 帶進畫面,而且 B 在那裡同樣
 # 要被裁切——橘色方塊的上下緣落在藍框自己的上下緣上(p17-doe-ios-final-20260928-052414.png)。這裡的視窗
 # 是 440 x 956(自 2026-09-17 起使用的模擬器),不是上面量測時的 393 x 852。
-move,380,650,client,,,,park the finger near the right edge so a 160 pt leftward drag stays inside the window,ios
+move,400,375,client,,,,park the finger near the right edge so a 160 pt leftward drag stays inside the window,ios
 scroll,4,0,client,,,,"scroll right four notches -- B: clipped() must come into view, clipped: orange top and bottom on the blue box's (VERIFIED 2026-09-28: A and B both whole on screen, Control off the left edge, orange flush with blue in both, p17-doe-ios-final-20260928-052414.png)",ios
 sleep,,,,,,600000,let any momentum settle before the capture,ios

@@ -14,13 +14,19 @@ action,x,y,origin,button,key,micros,note,platform
 # 停用欄位若拒絕點擊，q 會落在 SecureField（多一個點），標籤仍是「editable」；若接受，標籤會變成
 # 「editableq」。
 sleep,,,,,,1500000,settle,ios
-move,20,600,client,,,,"the left margin, clear of every slider",ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+move,20,592,client,,,,"the left margin, clear of every slider",ios
 scroll,0,8,,,,,,ios
 sleep,,,,,,800000,,ios
-move,20,600,client,,,,,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+move,20,582,client,,,,,ios
 scroll,0,8,,,,,,ios
 sleep,,,,,,800000,,ios
-move,20,600,client,,,,,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+move,20,582,client,,,,,ios
 scroll,0,8,,,,,"to the bottom (verified 2026-09-29: p21-ios-final-20260929-235353.png shows Nothing here)",ios
 sleep,,,,,,1000000,,ios
 click,60,608,client,left,,,"(re-aimed 2026-10-01 at native size from the scrolled capture: the SecureField's dots at y 608; (60,596) left seven dots and no keyboard) the SecureField -- takes focus",ios

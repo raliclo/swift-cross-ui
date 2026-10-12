@@ -8,11 +8,11 @@ action,x,y,origin,button,key,micros,note,platform
 # P59 在 iOS(iPhone)上:只有一個視窗,雙視窗比較屬於 iPad 的工作。iPhone 能呈現的:兩種儲存都收到
 # 同樣三次 append。通過:scene draft 與 app draft 都讀 AAA。先 clear,因為兩份草稿會跨執行保留。
 sleep,,,,,,1200000,let P59 render,ios
-click,197,420,client,left,,,clear -- both drafts persist between runs,ios
+click,197,248,client,left,,,clear -- both drafts persist between runs,ios
 sleep,,,,,,400000,,ios
-click,52,420,client,left,,,append A,ios
+click,52,248,client,left,,,append A,ios
 sleep,,,,,,300000,,ios
-click,52,420,client,left,,,again,ios
+click,52,248,client,left,,,again,ios
 sleep,,,,,,300000,,ios
-click,52,420,client,left,,,and again -- both rows must read AAA,ios
+click,52,248,client,left,,,and again -- both rows must read AAA,ios
 sleep,,,,,,700000,settle before the photograph,ios

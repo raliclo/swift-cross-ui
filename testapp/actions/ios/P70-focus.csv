@@ -9,9 +9,9 @@ action,x,y,origin,button,key,micros,note,platform
 # P70 在 iOS 上:焦點狀態。通過:在兩欄間點擊會改變 focused field 並增加 focus changes heard;
 # 「ask both for focus」之後停用的按鈕回報 focused: no。
 sleep,,,,,,800000,let the window settle,ios
-click,220,405,client,left,,,the email field -- the app did not ask for this,ios
+click,220,322,client,left,,,the email field -- the app did not ask for this,ios
 sleep,,,,,,600000,,ios
-click,220,373,client,left,,,and back to name,ios
+click,220,290,client,left,,,and back to name,ios
 sleep,,,,,,600000,,ios
-click,89,533,client,left,,,ask both for focus -- the disabled button must be refused,ios
+click,89,450,client,left,,,ask both for focus -- the disabled button must be refused,ios
 sleep,,,,,,800000,let the refusal be reported,ios

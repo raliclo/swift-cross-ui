@@ -5,5 +5,5 @@ action,x,y,origin,button,key,micros,note,platform
 # x 23-141, y 618-640.
 # P49 在 iOS 上:sheet,用來和 cover 對照。通過:sheet 不覆蓋整個視窗(頂端露出後方頁面)。
 sleep,,,,,,1500000,let P49 render,ios
-click,82,629,client,left,,,"Show the sheet -- must not fill the window",ios
+click,97,502,client,left,,,"Show the sheet -- must not fill the window",ios
 sleep,,,,,,1500000,let the presentation animate in,ios

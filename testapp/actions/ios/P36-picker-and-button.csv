@@ -22,7 +22,7 @@ action,x,y,origin,button,key,micros,note,platform
 # `HStack(spacing: 8) { Text("Int spacing 8"); Text("next") }` 是兩個展示整數間距的純文字標籤,兩者都沒有
 # 動作。那一列的註記稱它為「間距控制項」;它在任何 backend 上都從來不是。它存在的期間一直重放無誤,因為點在
 # 純文字上不算錯誤;而座標一旦對了,就看得出它什麼也沒改變。
-click,91,410,client,left,,,String label button -- it must respond,ios
+click,91,439,client,left,,,String label button -- it must respond,ios
 sleep,,,,,,400000,let the app react,ios
-click,130,270,client,left,,,the Vanilla picker -- a selection list must appear,ios
+click,130,299,client,left,,,the Vanilla picker -- a selection list must appear,ios
 sleep,,,,,,1000000,let the picker present,ios

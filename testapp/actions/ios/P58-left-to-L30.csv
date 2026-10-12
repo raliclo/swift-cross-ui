@@ -5,5 +5,5 @@ action,x,y,origin,button,key,micros,note,platform
 # x 16-95, y 171-193.
 # P58 在 iOS 上:一次按下只移動一欄。通過:左欄捲到 L30,右欄停在 R0。
 sleep,,,,,,1200000,let P58 lay out,ios
-click,55,182,client,left,,,left to L30,ios
+click,55,218,client,left,,,left to L30,ios
 sleep,,,,,,800000,let the scroll finish,ios

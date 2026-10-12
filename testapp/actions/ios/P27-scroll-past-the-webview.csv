@@ -59,7 +59,7 @@ action,x,y,origin,button,key,micros,note,platform
 # **2026-09-28:在這台模擬器上頁面不會移動,而那是正確的。**上面的 94 點量自 393 x 852 的視窗。自
 # 2026-09-17 起使用的模擬器是 440 x 956,而 P27 在 WebView 稍下方、約 y 830 處就結束了——視窗下方沒有東西
 # 可捲,所以標題必須留在原處。在**這個**視窗上若拍到標題離開頂端,代表根 view 捲動了塞得下的內容,那是缺陷。
-move,60,300,client,,,,"the left margin, clear of the WebView and of every gradient",ios
+move,78,233,client,,,,"the left margin, clear of the WebView and of every gradient",ios
 sleep,,,,,,400000,,ios
 scroll,0,4,,,,,"in a 393 x 852 window the page moved 94 points; in this 440 x 956 one it must not move: the content ends at about y 830 (VERIFIED 2026-09-28: title at the top, the WebView's bottom edge at 830 with white below it, p27-ios-final-20260928-052506.png)",ios
 sleep,,,,,,900000,let the scroll settle,ios

@@ -18,5 +18,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 即 3:1;座標以點為單位。**不經 swift-bundler 建置**(2026-10-05):見上方英文與 queue.md。
 # 之後的截圖必須顯示:按鈕寫著「Projection: perspective」,右側三根白色刻度不再等高。
 sleep,,,,,,2500000,wait for the first frame,ios
-click,100,222,client,left,,,"projection button (VERIFIED 2026-10-05: label reads perspective, ticks unequal)",ios
+click,100,134,client,left,,,"projection button (VERIFIED 2026-10-05: label reads perspective, ticks unequal)",ios
 sleep,,,,,,1500000,let the new frame land,ios

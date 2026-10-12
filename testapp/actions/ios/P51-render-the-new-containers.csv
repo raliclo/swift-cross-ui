@@ -14,6 +14,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-10-01 之前,第二欄捲到底仍被截掉:兩欄 HStack 被提議 408,排成 304 + 190,commit 時卻以
 # 自己的 522 重新分配,第二欄取了 247——回報 522、畫到 579。同日於 commitStackLayout 修正。
 sleep,,,,,,2000000,let P51 render,ios
-move,300,800,client,,,,the lower right of the page,ios
+move,300,684,client,,,,the lower right of the page,ios
 scroll,10,0,,,,,"right, to the end -- the second column must be whole in the photograph (six notches left GroupBox's paragraph cut at the right edge)",ios
 sleep,,,,,,1000000,let the scroll settle,ios

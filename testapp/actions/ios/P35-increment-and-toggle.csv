@@ -6,7 +6,9 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # REPLAYED AND VERIFIED 2026-09-02: the line read "State baseline: count 1,
 # toggle false" afterwards and the switch was off.
-click,58,473,client,left,,,Increment -- the baseline line must go count 0 -> count 1 (VERIFIED),ios
+click,58,233,client,left,,,Increment -- the baseline line must go count 0 -> count 1 (VERIFIED),ios
 sleep,,,,,,400000,let the label redraw,ios
-click,397,472,client,left,,,Toggle state -- the same line must go toggle true -> toggle false (VERIFIED),ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,397,232,client,left,,,Toggle state -- the same line must go toggle true -> toggle false (VERIFIED),ios
 sleep,,,,,,500000,let the label redraw,ios

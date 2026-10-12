@@ -22,15 +22,17 @@ action,x,y,origin,button,key,micros,note,platform
 # accessibility tree (testapp/test_support/ios_aim_check.py); the Switches run
 # past x=440, so their taps are on the visible part.
 sleep,,,,,,1500000,let P2 render,ios
-click,430,148,client,left,,,"Use expanded Picker options switch -- ""options: 2"" must become 5",ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,4,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,370,171,client,left,,,"Use expanded Picker options switch -- ""options: 2"" must become 5",ios
 sleep,,,,,,600000,let the picker rebuild,ios
-click,268,186,client,left,,,"open the Flavor picker -- the menu lists Vanilla, Chocolate, Strawberry, Mint, Coffee",ios
+click,28,209,client,left,,,"open the Flavor picker -- the menu lists Vanilla, Chocolate, Strawberry, Mint, Coffee",ios
 sleep,,,,,,1200000,let the menu open,ios
-click,133,248,client,left,,,"Chocolate -- Selected: Chocolate, options: 5, changes: 1 (VERIFIED 2026-10-01 at native size)",ios
+click,90,271,client,left,,,"Chocolate -- Selected: Chocolate, options: 5, changes: 1 (VERIFIED 2026-10-01 at native size)",ios
 sleep,,,,,,1000000,let the menu close,ios
-click,408,187,client,left,,,"Reset -- the capture must read Selected: Vanilla, changes: 1. Not 0: Reset writes pickerChangeCount = 0 and selectedFlavor = Vanilla, and the second write fires onChange(of: selectedFlavor), which counts it -- as SwiftUI's onChange does for any change, programmatic included. Each miss reads differently: a missed Reset leaves Chocolate, 1; a missed Chocolate leaves Vanilla, 0. (A version that picked Strawberry afterwards ended at changes: 2 whether Reset landed or not, p2-ios-final-20260928-074239.png.)",ios
+click,168,210,client,left,,,"Reset -- the capture must read Selected: Vanilla, changes: 1. Not 0: Reset writes pickerChangeCount = 0 and selectedFlavor = Vanilla, and the second write fires onChange(of: selectedFlavor), which counts it -- as SwiftUI's onChange does for any change, programmatic included. Each miss reads differently: a missed Reset leaves Chocolate, 1; a missed Chocolate leaves Vanilla, 0. (A version that picked Strawberry afterwards ended at changes: 2 whether Reset landed or not, p2-ios-final-20260928-074239.png.)",ios
 sleep,,,,,,400000,let the label redraw,ios
-click,430,570,client,left,,,Enable button row switch -- the row below must become enabled,ios
+click,370,571,client,left,,,Enable button row switch -- the row below must become enabled,ios
 sleep,,,,,,400000,let the row redraw,ios
-click,270,625,client,left,,,"Always enabled -- its label must read Always enabled (1). P2 counts presses in the label from 2026-09-28; the action was empty before, so nothing could show it acted (VERIFIED 2026-09-28: Selected: Vanilla, options: 5, changes: 1; Always enabled (1); the row enabled -- p2-ios-final-20260928-074332.png)",ios
+click,41,607,client,left,,,"Always enabled -- its label must read Always enabled (1). P2 counts presses in the label from 2026-09-28; the action was empty before, so nothing could show it acted (VERIFIED 2026-09-28: Selected: Vanilla, options: 5, changes: 1; Always enabled (1); the row enabled -- p2-ios-final-20260928-074332.png)",ios
 sleep,,,,,,500000,let the last state settle,ios

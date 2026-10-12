@@ -17,9 +17,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 拉**兩次**。`refreshes: 1` 既可能來自一個「被建立時就觸發」的控制項,也可能來自使用者的下拉;
 # 而 `refreshes: 2` 加上列數達到 10,則不可能是前者。
 sleep,,,,,,1000000,let P54 render,ios
-move,196,200,client,,,,"start the pull near the top of the content -- a scroll row drags from wherever the pointer is, and the runner's default is the window centre",ios
+move,196,236,client,,,,"start the pull near the top of the content -- a scroll row drags from wherever the pointer is, and the runner's default is the window centre",ios
 scroll,0,-8,,,,,"pull down past the refresh threshold -- refreshes must become 1",ios
 sleep,,,,,,2000000,let the control finish and the rows rebuild,ios
-move,196,200,client,,,,,ios
+move,196,236,client,,,,,ios
 scroll,0,-8,,,,,"pull down again -- refreshes must become 2 and the rows must reach 10 (VERIFIED 2026-09-28: refreshes: 2, rows up to 10, p54-ios-final-20260928-051507.png -- after RootScrollHost stopped switching its scrolling off under a refresh control)",ios
 sleep,,,,,,1500000,settle before the photograph,ios

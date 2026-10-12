@@ -81,7 +81,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 垂直方向不需要任何動作：在 852 點高的視窗中，內容約在 750 點處結束，因此純文字那一列在靜止時
 # 就已經在畫面上了。
-move,380,620,client,,,,"the right margin, level with the rotate 30 topLeading row and clear of the floating actualView button in the top-left corner",ios
+move,396,556,client,,,,"the right margin, level with the rotate 30 topLeading row and clear of the floating actualView button in the top-left corner",ios
 sleep,,,,,,400000,let the pointer settle before the drag begins,ios
 scroll,7,0,,,,,"sweep to the right end of the content, which must bring in scale 0.6, the whole of rotate 30 centre, and the bare text offset only cell (VERIFIED: scale 0.6 is complete and is visibly the smallest tile on the page; rotate 30 centre is whole, and its orange stripe reads as the LEFT edge of a tile turned clockwise rather than a mirrored one; the bare text offset only cell arrives and is upright and unrotated, so the rotated bare text beside it is a transform and not a font. NOT VERIFIED, and the file cannot fix it: shear (matrix) still loses the bottom-left 6 points or so of its orange stripe off the LEFT edge. Its tile spans content x 270..406 while the content runs to about 669, and 669 - 270 = 399 is wider than the 393-point window, so no single position holds that stripe and the right end at once. What IS visible of the shear cell is enough for its own question -- the blue is a parallelogram, not a rectangle, and the TOP caption leans with it, so the matrix reached the backend rather than being rebuilt from scale and rotation.)",ios
 sleep,,,,,,900000,let the scroll settle and any bounce return,ios

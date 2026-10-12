@@ -8,10 +8,14 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P32: the accessibility attributes this app is about cannot be read from a tap;
 # what a replay can show is that each labelled control is present and responds.
-click,86,370,client,left,,,Labelled button -- it must respond rather than sit inert,ios
+click,86,225,client,left,,,Labelled button -- it must respond rather than sit inert,ios
 sleep,,,,,,400000,let the app react,ios
-click,404,471,client,left,,,Toggle label -- the switch must flip on,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,404,326,client,left,,,Toggle label -- the switch must flip on,ios
 sleep,,,,,,400000,let the switch animate,ios
-mousedown,149,499,client,left,,,take hold of the slider knob,ios
-mouseup,250,499,client,left,,,drag it right -- the slider must move and the progress bar must not,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-5,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+mousedown,149,354,client,left,,,take hold of the slider knob,ios
+mouseup,250,354,client,left,,,drag it right -- the slider must move and the progress bar must not,ios
 sleep,,,,,,500000,let the slider settle,ios

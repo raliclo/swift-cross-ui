@@ -38,5 +38,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p26-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。
-click,213,84,client,left,,,"the SwiftCrossUI tab -- the summary table must be replaced by the running networking view (VERIFIED: [ SwiftCrossUI ] selected, and the httpbin.org PNG downloaded and drawn)",ios
+click,213,120,client,left,,,"the SwiftCrossUI tab -- the summary table must be replaced by the running networking view (VERIFIED: [ SwiftCrossUI ] selected, and the httpbin.org PNG downloaded and drawn)",ios
 sleep,,,,,,900000,let the tab swap and any request start,ios

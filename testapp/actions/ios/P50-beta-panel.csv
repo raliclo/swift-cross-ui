@@ -40,8 +40,10 @@ action,x,y,origin,button,key,micros,note,platform
 # **自 2026-09-28 起先捲動**——原因見 P50-arrow-edge-top.csv。不捲動時 y 911 開出的是第一顆按鈕的
 # PANEL ALPHA。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
 move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
 scroll,0,5,,,,,to the end of the content,ios
 sleep,,,,,,1500000,let the scroll come to rest,ios
-click,172,771,client,left,,,"open PANEL BETA from the SECOND anchor -- it takes no arrowEdge (VERIFIED 2026-09-28: PANEL BETA, anchored to the second button, p50-ios-final-20260928-051749.png)",ios
+click,33,769,client,left,,,"open PANEL BETA from the SECOND anchor -- it takes no arrowEdge (VERIFIED 2026-09-28: PANEL BETA, anchored to the second button, p50-ios-final-20260928-051749.png)",ios
 sleep,,,,,,1500000,leave the panel open for the final capture,ios

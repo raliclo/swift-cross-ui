@@ -6,5 +6,5 @@ action,x,y,origin,button,key,micros,note,platform
 # P75 在 iOS 上：Open URL -> openURL(...)。通過：Safari 移到前景並顯示 IANA 頁面。UIKitBackend 原本就有
 # ExternalURLs；這是它第一次有紀錄的執行。
 sleep,,,,,,1500000,let P75 render,ios
-click,135,476,client,left,,,Open URL,ios
+click,136,255,client,left,,,Open URL,ios
 sleep,,,,,,5000000,let Safari load the page,ios

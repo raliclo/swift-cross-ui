@@ -43,12 +43,16 @@ action,x,y,origin,button,key,micros,note,platform
 # **自 2026-09-28 起先捲動**——原因見 P50-arrow-edge-top.csv;各列量自捲動之後的
 # p50-ios-final-20260928-051620.png。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
 move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
 scroll,0,5,,,,,to the end of the content,ios
 sleep,,,,,,1500000,let the scroll come to rest,ios
-click,84,705,client,left,,,cycle 1: none -> top,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-2,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,84,703,client,left,,,cycle 1: none -> top,ios
 sleep,,,,,,500000,,ios
-click,84,719,client,left,,,"cycle 2: top -> bottom. y 719, not 705: after cycle 1 the shorter readout shortens the content, the scroll view re-clamps to the new bottom and every row moves down 14 points -- at 705 this tap missed and the readout stayed at top (p50-ios-final-20260928-051731.png)",ios
+click,84,703,client,left,,,"cycle 2: top -> bottom. y 719, not 705: after cycle 1 the shorter readout shortens the content, the scroll view re-clamps to the new bottom and every row moves down 14 points -- at 705 this tap missed and the readout stayed at top (p50-ios-final-20260928-051731.png)",ios
 sleep,,,,,,700000,let the readout redraw,ios
-click,143,708,client,left,,,"open PANEL ALPHA with arrowEdge bottom -- y 708: the readout's width sets how the lines above wrap, so each value it shows gives the page a different height and the bottom-clamped rows a different y. With ""bottom"" the text rewraps longer and this button sits at 708 (p50-ios-final-20260928-051854.png, where a tap at 686 missed) (VERIFIED 2026-09-28: PANEL ALPHA opens BELOW its button, readout b..., p50-ios-final-20260928-051926.png)",ios
+click,143,671,client,left,,,"open PANEL ALPHA with arrowEdge bottom -- y 708: the readout's width sets how the lines above wrap, so each value it shows gives the page a different height and the bottom-clamped rows a different y. With ""bottom"" the text rewraps longer and this button sits at 708 (p50-ios-final-20260928-051854.png, where a tap at 686 missed) (VERIFIED 2026-09-28: PANEL ALPHA opens BELOW its button, readout b..., p50-ios-final-20260928-051926.png)",ios
 sleep,,,,,,1500000,leave the panel open for the final capture,ios

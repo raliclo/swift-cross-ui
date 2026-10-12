@@ -4,5 +4,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the size line reads 168 x 105 pt, the raster line 504 x 315 px at scale 3, and the left image is sharp at the new size
 # P84(ios):larger: 168 x 105 pt。通過條件見上方英文；座標與幾何同上。
 sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
-click,115,375,client,left,,,"larger: 168 x 105 pt (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+click,115,190,client,left,,,"larger: 168 x 105 pt (VERIFIED 2026-10-09: capture shows the stated pass)",ios
 sleep,,,,,,4000000,hold for the capture,ios

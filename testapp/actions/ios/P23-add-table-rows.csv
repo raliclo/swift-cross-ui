@@ -34,5 +34,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p23-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。P23 塞得進寬度。
-click,154,247,client,left,,,"More rows -- the counter must read 12 and rows 9 through 12 must appear under the eighth (VERIFIED)",ios
+click,154,261,client,left,,,"More rows -- the counter must read 12 and rows 9 through 12 must appear under the eighth (VERIFIED)",ios
 sleep,,,,,,700000,let the table re-lay out,ios

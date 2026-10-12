@@ -28,17 +28,17 @@ action,x,y,origin,button,key,micros,note,platform
 # pushes recorded -> 1。舊的順序同時停在 app 啟動時的樣子(Level 0、pushes 0),因此擷圖分不出「正常的一次」
 # 與「每一下都落空的一次」。新順序停在 Level 1、pushes 1、counter 1,而任何一步落空都會留下不同的畫面:
 # pop 落空會停在 Level 3、pushes 2;最後一次 push 落空會停在 Level 0;最後一次 record 落空會是 pushes 0。
-click,90,226,client,left,,,Increment counter -- counter must go 0 -> 1,ios
+click,90,262,client,left,,,Increment counter -- counter must go 0 -> 1,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,169,588,client,left,,,Push level 1,ios
+click,309,474,client,left,,,Push level 1,ios
 sleep,,,,,,800000,let the push animate,ios
-click,198,611,client,left,,,"Push level 2 -- a pushed level carries a Back bar and its content sits lower than the root's: link at (198, 611), Record at (207, 642) on p24-ios-final-20260928-072830.png. At the root's (180, 619) a tap on a pushed level hits its Push link instead",ios
+click,338,497,client,left,,,"Push level 2 -- a pushed level carries a Back bar and its content sits lower than the root's: link at (198, 611), Record at (207, 642) on p24-ios-final-20260928-072830.png. At the root's (180, 619) a tap on a pushed level hits its Push link instead",ios
 sleep,,,,,,800000,let the push animate,ios
-click,207,642,client,left,,,Record a push at level 2 -- pushes recorded 0 -> 1,ios
+click,347,528,client,left,,,Record a push at level 2 -- pushes recorded 0 -> 1,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,214,226,client,left,,,Pop to root -- Level 0 and pushes recorded back to 0 (the app resets it),ios
+click,214,262,client,left,,,Pop to root -- Level 0 and pushes recorded back to 0 (the app resets it),ios
 sleep,,,,,,800000,let the pop animate,ios
-click,169,588,client,left,,,Push level 1 again,ios
+click,309,474,client,left,,,Push level 1 again,ios
 sleep,,,,,,800000,let the push animate,ios
-click,207,642,client,left,,,"Record a push at level 1 -- the capture must read Level 1, pushes recorded -> 1, counter -> 1 (VERIFIED 2026-09-28: all three, p24-ios-final-20260928-072921.png; stdout: push recorded at level 2, popped to root, push recorded at level 1)",ios
+click,347,528,client,left,,,"Record a push at level 1 -- the capture must read Level 1, pushes recorded -> 1, counter -> 1 (VERIFIED 2026-09-28: all three, p24-ios-final-20260928-072921.png; stdout: push recorded at level 2, popped to root, push recorded at level 1)",ios
 sleep,,,,,,800000,settle before the photograph,ios
