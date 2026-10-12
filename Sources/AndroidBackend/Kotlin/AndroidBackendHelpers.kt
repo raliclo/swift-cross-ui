@@ -152,6 +152,17 @@ class AndroidBackendHelpers {
         return intArrayOf(0, 0)
     }
 
+    // RootScrollHost.layoutPending for the host `view` sits in; true when it is in
+    // none yet. 取 `view` 所在宿主的 RootScrollHost.layoutPending;還不在任何宿主內時為 true。
+    fun rootScrollPending(view: View): Boolean {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is RootScrollHost) return parent.layoutPending()
+            parent = parent.parent
+        }
+        return view.parent == null
+    }
+
     // RootScrollHost.reveal for the host `view` sits in, or 0,0 when it is in
     // none. 取 `view` 所在宿主的 RootScrollHost.reveal,沒有宿主時為 0,0。
     // For the action file's `taplabel`: where the first shown TextView (a Button is
@@ -198,9 +209,24 @@ class AndroidBackendHelpers {
             // The mode button floats over the content and does not move with it.
             // 模式按鈕浮在內容之上，不隨內容移動。
             if (view.visibility != View.VISIBLE || view.javaClass.simpleName == "ViewModeButton") return
-            val label = ((view as? android.widget.TextView)?.text ?: view.contentDescription ?: "")
-                .toString().replace('\t', ' ').replace('\n', ' ')
-            val key = view.javaClass.simpleName + "|" + label
+            // What an EditText holds is what was typed into it, so it is never the label:
+            // the field would be a different view after each keystroke.
+            // EditText 裡的內容是打進去的字，所以不拿來當標籤：否則每打一個字，它就成了另一個 view。
+            val shown = when (view) {
+                is android.widget.EditText -> view.contentDescription ?: view.hint
+                is android.widget.TextView ->
+                    view.text?.takeIf { it.isNotEmpty() } ?: view.contentDescription
+                else -> view.contentDescription
+            }
+            val label = (shown ?: "").toString().replace('\t', ' ').replace('\n', ' ')
+            // A plain text view is "TextView" whatever subclass shows it: Text became
+            // FittedTextView between two builds and every recorded label stopped
+            // matching (42 of 141 points, 2026-10-12).
+            // 純文字 view 不論由哪個子類別顯示都記為 "TextView":Text 在兩個建置之間改成 FittedTextView,
+            // 所有記錄下來的標籤因此都對不上(141 個點中的 42 個,2026-10-12)。
+            val plainText = view is android.widget.TextView &&
+                view !is android.widget.Button && view !is android.widget.EditText
+            val key = (if (plainText) "TextView" else view.javaClass.simpleName) + "|" + label
             val ordinal = seen[key] ?: 0
             seen[key] = ordinal + 1
             if (view.width > 0 && view.height > 0) {
@@ -259,13 +285,37 @@ class AndroidBackendHelpers {
     // renumbers those.
     // x、y、由哪個錨點決定(0 無、1 框住它的 view、2 最近的文字、3 大小已變的框住者),以及兩個錨點算出的位置相距多遠
     // (只找到一個時為 -1)。沒有標籤的容器只在大小不變時才採信，因為一棵多了或少了 view 的樹會讓它們重新編號。
+    // The fifth is 1 when the anchor was found under another class than the one
+    // recorded. The view showing a label is not always the control: P35's
+    // "Toggle state" was a ToggleButton and is now a text beside a Switch, and a
+    // point moved onto that text presses nothing (2026-10-13).
+    // 第五個值為 1 代表錨點是在「與記錄不同的類別」底下找到的。顯示標籤的 view 不一定是控制項:P35 的
+    // 「Toggle state」原本是 ToggleButton,現在是 Switch 旁邊的一段文字，移到那段文字上的點什麼都按不到。
     fun aimResolve(activity: Activity, record: String): IntArray {
         val fields = record.split('\t')
         if (fields.size < 12) return IntArray(0)
         val entries = aimEntries(activity)
         fun at(start: Int, scaled: Boolean): IntArray? {
+            val recorded = fields[start]
+            // "-" is no anchor. It is not a view whose text is a minus sign (P12 and P33
+            // have one).
+            // "-" 代表沒有錨點，不是「文字為減號的 view」(P12 與 P33 各有一個)。
+            if (!recorded.contains('|')) return null
             val ordinal = fields[start + 1].toIntOrNull() ?: return null
-            val entry = entries.firstOrNull { it.key == fields[start] && it.ordinal == ordinal }
+            // A labelled view is still itself when its class was renamed (ToggleButton,
+            // MaterialTextView). When no view carries the recorded key and exactly one
+            // class shows the label, that class stands in, with the ordinal counted
+            // among its own views as it was recorded. Two classes showing the label
+            // leaves no way to tell which was meant, so there is no match.
+            // 有標籤的 view 即使類別改了名(ToggleButton、MaterialTextView)仍是同一個。沒有任何 view 帶著記錄下來的鍵、
+            // 而且恰好只有一個類別顯示該標籤時，由那個類別頂替，順序照記錄時的方式在它自己的 view 之中計數。
+            // 有兩個類別顯示該標籤時無從分辨原本指的是哪一個，因此不算對上。
+            val label = recorded.substringAfter("|")
+            val key =
+                if (label.isEmpty() || entries.any { it.key == recorded }) recorded
+                else entries.map { it.key }.filter { it.substringAfter("|") == label }
+                    .distinct().singleOrNull() ?: return null
+            val entry = entries.firstOrNull { it.key == key && it.ordinal == ordinal }
                 ?: return null
             val width = fields[start + 4].toDoubleOrNull() ?: return null
             val height = fields[start + 5].toDoubleOrNull() ?: return null
@@ -274,7 +324,10 @@ class AndroidBackendHelpers {
             val dx = (fields[start + 2].toDoubleOrNull() ?: 0.0) * (if (scaled) sx else 1.0)
             val dy = (fields[start + 3].toDoubleOrNull() ?: 0.0) * (if (scaled) sy else 1.0)
             val same = sx in 0.8..1.25 && sy in 0.8..1.25
-            return intArrayOf((entry.left + dx).toInt(), (entry.top + dy).toInt(), if (same) 1 else 0)
+            return intArrayOf(
+                (entry.left + dx).toInt(), (entry.top + dy).toInt(),
+                if (same) 1 else 0, if (key == recorded) 0 else 1,
+            )
         }
         val inside = at(0, true)
         val near = at(6, false)
@@ -284,10 +337,10 @@ class AndroidBackendHelpers {
             else -1
         return when {
             inside != null && (!fields[0].endsWith("|") || inside[2] == 1) ->
-                intArrayOf(inside[0], inside[1], 1, apart)
-            near != null -> intArrayOf(near[0], near[1], 2, apart)
-            inside != null -> intArrayOf(inside[0], inside[1], 3, apart)
-            else -> intArrayOf(0, 0, 0, apart)
+                intArrayOf(inside[0], inside[1], 1, apart, inside[3])
+            near != null -> intArrayOf(near[0], near[1], 2, apart, near[3])
+            inside != null -> intArrayOf(inside[0], inside[1], 3, apart, inside[3])
+            else -> intArrayOf(0, 0, 0, apart, 0)
         }
     }
 

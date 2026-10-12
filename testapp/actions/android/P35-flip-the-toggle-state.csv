@@ -62,6 +62,29 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 只按一次。沒有任何東西被重新排版——位於 [47,1033]-[768,1096] 的那一行會留在原處——但主張所需的
 # 也就只有這一次按壓。
+#
+# RE-AIMED 2026-10-13. Everything above describes the 2026-09-03 layout. Since
+# then the default toggle style on Android is a switch (2026-10-09), actualView
+# lays P35 out at its own default size, wider than the screen, and the content
+# starts at the top. The control is now an android.widget.Switch at the end of
+# its row, at content pixels [1781,542]-[1946,615] -- off the right edge of the
+# 1080-pixel screen. Its centre is pixel (1864, 577); the replay adds the
+# origin displacement (0, -305 px here), so the point is (710, 336). The replay
+# scrolls the root 847 px to reach it and says so. The old point (175, 454)
+# landed on blank space below the last line, and the "Toggle state" text is not
+# the control: a real tap on it changes nothing.
+# Replayed 2026-10-13: the Switch carries checked="false" and, scrolled back, the
+# line reads "State baseline: count 0, toggle false". Where the comments above
+# say ToggleButton, read Switch.
+#
+# 2026-10-13 重新瞄準。以上描述的都是 2026-09-03 的版面。之後 Android 的預設 toggle 樣式改為 switch
+# (2026-10-09),actualView 以 P35 自己的預設尺寸排版(比螢幕寬),內容從頂端開始。控制項現在是位於該列
+# 尾端的 android.widget.Switch,內容像素 [1781,542]-[1946,615]——在 1080 像素螢幕的右緣之外。中心為像素
+# (1864, 577);重放會加上原點位移(此處為 0, -305 px),所以點是 (710, 336)。重放會把根捲動 847 px 去碰它,
+# 並印出這件事。舊的點 (175, 454) 落在最後一行下方的空白;而「Toggle state」那段文字不是控制項，實際點它
+# 什麼都不會變。
+# 2026-10-13 重放：Switch 帶有 checked="false",捲回去之後該行讀作「State baseline: count 0, toggle false」。
+# 上文寫 ToggleButton 之處請讀作 Switch。
 sleep,,,,,,1500000,let P35 draw the state line and the two controls,android
-click,175,454,,left,,,"the ""Toggle state"" toggle -- the line must read ""State baseline: count 0, toggle false"" and the ToggleButton node must carry checked=""false"" instead of checked=""true"". REPLAYED 2026-09-03 and BOTH HALVES HOLD: the line reads ""State baseline: count 0, toggle false"" at [47,1033]-[787,1096] and the ToggleButton carries checked=""false"", so the tap reached the binding and the binding reached the widget. The count is still 0, so nothing else fired. One thing the claim did not predict: the toggle got WIDER, [343,1128]-[574,1254] became [343,1128]-[663,1254], 231 px to 320. A Material ToggleButton in the unchecked state draws its label without the checked pill, and SwiftCrossUI re-measures it -- worth knowing before writing a coordinate for a second press against a toggle that has already been pressed",android
+click,710,336,,left,,,"the ""Toggle state"" toggle -- the line must read ""State baseline: count 0, toggle false"" and the ToggleButton node must carry checked=""false"" instead of checked=""true"". REPLAYED 2026-09-03 and BOTH HALVES HOLD: the line reads ""State baseline: count 0, toggle false"" at [47,1033]-[787,1096] and the ToggleButton carries checked=""false"", so the tap reached the binding and the binding reached the widget. The count is still 0, so nothing else fired. One thing the claim did not predict: the toggle got WIDER, [343,1128]-[574,1254] became [343,1128]-[663,1254], 231 px to 320. A Material ToggleButton in the unchecked state draws its label without the checked pill, and SwiftCrossUI re-measures it -- worth knowing before writing a coordinate for a second press against a toggle that has already been pressed",android
 sleep,,,,,,1200000,let the toggle and the state line repaint,android

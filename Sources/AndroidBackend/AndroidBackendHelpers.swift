@@ -50,6 +50,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func rootScrollDisplacement(_ view: AndroidKit.View?) -> [Int32]
 
+    /// See RootScrollHost.layoutPending. 見 RootScrollHost.layoutPending。
+    @JavaMethod
+    func rootScrollPending(_ view: AndroidKit.View?) -> Bool
+
     /// See RootScrollHost.reveal: the pixels scrolled, x and y.
     @JavaMethod
     func rootScrollReveal(_ view: AndroidKit.View?, _ x: Int32, _ y: Int32) -> [Int32]

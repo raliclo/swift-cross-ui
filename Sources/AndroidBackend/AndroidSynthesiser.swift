@@ -120,6 +120,10 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         }
     }
 
+    /// Whether the root host was seen to come to rest; see `currentWindowGeometry`.
+    /// 是否已看到 root 宿主不再移動;見 `currentWindowGeometry`。
+    private var settled = false
+
     /// Zero origin and the density as scale.
     ///
     /// An Android activity fills the screen and has no frame the app can be
@@ -142,16 +146,52 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         // Android 動作檔量測時的視窗原點，所以內容移動了 `rootScrollDisplacement` 像素。加上它，那些檔案按到的
         // 仍是同一個 view——捲動之後也一樣。
         let density = self.density
-        let shift = Self.onMainThread { () -> [Int32] in
-            guard
-                let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                    .window?.content
-            else { return [0, 0] }
-            return AndroidBackendHelpers(environment: AndroidBackend.env)
-                .rootScrollDisplacement(content)
+        // x, y, and 1 while a layout that can still move the content is on its way.
+        // x、y,以及「還有一次可能移動內容的排版在路上」時為 1。
+        func read() -> [Int32] {
+            Self.onMainThread { () -> [Int32] in
+                guard
+                    let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
+                        .window?.content
+                else { return [0, 0, 1] }
+                let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
+                let shift = helpers.rootScrollDisplacement(content)
+                guard shift.count == 2 else { return [0, 0, 1] }
+                return shift + [helpers.rootScrollPending(content) ? 1 : 0]
+            }
         }
-        let origin =
-            shift.count == 2 ? (Double(shift[0]) / density, Double(shift[1]) / density) : (0, 0)
+        // The first read waits for the host to stop moving. A replay measures one
+        // second after launch, and the push that clears the mode button -- 94 px on
+        // the 420 dpi emulator -- lands a layout pass later: the same file put P35's
+        // point at y 793 on one run and 887 on the next (2026-10-13). Standing still
+        // is not enough, because the host also stands still before that push, so
+        // the host is asked whether a layout is still on its way.
+        // 第一次讀取會等宿主不再移動。重放在啟動後一秒量測，而讓開模式按鈕的下移(420 dpi emulator 上是 94 px)
+        // 晚一次 layout 才到:同一個檔案把 P35 的點在一次執行放在 y 793,下一次放在 887(2026-10-13)。
+        // 只看「沒在動」不夠，因為下移之前宿主同樣沒在動，所以還會問宿主是否仍有排版在路上。
+        var shift = read()
+        if !settled {
+            var same = 0
+            for _ in 0..<40 where same < 3 {
+                Thread.sleep(forTimeInterval: 0.1)
+                let next = read()
+                same = next == shift && next[2] == 0 ? same + 1 : 0
+                shift = next
+            }
+            settled = same >= 3
+            if !settled {
+                // Said, because the point this origin places would otherwise be
+                // off by the push with nothing to show why.
+                // 說出來，否則這個原點所放的點會差一段下移，而沒有任何東西說明原因。
+                FileHandle.standardError.write(
+                    Data(
+                        ("-actionfile: the root scroll host was still moving after 4 s; "
+                            + "measured at (\(shift[0]), \(shift[1])) px\n").utf8
+                    )
+                )
+            }
+        }
+        let origin = (Double(shift[0]) / density, Double(shift[1]) / density)
         return WindowGeometry(frameOrigin: origin, clientOrigin: origin, scale: density)
     }
 
@@ -446,7 +486,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         }
         let resolved = answer.resolved
         let by = ["unmatched", "inside", "near", "inside-resized"]
-        guard resolved.count == 4, resolved[2] != 0 else {
+        guard resolved.count == 5, resolved[2] != 0 else {
             FileHandle.standardError.write(
                 Data("-actionfile: aimed \(index) (\(position.x), \(position.y)) by=unmatched\n".utf8)
             )
@@ -456,7 +496,8 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         FileHandle.standardError.write(
             Data(
                 ("-actionfile: aimed \(index) (\(position.x), \(position.y)) -> (\(moved.x), \(moved.y)) "
-                    + "by=\(by[Int(resolved[2])]) apart=\(resolved[3])\n").utf8
+                    + "by=\(by[Int(resolved[2])]) apart=\(resolved[3])"
+                    + (resolved[4] == 1 ? " class-changed" : "") + "\n").utf8
             )
         )
         return moved

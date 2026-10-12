@@ -261,6 +261,19 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         return intArrayOf(origin.x - horizontal.scrollX, origin.y - vertical.scrollY)
     }
 
+    /// Whether a layout that can still move the content is on its way: nothing laid
+    /// out yet, a pass requested, or the mode button resting somewhere the stage has
+    /// not been told about -- the layout listener posts that, so one pass has ended
+    /// and the push that clears the button has not begun.
+    /// 是否還有一次「可能移動內容」的排版在路上：尚未排過版、已要求排版，或模式按鈕停在 stage 還不知道的位置——
+    /// 那是 layout listener 用 post 送出的，所以一次排版已結束，而讓開按鈕的下移還沒開始。
+    fun layoutPending(): Boolean {
+        if (!isLaidOut || isLayoutRequested || stage.isLayoutRequested) return true
+        val shown = button?.takeIf { it.visibility == VISIBLE } ?: return false
+        return shown.width == 0 ||
+            Rect(shown.left, shown.top, shown.right, shown.bottom) != stage.avoided
+    }
+
     /// Scrolls just enough that the window point `x`,`y` (pixels) is inside this
     /// host with a margin, and returns how far it scrolled. For the action-file
     /// replay: a file measured when an oversized root started at the window
