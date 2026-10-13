@@ -424,8 +424,7 @@ class AndroidBackendHelpers {
         button.elevation = 0f
         // No inset at the sides and 6 dp above and below, as UIButton(type: .system),
         // which ToggleWidget is: P21's "Enabled" sat 8 dp right of iOS's.
-        // 左右不內縮、上下 6 dp,與 ToggleWidget 所用的 UIButton(type: .system) 相同:P21 的 "Enabled" 比 iOS 的右移了 8
-        // dp。
+        // 左右不內縮、上下 6 dp,與 ToggleWidget 所用的 UIButton(type: .system) 相同:P21 的 "Enabled" 比 iOS 的右移了 8 dp。
         val pad = (6 * density).toInt()
         button.setPadding(0, pad, 0, pad)
         button.minHeight = 0
@@ -557,8 +556,7 @@ class AndroidBackendHelpers {
     // systemBlue (#0088FF, #0091FF dark) with a checkmark in the foreground
     // colour when on, the whole control at 40% when disabled. The framework
     // CheckBox was Material's outlined box (P21, 2026-10-10).
-    // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16%
-    // 的
+    // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16% 的
     // (120,120,128)),開啟時為 systemBlue(#0088FF,深色 #0091FF)加上前景色的勾號，停用時整個控制項 40%。框架的
     // CheckBox 是 Material 的外框方塊(P21,2026-10-10)。
     fun styleCheckbox(checkBox: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {

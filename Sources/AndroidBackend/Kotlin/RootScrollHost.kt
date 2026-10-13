@@ -104,8 +104,8 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
          *
          * 一個 view 及其後代實際繪製的範圍，依 UIKitBackend 的規則:沒有背景的單純 `CustomContainer` 只透過子元件計算，
          * 其餘(文字、控制項、捲動視圖、清單)以自身邊界計算、不往下展開，非 VISIBLE 的子元件不算。沒有東西繪製時回傳 false。
-         * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上 從左邊 18 dp 處開始，iOS
-         * 則從文字開始(2026-10-09)。
+         * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上
+         * 從左邊 18 dp 處開始，iOS 則從文字開始(2026-10-09)。
          */
         fun drawnBounds(view: View, into: Rect): Boolean {
             if (view !is CustomContainer || view.clipChildren) {
@@ -364,7 +364,8 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
      * from this button, right of the mode control when there is one and in its place when not.
      * Content keeps clear of it as it does of the mode control.
      *
-     * `.enableMenu()` 加上的選單按鈕:手機沒有選單列，標準選單從這個按鈕打開;有模式控制項時在它右邊，沒有時在它的位置。 內容會像讓開模式控制項一樣讓開它。
+     * `.enableMenu()` 加上的選單按鈕:手機沒有選單列，標準選單從這個按鈕打開;有模式控制項時在它右邊，沒有時在它的位置。
+     * 內容會像讓開模式控制項一樣讓開它。
      */
     fun setMenuButtonShown(activity: Activity, shown: Boolean) {
         val existing = menuButton
@@ -714,8 +715,7 @@ private class Stage(context: Context) : ViewGroup(context) {
             if (RootScrollHost.drawnBounds(safe, inner)) {
                 // And the app's root view frame, so a `.padding` written on the
                 // root is kept -- see UIKitBackend's RootScrollHost (`rootFrame`).
-                // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的
-                // RootScrollHost(`rootFrame`)。
+                // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的 RootScrollHost(`rootFrame`)。
                 var frameLeft = Int.MAX_VALUE
                 var frameTop = Int.MAX_VALUE
                 var frameRight = Int.MIN_VALUE

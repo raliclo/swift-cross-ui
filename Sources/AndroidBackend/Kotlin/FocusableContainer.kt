@@ -19,9 +19,10 @@ import android.widget.FrameLayout
  * Tab needs nothing here: an unhandled Tab reaches the view root, which runs its own focus search,
  * and `KeyEventContainer` reports a key without consuming it.
  *
- * Android 上的 `.focusable()`:一個能持有焦點的容器。view 在這裡預設不可聚焦，在 touch mode 下還需要 `isFocusableInTouchMode`,否則
- * `requestFocus()` 會失敗;兩者都跟著 [focusableNow]。觸碰會讓它取得焦點 但不被拿走:`dispatchTouchEvent` 看得到每個前往子 view
- * 的觸碰，按下時要求焦點，事件照原樣往下走。 Tab 在這裡不需要處理:沒被處理的 Tab 會到 view root,由它自己搜尋焦點;`KeyEventContainer` 只回報、不消耗。
+ * Android 上的 `.focusable()`:一個能持有焦點的容器。view 在這裡預設不可聚焦，在 touch mode 下還需要
+ * `isFocusableInTouchMode`,否則 `requestFocus()` 會失敗;兩者都跟著 [focusableNow]。觸碰會讓它取得焦點
+ * 但不被拿走:`dispatchTouchEvent` 看得到每個前往子 view 的觸碰，按下時要求焦點，事件照原樣往下走。
+ * Tab 在這裡不需要處理:沒被處理的 Tab 會到 view root,由它自己搜尋焦點;`KeyEventContainer` 只回報、不消耗。
  */
 class FocusableContainer(activity: Activity) : FrameLayout(activity) {
     var focusableNow = true
