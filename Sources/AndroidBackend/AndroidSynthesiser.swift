@@ -547,12 +547,21 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let steps = 8
         for step in 1...steps {
             let fraction = Double(step) / Double(steps)
+            Thread.sleep(forTimeInterval: 0.016)
             try dispatchMove(
                 at: (x: start.x + travel.x * fraction, y: start.y + travel.y * fraction),
                 downTime: downTime
             )
         }
 
+        // The finger rests before it lifts. Lifted straight off the last move, the
+        // drag is a fling: P34's two notches (80 points) ran its list to the end,
+        // rows 85-99, on 2026-10-13, where the file records rows 2-15.
+        // 手指在抬起之前先停住。緊接著最後一次移動就抬起的話，這個拖曳會變成 fling:2026-10-13,P34 的兩格
+        // (80 點)把清單一路帶到最後(第 85-99 列),而檔案記錄的是第 2-15 列。
+        Thread.sleep(forTimeInterval: 0.15)
+        try dispatchMove(at: end, downTime: downTime)
+        Thread.sleep(forTimeInterval: 0.05)
         _ = try dispatch(action: actionUp, at: end, downTime: downTime)
         lastPoint = end
     }
