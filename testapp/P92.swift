@@ -49,6 +49,24 @@ final class P92Model: SwiftCrossUI.ObservableObject {
         last = name
         presses += 1
         print("[P92] command \(name)")
+        Self.log("command \(name)")
+    }
+
+    /// Appends a line to p92-commands.log, where a run can read what reached the app.
+    /// 在 p92-commands.log 加一行，讓一次執行可以讀到有什麼送進了 app。
+    static func log(_ line: String) {
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? FileManager.default.currentDirectoryPath
+        let url = URL(fileURLWithPath: directory).appendingPathComponent("p92-commands.log")
+        let data = Data((line + "\n").utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 
     @CommandsBuilder
@@ -142,6 +160,7 @@ struct P92App: App {
 
 struct P92View: View {
     @ObservedObject var model = P92Model.shared
+    @State var field = "hello"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -149,14 +168,20 @@ struct P92View: View {
             Text("enableMenu: \(P92Model.menuEnabled ? "on" : "off")")
             Text("last command: \(model.last)")
             Text("commands chosen: \(model.presses)")
+            // For the Edit menu: Select All, Copy, Paste and Undo act on this field.
+            // 給 Edit 選單用:Select All、Copy、Paste 與 Undo 作用在這個欄位上。
+            TextField("edit me", text: $field)
+                .frame(width: 260)
+            Text("field: \(field)")
             Text("layout the framework made (standard menus on):")
             ScrollView {
                 Text(P92Model.layoutText)
                     .font(.system(size: 11))
             }
-            .frame(height: 440)
+            .frame(height: 380)
         }
         .padding(16)
+        .onChange(of: field) { P92Model.log("field \(field)") }
         .onAppear {
             #if canImport(AppKit)
                 if CommandLine.arguments.contains("--debug") {
