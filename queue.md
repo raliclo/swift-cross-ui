@@ -1,5 +1,29 @@
 # queue
 
+## Open items at a glance / 待辦一覽 (2026-10-13)
+
+Kept at the top at the user's request ("Organize todo in a table so we keep it in mind"). One row per open
+item; the entry further down holds the detail. Update a row when its state changes, and remove it when the
+entry is closed.
+應使用者要求放在最上面。每個未結項目一列，細節在下方對應的條目;狀態改變時更新該列，條目結案時移除。
+
+| # | Item | Where it is done | State | Next step |
+| --- | --- | --- | --- | --- |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress | reference dump from a real SwiftUI app, then core types |
+| 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
+| 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
+| 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
+| 5 | P89 on WinUI, and on GTK under Linux/WSL and Windows | Windows / WSL | open | run it |
+| 6 | `Mesh3DViews` on WinUI | Windows | open | -- |
+| 7 | WinUI parity: date picker colour, font design, picker font, scale-change notice, fullscreen | Windows | open | -- |
+| 8 | #123 accessibility: WinUI's UIA tree, Narrator and Orca speech | Windows / WSL | open | -- |
+| 9 | P64 cell `fail 2026-09-10` in coverage.md | Windows (gtk4 column) | open | re-run and read the failure |
+| 10 | iPhone hover: `onContinuousHover` reports nothing without a pointer | Mac | waits for the user | choose: leave it, or report a held touch as hover (then Android too) |
+| 11 | iPad: only six action files; nothing run on a physical iPad; only `crosshair` seen of the cursors | Mac / hardware | open | the other cursor shapes on the simulator |
+| 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
+| 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
+| 14 | `Scripts/format.sh` and `swift test` not run since 2026-10-13's changes | Mac | open | run both (not on testapp/P6.swift or D3D11VideoInterop.swift) |
+
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 
 - [x] **`View.onContinuousHover(perform:)` with modifiers** (Mac side).
@@ -731,10 +755,9 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
      under the same switch -- "this is tunable" -- and are implemented in Swift.
   6. WinUI is written from the Mac and run on the Windows side.
   7. All twenty placements, not a first nine: "All shall be included in the first demo app on macOS."
-  8. OPEN, waiting on the user: `CommandMenu("File")` is merged into the default File menu by title today
-     (AppKit and UIKit only). SwiftUI is believed not to merge -- to be confirmed on the reference app. A
-     table comparing "remove the merge" with "keep it" was given on 2026-10-13. Until the user chooses, the
-     default stays as it is and the SwiftUI behaviour is behind a switch.
+  8. DECIDED 2026-10-13, "follow SwiftUI": `CommandMenu("File")` is no longer merged into the default File
+     menu by title (AppKit and UIKit did that). What SwiftUI does with a same-named menu is taken from the
+     reference app, not from memory; putting items into a system menu is `CommandGroup`'s job.
   Steps: (a) reference dump from real SwiftUI, (b) the core types and the resolution of groups into menus,
   (c) AppKitBackend and a demo app with all twenty placements, (d) GtkBackend on macOS, (e) UIKitBackend on
   iPad and iPhone, (f) AndroidBackend, (g) hand WinUIBackend and GTK on Windows/WSL to the Windows side.
@@ -742,8 +765,8 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   平台(GTK、WinUI、Android)由本框架以 Swift 建出選單;順序 macOS -> GTK -> iOS -> Android,都在 Mac 上做，Windows 與
   WSL 留給 Windows 端;基準要實測(真正的 SwiftUI app 傾印選單列);預設行為不變，GTK/WinUI 不出現選單列、手機上不顯示
   任何東西，除非 app 呼叫 enableMenu 或把變數設為 true;預設項目(Undo、Copy、Paste 等)同樣由這個開關控制並以 Swift 實作;
-  二十個位置全部要，第一支示範 app 在 macOS 上就要包含全部。未決:`CommandMenu("File")` 依標題合併的行為要不要拿掉，
-  比較表已於 2026-10-13 提供;使用者選定前預設維持現況，SwiftUI 的行為放在開關後面。
+  二十個位置全部要，第一支示範 app 在 macOS 上就要包含全部。`CommandMenu("File")` 依標題合併的行為:2026-10-13 決定
+  「follow SwiftUI」,不再合併;SwiftUI 對同名選單的實際做法以參考 app 為準。
   Was: **`CommandGroup`** -- placing menu commands relative to the system's own groups
   (`CommandGroup(replacing:)`, `before:`, `after:`). Menus go through
   `.commands { }` (`Scenes/Modifiers/CommandsModifier.swift`) with `CommandMenu`
