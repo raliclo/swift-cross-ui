@@ -716,7 +716,35 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   到得了它。`grep -rn "func focusable" Sources/SwiftCrossUI` 找不到任何東西。五個 backend 都要：GtkBackend、
   WinUIBackend、AppKitBackend、UIKitBackend、AndroidBackend,並要有一支測試 app 用 Tab 走到一個普通 view 再對它
   打字(目前驅動焦點的是 P70)。
-- [ ] **`CommandGroup`** -- placing menu commands relative to the system's own groups
+- [ ] **`CommandGroup`, as SwiftUI has it -- decided by the user on 2026-10-13, in progress.**
+  The decisions, in the user's words where quoted:
+  1. Shape: "exactly the same" as SwiftUI -- `CommandGroup(replacing:)`, `before:`, `after:` and
+     `CommandGroupPlacement`. Where there is no SwiftUI to copy (GTK, WinUI, Android), "use swift code to
+     mimic the UI": the menus are built by this framework, in Swift.
+  2. Order: macOS -> GTK -> iOS -> Android, all on the Mac. "Leave windows and WSL be done on windows."
+  3. The baseline is measured, not remembered: a real SwiftUI app whose menu bar is dumped, on macOS and on
+     iPad, and the iPhone's behaviour looked at the same way.
+  4. "Default behavior stays the same": no menu bar appears on GTK or WinUI, and nothing visible on a phone,
+     unless the app asks. "User shall be able to enable menu by calling enableMenu or set that as variable to
+     be true."
+  5. The default items (Undo, Redo, Cut, Copy, Paste, Select All and the rest) on GTK, WinUI and Android are
+     under the same switch -- "this is tunable" -- and are implemented in Swift.
+  6. WinUI is written from the Mac and run on the Windows side.
+  7. All twenty placements, not a first nine: "All shall be included in the first demo app on macOS."
+  8. OPEN, waiting on the user: `CommandMenu("File")` is merged into the default File menu by title today
+     (AppKit and UIKit only). SwiftUI is believed not to merge -- to be confirmed on the reference app. A
+     table comparing "remove the merge" with "keep it" was given on 2026-10-13. Until the user chooses, the
+     default stays as it is and the SwiftUI behaviour is behind a switch.
+  Steps: (a) reference dump from real SwiftUI, (b) the core types and the resolution of groups into menus,
+  (c) AppKitBackend and a demo app with all twenty placements, (d) GtkBackend on macOS, (e) UIKitBackend on
+  iPad and iPhone, (f) AndroidBackend, (g) hand WinUIBackend and GTK on Windows/WSL to the Windows side.
+  `CommandGroup`,照 SwiftUI 的形狀——使用者 2026-10-13 決定，進行中。決定:形狀與 SwiftUI 完全相同;沒有 SwiftUI 可對照的
+  平台(GTK、WinUI、Android)由本框架以 Swift 建出選單;順序 macOS -> GTK -> iOS -> Android,都在 Mac 上做，Windows 與
+  WSL 留給 Windows 端;基準要實測(真正的 SwiftUI app 傾印選單列);預設行為不變，GTK/WinUI 不出現選單列、手機上不顯示
+  任何東西，除非 app 呼叫 enableMenu 或把變數設為 true;預設項目(Undo、Copy、Paste 等)同樣由這個開關控制並以 Swift 實作;
+  二十個位置全部要，第一支示範 app 在 macOS 上就要包含全部。未決:`CommandMenu("File")` 依標題合併的行為要不要拿掉，
+  比較表已於 2026-10-13 提供;使用者選定前預設維持現況，SwiftUI 的行為放在開關後面。
+  Was: **`CommandGroup`** -- placing menu commands relative to the system's own groups
   (`CommandGroup(replacing:)`, `before:`, `after:`). Menus go through
   `.commands { }` (`Scenes/Modifiers/CommandsModifier.swift`) with `CommandMenu`
   only; there is no `CommandGroup` type. Wanted on the same five backends; on iOS
