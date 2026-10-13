@@ -7,21 +7,24 @@ action,x,y,origin,button,key,micros,note,platform
 # - The drags hold on both: "drags: 1 · control drags: 1". The control drag was at y 385, which is
 #   on the blue panel since the content starts at the top (it read "drags: 2 · control drags: 0");
 #   it is at y 430, inside the green panel on both devices (iPhone 416-475, iPad 386-446).
-# - The hover rows do NOT reach the app on either, so "pointer" and "last with cmd" stay unset and
-#   "hover reports" stays 0. On the iPhone XCUITest fails hover() with "Pointer events are not
-#   supported for this device"; the runner skips the row there and says so. On the iPad hover()
-#   returns without an error and no hover event arrives: a UIHoverGestureRecognizer put on the
-#   UIWindow itself saw none in a hover-only replay (4 rows), so this is not the panel being missed.
-#   UIKitBackend's onContinuousHover is therefore NOT verified by this file on iOS.
+# - iPad: every hover row reaches the app. Three runs read "last with cmd: x=155 y=80" -- the row at
+#   window (170,220) is panel (154,80), and the path ends one point to its right -- with
+#   "hover reports" 13, 9 and 14. The runner sends one synthesized pointer path per row;
+#   XCUICoordinate.hover() delivered one or two rows of five and never the Command key.
+#   The synthesized pointer leaves about 100 ms after each row, so the capture ends on
+#   "pointer: ended" and never shows "pointer: x= y=": that readout is NOT evidenced by this file.
+# - iPhone: no pointer. The hover rows are skipped and say so; "hover reports" stays 0 and
+#   "pointer: not yet". The synthesized path is accepted there and nothing reaches the app.
 #
 # 2026-10-13,在 iPhone 與 iPad Pro 11 吋模擬器上重放(iOS 27.0、Xcode 27.0):
 # - 拖曳在兩者上都成立:「drags: 1 · control drags: 1」。對照組的拖曳原本在 y 385,內容改從頂端開始後那裡是
 #   藍色面板(讀到「drags: 2 · control drags: 0」);現在是 y 430,在兩種裝置上都落在綠色面板內。
-# - hover 列在兩者上都**沒有**送進 app,所以「pointer」與「last with cmd」維持未設定,「hover reports」維持 0。
-#   iPhone 上 XCUITest 以「Pointer events are not supported for this device」讓 hover() 失敗,runner 在那裡
-#   跳過該列並明講。iPad 上 hover() 不報錯,但沒有任何 hover 事件抵達:掛在 UIWindow 上的
-#   UIHoverGestureRecognizer 在只有 hover 的重放(4 列)中一次都沒收到,所以不是面板沒被點中。
-#   因此 UIKitBackend 的 onContinuousHover 在 iOS 上**沒有**被這份檔案驗證。
+# - iPad:每一列 hover 都送進 app。三次執行都讀到「last with cmd: x=155 y=80」——視窗 (170,220) 那一列即
+#   面板 (154,80),路徑結束在它右邊一點——「hover reports」分別是 13、9、14。runner 每列送一段合成的指標路徑;
+#   XCUICoordinate.hover() 五列只送達一兩列,而且從未帶著 Command。合成的指標在每一列結束後約 100 ms 離開,
+#   所以擷圖停在「pointer: ended」,不會出現「pointer: x= y=」:那一行讀數**沒有**被這份檔案佐證。
+# - iPhone:沒有指標。hover 列會被跳過並明講;「hover reports」維持 0、「pointer: not yet」。
+#   合成路徑在那裡會被接受,但沒有任何東西送進 app。
 sleep,,,,,,2500000,let P88 lay out,ios
 hover,150,200,client,,,,into the panel,ios
 sleep,,,,,,500000,,ios

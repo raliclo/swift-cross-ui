@@ -196,17 +196,41 @@ final class ActionFileUITests: XCTestCase {
                     Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
                 )
             case "hover":
-                // Moves the iPad pointer to a point without pressing. An iPhone
-                // has no pointer, and XCUITest does not ignore the call there:
-                // it fails the test with "Pointer events are not supported for
-                // this device", so nothing after the row ran (P88, 2026-10-13).
-                // The row is skipped there and says so; the point is still
-                // kept, because later rows may start from it.
-                // 把 iPad 指標移到某點而不按下。iPhone 沒有指標，而 XCUITest 在那裡不是忽略這個呼叫，而是以
-                // 「Pointer events are not supported for this device」讓測試失敗，該列之後的東西都不會執行
-                // (P88,2026-10-13)。在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
+                // Moves the pointer to a point without pressing, with whatever
+                // modifiers `keydown` holds.
+                //
+                // Not `XCUICoordinate.hover()`. On the iPad simulator (iOS 27.0,
+                // 2026-10-13) the first call of a run reached the app -- began,
+                // then ended 90 ms later -- and the calls after it mostly did
+                // not: five rows gave one or two deliveries, never five, and
+                // `perform(withKeyModifiers:)` around it never showed Command.
+                // One synthesized event that travels from the previous point
+                // reaches the app on every row and carries the modifiers.
+                //
+                // The pointer does not stay: it leaves about 100 ms after the
+                // travel ends, so the app sees began, changed, ended per row.
+                //
+                // An iPhone has no pointer. `hover()` failed the whole test
+                // there ("Pointer events are not supported for this device");
+                // the synthesized event is accepted and nothing reaches the app
+                // ("hover reports: 0"). So the row is skipped there and says
+                // so; the point is kept, because later rows may start from it.
+                // 把指標移到某點而不按下，連同 `keydown` 按住的 modifier。
+                //
+                // 不用 `XCUICoordinate.hover()`。在 iPad 模擬器上(iOS 27.0,2026-10-13)一次執行裡的第一次
+                // 呼叫會送進 app——began,90 ms 後 ended——其後的呼叫多半不會:五列只送達一兩次，從未五次;
+                // 包在 `perform(withKeyModifiers:)` 裡也從未出現 Command。改成一個從上一點移過來的合成事件後，
+                // 每一列都送達，也帶著 modifier。
+                //
+                // 指標不會停留:移動結束後約 100 ms 就離開，所以 app 每一列看到的是 began、changed、ended。
+                //
+                // iPhone 沒有指標。`hover()` 在那裡會讓整個測試失敗(「Pointer events are not supported for this
+                // device」);合成事件則被接受，但沒有任何東西送進 app(「hover reports: 0」)。所以在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
                 let target = try coordinate(for: action, in: app)
+                let previous = pointer
                 pointer = target
+                let end = target.screenPoint
+                let start = previous.map(\.screenPoint) ?? CGPoint(x: end.x - 30, y: end.y - 30)
                 guard UIDevice.current.userInterfaceIdiom == .pad else {
                     FileHandle.standardError.write(
                         Data(
@@ -216,9 +240,12 @@ final class ActionFileUITests: XCTestCase {
                     )
                     break
                 }
-                target.hover()
+                try PointerPath.move(from: start, to: end, modifiers: heldModifiers.rawValue)
                 FileHandle.standardError.write(
-                    Data("-actionfile: hovered (\(action.x), \(action.y))\n".utf8)
+                    Data(
+                        ("-actionfile: hovered (\(action.x), \(action.y)) "
+                            + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                    )
                 )
             case "windowframes":
                 // Every window of the app under test, in screen points, so a
@@ -994,6 +1021,90 @@ final class ActionFileUITests: XCTestCase {
             throw ActionFileError.invalidCoordinate(action.line)
         }
         return current
+    }
+}
+
+/// Moves the pointer along a line, without a button, as one synthesized event.
+/// 以一個合成事件讓指標沿一條線移動，不按任何按鍵。
+///
+/// `XCPointerEventPath` and `XCSynthesizedEventRecord` are XCTest classes with no
+/// public header; each selector is looked up and a missing one is an error that
+/// names it, so an Xcode that drops one says which.
+/// `XCPointerEventPath` 與 `XCSynthesizedEventRecord` 是沒有公開標頭的 XCTest 類別;每個 selector 都是查出來的，
+/// 缺少時會丟出指名它的錯誤，所以哪個版本的 Xcode 拿掉了哪一個會被明講。
+private enum PointerPath {
+    struct Unavailable: Error, CustomStringConvertible {
+        let description: String
+    }
+
+    static func move(
+        from start: CGPoint, to end: CGPoint, modifiers: UInt
+    ) throws {
+        typealias InitAt = @convention(c) (AnyObject, Selector, CGPoint) -> Unmanaged<AnyObject>
+        typealias MoveTo = @convention(c) (AnyObject, Selector, CGPoint, Double, Double) -> Void
+        typealias SetModifiers = @convention(c) (AnyObject, Selector, UInt, Bool, Double) -> Void
+        typealias InitRecord = @convention(c) (AnyObject, Selector, NSString, Int) -> Unmanaged<AnyObject>
+        func implementation<T>(_ cls: AnyClass, _ name: String, as type: T.Type) throws -> (T, Selector) {
+            let selector = NSSelectorFromString(name)
+            guard let method = class_getInstanceMethod(cls, selector) else {
+                throw Unavailable(description: "XCTest has no -[\(cls) \(name)]")
+            }
+            return (unsafeBitCast(method_getImplementation(method), to: type), selector)
+        }
+        guard let pathClass = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
+            let recordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type
+        else {
+            throw Unavailable(description: "XCTest has no XCPointerEventPath")
+        }
+        let alloc = NSSelectorFromString("alloc")
+        let (initAt, initAtSelector) = try implementation(
+            pathClass, "initForMouseEventsAtLocation:", as: InitAt.self)
+        let (moveTo, moveToSelector) = try implementation(
+            pathClass, "moveMouseToPoint:atOffset:duration:", as: MoveTo.self)
+        let (setModifiers, setModifiersSelector) = try implementation(
+            pathClass, "setModifiers:mergeWithCurrentModifierFlags:atOffset:", as: SetModifiers.self)
+        let (initRecord, initRecordSelector) = try implementation(
+            recordClass, "initWithName:interfaceOrientation:", as: InitRecord.self)
+
+        let path = initAt(
+            pathClass.perform(alloc).takeUnretainedValue(), initAtSelector, start
+        ).takeUnretainedValue()
+        if modifiers != 0 {
+            setModifiers(path, setModifiersSelector, modifiers, false, 0)
+        }
+        moveTo(path, moveToSelector, end, 0.05, 0.3)
+        // A last step after a pause, and the modifiers let go after that. Without them
+        // one row of three reached the app and Command never did (2026-10-13).
+        // 停頓之後再走最後一步，其後才放開 modifier。少了它們，三列只有一列送進 app,Command 則從未送達(2026-10-13)。
+        moveTo(path, moveToSelector, CGPoint(x: end.x + 1, y: end.y), 0.75, 0.05)
+        if modifiers != 0 {
+            setModifiers(path, setModifiersSelector, 0, false, 0.85)
+        }
+        let record = initRecord(
+            recordClass.perform(alloc).takeUnretainedValue(), initRecordSelector,
+            "pointer move" as NSString, UIInterfaceOrientation.portrait.rawValue
+        ).takeUnretainedValue()
+        _ = record.perform(NSSelectorFromString("addPointerEventPath:"), with: path)
+
+        guard
+            let synthesizer = (XCUIDevice.shared as NSObject)
+                .perform(NSSelectorFromString("eventSynthesizer"))?.takeUnretainedValue()
+        else {
+            throw Unavailable(description: "XCUIDevice has no event synthesizer")
+        }
+        var failure: Error?
+        let done = DispatchSemaphore(value: 0)
+        let completion: @convention(block) (Bool, NSError?) -> Void = { _, error in
+            failure = error
+            done.signal()
+        }
+        _ = synthesizer.perform(
+            NSSelectorFromString("synthesizeEvent:completion:"), with: record,
+            with: completion as AnyObject)
+        guard done.wait(timeout: .now() + 20) == .success else {
+            throw Unavailable(description: "the pointer move was not acknowledged in 20 s")
+        }
+        if let failure { throw failure }
     }
 }
 

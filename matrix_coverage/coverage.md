@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1402**
+**Runs recorded / 已記錄的執行筆數: 1403**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -124,6 +124,6 @@ zsh matrix_coverage/coverage.zsh
 | P85           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
 | P86           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
 | P87           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
-| P88           | -                            | -                              | -                        | -                            | fail 2026-10-13        | capture screen 2026-10-12 |              |
+| P88           | -                            | -                              | -                        | -                            | pass 2026-10-13        | capture screen 2026-10-12 |              |
 | P89           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
 | P90           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
