@@ -1,0 +1,69 @@
+=== replacing windows=0
+ref
+  REPLACING-appInfo
+  ---
+  REPLACING-appSettings
+  ---
+  REPLACING-systemServices
+  ---
+  REPLACING-appVisibility
+  ---
+  REPLACING-appTermination
+File
+  REPLACING-newItem
+  ---
+  ---
+  REPLACING-saveItem
+  ---
+  REPLACING-importExport
+  ---
+  REPLACING-printItem
+Edit
+  REPLACING-undoRedo
+  ---
+  REPLACING-pasteboard
+  ---
+  REPLACING-textEditing
+  ---
+  Writing Tools
+    Show Writing Tools
+    ---
+    Proofread
+    Rewrite
+    ---
+    Make Friendly
+    Make Professional
+    Make Concise
+    ---
+    Summarize
+    Create Key Points
+    Make List
+    Make Table
+    ---
+    Compose…
+  ---
+  AutoFill
+    Contact…
+    Passwords…
+    Credit Card…
+  Start Dictation…
+  Start Dictation…  [d]  (hidden)
+  Emoji & Symbols  [@ ]
+  Emoji & Symbols  [^@ ]  (hidden)
+  Emoji & Symbols  [e]  (hidden)
+Format
+  REPLACING-textFormatting
+View
+  REPLACING-toolbar
+  ---
+  REPLACING-sidebar
+Window
+  REPLACING-windowSize
+  ---
+  REPLACING-singleWindowList
+  ---
+  REPLACING-windowList
+  ---
+  REPLACING-windowArrangement
+Help
+  REPLACING-help

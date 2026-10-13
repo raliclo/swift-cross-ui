@@ -1,0 +1,90 @@
+=== before windows=0
+ref
+  BEFORE-appInfo
+  About ref
+  ---
+  BEFORE-appSettings
+  ---
+  BEFORE-systemServices
+  Services
+  ---
+  BEFORE-appVisibility
+  Hide ref  [@h]
+  Hide Others  [~@h]
+  Show All
+  ---
+  BEFORE-appTermination
+  Quit ref  [@q]
+File
+  BEFORE-newItem
+  New Window  [@n]
+  ---
+  ---
+  BEFORE-saveItem
+  Close  [@w]
+  Close All  [~@w]
+  ---
+  BEFORE-importExport
+  ---
+  BEFORE-printItem
+Edit
+  BEFORE-undoRedo
+  Undo  [@z]
+  Redo  [$@z]
+  ---
+  BEFORE-pasteboard
+  Cut  [@x]
+  Copy  [@c]
+  Paste  [@v]
+  Delete
+  Select All  [@a]
+  ---
+  BEFORE-textEditing
+  ---
+  Writing Tools
+    Show Writing Tools
+    ---
+    Proofread
+    Rewrite
+    ---
+    Make Friendly
+    Make Professional
+    Make Concise
+    ---
+    Summarize
+    Create Key Points
+    Make List
+    Make Table
+    ---
+    Compose…
+  ---
+  AutoFill
+    Contact…
+    Passwords…
+    Credit Card…
+  Start Dictation…
+  Start Dictation…  [d]  (hidden)
+  Emoji & Symbols  [@ ]
+  Emoji & Symbols  [^@ ]  (hidden)
+  Emoji & Symbols  [e]  (hidden)
+Format
+  BEFORE-textFormatting
+View
+  BEFORE-toolbar
+  ---
+  BEFORE-sidebar
+Window
+  BEFORE-windowSize
+  Minimize  [@m]
+  Zoom
+  ---
+  BEFORE-singleWindowList
+  ---
+  BEFORE-windowList
+  Bring All to Front
+  ---
+  BEFORE-windowArrangement
+Help
+  BEFORE-help
+  ref Help  [@?]
+  Toggle Sidebar  [~@s]  (hidden)

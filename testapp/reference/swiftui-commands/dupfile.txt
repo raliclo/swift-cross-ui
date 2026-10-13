@@ -1,0 +1,66 @@
+=== dupfile windows=0
+ref
+  About ref
+  ---
+  Services
+  ---
+  Hide ref  [@h]
+  Hide Others  [~@h]
+  Show All
+  ---
+  Quit ref  [@q]
+File
+  New Window  [@n]
+  ---
+  ---
+  Close  [@w]
+  Close All  [~@w]
+Edit
+  Undo  [@z]
+  Redo  [$@z]
+  ---
+  Cut  [@x]
+  Copy  [@c]
+  Paste  [@v]
+  Delete
+  Select All  [@a]
+  ---
+  Writing Tools
+    Show Writing Tools
+    ---
+    Proofread
+    Rewrite
+    ---
+    Make Friendly
+    Make Professional
+    Make Concise
+    ---
+    Summarize
+    Create Key Points
+    Make List
+    Make Table
+    ---
+    Compose…
+  ---
+  AutoFill
+    Contact…
+    Passwords…
+    Credit Card…
+  Start Dictation…
+  Start Dictation…  [d]  (hidden)
+  Emoji & Symbols  [@ ]
+  Emoji & Symbols  [^@ ]  (hidden)
+  Emoji & Symbols  [e]  (hidden)
+View
+File
+  DUP-ITEM
+Custom
+  CUSTOM-ITEM
+Window
+  Minimize  [@m]
+  Zoom
+  ---
+  Bring All to Front
+Help
+  ref Help  [@?]
+  Toggle Sidebar  [~@s]  (hidden)

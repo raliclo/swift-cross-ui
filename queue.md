@@ -9,7 +9,7 @@ entry is closed.
 
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
-| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress | reference dump from a real SwiftUI app, then core types |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress: core and macOS done (P92 equals the SwiftUI dump) | GTK on macOS, then iOS, then Android |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
@@ -758,6 +758,7 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   8. DECIDED 2026-10-13, "follow SwiftUI": `CommandMenu("File")` is no longer merged into the default File
      menu by title (AppKit and UIKit did that). What SwiftUI does with a same-named menu is taken from the
      reference app, not from memory; putting items into a system menu is `CommandGroup`'s job.
+  DONE 2026-10-13: (a), (b), (c) -- AppKit's menu bar equals the SwiftUI dump in all five modes of P92.
   Steps: (a) reference dump from real SwiftUI, (b) the core types and the resolution of groups into menus,
   (c) AppKitBackend and a demo app with all twenty placements, (d) GtkBackend on macOS, (e) UIKitBackend on
   iPad and iPhone, (f) AndroidBackend, (g) hand WinUIBackend and GTK on Windows/WSL to the Windows side.

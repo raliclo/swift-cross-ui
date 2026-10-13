@@ -228,3 +228,122 @@ extension NSMenu {
         self.items = items
     }
 }
+
+// MARK: Command layouts
+
+extension AppKitBackend: BackendFeatures.CommandLayouts {
+    public func setApplicationCommands(_ layout: CommandLayout, environment: EnvironmentValues) {
+        MenuBar.setUp(layout: layout, environment: environment)
+    }
+}
+
+extension MenuBar {
+    /// The menu bar from the framework's layout: SwiftUI's menus and groups, with
+    /// each standard command as AppKit's own item, so the responder chain
+    /// enables Undo or Copy exactly when something can do it.
+    ///
+    /// `setUpMenuBar(extraMenus:)` above is what built the bar until 2026-10-13
+    /// and merged an app menu named File into the system's; the framework no
+    /// longer calls it.
+    /// 依框架的版面建立選單列:SwiftUI 的選單與群組，每個標準指令都是 AppKit 自己的項目，所以 Undo 或 Copy 會由
+    /// responder chain 在有東西能執行時才啟用。上方的 `setUpMenuBar(extraMenus:)` 是 2026-10-13 之前建立選單列的方式，
+    /// 會把名為 File 的 app 選單併進系統的;框架已不再呼叫它。
+    static func setUp(layout: CommandLayout, environment: EnvironmentValues) {
+        CommandTarget.shared.newWindow = layout.newWindow
+        let menuBar = NSMenu()
+        var servicesMenu: NSMenu?
+        var windowMenu: NSMenu?
+        var helpMenu: NSMenu?
+        for menu in layout.menus {
+            let rendered = NSMenu(title: menu.title)
+            for (index, section) in menu.sections.enumerated() {
+                if index > 0 { rendered.addItem(.separator()) }
+                for entry in section.entries {
+                    switch entry {
+                        case .item(let item):
+                            rendered.addItem(
+                                AppKitBackend.renderMenuItem(item, environment: environment))
+                        case .standard(let command):
+                            let item = standardItem(command, appName: layout.appName)
+                            if command == .services { servicesMenu = item.submenu }
+                            rendered.addItem(item)
+                    }
+                }
+            }
+            let holder = NSMenuItem()
+            holder.title = menu.title
+            holder.submenu = rendered
+            menuBar.addItem(holder)
+            if menu.standard == .window { windowMenu = rendered }
+            if menu.standard == .help { helpMenu = rendered }
+        }
+        NSApplication.shared.servicesMenu = servicesMenu
+        NSApplication.shared.windowsMenu = windowMenu
+        NSApplication.shared.helpMenu = helpMenu
+        NSApplication.shared.mainMenu = menuBar
+    }
+
+    private static func standardItem(_ command: StandardCommand, appName: String) -> NSMenuItem {
+        let selector: Selector? =
+            switch command {
+                case .about: #selector(NSApplication.orderFrontStandardAboutPanel(_:))
+                case .services: nil
+                case .hide: #selector(NSApplication.hide(_:))
+                case .hideOthers: #selector(NSApplication.hideOtherApplications(_:))
+                case .showAll: #selector(NSApplication.unhideAllApplications(_:))
+                case .quit: #selector(NSApplication.terminate(_:))
+                case .newWindow: #selector(CommandTarget.openNewWindow(_:))
+                case .close: #selector(NSWindow.performClose(_:))
+                case .closeAll: #selector(CommandTarget.closeAllWindows(_:))
+                case .undo: Selector(("undo:"))
+                case .redo: Selector(("redo:"))
+                case .cut: #selector(NSText.cut(_:))
+                case .copy: #selector(NSText.copy(_:))
+                case .paste: #selector(NSText.paste(_:))
+                case .delete: #selector(NSText.delete(_:))
+                case .selectAll: #selector(NSText.selectAll(_:))
+                case .minimize: #selector(NSWindow.performMiniaturize(_:))
+                case .zoom: #selector(NSWindow.performZoom(_:))
+                case .bringAllToFront: #selector(NSApplication.arrangeInFront(_:))
+                case .help: #selector(NSApplication.showHelp(_:))
+            }
+        let item = NSMenuItem(
+            title: command.title(appName: appName), action: selector, keyEquivalent: "")
+        if let shortcut = command.shortcut {
+            item.keyEquivalent = String(shortcut.key.character)
+            var flags: NSEvent.ModifierFlags = []
+            if shortcut.modifiers.contains(.command) { flags.insert(.command) }
+            if shortcut.modifiers.contains(.shift) { flags.insert(.shift) }
+            if shortcut.modifiers.contains(.option) { flags.insert(.option) }
+            if shortcut.modifiers.contains(.control) { flags.insert(.control) }
+            item.keyEquivalentModifierMask = flags
+        }
+        switch command {
+            case .services:
+                item.submenu = NSMenu(title: "Services")
+            case .newWindow, .closeAll:
+                item.target = CommandTarget.shared
+            default:
+                break
+        }
+        return item
+    }
+}
+
+/// The two standard commands AppKit has no selector of its own for.
+/// AppKit 沒有現成 selector 的兩個標準指令。
+@MainActor
+final class CommandTarget: NSObject {
+    static let shared = CommandTarget()
+    var newWindow: (@MainActor () -> Void)?
+
+    @objc func openNewWindow(_ sender: Any?) {
+        newWindow?()
+    }
+
+    @objc func closeAllWindows(_ sender: Any?) {
+        for window in NSApplication.shared.windows where window.isVisible {
+            window.performClose(sender)
+        }
+    }
+}

@@ -92,7 +92,13 @@ public final class WindowGroupNode<Content: View>: SceneGraphNode {
         backend: Backend,
         environment: EnvironmentValues
     ) {
-        if let id = scene.id {
+        // A group without an id is registered too, under a key no app can
+        // write: `openWindow(id:)` cannot reach it, and the File menu's New
+        // Window can (`Commands.apply`).
+        // 沒有 id 的 group 也會註冊，用的是 app 寫不出來的鍵:`openWindow(id:)` 碰不到它，而 File 選單的
+        // 「New Window」可以(`Commands.apply`)。
+        do {
+            let id = scene.id ?? "\u{0}WindowGroup-\(ObjectIdentifier(self).hashValue)"
             environment.openWindowFunctionsByID.value[id] = { [weak self] in
                 guard let self else { return }
 
