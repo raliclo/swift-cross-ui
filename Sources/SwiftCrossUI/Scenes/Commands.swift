@@ -66,7 +66,8 @@ public struct Commands {
     public func layout(
         appName: String,
         defaults: ((StandardCommand) -> Bool)?,
-        newWindow: (@MainActor () -> Void)? = nil
+        newWindow: (@MainActor () -> Void)? = nil,
+        sceneItems: [CommandGroupPlacement: [ResolvedMenu.Item]] = [:]
     ) -> CommandLayout {
         var result: [CommandLayout.Menu] = []
         func standardMenu(_ kind: CommandGroupPlacement.Menu) -> CommandLayout.Menu? {
@@ -87,6 +88,7 @@ public struct Commands {
                     entries += placement.defaultCommands
                         .filter { $0 != .newWindow || newWindow != nil }
                         .filter(defaults).map { .standard($0) }
+                    entries += (sceneItems[placement] ?? []).map { .item($0) }
                 }
                 entries += items(.after)
                 if !entries.isEmpty {
@@ -182,17 +184,18 @@ extension Commands {
     @MainActor
     func apply(to backend: Any, environment: EnvironmentValues) {
         let appName = ProcessInfo.processInfo.processName
-        // New Window opens the app's window group when there is exactly one that can be opened
-        // by id; with several, which one SwiftUI would open depends on the front scene, and that
-        // is not modelled here yet.
-        // 「New Window」在 app 恰好有一個可依 id 開啟的 window group 時開啟它;有多個時，SwiftUI 會開哪一個取決於
-        // 最前面的場景，這裡還沒有模擬。
-        let openers = environment.openWindowFunctionsByID.value
+        // New Window opens the app's window group when it has one; with several, SwiftUI shows a
+        // New submenu naming each, and single windows are listed in the Window menu.
+        // app 只有一個 window group 時「New Window」開啟它;有多個時 SwiftUI 顯示逐一列名的 New 子選單，
+        // 單一視窗則列在 Window 選單。
         let multipleWindows = (backend as? any BaseAppBackend)?.supportsMultipleWindows ?? false
-        let newWindow: (@MainActor () -> Void)? =
-            multipleWindows && openers.count == 1 ? openers.first?.value : nil
+        let scenes = WindowOpeners.defaults()
+        let newWindow = multipleWindows ? scenes.newWindow : nil
+        let sceneItems = multipleWindows ? scenes.items : [:]
         if let backend = backend as? any BackendFeatures.CommandLayouts {
-            var layout = layout(appName: appName, defaults: { _ in true }, newWindow: newWindow)
+            var layout = layout(
+                appName: appName, defaults: { _ in true }, newWindow: newWindow,
+                sceneItems: sceneItems)
             layout.isMenuEnabled = isMenuEnabled || MenuBarSettings.isEnabled
             backend.setApplicationCommands(layout, environment: environment)
             return
@@ -203,11 +206,68 @@ extension Commands {
         let layout = layout(
             appName: appName,
             defaults: enabled ? standard.map { backend in { backend.hasStandardCommand($0) } } : nil,
-            newWindow: newWindow
+            newWindow: newWindow,
+            sceneItems: enabled ? sceneItems : [:]
         )
         menus.setApplicationMenu(
             layout.submenus { standard?.performStandardCommand($0) },
             environment: environment
         )
+    }
+}
+
+/// The app's window scenes, in the order they were declared, for the menus:
+/// File > New Window (or, with several groups, the New submenu that names each)
+/// and the single windows the Window menu lists
+/// (`testapp/reference/swiftui-commands/two-groups.txt`).
+/// app 的視窗場景，依宣告順序，供選單使用:File > New Window(有多個 group 時則是逐一列名的 New 子選單),
+/// 以及 Window 選單所列的單一視窗。
+@MainActor
+enum WindowOpeners {
+    struct Entry {
+        var key: String
+        var title: String
+        var isGroup: Bool
+        var open: @MainActor () -> Void
+    }
+
+    static var entries: [Entry] = []
+
+    static func register(
+        key: String, title: String, isGroup: Bool, open: @escaping @MainActor () -> Void
+    ) {
+        let entry = Entry(key: key, title: title, isGroup: isGroup, open: open)
+        if let index = entries.firstIndex(where: { $0.key == key }) {
+            entries[index] = entry
+        } else {
+            entries.append(entry)
+        }
+    }
+
+    /// What the framework itself puts in a group, beside the standard commands.
+    /// 框架自己放進群組的東西(標準指令之外)。
+    static func defaults() -> (
+        newWindow: (@MainActor () -> Void)?, items: [CommandGroupPlacement: [ResolvedMenu.Item]]
+    ) {
+        let groups = entries.filter(\.isGroup)
+        var items: [CommandGroupPlacement: [ResolvedMenu.Item]] = [:]
+        if groups.count > 1 {
+            // SwiftUI: a New submenu, one item a group, Command-N on the first.
+            // SwiftUI:一個 New 子選單，每個 group 一項，第一項帶 Command-N。
+            let children = groups.enumerated().map { index, group -> ResolvedMenu.Item in
+                let button = ResolvedMenu.Item.button("New \(group.title) Window", group.open)
+                return index == 0
+                    ? .modifiedEnvironment(button) { $0.with(\.keyboardShortcut, KeyboardShortcut("n")) }
+                    : button
+            }
+            items[.newItem] = [
+                .submenu(ResolvedMenu.Submenu(label: "New", content: ResolvedMenu(items: children)))
+            ]
+        }
+        let singles = entries.filter { !$0.isGroup }
+        if !singles.isEmpty {
+            items[.singleWindowList] = singles.map { .button($0.title, $0.open) }
+        }
+        return (groups.count == 1 ? groups[0].open : nil, items)
     }
 }

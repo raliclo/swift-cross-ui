@@ -1,0 +1,66 @@
+=== base windows=0
+ref2
+  About ref2
+  ---
+  Services
+  ---
+  Hide ref2  [@h]
+  Hide Others  [~@h]
+  Show All
+  ---
+  Quit ref2  [@q]
+File
+  New
+    New Alpha Window  [@n]
+    New Beta Window
+  ---
+  ---
+  Close  [@w]
+  Close All  [~@w]
+Edit
+  Undo  [@z]
+  Redo  [$@z]
+  ---
+  Cut  [@x]
+  Copy  [@c]
+  Paste  [@v]
+  Delete
+  Select All  [@a]
+  ---
+  Writing Tools
+    Show Writing Tools
+    ---
+    Proofread
+    Rewrite
+    ---
+    Make Friendly
+    Make Professional
+    Make Concise
+    ---
+    Summarize
+    Create Key Points
+    Make List
+    Make Table
+    ---
+    Compose…
+  ---
+  AutoFill
+    Contact…
+    Passwords…
+    Credit Card…
+  Start Dictation…
+  Start Dictation…  [d]  (hidden)
+  Emoji & Symbols  [@ ]
+  Emoji & Symbols  [^@ ]  (hidden)
+  Emoji & Symbols  [e]  (hidden)
+View
+Window
+  Minimize  [@m]
+  Zoom
+  ---
+  Solo
+  ---
+  Bring All to Front
+Help
+  ref2 Help  [@?]
+  Toggle Sidebar  [~@s]  (hidden)

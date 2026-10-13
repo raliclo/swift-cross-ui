@@ -79,6 +79,10 @@ public final class WindowNode<Content: View>: SceneGraphNode {
         backend: Backend,
         environment: EnvironmentValues
     ) {
+        let sceneID = scene.id
+        WindowOpeners.register(key: sceneID, title: scene.title, isGroup: false) {
+            environment.openWindowFunctionsByID.value[sceneID]?()
+        }
         environment.openWindowFunctionsByID.value[scene.id] = { [weak self] in
             guard let self else { return }
 

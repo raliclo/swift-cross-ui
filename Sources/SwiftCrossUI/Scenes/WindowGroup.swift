@@ -99,6 +99,9 @@ public final class WindowGroupNode<Content: View>: SceneGraphNode {
         // 「New Window」可以(`Commands.apply`)。
         do {
             let id = scene.id ?? "\u{0}WindowGroup-\(ObjectIdentifier(self).hashValue)"
+            WindowOpeners.register(key: id, title: scene.title, isGroup: true) {
+                environment.openWindowFunctionsByID.value[id]?()
+            }
             environment.openWindowFunctionsByID.value[id] = { [weak self] in
                 guard let self else { return }
 
