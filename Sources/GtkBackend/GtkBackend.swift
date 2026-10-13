@@ -2324,7 +2324,7 @@ public final class GtkBackend:
         }
         gtkApp.addAction(action)
         quitAction = action
-        gtkApp.setAccelerators(["<Control>q"], forAction: "app.quit")
+        gtkApp.setAccelerators([Self.isDarwin ? "<Meta>q" : "<Control>q"], forAction: "app.quit")
     }
 
     public func show(window: Window) {
@@ -2511,7 +2511,7 @@ public final class GtkBackend:
 
     /// A ``KeyboardShortcut`` in the syntax `gtk_accelerator_parse` accepts.
     ///
-    /// **`.command` becomes Control.** SwiftUI's default modifier is `.command`
+    /// **`.command` becomes Control, except on macOS, where it is Meta.** SwiftUI's default modifier is `.command`
     /// because it was written for macOS; on GTK there is no Command key, and the
     /// key that plays its role is Control. ``EventModifiers/command`` documents
     /// the same mapping, so a shortcut written against SwiftUI's names means
@@ -2535,9 +2535,18 @@ public final class GtkBackend:
         guard let key = gtkKeyName(for: shortcut.key) else { return nil }
 
         var prefix = ""
-        if shortcut.modifiers.contains(.control) || shortcut.modifiers.contains(.command) {
-            prefix += "<Control>"
-        }
+        // On macOS the Command key exists and GTK calls it Meta. Control there drew ^Q in the
+        // menu and left Command-Q, and every `.command` shortcut, doing nothing (P71, 2026-10-14).
+        // macOS 上有 Command 鍵，GTK 稱它為 Meta。在那裡用 Control,選單畫的是 ^Q,而 Command-Q 與每個 `.command`
+        // 快捷鍵都沒有作用(P71,2026-10-14)。
+        #if canImport(Darwin)
+            if shortcut.modifiers.contains(.command) { prefix += "<Meta>" }
+            if shortcut.modifiers.contains(.control) { prefix += "<Control>" }
+        #else
+            if shortcut.modifiers.contains(.control) || shortcut.modifiers.contains(.command) {
+                prefix += "<Control>"
+            }
+        #endif
         if shortcut.modifiers.contains(.shift) { prefix += "<Shift>" }
         if shortcut.modifiers.contains(.option) { prefix += "<Alt>" }
         return prefix + key
@@ -2731,6 +2740,16 @@ public final class GtkBackend:
     ) {
         let model = renderMenuBar(submenus, environment: environment)
         gtkApp.menuBarModel = model
+        #if canImport(Darwin)
+            // The framework names the application menu after the process and puts it first.
+            // Now if the bar is already up, and once more when the loop runs: before start-up
+            // GTK has not built the bar yet.
+            // 框架以行程名稱命名 app 選單並放在第一個。選單列已經建好就現在做，主迴圈跑起來時再做一次:啟動之前 GTK 還沒建選單列。
+            if submenus.first?.label == ProcessInfo.processInfo.processName {
+                adoptApplicationMenuOnMac()
+                runInMainThread { [weak self] in self?.adoptApplicationMenuOnMac() }
+            }
+        #endif
 
         let showMenuBar = !submenus.isEmpty
         for window in windows {

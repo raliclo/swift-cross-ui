@@ -47,13 +47,7 @@ public final class WindowNode<Content: View>: SceneGraphNode {
     ) {
         self.scene = scene
 
-        let openOnAppLaunch =
-            switch environment.defaultLaunchBehavior {
-                case .presented: true
-                case .automatic, .suppressed: false
-            }
-
-        if openOnAppLaunch {
+        SceneLaunch.register(environment.defaultLaunchBehavior, opensAlone: false) { [self] in
             self.windowReference = WindowReference(
                 scene: scene,
                 backend: backend,

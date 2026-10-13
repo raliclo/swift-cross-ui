@@ -158,14 +158,9 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
     ) {
         self.scene = scene
 
-        let openOnAppLaunch =
-            switch environment.defaultLaunchBehavior {
-                case .automatic, .presented: true
-                case .suppressed: false
-            }
-
-        if openOnAppLaunch {
-            open(document: scene.newDocument(), at: nil, backend: backend, environment: environment)
+        SceneLaunch.register(environment.defaultLaunchBehavior, opensAlone: true) { [self] in
+            self.open(
+                document: scene.newDocument(), at: nil, backend: backend, environment: environment)
         }
     }
 

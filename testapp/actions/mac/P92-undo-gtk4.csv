@@ -1,0 +1,82 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on GtkBackend on macOS (TEST_BACKEND=gtk4): a text field undoes one change at a time.
+# The field starts as "hello". GTK joined two pastes into one undo step; the framework keeps
+# the history now (GtkBackend+TextUndo.swift). Only keys: the menu bar is the system's and
+# an action file cannot reach it, so Edit > Undo itself is not what this file presses.
+# The clipboard is used: it ends holding "hello".
+# Expected "field" lines in p92-commands.log, in order (an empty one is "field "):
+#   "" hello hellohello | hello "" hello | "" hello | helloa helloab helloabc | helloab hello | helloab
+# The fourth Undo has nothing left and must add no line. a and b are typed together and are
+# one step; c comes 1.5 s later and is its own.
+# macOS 上 GtkBackend 的 P92:文字欄位一次復原一個變更。欄位起始為 hello;只用按鍵(選單列是系統的,動作檔碰不到)。
+# 會用到剪貼簿,結束時內容是 hello。p92-commands.log 的 field 各行應依序如上;第四次 Undo 不得多出一行。
+sleep,,,,,,1500000,let the window settle,macos
+click,200,167,frame,left,,,the text field,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,a,,select all,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,x,,cut -- field is empty,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,v,,paste -- hello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,v,,paste again -- hellohello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+sleep,,,,,,800000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 1 -- hello: one paste only,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 2 -- empty,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 3 -- the first hello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 4 -- nothing left; no change,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+keydown,,,,,shift,,,macos
+key,,,,,z,,redo 1 -- empty,macos
+keyup,,,,,shift,,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+keydown,,,,,shift,,,macos
+key,,,,,z,,redo 2 -- hello,macos
+keyup,,,,,shift,,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+key,,,,,end,,caret to the end,macos
+sleep,,,,,,300000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,typed together: one step,macos
+sleep,,,,,,1500000,more than a second: the next key is a new step,macos
+key,,,,,c,,helloabc,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo -- helloab,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo -- hello: a and b go together,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+keydown,,,,,shift,,,macos
+key,,,,,z,,redo -- helloab; left on screen for the capture,macos
+keyup,,,,,shift,,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+sleep,,,,,,500000,,macos

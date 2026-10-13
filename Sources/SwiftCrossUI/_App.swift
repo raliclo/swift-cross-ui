@@ -179,11 +179,15 @@ class _App<AppRoot: App> {
                 cancellables.append(cancellable)
             }
 
-            let rootNode = AppRoot.Body.Node(
-                from: app.body,
-                backend: backend,
-                environment: environment
-            )
+            // Which window scenes open at launch is decided over all of them: see SceneLaunch.
+            // 啟動時開哪些視窗場景是全部一起決定的:見 SceneLaunch。
+            let rootNode = SceneLaunch.launch {
+                AppRoot.Body.Node(
+                    from: app.body,
+                    backend: backend,
+                    environment: environment
+                )
+            }
 
             backend.setRootEnvironmentChangeHandler {
                 self.environment = self.backend.computeRootEnvironment(

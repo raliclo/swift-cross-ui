@@ -118,6 +118,7 @@ import UIKit
             guard let layout = commandLayout, let environment else { return }
             var lastCustom: UIMenu.Identifier = .view
             var filled: Set<String> = []
+            var keepsFormat = false
             for menu in layout.menus {
                 guard menu.standard != nil else {
                     // The app's own menu, after View and after the ones before it.
@@ -165,9 +166,29 @@ import UIKit
                     let (group, parent) = placement.uiKitIdentifiers
                     switch placement.name {
                         case "textFormatting":
-                            // SwiftUI shows no Format menu on iPad and none of this group.
-                            // SwiftUI 在 iPad 上不顯示 Format 選單，也不顯示這個群組。
-                            continue
+                            // SwiftUI shows no Format menu on iPad and drops whatever the app
+                            // put in this group (ipad-after.txt has no AFTER-textFormatting).
+                            // An item the app wrote and nobody can reach is the one thing here
+                            // that is not followed: the menu is kept, holding the app's items
+                            // and nothing else -- which is what SwiftUI's Format menu holds on
+                            // macOS (after.txt). With the group empty there is no Format menu.
+                            // SwiftUI 在 iPad 上不顯示 Format 選單，app 放在這個群組的東西也一併丟掉。app 寫了卻沒有人碰得到的
+                            // 項目，是這裡唯一不照做的地方:選單留著，裡面只有 app 的項目——這也正是 SwiftUI 在 macOS 上
+                            // Format 選單的內容。群組是空的時候就沒有 Format 選單。
+                            let own = before + after
+                            guard !own.isEmpty else { continue }
+                            keepsFormat = true
+                            if builder.menu(for: .format) != nil {
+                                builder.replaceChildren(ofMenu: .format) { _ in own }
+                            } else {
+                                let format = UIMenu(
+                                    title: "Format", identifier: .format, children: own)
+                                if builder.menu(for: .edit) != nil {
+                                    builder.insertSibling(format, afterMenu: .edit)
+                                } else {
+                                    builder.insertChild(format, atEndOfMenu: .root)
+                                }
+                            }
                         case "importExport":
                             let inline = UIMenu(
                                 title: "",
@@ -214,17 +235,18 @@ import UIKit
                 }
             }
             // What SwiftUI leaves out of an iPad's menu bar unless the app fills the
-            // group (testapp/reference/swiftui-commands/ipad/): the Format menu
-            // always; Print, the toolbar and sidebar groups, Find and the text menus.
-            // SwiftUI 在 app 沒有填該群組時，從 iPad 選單列拿掉的東西:Format 選單(一律拿掉);Print、toolbar 與 sidebar
-            // 群組、Find 與各個文字選單。
+            // group (testapp/reference/swiftui-commands/ipad/): Print, the toolbar and
+            // sidebar groups, Find and the text menus. It leaves the Format menu out
+            // always; here that menu stays when the app put something in it (above).
+            // SwiftUI 在 app 沒有填該群組時，從 iPad 選單列拿掉的東西:Print、toolbar 與 sidebar 群組、Find 與各個文字選單。
+            // Format 選單它一律拿掉;這裡在 app 有放東西時會留著(見上)。
             // Only what is there: taking out a menu the builder does not hold ended the app when
             // the menu bar was first built (iPad simulator, 2026-10-14).
             // 只拿掉存在的:移除 builder 沒有的選單，會讓 app 在第一次建立選單列時結束(iPad 模擬器，2026-10-14)。
             func remove(_ identifier: UIMenu.Identifier) {
                 if builder.menu(for: identifier) != nil { builder.remove(menu: identifier) }
             }
-            remove(.format)
+            if !keepsFormat { remove(.format) }
             if !filled.contains("printItem") { remove(.print) }
             if !filled.contains("toolbar") { remove(.toolbar) }
             if !filled.contains("sidebar") { remove(.sidebar) }

@@ -9,11 +9,13 @@ menu bar is built (grep them out of p92-ios-stdout.log and strip the "-menu: " p
 The system builds the bar only once a key or the pointer arrives, so the run needs one.
 Identifiers of unnamed inline menus, selectors and key equivalents are left out; the app names
 are both written APP. Known and expected differences for P92: SwiftUI keeps an empty
-importExport group when the app has none, and has no windowList or singleWindowList on iOS.
+importExport group when the app has none, has no windowList or singleWindowList on iOS, and
+has no Format menu: there the framework keeps the menu when the app filled textFormatting.
 
 比對 iPad 選單列傾印與同一模式的 SwiftUI 基準傾印。系統要等到有按鍵或指標事件才會建立選單列，所以該次執行需要有一個。
 無名 inline 選單的識別碼、selector 與快捷鍵不比;兩邊的 app 名稱都寫成 APP。P92 已知且預期的差異:app 沒有 importExport
-群組時 SwiftUI 仍保留一個空的;SwiftUI 在 iOS 上沒有 windowList 與 singleWindowList。
+群組時 SwiftUI 仍保留一個空的;SwiftUI 在 iOS 上沒有 windowList 與 singleWindowList,也沒有 Format 選單(app 填了
+textFormatting 時，框架會留著該選單)。
 """
 import re,sys,difflib
 def norm(path, app):

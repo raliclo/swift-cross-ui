@@ -1,10 +1,8 @@
 /// The launch behavior for a scene.
 public enum SceneLaunchBehavior: Sendable {
-    /// SwiftCrossUI decides whether to use ``presented`` or ``suppressed``
-    /// depending on the type of scene.
-    ///
-    /// Currently, `presented` is used for ``WindowGroup``s, and
-    /// `suppressed` is used for ``Window``s.
+    /// SwiftCrossUI decides, as SwiftUI does: the first window scene of the app
+    /// is shown on launch and the others are not, unless some scene is marked
+    /// ``presented`` -- then only the marked ones are.
     case automatic
     /// The scene will be shown on app launch.
     case presented

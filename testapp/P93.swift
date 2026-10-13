@@ -9,14 +9,18 @@
 //   2 choosing "New Beta Window" opens a window that reads "beta"
 //   3 the Window menu lists "Solo" between Minimize/Zoom and Bring All to Front; choosing it
 //     opens the window that reads "solo", and choosing it again opens no second one
-// Fail: a plain New Window with two groups, a group missing from the submenu, or Solo absent.
+//   4 at launch only the Alpha window is open: SwiftUI opens the first scene and no other
+//     (measured, see SceneLaunch.swift); every WindowGroup used to open one here
+// Fail: a plain New Window with two groups, a group missing from the submenu, Solo absent, or
+// a Beta window open at launch.
 // macOS writes the real menu bar to p93-menu.txt under --debug, in the reference's format.
 //
 // P93:多個視窗場景與選單——File > New 與 Window 選單的清單(2026-10-14)。兩個 window group(Alpha、Beta)與一個單一視窗
 // (Solo)。SwiftUI 此時把 File > New Window 換成逐一列名的 New 子選單(第一項帶 Command-N),並把單一視窗列在 Window 選單。
 // 通過:File 有 New > New Alpha Window(Cmd-N)與 New Beta Window,而不是 New Window;選 New Beta Window 會開出寫著
 // beta 的視窗;Window 選單在 Minimize/Zoom 與 Bring All to Front 之間列出 Solo,選它會開出寫著 solo 的視窗，再選一次
-// 不會開第二個。失敗:兩個 group 卻只有 New Window、子選單少了某個 group,或沒有 Solo。
+// 不會開第二個;啟動時只開 Alpha 的視窗(SwiftUI 只開第一個場景)。失敗:兩個 group 卻只有 New Window、子選單少了某個 group、
+// 沒有 Solo,或啟動時就開著 Beta 的視窗。
 
 import DefaultBackend
 import Foundation

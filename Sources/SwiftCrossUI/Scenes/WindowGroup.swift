@@ -51,23 +51,15 @@ public final class WindowGroupNode<Content: View>: SceneGraphNode {
     ) {
         self.scene = scene
 
-        let openOnAppLaunch =
-            switch environment.defaultLaunchBehavior {
-                case .automatic, .presented: true
-                case .suppressed: false
-            }
-
-        if openOnAppLaunch {
+        SceneLaunch.register(environment.defaultLaunchBehavior, opensAlone: true) { [self] in
             let windowID = UUID()
-            self.windowReferences = [
-                windowID: WindowReference(
-                    scene: scene,
-                    backend: backend,
-                    environment: environment,
-                    onClose: { self.windowReferences[windowID] = nil },
-                    id: nextId()
-                )
-            ]
+            self.windowReferences[windowID] = WindowReference(
+                scene: scene,
+                backend: backend,
+                environment: environment,
+                onClose: { self.windowReferences[windowID] = nil },
+                id: self.nextId()
+            )
         }
     }
 
