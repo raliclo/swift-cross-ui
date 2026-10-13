@@ -9,7 +9,7 @@ entry is closed.
 
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
-| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress: core, macOS and GTK (on macOS) done | iOS (iPad menu bar, iPhone), then Android |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress: core, macOS and GTK (on macOS) done; iOS not started, its SwiftUI baseline on iPad could not be read yet | read the iPad menu bar another way, then UIKit, then Android |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
@@ -761,6 +761,13 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   DONE 2026-10-13: (a), (b), (c) -- AppKit's menu bar equals the SwiftUI dump in all five modes of P92;
   (d) GtkBackend on macOS -- `BackendFeatures.StandardCommands` in Swift, menus read and pressed through
   System Events, switch off and on. On macOS GTK adds an app menu of its own before the framework's.
+  (e) NOT STARTED, and its baseline is not measured yet: a SwiftUI reference app runs on the iPad simulator, but
+  its menu could not be read on 2026-10-13 -- `buildMenu(with:)` on a `UIApplicationDelegateAdaptor` delegate was
+  never called, and neither was UIResponder's own implementation after it was wrapped and
+  `UIMenuSystem.main.setNeedsRebuild()` sent, in 25 s. Known from the compiler: `windowList` and
+  `singleWindowList` are unavailable on iOS, so iOS has eighteen placements. Still to try: XCUITest's view of
+  the iPad menu bar. UIKitBackend also still replaces a system menu by a `CommandMenu` of the same name
+  (`mapMenuIdentifier`), which is the merge the user decided against.
   Steps: (a) reference dump from real SwiftUI, (b) the core types and the resolution of groups into menus,
   (c) AppKitBackend and a demo app with all twenty placements, (d) GtkBackend on macOS, (e) UIKitBackend on
   iPad and iPhone, (f) AndroidBackend, (g) hand WinUIBackend and GTK on Windows/WSL to the Windows side.
