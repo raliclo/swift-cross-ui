@@ -9,7 +9,7 @@ entry is closed.
 
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
-| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android | open: nothing pressed in the iPad's real menu bar; Hide Others and Show All on GTK not pressed; GTK's TextEditor keeps GTK's own undo |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android. Since then: items pressed in the iPad's real menu bar; Hide Others and Show All pressed on GTK; GTK undo by action file; one app menu and Command shortcuts for GTK on macOS; launch windows as SwiftUI (`SceneLaunch`) | open: GTK's TextEditor keeps GTK's own undo. Not as SwiftUI, on purpose: iPad keeps a Format menu when the app fills `textFormatting`; `windowList` and `singleWindowList` are accepted on iOS |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
