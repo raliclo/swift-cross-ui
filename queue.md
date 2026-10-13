@@ -22,7 +22,6 @@ entry is closed.
 | 11 | iPad: only six action files; nothing run on a physical iPad; only `crosshair` seen of the cursors | Mac / hardware | open | the other cursor shapes on the simulator |
 | 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
 | 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
-| 14 | `Scripts/format.sh` and `swift test` not run since 2026-10-13's changes | Mac | open | run both (not on testapp/P6.swift or D3D11VideoInterop.swift) |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 

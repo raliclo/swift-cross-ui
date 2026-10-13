@@ -22,7 +22,11 @@ extension GtkBackend: BackendFeatures.Cursors {
         GtkFeatureTarget(child)
     }
 
-    public func updateCursorTarget(_ target: Widget, cursor: Cursor, environment: EnvironmentValues) {
+    public func updateCursorTarget(
+        _ target: Widget,
+        cursor: Cursor,
+        environment: EnvironmentValues
+    ) {
         // CSS cursor names, which GDK resolves on every platform it runs on.
         // CSS 游標名稱,GDK 在它支援的每個平台上都能解析。
         let name =
@@ -134,7 +138,7 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
         let keys = EventControllerKey()
         keys.keyPressed = { [weak target] _, keyval, _, _ in
             guard let target, gtk_widget_has_focus(target.widgetPointer) != 0,
-                let root = gtk_widget_get_root(target.widgetPointer)
+                  let root = gtk_widget_get_root(target.widgetPointer)
             else { return false }
             let direction: GtkDirectionType
             switch Int32(keyval) {
@@ -158,7 +162,9 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
         let wanted = isFocusable && environment.isEnabled
         if !wanted, gtk_widget_has_focus(pointer) != 0, let root = gtk_widget_get_root(pointer) {
             gtk_window_set_focus(
-                UnsafeMutableRawPointer(root).assumingMemoryBound(to: GtkWindow.self), nil)
+                UnsafeMutableRawPointer(root).assumingMemoryBound(to: GtkWindow.self),
+                nil
+            )
         }
         gtk_widget_set_focusable(pointer, wanted ? 1 : 0)
         // `focus(_:)` turns can-focus on before it asks; off here, the request is refused.
@@ -363,7 +369,11 @@ extension GtkBackend: BackendFeatures.ScrollGestures {
             )
             onChange(value)
             if !target.isScrolling {
-                onEnd(ScrollGestureValue(delta: .zero, translation: value.translation, isPrecise: isPrecise))
+                onEnd(ScrollGestureValue(
+                    delta: .zero,
+                    translation: value.translation,
+                    isPrecise: isPrecise
+                ))
             }
             return true
         }
@@ -413,8 +423,8 @@ extension GtkBackend: BackendFeatures.WidgetSnapshots {
         let width = Int(gtk_widget_get_width(widget.widgetPointer))
         let height = Int(gtk_widget_get_height(widget.widgetPointer))
         guard width > 0, height > 0,
-            let native = gtk_widget_get_native(widget.widgetPointer),
-            let renderer = gtk_native_get_renderer(native)
+              let native = gtk_widget_get_native(widget.widgetPointer),
+              let renderer = gtk_native_get_renderer(native)
         else { return nil }
 
         let paintable = gtk_widget_paintable_new(widget.widgetPointer)
@@ -433,7 +443,11 @@ extension GtkBackend: BackendFeatures.WidgetSnapshots {
         defer { gdk_texture_downloader_free(downloader) }
         gdk_texture_downloader_set_format(downloader, GDK_MEMORY_R8G8B8A8_PREMULTIPLIED)
         rgba.withUnsafeMutableBufferPointer { buffer in
-            gdk_texture_downloader_download_into(downloader, buffer.baseAddress, gsize(textureWidth * 4))
+            gdk_texture_downloader_download_into(
+                downloader,
+                buffer.baseAddress,
+                gsize(textureWidth * 4)
+            )
         }
         return WidgetSnapshot(width: textureWidth, height: textureHeight, rgbaData: rgba)
     }

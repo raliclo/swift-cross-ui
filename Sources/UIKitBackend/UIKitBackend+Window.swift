@@ -27,9 +27,12 @@ final class RootViewController: UIViewController {
     /// 正式 app 依螢幕排版。rwdView 維持螢幕尺寸並縮放。
     func layoutSize(for screen: CGSize) -> CGSize {
         guard DebugFeatures.allowsRootScrollControl, scrollHost.mode == .actualView,
-            let defaultSize
+              let defaultSize
         else { return screen }
-        return CGSize(width: CGFloat(defaultSize.x), height: max(CGFloat(defaultSize.y), scrollHost.fillHeight ?? 0))
+        return CGSize(
+            width: CGFloat(defaultSize.x),
+            height: max(CGFloat(defaultSize.y), scrollHost.fillHeight ?? 0)
+        )
     }
     private var viewModeButton: ViewModeButton?
     /// The phone's menu button, when the app turned the menus on (UIKitBackend+CommandLayouts.swift).
@@ -110,7 +113,8 @@ final class RootViewController: UIViewController {
         to size: CGSize,
         with coordinator: any UIViewControllerTransitionCoordinator
     ) {
-        scrollHost.clearFillHeight(); resizeHandler?(size)
+        scrollHost.clearFillHeight()
+        resizeHandler?(size)
         super.viewWillTransition(to: size, with: coordinator)
     }
 

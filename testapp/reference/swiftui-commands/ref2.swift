@@ -3,20 +3,33 @@ import AppKit
 
 let mode = CommandLine.arguments.dropFirst().first ?? "base"
 let placements: [(String, CommandGroupPlacement)] = [
-    ("appInfo", .appInfo), ("appSettings", .appSettings), ("systemServices", .systemServices),
-    ("appVisibility", .appVisibility), ("appTermination", .appTermination),
-    ("newItem", .newItem), ("saveItem", .saveItem), ("importExport", .importExport),
-    ("printItem", .printItem), ("undoRedo", .undoRedo), ("pasteboard", .pasteboard),
-    ("textEditing", .textEditing), ("textFormatting", .textFormatting), ("toolbar", .toolbar),
-    ("sidebar", .sidebar), ("windowSize", .windowSize), ("windowList", .windowList),
-    ("singleWindowList", .singleWindowList), ("windowArrangement", .windowArrangement),
+    ("appInfo", .appInfo),
+    ("appSettings", .appSettings),
+    ("systemServices", .systemServices),
+    ("appVisibility", .appVisibility),
+    ("appTermination", .appTermination),
+    ("newItem", .newItem),
+    ("saveItem", .saveItem),
+    ("importExport", .importExport),
+    ("printItem", .printItem),
+    ("undoRedo", .undoRedo),
+    ("pasteboard", .pasteboard),
+    ("textEditing", .textEditing),
+    ("textFormatting", .textFormatting),
+    ("toolbar", .toolbar),
+    ("sidebar", .sidebar),
+    ("windowSize", .windowSize),
+    ("windowList", .windowList),
+    ("singleWindowList", .singleWindowList),
+    ("windowArrangement", .windowArrangement),
     ("help", .help),
 ]
 
 func dump(_ menu: NSMenu, _ depth: Int) {
     for item in menu.items {
         let pad = String(repeating: "  ", count: depth)
-        if item.isSeparatorItem { print("\(pad)---"); continue }
+        if item.isSeparatorItem { print("\(pad)---")
+            continue }
         var mods = ""
         let m = item.keyEquivalentModifierMask
         if m.contains(.control) { mods += "^" }
@@ -39,9 +52,15 @@ struct Groups: Commands {
 struct Half: Commands {
     let range: Range<Int>
     var body: some Commands {
-        One(i: range.lowerBound); One(i: range.lowerBound + 1); One(i: range.lowerBound + 2)
-        One(i: range.lowerBound + 3); One(i: range.lowerBound + 4); One(i: range.lowerBound + 5)
-        One(i: range.lowerBound + 6); One(i: range.lowerBound + 7); One(i: range.lowerBound + 8)
+        One(i: range.lowerBound)
+        One(i: range.lowerBound + 1)
+        One(i: range.lowerBound + 2)
+        One(i: range.lowerBound + 3)
+        One(i: range.lowerBound + 4)
+        One(i: range.lowerBound + 5)
+        One(i: range.lowerBound + 6)
+        One(i: range.lowerBound + 7)
+        One(i: range.lowerBound + 8)
         One(i: range.lowerBound + 9)
     }
 }
@@ -50,10 +69,10 @@ struct One: Commands {
     var body: some Commands {
         let (name, p) = placements[i]
         switch mode {
-        case "before": CommandGroup(before: p) { Button("BEFORE-\(name)") {} }
-        case "after": CommandGroup(after: p) { Button("AFTER-\(name)") {} }
-        case "replacing": CommandGroup(replacing: p) { Button("REPLACING-\(name)") {} }
-        default: CommandGroup(after: p) { EmptyView() }
+            case "before": CommandGroup(before: p) { Button("BEFORE-\(name)") {} }
+            case "after": CommandGroup(after: p) { Button("AFTER-\(name)") {} }
+            case "replacing": CommandGroup(replacing: p) { Button("REPLACING-\(name)") {} }
+            default: CommandGroup(after: p) { EmptyView() }
         }
     }
 }
@@ -97,7 +116,7 @@ struct RefApp: App {
                 }
                 if mode == "before" || mode == "after" || mode == "replacing" { Groups() }
             }
-            WindowGroup("Beta", id: "beta") { Text("beta") }
+        WindowGroup("Beta", id: "beta") { Text("beta") }
         Window("Solo", id: "solo") { Text("solo") }
     }
 }

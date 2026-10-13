@@ -112,8 +112,8 @@ struct P91View: View {
             if askedOff {
                 refusal =
                     field == .off
-                    ? "NOT refused -- the off panel took the focus (wrong)"
-                    : "refused (correct)"
+                        ? "NOT refused -- the off panel took the focus (wrong)"
+                        : "refused (correct)"
             }
         }
     }

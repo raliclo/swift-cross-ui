@@ -92,9 +92,13 @@ struct P93View: View {
             if let menu = NSApp.mainMenu { dump(menu, 0) }
             let directory =
                 ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? FileManager.default.currentDirectoryPath
+                    ?? FileManager.default.currentDirectoryPath
             let url = URL(fileURLWithPath: directory).appendingPathComponent("p93-menu.txt")
-            try? (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+            try? (lines.joined(separator: "\n") + "\n").write(
+                to: url,
+                atomically: true,
+                encoding: .utf8
+            )
         }
     #endif
 }

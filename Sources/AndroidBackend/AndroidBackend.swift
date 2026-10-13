@@ -510,7 +510,6 @@ public final class AndroidBackend: BaseAppBackend {
         // Doesn't mean anything on Android until we support split screen
     }
 
-
     public func setTitle(ofWindow window: Window, to title: String) {
         // The window's title, not `.navigationTitle` (that is a row in the
         // root stack, AndroidBackend+Toolbar.swift). Upstream's TODO here said
@@ -652,7 +651,7 @@ public final class AndroidBackend: BaseAppBackend {
         // 內容上方有任何一列(標題、工具列或 refresh)時，狀態列的內縮由堆疊負責；只有內容獨自在那裡時才由內容自己加。
         let hasChrome =
             (window.rootStack ?? Self.rootStack)?.as(ShortcutHostLayout.self)?.hasTopChrome()
-            ?? false
+                ?? false
         let topInset =
             hasChrome ? 0 : Int(helpers.getSafeAreaTopInset(insetsActivity))
         let fullWindowSize = SIMD2(Int(matchParent), Int(matchParent))
@@ -676,10 +675,13 @@ public final class AndroidBackend: BaseAppBackend {
         // 而且 iOS(411 dp 對 440 pt)換行位置不同(使用者,2026-10-09)。只在有模式切換控制項的測試建置中;正式的 app 依螢幕
         // 排版，如同 SwiftUI 在手機上忽略 defaultSize。rwdView 維持螢幕尺寸並縮放。
         if DebugFeatures.allowsRootScrollControl,
-            let defaultSize = window.defaultSize,
-            (window.scrollHost?.getModeIndex() ?? 0) == 0
+           let defaultSize = window.defaultSize,
+           (window.scrollHost?.getModeIndex() ?? 0) == 0
         {
-            return SIMD2(defaultSize.x, max(defaultSize.y, Int(window.scrollHost?.getFillHeight() ?? 0)))
+            return SIMD2(
+                defaultSize.x,
+                max(defaultSize.y, Int(window.scrollHost?.getFillHeight() ?? 0))
+            )
         }
         // A later window before its activity exists measures as the first: the
         // same screen, and the activity will report its own size once it runs.
@@ -1211,7 +1213,8 @@ public final class AndroidBackend: BaseAppBackend {
         var environment = environment
         if !environment.isEnabled, environment.foregroundColor == nil {
             environment = environment.with(
-                \.foregroundColor, environment.suggestedForegroundColor.opacity(0.3)
+                \.foregroundColor,
+                environment.suggestedForegroundColor.opacity(0.3)
             )
         }
         // Same text in the same style: nothing to send. setText relays the

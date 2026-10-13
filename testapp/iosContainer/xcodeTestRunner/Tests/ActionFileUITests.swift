@@ -182,376 +182,391 @@ final class ActionFileUITests: XCTestCase {
 
         for action in actions {
             switch action.kind {
-            case "sleep":
-                Thread.sleep(forTimeInterval: action.microseconds / 1_000_000)
-            case "dumptree":
-                // The tree as it stands at this row. The dump above is taken
-                // before the first row, so a target that only exists, or only
-                // sits where it does, after earlier rows have changed the
-                // layout could not be measured from it (P17's "More height",
-                // 2026-10-01).
-                // 這一列當下的樹。上面那份在第一列之前取得,所以一個「要等前面幾列改變版面之後
-                // 才出現、或才在那個位置」的目標,無法從它量出來(P17 的「More height」,2026-10-01)。
-                FileHandle.standardError.write(
-                    Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
-                )
-            case "hover":
-                // Moves the pointer to a point without pressing, with whatever
-                // modifiers `keydown` holds.
-                //
-                // Not `XCUICoordinate.hover()`. On the iPad simulator (iOS 27.0,
-                // 2026-10-13) the first call of a run reached the app -- began,
-                // then ended 90 ms later -- and the calls after it mostly did
-                // not: five rows gave one or two deliveries, never five, and
-                // `perform(withKeyModifiers:)` around it never showed Command.
-                // One synthesized event that travels from the previous point
-                // reaches the app on every row and carries the modifiers.
-                //
-                // The pointer does not stay unless the row has `micros`: it leaves about 100 ms after the
-                // travel ends, so the app sees began, changed, ended per row.
-                //
-                // An iPhone has no pointer. `hover()` failed the whole test
-                // there ("Pointer events are not supported for this device");
-                // the synthesized event is accepted and nothing reaches the app
-                // ("hover reports: 0"). So the row is skipped there and says
-                // so; the point is kept, because later rows may start from it.
-                // 把指標移到某點而不按下，連同 `keydown` 按住的 modifier。
-                //
-                // 不用 `XCUICoordinate.hover()`。在 iPad 模擬器上(iOS 27.0,2026-10-13)一次執行裡的第一次
-                // 呼叫會送進 app——began,90 ms 後 ended——其後的呼叫多半不會:五列只送達一兩次，從未五次;
-                // 包在 `perform(withKeyModifiers:)` 裡也從未出現 Command。改成一個從上一點移過來的合成事件後，
-                // 每一列都送達，也帶著 modifier。
-                //
-                // 除非該列帶 `micros`,指標不會停留:移動結束後約 100 ms 就離開，所以 app 每一列看到的是 began、changed、ended。
-                //
-                // iPhone 沒有指標。`hover()` 在那裡會讓整個測試失敗(「Pointer events are not supported for this
-                // device」);合成事件則被接受，但沒有任何東西送進 app(「hover reports: 0」)。所以在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
-                let target = try coordinate(for: action, in: app)
-                let previous = pointer
-                pointer = target
-                let end = target.screenPoint
-                let start = previous.map(\.screenPoint) ?? CGPoint(x: end.x - 30, y: end.y - 30)
-                guard UIDevice.current.userInterfaceIdiom == .pad else {
+                case "sleep":
+                    Thread.sleep(forTimeInterval: action.microseconds / 1_000_000)
+                case "dumptree":
+                    // The tree as it stands at this row. The dump above is taken
+                    // before the first row, so a target that only exists, or only
+                    // sits where it does, after earlier rows have changed the
+                    // layout could not be measured from it (P17's "More height",
+                    // 2026-10-01).
+                    // 這一列當下的樹。上面那份在第一列之前取得,所以一個「要等前面幾列改變版面之後
+                    // 才出現、或才在那個位置」的目標,無法從它量出來(P17 的「More height」,2026-10-01)。
                     FileHandle.standardError.write(
                         Data(
-                            ("-actionfile: hover skipped at (\(action.x), \(action.y)): "
-                                + "this device has no pointer\n").utf8
+                            "-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n"
+                                .utf8
                         )
                     )
-                    break
-                }
-                // A hover row with `micros` rests the pointer there for that long, and
-                // halfway through writes what is on the screen: a capture into
-                // `IOS_SHOT_DIR` and the labels. Without it the pointer has left before
-                // the run's final capture, which then shows "ended" (P88, 2026-10-13).
-                // 帶 `micros` 的 hover 列讓指標在那裡停留那麼久，並在一半時寫下畫面上有什麼:一張擷圖進
-                // `IOS_SHOT_DIR`,以及標籤。少了它，指標在最後擷圖之前就離開了，擷圖看到的是「ended」。
-                let line = action.line
-                try PointerPath.move(
-                    from: start, to: end, modifiers: heldModifiers.rawValue,
-                    hold: action.microseconds / 1_000_000
-                ) {
-                    if let directory = ProcessInfo.processInfo.environment["IOS_SHOT_DIR"] {
-                        let file = "\(directory)/hover-L\(line).png"
-                        do {
-                            try XCUIScreen.main.screenshot().pngRepresentation
-                                .write(to: URL(fileURLWithPath: file))
-                            FileHandle.standardError.write(
-                                Data("-actionfile: resting capture \(file)\n".utf8))
-                        } catch {
-                            FileHandle.standardError.write(
-                                Data("-actionfile: resting capture FAILED: \(error)\n".utf8))
+                case "hover":
+                    // Moves the pointer to a point without pressing, with whatever
+                    // modifiers `keydown` holds.
+                    //
+                    // Not `XCUICoordinate.hover()`. On the iPad simulator (iOS 27.0,
+                    // 2026-10-13) the first call of a run reached the app -- began,
+                    // then ended 90 ms later -- and the calls after it mostly did
+                    // not: five rows gave one or two deliveries, never five, and
+                    // `perform(withKeyModifiers:)` around it never showed Command.
+                    // One synthesized event that travels from the previous point
+                    // reaches the app on every row and carries the modifiers.
+                    //
+                    // The pointer does not stay unless the row has `micros`: it leaves about 100 ms after the
+                    // travel ends, so the app sees began, changed, ended per row.
+                    //
+                    // An iPhone has no pointer. `hover()` failed the whole test
+                    // there ("Pointer events are not supported for this device");
+                    // the synthesized event is accepted and nothing reaches the app
+                    // ("hover reports: 0"). So the row is skipped there and says
+                    // so; the point is kept, because later rows may start from it.
+                    // 把指標移到某點而不按下，連同 `keydown` 按住的 modifier。
+                    //
+                    // 不用 `XCUICoordinate.hover()`。在 iPad 模擬器上(iOS 27.0,2026-10-13)一次執行裡的第一次
+                    // 呼叫會送進 app——began,90 ms 後 ended——其後的呼叫多半不會:五列只送達一兩次，從未五次;
+                    // 包在 `perform(withKeyModifiers:)` 裡也從未出現 Command。改成一個從上一點移過來的合成事件後，
+                    // 每一列都送達，也帶著 modifier。
+                    //
+                    // 除非該列帶 `micros`,指標不會停留:移動結束後約 100 ms 就離開，所以 app 每一列看到的是 began、changed、ended。
+                    //
+                    // iPhone 沒有指標。`hover()` 在那裡會讓整個測試失敗(「Pointer events are not supported for this
+                    // device」);合成事件則被接受，但沒有任何東西送進 app(「hover reports: 0」)。所以在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
+                    let target = try coordinate(for: action, in: app)
+                    let previous = pointer
+                    pointer = target
+                    let end = target.screenPoint
+                    let start = previous.map(\.screenPoint) ?? CGPoint(x: end.x - 30, y: end.y - 30)
+                    guard UIDevice.current.userInterfaceIdiom == .pad else {
+                        FileHandle.standardError.write(
+                            Data(
+                                ("-actionfile: hover skipped at (\(action.x), \(action.y)): "
+                                    + "this device has no pointer\n").utf8
+                            )
+                        )
+                        break
+                    }
+                    // A hover row with `micros` rests the pointer there for that long, and
+                    // halfway through writes what is on the screen: a capture into
+                    // `IOS_SHOT_DIR` and the labels. Without it the pointer has left before
+                    // the run's final capture, which then shows "ended" (P88, 2026-10-13).
+                    // 帶 `micros` 的 hover 列讓指標在那裡停留那麼久，並在一半時寫下畫面上有什麼:一張擷圖進
+                    // `IOS_SHOT_DIR`,以及標籤。少了它，指標在最後擷圖之前就離開了，擷圖看到的是「ended」。
+                    let line = action.line
+                    try PointerPath.move(
+                        from: start,
+                        to: end,
+                        modifiers: heldModifiers.rawValue,
+                        hold: action.microseconds / 1_000_000
+                    ) {
+                        if let directory = ProcessInfo.processInfo.environment["IOS_SHOT_DIR"] {
+                            let file = "\(directory)/hover-L\(line).png"
+                            do {
+                                try XCUIScreen.main.screenshot().pngRepresentation
+                                    .write(to: URL(fileURLWithPath: file))
+                                FileHandle.standardError.write(
+                                    Data("-actionfile: resting capture \(file)\n".utf8)
+                                )
+                            } catch {
+                                FileHandle.standardError.write(
+                                    Data("-actionfile: resting capture FAILED: \(error)\n".utf8)
+                                )
+                            }
+                        }
+                        if let root = try? frontApp.snapshot() {
+                            var elements: [XCUIElementSnapshot] = []
+                            Self.flatten(root, into: &elements)
+                            let labels = elements.map(\.label).filter { !$0.isEmpty }
+                            if let data = try? JSONEncoder().encode(labels) {
+                                FileHandle.standardError.write(
+                                    Data(
+                                        ("-actionfile: resting labels line \(line) "
+                                            + "\(String(decoding: data, as: UTF8.self))\n").utf8
+                                    )
+                                )
+                            }
                         }
                     }
-                    if let root = try? frontApp.snapshot() {
-                        var elements: [XCUIElementSnapshot] = []
-                        Self.flatten(root, into: &elements)
-                        let labels = elements.map(\.label).filter { !$0.isEmpty }
-                        if let data = try? JSONEncoder().encode(labels) {
-                            FileHandle.standardError.write(
-                                Data(
-                                    ("-actionfile: resting labels line \(line) "
-                                        + "\(String(decoding: data, as: UTF8.self))\n").utf8))
-                        }
+                    FileHandle.standardError.write(
+                        Data(
+                            ("-actionfile: hovered (\(action.x), \(action.y)) "
+                                + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                        )
+                    )
+                case "windowframes":
+                    // Every window of the app under test, in screen points, so a
+                    // file can be measured against where the windows really are.
+                    // 受測 app 的每一個視窗(螢幕點)，讓動作檔可以依視窗的實際位置來量。
+                    let windows = app.windows.allElementsBoundByIndex
+                    var lines = "-actionfile: \(windows.count) window(s)\n"
+                    for (index, window) in windows.enumerated() {
+                        lines += "-actionfile: window \(index) frame=\(window.frame)\n"
                     }
-                }
-                FileHandle.standardError.write(
-                    Data(
-                        ("-actionfile: hovered (\(action.x), \(action.y)) "
-                            + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                    FileHandle.standardError.write(Data(lines.utf8))
+                case "activate":
+                    // Brings another app to the front -- the key column is its
+                    // bundle identifier; empty means the app under test. For
+                    // setting the device up (iPad windowed mode lives in
+                    // com.apple.Preferences), not for testing it.
+                    // 把另一個 app 帶到前景——key 欄是它的 bundle identifier;空白代表受測 app。
+                    // 用於設定裝置(iPad 的視窗化模式在 com.apple.Preferences 裡),不是用來測試它。
+                    let target = action.key.isEmpty
+                        ? app : XCUIApplication(bundleIdentifier: action.key)
+                    target.activate()
+                    frontApp = target
+                    FileHandle.standardError.write(
+                        Data(
+                            "-actionfile: activated \(action.key.isEmpty ? bundleIdentifier : action.key)\n"
+                                .utf8
+                        )
                     )
-                )
-            case "windowframes":
-                // Every window of the app under test, in screen points, so a
-                // file can be measured against where the windows really are.
-                // 受測 app 的每一個視窗(螢幕點)，讓動作檔可以依視窗的實際位置來量。
-                let windows = app.windows.allElementsBoundByIndex
-                var lines = "-actionfile: \(windows.count) window(s)\n"
-                for (index, window) in windows.enumerated() {
-                    lines += "-actionfile: window \(index) frame=\(window.frame)\n"
-                }
-                FileHandle.standardError.write(Data(lines.utf8))
-            case "activate":
-                // Brings another app to the front -- the key column is its
-                // bundle identifier; empty means the app under test. For
-                // setting the device up (iPad windowed mode lives in
-                // com.apple.Preferences), not for testing it.
-                // 把另一個 app 帶到前景——key 欄是它的 bundle identifier;空白代表受測 app。
-                // 用於設定裝置(iPad 的視窗化模式在 com.apple.Preferences 裡),不是用來測試它。
-                let target = action.key.isEmpty
-                    ? app : XCUIApplication(bundleIdentifier: action.key)
-                target.activate()
-                frontApp = target
-                FileHandle.standardError.write(
-                    Data("-actionfile: activated \(action.key.isEmpty ? bundleIdentifier : action.key)\n".utf8)
-                )
-            case "taplabel":
-                // Taps the first hittable element labelled `key` in whichever
-                // app is frontmost. Other apps' layouts differ by device and
-                // OS, so a label survives where a coordinate would not. A
-                // missing label is an error, not a skipped row.
-                // 在最前方的 app 中，點第一個標籤為 `key` 且可點的元素。其他 app 的版面因裝置與系統
-                // 而異，標籤能存活之處座標不能。找不到標籤是錯誤，不是略過的一列。
-                // By type and `firstMatch`, never `descendants(.any)` resolved
-                // in full: on Settings that query never returned and the run
-                // timed out after 600 s (2026-10-02).
-                // 依型別並用 `firstMatch`,絕不完整解析 `descendants(.any)`:在「設定」上那個查詢
-                // 一直沒有返回，執行在 600 秒後逾時(2026-10-02)。
-                let queries: [XCUIElementQuery] = [
-                    frontApp.buttons, frontApp.cells, frontApp.switches,
-                    frontApp.staticTexts, frontApp.otherElements,
-                ]
-                // Hittable first; failing that, the first that exists. An alert's
-                // buttons report isHittable == false although a tap on them
-                // works, so P5's "OK" was never found (2026-10-02); preferring
-                // a hittable match still picks the front window's button when
-                // a window behind it has one with the same label.
-                // 優先選可點擊的;沒有時，選第一個存在的。alert 的按鈕回報 isHittable == false,但點下去有效，
-                // 所以 P5 的「OK」一直找不到(2026-10-02);優先選可點擊者，在後方視窗也有同名按鈕時仍會選到
-                // 前方視窗的那一個。
-                let candidates = queries.map {
-                    $0.matching(NSPredicate(format: "label == %@", action.key)).firstMatch
-                }
-                let match = candidates.first { $0.exists && $0.isHittable }
-                    ?? candidates.first { $0.waitForExistence(timeout: 3) }
-                guard let element = match else {
-                    throw ActionFileError.unsupported(
-                        "taplabel '\(action.key)': no hittable element with that label",
-                        action.line
+                case "taplabel":
+                    // Taps the first hittable element labelled `key` in whichever
+                    // app is frontmost. Other apps' layouts differ by device and
+                    // OS, so a label survives where a coordinate would not. A
+                    // missing label is an error, not a skipped row.
+                    // 在最前方的 app 中，點第一個標籤為 `key` 且可點的元素。其他 app 的版面因裝置與系統
+                    // 而異，標籤能存活之處座標不能。找不到標籤是錯誤，不是略過的一列。
+                    // By type and `firstMatch`, never `descendants(.any)` resolved
+                    // in full: on Settings that query never returned and the run
+                    // timed out after 600 s (2026-10-02).
+                    // 依型別並用 `firstMatch`,絕不完整解析 `descendants(.any)`:在「設定」上那個查詢
+                    // 一直沒有返回，執行在 600 秒後逾時(2026-10-02)。
+                    let queries: [XCUIElementQuery] = [
+                        frontApp.buttons,
+                        frontApp.cells,
+                        frontApp.switches,
+                        frontApp.staticTexts,
+                        frontApp.otherElements,
+                    ]
+                    // Hittable first; failing that, the first that exists. An alert's
+                    // buttons report isHittable == false although a tap on them
+                    // works, so P5's "OK" was never found (2026-10-02); preferring
+                    // a hittable match still picks the front window's button when
+                    // a window behind it has one with the same label.
+                    // 優先選可點擊的;沒有時，選第一個存在的。alert 的按鈕回報 isHittable == false,但點下去有效，
+                    // 所以 P5 的「OK」一直找不到(2026-10-02);優先選可點擊者，在後方視窗也有同名按鈕時仍會選到
+                    // 前方視窗的那一個。
+                    let candidates = queries.map {
+                        $0.matching(NSPredicate(format: "label == %@", action.key)).firstMatch
+                    }
+                    let match = candidates.first { $0.exists && $0.isHittable }
+                        ?? candidates.first { $0.waitForExistence(timeout: 3) }
+                    guard let element = match else {
+                        throw ActionFileError.unsupported(
+                            "taplabel '\(action.key)': no hittable element with that label",
+                            action.line
+                        )
+                    }
+                    element.tap()
+                    FileHandle.standardError.write(
+                        Data("-actionfile: tapped '\(action.key)'\n".utf8)
                     )
-                }
-                element.tap()
-                FileHandle.standardError.write(
-                    Data("-actionfile: tapped '\(action.key)'\n".utf8)
-                )
-            case "move":
-                pointer = try coordinate(for: action, in: app)
-            case "click":
-                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                target.tap()
-                pointer = target
-            case "longpress":
-                // **The one verb that exists FOR this runner.** A context menu on
-                // a touch screen is raised by holding, and the down/up pair above
-                // cannot express it: `mouseup` presses for a fixed 0.1s whatever
-                // `sleep` rows sit between, because a `sleep` pauses the replay
-                // and not the finger. The desktop synthesisers refuse this verb
-                // rather than turning it into a right-click, so a file that uses
-                // it says plainly which platform it is for.
-                //
-                // **唯一為這個 runner 而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,
-                // 而上面那組 down/up 表達不了它:`mouseup` 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`
-                // ——因為 `sleep` 暫停的是重放、不是那根手指。桌面的各 synthesiser 會**拒絕**這個動作,
-                // 而不是把它變成右鍵,因此一份用到它的檔案,會明白地說出它是為哪個平台寫的。
-                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                target.press(forDuration: action.microseconds / 1_000_000)
-                pointer = target
-            case "doubleclick":
-                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                target.doubleTap()
-                pointer = target
-            case "mousedown":
-                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                pointer = target
-                dragStart = target
-            case "mouseup":
-                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                if let start = dragStart, action.microseconds > 0 {
-                    // A `micros` on the mouseup row is how long to hold before
-                    // moving, and the drag goes slowly. iPadOS starts a window
-                    // move or resize only from a held press; a 0.1 s press
-                    // dragged at the default speed did nothing to a window.
-                    // mouseup 列上的 `micros` 是移動前要按住多久，拖曳會放慢。iPadOS 只有在按住之後
-                    // 才開始移動或調整視窗;0.1 秒的按壓以預設速度拖曳，對視窗毫無作用。
-                    start.press(
-                        forDuration: action.microseconds / 1_000_000,
-                        thenDragTo: target,
-                        withVelocity: 300,
-                        thenHoldForDuration: 0.3
-                    )
-                    dragStart = nil
-                } else if let start = dragStart {
-                    start.press(forDuration: 0.1, thenDragTo: target)
-                    dragStart = nil
-                } else {
+                case "move":
+                    pointer = try coordinate(for: action, in: app)
+                case "click":
+                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
                     target.tap()
-                }
-                pointer = target
-            case "scroll":
-                // A wheel notch becomes a drag, because a touch screen has no
-                // wheel.
-                //
-                // The sign inverts, and that is the part to get right. In the
-                // action-file format a positive `dy` scrolls *down* -- the
-                // viewport moves further down the content. A finger does that by
-                // moving *up*. Same for `dx`: scrolling right means dragging
-                // left. Getting this backwards produces a scroll that works,
-                // moves the right distance, and goes the wrong way, which reads
-                // as the app scrolling oddly rather than as the runner being
-                // wrong.
-                //
-                // Until this existed the runner threw `unsupported` on every
-                // scroll row, so P8, P27 and P38 -- the three apps whose whole
-                // subject is scrolling -- had no iOS action file at all.
-                //
-                // 一格滾輪變成一次拖曳，因為觸控螢幕沒有滾輪。
-                //
-                // 符號要反過來，而那正是必須弄對的地方。在動作檔格式中，`dy` 為正代表向**下**捲動
-                // ——視口沿著內容往下移。手指要達成這件事，是往**上**移動。`dx` 亦然：向右捲動意味著
-                // 向左拖曳。若把方向弄反，會得到一個「能運作、距離正確、方向相反」的捲動，那讀起來
-                // 像是 app 的捲動行為古怪，而不像是 runner 寫錯了。
-                //
-                // 在此之前，runner 對每一列 scroll 都會拋出 `unsupported`，因此 P8、P27 與 P38
-                // ——那三支整個主題就是捲動的 app——在 iOS 上完全沒有動作檔。
-                let origin = pointer ?? app.windows.firstMatch.coordinate(
-                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
-                )
-                let destination = origin.withOffset(CGVector(
-                    dx: -action.x * Self.pointsPerNotch,
-                    dy: -action.y * Self.pointsPerNotch
-                ))
-                // A brief press before the drag, as the mouseup case does. A
-                // drag with no press is delivered as a flick, whose momentum
-                // carries the content past where the row asked for and leaves
-                // the next row measuring a position nobody chose.
-                // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
-                // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
-                origin.press(forDuration: 0.05, thenDragTo: destination)
-            case "pinch", "rotate":
-                // **XCUITest has these natively, which is why iOS is the one
-                // platform where this costs nothing.** `pinch(withScale:
-                // velocity:)` and `rotate(_:withVelocity:)` synthesise a real
-                // two-contact gesture; AppKit publishes no initialiser for a
-                // magnify or rotate NSEvent, and X11's XTEST has no gesture
-                // channel at all, so both of those refuse with a reason.
-                //
-                // **Aimed by the preceding `move` row, not by the window.**
-                // `x` and `y` on these two rows are the gesture's own
-                // parameters, so the aim has to come from somewhere else, and
-                // the runner already carries a pointer that `move` sets. The
-                // first driven run of P65 sent both gestures to the window's
-                // centre: rotate registered (the centre sat on the rotate
-                // panel) and the pinch did not, which reads exactly like "iOS
-                // cannot pinch". A gesture recogniser lives on one view; a
-                // gesture aimed at the middle of the window reaches whichever
-                // view happens to be there. See `gestureTarget(at:in:)`.
-                //
-                // **由前一列 `move` 瞄準,而不是由視窗瞄準。** 這兩列的 `x` 與 `y` 是手勢自己的參數,
-                // 因此瞄準必須來自別處——而 runner 本來就帶著一個由 `move` 設定的指標。P65 第一次被
-                // 驅動時,兩個手勢都送到視窗中心:旋轉登記了(中心正好落在旋轉那一格),縮放沒有,
-                // 而那讀起來完全像是「iOS 無法縮放」。一個手勢辨識器只長在一個 view 上;一個瞄準
-                // 視窗正中央的手勢,到達的是那裡剛好是誰。見 `gestureTarget(at:in:)`。
-                //
-                // **XCUITest 原生就有這兩者,而那正是 iOS 成為「這件事零成本」的唯一平台的原因。**
-                // `pinch(withScale:velocity:)` 與 `rotate(_:withVelocity:)` 會合成一次真正的
-                // 雙接觸點手勢;AppKit 沒有公開任何能造出 magnify 或 rotate `NSEvent` 的初始化式,
-                // 而 X11 的 XTEST 根本沒有手勢通道,因此那兩者都以理由拒絕。
-                //
-                // 作用在視窗上而非某個定位到的元素:這些手勢講的是「它們底下的那個 view」,
-                // 而動作檔格式不帶元素身分——此處它的 `x` 與 `y` 是這個手勢自己的參數,不是位置。
-                // 見 `InputAction.pinch`。
-                let target = gestureTarget(at: pointer, in: app)
-                if action.kind == "pinch" {
-                    let scale = CGFloat(action.x) / 100
-                    let velocity = action.y == 0 ? 1 : CGFloat(action.y) / 100
-                    target.pinch(withScale: scale, velocity: velocity)
-                } else {
-                    let radians = CGFloat(action.x) * .pi / 180
-                    let velocity =
-                        action.y == 0 ? 1 : CGFloat(action.y) * .pi / 180
-                    target.rotate(radians, withVelocity: velocity)
-                }
-            case "keydown":
-                // A MODIFIER is held; anything else cannot be.
-                //
-                // XCUITest has no press-and-hold for an ordinary key: the unit
-                // is `typeKey(_:modifierFlags:)`, one press with whatever
-                // modifiers are down. So `keydown command` accumulates a flag
-                // and `key s` spends it. `keydown s` has no expression here and
-                // throws rather than quietly typing an `s` -- a held key that
-                // silently became a tap is the kind of difference a test is
-                // supposed to notice.
-                //
-                // **按住的必須是 modifier;其他任何鍵都不行。**
-                //
-                // XCUITest 沒有「按住一個普通按鍵」這種動作:它的單位是
-                // `typeKey(_:modifierFlags:)`——一次按下,連同當時按著的那些 modifier。因此
-                // `keydown command` 累積一個旗標,而 `key s` 把它花掉。`keydown s` 在此處無法表達,
-                // 於是 throw,而不是安靜地打出一個 `s`——一個「被靜默變成單擊的長按」,正是測試本該
-                // 察覺的那種差別。
-                guard let flag = Self.modifierFlag(for: action.key) else {
-                    throw ActionFileError.unsupported(
-                        "keydown \(action.key) (only modifiers can be held on iOS)",
-                        action.line
+                    pointer = target
+                case "longpress":
+                    // **The one verb that exists FOR this runner.** A context menu on
+                    // a touch screen is raised by holding, and the down/up pair above
+                    // cannot express it: `mouseup` presses for a fixed 0.1s whatever
+                    // `sleep` rows sit between, because a `sleep` pauses the replay
+                    // and not the finger. The desktop synthesisers refuse this verb
+                    // rather than turning it into a right-click, so a file that uses
+                    // it says plainly which platform it is for.
+                    //
+                    // **唯一為這個 runner 而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,
+                    // 而上面那組 down/up 表達不了它:`mouseup` 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`
+                    // ——因為 `sleep` 暫停的是重放、不是那根手指。桌面的各 synthesiser 會**拒絕**這個動作,
+                    // 而不是把它變成右鍵,因此一份用到它的檔案,會明白地說出它是為哪個平台寫的。
+                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                    target.press(forDuration: action.microseconds / 1_000_000)
+                    pointer = target
+                case "doubleclick":
+                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                    target.doubleTap()
+                    pointer = target
+                case "mousedown":
+                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                    pointer = target
+                    dragStart = target
+                case "mouseup":
+                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                    if let start = dragStart, action.microseconds > 0 {
+                        // A `micros` on the mouseup row is how long to hold before
+                        // moving, and the drag goes slowly. iPadOS starts a window
+                        // move or resize only from a held press; a 0.1 s press
+                        // dragged at the default speed did nothing to a window.
+                        // mouseup 列上的 `micros` 是移動前要按住多久，拖曳會放慢。iPadOS 只有在按住之後
+                        // 才開始移動或調整視窗;0.1 秒的按壓以預設速度拖曳，對視窗毫無作用。
+                        start.press(
+                            forDuration: action.microseconds / 1_000_000,
+                            thenDragTo: target,
+                            withVelocity: 300,
+                            thenHoldForDuration: 0.3
+                        )
+                        dragStart = nil
+                    } else if let start = dragStart {
+                        start.press(forDuration: 0.1, thenDragTo: target)
+                        dragStart = nil
+                    } else {
+                        target.tap()
+                    }
+                    pointer = target
+                case "scroll":
+                    // A wheel notch becomes a drag, because a touch screen has no
+                    // wheel.
+                    //
+                    // The sign inverts, and that is the part to get right. In the
+                    // action-file format a positive `dy` scrolls *down* -- the
+                    // viewport moves further down the content. A finger does that by
+                    // moving *up*. Same for `dx`: scrolling right means dragging
+                    // left. Getting this backwards produces a scroll that works,
+                    // moves the right distance, and goes the wrong way, which reads
+                    // as the app scrolling oddly rather than as the runner being
+                    // wrong.
+                    //
+                    // Until this existed the runner threw `unsupported` on every
+                    // scroll row, so P8, P27 and P38 -- the three apps whose whole
+                    // subject is scrolling -- had no iOS action file at all.
+                    //
+                    // 一格滾輪變成一次拖曳，因為觸控螢幕沒有滾輪。
+                    //
+                    // 符號要反過來，而那正是必須弄對的地方。在動作檔格式中，`dy` 為正代表向**下**捲動
+                    // ——視口沿著內容往下移。手指要達成這件事，是往**上**移動。`dx` 亦然：向右捲動意味著
+                    // 向左拖曳。若把方向弄反，會得到一個「能運作、距離正確、方向相反」的捲動，那讀起來
+                    // 像是 app 的捲動行為古怪，而不像是 runner 寫錯了。
+                    //
+                    // 在此之前，runner 對每一列 scroll 都會拋出 `unsupported`，因此 P8、P27 與 P38
+                    // ——那三支整個主題就是捲動的 app——在 iOS 上完全沒有動作檔。
+                    let origin = pointer ?? app.windows.firstMatch.coordinate(
+                        withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
                     )
-                }
-                heldModifiers.insert(flag)
-            case "keyup":
-                guard let flag = Self.modifierFlag(for: action.key) else {
-                    throw ActionFileError.unsupported(
-                        "keyup \(action.key) (only modifiers can be held on iOS)",
-                        action.line
+                    let destination = origin.withOffset(CGVector(
+                        dx: -action.x * Self.pointsPerNotch,
+                        dy: -action.y * Self.pointsPerNotch
+                    ))
+                    // A brief press before the drag, as the mouseup case does. A
+                    // drag with no press is delivered as a flick, whose momentum
+                    // carries the content past where the row asked for and leaves
+                    // the next row measuring a position nobody chose.
+                    // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
+                    // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
+                    origin.press(forDuration: 0.05, thenDragTo: destination)
+                case "pinch", "rotate":
+                    // **XCUITest has these natively, which is why iOS is the one
+                    // platform where this costs nothing.** `pinch(withScale:
+                    // velocity:)` and `rotate(_:withVelocity:)` synthesise a real
+                    // two-contact gesture; AppKit publishes no initialiser for a
+                    // magnify or rotate NSEvent, and X11's XTEST has no gesture
+                    // channel at all, so both of those refuse with a reason.
+                    //
+                    // **Aimed by the preceding `move` row, not by the window.**
+                    // `x` and `y` on these two rows are the gesture's own
+                    // parameters, so the aim has to come from somewhere else, and
+                    // the runner already carries a pointer that `move` sets. The
+                    // first driven run of P65 sent both gestures to the window's
+                    // centre: rotate registered (the centre sat on the rotate
+                    // panel) and the pinch did not, which reads exactly like "iOS
+                    // cannot pinch". A gesture recogniser lives on one view; a
+                    // gesture aimed at the middle of the window reaches whichever
+                    // view happens to be there. See `gestureTarget(at:in:)`.
+                    //
+                    // **由前一列 `move` 瞄準,而不是由視窗瞄準。** 這兩列的 `x` 與 `y` 是手勢自己的參數,
+                    // 因此瞄準必須來自別處——而 runner 本來就帶著一個由 `move` 設定的指標。P65 第一次被
+                    // 驅動時,兩個手勢都送到視窗中心:旋轉登記了(中心正好落在旋轉那一格),縮放沒有,
+                    // 而那讀起來完全像是「iOS 無法縮放」。一個手勢辨識器只長在一個 view 上;一個瞄準
+                    // 視窗正中央的手勢,到達的是那裡剛好是誰。見 `gestureTarget(at:in:)`。
+                    //
+                    // **XCUITest 原生就有這兩者,而那正是 iOS 成為「這件事零成本」的唯一平台的原因。**
+                    // `pinch(withScale:velocity:)` 與 `rotate(_:withVelocity:)` 會合成一次真正的
+                    // 雙接觸點手勢;AppKit 沒有公開任何能造出 magnify 或 rotate `NSEvent` 的初始化式,
+                    // 而 X11 的 XTEST 根本沒有手勢通道,因此那兩者都以理由拒絕。
+                    //
+                    // 作用在視窗上而非某個定位到的元素:這些手勢講的是「它們底下的那個 view」,
+                    // 而動作檔格式不帶元素身分——此處它的 `x` 與 `y` 是這個手勢自己的參數,不是位置。
+                    // 見 `InputAction.pinch`。
+                    let target = gestureTarget(at: pointer, in: app)
+                    if action.kind == "pinch" {
+                        let scale = CGFloat(action.x) / 100
+                        let velocity = action.y == 0 ? 1 : CGFloat(action.y) / 100
+                        target.pinch(withScale: scale, velocity: velocity)
+                    } else {
+                        let radians = CGFloat(action.x) * .pi / 180
+                        let velocity =
+                            action.y == 0 ? 1 : CGFloat(action.y) * .pi / 180
+                        target.rotate(radians, withVelocity: velocity)
+                    }
+                case "keydown":
+                    // A MODIFIER is held; anything else cannot be.
+                    //
+                    // XCUITest has no press-and-hold for an ordinary key: the unit
+                    // is `typeKey(_:modifierFlags:)`, one press with whatever
+                    // modifiers are down. So `keydown command` accumulates a flag
+                    // and `key s` spends it. `keydown s` has no expression here and
+                    // throws rather than quietly typing an `s` -- a held key that
+                    // silently became a tap is the kind of difference a test is
+                    // supposed to notice.
+                    //
+                    // **按住的必須是 modifier;其他任何鍵都不行。**
+                    //
+                    // XCUITest 沒有「按住一個普通按鍵」這種動作:它的單位是
+                    // `typeKey(_:modifierFlags:)`——一次按下,連同當時按著的那些 modifier。因此
+                    // `keydown command` 累積一個旗標,而 `key s` 把它花掉。`keydown s` 在此處無法表達,
+                    // 於是 throw,而不是安靜地打出一個 `s`——一個「被靜默變成單擊的長按」,正是測試本該
+                    // 察覺的那種差別。
+                    guard let flag = Self.modifierFlag(for: action.key) else {
+                        throw ActionFileError.unsupported(
+                            "keydown \(action.key) (only modifiers can be held on iOS)",
+                            action.line
+                        )
+                    }
+                    heldModifiers.insert(flag)
+                case "keyup":
+                    guard let flag = Self.modifierFlag(for: action.key) else {
+                        throw ActionFileError.unsupported(
+                            "keyup \(action.key) (only modifiers can be held on iOS)",
+                            action.line
+                        )
+                    }
+                    heldModifiers.remove(flag)
+                case "orient":
+                    // Turns the simulated device, as a person turning the phone does;
+                    // see `InputAction.orientation`. The app gets the same size
+                    // change and trait update a real rotation gives it.
+                    // 轉動模擬的裝置,就像一個人轉動手機那樣;見 `InputAction.orientation`。app 收到的尺寸改變與 trait
+                    // 更新,和一次真正的旋轉完全相同。
+                    let orientation: UIDeviceOrientation
+                    switch action.key {
+                        case "portrait": orientation = .portrait
+                        case "portraitUpsideDown": orientation = .portraitUpsideDown
+                        case "landscapeLeft": orientation = .landscapeLeft
+                        case "landscapeRight": orientation = .landscapeRight
+                        default:
+                            throw ActionFileError.unsupported("orient \(action.key)", action.line)
+                    }
+                    XCUIDevice.shared.orientation = orientation
+                case "key":
+                    guard let typed = Self.typedKey(for: action.key) else {
+                        throw ActionFileError.unsupported(
+                            "key \(action.key) (no XCUIKeyboardKey for it)",
+                            action.line
+                        )
+                    }
+                    // Reported before it is sent, and with the modifiers spelled
+                    // out, because a shortcut that does nothing is otherwise
+                    // indistinguishable from one that was never sent -- the same
+                    // reason the coordinate line above exists.
+                    // 在送出之前先回報,而且把 modifier 明列出來;否則「一個什麼都沒做的快捷鍵」與
+                    // 「一個從未被送出的快捷鍵」無從分辨——與上方那行座標紀錄存在的理由相同。
+                    FileHandle.standardError.write(
+                        Data(
+                            ("-actionfile: line \(action.line) key '\(action.key)' "
+                                + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                        )
                     )
-                }
-                heldModifiers.remove(flag)
-            case "orient":
-                // Turns the simulated device, as a person turning the phone does;
-                // see `InputAction.orientation`. The app gets the same size
-                // change and trait update a real rotation gives it.
-                // 轉動模擬的裝置,就像一個人轉動手機那樣;見 `InputAction.orientation`。app 收到的尺寸改變與 trait
-                // 更新,和一次真正的旋轉完全相同。
-                let orientation: UIDeviceOrientation
-                switch action.key {
-                case "portrait": orientation = .portrait
-                case "portraitUpsideDown": orientation = .portraitUpsideDown
-                case "landscapeLeft": orientation = .landscapeLeft
-                case "landscapeRight": orientation = .landscapeRight
+                    app.typeKey(typed, modifierFlags: heldModifiers)
                 default:
-                    throw ActionFileError.unsupported("orient \(action.key)", action.line)
-                }
-                XCUIDevice.shared.orientation = orientation
-            case "key":
-                guard let typed = Self.typedKey(for: action.key) else {
-                    throw ActionFileError.unsupported(
-                        "key \(action.key) (no XCUIKeyboardKey for it)",
-                        action.line
-                    )
-                }
-                // Reported before it is sent, and with the modifiers spelled
-                // out, because a shortcut that does nothing is otherwise
-                // indistinguishable from one that was never sent -- the same
-                // reason the coordinate line above exists.
-                // 在送出之前先回報,而且把 modifier 明列出來;否則「一個什麼都沒做的快捷鍵」與
-                // 「一個從未被送出的快捷鍵」無從分辨——與上方那行座標紀錄存在的理由相同。
-                FileHandle.standardError.write(
-                    Data(
-                        ("-actionfile: line \(action.line) key '\(action.key)' "
-                            + "modifiers=\(Self.describe(heldModifiers))\n").utf8
-                    )
-                )
-                app.typeKey(typed, modifierFlags: heldModifiers)
-            default:
-                throw ActionFileError.unsupported(action.kind, action.line)
+                    throw ActionFileError.unsupported(action.kind, action.line)
             }
         }
 
@@ -565,11 +580,12 @@ final class ActionFileUITests: XCTestCase {
         // 重新瞄準後那次重放的依據。版面一旦移動,截圖就無法那樣比對。
         let environment = ProcessInfo.processInfo.environment
         if environment["IOS_AIM"] != nil || environment["IOS_AIM_FILE"] != nil,
-            let root = try? app.snapshot()
+           let root = try? app.snapshot()
         {
             var elements: [XCUIElementSnapshot] = []
             Self.flatten(root, into: &elements)
-            let labels = elements.filter(Self.canAnchor).map(\.label).filter { !$0.isEmpty }.sorted()
+            let labels = elements.filter(Self.canAnchor).map(\.label).filter { !$0.isEmpty }
+                .sorted()
             if let data = try? JSONEncoder().encode(labels) {
                 FileHandle.standardError.write(
                     Data("-actionfile: labels \(String(decoding: data, as: UTF8.self))\n".utf8)
@@ -771,7 +787,7 @@ final class ActionFileUITests: XCTestCase {
     /// `IOS_AIM_FILE` 所存的錨點,以動作檔行號為鍵;沒有該變數時為空。
     private lazy var aims: [Int: Aim] = {
         guard let path = ProcessInfo.processInfo.environment["IOS_AIM_FILE"],
-            let text = try? String(contentsOfFile: path, encoding: .utf8)
+              let text = try? String(contentsOfFile: path, encoding: .utf8)
         else { return [:] }
         var result: [Int: Aim] = [:]
         for line in text.split(whereSeparator: \.isNewline) {
@@ -783,7 +799,8 @@ final class ActionFileUITests: XCTestCase {
     }()
 
     private static func flatten(
-        _ node: XCUIElementSnapshot, into list: inout [XCUIElementSnapshot]
+        _ node: XCUIElementSnapshot,
+        into list: inout [XCUIElementSnapshot]
     ) {
         list.append(node)
         for child in node.children { flatten(child, into: &list) }
@@ -836,9 +853,12 @@ final class ActionFileUITests: XCTestCase {
         }
 
         if recording {
-            func anchor(_ entry: (element: XCUIElementSnapshot, key: String, ordinal: Int)) -> Anchor {
+            func anchor(_ entry: (element: XCUIElementSnapshot, key: String, ordinal: Int))
+                -> Anchor
+            {
                 Anchor(
-                    key: entry.key, ordinal: entry.ordinal,
+                    key: entry.key,
+                    ordinal: entry.ordinal,
                     dx: Double(onScreen.x - entry.element.frame.minX),
                     dy: Double(onScreen.y - entry.element.frame.minY),
                     width: Double(entry.element.frame.width),
@@ -858,13 +878,14 @@ final class ActionFileUITests: XCTestCase {
             for entry in entries {
                 let frame = entry.element.frame
                 if frame.contains(onScreen),
-                    inside.map({ area(frame) <= area($0.element.frame) }) ?? true
+                   inside.map({ area(frame) <= area($0.element.frame) }) ?? true
                 {
                     inside = entry
                 }
                 guard !entry.element.label.isEmpty else { continue }
                 if let best = near {
-                    let (new, old) = (distance(frame), distance(best.element.frame))
+                    let new = distance(frame)
+                    let old = distance(best.element.frame)
                     if new < old || (new == old && area(frame) <= area(best.element.frame)) {
                         near = entry
                     }
@@ -873,8 +894,11 @@ final class ActionFileUITests: XCTestCase {
                 }
             }
             let aim = Aim(
-                line: action.line, x: Double(original.x), y: Double(original.y),
-                inside: inside.map(anchor), near: near.map(anchor)
+                line: action.line,
+                x: Double(original.x),
+                y: Double(original.y),
+                inside: inside.map(anchor),
+                near: near.map(anchor)
             )
             if let data = try? JSONEncoder().encode(aim) {
                 FileHandle.standardError.write(
@@ -895,9 +919,9 @@ final class ActionFileUITests: XCTestCase {
             // `scaled` 讓位移隨元素伸縮——在元素之內是對的,在元素旁邊則不對。
             func resolve(_ anchor: Anchor?, scaled: Bool) -> (point: CGPoint, sameSize: Bool)? {
                 guard let anchor,
-                    let entry = entries.first(where: {
-                        $0.key == anchor.key && $0.ordinal == anchor.ordinal
-                    })
+                      let entry = entries.first(where: {
+                          $0.key == anchor.key && $0.ordinal == anchor.ordinal
+                      })
                 else { return nil }
                 let frame = entry.element.frame
                 let sx = Double(frame.width) / anchor.width
@@ -913,7 +937,8 @@ final class ActionFileUITests: XCTestCase {
             let labelled = wanted.inside.map { !$0.key.hasSuffix("||") } ?? false
             let apart: String
             if let inside, let near {
-                let (dx, dy) = (inside.point.x - near.point.x, inside.point.y - near.point.y)
+                let dx = inside.point.x - near.point.x
+                let dy = inside.point.y - near.point.y
                 apart = String(format: "%.0f", Double((dx * dx + dy * dy).squareRoot()))
             } else {
                 apart = "n/a"
@@ -960,7 +985,8 @@ final class ActionFileUITests: XCTestCase {
                 dy: (dy / Self.pointsPerNotch).rounded(.awayFromZero)
             )
             let centre = app.windows.firstMatch.coordinate(
-                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+            )
             centre.press(
                 forDuration: 0.05,
                 thenDragTo: centre.withOffset(CGVector(
@@ -971,7 +997,11 @@ final class ActionFileUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.6)
             FileHandle.standardError.write(Data((
                 "-actionfile: reveal line \(action.line) move "
-                    + String(format: "(%.0f, %.0f)", Double(window.width / 2), Double(window.height / 2))
+                    + String(
+                        format: "(%.0f, %.0f)",
+                        Double(window.width / 2),
+                        Double(window.height / 2)
+                    )
                     + " scroll (\(Int(notches.dx)), \(Int(notches.dy)))\n"
             ).utf8))
             if let root = try? app.snapshot() { chosen = locate(in: anchors(of: root)) }
@@ -1072,14 +1102,22 @@ private enum PointerPath {
     }
 
     static func move(
-        from start: CGPoint, to end: CGPoint, modifiers: UInt, hold: TimeInterval = 0,
+        from start: CGPoint,
+        to end: CGPoint,
+        modifiers: UInt,
+        hold: TimeInterval = 0,
         whileResting: () -> Void = {}
     ) throws {
         typealias InitAt = @convention(c) (AnyObject, Selector, CGPoint) -> Unmanaged<AnyObject>
         typealias MoveTo = @convention(c) (AnyObject, Selector, CGPoint, Double, Double) -> Void
         typealias SetModifiers = @convention(c) (AnyObject, Selector, UInt, Bool, Double) -> Void
-        typealias InitRecord = @convention(c) (AnyObject, Selector, NSString, Int) -> Unmanaged<AnyObject>
-        func implementation<T>(_ cls: AnyClass, _ name: String, as type: T.Type) throws -> (T, Selector) {
+        typealias InitRecord = @convention(c) (AnyObject, Selector, NSString, Int)
+            -> Unmanaged<AnyObject>
+        func implementation<T>(
+            _ cls: AnyClass,
+            _ name: String,
+            as type: T.Type
+        ) throws -> (T, Selector) {
             let selector = NSSelectorFromString(name)
             guard let method = class_getInstanceMethod(cls, selector) else {
                 throw Unavailable(description: "XCTest has no -[\(cls) \(name)]")
@@ -1087,22 +1125,36 @@ private enum PointerPath {
             return (unsafeBitCast(method_getImplementation(method), to: type), selector)
         }
         guard let pathClass = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
-            let recordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type
+              let recordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type
         else {
             throw Unavailable(description: "XCTest has no XCPointerEventPath")
         }
         let alloc = NSSelectorFromString("alloc")
         let (initAt, initAtSelector) = try implementation(
-            pathClass, "initForMouseEventsAtLocation:", as: InitAt.self)
+            pathClass,
+            "initForMouseEventsAtLocation:",
+            as: InitAt.self
+        )
         let (moveTo, moveToSelector) = try implementation(
-            pathClass, "moveMouseToPoint:atOffset:duration:", as: MoveTo.self)
+            pathClass,
+            "moveMouseToPoint:atOffset:duration:",
+            as: MoveTo.self
+        )
         let (setModifiers, setModifiersSelector) = try implementation(
-            pathClass, "setModifiers:mergeWithCurrentModifierFlags:atOffset:", as: SetModifiers.self)
+            pathClass,
+            "setModifiers:mergeWithCurrentModifierFlags:atOffset:",
+            as: SetModifiers.self
+        )
         let (initRecord, initRecordSelector) = try implementation(
-            recordClass, "initWithName:interfaceOrientation:", as: InitRecord.self)
+            recordClass,
+            "initWithName:interfaceOrientation:",
+            as: InitRecord.self
+        )
 
         let path = initAt(
-            pathClass.perform(alloc).takeUnretainedValue(), initAtSelector, start
+            pathClass.perform(alloc).takeUnretainedValue(),
+            initAtSelector,
+            start
         ).takeUnretainedValue()
         if modifiers != 0 {
             setModifiers(path, setModifiersSelector, modifiers, false, 0)
@@ -1126,14 +1178,16 @@ private enum PointerPath {
             setModifiers(path, setModifiersSelector, 0, false, offset + 0.05)
         }
         let record = initRecord(
-            recordClass.perform(alloc).takeUnretainedValue(), initRecordSelector,
-            "pointer move" as NSString, UIInterfaceOrientation.portrait.rawValue
+            recordClass.perform(alloc).takeUnretainedValue(),
+            initRecordSelector,
+            "pointer move" as NSString,
+            UIInterfaceOrientation.portrait.rawValue
         ).takeUnretainedValue()
         _ = record.perform(NSSelectorFromString("addPointerEventPath:"), with: path)
 
         guard
             let synthesizer = (XCUIDevice.shared as NSObject)
-                .perform(NSSelectorFromString("eventSynthesizer"))?.takeUnretainedValue()
+            .perform(NSSelectorFromString("eventSynthesizer"))?.takeUnretainedValue()
         else {
             throw Unavailable(description: "XCUIDevice has no event synthesizer")
         }
@@ -1144,8 +1198,10 @@ private enum PointerPath {
             done.signal()
         }
         _ = synthesizer.perform(
-            NSSelectorFromString("synthesizeEvent:completion:"), with: record,
-            with: completion as AnyObject)
+            NSSelectorFromString("synthesizeEvent:completion:"),
+            with: record,
+            with: completion as AnyObject
+        )
         // Halfway through a rest, the caller looks at the screen: that is the only time a
         // resting pointer can be seen, because the path below is waited for to its end.
         // 停留到一半時讓呼叫端看一眼畫面:指標停留的樣子只有這時看得到，因為下面會等這條路徑走完。
@@ -1188,7 +1244,7 @@ private enum ActionFile {
             guard fields[0] != "action" else { return nil }
             guard fields.count >= 7 else { throw ActionFileError.malformed(line) }
             if fields.count > 8, !fields[8].isEmpty,
-                fields[8] != "any", fields[8] != "ios"
+               fields[8] != "any", fields[8] != "ios"
             {
                 throw ActionFileError.wrongPlatform(fields[8], line)
             }
@@ -1198,9 +1254,14 @@ private enum ActionFile {
             let y = CGFloat(Double(fields[2]) ?? 0)
             let micros = Double(fields[6]).map(TimeInterval.init) ?? 0
             return Action(
-                kind: fields[0], key: fields[5], x: x, y: y,
+                kind: fields[0],
+                key: fields[5],
+                x: x,
+                y: y,
                 origin: fields[3].isEmpty ? "client" : fields[3],
-                microseconds: micros, line: line, hasPosition: hasPosition
+                microseconds: micros,
+                line: line,
+                hasPosition: hasPosition
             )
         }
     }
@@ -1242,11 +1303,11 @@ private enum ActionFileError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .malformed(let line): return "Malformed action file row at line \(line)"
-        case .invalidCoordinate(let line): return "Invalid iOS coordinate at line \(line)"
-        case .unsupported(let action, let line): return "Unsupported iOS action '\(action)' at line \(line)"
-        case .wrongPlatform(let platform, let line):
-            return "Action file platform '\(platform)' is not valid for iOS at line \(line)"
+            case .malformed(let line): return "Malformed action file row at line \(line)"
+            case .invalidCoordinate(let line): return "Invalid iOS coordinate at line \(line)"
+            case .unsupported(let action, let line): return "Unsupported iOS action '\(action)' at line \(line)"
+            case .wrongPlatform(let platform, let line):
+                return "Action file platform '\(platform)' is not valid for iOS at line \(line)"
         }
     }
 }

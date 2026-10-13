@@ -47,12 +47,12 @@ final class P92Model: SwiftCrossUI.ObservableObject {
     // 取自環境變數;啟動時帶不了環境變數的平台(Android)則取自參數:`--p92-mode=replacing`、`--p92-menu`。
     static let mode =
         ProcessInfo.processInfo.environment["SCUI_P92_MODE"]
-        ?? CommandLine.arguments.first { $0.hasPrefix("--p92-mode=") }
+            ?? CommandLine.arguments.first { $0.hasPrefix("--p92-mode=") }
             .map { String($0.dropFirst("--p92-mode=".count)) }
-        ?? "after"
+            ?? "after"
     static let menuEnabled =
         ProcessInfo.processInfo.environment["SCUI_P92_MENU"] == "1"
-        || CommandLine.arguments.contains("--p92-menu")
+            || CommandLine.arguments.contains("--p92-menu")
 
     func pressed(_ name: String) {
         last = name
@@ -66,7 +66,7 @@ final class P92Model: SwiftCrossUI.ObservableObject {
     static func log(_ line: String) {
         let directory =
             ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-            ?? FileManager.default.currentDirectoryPath
+                ?? FileManager.default.currentDirectoryPath
         let url = URL(fileURLWithPath: directory).appendingPathComponent("p92-commands.log")
         let data = Data((line + "\n").utf8)
         if let handle = try? FileHandle(forWritingTo: url) {
@@ -145,9 +145,13 @@ final class P92Model: SwiftCrossUI.ObservableObject {
             if let menu = NSApp.mainMenu { dump(menu, 0) }
             let directory =
                 ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? FileManager.default.currentDirectoryPath
+                    ?? FileManager.default.currentDirectoryPath
             let url = URL(fileURLWithPath: directory).appendingPathComponent("p92-menu-\(mode).txt")
-            try? (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+            try? (lines.joined(separator: "\n") + "\n").write(
+                to: url,
+                atomically: true,
+                encoding: .utf8
+            )
             print("[P92] menu bar written to \(url.path)")
         }
     #endif

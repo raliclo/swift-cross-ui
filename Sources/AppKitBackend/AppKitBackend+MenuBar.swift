@@ -262,7 +262,8 @@ extension MenuBar {
                     switch entry {
                         case .item(let item):
                             rendered.addItem(
-                                AppKitBackend.renderMenuItem(item, environment: environment))
+                                AppKitBackend.renderMenuItem(item, environment: environment)
+                            )
                         case .standard(let command):
                             let item = standardItem(command, appName: layout.appName)
                             if command == .services { servicesMenu = item.submenu }
@@ -308,7 +309,10 @@ extension MenuBar {
                 case .help: #selector(NSApplication.showHelp(_:))
             }
         let item = NSMenuItem(
-            title: command.title(appName: appName), action: selector, keyEquivalent: "")
+            title: command.title(appName: appName),
+            action: selector,
+            keyEquivalent: ""
+        )
         if let shortcut = command.shortcut {
             item.keyEquivalent = String(shortcut.key.character)
             var flags: NSEvent.ModifierFlags = []

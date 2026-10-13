@@ -94,8 +94,12 @@ public struct Commands {
                 if !entries.isEmpty {
                     sections.append(
                         CommandLayout.Section(
-                            placement: placement, entries: entries, leading: leading,
-                            isReplaced: isReplaced))
+                            placement: placement,
+                            entries: entries,
+                            leading: leading,
+                            isReplaced: isReplaced
+                        )
+                    )
                 }
             }
             // With the standard menus on, each is there even when empty -- macOS
@@ -127,9 +131,12 @@ public struct Commands {
                     title: resolved.label,
                     sections: [
                         CommandLayout.Section(
-                            placement: nil, entries: resolved.content.items.map { .item($0) })
+                            placement: nil,
+                            entries: resolved.content.items.map { .item($0) }
+                        )
                     ]
-                ))
+                )
+            )
         }
         for kind in [CommandGroupPlacement.Menu.window, .help] {
             if let menu = standardMenu(kind) { result.append(menu) }
@@ -194,8 +201,11 @@ extension Commands {
         let sceneItems = multipleWindows ? scenes.items : [:]
         if let backend = backend as? any BackendFeatures.CommandLayouts {
             var layout = layout(
-                appName: appName, defaults: { _ in true }, newWindow: newWindow,
-                sceneItems: sceneItems)
+                appName: appName,
+                defaults: { _ in true },
+                newWindow: newWindow,
+                sceneItems: sceneItems
+            )
             layout.isMenuEnabled = isMenuEnabled || MenuBarSettings.isEnabled
             backend.setApplicationCommands(layout, environment: environment)
             return
@@ -205,7 +215,8 @@ extension Commands {
         let enabled = isMenuEnabled || MenuBarSettings.isEnabled
         let layout = layout(
             appName: appName,
-            defaults: enabled ? standard.map { backend in { backend.hasStandardCommand($0) } } : nil,
+            defaults: enabled ? standard
+                .map { backend in { backend.hasStandardCommand($0) } } : nil,
             newWindow: newWindow,
             sceneItems: enabled ? sceneItems : [:]
         )
@@ -234,7 +245,10 @@ enum WindowOpeners {
     static var entries: [Entry] = []
 
     static func register(
-        key: String, title: String, isGroup: Bool, open: @escaping @MainActor () -> Void
+        key: String,
+        title: String,
+        isGroup: Bool,
+        open: @escaping @MainActor () -> Void
     ) {
         let entry = Entry(key: key, title: title, isGroup: isGroup, open: open)
         if let index = entries.firstIndex(where: { $0.key == key }) {
@@ -247,7 +261,8 @@ enum WindowOpeners {
     /// What the framework itself puts in a group, beside the standard commands.
     /// 框架自己放進群組的東西(標準指令之外)。
     static func defaults() -> (
-        newWindow: (@MainActor () -> Void)?, items: [CommandGroupPlacement: [ResolvedMenu.Item]]
+        newWindow: (@MainActor () -> Void)?,
+        items: [CommandGroupPlacement: [ResolvedMenu.Item]]
     ) {
         let groups = entries.filter(\.isGroup)
         var items: [CommandGroupPlacement: [ResolvedMenu.Item]] = [:]
@@ -257,7 +272,10 @@ enum WindowOpeners {
             let children = groups.enumerated().map { index, group -> ResolvedMenu.Item in
                 let button = ResolvedMenu.Item.button("New \(group.title) Window", group.open)
                 return index == 0
-                    ? .modifiedEnvironment(button) { $0.with(\.keyboardShortcut, KeyboardShortcut("n")) }
+                    ? .modifiedEnvironment(button) { $0.with(
+                        \.keyboardShortcut,
+                        KeyboardShortcut("n")
+                    ) }
                     : button
             }
             items[.newItem] = [

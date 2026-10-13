@@ -36,7 +36,9 @@ extension AndroidBackend: BackendFeatures.CommandLayouts {
                             if case .item(let item) = entry { return item }
                             return nil
                         }
-                    }))
+                    }
+                )
+            )
         }
         setApplicationMenu(own, environment: environment)
         for host in Self.scrollHosts { applyMenuButton(to: host) }
@@ -48,13 +50,14 @@ extension AndroidBackend: BackendFeatures.CommandLayouts {
             shown
                 ? SwiftAction(environment: Self.env) { [weak self] in
                     MainActor.assumeIsolated { self?.showCommandMenu(from: host) }
-                } : nil)
+                } : nil
+        )
         host.setMenuButtonShown(Self.activity, shown)
     }
 
     private func showCommandMenu(from host: RootScrollHost) {
         guard var layout = Self.commandLayout, let environment = Self.commandEnvironment,
-            let anchor = host.getMenuButton()
+              let anchor = host.getMenuButton()
         else { return }
         // The process is app_process64 here, and the activity's title is the window's; the
         // application's label is the app's name.
@@ -81,7 +84,10 @@ extension AndroidBackend: BackendFeatures.CommandLayouts {
         let submenus = layout.submenus { [weak self] in self?.performStandardCommand($0) }
         let popup = AndroidKit.PopupMenu.construct(Self.activity, anchor, environment: Self.env)
         Menu.realizeMenu(
-            menu: popup.getMenu(), items: submenus.map { .submenu($0) }, environment: environment)
+            menu: popup.getMenu(),
+            items: submenus.map { .submenu($0) },
+            environment: environment
+        )
         // Kept: the popup holds the listeners, and must outlive this call.
         // 留著:popup 持有那些 listener,必須活得比這次呼叫久。
         Self.commandPopup = popup
@@ -102,14 +108,14 @@ extension AndroidBackend: BackendFeatures.StandardCommands {
     public func performStandardCommand(_ command: StandardCommand) {
         guard let focused = Self.activity.getWindow()?.getDecorView()?.findFocus() else { return }
         if command == .delete {
-            let delete: Int32 = 67  // KeyEvent.KEYCODE_DEL
+            let delete: Int32 = 67 // KeyEvent.KEYCODE_DEL
             for action in [Int32(0), 1] {
                 _ = focused.dispatchKeyEvent(AndroidKit.KeyEvent(action, delete))
             }
             return
         }
         guard let item = Self.textMenuItem(command),
-            let text = focused.as(AndroidKit.TextView.self)
+              let text = focused.as(AndroidKit.TextView.self)
         else { return }
         _ = text.onTextContextMenuItem(item)
     }

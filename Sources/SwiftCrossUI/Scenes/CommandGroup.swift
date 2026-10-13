@@ -23,7 +23,13 @@
 public struct CommandGroupPlacement: Hashable, Sendable {
     /// The standard menu a placement belongs to. 位置所屬的標準選單。
     public enum Menu: Int, CaseIterable, Sendable {
-        case app, file, edit, format, view, window, help
+        case app
+        case file
+        case edit
+        case format
+        case view
+        case window
+        case help
     }
 
     public let name: String
@@ -57,12 +63,25 @@ public struct CommandGroupPlacement: Hashable, Sendable {
 
     /// Every placement, in the order the menus show them. 每個位置，依選單顯示的順序。
     public static let all: [CommandGroupPlacement] = [
-        .appInfo, .appSettings, .systemServices, .appVisibility, .appTermination,
-        .newItem, .saveItem, .importExport, .printItem,
-        .undoRedo, .pasteboard, .textEditing,
+        .appInfo,
+        .appSettings,
+        .systemServices,
+        .appVisibility,
+        .appTermination,
+        .newItem,
+        .saveItem,
+        .importExport,
+        .printItem,
+        .undoRedo,
+        .pasteboard,
+        .textEditing,
         .textFormatting,
-        .toolbar, .sidebar,
-        .windowSize, .singleWindowList, .windowList, .windowArrangement,
+        .toolbar,
+        .sidebar,
+        .windowSize,
+        .singleWindowList,
+        .windowList,
+        .windowArrangement,
         .help,
     ]
 
@@ -94,10 +113,25 @@ public struct CommandGroupPlacement: Hashable, Sendable {
 /// 系統在自己的選單裡提供的項目。AppKit 的每一項都是 responder chain 上的動作;在選單由本框架自己建出的 backend 上，
 /// 由 ``BackendFeatures/StandardCommands`` 說明哪些存在並加以執行。
 public enum StandardCommand: String, CaseIterable, Sendable {
-    case about, services, hide, hideOthers, showAll, quit
-    case newWindow, close, closeAll
-    case undo, redo, cut, copy, paste, delete, selectAll
-    case minimize, zoom, bringAllToFront
+    case about
+    case services
+    case hide
+    case hideOthers
+    case showAll
+    case quit
+    case newWindow
+    case close
+    case closeAll
+    case undo
+    case redo
+    case cut
+    case copy
+    case paste
+    case delete
+    case selectAll
+    case minimize
+    case zoom
+    case bringAllToFront
     case help
 
     /// The title macOS gives the item. macOS 給這個項目的標題。
@@ -177,7 +211,9 @@ public enum StandardCommand: String, CaseIterable, Sendable {
 /// 打開標準選單，包含預設項目。
 public struct CommandGroup {
     enum Position {
-        case before, after, replacing
+        case before
+        case after
+        case replacing
     }
 
     var placement: CommandGroupPlacement
@@ -200,7 +236,8 @@ public struct CommandGroup {
 
     @MainActor
     public init(
-        replacing placement: CommandGroupPlacement, @ViewBuilder content: () -> some View
+        replacing placement: CommandGroupPlacement,
+        @ViewBuilder content: () -> some View
     ) {
         self.placement = placement
         self.position = .replacing
@@ -277,7 +314,10 @@ public struct CommandLayout {
                                         label: StandardCommand.services.title(appName: appName),
                                         content: ResolvedMenu(items: [
                                             .button("No Services Apply", nil)
-                                        ]))))
+                                        ])
+                                    )
+                                )
+                            )
                         case .standard(let command):
                             let button = ResolvedMenu.Item.button(
                                 command.title(appName: appName),
@@ -287,12 +327,14 @@ public struct CommandLayout {
                                     } else {
                                         perform(command)
                                     }
-                                })
+                                }
+                            )
                             if let shortcut = command.shortcut {
                                 items.append(
                                     .modifiedEnvironment(button) {
                                         $0.with(\.keyboardShortcut, shortcut)
-                                    })
+                                    }
+                                )
                             } else {
                                 items.append(button)
                             }

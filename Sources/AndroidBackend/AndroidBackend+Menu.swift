@@ -104,8 +104,8 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
                     )
                     .setEnabled(environment.isEnabled)!
                     if let shortcut,
-                        let scalar = String(shortcut.key.character).lowercased().unicodeScalars
-                            .first
+                       let scalar = String(shortcut.key.character).lowercased().unicodeScalars
+                       .first
                     {
                         // `setAlphabeticShortcut(char, modifiers)`, with the
                         // modifier mask separate from the key.

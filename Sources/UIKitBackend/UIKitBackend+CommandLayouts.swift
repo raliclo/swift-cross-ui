@@ -28,7 +28,8 @@ import UIKit
     /// `singleWindowList`;這裡把它們放在 Window 選單的尾端。
     extension UIKitBackend: BackendFeatures.CommandLayouts {
         public func setApplicationCommands(
-            _ layout: CommandLayout, environment: EnvironmentValues
+            _ layout: CommandLayout,
+            environment: EnvironmentValues
         ) {
             let appDelegate = UIApplication.shared.delegate as! ApplicationDelegate
             appDelegate.commandLayout = layout
@@ -43,7 +44,9 @@ import UIKit
                                 if case .item(let item) = entry { return item }
                                 return nil
                             }
-                        }))
+                        }
+                    )
+                )
             }
             setApplicationMenu(own, environment: environment)
             for scene in UIApplication.shared.connectedScenes {
@@ -124,8 +127,11 @@ import UIKit
                     )
                     let items = menu.sections.flatMap(\.entries).compactMap(Self.item)
                     let built = UIKitBackend.buildMenu(
-                        content: ResolvedMenu(items: items), label: menu.title,
-                        identifier: identifier, environment: environment)
+                        content: ResolvedMenu(items: items),
+                        label: menu.title,
+                        identifier: identifier,
+                        environment: environment
+                    )
                     if builder.menu(for: lastCustom) != nil {
                         builder.insertSibling(built, afterMenu: lastCustom)
                     } else {
@@ -141,7 +147,8 @@ import UIKit
                         let items = entries.compactMap(Self.item)
                         guard !items.isEmpty else { return [] }
                         return UIKitBackend.buildMenu(
-                            content: ResolvedMenu(items: items), label: "",
+                            content: ResolvedMenu(items: items),
+                            label: "",
                             environment: environment
                         ).children
                     }
@@ -150,7 +157,8 @@ import UIKit
                     // 系統項目兩側的 app 項目;群組被取代時，每個項目都是 app 的。
                     let before = elements(section.entries[..<section.leading])
                     let after = elements(
-                        section.entries[section.leading...].filter { Self.item($0) != nil }[...])
+                        section.entries[section.leading...].filter { Self.item($0) != nil }[...]
+                    )
                     func merged(_ existing: [UIMenuElement]) -> [UIMenuElement] {
                         before + (section.isReplaced ? [] : existing) + after
                     }
@@ -162,8 +170,11 @@ import UIKit
                             continue
                         case "importExport":
                             let inline = UIMenu(
-                                title: "", identifier: UIMenu.Identifier("scui.synthesized.importExport"),
-                                options: .displayInline, children: before + after)
+                                title: "",
+                                identifier: UIMenu.Identifier("scui.synthesized.importExport"),
+                                options: .displayInline,
+                                children: before + after
+                            )
                             if builder.menu(for: .close) != nil {
                                 builder.insertSibling(inline, afterMenu: .close)
                             } else {
@@ -180,8 +191,11 @@ import UIKit
                                 }
                             }
                             let inline = UIMenu(
-                                title: "", identifier: UIMenu.Identifier("scui.synthesized.textEditing"),
-                                options: .displayInline, children: merged(existing))
+                                title: "",
+                                identifier: UIMenu.Identifier("scui.synthesized.textEditing"),
+                                options: .displayInline,
+                                children: merged(existing)
+                            )
                             builder.insertChild(inline, atEndOfMenu: .edit)
                         default:
                             let target = group ?? parent
@@ -224,7 +238,10 @@ import UIKit
                     let pad = String(repeating: "  ", count: depth)
                     if let menu = element as? UIMenu {
                         let kind = menu.options.contains(.displayInline) ? "(inline)" : "MENU"
-                        lines.append("-menu: \(pad)\(kind) '\(menu.title)' \(menu.identifier.rawValue)")
+                        lines
+                            .append(
+                                "-menu: \(pad)\(kind) '\(menu.title)' \(menu.identifier.rawValue)"
+                            )
                         menu.children.forEach { describe($0, depth + 1) }
                     } else {
                         lines.append("-menu: \(pad)\(element.title)")
@@ -237,7 +254,10 @@ import UIKit
         }
 
         static let textEditingMenus: [UIMenu.Identifier] = [
-            .spelling, .substitutions, .transformations, .speech,
+            .spelling,
+            .substitutions,
+            .transformations,
+            .speech,
         ]
 
         private static func item(_ entry: CommandLayout.Entry) -> ResolvedMenu.Item? {
@@ -256,8 +276,8 @@ import UIKit
         func updateMenuButton() {
             let appDelegate = UIApplication.shared.delegate as? ApplicationDelegate
             guard UIDevice.current.userInterfaceIdiom == .phone,
-                let layout = appDelegate?.commandLayout, layout.isMenuEnabled,
-                let environment = appDelegate?.environment
+                  let layout = appDelegate?.commandLayout, layout.isMenuEnabled,
+                  let environment = appDelegate?.environment
             else {
                 menuButton?.removeFromSuperview()
                 menuButton = nil
@@ -301,8 +321,12 @@ import UIKit
                 title: "",
                 children: submenus.map {
                     UIKitBackend.buildMenu(
-                        content: $0.content, label: $0.label, environment: environment)
-                })
+                        content: $0.content,
+                        label: $0.label,
+                        environment: environment
+                    )
+                }
+            )
             layoutMenuButton()
         }
 

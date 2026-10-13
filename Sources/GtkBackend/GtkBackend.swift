@@ -131,7 +131,9 @@ public final class GtkBackend:
         // 此處會回報，否則這條分支就是一個沒人看得見的數字：它只在關閉了 overlay scrolling 的桌面
         // 上執行，而該處若量錯了，症狀會是「內容超額配置了幾個點」——那在任何其他地方看起來都像
         // 版面 bug，唯獨不像出在這裡。
-        debugLogOnce("overlay scrolling is off; scroll bars measure \(Self.measuredScrollBarWidth)pt")
+        debugLogOnce(
+            "overlay scrolling is off; scroll bars measure \(Self.measuredScrollBarWidth)pt"
+        )
         return Self.measuredScrollBarWidth
     }
 
@@ -220,18 +222,28 @@ public final class GtkBackend:
     // 被要求，因此也沒有什麼可支援的。
     #if os(macOS)
         public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
-            .automatic, .graphical, .compact,
+            .automatic,
+            .graphical,
+            .compact,
         ]
     #else
         public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
-            .automatic, .graphical, .compact, .wheel,
+            .automatic,
+            .graphical,
+            .compact,
+            .wheel,
         ]
     #endif
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
     // a picker with no style of its own.
     // `.wheel` since 2026-10-06 (WheelPicker.swift). `.wheel` 自 2026-10-06 起(WheelPicker.swift)。
-    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .segmented, .radioGroup, .wheel]
+    public let supportedPickerStyles: [BackendPickerStyle] = [
+        .menu,
+        .segmented,
+        .radioGroup,
+        .wheel
+    ]
     // #386: preferredColorScheme is honoured (see updateWindow). The override is
     // per-display rather than per-window, since GTK has no per-window theme
     // variant, so two windows asking for opposite schemes cannot both win.
@@ -655,7 +667,8 @@ public final class GtkBackend:
             // 正是實測會當機的那個組合，而且它是「GL 不可用」諸情況中唯一能被確定偵測、
             // 而非用猜的那一個。
             let disabled = ProcessInfo.processInfo.environment["GDK_DISABLE"] ?? ""
-            let disablesGL = disabled.split(separator: ",").contains { $0.trimmingCharacters(in: .whitespaces) == "gl" }
+            let disablesGL = disabled.split(separator: ",")
+                .contains { $0.trimmingCharacters(in: .whitespaces) == "gl" }
             guard !disablesGL else {
                 logger.notice(
                     """
@@ -856,9 +869,9 @@ public final class GtkBackend:
             func quote(_ s: String) -> String {
                 let flattened =
                     s
-                    .replacingOccurrences(of: "\r\n", with: #"\n"#)
-                    .replacingOccurrences(of: "\n", with: #"\n"#)
-                    .replacingOccurrences(of: "\r", with: #"\n"#)
+                        .replacingOccurrences(of: "\r\n", with: #"\n"#)
+                        .replacingOccurrences(of: "\n", with: #"\n"#)
+                        .replacingOccurrences(of: "\r", with: #"\n"#)
                 guard flattened.contains(",") || flattened.contains("\"") else { return flattened }
                 return "\"\(flattened.replacingOccurrences(of: "\"", with: "\"\""))\""
             }
@@ -883,9 +896,13 @@ public final class GtkBackend:
                     note = "high performance; -GPU 3 and above clamp to this"
                 }
                 out += [
-                    String(row.index), quote(row.name), row.primary ? "yes" : "no",
-                    row.removable ? "yes" : "no", row.attached ? "yes" : "no",
-                    selectedBy, quote(note),
+                    String(row.index),
+                    quote(row.name),
+                    row.primary ? "yes" : "no",
+                    row.removable ? "yes" : "no",
+                    row.attached ? "yes" : "no",
+                    selectedBy,
+                    quote(note),
                 ].joined(separator: ",")
                 out += "\n"
             }
@@ -978,8 +995,15 @@ public final class GtkBackend:
             var disposition: DWORD = 0
             guard
                 RegCreateKeyExW(
-                    HKEY_CURRENT_USER, &path, 0, nil, regOptionNonVolatile,
-                    regKeySetValue, nil, &key, &disposition
+                    HKEY_CURRENT_USER,
+                    &path,
+                    0,
+                    nil,
+                    regOptionNonVolatile,
+                    regKeySetValue,
+                    nil,
+                    &key,
+                    &disposition
                 ) == ERROR_SUCCESS,
                 let key
             else { return false }
@@ -989,8 +1013,12 @@ public final class GtkBackend:
             let bytes = DWORD(data.count * MemoryLayout<UInt16>.size)
             return data.withUnsafeBytes { raw in
                 RegSetValueExW(
-                    key, &name, 0, regTypeSZ,
-                    raw.baseAddress?.assumingMemoryBound(to: BYTE.self), bytes
+                    key,
+                    &name,
+                    0,
+                    regTypeSZ,
+                    raw.baseAddress?.assumingMemoryBound(to: BYTE.self),
+                    bytes
                 ) == ERROR_SUCCESS
             }
         }
@@ -1357,8 +1385,8 @@ public final class GtkBackend:
                 let measured = window.titlebarNaturalHeight
                 let line =
                     "[decoration] probe=\(decorationProbe ?? "?") titlebar="
-                    + (measured.map(String.init) ?? "nil")
-                    + " requested=\(defaultSize.x)x\(defaultSize.y)\n"
+                        + (measured.map(String.init) ?? "nil")
+                        + " requested=\(defaultSize.x)x\(defaultSize.y)\n"
                 print(line, terminator: "")
                 if let data = line.data(using: .utf8) {
                     let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -1499,8 +1527,8 @@ public final class GtkBackend:
                 + (window.childMeasurements.isEmpty
                     ? "no children"
                     : window.childMeasurements
-                        .map { "\($0.typeName)=\($0.naturalHeight)" }
-                        .joined(separator: " "))
+                    .map { "\($0.typeName)=\($0.naturalHeight)" }
+                    .joined(separator: " "))
                 + " | headerbar bare="
                 + (Gtk.Window.probeHeaderBarHeight(.bare).map(String.init) ?? "nil")
                 + " titlebarClass="
@@ -1665,7 +1693,7 @@ public final class GtkBackend:
     private func reportContentSizeShortfall(of window: Window) {
         let key = ObjectIdentifier(window)
         guard let requested = requestedContentSizes[key],
-            let content = window.getChild()
+              let content = window.getChild()
         else { return }
 
         let allocated = content.allocatedSize
@@ -1744,8 +1772,8 @@ public final class GtkBackend:
                 + (window.childMeasurements.isEmpty
                     ? "no children"
                     : window.childMeasurements
-                        .map { "\($0.typeName)=\($0.naturalHeight)" }
-                        .joined(separator: " "))
+                    .map { "\($0.typeName)=\($0.naturalHeight)" }
+                    .joined(separator: " "))
         )
 
         // I PUT THE CORRECTION BACK ON 2026-09-10 AND TOOK IT OUT AGAIN THE
@@ -2220,9 +2248,9 @@ public final class GtkBackend:
         // 使這條退路**與實際讀數一致**,而不只是近似它。
         let titlebarHeight =
             window.titlebarNaturalHeight
-            ?? liveHeaderHeight
-            ?? Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration)
-            ?? 0
+                ?? liveHeaderHeight
+                ?? Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration)
+                ?? 0
         window.size = Size(
             width: newSize.x,
             height: newSize.y + menubarHeight(ofWindow: window) + titlebarHeight
@@ -2322,73 +2350,76 @@ public final class GtkBackend:
         // 分離視窗。
         window.present()
         #if SCUI_DEBUG
-        // GTK's own scale, not the display's. `gtk_widget_get_scale_factor` is
-        // an integer by design -- it is the buffer scale GTK rendered at -- and
-        // on Windows that is what makes it disagree with `GetDpiForWindow`: at
-        // 125% Windows reports 1.25 and GTK laid out at 1. Handing the number
-        // over here is what makes an action file mean the same thing at every
-        // display scale. See InputEvent's WindowGeometry.scale.
-        //
-        // 傳的是 GTK 自己的比例，而非顯示器的。`gtk_widget_get_scale_factor` 依設計即為整數——它
-        // 是 GTK 實際繪製時所用的 buffer scale——而在 Windows 上，這正是它與 `GetDpiForWindow`
-        // 產生分歧之處：125% 時 Windows 回報 1.25，GTK 卻是以 1 排版。在此把這個數字交出去，才
-        // 使得一個動作檔在任何顯示縮放下都代表同一件事。詳見 InputEvent 的 WindowGeometry.scale。
-        // `taplabel`: the first mapped GtkLabel or GtkButton with that text, as the
-        // middle of it in the surface -- the widget's bounds in the window plus the
-        // surface transform, which is where client-side decoration puts the
-        // window inside its surface. Asked from the replay thread, answered on
-        // the GTK thread.
-        // `taplabel`:第一個已 map、文字相同的 GtkLabel 或 GtkButton,以它在 surface 中的中心表示——即 widget 在視窗內的
-        // 邊界加上 surface transform(client-side decoration 把視窗放在 surface 裡的位置)。由重放執行緒詢問、在 GTK 執行緒回答。
-        nonisolated(unsafe) let root = window.widgetPointer
-        ActionFileReplay.locateLabel = { [weak self] label in
-            guard let self else { return nil }
-            let done = DispatchSemaphore(value: 0)
-            nonisolated(unsafe) var place: (x: Double, y: Double)?
-            self.runInMainThread {
-                defer { done.signal() }
-                func find(_ widget: UnsafeMutablePointer<GtkWidget>) -> UnsafeMutablePointer<GtkWidget>? {
-                    guard gtk_widget_get_mapped(widget) != 0 else { return nil }
-                    let instance = UnsafeMutableRawPointer(widget)
-                        .assumingMemoryBound(to: GTypeInstance.self)
-                    if g_type_check_instance_is_a(instance, gtk_label_get_type()) != 0,
-                        let text = gtk_label_get_text(OpaquePointer(widget)),
-                        String(cString: text) == label
+            // GTK's own scale, not the display's. `gtk_widget_get_scale_factor` is
+            // an integer by design -- it is the buffer scale GTK rendered at -- and
+            // on Windows that is what makes it disagree with `GetDpiForWindow`: at
+            // 125% Windows reports 1.25 and GTK laid out at 1. Handing the number
+            // over here is what makes an action file mean the same thing at every
+            // display scale. See InputEvent's WindowGeometry.scale.
+            //
+            // 傳的是 GTK 自己的比例，而非顯示器的。`gtk_widget_get_scale_factor` 依設計即為整數——它
+            // 是 GTK 實際繪製時所用的 buffer scale——而在 Windows 上，這正是它與 `GetDpiForWindow`
+            // 產生分歧之處：125% 時 Windows 回報 1.25，GTK 卻是以 1 排版。在此把這個數字交出去，才
+            // 使得一個動作檔在任何顯示縮放下都代表同一件事。詳見 InputEvent 的 WindowGeometry.scale。
+            // `taplabel`: the first mapped GtkLabel or GtkButton with that text, as the
+            // middle of it in the surface -- the widget's bounds in the window plus the
+            // surface transform, which is where client-side decoration puts the
+            // window inside its surface. Asked from the replay thread, answered on
+            // the GTK thread.
+            // `taplabel`:第一個已 map、文字相同的 GtkLabel 或 GtkButton,以它在 surface 中的中心表示——即 widget 在視窗內的
+            // 邊界加上 surface transform(client-side decoration 把視窗放在 surface 裡的位置)。由重放執行緒詢問、在 GTK 執行緒回答。
+            nonisolated(unsafe) let root = window.widgetPointer
+            ActionFileReplay.locateLabel = { [weak self] label in
+                guard let self else { return nil }
+                let done = DispatchSemaphore(value: 0)
+                nonisolated(unsafe) var place: (x: Double, y: Double)?
+                self.runInMainThread {
+                    defer { done.signal() }
+                    func find(_ widget: UnsafeMutablePointer<GtkWidget>)
+                        -> UnsafeMutablePointer<GtkWidget>?
                     {
-                        return widget
+                        guard gtk_widget_get_mapped(widget) != 0 else { return nil }
+                        let instance = UnsafeMutableRawPointer(widget)
+                            .assumingMemoryBound(to: GTypeInstance.self)
+                        if g_type_check_instance_is_a(instance, gtk_label_get_type()) != 0,
+                           let text = gtk_label_get_text(OpaquePointer(widget)),
+                           String(cString: text) == label
+                        {
+                            return widget
+                        }
+                        if g_type_check_instance_is_a(instance, gtk_button_get_type()) != 0,
+                           let text = gtk_button_get_label(
+                               UnsafeMutableRawPointer(widget)
+                                   .assumingMemoryBound(to: GtkButton.self)
+                           ),
+                           String(cString: text) == label
+                        {
+                            return widget
+                        }
+                        var child = gtk_widget_get_first_child(widget)
+                        while let current = child {
+                            if let found = find(current) { return found }
+                            child = gtk_widget_get_next_sibling(current)
+                        }
+                        return nil
                     }
-                    if g_type_check_instance_is_a(instance, gtk_button_get_type()) != 0,
-                        let text = gtk_button_get_label(
-                            UnsafeMutableRawPointer(widget).assumingMemoryBound(to: GtkButton.self)
-                        ),
-                        String(cString: text) == label
-                    {
-                        return widget
-                    }
-                    var child = gtk_widget_get_first_child(widget)
-                    while let current = child {
-                        if let found = find(current) { return found }
-                        child = gtk_widget_get_next_sibling(current)
-                    }
-                    return nil
+                    guard let found = find(root) else { return }
+                    var bounds = graphene_rect_t()
+                    guard gtk_widget_compute_bounds(found, root, &bounds) != 0 else { return }
+                    var offsetX = 0.0
+                    var offsetY = 0.0
+                    gtk_native_get_surface_transform(OpaquePointer(root), &offsetX, &offsetY)
+                    place = (
+                        x: Double(bounds.origin.x + bounds.size.width / 2) + offsetX,
+                        y: Double(bounds.origin.y + bounds.size.height / 2) + offsetY
+                    )
                 }
-                guard let found = find(root) else { return }
-                var bounds = graphene_rect_t()
-                guard gtk_widget_compute_bounds(found, root, &bounds) != 0 else { return }
-                var offsetX = 0.0
-                var offsetY = 0.0
-                gtk_native_get_surface_transform(OpaquePointer(root), &offsetX, &offsetY)
-                place = (
-                    x: Double(bounds.origin.x + bounds.size.width / 2) + offsetX,
-                    y: Double(bounds.origin.y + bounds.size.height / 2) + offsetY
-                )
+                done.wait()
+                return place
             }
-            done.wait()
-            return place
-        }
-        ActionFileReplay.replayIfRequested(
-            layoutScale: Double(gtk_widget_get_scale_factor(window.widgetPointer))
-        )
+            ActionFileReplay.replayIfRequested(
+                layoutScale: Double(gtk_widget_get_scale_factor(window.widgetPointer))
+            )
         #endif
     }
 
@@ -3251,59 +3282,59 @@ public final class GtkBackend:
     /// **任何**變更觸發——`Personalize` 之下還有別的值——因此無條件呼叫會為了什麼都沒發生而重建每一個
     /// view。
     private func recheckAmbientColorScheme() {
-                // `systemColorScheme` FIRST, and this is not a detail. It is a
-                // computed property that reads the Windows registry on every
-                // access, so it is live; and where it has a value, it WINS --
-                // that is the whole reason the Windows branch of
-                // `sampleAmbientColorScheme` exists. An earlier draft of this
-                // handler took `readAmbientColorScheme()` unconditionally, which
-                // on Windows would have let a GTK theme change overwrite the
-                // user's system preference. Caught by reading, not by running:
-                // the check needs a Windows theme switch, which nothing here can
-                // do.
-                //
-                // **先取 `systemColorScheme`,而這不是細節。** 它是一個計算屬性，每次存取都會讀取
-                // Windows 登錄檔，因此它是即時的；而在它有值之處，它**優先**——那正是
-                // `sampleAmbientColorScheme` 的 Windows 分支存在的全部理由。本 handler 的較早草稿
-                // 無條件採用 `readAmbientColorScheme()`，那在 Windows 上會讓一次 GTK 主題變更**覆蓋
-                // 掉使用者的系統偏好**。這是靠閱讀抓到的，不是靠執行：要驗證它需要切換 Windows 主題，
-                // 而此處沒有任何東西做得到。
+        // `systemColorScheme` FIRST, and this is not a detail. It is a
+        // computed property that reads the Windows registry on every
+        // access, so it is live; and where it has a value, it WINS --
+        // that is the whole reason the Windows branch of
+        // `sampleAmbientColorScheme` exists. An earlier draft of this
+        // handler took `readAmbientColorScheme()` unconditionally, which
+        // on Windows would have let a GTK theme change overwrite the
+        // user's system preference. Caught by reading, not by running:
+        // the check needs a Windows theme switch, which nothing here can
+        // do.
+        //
+        // **先取 `systemColorScheme`,而這不是細節。** 它是一個計算屬性，每次存取都會讀取
+        // Windows 登錄檔，因此它是即時的；而在它有值之處，它**優先**——那正是
+        // `sampleAmbientColorScheme` 的 Windows 分支存在的全部理由。本 handler 的較早草稿
+        // 無條件採用 `readAmbientColorScheme()`，那在 Windows 上會讓一次 GTK 主題變更**覆蓋
+        // 掉使用者的系統偏好**。這是靠閱讀抓到的，不是靠執行：要驗證它需要切換 Windows 主題，
+        // 而此處沒有任何東西做得到。
         let fresh = systemColorScheme ?? readAmbientColorScheme()
         guard fresh != ambientColorScheme else { return }
 
-                // Re-run the sampler rather than assigning here, so the
-                // precedence rule and the `preferDarkTheme` write live in ONE
-                // place. It costs a second probe window, which is a throwaway
-                // Window plus Label and not on any hot path.
-                //
-                // Writing `preferDarkTheme` from here does NOT re-enter: the
-                // subscriptions above are on `gtk-theme-name` and
-                // `gtk-interface-color-scheme`, and it was measured on
-                // 2026-08-26 that setting `prefer-dark-theme` leaves
-                // `gtk-theme-name` unchanged. That measurement is what makes
-                // this safe, not the shape of the code.
-                //
-                // 此處重新執行取樣器、而非就地指派，好讓「優先順序規則」與「寫入 `preferDarkTheme`」
-                // 留在**同一處**。代價是多一個探針視窗——一個暫時性的 Window 加 Label，且不在任何
-                // 熱路徑上。
-                //
-                // 從此處寫入 `preferDarkTheme` **不會**重入：上方訂閱的是 `gtk-theme-name` 與
-                // `gtk-interface-color-scheme`，而 2026-08-26 已實測「設定 `prefer-dark-theme` 不會
-                // 改變 `gtk-theme-name`」。**讓這件事安全的是那次量測，不是程式碼的形狀。**
+        // Re-run the sampler rather than assigning here, so the
+        // precedence rule and the `preferDarkTheme` write live in ONE
+        // place. It costs a second probe window, which is a throwaway
+        // Window plus Label and not on any hot path.
+        //
+        // Writing `preferDarkTheme` from here does NOT re-enter: the
+        // subscriptions above are on `gtk-theme-name` and
+        // `gtk-interface-color-scheme`, and it was measured on
+        // 2026-08-26 that setting `prefer-dark-theme` leaves
+        // `gtk-theme-name` unchanged. That measurement is what makes
+        // this safe, not the shape of the code.
+        //
+        // 此處重新執行取樣器、而非就地指派，好讓「優先順序規則」與「寫入 `preferDarkTheme`」
+        // 留在**同一處**。代價是多一個探針視窗——一個暫時性的 Window 加 Label，且不在任何
+        // 熱路徑上。
+        //
+        // 從此處寫入 `preferDarkTheme` **不會**重入：上方訂閱的是 `gtk-theme-name` 與
+        // `gtk-interface-color-scheme`，而 2026-08-26 已實測「設定 `prefer-dark-theme` 不會
+        // 改變 `gtk-theme-name`」。**讓這件事安全的是那次量測，不是程式碼的形狀。**
         sampleAmbientColorScheme()
 
-                // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ was here and
-                // is REMOVED. `sampleAmbientColorScheme` already ends by setting
-                // it from `ambientColorScheme`, so this was the same rule
-                // written twice -- and the two copies were not even guaranteed
-                // to agree, since one used `fresh` and the other whatever the
-                // sampler settled on. They do agree today; that is not a reason
-                // to keep both.
-                //
-                // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ 原本在此，**已移除**。
-                // `sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme` 設定過它，因此這是同一條
-                // 規則的兩份副本——而且兩者甚至不保證一致，因為一邊用的是 `fresh`、另一邊用的是取樣器
-                // 最後得出的值。它們今天是一致的；那不構成兩份都留下的理由。
+        // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ was here and
+        // is REMOVED. `sampleAmbientColorScheme` already ends by setting
+        // it from `ambientColorScheme`, so this was the same rule
+        // written twice -- and the two copies were not even guaranteed
+        // to agree, since one used `fresh` and the other whatever the
+        // sampler settled on. They do agree today; that is not a reason
+        // to keep both.
+        //
+        // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ 原本在此，**已移除**。
+        // `sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme` 設定過它，因此這是同一條
+        // 規則的兩份副本——而且兩者甚至不保證一致，因為一邊用的是 `fresh`、另一邊用的是取樣器
+        // 最後得出的值。它們今天是一致的；那不構成兩份都留下的理由。
         rootEnvironmentChangeHandler?()
     }
 
@@ -3458,11 +3489,11 @@ public final class GtkBackend:
         let displayScale = scui_window_display_scale(window.widgetPointer)
         return
             rootEnvironment
-            .with(\.scenePhase, window.isActive ? .active : .inactive)
-            .with(
-                \.windowScaleFactor,
-                displayScale > 0 ? displayScale : gtkBufferScale
-            )
+                .with(\.scenePhase, window.isActive ? .active : .inactive)
+                .with(
+                    \.windowScaleFactor,
+                    displayScale > 0 ? displayScale : gtkBufferScale
+                )
     }
 
     public func setWindowEnvironmentChangeHandler(
@@ -5058,16 +5089,25 @@ public final class GtkBackend:
         // 對話框都提供所有檔案，儲存也沒有型別。
         if !fileDialogOptions.allowedContentTypes.isEmpty {
             let filters = g_list_store_new(gtk_file_filter_get_type())
-            var filtersToAdd: [(name: String, mimeTypes: [String], suffixes: [String], patterns: [String])] =
+            var filtersToAdd: [(
+                name: String,
+                mimeTypes: [String],
+                suffixes: [String],
+                patterns: [String]
+            )] =
                 fileDialogOptions.allowedContentTypes.map {
                     // Opening also takes the narrower types by suffix (`swift` for
                     // plain text): on Windows GIO types files by extension, so the
                     // MIME type alone does not reach them. A save keeps its own.
                     // 開檔時也依後綴接受較窄的型別(純文字的 `swift`):在 Windows 上 GIO 依副檔名判斷
                     // 型別，單靠 MIME 型別碰不到它們。存檔維持型別自己的副檔名。
-                    ($0.name, $0.mimeTypes,
-                     kind == .save ? $0.fileExtensions : $0.fileExtensions + $0.conformingFileExtensions,
-                     [])
+                    (
+                        $0.name,
+                        $0.mimeTypes,
+                        kind == .save ? $0.fileExtensions : $0.fileExtensions + $0
+                            .conformingFileExtensions,
+                        []
+                    )
                 }
             if fileDialogOptions.allowOtherContentTypes {
                 filtersToAdd.append(("All files", [], [], ["*"]))
@@ -5671,12 +5711,12 @@ public final class GtkBackend:
                 case .circle(let center, let radius):
                     cairo_arc(cairo, center.x, center.y, radius, 0, 2 * .pi)
                 case .arc(
-                let center,
-                let radius,
-                let startAngle,
-                let endAngle,
-                let clockwise
-            ):
+                    let center,
+                    let radius,
+                    let startAngle,
+                    let endAngle,
+                    let clockwise
+                ):
                     let arcFunc = clockwise ? cairo_arc : cairo_arc_negative
                     arcFunc(
                         cairo,
@@ -5849,7 +5889,7 @@ public final class GtkBackend:
             // -- with flat black or white. See `suggestedForegroundColor`.
             let color =
                 environment.foregroundColor
-                ?? (themeDrawsRequestedScheme ? nil : environment.suggestedForegroundColor)
+                    ?? (themeDrawsRequestedScheme ? nil : environment.suggestedForegroundColor)
             if let color {
                 properties.append(.foregroundColor(color.resolve(in: environment).gtkColor))
             }

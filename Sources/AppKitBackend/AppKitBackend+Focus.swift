@@ -301,8 +301,8 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
         for subview in view.subviews {
             let candidate =
                 subview.acceptsFirstResponder && enabled(subview)
-                ? subview
-                : firstResponderCandidate(in: subview)
+                    ? subview
+                    : firstResponderCandidate(in: subview)
             guard let candidate else { continue }
             if found != nil { return nil }
             found = candidate

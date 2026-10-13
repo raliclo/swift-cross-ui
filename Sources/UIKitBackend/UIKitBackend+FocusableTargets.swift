@@ -125,8 +125,8 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
     /// view 按 Tab 會留在原地並被當成輸入。所以下一站在這裡找——視窗內可聚焦的 view 與文字輸入，依閱讀順序，繞回開頭。
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         guard isFirstResponder,
-            let tab = presses.first(where: { $0.key?.keyCode == .keyboardTab }),
-            let window
+              let tab = presses.first(where: { $0.key?.keyCode == .keyboardTab }),
+              let window
         else {
             super.pressesBegan(presses, with: event)
             return
@@ -143,7 +143,8 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
         collect(window)
         func origin(_ view: UIView) -> CGPoint { view.convert(CGPoint.zero, to: window) }
         stops.sort {
-            let (a, b) = (origin($0), origin($1))
+            let a = origin($0)
+            let b = origin($1)
             return abs(a.y - b.y) > 1 ? a.y < b.y : a.x < b.x
         }
         guard let index = stops.firstIndex(of: self), stops.count > 1 else { return }

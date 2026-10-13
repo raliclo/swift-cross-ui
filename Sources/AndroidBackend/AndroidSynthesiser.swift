@@ -152,7 +152,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             Self.onMainThread { () -> [Int32] in
                 guard
                     let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                        .window?.content
+                    .window?.content
                 else { return [0, 0, 1] }
                 let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
                 let shift = helpers.rootScrollDisplacement(content)
@@ -383,7 +383,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let moved = Self.onMainThread { () -> [Int32] in
             guard
                 let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                    .window?.content
+                .window?.content
             else { return [0, 0] }
             return AndroidBackendHelpers(environment: AndroidBackend.env)
                 .rootScrollReveal(content, Int32(target.x), Int32(target.y))
@@ -403,7 +403,6 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         return position
     }
 
-
     /// Where the view showing `label` is, after scrolling the root so that it is
     /// on screen. The position is read from the view itself, so it holds whatever
     /// the layout has become. 顯示 `label` 的 view 在哪裡(先把根捲到讓它在螢幕上)。位置讀自 view 本身，所以不論版面變成怎樣都成立。
@@ -411,7 +410,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let found = Self.onMainThread { () -> [Int32] in
             guard
                 let window = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                    .window,
+                .window,
                 let content = window.content
             else { return [] }
             let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
@@ -440,7 +439,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// `<動作檔>.aims` 裡的紀錄,依 `place` 遇到它們的順序;沒有該檔時為空。見 `aim`。
     private lazy var aims: [Int: String] = {
         guard let file = ActionFileReplay.requestedFile,
-            let text = try? String(contentsOfFile: file.path + ".aims", encoding: .utf8)
+              let text = try? String(contentsOfFile: file.path + ".aims", encoding: .utf8)
         else { return [:] }
         var result: [Int: String] = [:]
         for line in text.split(whereSeparator: \.isNewline) {
@@ -480,7 +479,10 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         }
         guard record != nil else {
             FileHandle.standardError.write(
-                Data("-actionfile: aim \(index)\t\(position.x)\t\(position.y)\t\(answer.described)\n".utf8)
+                Data(
+                    "-actionfile: aim \(index)\t\(position.x)\t\(position.y)\t\(answer.described)\n"
+                        .utf8
+                )
             )
             return position
         }
@@ -488,16 +490,19 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let by = ["unmatched", "inside", "near", "inside-resized"]
         guard resolved.count == 5, resolved[2] != 0 else {
             FileHandle.standardError.write(
-                Data("-actionfile: aimed \(index) (\(position.x), \(position.y)) by=unmatched\n".utf8)
+                Data("-actionfile: aimed \(index) (\(position.x), \(position.y)) by=unmatched\n"
+                    .utf8)
             )
             return position
         }
         let moved = (x: Int(resolved[0]), y: Int(resolved[1]))
         FileHandle.standardError.write(
             Data(
-                ("-actionfile: aimed \(index) (\(position.x), \(position.y)) -> (\(moved.x), \(moved.y)) "
-                    + "by=\(by[Int(resolved[2])]) apart=\(resolved[3])"
-                    + (resolved[4] == 1 ? " class-changed" : "") + "\n").utf8
+                (
+                    "-actionfile: aimed \(index) (\(position.x), \(position.y)) -> (\(moved.x), \(moved.y)) "
+                        + "by=\(by[Int(resolved[2])]) apart=\(resolved[3])"
+                        + (resolved[4] == 1 ? " class-changed" : "") + "\n"
+                ).utf8
             )
         )
         return moved
@@ -858,7 +863,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             // 而同一個畫面上 `adb shell input keyevent 61` 會從一個 `.focusable()` view 移到下一個。
             let tab: Int32 = 61
             if !handled, action == self.keyActionDown, code == tab,
-                let focused = activity.getWindow()?.getDecorView()?.findFocus()
+               let focused = activity.getWindow()?.getDecorView()?.findFocus()
             {
                 // View.FOCUS_BACKWARD is 1, FOCUS_FORWARD is 2; the shift bit is 0x1.
                 let direction: Int32 = metaState & 0x1 != 0 ? 1 : 2
@@ -1235,7 +1240,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     ) {
         if frontWindowHasFocus {
             if let frontWindows = try? JavaClass<FrontWindows>(),
-                frontWindows.dispatch(activity, event)
+               frontWindows.dispatch(activity, event)
             {
                 return
             }

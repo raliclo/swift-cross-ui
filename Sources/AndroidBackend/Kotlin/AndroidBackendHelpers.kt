@@ -5,13 +5,12 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
-import android.os.Environment
-import android.os.FileObserver
-import android.provider.DocumentsContract
-import java.io.File
 import android.icu.util.TimeZone
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.os.FileObserver
+import android.provider.DocumentsContract
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowInsets
@@ -20,6 +19,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import dev.swiftcrossui.androidbackend.activityresults.*
+import java.io.File
 
 class AndroidBackendHelpers {
     companion object {
@@ -176,7 +176,9 @@ class AndroidBackendHelpers {
             if (view is android.widget.TextView && view.text?.toString() == label) return view
             if (view is android.view.ViewGroup) {
                 for (i in 0 until view.childCount) {
-                    find(view.getChildAt(i))?.let { return it }
+                    find(view.getChildAt(i))?.let {
+                        return it
+                    }
                 }
             }
             return null
@@ -199,7 +201,13 @@ class AndroidBackendHelpers {
     // 位置就同時過期；點底下的 view 撐得過那些改動。`aimDescribe` 說出一個像素瞄準的是哪些 view——框住它的最小
     // 者，以及最近的帶文字者——`aimResolve` 說出那筆紀錄現在把該像素放在哪裡。iOS 的 runner 做同一件事
     // (ActionFileUITests.swift 的 `aim`)。一個 view 以類別、文字、以及它在「這兩者相同的 view」之中的順序辨認。
-    private class AimEntry(val view: View, val key: String, val ordinal: Int, val left: Int, val top: Int)
+    private class AimEntry(
+        val view: View,
+        val key: String,
+        val ordinal: Int,
+        val left: Int,
+        val top: Int,
+    )
 
     private fun aimEntries(activity: Activity): List<AimEntry> {
         val entries = ArrayList<AimEntry>()
@@ -208,24 +216,28 @@ class AndroidBackendHelpers {
         fun walk(view: View) {
             // The mode button floats over the content and does not move with it.
             // 模式按鈕浮在內容之上，不隨內容移動。
-            if (view.visibility != View.VISIBLE || view.javaClass.simpleName == "ViewModeButton") return
+            if (view.visibility != View.VISIBLE || view.javaClass.simpleName == "ViewModeButton")
+                return
             // What an EditText holds is what was typed into it, so it is never the label:
             // the field would be a different view after each keystroke.
             // EditText 裡的內容是打進去的字，所以不拿來當標籤：否則每打一個字，它就成了另一個 view。
-            val shown = when (view) {
-                is android.widget.EditText -> view.contentDescription ?: view.hint
-                is android.widget.TextView ->
-                    view.text?.takeIf { it.isNotEmpty() } ?: view.contentDescription
-                else -> view.contentDescription
-            }
+            val shown =
+                when (view) {
+                    is android.widget.EditText -> view.contentDescription ?: view.hint
+                    is android.widget.TextView ->
+                        view.text?.takeIf { it.isNotEmpty() } ?: view.contentDescription
+                    else -> view.contentDescription
+                }
             val label = (shown ?: "").toString().replace('\t', ' ').replace('\n', ' ')
             // A plain text view is "TextView" whatever subclass shows it: Text became
             // FittedTextView between two builds and every recorded label stopped
             // matching (42 of 141 points, 2026-10-12).
             // 純文字 view 不論由哪個子類別顯示都記為 "TextView":Text 在兩個建置之間改成 FittedTextView,
             // 所有記錄下來的標籤因此都對不上(141 個點中的 42 個,2026-10-12)。
-            val plainText = view is android.widget.TextView &&
-                view !is android.widget.Button && view !is android.widget.EditText
+            val plainText =
+                view is android.widget.TextView &&
+                    view !is android.widget.Button &&
+                    view !is android.widget.EditText
             val key = (if (plainText) "TextView" else view.javaClass.simpleName) + "|" + label
             val ordinal = seen[key] ?: 0
             seen[key] = ordinal + 1
@@ -256,16 +268,23 @@ class AndroidBackendHelpers {
             val bottom = entry.top + entry.view.height
             // `<=` so a later view of the same size wins: it is drawn on top.
             // 用 `<=`,讓同樣大小時較後面的 view 勝出：它畫在上面。
-            if (x >= entry.left && x < right && y >= entry.top && y < bottom &&
-                inside.let { it == null || area(entry) <= area(it) }
-            ) inside = entry
-            if (entry.key.endsWith("|")) continue
-            val distance = Math.hypot(
-                maxOf(entry.left - x, 0, x - right).toDouble(),
-                maxOf(entry.top - y, 0, y - bottom).toDouble(),
+            if (
+                x >= entry.left &&
+                    x < right &&
+                    y >= entry.top &&
+                    y < bottom &&
+                    inside.let { it == null || area(entry) <= area(it) }
             )
-            if (distance < nearDistance ||
-                (distance == nearDistance && near.let { it == null || area(entry) <= area(it) })
+                inside = entry
+            if (entry.key.endsWith("|")) continue
+            val distance =
+                Math.hypot(
+                    maxOf(entry.left - x, 0, x - right).toDouble(),
+                    maxOf(entry.top - y, 0, y - bottom).toDouble(),
+                )
+            if (
+                distance < nearDistance ||
+                    (distance == nearDistance && near.let { it == null || area(entry) <= area(it) })
             ) {
                 near = entry
                 nearDistance = distance
@@ -273,8 +292,9 @@ class AndroidBackendHelpers {
         }
         fun field(entry: AimEntry?) =
             if (entry == null) "-\t0\t0\t0\t0\t0"
-            else "${entry.key}\t${entry.ordinal}\t${x - entry.left}\t${y - entry.top}" +
-                "\t${entry.view.width}\t${entry.view.height}"
+            else
+                "${entry.key}\t${entry.ordinal}\t${x - entry.left}\t${y - entry.top}" +
+                    "\t${entry.view.width}\t${entry.view.height}"
         return field(inside) + "\t" + field(near)
     }
 
@@ -313,10 +333,14 @@ class AndroidBackendHelpers {
             val label = recorded.substringAfter("|")
             val key =
                 if (label.isEmpty() || entries.any { it.key == recorded }) recorded
-                else entries.map { it.key }.filter { it.substringAfter("|") == label }
-                    .distinct().singleOrNull() ?: return null
-            val entry = entries.firstOrNull { it.key == key && it.ordinal == ordinal }
-                ?: return null
+                else
+                    entries
+                        .map { it.key }
+                        .filter { it.substringAfter("|") == label }
+                        .distinct()
+                        .singleOrNull() ?: return null
+            val entry =
+                entries.firstOrNull { it.key == key && it.ordinal == ordinal } ?: return null
             val width = fields[start + 4].toDoubleOrNull() ?: return null
             val height = fields[start + 5].toDoubleOrNull() ?: return null
             val sx = if (width > 0) entry.view.width / width else 1.0
@@ -325,15 +349,18 @@ class AndroidBackendHelpers {
             val dy = (fields[start + 3].toDoubleOrNull() ?: 0.0) * (if (scaled) sy else 1.0)
             val same = sx in 0.8..1.25 && sy in 0.8..1.25
             return intArrayOf(
-                (entry.left + dx).toInt(), (entry.top + dy).toInt(),
-                if (same) 1 else 0, if (key == recorded) 0 else 1,
+                (entry.left + dx).toInt(),
+                (entry.top + dy).toInt(),
+                if (same) 1 else 0,
+                if (key == recorded) 0 else 1,
             )
         }
         val inside = at(0, true)
         val near = at(6, false)
         val apart =
             if (inside != null && near != null)
-                Math.hypot((inside[0] - near[0]).toDouble(), (inside[1] - near[1]).toDouble()).toInt()
+                Math.hypot((inside[0] - near[0]).toDouble(), (inside[1] - near[1]).toDouble())
+                    .toInt()
             else -1
         return when {
             inside != null && (!fields[0].endsWith("|") || inside[2] == 1) ->
@@ -387,14 +414,18 @@ class AndroidBackendHelpers {
             intArrayOf(android.R.attr.state_checked),
             android.graphics.drawable.InsetDrawable(filled, outset, 0, outset, 0),
         )
-        background.addState(intArrayOf(), android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        background.addState(
+            intArrayOf(),
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT),
+        )
         button.background = background
         button.backgroundTintList = null
         button.stateListAnimator = null
         button.elevation = 0f
         // No inset at the sides and 6 dp above and below, as UIButton(type: .system),
         // which ToggleWidget is: P21's "Enabled" sat 8 dp right of iOS's.
-        // 左右不內縮、上下 6 dp,與 ToggleWidget 所用的 UIButton(type: .system) 相同:P21 的 "Enabled" 比 iOS 的右移了 8 dp。
+        // 左右不內縮、上下 6 dp,與 ToggleWidget 所用的 UIButton(type: .system) 相同:P21 的 "Enabled" 比 iOS 的右移了 8
+        // dp。
         val pad = (6 * density).toInt()
         button.setPadding(0, pad, 0, pad)
         button.minHeight = 0
@@ -413,7 +444,7 @@ class AndroidBackendHelpers {
         button.setTextColor(
             android.content.res.ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                intArrayOf(fade(android.graphics.Color.WHITE), fade(primary))
+                intArrayOf(fade(android.graphics.Color.WHITE), fade(primary)),
             )
         )
     }
@@ -450,12 +481,15 @@ class AndroidBackendHelpers {
         val track = android.graphics.drawable.GradientDrawable()
         track.cornerRadius = trackHeight / 2
         track.setSize(trackWidth.toInt(), trackHeight.toInt())
-        track.color = android.content.res.ColorStateList(
-            states, intArrayOf(f(green), f(alpha(0xFF78787F.toInt(), 0x70)))
-        )
+        track.color =
+            android.content.res.ColorStateList(
+                states,
+                intArrayOf(f(green), f(alpha(0xFF78787F.toInt(), 0x70))),
+            )
         switchView.thumbTintList = null
         switchView.trackTintList = null
-        switchView.thumbDrawable = SwitchCapsule(trackWidth, trackHeight, density, f(android.graphics.Color.WHITE))
+        switchView.thumbDrawable =
+            SwitchCapsule(trackWidth, trackHeight, density, f(android.graphics.Color.WHITE))
         switchView.trackDrawable = track
         switchView.switchMinWidth = trackWidth.toInt()
         switchView.switchPadding = 0
@@ -473,16 +507,18 @@ class AndroidBackendHelpers {
         private val density: Float,
         color: Int,
     ) : android.graphics.drawable.Drawable() {
-        private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color
-        }
+        private val fill =
+            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color
+            }
         // A faint ring, so the white capsule still has an edge on a white page;
         // iOS gives it a shadow for the same reason. 一圈很淡的邊，讓白色膠囊在白色頁面上仍看得出邊緣;iOS 為同樣理由給它陰影。
-        private val ring = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = 0x22000000
-            style = android.graphics.Paint.Style.STROKE
-            strokeWidth = 0.5f * density
-        }
+        private val ring =
+            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = 0x22000000
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = 0.5f * density
+            }
 
         override fun draw(canvas: android.graphics.Canvas) {
             val b = bounds
@@ -521,7 +557,8 @@ class AndroidBackendHelpers {
     // systemBlue (#0088FF, #0091FF dark) with a checkmark in the foreground
     // colour when on, the whole control at 40% when disabled. The framework
     // CheckBox was Material's outlined box (P21, 2026-10-10).
-    // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16% 的
+    // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16%
+    // 的
     // (120,120,128)),開啟時為 systemBlue(#0088FF,深色 #0091FF)加上前景色的勾號，停用時整個控制項 40%。框架的
     // CheckBox 是 Material 的外框方塊(P21,2026-10-10)。
     fun styleCheckbox(checkBox: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
@@ -533,7 +570,10 @@ class AndroidBackendHelpers {
         val dark = android.graphics.Color.luminance(foreground) > 0.5f
         val blue = if (dark) 0xFF0091FF.toInt() else 0xFF0088FF.toInt()
         val faces = android.graphics.drawable.StateListDrawable()
-        faces.addState(intArrayOf(android.R.attr.state_checked), CheckboxFace(blue, foreground, density))
+        faces.addState(
+            intArrayOf(android.R.attr.state_checked),
+            CheckboxFace(blue, foreground, density),
+        )
         faces.addState(intArrayOf(), CheckboxFace(0x2978787F, 0, density))
         checkBox.buttonTintList = null
         checkBox.buttonDrawable = faces
@@ -561,14 +601,19 @@ class AndroidBackendHelpers {
     fun styleProgressBar(bar: android.widget.ProgressBar) {
         val density = bar.context.resources.displayMetrics.density
         val tint = themeColorOf(bar.context, android.R.attr.colorPrimary)
-        val fill = android.graphics.drawable.ClipDrawable(
-            android.graphics.drawable.ColorDrawable(tint),
-            android.view.Gravity.START,
-            android.graphics.drawable.ClipDrawable.HORIZONTAL
-        )
-        val layers = android.graphics.drawable.LayerDrawable(
-            arrayOf(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT), fill)
-        )
+        val fill =
+            android.graphics.drawable.ClipDrawable(
+                android.graphics.drawable.ColorDrawable(tint),
+                android.view.Gravity.START,
+                android.graphics.drawable.ClipDrawable.HORIZONTAL,
+            )
+        val layers =
+            android.graphics.drawable.LayerDrawable(
+                arrayOf(
+                    android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT),
+                    fill,
+                )
+            )
         layers.setId(0, android.R.id.background)
         layers.setId(1, android.R.id.progress)
         bar.progressTintList = null
@@ -589,16 +634,17 @@ class AndroidBackendHelpers {
         android.graphics.drawable.Drawable(), android.graphics.drawable.Animatable {
         private val paint = android.graphics.Paint().apply { this.color = color }
         private var fraction = 0f
-        private val animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1200
-            repeatCount = android.animation.ValueAnimator.INFINITE
-            repeatMode = android.animation.ValueAnimator.REVERSE
-            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-            addUpdateListener {
-                fraction = it.animatedValue as Float
-                invalidateSelf()
+        private val animator =
+            android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 1200
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                repeatMode = android.animation.ValueAnimator.REVERSE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addUpdateListener {
+                    fraction = it.animatedValue as Float
+                    invalidateSelf()
+                }
             }
-        }
 
         override fun draw(canvas: android.graphics.Canvas) {
             val b = bounds
@@ -630,17 +676,18 @@ class AndroidBackendHelpers {
     private class CheckboxFace(fill: Int, mark: Int, private val density: Float) :
         android.graphics.drawable.Drawable() {
         private val size = (30 * density).toInt()
-        private val fillPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = fill
-        }
-        private val markPaint = if (mark == 0) null else
-            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                color = mark
-                style = android.graphics.Paint.Style.STROKE
-                strokeWidth = 2.2f * density
-                strokeCap = android.graphics.Paint.Cap.ROUND
-                strokeJoin = android.graphics.Paint.Join.ROUND
-            }
+        private val fillPaint =
+            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = fill }
+        private val markPaint =
+            if (mark == 0) null
+            else
+                android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    color = mark
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeWidth = 2.2f * density
+                    strokeCap = android.graphics.Paint.Cap.ROUND
+                    strokeJoin = android.graphics.Paint.Join.ROUND
+                }
 
         override fun draw(canvas: android.graphics.Canvas) {
             val b = android.graphics.RectF(bounds)
@@ -699,9 +746,10 @@ class AndroidBackendHelpers {
             // drawer, a darker grey than iOS's panel (P16, 2026-10-10).
             // UIKit 的 systemGroupedBackground,即 UIKitBackend 給側邊欄清單的背景：淺色 #F2F2F7、深色黑色，依視窗配色
             // 選擇。原本用主題的浮動表面再疊 highlight,是 Material 的抽屜，比 iOS 的面板更深(P16,2026-10-10)。
-            listView.background = android.graphics.drawable.ColorDrawable(
-                if (dark) 0xFF000000.toInt() else 0xFFF2F2F7.toInt()
-            )
+            listView.background =
+                android.graphics.drawable.ColorDrawable(
+                    if (dark) 0xFF000000.toInt() else 0xFFF2F2F7.toInt()
+                )
             listView.divider = null
             listView.dividerHeight = 0
             val pill = android.graphics.drawable.GradientDrawable()
@@ -716,15 +764,20 @@ class AndroidBackendHelpers {
             // InsetDrawable 會把 inset 當成 padding 回報，而 AbsListView 把 selector 的 padding 加進排列各列的
             // list padding:每一列右移 8 dp 並超出右緣，膠囊的右側內縮被裁掉(P83,2026-10-09 量測：面板 561..1033 px,
             // 膠囊 603..1033)。inset 仍留在繪製中，padding 則回報為零。
-            listView.selector = object : android.graphics.drawable.InsetDrawable(
-                pill, (8 * density).toInt(), (2 * density).toInt(),
-                (8 * density).toInt(), (2 * density).toInt()
-            ) {
-                override fun getPadding(padding: android.graphics.Rect): Boolean {
-                    padding.set(0, 0, 0, 0)
-                    return false
+            listView.selector =
+                object :
+                    android.graphics.drawable.InsetDrawable(
+                        pill,
+                        (8 * density).toInt(),
+                        (2 * density).toInt(),
+                        (8 * density).toInt(),
+                        (2 * density).toInt(),
+                    ) {
+                    override fun getPadding(padding: android.graphics.Rect): Boolean {
+                        padding.set(0, 0, 0, 0)
+                        return false
+                    }
                 }
-            }
             // The selected row: a pill in the accent at a quarter strength, the
             // drawer's active indicator. 被選取的列：四分之一強度的 accent 膠囊，即抽屜的 active indicator。
             val accent = themeColor(android.R.attr.colorAccent)
@@ -832,8 +885,8 @@ class AndroidBackendHelpers {
     }
 
     /**
-     * The window title: the activity's title, which accessibility services
-     * announce, and the task's label in Recents, which is where a user sees it.
+     * The window title: the activity's title, which accessibility services announce, and the task's
+     * label in Recents, which is where a user sees it.
      */
     fun setWindowTitle(activity: Activity, title: String) {
         activity.title = title
@@ -841,8 +894,7 @@ class AndroidBackendHelpers {
             if (Build.VERSION.SDK_INT >= 33) {
                 android.app.ActivityManager.TaskDescription.Builder().setLabel(title).build()
             } else {
-                @Suppress("DEPRECATION")
-                android.app.ActivityManager.TaskDescription(title)
+                @Suppress("DEPRECATION") android.app.ActivityManager.TaskDescription(title)
             }
         activity.setTaskDescription(description)
     }
@@ -922,7 +974,8 @@ class AndroidBackendHelpers {
     ) {
         var launcher: ActivityResultLauncher<I>? = null
         launcher =
-            activity.activityResultRegistry.register("scui-${System.nanoTime()}", contract) { result ->
+            activity.activityResultRegistry.register("scui-${System.nanoTime()}", contract) { result
+                ->
                 callback.onActivityResult(result)
                 launcher?.unregister()
             }
@@ -941,7 +994,9 @@ class AndroidBackendHelpers {
         val callback = folderResult
         if (window == null || callback == null) return launchFolderActivity(urlString)
         launchOnce(
-            window, ActivityResultContracts.OpenDocumentTree(), callback,
+            window,
+            ActivityResultContracts.OpenDocumentTree(),
+            callback,
             urlString?.let { Uri.parse(it) },
         )
     }
@@ -1015,7 +1070,13 @@ class AndroidBackendHelpers {
     fun styleSimpleButton(button: android.widget.Button) {
         val value = TypedValue()
         button.background =
-            if (button.context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, value, true)) {
+            if (
+                button.context.theme.resolveAttribute(
+                    android.R.attr.selectableItemBackgroundBorderless,
+                    value,
+                    true,
+                )
+            ) {
                 button.context.getDrawable(value.resourceId)
             } else {
                 null
@@ -1097,7 +1158,9 @@ class AndroidBackendHelpers {
             val light =
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
                     android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-            activity.window?.insetsController?.setSystemBarsAppearance(if (dark) 0 else light, light)
+            activity.window
+                ?.insetsController
+                ?.setSystemBarsAppearance(if (dark) 0 else light, light)
         }
     }
 
@@ -1113,7 +1176,8 @@ class AndroidBackendHelpers {
         // 狀態列的內縮由根堆疊(ShortcutHostLayout)負責，不是這個標籤。
         label.gravity = android.view.Gravity.CENTER
         label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
-        label.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, 600, false)
+        label.typeface =
+            android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, 600, false)
         label.maxLines = 1
         label.ellipsize = android.text.TextUtils.TruncateAt.END
         label.setPadding(Math.round(16 * density), 0, Math.round(16 * density), 0)
@@ -1161,7 +1225,10 @@ class AndroidBackendHelpers {
         }
         val ripple = TypedValue()
         activity.theme.resolveAttribute(
-            android.R.attr.selectableItemBackgroundBorderless, ripple, true)
+            android.R.attr.selectableItemBackgroundBorderless,
+            ripple,
+            true,
+        )
 
         val glyph = MaterialSymbolView(activity)
         val item: View
@@ -1185,7 +1252,9 @@ class AndroidBackendHelpers {
             text.setPadding(Math.round(8 * density), 0, Math.round(8 * density), 0)
             text.layoutParams =
                 android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, side)
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    side,
+                )
             item = text
         }
         item.contentDescription = label
@@ -1283,7 +1352,14 @@ class AndroidBackendHelpers {
         val uri = Uri.parse(uriString)
         val resolver = activity.contentResolver
         val name =
-            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+            resolver
+                .query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )
                 ?.use { if (it.moveToFirst()) it.getString(0) else null }
                 ?.takeIf { it.isNotEmpty() && !it.contains('/') }
                 ?: (uri.lastPathSegment?.substringAfterLast('/')?.ifEmpty { null } ?: "Untitled")
@@ -1415,8 +1491,9 @@ class AndroidBackendHelpers {
     // 自 Android 11 起 Android/data 亦同。
     fun revealFile(activity: Activity, path: String): String? {
         val file = File(path).absoluteFile
-        val folder = (if (file.isDirectory) file else file.parentFile)
-            ?: return "$path has no enclosing folder"
+        val folder =
+            (if (file.isDirectory) file else file.parentFile)
+                ?: return "$path has no enclosing folder"
         val storageRoot = Environment.getExternalStorageDirectory().absolutePath
         val folderPath = folder.path.replaceFirst("/sdcard", storageRoot)
         val inShared =
@@ -1427,13 +1504,15 @@ class AndroidBackendHelpers {
                 "reveal works for files under $storageRoot"
         }
         val relative = folderPath.removePrefix(storageRoot).trimStart('/')
-        val uri = DocumentsContract.buildDocumentUri(
-            "com.android.externalstorage.documents",
-            "primary:$relative",
-        )
-        val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val uri =
+            DocumentsContract.buildDocumentUri(
+                "com.android.externalstorage.documents",
+                "primary:$relative",
+            )
+        val intent =
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         return try {
             activity.startActivity(intent)
             null

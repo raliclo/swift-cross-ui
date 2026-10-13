@@ -93,19 +93,19 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         /**
          * The box of what a view and its descendants actually draw, by UIKitBackend's rule
          * (RootScrollHost.swift `contentBounds`): a plain `CustomContainer` with no background
-         * counts only through its children, anything else -- text, controls, scroll views,
-         * lists -- by its own bounds without descending, and children that are not VISIBLE
-         * not at all; a clipping container (`.clipped()`) by its own bounds, and one with
-         * nothing drawing below it by its own bounds too, as UIKit falls back. Always true.
+         * counts only through its children, anything else -- text, controls, scroll views, lists --
+         * by its own bounds without descending, and children that are not VISIBLE not at all; a
+         * clipping container (`.clipped()`) by its own bounds, and one with nothing drawing below
+         * it by its own bounds too, as UIKit falls back. Always true.
          *
-         * Used for where an oversized root starts. Counting every container's frame put the
-         * start at the edge of a padding frame instead of the content: P11 began 18 dp in from
-         * the left on Android and at the text on iOS (2026-10-09).
+         * Used for where an oversized root starts. Counting every container's frame put the start
+         * at the edge of a padding frame instead of the content: P11 began 18 dp in from the left
+         * on Android and at the text on iOS (2026-10-09).
          *
          * 一個 view 及其後代實際繪製的範圍，依 UIKitBackend 的規則:沒有背景的單純 `CustomContainer` 只透過子元件計算，
          * 其餘(文字、控制項、捲動視圖、清單)以自身邊界計算、不往下展開，非 VISIBLE 的子元件不算。沒有東西繪製時回傳 false。
-         * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上
-         * 從左邊 18 dp 處開始，iOS 則從文字開始(2026-10-09)。
+         * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上 從左邊 18 dp 處開始，iOS
+         * 則從文字開始(2026-10-09)。
          */
         fun drawnBounds(view: View, into: Rect): Boolean {
             if (view !is CustomContainer || view.clipChildren) {
@@ -126,7 +126,8 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
                 if (subview.width == 0 || subview.height == 0) continue
                 if (!drawnBounds(subview, child)) continue
                 child.offset(subview.x.toInt(), subview.y.toInt())
-                if (any) into.union(child) else {
+                if (any) into.union(child)
+                else {
                     into.set(child)
                     any = true
                 }
@@ -192,10 +193,10 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
     /**
      * How far the status bar and the gesture bar reach into this host, in px: (top, bottom).
      *
-     * The host fills an edge-to-edge window and the app starts below the status bar. Scrolled,
-     * its content used to pass under the status bar's icons and under the gesture bar (seen on P6
-     * and P21, 2026-10-12); UIKitBackend's host ends at the safe area on both sides. Nothing is
-     * drawn in either strip now, and the stage is told the lower one so the last row can still be
+     * The host fills an edge-to-edge window and the app starts below the status bar. Scrolled, its
+     * content used to pass under the status bar's icons and under the gesture bar (seen on P6 and
+     * P21, 2026-10-12); UIKitBackend's host ends at the safe area on both sides. Nothing is drawn
+     * in either strip now, and the stage is told the lower one so the last row can still be
      * scrolled clear of it. Zero on a window that is not edge to edge.
      *
      * 狀態列與手勢列伸進這個 host 多少(px):(上, 下)。host 佔滿 edge-to-edge 的視窗，而 app 從狀態列下方開始。捲動之後，
@@ -288,11 +289,12 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         val location = IntArray(2)
         getLocationInWindow(location)
         val margin = (24 * resources.displayMetrics.density).toInt()
-        fun need(p: Int, start: Int, size: Int): Int = when {
-            p < start + margin -> p - (start + margin)
-            p > start + size - margin -> p - (start + size - margin)
-            else -> 0
-        }
+        fun need(p: Int, start: Int, size: Int): Int =
+            when {
+                p < start + margin -> p - (start + margin)
+                p > start + size - margin -> p - (start + size - margin)
+                else -> 0
+            }
         val beforeX = horizontal.scrollX
         val beforeY = vertical.scrollY
         horizontal.scrollBy(need(x, location[0], width), 0)
@@ -362,8 +364,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
      * from this button, right of the mode control when there is one and in its place when not.
      * Content keeps clear of it as it does of the mode control.
      *
-     * `.enableMenu()` 加上的選單按鈕:手機沒有選單列，標準選單從這個按鈕打開;有模式控制項時在它右邊，沒有時在它的位置。
-     * 內容會像讓開模式控制項一樣讓開它。
+     * `.enableMenu()` 加上的選單按鈕:手機沒有選單列，標準選單從這個按鈕打開;有模式控制項時在它右邊，沒有時在它的位置。 內容會像讓開模式控制項一樣讓開它。
      */
     fun setMenuButtonShown(activity: Activity, shown: Boolean) {
         val existing = menuButton
@@ -411,7 +412,8 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
             getLocationInWindow(at)
             val top = maxOf(0, topInset - at[1]) + margin
             val mode = button
-            val left = if (mode != null && mode.width > 0) mode.right + margin else leftInset + margin
+            val left =
+                if (mode != null && mode.width > 0) mode.right + margin else leftInset + margin
             val current = made.layoutParams as? android.view.ViewGroup.MarginLayoutParams
             if (current != null && (current.topMargin != top || current.leftMargin != left)) {
                 current.topMargin = top
@@ -465,11 +467,12 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         val topInset = (helpers.getSafeAreaTopInset(activity) * density).toInt()
         val leftInset = (helpers.getSafeAreaLeftInset(activity) * density).toInt()
 
-        val made = ViewModeButton(context, stage.mode) { mode ->
-            stage.mode = mode
-            stage.fillHeight = 0
-            onModeChange?.call()
-        }
+        val made =
+            ViewModeButton(context, stage.mode) { mode ->
+                stage.mode = mode
+                stage.fillHeight = 0
+                onModeChange?.call()
+            }
         val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         params.leftMargin = leftInset + margin
         params.topMargin = topInset + margin
@@ -569,6 +572,7 @@ private class Stage(context: Context) : ViewGroup(context) {
             field = value
             requestLayout()
         }
+
     private var lastLoggedState = ""
 
     /// Where the content's own (0,0) sits inside this view, in pixels.
@@ -580,7 +584,8 @@ private class Stage(context: Context) : ViewGroup(context) {
     ///
     /// 宿主會捲到此處一次,好讓第一個畫面顯示 app 實際排出來的東西,而不是它左側的空白邊界。
     val originOffset: android.graphics.Point
-        get() = android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt() + lift)
+        get() =
+            android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt() + lift)
 
     var mode: Int = RootScrollHost.MODE_ACTUAL_VIEW
         set(value) {
@@ -611,8 +616,7 @@ private class Stage(context: Context) : ViewGroup(context) {
             child.matrix.invert(inverse)
             copy.transform(inverse)
         }
-        val inside =
-            copy.x >= 0 && copy.y >= 0 && copy.x < child.width && copy.y < child.height
+        val inside = copy.x >= 0 && copy.y >= 0 && copy.x < child.width && copy.y < child.height
         if (inside && !evenInside) {
             copy.recycle()
             return null
@@ -710,7 +714,8 @@ private class Stage(context: Context) : ViewGroup(context) {
             if (RootScrollHost.drawnBounds(safe, inner)) {
                 // And the app's root view frame, so a `.padding` written on the
                 // root is kept -- see UIKitBackend's RootScrollHost (`rootFrame`).
-                // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的 RootScrollHost(`rootFrame`)。
+                // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的
+                // RootScrollHost(`rootFrame`)。
                 var frameLeft = Int.MAX_VALUE
                 var frameTop = Int.MAX_VALUE
                 var frameRight = Int.MIN_VALUE

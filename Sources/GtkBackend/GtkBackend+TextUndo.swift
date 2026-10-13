@@ -48,8 +48,8 @@ final class EntryUndoHistory {
         gtk_event_controller_set_propagation_phase(keys.opaquePointer, GTK_PHASE_CAPTURE)
         keys.keyPressed = { [weak history] _, keyval, _, state in
             guard let history,
-                state.rawValue & (GDK_CONTROL_MASK.rawValue | GDK_META_MASK.rawValue) != 0,
-                Int32(keyval) == GDK_KEY_z || Int32(keyval) == GDK_KEY_Z
+                  state.rawValue & (GDK_CONTROL_MASK.rawValue | GDK_META_MASK.rawValue) != 0,
+                  Int32(keyval) == GDK_KEY_z || Int32(keyval) == GDK_KEY_Z
             else { return false }
             if state.rawValue & GDK_SHIFT_MASK.rawValue != 0 {
                 history.redo()
@@ -84,7 +84,7 @@ final class EntryUndoHistory {
         let now = Date()
         let typing = abs(text.count - steps[index].count) == 1
         if typing, lastWasTyping, index == steps.count - 1, index > 0,
-            now.timeIntervalSince(lastChange) < 1
+           now.timeIntervalSince(lastChange) < 1
         {
             steps[index] = text
         } else {

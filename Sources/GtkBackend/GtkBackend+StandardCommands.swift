@@ -46,7 +46,7 @@ extension GtkBackend: BackendFeatures.StandardCommands {
             // 文字欄位的歷史由框架保存(`EntryUndoHistory`);text view 仍用 GTK 的。
             case .undo, .redo:
                 if let active, let focus = gtk_window_get_focus(pointer(active)),
-                    let history = EntryUndoHistory.containing(focus)
+                   let history = EntryUndoHistory.containing(focus)
                 {
                     if command == .undo { history.undo() } else { history.redo() }
                 } else {
@@ -79,10 +79,12 @@ extension GtkBackend: BackendFeatures.StandardCommands {
                 if let active {
                     gtk_window_set_transient_for(
                         UnsafeMutableRawPointer(dialog)?.assumingMemoryBound(to: GtkWindow.self),
-                        pointer(active))
+                        pointer(active)
+                    )
                 }
                 gtk_window_present(
-                    UnsafeMutableRawPointer(dialog)?.assumingMemoryBound(to: GtkWindow.self))
+                    UnsafeMutableRawPointer(dialog)?.assumingMemoryBound(to: GtkWindow.self)
+                )
             case .hide:
                 // The app out of the way: macOS hides it; elsewhere every window is minimized,
                 // which leaves it reachable, where a hidden window would have no way back.
@@ -126,8 +128,8 @@ extension GtkBackend {
     static func sendToApplication(_ selector: String) -> Bool {
         #if canImport(Darwin)
             guard let type = NSClassFromString("NSApplication") as? NSObject.Type,
-                let application = type.perform(NSSelectorFromString("sharedApplication"))?
-                    .takeUnretainedValue() as? NSObject
+                  let application = type.perform(NSSelectorFromString("sharedApplication"))?
+                  .takeUnretainedValue() as? NSObject
             else { return false }
             _ = application.perform(NSSelectorFromString(selector), with: nil)
             return true
