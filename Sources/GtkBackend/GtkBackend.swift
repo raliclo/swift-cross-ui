@@ -4399,7 +4399,11 @@ public final class GtkBackend:
     }
 
     public func createTextField() -> Widget {
-        Entry()
+        let entry = Entry()
+        // Its undo history is the framework's: see `EntryUndoHistory`.
+        // 它的復原歷史由框架保存:見 `EntryUndoHistory`。
+        EntryUndoHistory.install(on: entry)
+        return entry
     }
 
     public func updateTextField(
@@ -4413,6 +4417,8 @@ public final class GtkBackend:
         textField.sensitive = environment.isEnabled
         textField.placeholderText = placeholder
         textField.changed = { widget in
+            EntryUndoHistory.byPointer[UnsafeMutableRawPointer(widget.widgetPointer)]?
+                .record(widget.text)
             onChange(widget.text)
         }
         textField.activate = { _ in
@@ -4437,6 +4443,8 @@ public final class GtkBackend:
         textField.withBlockedSignal(named: "changed") {
             textField.text = content
         }
+        EntryUndoHistory.byPointer[UnsafeMutableRawPointer(textField.widgetPointer)]?
+            .record(content, fromApp: true)
     }
 
     public func getContent(ofTextField textField: Widget) -> String {

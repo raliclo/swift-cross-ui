@@ -42,8 +42,16 @@ extension GtkBackend: BackendFeatures.StandardCommands {
             _ = gtk_widget_activate_action_variant(focus, action, nil)
         }
         switch command {
-            case .undo: send("text.undo")
-            case .redo: send("text.redo")
+            // A text field's history is the framework's (`EntryUndoHistory`); a text view keeps GTK's.
+            // 文字欄位的歷史由框架保存(`EntryUndoHistory`);text view 仍用 GTK 的。
+            case .undo, .redo:
+                if let active, let focus = gtk_window_get_focus(pointer(active)),
+                    let history = EntryUndoHistory.containing(focus)
+                {
+                    if command == .undo { history.undo() } else { history.redo() }
+                } else {
+                    send(command == .undo ? "text.undo" : "text.redo")
+                }
             case .cut: send("clipboard.cut")
             case .copy: send("clipboard.copy")
             case .paste: send("clipboard.paste")
