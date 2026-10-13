@@ -1,0 +1,110 @@
+=== launched replacing
+=== delegate class AppDelegate
+objc[59719]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10550c398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x105644310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+=== replacing buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+      REPLACING-appInfo  (action)
+    (inline) '' id=com.apple.menu.preferences
+      REPLACING-appSettings  (action)
+    MENU 'Services' id=com.apple.menu.services
+      REPLACING-systemServices  (action)
+    (inline) '' id=com.apple.menu.hide
+      REPLACING-appVisibility  (action)
+    (inline) '' id=com.apple.menu.quit
+      REPLACING-appTermination  (action)
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+      REPLACING-newItem  (action)
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      REPLACING-saveItem  (action)
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+      REPLACING-importExport  (action)
+    (inline) '' id=com.apple.menu.document
+    (inline) '' id=com.apple.menu.print
+      REPLACING-printItem  (action)
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      REPLACING-undoRedo  (action)
+    (inline) '' id=com.apple.menu.standard-edit
+      REPLACING-pasteboard  (action)
+    (inline) '' id=com.apple.menu.dynamic.04C98183-A4A5-4302-8FB4-56F0EF53D639
+      MENU 'Find' id=com.apple.menu.find
+        (inline) '' id=com.apple.menu.find-panel
+          Find  [key f mods 1048576]
+          Find & Replace  [key f mods 1572864]
+          Find Next  [key g mods 1048576]
+          Find Previous  [key g mods 1179648]
+        Use Selection for Find  [key e mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.textEditing
+      REPLACING-textEditing  (action)
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.toolbar
+      REPLACING-toolbar  (action)
+    (inline) '' id=com.apple.menu.sidebar
+      REPLACING-sidebar  (action)
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+      REPLACING-windowSize  (action)
+    (inline) '' id=com.apple.menu.bring-all-to-front
+      REPLACING-windowArrangement  (action)
+  MENU 'Help' id=com.apple.menu.help
+    REPLACING-help  (action)
+=== end
+=== replacing buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+      REPLACING-appInfo  (action)
+    (inline) '' id=com.apple.menu.preferences
+      REPLACING-appSettings  (action)
+    MENU 'Services' id=com.apple.menu.services
+      REPLACING-systemServices  (action)
+    (inline) '' id=com.apple.menu.hide
+      REPLACING-appVisibility  (action)
+    (inline) '' id=com.apple.menu.quit
+      REPLACING-appTermination  (action)
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+      REPLACING-newItem  (action)
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      REPLACING-saveItem  (action)
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+      REPLACING-importExport  (action)
+    (inline) '' id=com.apple.menu.document
+    (inline) '' id=com.apple.menu.print
+      REPLACING-printItem  (action)
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      REPLACING-undoRedo  (action)
+    (inline) '' id=com.apple.menu.standard-edit
+      REPLACING-pasteboard  (action)
+    (inline) '' id=com.apple.menu.dynamic.04C98183-A4A5-4302-8FB4-56F0EF53D639
+      MENU 'Find' id=com.apple.menu.find
+        (inline) '' id=com.apple.menu.find-panel
+          Find  [key f mods 1048576]
+          Find & Replace  [key f mods 1572864]
+          Find Next  [key g mods 1048576]
+          Find Previous  [key g mods 1179648]
+        Use Selection for Find  [key e mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.textEditing
+      REPLACING-textEditing  (action)
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.toolbar
+      REPLACING-toolbar  (action)
+    (inline) '' id=com.apple.menu.sidebar
+      REPLACING-sidebar  (action)
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+      REPLACING-windowSize  (action)
+    (inline) '' id=com.apple.menu.bring-all-to-front
+      REPLACING-windowArrangement  (action)
+  MENU 'Help' id=com.apple.menu.help
+    REPLACING-help  (action)
+=== end
+dev.swiftcrossui.testapp.debugTarget: 59719

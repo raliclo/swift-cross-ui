@@ -227,6 +227,11 @@ public struct CommandLayout {
     public struct Section {
         public var placement: CommandGroupPlacement?
         public var entries: [Entry]
+        /// How many of `entries`, from the start, the app put before the group.
+        /// `entries` 開頭有幾個是 app 放在群組之前的。
+        public var leading = 0
+        /// Whether the app replaced the group's own items. app 是否取代了群組自己的項目。
+        public var isReplaced = false
     }
 
     public struct Menu {
@@ -239,6 +244,10 @@ public struct CommandLayout {
 
     public var menus: [Menu]
     public var appName: String
+    /// Whether the app turned the standard menus on (``Scene/enableMenu(_:)``). A backend that
+    /// draws the layout itself reads it where the platform shows no menu unless asked.
+    /// app 是否打開了標準選單(``Scene/enableMenu(_:)``)。自己畫版面的 backend 在平台不會主動顯示選單的地方讀它。
+    public var isMenuEnabled = false
     /// Opens another window of the app's window group, for New Window; `nil` when the app has
     /// no group that can be opened by itself, and then the item is left out.
     /// 替「New Window」開啟 app 的 window group 的另一個視窗;app 沒有可以單獨開啟的 group 時為 `nil`,此時該項目不出現。
@@ -259,6 +268,16 @@ public struct CommandLayout {
                     switch entry {
                         case .item(let item):
                             items.append(item)
+                        case .standard(.services):
+                            // What macOS shows when no service applies to the selection.
+                            // macOS 在沒有任何服務適用於選取內容時顯示的樣子。
+                            items.append(
+                                .submenu(
+                                    ResolvedMenu.Submenu(
+                                        label: StandardCommand.services.title(appName: appName),
+                                        content: ResolvedMenu(items: [
+                                            .button("No Services Apply", nil)
+                                        ]))))
                         case .standard(let command):
                             let button = ResolvedMenu.Item.button(
                                 command.title(appName: appName),

@@ -79,6 +79,8 @@ public struct Commands {
                         .map { .item($0) }
                 }
                 var entries = items(.before)
+                let leading = entries.count
+                let isReplaced = own.contains { $0.position == .replacing }
                 if own.contains(where: { $0.position == .replacing }) {
                     entries += items(.replacing)
                 } else if let defaults {
@@ -88,7 +90,10 @@ public struct Commands {
                 }
                 entries += items(.after)
                 if !entries.isEmpty {
-                    sections.append(CommandLayout.Section(placement: placement, entries: entries))
+                    sections.append(
+                        CommandLayout.Section(
+                            placement: placement, entries: entries, leading: leading,
+                            isReplaced: isReplaced))
                 }
             }
             // With the standard menus on, each is there even when empty -- macOS
@@ -187,9 +192,9 @@ extension Commands {
         let newWindow: (@MainActor () -> Void)? =
             multipleWindows && openers.count == 1 ? openers.first?.value : nil
         if let backend = backend as? any BackendFeatures.CommandLayouts {
-            backend.setApplicationCommands(
-                layout(appName: appName, defaults: { _ in true }, newWindow: newWindow),
-                environment: environment)
+            var layout = layout(appName: appName, defaults: { _ in true }, newWindow: newWindow)
+            layout.isMenuEnabled = isMenuEnabled || MenuBarSettings.isEnabled
+            backend.setApplicationCommands(layout, environment: environment)
             return
         }
         guard let menus = backend as? any BackendFeatures.ApplicationMenus else { return }

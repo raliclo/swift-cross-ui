@@ -32,6 +32,16 @@ final class RootViewController: UIViewController {
         return CGSize(width: CGFloat(defaultSize.x), height: max(CGFloat(defaultSize.y), scrollHost.fillHeight ?? 0))
     }
     private var viewModeButton: ViewModeButton?
+    /// The phone's menu button, when the app turned the menus on (UIKitBackend+CommandLayouts.swift).
+    /// app 打開選單時，手機上的選單按鈕(UIKitBackend+CommandLayouts.swift)。
+    var menuButton: UIButton?
+    var modeButtonFrame: CGRect? { viewModeButton?.frame }
+
+    /// The content keeps clear of both buttons. 內容要讓開兩個按鈕。
+    func refreshAvoidedRect() {
+        let frames = [viewModeButton?.frame, menuButton?.frame].compactMap { $0 }
+        scrollHost.avoidedRect = frames.dropFirst().reduce(frames.first) { $0?.union($1) }
+    }
 
     /// The toolbar's bar, and the targets its buttons point at.
     ///
@@ -223,6 +233,7 @@ final class RootViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         installViewModeButtonIfDebugging()
+        if menuButton == nil { updateMenuButton() } else { layoutMenuButton() }
     }
 
     /// Shown by default in a debug build, and in a release build only when
@@ -276,7 +287,7 @@ final class RootViewController: UIViewController {
             let rest = CGPoint(x: scrollHost.frame.minX + 8, y: scrollHost.frame.minY + 8)
             if !button.wasDragged, button.frame.origin != rest {
                 button.frame.origin = rest
-                scrollHost.avoidedRect = button.frame
+                refreshAvoidedRect()
             }
             return
         }
@@ -300,7 +311,7 @@ final class RootViewController: UIViewController {
         viewModeButton = button
         // Where the button rests, for the host to keep the content clear of it.
         // 按鈕的原位，讓 host 把內容讓開。
-        scrollHost.avoidedRect = button.frame
+        refreshAvoidedRect()
     }
 }
 

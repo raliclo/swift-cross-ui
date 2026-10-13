@@ -1,0 +1,76 @@
+=== launched base
+=== delegate class AppDelegate
+objc[59808]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10951c398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x109654310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+=== base buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+    (inline) '' id=com.apple.menu.preferences
+      RefIOS Settings…  [key , mods 1048576]
+    MENU 'Services' id=com.apple.menu.services
+    (inline) '' id=com.apple.menu.hide
+    (inline) '' id=com.apple.menu.quit
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      Close  [key w mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+    (inline) '' id=com.apple.menu.document
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      Undo  [key z mods 1048576]
+      Redo  [key z mods 1179648]
+    (inline) '' id=com.apple.menu.standard-edit
+      Cut  [key x mods 1048576]
+      Copy  [key c mods 1048576]
+      Paste  [key v mods 1048576]
+      Paste and Match Style  [key v mods 1703936]
+      Delete  <delete:>
+      Select All  [key a mods 1048576]
+    (inline) '' id=com.apple.menu.dynamic.977F401C-9BA0-4FD7-B3FC-C503223B8FC2
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+    (inline) '' id=com.apple.menu.bring-all-to-front
+  MENU 'Help' id=com.apple.menu.help
+      [key ? mods 1048576]
+=== end
+=== base buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+    (inline) '' id=com.apple.menu.preferences
+      RefIOS Settings…  [key , mods 1048576]
+    MENU 'Services' id=com.apple.menu.services
+    (inline) '' id=com.apple.menu.hide
+    (inline) '' id=com.apple.menu.quit
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      Close  [key w mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+    (inline) '' id=com.apple.menu.document
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      Undo  [key z mods 1048576]
+      Redo  [key z mods 1179648]
+    (inline) '' id=com.apple.menu.standard-edit
+      Cut  [key x mods 1048576]
+      Copy  [key c mods 1048576]
+      Paste  [key v mods 1048576]
+      Paste and Match Style  [key v mods 1703936]
+      Delete  <delete:>
+      Select All  [key a mods 1048576]
+    (inline) '' id=com.apple.menu.dynamic.977F401C-9BA0-4FD7-B3FC-C503223B8FC2
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+    (inline) '' id=com.apple.menu.bring-all-to-front
+  MENU 'Help' id=com.apple.menu.help
+      [key ? mods 1048576]
+=== end
+dev.swiftcrossui.testapp.debugTarget: 59808

@@ -478,6 +478,10 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     /// `keyCommands`,而 iPhone 上的實體鍵盤正是經由它派送的,完全不牽涉選單。這就是那條路。
     var fallbackKeyCommands: [UIKeyCommand] = []
 
+    /// The menus as the framework laid them out; `buildMenu(with:)` and the phone's menu
+    /// button are made from it. 框架排出的選單版面;`buildMenu(with:)` 與手機上的選單按鈕都由它產生。
+    var commandLayout: CommandLayout?
+
     /// Whether the menu system has built a main menu in this process.
     ///
     /// **The published commands are withheld once it has**, or an iPad would
@@ -635,21 +639,7 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
         // 在此記下,而這裡是唯一能證明「存在一條選單列」的地方。見 `hasBuiltMainMenu`。
         hasBuiltMainMenu = true
 
-        for submenu in menu {
-            let menuIdentifier = mapMenuIdentifier(submenu.label)
-            let menu = UIKitBackend.buildMenu(
-                content: submenu.content,
-                label: submenu.label,
-                identifier: menuIdentifier,
-                environment: environment!
-            )
-
-            if builder.menu(for: menuIdentifier) == nil {
-                builder.insertChild(menu, atEndOfMenu: .root)
-            } else {
-                builder.replace(menu: menuIdentifier, with: menu)
-            }
-        }
+        buildCommandMenus(with: builder)
     }
 }
 

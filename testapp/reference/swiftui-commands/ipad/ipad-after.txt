@@ -1,0 +1,152 @@
+=== launched after
+=== delegate class AppDelegate
+objc[59614]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x109970398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.rqLCUU/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x109aa8310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+=== after buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+      AFTER-appInfo  (action)
+    (inline) '' id=com.apple.menu.preferences
+      RefIOS Settings…  [key , mods 1048576]
+      AFTER-appSettings  (action)
+    MENU 'Services' id=com.apple.menu.services
+      AFTER-systemServices  (action)
+    (inline) '' id=com.apple.menu.hide
+      AFTER-appVisibility  (action)
+    (inline) '' id=com.apple.menu.quit
+      AFTER-appTermination  (action)
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+      AFTER-newItem  (action)
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      Close  [key w mods 1048576]
+      AFTER-saveItem  (action)
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+      AFTER-importExport  (action)
+    (inline) '' id=com.apple.menu.document
+    (inline) '' id=com.apple.menu.print
+      AFTER-printItem  (action)
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      Undo  [key z mods 1048576]
+      Redo  [key z mods 1179648]
+      AFTER-undoRedo  (action)
+    (inline) '' id=com.apple.menu.standard-edit
+      Cut  [key x mods 1048576]
+      Copy  [key c mods 1048576]
+      Paste  [key v mods 1048576]
+      Paste and Match Style  [key v mods 1703936]
+      Delete  <delete:>
+      Select All  [key a mods 1048576]
+      AFTER-pasteboard  (action)
+    (inline) '' id=com.apple.menu.dynamic.BB329835-DF98-4F4D-AF68-C508B315B1E7
+      MENU 'Find' id=com.apple.menu.find
+        (inline) '' id=com.apple.menu.find-panel
+          Find  [key f mods 1048576]
+          Find & Replace  [key f mods 1572864]
+          Find Next  [key g mods 1048576]
+          Find Previous  [key g mods 1179648]
+        Use Selection for Find  [key e mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.textEditing
+      MENU 'Spelling and Grammar' id=com.apple.menu.spelling
+        (inline) '' id=com.apple.menu.spelling-panel
+        (inline) '' id=com.apple.menu.spelling-options
+      MENU 'Substitutions' id=com.apple.menu.substitutions
+        (inline) '' id=com.apple.menu.substitutions-panel
+        (inline) '' id=com.apple.menu.substitution-options
+      MENU 'Transformations' id=com.apple.menu.transformations
+      MENU 'Speech' id=com.apple.command.speech
+      AFTER-textEditing  (action)
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.toolbar
+      Customize Toolbar…  <runToolbarCustomizationPalette:>
+      AFTER-toolbar  (action)
+    (inline) '' id=com.apple.menu.sidebar
+      Show Sidebar  [key s mods 1310720]
+      AFTER-sidebar  (action)
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+      AFTER-windowSize  (action)
+    (inline) '' id=com.apple.menu.bring-all-to-front
+      AFTER-windowArrangement  (action)
+  MENU 'Help' id=com.apple.menu.help
+      [key ? mods 1048576]
+    AFTER-help  (action)
+=== end
+=== after buildMenu idiom=1
+MENU '' id=com.apple.menu.root
+  MENU 'RefIOS' id=com.apple.menu.application
+    (inline) '' id=com.apple.menu.about
+      AFTER-appInfo  (action)
+    (inline) '' id=com.apple.menu.preferences
+      RefIOS Settings…  [key , mods 1048576]
+      AFTER-appSettings  (action)
+    MENU 'Services' id=com.apple.menu.services
+      AFTER-systemServices  (action)
+    (inline) '' id=com.apple.menu.hide
+      AFTER-appVisibility  (action)
+    (inline) '' id=com.apple.menu.quit
+      AFTER-appTermination  (action)
+  MENU 'File' id=com.apple.menu.file
+    (inline) '' id=com.apple.menu.new-item
+      AFTER-newItem  (action)
+    (inline) '' id=com.apple.menu.open
+    (inline) '' id=com.apple.menu.close
+      Close  [key w mods 1048576]
+      AFTER-saveItem  (action)
+    (inline) '' id=com.apple.swiftui.synthesized.importExport
+      AFTER-importExport  (action)
+    (inline) '' id=com.apple.menu.document
+    (inline) '' id=com.apple.menu.print
+      AFTER-printItem  (action)
+  MENU 'Edit' id=com.apple.menu.edit
+    (inline) '' id=com.apple.menu.undo-redo
+      Undo  [key z mods 1048576]
+      Redo  [key z mods 1179648]
+      AFTER-undoRedo  (action)
+    (inline) '' id=com.apple.menu.standard-edit
+      Cut  [key x mods 1048576]
+      Copy  [key c mods 1048576]
+      Paste  [key v mods 1048576]
+      Paste and Match Style  [key v mods 1703936]
+      Delete  <delete:>
+      Select All  [key a mods 1048576]
+      AFTER-pasteboard  (action)
+    (inline) '' id=com.apple.menu.dynamic.BB329835-DF98-4F4D-AF68-C508B315B1E7
+      MENU 'Find' id=com.apple.menu.find
+        (inline) '' id=com.apple.menu.find-panel
+          Find  [key f mods 1048576]
+          Find & Replace  [key f mods 1572864]
+          Find Next  [key g mods 1048576]
+          Find Previous  [key g mods 1179648]
+        Use Selection for Find  [key e mods 1048576]
+    (inline) '' id=com.apple.swiftui.synthesized.textEditing
+      MENU 'Spelling and Grammar' id=com.apple.menu.spelling
+        (inline) '' id=com.apple.menu.spelling-panel
+        (inline) '' id=com.apple.menu.spelling-options
+      MENU 'Substitutions' id=com.apple.menu.substitutions
+        (inline) '' id=com.apple.menu.substitutions-panel
+        (inline) '' id=com.apple.menu.substitution-options
+      MENU 'Transformations' id=com.apple.menu.transformations
+      MENU 'Speech' id=com.apple.command.speech
+      AFTER-textEditing  (action)
+  MENU 'View' id=com.apple.menu.view
+    (inline) '' id=com.apple.menu.toolbar
+      Customize Toolbar…  <runToolbarCustomizationPalette:>
+      AFTER-toolbar  (action)
+    (inline) '' id=com.apple.menu.sidebar
+      Show Sidebar  [key s mods 1310720]
+      AFTER-sidebar  (action)
+    (inline) '' id=com.apple.menu.fullscreen
+  MENU 'Window' id=com.apple.menu.window
+    (inline) '' id=com.apple.menu.minimize-and-zoom
+      AFTER-windowSize  (action)
+    (inline) '' id=com.apple.menu.bring-all-to-front
+      AFTER-windowArrangement  (action)
+  MENU 'Help' id=com.apple.menu.help
+      [key ? mods 1048576]
+    AFTER-help  (action)
+=== end
+dev.swiftcrossui.testapp.debugTarget: 59614
