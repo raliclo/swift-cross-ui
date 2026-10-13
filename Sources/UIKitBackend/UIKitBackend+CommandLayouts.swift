@@ -182,7 +182,10 @@ import UIKit
                                 builder.replaceChildren(ofMenu: .format) { _ in own }
                             } else {
                                 let format = UIMenu(
-                                    title: "Format", identifier: .format, children: own)
+                                    title: "Format",
+                                    identifier: .format,
+                                    children: own
+                                )
                                 if builder.menu(for: .edit) != nil {
                                     builder.insertSibling(format, afterMenu: .edit)
                                 } else {

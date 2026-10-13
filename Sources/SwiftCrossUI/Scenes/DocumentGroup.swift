@@ -160,7 +160,11 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
 
         SceneLaunch.register(environment.defaultLaunchBehavior, opensAlone: true) { [self] in
             self.open(
-                document: scene.newDocument(), at: nil, backend: backend, environment: environment)
+                document: scene.newDocument(),
+                at: nil,
+                backend: backend,
+                environment: environment
+            )
         }
     }
 
@@ -239,34 +243,36 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
             content: { [weak self] in
                 DocumentEditorHost(
                     content: editor(
-                    Binding(
-                        get: { self?.documents[id]?.document ?? Document() },
-                        set: { newValue in
-                            self?.documents[id]?.document = newValue
-                            // The document is not @State, so nothing else
-                            // tells the window its content changed. Without
-                            // this an edit stayed invisible until some other
-                            // update reached the window -- on macOS opening a
-                            // second document did, which hid the defect; on
-                            // iPhone, with one window, the text never showed
-                            // (P62, 2026-10-01). Deferred, because the setter
-                            // runs inside the editor's own event handler.
-                            // 文件不是 @State,所以沒有別的東西會告訴視窗內容變了。少了這段,一次編輯會
-                            // 一直看不見,直到別的更新抵達該視窗——在 macOS 上開第二份文件正好會觸發,
-                            // 於是把缺陷藏了起來;在只有一個視窗的 iPhone 上,文字從未出現(P62,
-                            // 2026-10-01)。延後執行,因為 setter 是在編輯器自己的事件處理中被呼叫的。
-                            backend.runInMainThread {
-                                guard let self, let window = self.windows[id] else { return }
-                                window.update(
-                                    self.windowScene(
-                                        for: id, backend: backend, environment: environment
-                                    ),
-                                    backend: backend,
-                                    environment: environment
-                                )
+                        Binding(
+                            get: { self?.documents[id]?.document ?? Document() },
+                            set: { newValue in
+                                self?.documents[id]?.document = newValue
+                                // The document is not @State, so nothing else
+                                // tells the window its content changed. Without
+                                // this an edit stayed invisible until some other
+                                // update reached the window -- on macOS opening a
+                                // second document did, which hid the defect; on
+                                // iPhone, with one window, the text never showed
+                                // (P62, 2026-10-01). Deferred, because the setter
+                                // runs inside the editor's own event handler.
+                                // 文件不是 @State,所以沒有別的東西會告訴視窗內容變了。少了這段,一次編輯會
+                                // 一直看不見,直到別的更新抵達該視窗——在 macOS 上開第二份文件正好會觸發,
+                                // 於是把缺陷藏了起來;在只有一個視窗的 iPhone 上,文字從未出現(P62,
+                                // 2026-10-01)。延後執行,因為 setter 是在編輯器自己的事件處理中被呼叫的。
+                                backend.runInMainThread {
+                                    guard let self, let window = self.windows[id] else { return }
+                                    window.update(
+                                        self.windowScene(
+                                            for: id,
+                                            backend: backend,
+                                            environment: environment
+                                        ),
+                                        backend: backend,
+                                        environment: environment
+                                    )
+                                }
                             }
-                        }
-                    )
+                        )
                     ),
                     store: self?.saveStore(for: id, backend: backend, environment: environment)
                 )
@@ -289,7 +295,7 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
             suggestedName: { [weak self] in
                 let title = self?.documents[id]?.title ?? "Untitled"
                 guard self?.documents[id]?.url == nil,
-                    let fileExtension = Document.writableContentTypes.first?.fileExtensions.first
+                      let fileExtension = Document.writableContentTypes.first?.fileExtensions.first
                 else { return title }
                 return "\(title).\(fileExtension)"
             },

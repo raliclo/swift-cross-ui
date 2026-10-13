@@ -31,13 +31,13 @@ extension GtkBackend {
                 target.perform(NSSelectorFromString(selector))?.takeUnretainedValue() as? NSObject
             }
             guard let type = NSClassFromString("NSApplication") as? NSObject.Type,
-                let application = type.perform(NSSelectorFromString("sharedApplication"))?
-                    .takeUnretainedValue() as? NSObject,
-                let bar = object(application, "mainMenu"),
-                let items = object(bar, "itemArray") as? [NSObject],
-                items.count >= 2,
-                items[1].value(forKey: "hidden") as? Bool != true,
-                let ours = object(items[1], "submenu")
+                  let application = type.perform(NSSelectorFromString("sharedApplication"))?
+                  .takeUnretainedValue() as? NSObject,
+                  let bar = object(application, "mainMenu"),
+                  let items = object(bar, "itemArray") as? [NSObject],
+                  items.count >= 2,
+                  items[1].value(forKey: "hidden") as? Bool != true,
+                  let ours = object(items[1], "submenu")
             else { return }
             _ = items[1].perform(NSSelectorFromString("setSubmenu:"), with: nil)
             _ = items[0].perform(NSSelectorFromString("setSubmenu:"), with: ours)
