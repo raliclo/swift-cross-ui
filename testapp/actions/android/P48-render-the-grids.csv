@@ -9,6 +9,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P48 在 Android 上:各格線版面。grid 6 在啟動畫面下方，所以向下捲;每個儲存格須分別貼灰帶頂端、置中、底端。
 sleep,,,,,,2000000,let the grids lay out,android
-move,604,564,,,,,the middle of the page,android
+# 2026-10-13: the park point is any point on the page that is on the screen. Matched by widget it had become
+# (604, 564), past the 411-point screen, and reaching it scrolled the page sideways: grid 6 was photographed
+# without its cells. From (200, 450) the capture shows grids 2, 3, 5 and all of grid 6.
+# 2026-10-13:停駐點只要是頁面上、螢幕內的任何一點即可。依元件比對後它變成 (604, 564),超出 411 點寬的螢幕,
+# 為了到達它頁面被橫向捲動:拍到的 grid 6 沒有儲存格。從 (200, 450) 出發,擷圖裡有 grid 2、3、5 與完整的 grid 6。
+move,200,450,,,,,the middle of the page,android
 scroll,0,8,,,,,down to grid 6 -- the grey lanes must be in the photograph,android
 sleep,,,,,,1000000,let the scroll settle,android

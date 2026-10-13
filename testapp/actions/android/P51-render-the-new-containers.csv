@@ -7,6 +7,14 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P51 在 Android 上:五種容器都畫出來;捲到最右，第二欄必須完整。
 sleep,,,,,,2000000,let P51 render,android
-move,520,502,,,,,the lower right of the page,android
+# 2026-10-13: the page is wider than one drag can cross -- a drag stays inside the 411-point screen -- so the
+# file scrolls right twice, each time from near the right edge. One scroll from (350, 500) left the second
+# column cut at "these buttons drive the"; a further swipe by hand still moved the page.
+# 2026-10-13:頁面比一次拖曳能橫越的距離寬——拖曳必須留在 411 點寬的螢幕內——所以這份檔案向右捲兩次,每次都從
+# 靠近右緣處開始。只從 (350, 500) 捲一次時,第二欄在「these buttons drive the」處被切掉;再用手滑一次頁面還會動。
+move,400,500,,,,,the lower right of the page,android
+scroll,10,0,,,,,"right, to the end -- the second column must be whole",android
+sleep,,,,,,800000,let the first scroll settle,android
+move,400,500,,,,,back to the right edge for the second drag,android
 scroll,10,0,,,,,"right, to the end -- the second column must be whole",android
 sleep,,,,,,1000000,let the scroll settle,android
