@@ -9,7 +9,7 @@ entry is closed.
 
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
-| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac: macOS -> GTK -> iOS -> Android | in progress: core, macOS and GTK (on macOS) done; iOS not started, its SwiftUI baseline on iPad could not be read yet | read the iPad menu bar another way, then UIKit, then Android |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android | open: GTK's Undo undoes two pastes at once; nothing pressed in the iPad's real menu bar; Hide Others and Show All on GTK not pressed |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
@@ -761,7 +761,11 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   DONE 2026-10-13: (a), (b), (c) -- AppKit's menu bar equals the SwiftUI dump in all five modes of P92;
   (d) GtkBackend on macOS -- `BackendFeatures.StandardCommands` in Swift, menus read and pressed through
   System Events, switch off and on. On macOS GTK adds an app menu of its own before the framework's.
-  (e) NOT STARTED, and its baseline is not measured yet: a SwiftUI reference app runs on the iPad simulator, but
+  (e) DONE 2026-10-14: the iPad baseline was read after all -- the system builds the menu bar only once a key
+  or the pointer arrives, so the reference app was run under the action-file runner -- and UIKitBackend
+  builds the bar the same way; the phone gets a menu button with enableMenu. (f) DONE 2026-10-14: Android's
+  menu button and standard commands. (g) is the hand-over to the Windows side.
+  The note that stood here, kept for the record: a SwiftUI reference app runs on the iPad simulator, but
   its menu could not be read on 2026-10-13 -- `buildMenu(with:)` on a `UIApplicationDelegateAdaptor` delegate was
   never called, and neither was UIResponder's own implementation after it was wrapped and
   `UIMenuSystem.main.setNeedsRebuild()` sent, in 25 s. Known from the compiler: `windowList` and

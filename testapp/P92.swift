@@ -42,8 +42,17 @@ final class P92Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var last = "none"
     @SwiftCrossUI.Published var presses = 0
 
-    static let mode = ProcessInfo.processInfo.environment["SCUI_P92_MODE"] ?? "after"
-    static let menuEnabled = ProcessInfo.processInfo.environment["SCUI_P92_MENU"] == "1"
+    // From the environment, or from the arguments where a launch carries no environment
+    // (Android): `--p92-mode=replacing`, `--p92-menu`.
+    // 取自環境變數;啟動時帶不了環境變數的平台(Android)則取自參數:`--p92-mode=replacing`、`--p92-menu`。
+    static let mode =
+        ProcessInfo.processInfo.environment["SCUI_P92_MODE"]
+        ?? CommandLine.arguments.first { $0.hasPrefix("--p92-mode=") }
+            .map { String($0.dropFirst("--p92-mode=".count)) }
+        ?? "after"
+    static let menuEnabled =
+        ProcessInfo.processInfo.environment["SCUI_P92_MENU"] == "1"
+        || CommandLine.arguments.contains("--p92-menu")
 
     func pressed(_ name: String) {
         last = name

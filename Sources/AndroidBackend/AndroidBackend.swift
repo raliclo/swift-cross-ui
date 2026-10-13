@@ -582,7 +582,11 @@ public final class AndroidBackend: BaseAppBackend {
                 activity: Self.activity,
                 environment: Self.env,
                 showModeControl: DebugFeatures.allowsRootScrollControl,
-                onHost: { host in window.scrollHost = host }
+                onHost: { host in
+                    window.scrollHost = host
+                    Self.scrollHosts.append(host)
+                    self.applyMenuButton(to: host)
+                }
             ),
             AndroidKit.LinearLayout.LayoutParams(
                 matchParentDimension,

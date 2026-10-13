@@ -49,6 +49,17 @@ class RootScrollHost: AndroidView.View {
     @JavaMethod
     func installModeButton(_ activity: Activity?)
 
+    /// The menu button `.enableMenu()` adds; see `RootScrollHost.kt`.
+    /// `.enableMenu()` 加上的選單按鈕;見 `RootScrollHost.kt`。
+    @JavaMethod
+    func setMenuButtonShown(_ activity: Activity?, _ shown: Bool)
+
+    @JavaMethod
+    func setOnMenuButton(_ action: SwiftAction?)
+
+    @JavaMethod
+    func getMenuButton() -> AndroidView.View!
+
     @JavaMethod
     func getFillHeight() -> Int32
 

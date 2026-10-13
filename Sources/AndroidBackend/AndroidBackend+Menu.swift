@@ -62,7 +62,7 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
             )
         }
 
-        private static func realizeMenu(
+        static func realizeMenu(
             menu: AndroidKit.Menu,
             items: [ResolvedMenu.Item],
             environment: EnvironmentValues

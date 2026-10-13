@@ -349,6 +349,82 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
      *
      * 預設位於左上角，並可自該處拖曳。無論從哪裡開始，它都會蓋在內容之上；因此這個預設值是「選一個 最不可能造成妨礙的角落」，而不是一個能迴避該問題的位置。
      */
+    private var menuButton: Button? = null
+
+    /** Called when the menu button is pressed. 選單按鈕被按下時呼叫。 */
+    var onMenuButton: SwiftAction? = null
+
+    /** The button a popup menu is anchored to, or null. 彈出選單所錨定的按鈕，沒有時為 null。 */
+    fun getMenuButton(): View? = menuButton
+
+    /**
+     * The menu button `.enableMenu()` adds: a phone has no menu bar, so the standard menus open
+     * from this button, right of the mode control when there is one and in its place when not.
+     * Content keeps clear of it as it does of the mode control.
+     *
+     * `.enableMenu()` 加上的選單按鈕:手機沒有選單列，標準選單從這個按鈕打開;有模式控制項時在它右邊，沒有時在它的位置。
+     * 內容會像讓開模式控制項一樣讓開它。
+     */
+    fun setMenuButtonShown(activity: Activity, shown: Boolean) {
+        val existing = menuButton
+        if (!shown) {
+            if (existing != null) {
+                removeView(existing)
+                menuButton = null
+            }
+            return
+        }
+        if (existing != null) return
+        val density = resources.displayMetrics.density
+        val margin = (8 * density).toInt()
+        val helpers = AndroidBackendHelpers()
+        val topInset = (helpers.getSafeAreaTopInset(activity) * density).toInt()
+        val leftInset = (helpers.getSafeAreaLeftInset(activity) * density).toInt()
+
+        val made = Button(context)
+        made.text = "☰"
+        made.contentDescription = "Menu"
+        made.isAllCaps = false
+        made.textSize = 14f
+        made.setPadding(0, 0, 0, 0)
+        val face = android.graphics.drawable.GradientDrawable()
+        face.cornerRadius = 6 * density
+        face.setColor(0xE6FFFFFF.toInt())
+        face.setStroke(maxOf(1, density.toInt()), 0x4A3C3C43)
+        made.background = face
+        made.stateListAnimator = null
+        made.elevation = 0f
+        made.setTextColor(0xFF000000.toInt())
+        made.minWidth = (44 * density).toInt()
+        made.minimumWidth = made.minWidth
+        made.minHeight = (28 * density).toInt()
+        made.minimumHeight = made.minHeight
+        made.setOnClickListener { onMenuButton?.call() }
+        val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+        params.leftMargin = leftInset + margin
+        params.topMargin = topInset + margin
+        addView(made, params)
+        menuButton = made
+        addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (menuButton !== made) return@addOnLayoutChangeListener
+            val at = IntArray(2)
+            getLocationInWindow(at)
+            val top = maxOf(0, topInset - at[1]) + margin
+            val mode = button
+            val left = if (mode != null && mode.width > 0) mode.right + margin else leftInset + margin
+            val current = made.layoutParams as? android.view.ViewGroup.MarginLayoutParams
+            if (current != null && (current.topMargin != top || current.leftMargin != left)) {
+                current.topMargin = top
+                current.leftMargin = left
+                made.layoutParams = current
+            }
+            if (mode == null) {
+                val rest = Rect(made.left, made.top, made.right, made.bottom)
+                if (made.width > 0 && rest != stage.avoided) post { stage.avoided = rest }
+            }
+        }
+    }
+
     fun installModeButton(activity: Activity) {
         if (button != null) return
         val density = resources.displayMetrics.density
@@ -416,6 +492,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
             // Posted: this runs inside a layout pass, and the stage has to be measured again.
             // 用 post:這裡在排版過程中執行，而 stage 必須重新量測。
             val rest = Rect(made.left, made.top, made.right, made.bottom)
+            menuButton?.let { if (it.width > 0) rest.union(it.left, it.top, it.right, it.bottom) }
             if (made.width > 0 && rest != stage.avoided) post { stage.avoided = rest }
         }
         button = made
