@@ -2,6 +2,26 @@ action,x,y,origin,button,key,micros,note,platform
 # P88 on iOS: hover rows over the blue panel, Command held through one, then a drag.
 # Expected as on the other platforms: "pointer" at the last hover, "last with cmd" at the held one, "drags: 1".
 # iOS 上的 P88:在藍色面板上 hover,其中一次按住 Command,然後拖曳一次。
+#
+# 2026-10-13, as replayed on the iPhone and iPad Pro 11-inch simulators (iOS 27.0, Xcode 27.0):
+# - The drags hold on both: "drags: 1 · control drags: 1". The control drag was at y 385, which is
+#   on the blue panel since the content starts at the top (it read "drags: 2 · control drags: 0");
+#   it is at y 430, inside the green panel on both devices (iPhone 416-475, iPad 386-446).
+# - The hover rows do NOT reach the app on either, so "pointer" and "last with cmd" stay unset and
+#   "hover reports" stays 0. On the iPhone XCUITest fails hover() with "Pointer events are not
+#   supported for this device"; the runner skips the row there and says so. On the iPad hover()
+#   returns without an error and no hover event arrives: a UIHoverGestureRecognizer put on the
+#   UIWindow itself saw none in a hover-only replay (4 rows), so this is not the panel being missed.
+#   UIKitBackend's onContinuousHover is therefore NOT verified by this file on iOS.
+#
+# 2026-10-13,在 iPhone 與 iPad Pro 11 吋模擬器上重放(iOS 27.0、Xcode 27.0):
+# - 拖曳在兩者上都成立:「drags: 1 · control drags: 1」。對照組的拖曳原本在 y 385,內容改從頂端開始後那裡是
+#   藍色面板(讀到「drags: 2 · control drags: 0」);現在是 y 430,在兩種裝置上都落在綠色面板內。
+# - hover 列在兩者上都**沒有**送進 app,所以「pointer」與「last with cmd」維持未設定,「hover reports」維持 0。
+#   iPhone 上 XCUITest 以「Pointer events are not supported for this device」讓 hover() 失敗,runner 在那裡
+#   跳過該列並明講。iPad 上 hover() 不報錯,但沒有任何 hover 事件抵達:掛在 UIWindow 上的
+#   UIHoverGestureRecognizer 在只有 hover 的重放(4 列)中一次都沒收到,所以不是面板沒被點中。
+#   因此 UIKitBackend 的 onContinuousHover 在 iOS 上**沒有**被這份檔案驗證。
 sleep,,,,,,2500000,let P88 lay out,ios
 hover,150,200,client,,,,into the panel,ios
 sleep,,,,,,500000,,ios
@@ -15,9 +35,9 @@ mousedown,100,300,client,left,,,drag on the panel,ios
 sleep,,,,,,400000,,ios
 mouseup,200,300,client,left,,,,ios
 sleep,,,,,,400000,,ios
-mousedown,100,385,client,left,,,control: drag on the green panel (no hover wrapper),ios
+mousedown,100,430,client,left,,,control: drag on the green panel (no hover wrapper),ios
 sleep,,,,,,400000,,ios
-mouseup,200,385,client,left,,,,ios
+mouseup,200,430,client,left,,,,ios
 sleep,,,,,,400000,,ios
 hover,200,190,client,,,,end inside the panel,ios
 sleep,,,,,,1500000,let the readout redraw,ios

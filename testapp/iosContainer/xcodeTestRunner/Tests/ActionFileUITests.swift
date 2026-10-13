@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import XCTest
 
 final class ActionFileUITests: XCTestCase {
@@ -195,12 +196,27 @@ final class ActionFileUITests: XCTestCase {
                     Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
                 )
             case "hover":
-                // Moves the iPad pointer to a point without pressing. A no-op
-                // on iPhone, which has no pointer.
-                // 把 iPad 指標移到某點而不按下。iPhone 沒有指標，不做事。
+                // Moves the iPad pointer to a point without pressing. An iPhone
+                // has no pointer, and XCUITest does not ignore the call there:
+                // it fails the test with "Pointer events are not supported for
+                // this device", so nothing after the row ran (P88, 2026-10-13).
+                // The row is skipped there and says so; the point is still
+                // kept, because later rows may start from it.
+                // 把 iPad 指標移到某點而不按下。iPhone 沒有指標，而 XCUITest 在那裡不是忽略這個呼叫，而是以
+                // 「Pointer events are not supported for this device」讓測試失敗，該列之後的東西都不會執行
+                // (P88,2026-10-13)。在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
                 let target = try coordinate(for: action, in: app)
-                target.hover()
                 pointer = target
+                guard UIDevice.current.userInterfaceIdiom == .pad else {
+                    FileHandle.standardError.write(
+                        Data(
+                            ("-actionfile: hover skipped at (\(action.x), \(action.y)): "
+                                + "this device has no pointer\n").utf8
+                        )
+                    )
+                    break
+                }
+                target.hover()
                 FileHandle.standardError.write(
                     Data("-actionfile: hovered (\(action.x), \(action.y))\n".utf8)
                 )

@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1321**
+**Runs recorded / 已記錄的執行筆數: 1402**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -71,7 +71,7 @@ zsh matrix_coverage/coverage.zsh
 | P32           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P33           | pass 2026-09-09              | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P34           | pass 2026-09-11              | pass 2026-09-11                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
-| P35           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
+| P35           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-13 |              |
 | P36           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P37           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P38           | pass 2026-09-17              | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
@@ -88,38 +88,42 @@ zsh matrix_coverage/coverage.zsh
 | P49           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-11        | capture screen 2026-10-11 |              |
 | P50           | pass 2026-09-18              | pass 2026-09-18                | -                        | pass 2026-09-27              | pass 2026-10-11        | capture screen 2026-10-11 |              |
 | P51           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-30              | pass 2026-10-11        | capture screen 2026-10-11 |              |
-| P52           | pass 2026-09-18              | -                              | -                        | pass 2026-09-30              | -                      | -                         |              |
-| P53           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-08           |              |
-| P54           | -                            | pass 2026-09-17                | -                        | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-09           |              |
-| P55           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-09           |              |
-| P56           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-09           |              |
-| P57           | capture n/a 1/2 2026-09-16   | probe 1/2 2026-09-16           | -                        | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-16           |              |
-| P58           | -                            | -                              | -                        | pass 2026-09-27              | -                      | pass 2026-09-09           |              |
-| P59           | -                            | -                              | -                        | pass 2026-09-27              | -                      | -                         |              |
-| P60           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | -                         |              |
-| P61           | pass 2026-09-16              | pass 2026-10-07                | -                        | pass 2026-09-27              | -                      | -                         |              |
-| P62           | pass 2026-10-07              | pass 2026-10-07                | -                        | pass 2026-09-27              | -                      | -                         |              |
-| P63           | -                            | -                              | -                        | pass 2026-09-30              | pass 2026-09-30        | -                         |              |
-| P64           | fail 2026-09-10              | pass 2026-10-07                | -                        | pass 2026-09-30              | pass 2026-09-10        | -                         |              |
-| P65           | pass 2026-09-17              | pass 2026-09-17                | -                        | pass 2026-09-30              | misaimed 2026-09-27    | pass 2026-09-17           |              |
-| P66           | -                            | -                              | -                        | pass 2026-09-30              | -                      | -                         |              |
-| P67           | -                            | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-09-27        | pass 2026-09-17           |              |
-| P68           | -                            | -                              | -                        | pass 2026-09-30              | -                      | -                         |              |
-| P69           | pass 2026-09-19              | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-09-27        | pass 2026-09-29           |              |
-| P70           | capture n/a 1/2 2026-09-16   | capture n/a 2026-09-16         | -                        | pass 2026-09-27              | pass 2026-09-16        | pass 2026-09-16           |              |
-| P71           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-16           |              |
-| P72           | crash->fixed 2026-10-07      | pass 2026-10-07                | pass 2026-10-07          | pass 2026-09-27              | pass 2026-09-27        | -                         |              |
-| P73           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-09-27        | capture screen 2026-09-30 |              |
-| P74           | -                            | pass 2026-10-07                | -                        | pass 2026-09-29              | pass 2026-09-29        | pass 2026-09-29           |              |
-| P75           | -                            | pass 2026-10-07                | -                        | pass 2026-09-30              | pass 2026-09-30        | capture screen 2026-09-30 |              |
-| P76           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-05              | pass 2026-10-05        | -                         |              |
-| P77           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-07 |              |
-| P78           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-06 |              |
-| P79           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-06 |              |
-| P80           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-07 |              |
-| P81           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-07 |              |
-| P82           | pass 2026-10-08              | pass 2026-10-08                | pass 2026-10-08          | pass 2026-10-07              | pass 2026-10-07        | capture screen 2026-10-08 |              |
-| P83           | pass 2026-10-08              | pass 2026-10-08                | pass 2026-10-08          | pass 2026-10-08              | pass 2026-10-08        | capture screen 2026-10-09 |              |
-| P84           | -                            | -                              | -                        | pass 2026-10-09              | pass 2026-10-09        | capture screen 2026-10-09 |              |
-| P89           | -                            | -                              | -                        | -                            | pass 2026-10-10        | capture screen 2026-10-10 |              |
-| P90           | -                            | -                              | -                        | -                            | pass 2026-10-10        | capture screen 2026-10-11 |              |
+| P52           | pass 2026-09-18              | -                              | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P53           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P54           | -                            | pass 2026-09-17                | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P55           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P56           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P57           | capture n/a 1/2 2026-09-16   | probe 1/2 2026-09-16           | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P58           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P59           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P60           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P61           | pass 2026-09-16              | pass 2026-10-07                | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P62           | pass 2026-10-07              | pass 2026-10-07                | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P63           | -                            | -                              | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P64           | fail 2026-09-10              | pass 2026-10-07                | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P65           | pass 2026-09-17              | pass 2026-09-17                | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P66           | -                            | -                              | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P67           | -                            | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P68           | -                            | -                              | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P69           | pass 2026-09-19              | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P70           | capture n/a 1/2 2026-09-16   | capture n/a 2026-09-16         | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P71           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P72           | crash->fixed 2026-10-07      | pass 2026-10-07                | pass 2026-10-07          | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P73           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P74           | -                            | pass 2026-10-07                | -                        | pass 2026-09-29              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P75           | -                            | pass 2026-10-07                | -                        | pass 2026-09-30              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P76           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-05              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P77           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P78           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P79           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P80           | -                            | pass 2026-10-07                | pass 2026-10-07          | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P81           | -                            | -                              | -                        | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P82           | pass 2026-10-08              | pass 2026-10-08                | pass 2026-10-08          | pass 2026-10-07              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P83           | pass 2026-10-08              | pass 2026-10-08                | pass 2026-10-08          | pass 2026-10-08              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P84           | -                            | -                              | -                        | pass 2026-10-09              | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P85           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P86           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P87           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P88           | -                            | -                              | -                        | -                            | fail 2026-10-13        | capture screen 2026-10-12 |              |
+| P89           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
+| P90           | -                            | -                              | -                        | -                            | pass 2026-10-12        | capture screen 2026-10-12 |              |
