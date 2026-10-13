@@ -50,6 +50,24 @@ def differing(a, b):
     )
 
 
+def point_rows(path):
+    """(line number, x, y, verb) of every row that carries a point; None without the file."""
+    if not os.path.exists(path):
+        return None
+    rows = []
+    for number, line in enumerate(open(path, newline=""), 1):
+        if line.startswith("#") or number == 1:
+            continue
+        row = next(csv.reader([line]))
+        if len(row) > 2 and row[1].strip() and row[2].strip() and row[0] != "scroll":
+            rows.append((number, float(row[1]), float(row[2]), row[0]))
+    return rows
+
+
+def number_text(value):
+    return str(int(value)) if float(value) == int(value) else str(value)
+
+
 def report(work, actions, args):
     verbose = "-v" in args
     width, height, dpi, assumed = 1080, 2400, 420, True
@@ -84,7 +102,12 @@ def report(work, actions, args):
             entry["labels"] = "same" if not old_only and not new_only else "DIFF"
             entry["old_only"] = [t[:60] for t in old_only[:6]]
             entry["new_only"] = [t[:60] for t in new_only[:6]]
-        if sets["check"] is not None and sets["aim"] is not None:
+        # A check run older than the aim run compared something else.
+        # 比 aim 更早的 check 比對的是別的東西。
+        fresh = lambda mode: os.path.getmtime(f"{work}/{mode}-{stem}.labels")
+        if sets["check"] is not None and sets["aim"] is not None and fresh("check") < fresh("aim"):
+            entry["check"] = "stale"
+        elif sets["check"] is not None and sets["aim"] is not None:
             a, b = differing(sets["aim"], sets["check"])
             entry["check"] = "same" if not a and not b else "DIFF"
 
@@ -93,21 +116,24 @@ def report(work, actions, args):
             r" by=([\w-]+)(?: apart=(-?\d+))?( class-changed)?",
             aimed_log,
         )
-        rows = []
-        action_file = f"{actions}/{stem}.csv"
-        if not os.path.exists(action_file):
+        # The moves are worked out from the file as it was aimed, not as it is
+        # now: after `write` the file already holds the new points, and adding
+        # the same displacement to those would move every point a second time.
+        # 位移是由「瞄準當時」的檔案算出，而不是現在的檔案：`write` 之後檔案已經是新座標，
+        # 再對它加一次同樣的位移，每個點就會被搬第二次。
+        rows, current = point_rows(f"{work}/aim-{stem}.csv"), point_rows(f"{actions}/{stem}.csv")
+        if current is None:
             entry["flags"].append("no action file")
-        else:
-            for number, line in enumerate(open(action_file, newline=""), 1):
-                if line.startswith("#") or number == 1:
-                    continue
-                row = next(csv.reader([line]))
-                if len(row) > 2 and row[1].strip() and row[2].strip() and row[0] != "scroll":
-                    rows.append((number, float(row[1]), float(row[2]), row[0]))
-        if len(rows) != len(aimed):
+        if rows is None:
+            entry["flags"].append("no copy of the file as aimed; run aim again")
+        if rows is None or current is None:
+            pass
+        elif len(rows) != len(aimed):
             entry["flags"].append(f"count rows={len(rows)} aimed={len(aimed)}")
+        elif len(current) != len(rows):
+            entry["flags"].append(f"the file has {len(current)} point rows, {len(rows)} when aimed; run aim again")
         else:
-            for (number, x, y, verb), (_, px, py, nx, ny, by, apart, changed) in zip(rows, aimed):
+            for (_, x, y, verb), (number, cx, cy, _), (_, px, py, nx, ny, by, apart, changed) in zip(rows, current, aimed):
                 if changed:
                     entry["flags"].append(f"class-changed line {number}")
                 if by == "unmatched" or nx == "":
@@ -119,13 +145,20 @@ def report(work, actions, args):
                 new_y = y + round((int(ny) - int(py)) / density)
                 if verb in PARKING and not (0 <= new_x <= points[0] and 0 <= new_y <= points[1]):
                     entry["flags"].append(f"park off screen line {number}")
-                entry["rows"].append([number, x, y, new_x, new_y, by, apart])
+                state = "written" if (cx, cy) == (new_x, new_y) else "pending" if (cx, cy) == (x, y) else "edited"
+                if state == "edited":
+                    entry["flags"].append(
+                        f"line {number} holds ({number_text(cx)}, {number_text(cy)}), neither the aimed"
+                        f" ({number_text(x)}, {number_text(y)}) nor its target; run aim again"
+                    )
+                entry["rows"].append([number, x, y, new_x, new_y, by, apart, state])
         out[stem] = entry
         if verbose or entry["flags"] or entry["labels"] != "same" or entry.get("check") == "DIFF":
             moved = sum(1 for r in entry["rows"] if (r[1], r[2]) != (r[3], r[4]))
+            pending = sum(1 for r in entry["rows"] if r[7] == "pending")
             print(
                 f"{stem:50} replay={entry['replay']} labels={entry['labels']}"
-                f" check={entry.get('check', '-')} moved={moved} flags={entry['flags']}"
+                f" check={entry.get('check', '-')} moved={moved} to-write={pending} flags={entry['flags']}"
             )
             if entry["labels"] == "DIFF":
                 print("      record only:", entry["old_only"], "\n      aim only:   ", entry["new_only"])
@@ -143,10 +176,6 @@ def clean(work):
     print(" ".join(s for s, e in load(work).items() if not e["flags"]))
 
 
-def number(value):
-    return str(int(value)) if float(value) == int(value) else str(value)
-
-
 def moved_rows(work, stem):
     entry = load(work).get(stem)
     if entry is None:
@@ -154,8 +183,8 @@ def moved_rows(work, stem):
     if entry["flags"]:
         sys.exit(f"{stem}: refused, re-aim by hand -- {entry['flags']}")
     for row in sorted(entry["rows"], key=lambda r: -r[0]):
-        if (row[1], row[2]) != (row[3], row[4]):
-            print(row[0], number(row[1]), number(row[2]), number(row[3]), number(row[4]), sep="\t")
+        if row[7] == "pending":
+            print(row[0], *(number_text(v) for v in row[1:5]), sep="\t")
 
 
 def setxy(line, old_x, old_y, new_x, new_y):

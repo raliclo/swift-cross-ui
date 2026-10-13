@@ -12,7 +12,7 @@
 # `record` belongs to the build the files were last right on; `aim` and `check`
 # to the build they are being moved to. Everything is kept under
 # testapp/output/reaim/ (REAIM_DIR to change it), one set of files per stem:
-# <mode>-<stem>.log, .logcat, .labels, .png.
+# <mode>-<stem>.log, .logcat, .labels, .png, and aim-<stem>.csv, the file as it was aimed.
 #
 # **A file is clean only if** it replayed to the end, every point matched
 # inside its own recorded widget under the same widget class, and no parking
@@ -37,7 +37,7 @@
 # 依每個點當初所記錄的元件(而不是對座標做算術)在版面改變後重新瞄準 Android 動作檔。
 #
 # `record` 屬於檔案上一次正確時的那個建置;`aim` 與 `check` 屬於要搬過去的建置。所有東西都放在
-# testapp/output/reaim/(可用 REAIM_DIR 更改),每個檔名一組:<mode>-<stem>.log、.logcat、.labels、.png。
+# testapp/output/reaim/(可用 REAIM_DIR 更改),每個檔名一組:<mode>-<stem>.log、.logcat、.labels、.png,以及 aim-<stem>.csv(瞄準當時的檔案)。
 #
 # **檔案要同時滿足以下才算乾淨**:重放到結尾、每個點都落在它自己所記錄的元件之內且元件類別相同、沒有任何
 # 停駐列離開螢幕。其餘的 `write` 會拒絕並點名,那些要手動重新瞄準。每一種拒絕都是 2026-10-13 出過的錯:
@@ -102,6 +102,9 @@ replay() {
             [ -f "$work/record-$stem.logcat" ] || die "$stem has no record run; run 'record' on the build the file was right on"
             grep -a -- '-actionfile: aim ' "$work/record-$stem.logcat" | sed 's/^.*-actionfile: aim //' > "$work/$stem.aims"
             [ -s "$work/$stem.aims" ] && export ANDROID_AIM_FILE="$work/$stem.aims"
+            # The file as it is aimed: the report works the moves out from this copy.
+            # 瞄準當時的檔案:report 由這份複本算出位移。
+            cp "$f" "$work/aim-$stem.csv"
         fi
         "$adb" logcat -c >/dev/null 2>&1
         while pgrep -f SoftPCB >/dev/null 2>&1; do print "waiting for SoftPCB before $stem"; sleep 60; done
@@ -144,23 +147,26 @@ write_back() {
     local -a stems
     if [ "$1" = --all ]; then stems=($(python3 "$helper" clean "$work")); else stems=("$@"); fi
     (( $#stems )) || { print "nothing to write: the report has no clean file"; return 0; }
-    local stem f line a b c d old new
+    local stem f line a b c d old new failed=0 touched=0
     for stem in $stems; do
         stem="${stem:t:r}"; f="$actions/$stem.csv"
-        [ -f "$f" ] || die "no such action file: $f"
+        [ -f "$f" ] || die "no such action file: $f"; touched=0
         python3 "$helper" rows "$work" "$stem" | while IFS=$'\t' read -r line a b c d; do
             # A .csv suffix makes csv2 parse the file as CSV and the # lines
             # are refused, so the edit is made on a copy without one.
             # .csv 副檔名會讓 csv2 以 CSV 解析而拒絕 # 開頭的行,所以改在沒有副檔名的複本上編輯。
             cp "$f" "$work/write.lines"
             old="$(csv2 --headers 0 -get "$line:1" -i "$work/write.lines")"
-            new="$(python3 "$helper" setxy "$old" "$a" "$b" "$c" "$d")" || { print -u2 -- "$stem line $line: refused"; continue; }
+            new="$(python3 "$helper" setxy "$old" "$a" "$b" "$c" "$d")" || { failed=1; print -u2 -- "$stem line $line: refused"; continue; }
             printf '%s' "$new" > "$work/write.val"
             csv2 --headers 0 -update "$line:1" --value-file "$work/write.val" -i "$work/write.lines" --in-place \
-                && cp "$work/write.lines" "$f" && print "$stem line $line: ($a, $b) -> ($c, $d)"
+                && cp "$work/write.lines" "$f" && print "$stem line $line: ($a, $b) -> ($c, $d)" || failed=1
+            (( ++touched ))
         done
-        [ ${pipestatus[1]} -eq 0 ] || print -u2 -- "$stem: not written (see the line above)"
+        [ ${pipestatus[1]} -eq 0 ] || { failed=1; print -u2 -- "$stem: not written (see the line above)"; }
+        (( touched || failed )) || print "$stem: nothing to write, every point already holds its target"
     done
+    return $failed
 }
 
 command="${1:-}"; (( $# )) && shift
