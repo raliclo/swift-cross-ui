@@ -37,9 +37,9 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 以位置做出差別的那一側是 `.trailing`,它有自己的檔案。
 sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
-click,96,804,,left,,,cycle 1: none -> top,android
+click,187,762,,left,,,cycle 1: none -> top,android
 sleep,,,,,,600000,,android
-click,96,799,,left,,,"cycle 2: top -> bottom. 799, not 804: the readout goes from two lines to one and the row loses that height",android
+click,187,766,,left,,,"cycle 2: top -> bottom. 799, not 804: the readout goes from two lines to one and the row loses that height",android
 sleep,,,,,,800000,let the readout redraw,android
-click,156,755,,left,,,open PANEL ALPHA with arrowEdge bottom,android
+click,242,739,,left,,,open PANEL ALPHA with arrowEdge bottom,android
 sleep,,,,,,1500000,leave the panel open for the final capture,android

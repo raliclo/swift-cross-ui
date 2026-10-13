@@ -49,5 +49,5 @@ action,x,y,origin,button,key,micros,note,platform
 # Emulator 為 swift-cross-ui-api36，1080 x 2400 像素，density 2.625。一點等於 2.625 像素，
 # 因此本列的 (149, 359) 即為 (391, 942)。
 sleep,,,,,,1500000,let P12 render,android
-click,149,359,,left,,,"Increment counter -- the line above must read counter: 1 (VERIFIED: it does, and the rest of the page is untouched)",android
+click,149,324,,left,,,"Increment counter -- the line above must read counter: 1 (VERIFIED: it does, and the rest of the page is untouched)",android
 sleep,,,,,,1200000,let the label redraw,android

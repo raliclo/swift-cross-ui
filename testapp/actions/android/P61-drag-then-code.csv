@@ -8,8 +8,8 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P61 在 Android 上:一次拖曳加一次「從程式移動」之後 began 1、ended 1。
 sleep,,,,,,1200000,let P61 lay out,android
-move,176,418,,,,,the slider's thumb,android
+move,179,252,,,,,the slider's thumb,android
 scroll,-3,0,,,,,"drag it 120 points to the right: one press, intermediate moves, one release",android
 sleep,,,,,,800000,,android
-click,125,466,,left,,,"move it from code -- the counts must NOT change",android
+click,111,294,,left,,,"move it from code -- the counts must NOT change",android
 sleep,,,,,,800000,,android

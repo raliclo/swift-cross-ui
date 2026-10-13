@@ -43,5 +43,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 一個「什麼都裁」的 backend 會把三格都畫成 60 點，而那看起來會像通過。第 2 格永遠裁切。只有第 3 格
 # 會動。
 sleep,,,,,,1500000,let P44 lay out its three cells,android
-click,94,217,,left,,,"the ""Clip the third cell"" button -- the third orange band must go from 100 points tall to 60 and from 200 points wide to 120, the label must read ""third cell: clipped()"", and the first two bands must not move at all. REPLAYED 2026-09-04: band 3 went 262 px to 157 px tall (100 pt to 60 pt) and 462 px to 315 px wide; bands 1 and 2 unchanged at 262 px and 157 px",android
+click,80,100,,left,,,"the ""Clip the third cell"" button -- the third orange band must go from 100 points tall to 60 and from 200 points wide to 120, the label must read ""third cell: clipped()"", and the first two bands must not move at all. REPLAYED 2026-09-04: band 3 went 262 px to 157 px tall (100 pt to 60 pt) and 462 px to 315 px wide; bands 1 and 2 unchanged at 262 px and 157 px",android
 sleep,,,,,,1500000,let the third cell redraw,android

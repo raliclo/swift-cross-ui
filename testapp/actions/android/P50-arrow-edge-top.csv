@@ -26,7 +26,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 請與它的另一半 P50-arrow-edge-bottom.csv 一起讀:單獨一側證明不了任何事,因為這些平台每一個都會
 # 移動放不下的 popover。按鈕旁的讀數會說出目前生效的是哪一個值。
 sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
-click,96,804,,left,,,"Cycle arrow edge: none -> top; the readout must say top",android
+click,187,762,,left,,,"Cycle arrow edge: none -> top; the readout must say top",android
 sleep,,,,,,800000,let the readout redraw,android
-click,156,755,,left,,,open PANEL ALPHA -- the panel carrying the arrowEdge,android
+click,242,739,,left,,,open PANEL ALPHA -- the panel carrying the arrowEdge,android
 sleep,,,,,,1500000,leave the panel open for the final capture,android

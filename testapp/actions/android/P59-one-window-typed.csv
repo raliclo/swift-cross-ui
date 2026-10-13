@@ -7,11 +7,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P59 在 Android 上:只有一個視窗。通過:scene draft 與 app draft 都讀 AAA。先 clear。
 sleep,,,,,,1200000,let P59 render,android
-click,259,394,,left,,,clear -- both drafts persist between runs,android
+click,193,234,,left,,,clear -- both drafts persist between runs,android
 sleep,,,,,,400000,,android
-click,65,394,,left,,,append A,android
+click,52,234,,left,,,append A,android
 sleep,,,,,,300000,,android
-click,65,394,,left,,,again,android
+click,52,234,,left,,,again,android
 sleep,,,,,,300000,,android
-click,65,394,,left,,,and again -- both rows must read AAA,android
+click,52,234,,left,,,and again -- both rows must read AAA,android
 sleep,,,,,,700000,settle before the photograph,android

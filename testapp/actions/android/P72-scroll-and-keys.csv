@@ -45,7 +45,7 @@ action,x,y,origin,button,key,micros,note,platform
 # `AndroidSynthesiser` 是拒絕按鍵列的。`keydown,shift` 會設定 META_SHIFT_ON,而下一列會帶著它
 # ——那正是步長從 0.1 變成 1.0 的原因;斷言的是那個**步長改變**,不是那個方向鍵。
 sleep,,,,,,2000000,let P72 lay out and the frame clock settle,android
-move,190,259,,,,,"put the next gesture over the centre of the mesh view; on a touch screen this posts no event, it only records where",android
+move,197,274,,,,,"put the next gesture over the centre of the mesh view; on a touch screen this posts no event, it only records where",android
 scroll,0,2,,,,,"scroll forward two notches -- dist must fall 3.40 -> 2.60",android
 sleep,,,,,,800000,,android
 scroll,0,-2,,,,,"scroll back two notches -- dist must return to 3.40",android

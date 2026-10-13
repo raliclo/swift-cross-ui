@@ -42,11 +42,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 因此本檔採「按住」。`mousedown`、一段長到足以發生重繪的 sleep、`mouseup`。
 # 它所證明的正是這支 app 所主張的:一次真實的按壓會抵達 `configuration.isPressed`。
 sleep,,,,,,1500000,let P55 render,android
-mousedown,65,297,,left,,,hold the button down,android
+mousedown,65,223,,left,,,hold the button down,android
 sleep,,,,,,900000,stay held long enough for a redraw,android
-mouseup,65,297,,left,,,release,android
+mouseup,65,223,,left,,,release,android
 sleep,,,,,,600000,settle,android
-mousedown,65,297,,left,,,hold again,android
+mousedown,65,223,,left,,,hold again,android
 sleep,,,,,,900000,stay held,android
-mouseup,65,297,,left,,,release,android
+mouseup,65,223,,left,,,release,android
 sleep,,,,,,1000000,settle before the photograph,android

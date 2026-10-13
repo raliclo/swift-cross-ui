@@ -47,7 +47,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 於是把置中的內容往左推。因此兩列都落在可見的部分:點 (60, 430) 是像素 (158, 1129),
 # 點 (140, 430) 是像素 (368, 1129),兩者都在那條帶子裡。
 sleep,,,,,,2000000,let P65 lay out,android
-mousedown,60,430,,left,,,press inside the drag panel -- this sets start,android
+mousedown,164,288,,left,,,press inside the drag panel -- this sets start,android
 sleep,,,,,,400000,,android
-mouseup,140,430,,left,,,"release 80 points to the right -- the log must read translation (80, 0). VERIFIED 2026-09-23 BOTH WAYS on emulator-5554: with the density conversion, drag ended: start (84, 43) now (164, 43) translation (80, 0); with it removed and the APK rebuilt, start (221, 114) now (431, 114) translation (210, 0), which is 80 x 2.625",android
+mouseup,244,288,,left,,,"release 80 points to the right -- the log must read translation (80, 0). VERIFIED 2026-09-23 BOTH WAYS on emulator-5554: with the density conversion, drag ended: start (84, 43) now (164, 43) translation (80, 0); with it removed and the APK rebuilt, start (221, 114) now (431, 114) translation (210, 0), which is 80 x 2.625",android
 sleep,,,,,,1200000,let the readout redraw,android

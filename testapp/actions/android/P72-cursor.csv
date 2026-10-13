@@ -44,7 +44,7 @@ action,x,y,origin,button,key,micros,note,platform
 # mesh view 是自 x 54 起、像素 y 366 到 996 的那一條帶,中心像素 (500, 681) 即點 (190, 259)。
 # 點 (190, 34) 是頁面頂端的標題文字。
 sleep,,,,,,2500000,let P72 lay out and the surface be created,android
-hover,190,259,,,,,"pointer onto the mesh view -- must report crosshair (VERIFIED 2026-09-22: -actionfile: cursor at (190, 259) is crosshair)",android
+hover,197,274,,,,,"pointer onto the mesh view -- must report crosshair (VERIFIED 2026-09-22: -actionfile: cursor at (190, 259) is crosshair)",android
 sleep,,,,,,500000,,android
-hover,190,34,,,,,"pointer onto the title text -- must report none, and that IS the pass: onResolvePointerIcon returns null when no view under the point claims an icon, which is how confinement looks on Android. A crosshair here would mean the icon was set on the window (VERIFIED 2026-09-22: crosshair inside, none outside)",android
+hover,198,70,,,,,"pointer onto the title text -- must report none, and that IS the pass: onResolvePointerIcon returns null when no view under the point claims an icon, which is how confinement looks on Android. A crosshair here would mean the icon was set on the window (VERIFIED 2026-09-22: crosshair inside, none outside)",android
 sleep,,,,,,500000,,android

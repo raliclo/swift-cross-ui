@@ -57,7 +57,7 @@ action,x,y,origin,button,key,micros,note,platform
 # Emulator swift-cross-ui-api36, 1080 x 2400 px, density 2.625 -> 411 x 914 pt.
 # Emulator 為 swift-cross-ui-api36,1080 x 2400 px、density 2.625 -> 411 x 914 pt。
 sleep,,,,,,1200000,let the list settle and report its launch count,android
-move,200,865,,,,,pointer into the LIST; scroll acts where it is and the page above it has nothing to scroll,android
+move,200,643,,,,,pointer into the LIST; scroll acts where it is and the page above it has nothing to scroll,android
 scroll,0,6,,,,,,android
 sleep,,,,,,250000,,android
 scroll,0,6,,,,,,android
@@ -171,5 +171,5 @@ sleep,,,,,,250000,,android
 scroll,0,-6,,,,,,android
 sleep,,,,,,250000,,android
 sleep,,,,,,900000,back at the top,android
-click,137,247,,left,,,Select last -- a state change so the readout re-renders,android
+click,103,197,,left,,,Select last -- a state change so the readout re-renders,android
 sleep,,,,,,1500000,,android

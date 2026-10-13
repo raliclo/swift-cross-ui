@@ -36,5 +36,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 且分頁下方的標題變成「SwiftUI: expected behaviour」。一個「只把按下的分頁高亮、卻不切換頁面」的
 # 分頁列，會移動前者而不會改變後者。
 sleep,,,,,,1500000,let P26 lay out the summary table,android
-click,172,78,,left,,,"the ""SwiftUI"" tab -- the bracketed label must move from ""[ Summary ]"" to ""[ SwiftUI ]"" AND the heading must become ""SwiftUI: expected behaviour"". REPLAYED 2026-09-03: both",android
+click,132,71,,left,,,"the ""SwiftUI"" tab -- the bracketed label must move from ""[ Summary ]"" to ""[ SwiftUI ]"" AND the heading must become ""SwiftUI: expected behaviour"". REPLAYED 2026-09-03: both",android
 sleep,,,,,,1500000,let the tab content render,android
