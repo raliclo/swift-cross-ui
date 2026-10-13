@@ -10,5 +10,5 @@ action,x,y,origin,button,key,micros,note,platform
 # P75 在 iPad 上：Close this window -> dismissWindow()，多 scene 路徑。宣告了多 scene 的 iPad app 以結束
 # scene session 關閉視窗。通過條件見上方英文；iPhone 檔記錄的正是相反的那個錯誤。
 sleep,,,,,,1500000,let P75 render,ios
-click,372,756,client,left,,,Close this window,ios
+taplabel,,,,,Close this window,,"by label: (372, 756) has been empty space since the content starts at the top (2026-10-12)",ios
 sleep,,,,,,3000000,let the scene session end,ios

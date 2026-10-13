@@ -11,20 +11,24 @@ action,x,y,origin,button,key,micros,note,platform
 #   window (170,220) is panel (154,80), and the path ends one point to its right -- with
 #   "hover reports" 13, 9 and 14. The runner sends one synthesized pointer path per row;
 #   XCUICoordinate.hover() delivered one or two rows of five and never the Command key.
-#   The synthesized pointer leaves about 100 ms after each row, so the capture ends on
-#   "pointer: ended" and never shows "pointer: x= y=": that readout is NOT evidenced by this file.
+#   The synthesized pointer leaves about 100 ms after a row's path ends, so the run's final
+#   capture shows "pointer: ended". The last hover row therefore rests 2 s (its micros), and the
+#   runner captures halfway: that capture and its label list read "pointer: x=185 y=50" -- window
+#   (200,190) is panel (184,50), one point right -- with "hover reports: 63".
 # - iPhone: no pointer. The hover rows are skipped and say so; "hover reports" stays 0 and
-#   "pointer: not yet". The synthesized path is accepted there and nothing reaches the app.
+#   "pointer: not yet". Measured with the skip taken out: the same path, resting 2 s, is accepted
+#   and nothing reaches the app (the resting labels read "pointer: not yet", "hover reports: 0").
 #
 # 2026-10-13,在 iPhone 與 iPad Pro 11 吋模擬器上重放(iOS 27.0、Xcode 27.0):
 # - 拖曳在兩者上都成立:「drags: 1 · control drags: 1」。對照組的拖曳原本在 y 385,內容改從頂端開始後那裡是
 #   藍色面板(讀到「drags: 2 · control drags: 0」);現在是 y 430,在兩種裝置上都落在綠色面板內。
 # - iPad:每一列 hover 都送進 app。三次執行都讀到「last with cmd: x=155 y=80」——視窗 (170,220) 那一列即
 #   面板 (154,80),路徑結束在它右邊一點——「hover reports」分別是 13、9、14。runner 每列送一段合成的指標路徑;
-#   XCUICoordinate.hover() 五列只送達一兩列,而且從未帶著 Command。合成的指標在每一列結束後約 100 ms 離開,
-#   所以擷圖停在「pointer: ended」,不會出現「pointer: x= y=」:那一行讀數**沒有**被這份檔案佐證。
-# - iPhone:沒有指標。hover 列會被跳過並明講;「hover reports」維持 0、「pointer: not yet」。
-#   合成路徑在那裡會被接受,但沒有任何東西送進 app。
+#   XCUICoordinate.hover() 五列只送達一兩列,而且從未帶著 Command。合成的指標在一列的路徑結束後約 100 ms 離開,
+#   所以最後擷圖是「pointer: ended」。因此最後一列 hover 停留 2 秒(它的 micros),runner 在一半時擷圖:那張擷圖與
+#   標籤清單讀到「pointer: x=185 y=50」——視窗 (200,190) 即面板 (184,50),右移一點——「hover reports: 63」。
+# - iPhone:沒有指標。hover 列會被跳過並明講;「hover reports」維持 0、「pointer: not yet」。拿掉跳過後實測:
+#   同一條路徑、停留 2 秒,會被接受,但沒有任何東西送進 app(停留時的標籤是「pointer: not yet」「hover reports: 0」)。
 sleep,,,,,,2500000,let P88 lay out,ios
 hover,150,200,client,,,,into the panel,ios
 sleep,,,,,,500000,,ios
@@ -42,5 +46,5 @@ mousedown,100,430,client,left,,,control: drag on the green panel (no hover wrapp
 sleep,,,,,,400000,,ios
 mouseup,200,430,client,left,,,,ios
 sleep,,,,,,400000,,ios
-hover,200,190,client,,,,end inside the panel,ios
+hover,200,190,client,,,2000000,end inside the panel and rest there 2 s: the resting capture must read pointer: x= y=,ios
 sleep,,,,,,1500000,let the readout redraw,ios

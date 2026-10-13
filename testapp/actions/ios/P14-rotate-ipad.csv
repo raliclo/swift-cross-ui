@@ -10,6 +10,8 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P14 在 iPad 上:旋轉。通過(讀 dumptree):轉成橫向後 proposed width 改變，轉回後恢復，history 記下兩者。
 sleep,,,,,,2000000,let P14 render,ios
+click,53,54,client,left,,,"the mode button, to rwdView -- actualView lays P14 out at its default size whichever way the iPad is held (the width read 388 in both on 2026-10-13)",ios
+sleep,,,,,,1200000,let the layout follow the mode,ios
 windowframes,,,,,,,,ios
 orient,,,,,landscapeLeft,,turn the device left,ios
 sleep,,,,,,3000000,let the rotation finish,ios

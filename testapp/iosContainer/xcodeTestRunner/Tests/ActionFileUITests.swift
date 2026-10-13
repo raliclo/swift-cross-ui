@@ -207,7 +207,7 @@ final class ActionFileUITests: XCTestCase {
                 // One synthesized event that travels from the previous point
                 // reaches the app on every row and carries the modifiers.
                 //
-                // The pointer does not stay: it leaves about 100 ms after the
+                // The pointer does not stay unless the row has `micros`: it leaves about 100 ms after the
                 // travel ends, so the app sees began, changed, ended per row.
                 //
                 // An iPhone has no pointer. `hover()` failed the whole test
@@ -222,7 +222,7 @@ final class ActionFileUITests: XCTestCase {
                 // 包在 `perform(withKeyModifiers:)` 裡也從未出現 Command。改成一個從上一點移過來的合成事件後，
                 // 每一列都送達，也帶著 modifier。
                 //
-                // 指標不會停留:移動結束後約 100 ms 就離開，所以 app 每一列看到的是 began、changed、ended。
+                // 除非該列帶 `micros`,指標不會停留:移動結束後約 100 ms 就離開，所以 app 每一列看到的是 began、changed、ended。
                 //
                 // iPhone 沒有指標。`hover()` 在那裡會讓整個測試失敗(「Pointer events are not supported for this
                 // device」);合成事件則被接受，但沒有任何東西送進 app(「hover reports: 0」)。所以在那裡這一列會被跳過並明講;點仍然保留，因為後面的列可能從它開始。
@@ -240,7 +240,41 @@ final class ActionFileUITests: XCTestCase {
                     )
                     break
                 }
-                try PointerPath.move(from: start, to: end, modifiers: heldModifiers.rawValue)
+                // A hover row with `micros` rests the pointer there for that long, and
+                // halfway through writes what is on the screen: a capture into
+                // `IOS_SHOT_DIR` and the labels. Without it the pointer has left before
+                // the run's final capture, which then shows "ended" (P88, 2026-10-13).
+                // 帶 `micros` 的 hover 列讓指標在那裡停留那麼久，並在一半時寫下畫面上有什麼:一張擷圖進
+                // `IOS_SHOT_DIR`,以及標籤。少了它，指標在最後擷圖之前就離開了，擷圖看到的是「ended」。
+                let line = action.line
+                try PointerPath.move(
+                    from: start, to: end, modifiers: heldModifiers.rawValue,
+                    hold: action.microseconds / 1_000_000
+                ) {
+                    if let directory = ProcessInfo.processInfo.environment["IOS_SHOT_DIR"] {
+                        let file = "\(directory)/hover-L\(line).png"
+                        do {
+                            try XCUIScreen.main.screenshot().pngRepresentation
+                                .write(to: URL(fileURLWithPath: file))
+                            FileHandle.standardError.write(
+                                Data("-actionfile: resting capture \(file)\n".utf8))
+                        } catch {
+                            FileHandle.standardError.write(
+                                Data("-actionfile: resting capture FAILED: \(error)\n".utf8))
+                        }
+                    }
+                    if let root = try? frontApp.snapshot() {
+                        var elements: [XCUIElementSnapshot] = []
+                        Self.flatten(root, into: &elements)
+                        let labels = elements.map(\.label).filter { !$0.isEmpty }
+                        if let data = try? JSONEncoder().encode(labels) {
+                            FileHandle.standardError.write(
+                                Data(
+                                    ("-actionfile: resting labels line \(line) "
+                                        + "\(String(decoding: data, as: UTF8.self))\n").utf8))
+                        }
+                    }
+                }
                 FileHandle.standardError.write(
                     Data(
                         ("-actionfile: hovered (\(action.x), \(action.y)) "
@@ -1038,7 +1072,8 @@ private enum PointerPath {
     }
 
     static func move(
-        from start: CGPoint, to end: CGPoint, modifiers: UInt
+        from start: CGPoint, to end: CGPoint, modifiers: UInt, hold: TimeInterval = 0,
+        whileResting: () -> Void = {}
     ) throws {
         typealias InitAt = @convention(c) (AnyObject, Selector, CGPoint) -> Unmanaged<AnyObject>
         typealias MoveTo = @convention(c) (AnyObject, Selector, CGPoint, Double, Double) -> Void
@@ -1077,8 +1112,18 @@ private enum PointerPath {
         // one row of three reached the app and Command never did (2026-10-13).
         // 停頓之後再走最後一步，其後才放開 modifier。少了它們，三列只有一列送進 app,Command 則從未送達(2026-10-13)。
         moveTo(path, moveToSelector, CGPoint(x: end.x + 1, y: end.y), 0.75, 0.05)
+        // A rest: the pointer goes on being moved, one point back and forth, because it
+        // leaves about 100 ms after the last event of a path.
+        // 停留:指標繼續被來回移動一點，因為一條路徑的最後一個事件之後約 100 ms 它就離開。
+        var offset = 0.8
+        var away = false
+        while offset < 0.8 + hold {
+            moveTo(path, moveToSelector, CGPoint(x: end.x + (away ? 1 : 0), y: end.y), offset, 0.05)
+            away.toggle()
+            offset += 0.1
+        }
         if modifiers != 0 {
-            setModifiers(path, setModifiersSelector, 0, false, 0.85)
+            setModifiers(path, setModifiersSelector, 0, false, offset + 0.05)
         }
         let record = initRecord(
             recordClass.perform(alloc).takeUnretainedValue(), initRecordSelector,
@@ -1101,7 +1146,13 @@ private enum PointerPath {
         _ = synthesizer.perform(
             NSSelectorFromString("synthesizeEvent:completion:"), with: record,
             with: completion as AnyObject)
-        guard done.wait(timeout: .now() + 20) == .success else {
+        // Halfway through a rest, the caller looks at the screen: that is the only time a
+        // resting pointer can be seen, because the path below is waited for to its end.
+        // 停留到一半時讓呼叫端看一眼畫面:指標停留的樣子只有這時看得到，因為下面會等這條路徑走完。
+        if hold > 0, done.wait(timeout: .now() + 0.8 + hold / 2) == .timedOut {
+            whileResting()
+        }
+        guard done.wait(timeout: .now() + 20 + hold) == .success else {
             throw Unavailable(description: "the pointer move was not acknowledged in 20 s")
         }
         if let failure { throw failure }

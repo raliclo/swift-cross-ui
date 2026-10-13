@@ -486,6 +486,16 @@ if [ -n "$action_file" ]; then
         /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:$aim_key string $aim_value" "$xctestrun_path"
     done
 
+    # Where the runner writes a capture taken while a pointer rests. Under TMPDIR for
+    # the reason the action file is staged there; emptied so an old capture is not
+    # taken for this run's.
+    # runner 在指標停留時擷圖的寫入位置。放在 TMPDIR 的理由與動作檔暫存相同;先清空，免得舊圖被當成這一次的。
+    shot_dir="${TMPDIR:-/tmp}/scui-ios-shots"
+    mkdir -p "$shot_dir"
+    rm -f "$shot_dir"/hover-L*.png(N)
+    /usr/libexec/PlistBuddy -c "Delete :iOSActionFileRunner:TestingEnvironmentVariables:IOS_SHOT_DIR" "$xctestrun_path" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:IOS_SHOT_DIR string $shot_dir" "$xctestrun_path"
+
     # `-derivedDataPath` here too. Without it the test step wrote its logs and
     # TestResults into ~/Library/Developer/Xcode/DerivedData under a new
     # iOSActionFileRunner-<hash> on each run: 166 of them on 2026-10-04, on the
@@ -498,6 +508,15 @@ if [ -n "$action_file" ]; then
         -destination "$destination" \
         -derivedDataPath "$xctest_build" \
         -only-testing:iOSActionFileRunner/ActionFileUITests/testActionFile
+
+    # What the runner captured while a pointer rested (a hover row with micros),
+    # into the screenshots folder beside the final capture.
+    # runner 在指標停留時(帶 micros 的 hover 列)擷下的畫面，搬到截圖資料夾，與最後擷圖放在一起。
+    for shot in "$shot_dir"/hover-L*.png(N); do
+        resting="$script_dir/output/screenshots/${target:l}-ios-${shot:t:r}-$(date +%Y%m%d-%H%M%S).png"
+        mkdir -p "${resting:h}"
+        mv "$shot" "$resting" && printf '==> Screenshot: %s\n' "${resting:t}"
+    done
 fi
 
 # The app's own update timings, when asked for (UpdateTimings.swift): the last

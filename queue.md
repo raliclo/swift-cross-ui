@@ -50,7 +50,8 @@
     effect on the late view -- A, B, C, D and the circle start on the red line in
     the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
     such machine here).
-  - [ ] **`taplabel` on WinUI, and on GTK under X11 and Windows.** Works on
+  - [ ] **Waits for the Windows side (user, 2026-10-13), with onContinuousHover there.** 等 Windows 端。
+    **`taplabel` on WinUI, and on GTK under X11 and Windows.** Works on
     AppKitBackend and on GtkBackend on macOS (2026-10-10, `actions/mac/P10-taplabel.csv`:
     Direct, Covered and Hidden clicks all 1 on both): the backend sets
     `ActionFileReplay.locateLabel` and the replay loop clicks where it points.
@@ -530,7 +531,9 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   made P78/P79/P81 fail on 2026-10-07 -- that output was discarded; the next
   occurrence will say.
 
-- [ ] **Android: everything a test app draws comes out at 92.5% brightness** (found
+- [ ] **PENDING by the user (2026-10-13: "it is ok, put this in pending") -- not to be worked on until asked.**
+  使用者 2026-10-13 指示擱置,未被要求前不處理。
+  **Android: everything a test app draws comes out at 92.5% brightness** (found
   2026-10-09, SoftPCB-mac on P85). Every channel is multiplied by ~0.9255:
   P85's SVG background #fffbe6 shows as (236,232,213), the decor view's white
   (#ffffffff, set by setWindowBackground) shows as (236,236,236) -- the grey
@@ -724,7 +727,10 @@ centred in it. Measured by comparing each app's capture before and after.
 比螢幕大的版面現在從根 view 的外框開始，而不是從置中留下的空白開始(使用者,2026-10-11,起因是 P50)。
 受影響的遠不只 P50:多數 app 要求的版面比手機高，原本垂直置中在裡面。以下是比較每個 app 前後擷取圖量出來的。
 
-- [ ] **iOS and Android action files measured before 2026-10-12 are stale wherever the
+- [x] **Action files re-aimed** -- iOS on 2026-10-12 (87c61a0e, 9f733bbc: 86 + 7 iPhone files), Android on
+  2026-10-13 (d50a2a15, 529ad4ed, 56a37654), the iPad files on 2026-10-13. `testapp/reaim_android.zsh` keeps
+  the Android procedure. iOS 於 2026-10-12、Android 與 iPad 檔案於 2026-10-13 重新瞄準完成。
+  Was: **iOS and Android action files measured before 2026-10-12 are stale wherever the
   content moved.** About 60 apps moved on at least one platform: up by 60-290 pt
   (P0, P1, P4, P5, P7-P12, P52-P83, P85), left by 6-150 pt (P13, P15, P17-P20,
   P28-P30, P34, P37-P43, P47, P50, P86, P89). Unmoved on both: P14, P16, P21-P26,
@@ -1303,15 +1309,26 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   "Zhuyin -> ABC ... restored to Zhuyin", and Zhuyin was current afterwards.
 - [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.csv` -- proposed
   width 802 portrait, 1178 landscape, 802 again, read from the tree.
-- [ ] **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.csv` and the
+- [x] **P72 cursor on iPad** -- DONE 2026-10-13 on the iPad simulator, not "physical iPad only": the runner
+  rests a synthesized pointer and captures during the rest. One crosshair request over the mesh view, none over
+  the text; the captures show a drawn cross and the system pointer. Only `crosshair` was seen; a physical iPad
+  with a trackpad is still untried. 2026-10-13 在 iPad 模擬器上完成:十字游標拍到了;實體 iPad 仍未試。
+  Was: **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.csv` and the
   runner's `hover` verb are ready, and UIKitBackend prints the pointer style the
   system asks for under --debug; but the Simulator delivers no hover to apps --
   neither the style request nor a UIHoverGestureRecognizer fired across two
   hovers the runner logged. Run it on an iPad with a trackpad.
-- [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad
+- [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad -- six exist and all six
+  were replayed on 2026-10-13 (P5, P14, P59, P62, P72-cursor, P75); the other apps have none.
+  Was: measured on an iPad
   capture (834x1210 points, @2x: points = pixels / 2). One exists:
   `P75-close-the-window-ipad.csv` (verified).
-- [ ] **What to test on iPad:** multi-window P5, P59, P62; closing a window
+- [x] **What to test on iPad** -- run 2026-10-13 on the iPad Pro 11-inch (M5) simulator: multi-window P5, P59
+  and P62 pass; closing a window P75 passes (pressed by label; its point was stale); rotation P14 passes once the
+  file switches to rwdView first (802 -> 1178 -> 802; in actualView the width is the default size both ways);
+  pointer hover P88 and the cursor P72 pass (see above). Not on a physical iPad.
+  2026-10-13 在 iPad 模擬器上跑過:P5、P59、P62、P75、P14、P88、P72 都通過;實體 iPad 沒有。
+  Was: **What to test on iPad:** multi-window P5, P59, P62; closing a window
   P75 (done); pointer hover and cursors P72 (iPhone has neither); rotation P14.
 
 ## 2026-09-27 found while driving iOS
