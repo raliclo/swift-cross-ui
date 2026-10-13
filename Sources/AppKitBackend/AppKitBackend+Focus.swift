@@ -45,6 +45,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
         // `makeFirstResponder`,等於要求 AppKit 去聚焦一層包裝,而回來的東西不保證是 `false`。
         // 在此拒絕,才讓本協定所承諾的那個答案——「它有沒有接受焦點」——出自那個真正決定它的問題。
         guard target.acceptsFirstResponder, let window = widget.window else { return false }
+        defer { Self.recheckFocusObservers() }
         return window.makeFirstResponder(target)
     }
 
@@ -64,6 +65,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
     public func unfocus(_ widget: Widget) {
         guard isFocused(widget), let window = widget.window else { return }
         window.makeFirstResponder(window)
+        Self.recheckFocusObservers()
     }
 
     /// Whether the first responder is this widget or something inside it.
@@ -152,6 +154,24 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
     /// 為鍵,好讓這張表不會隨著幀數成長。
     @MainActor static var focusObservers: [ObjectIdentifier: FocusObserver] = [:]
 
+    /// Has every observer look again, on the next turn of the main queue.
+    ///
+    /// The observers look when a window updates, which follows an event. A focus
+    /// moved from code -- `focus(_:)`, `unfocus(_:)` -- is followed by none, so the
+    /// observer kept its old answer; when the user then pressed the same view the
+    /// answer was already "focused" and the press was never reported (P91,
+    /// 2026-10-13). Deferred, because these are called during layout.
+    /// 讓每個 observer 在主佇列的下一輪再看一次。observer 在視窗更新時查看，而那跟在事件之後。由程式移動的焦點
+    /// (`focus(_:)`、`unfocus(_:)`)後面沒有事件，observer 就留著舊答案;使用者接著按同一個 view 時答案早已是
+    /// 「已聚焦」,那次按壓就從未被回報。延後執行，因為這些是在 layout 期間被呼叫的。
+    static func recheckFocusObservers() {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                for observer in focusObservers.values { observer.check() }
+            }
+        }
+    }
+
     /// `@MainActor` on the class, not on its methods.
     ///
     /// A `@MainActor` class is `Sendable`, which is what lets the notification
@@ -211,7 +231,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
             }
         }
 
-        private func check() {
+        fileprivate func check() {
             guard let widget else { return }
             let now = backend.isFocused(widget)
             guard now != lastValue else { return }

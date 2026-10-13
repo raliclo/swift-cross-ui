@@ -258,7 +258,22 @@ struct FocusModifier<Content: View>: TypeSafeView {
             }
 
             let wanted = binding.wrappedValue
-            guard wanted != backend.isFocused(widget) else { return }
+            let previous = FocusRequests.exchange(widget as AnyObject, wanted: wanted)
+            let has = backend.isFocused(widget)
+            guard wanted != has else { return }
+            // The app asked for nothing new, so the PLATFORM moved the focus -- a
+            // press, Tab -- and the handler has not been heard yet. Follow it.
+            // Acting on this disagreement took the focus back from the view the
+            // user had just moved it to: on AppKit a layout pass between the press
+            // and the report unfocused the pressed view, and Tab from one
+            // `.focusable()` view to the next was undone (P91, 2026-10-13).
+            // app 沒有提出新的要求，所以是**平台**移動了焦點——按壓、Tab——而 handler 的回報還沒到。跟著它走。
+            // 對這種不一致採取行動，會把焦點從使用者剛移過去的 view 搶回來:在 AppKit 上，按壓與回報之間的一次
+            // layout 讓被按的 view 失去焦點，從一個 `.focusable()` view 按 Tab 到下一個也被還原。
+            if let previous, previous == wanted {
+                binding.wrappedValue = has
+                return
+            }
             if wanted {
                 // A refusal is left in the binding rather than papered over. On
                 // Android a view in touch mode legitimately declines, and a
@@ -286,5 +301,34 @@ struct FocusModifier<Content: View>: TypeSafeView {
         backend: Backend
     ) {
         _ = children.child0.commit()
+    }
+}
+
+/// What each `.focused` view last asked for, so that "the app changed its mind"
+/// can be told from "the platform moved the focus".
+/// 每個 `.focused` view 上一次要求的是什麼，用來分辨「app 改變了主意」與「平台移動了焦點」。
+@MainActor
+enum FocusRequests {
+    private struct Entry {
+        weak var widget: AnyObject?
+        var wanted: Bool
+    }
+
+    private static var entries: [ObjectIdentifier: Entry] = [:]
+
+    /// Records `wanted` for `widget` and returns what was recorded before, or
+    /// `nil` the first time.
+    /// 記下 `widget` 的 `wanted`,並回傳先前記的值;第一次回傳 `nil`。
+    static func exchange(_ widget: AnyObject, wanted: Bool) -> Bool? {
+        let key = ObjectIdentifier(widget)
+        var previous: Bool?
+        if let entry = entries[key], entry.widget === widget {
+            previous = entry.wanted
+        }
+        entries[key] = Entry(widget: widget, wanted: wanted)
+        if entries.count > 256 {
+            entries = entries.filter { $0.value.widget != nil }
+        }
+        return previous
     }
 }

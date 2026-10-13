@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on Android (emulator 1080 x 2400 px at 2.625, 411 x 914 dp): .focusable() on plain panels.
+# Points are dp; this app's client frame starts at (-4.2, 35.8), so a point is
+# screen px / 2.625 minus that. Panels at screen y 577-760 px: A x 49-337, B x 374-662,
+# off x 700-988. Buttons are pressed by label.
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", "focused: a".
+# c is typed after pressing B, d after Tab from A, e after the "focus B" button.
+# Android 上的 P91:普通色塊上的 .focusable()。座標是 dp;按鈕以標籤按下。
+# 結束時應為:A heard: ab、B heard: cde、off heard: 空白、refusal check: refused (correct)、focused: a。
+sleep,,,,,,1500000,let P91 lay out,android
+key,,,,,x,,nothing is focused -- no panel may hear this,android
+sleep,,,,,,300000,,android
+click,77,218,,left,,,press panel A -- focused: a,android
+sleep,,,,,,600000,,android
+key,,,,,a,,,android
+key,,,,,b,,A heard: ab,android
+sleep,,,,,,300000,,android
+click,201,218,,left,,,press panel B -- focused: b,android
+sleep,,,,,,600000,,android
+key,,,,,c,,B heard: c,android
+sleep,,,,,,300000,,android
+taplabel,,,,,focus A,,from code,android
+sleep,,,,,,600000,,android
+key,,,,,tab,,Tab from A must reach B,android
+sleep,,,,,,600000,,android
+key,,,,,d,,B heard: cd,android
+sleep,,,,,,300000,,android
+taplabel,,,,,focus none,,,android
+sleep,,,,,,600000,,android
+key,,,,,y,,no panel is focused -- nobody may hear this,android
+sleep,,,,,,300000,,android
+taplabel,,,,,focus B,,from code,android
+sleep,,,,,,600000,,android
+key,,,,,e,,B heard: cde,android
+sleep,,,,,,300000,,android
+taplabel,,,,,focus off,,must be refused,android
+sleep,,,,,,800000,,android
+key,,,,,z,,the off panel must not hear this,android
+sleep,,,,,,300000,,android
+click,326,218,,left,,,press the off panel itself -- still no focus,android
+sleep,,,,,,600000,,android
+key,,,,,z,,,android
+sleep,,,,,,300000,,android
+taplabel,,,,,focus A,,end on A,android
+sleep,,,,,,1000000,,android

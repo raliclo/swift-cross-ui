@@ -126,6 +126,11 @@ extension AndroidBackend: BackendFeatures.FocusableViews {
     /// GONE 的 view,全都仍然會拒絕。
     @discardableResult
     public func focus(_ widget: Widget) -> Bool {
+        // `.focusable(false)` is a refusal, not something to switch back on here.
+        // `.focusable(false)` 是拒絕，不是要在這裡重新打開的東西。
+        if let container = widget.as(FocusableContainer.self), !container.getFocusableNow() {
+            return false
+        }
         widget.setFocusable(true)
         widget.setFocusableInTouchMode(true)
         return widget.requestFocus()

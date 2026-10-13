@@ -57,7 +57,12 @@ final class NSKeyEventTarget: NSView {
 
     override var isFlipped: Bool { true }
 
-    override var acceptsFirstResponder: Bool { isEnabled }
+    // Not around a `.focusable()` view: that view is the Tab stop and the first responder, and
+    // this target hears its keys through the responder chain. As a key view of its own it was
+    // where Tab from panel A landed (P91, 2026-10-13).
+    // 包著 `.focusable()` 的 view 時不接受:那個 view 才是 Tab 停駐點與 first responder,這個 target 經由
+    // responder chain 聽它的按鍵。它自己若也是 key view,從色塊 A 按 Tab 就會落在它身上。
+    override var acceptsFirstResponder: Bool { isEnabled && !NSFocusableTarget.isHeld(by: self) }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -108,6 +113,9 @@ final class NSKeyEventTarget: NSView {
         // it away is plainly wrong. Everything else in this window is scenery.
         // 文字控制項保有焦點:「正在輸入」正是把焦點搶走明顯錯誤的那個情況。此 window 中其餘的東西都是布景。
         guard !(window.firstResponder is NSText) else { return }
+        // Around a `.focusable()` view the keys are that view's: wait for it to be focused.
+        // 包著 `.focusable()` 的 view 時，按鍵屬於那個 view:等它取得焦點。
+        guard !NSFocusableTarget.isHeld(by: self) else { return }
         window.makeFirstResponder(self)
     }
 

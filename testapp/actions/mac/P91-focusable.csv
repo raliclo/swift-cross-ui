@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on macOS (AppKitBackend): .focusable() on plain colour panels.
+# Window 420 x 548 with its title bar; points are in the window frame. Panels at y 173-243:
+# A x 31-141, B x 155-265, off x 279-389. Buttons at y 357: focus A 65, focus B 143,
+# focus none 232; focus off (70, 386).
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", and the focus on A from the last button.
+# c is typed after pressing B, d after Tab from A, e after the "focus B" button.
+# macOS(AppKitBackend)上的 P91:普通色塊上的 .focusable()。座標以視窗框為準。
+# 結束時應為:A heard: ab、B heard: cde、off heard: 空白、refusal check: refused (correct),焦點因最後的按鈕在 A。
+sleep,,,,,,1200000,let the window settle,macos
+click,232,357,frame,left,,,focus none first: AppKit gives a new window's first key view the focus and says so (focused: a),macos
+sleep,,,,,,300000,,macos
+click,86,208,frame,left,,,press panel A -- focused: a,macos
+sleep,,,,,,500000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,A heard: ab,macos
+sleep,,,,,,300000,,macos
+click,210,208,frame,left,,,press panel B -- focused: b,macos
+sleep,,,,,,500000,,macos
+key,,,,,c,,B heard: c,macos
+sleep,,,,,,300000,,macos
+click,65,357,frame,left,,,the focus A button -- from code,macos
+sleep,,,,,,500000,,macos
+key,,,,,tab,,Tab from A must reach B,macos
+sleep,,,,,,500000,,macos
+key,,,,,d,,B heard: cd,macos
+sleep,,,,,,300000,,macos
+click,232,357,frame,left,,,focus none,macos
+sleep,,,,,,500000,,macos
+key,,,,,y,,no panel is focused -- nobody may hear this,macos
+sleep,,,,,,300000,,macos
+click,143,357,frame,left,,,the focus B button,macos
+sleep,,,,,,500000,,macos
+key,,,,,e,,B heard: cde,macos
+sleep,,,,,,300000,,macos
+click,70,386,frame,left,,,focus off -- must be refused,macos
+sleep,,,,,,700000,,macos
+key,,,,,z,,the off panel must not hear this,macos
+sleep,,,,,,300000,,macos
+click,334,208,frame,left,,,press the off panel itself -- still no focus,macos
+sleep,,,,,,500000,,macos
+key,,,,,z,,,macos
+sleep,,,,,,300000,,macos
+click,65,357,frame,left,,,end on A so the focus ring is in the capture,macos
+sleep,,,,,,800000,,macos

@@ -847,7 +847,25 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 Int32(0), // repeatCount
                 metaState
             )
-            _ = activity.dispatchKeyEvent(event)
+            let handled = activity.dispatchKeyEvent(event)
+            // An unhandled Tab moves the focus, as the view root does for a key
+            // that came through the input pipeline. `Activity.dispatchKeyEvent`
+            // starts below the view root, so without this a `key,tab` row moved
+            // nothing, while `adb shell input keyevent 61` on the same screen went
+            // from one `.focusable()` view to the next (P91, 2026-10-13).
+            // 沒被處理的 Tab 會移動焦點，與 view root 對經由輸入管線進來的按鍵所做的相同。
+            // `Activity.dispatchKeyEvent` 從 view root 之下開始，少了這段，`key,tab` 列什麼都不移動，
+            // 而同一個畫面上 `adb shell input keyevent 61` 會從一個 `.focusable()` view 移到下一個。
+            let tab: Int32 = 61
+            if !handled, action == self.keyActionDown, code == tab,
+                let focused = activity.getWindow()?.getDecorView()?.findFocus()
+            {
+                // View.FOCUS_BACKWARD is 1, FOCUS_FORWARD is 2; the shift bit is 0x1.
+                let direction: Int32 = metaState & 0x1 != 0 ? 1 : 2
+                if let next = focused.focusSearch(direction) {
+                    _ = next.requestFocus(direction)
+                }
+            }
             return true
         }
 

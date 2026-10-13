@@ -110,6 +110,7 @@ extension UIKitBackend: BackendFeatures.FocusableViews {
                 UITextField.textDidEndEditingNotification,
                 UITextView.textDidBeginEditingNotification,
                 UITextView.textDidEndEditingNotification,
+                FocusableView.focusDidChange,
             ] {
                 observations.append(
                     NotificationCenter.default.addObserver(

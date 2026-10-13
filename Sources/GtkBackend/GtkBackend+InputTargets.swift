@@ -90,6 +90,102 @@ extension GtkBackend: BackendFeatures.ContextMenus {
     }
 }
 
+// MARK: Focusable targets
+
+extension GtkBackend: BackendFeatures.FocusableTargets {
+    /// `.focusable()` on GTK: a focusable wrapper. A press that goes by grabs
+    /// the focus without being claimed, and Tab is moved on here, because a key
+    /// controller further up -- `.onKeyPress` -- reports Tab as handled and GTK
+    /// would never get to move the focus.
+    /// GTK 上的 `.focusable()`:一個可聚焦的包裝。經過的按壓會取得焦點但不被認領;Tab 在這裡往下移，
+    /// 因為更上層的按鍵 controller(`.onKeyPress`)會把 Tab 回報為已處理，GTK 就沒有機會移動焦點。
+    public func createFocusableTarget(wrapping child: Widget) -> Widget {
+        let target = GtkFeatureTarget(child)
+        target.isFocusableTarget = true
+        Self.focusableTargets.insert(UnsafeMutableRawPointer(target.widgetPointer))
+        gtk_widget_set_focusable(target.widgetPointer, 1)
+        gtk_widget_set_focus_on_click(target.widgetPointer, 1)
+
+        // The focus ring, which GTK's themes draw for their own controls only.
+        // Inside the bounds: the wrappers around this widget are its own size and
+        // clip what lies outside, so an outline at +1px and a box-shadow both drew
+        // nothing (2026-10-13). An outline is painted over the content.
+        // 焦點環;GTK 的主題只替自己的控制項畫。畫在 bounds 之內:包在這個 widget 外面的容器與它同樣大小，
+        // 會裁掉外面的東西，所以 +1px 的 outline 與 box-shadow 都畫不出來(2026-10-13)。outline 畫在內容之上。
+        let ring = EventControllerFocus()
+        ring.enter = { [weak target] _ in
+            target?.css.set(properties: [
+                CSSProperty(key: "outline", value: "3px solid #3584e4"),
+                CSSProperty(key: "outline-offset", value: "-3px"),
+            ])
+        }
+        ring.leave = { [weak target] _ in
+            target?.css.set(properties: [CSSProperty(key: "outline", value: "none")])
+        }
+        target.addEventController(ring)
+
+        let click = GestureClick()
+        click.pressed = { [weak target] _, _, _, _ in
+            guard let target, gtk_widget_get_focusable(target.widgetPointer) != 0 else { return }
+            gtk_widget_grab_focus(target.widgetPointer)
+        }
+        target.addEventController(click)
+
+        let keys = EventControllerKey()
+        keys.keyPressed = { [weak target] _, keyval, _, _ in
+            guard let target, gtk_widget_has_focus(target.widgetPointer) != 0,
+                let root = gtk_widget_get_root(target.widgetPointer)
+            else { return false }
+            let direction: GtkDirectionType
+            switch Int32(keyval) {
+                case GDK_KEY_Tab: direction = GTK_DIR_TAB_FORWARD
+                case GDK_KEY_ISO_Left_Tab: direction = GTK_DIR_TAB_BACKWARD
+                default: return false
+            }
+            let widget = UnsafeMutableRawPointer(root).assumingMemoryBound(to: GtkWidget.self)
+            return gtk_widget_child_focus(widget, direction) != 0
+        }
+        target.addEventController(keys)
+        return target
+    }
+
+    public func updateFocusableTarget(
+        _ target: Widget,
+        environment: EnvironmentValues,
+        isFocusable: Bool
+    ) {
+        let pointer = target.widgetPointer
+        let wanted = isFocusable && environment.isEnabled
+        if !wanted, gtk_widget_has_focus(pointer) != 0, let root = gtk_widget_get_root(pointer) {
+            gtk_window_set_focus(
+                UnsafeMutableRawPointer(root).assumingMemoryBound(to: GtkWindow.self), nil)
+        }
+        gtk_widget_set_focusable(pointer, wanted ? 1 : 0)
+        // `focus(_:)` turns can-focus on before it asks; off here, the request is refused.
+        // `focus(_:)` 在要求之前會打開 can-focus;這裡關掉，要求就會被拒絕。
+        gtk_widget_set_can_focus(pointer, wanted ? 1 : 0)
+    }
+
+    /// The wrappers `.focusable()` has made, by widget pointer.
+    /// `.focusable()` 建過的包裝，以 widget 指標為鍵。
+    nonisolated(unsafe) static var focusableTargets: Set<UnsafeMutableRawPointer> = []
+
+    /// Whether `widget` holds a focusable target somewhere below it.
+    /// `widget` 底下是否有可聚焦的 target。
+    static func holdsFocusableTarget(_ widget: UnsafeMutablePointer<GtkWidget>) -> Bool {
+        var child = gtk_widget_get_first_child(widget)
+        while let current = child {
+            if focusableTargets.contains(UnsafeMutableRawPointer(current))
+                || holdsFocusableTarget(current)
+            {
+                return true
+            }
+            child = gtk_widget_get_next_sibling(current)
+        }
+        return false
+    }
+}
+
 // MARK: Key events
 
 extension GtkBackend: BackendFeatures.KeyEvents {
@@ -113,7 +209,15 @@ extension GtkBackend: BackendFeatures.KeyEvents {
         runInMainThread { [weak self, weak target] in
             guard let self, let target, attemptsLeft > 0 else { return }
             if gtk_widget_get_mapped(target.widgetPointer) != 0 {
-                if target.keyEventsEnabled { gtk_widget_grab_focus(target.widgetPointer) }
+                // Around a `.focusable()` view the keys are that view's: wait for it to be focused.
+                // 包著 `.focusable()` 的 view 時，按鍵屬於那個 view:等它取得焦點。
+                // Nor is this target a focus stop then: Tab would land on it between the two.
+                // 那時這個 target 也不是焦點停駐點:否則 Tab 會在兩者之間落到它身上。
+                if Self.holdsFocusableTarget(target.widgetPointer) {
+                    gtk_widget_set_focusable(target.widgetPointer, 0)
+                } else if target.keyEventsEnabled {
+                    gtk_widget_grab_focus(target.widgetPointer)
+                }
             } else {
                 self.claimFocusWhenMapped(target, attemptsLeft: attemptsLeft - 1)
             }
@@ -340,6 +444,8 @@ extension GtkBackend: BackendFeatures.WidgetSnapshots {
 final class GtkFeatureTarget: Fixed {
     var contextMenu: Gtk.PopoverMenu?
     var keyEventsEnabled = true
+    /// Set on the wrapper `.focusable()` makes. `.focusable()` 所建的包裝會設定它。
+    var isFocusableTarget = false
     var pressedKeycodes: Set<UInt> = []
     var scrollTranslation = SIMD2<Double>(0, 0)
     var isScrolling = false

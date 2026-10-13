@@ -697,7 +697,17 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
 下面兩項不存在。當時沒有動手寫，因為問題是「那行字還對不對」;使用者要求把它們排進來。每一項都是五個 backend 都要做的
 功能(CLAUDE.md),不是某個檔案裡的一行。
 
-- [ ] **`.focusable(_:)`** -- lets a view that is not a control take keyboard focus, so
+- [ ] **`.focusable(_:)` on WinUI** -- the rest is DONE 2026-10-13: `BackendFeatures.FocusableTargets` on
+  AppKitBackend, UIKitBackend, GtkBackend and AndroidBackend, test app P91 with action files for macOS (AppKit and
+  gtk4), iOS, iPad and Android, all replayed. WinUIBackend has no conformance, so `.focusable` warns once and changes
+  nothing there (a Control with IsTabStop is the place to start); GtkBackend's is untried on Windows and WSL. The
+  user asked for the non-Windows backends first.
+  Also changed with it: `.focused` acts on a disagreement only when the app asked for something new -- it used to
+  take the focus back from a view the user had just pressed or tabbed to; a key target around a `.focusable()`
+  view no longer takes the focus itself; a `key,tab` row on Android moves the focus as the view root does.
+  WinUI 以外已於 2026-10-13 完成(四個 backend、測試 app P91、各平台動作檔皆已重放)。WinUIBackend 尚未實作，
+  `.focusable` 在那裡只會警告一次;GtkBackend 的實作在 Windows 與 WSL 上尚未執行。使用者要求先做非 Windows 的 backend。
+  Was: **`.focusable(_:)`** -- lets a view that is not a control take keyboard focus, so
   `@FocusState` / `.focused` and `onKeyPress` reach it. `grep -rn "func focusable"
   Sources/SwiftCrossUI` finds nothing. Wanted on GtkBackend, WinUIBackend,
   AppKitBackend, UIKitBackend and AndroidBackend, with a test app that tabs to a

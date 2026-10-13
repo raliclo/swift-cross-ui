@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on iOS (iPhone simulator, 440 x 956 points): .focusable() on plain colour panels.
+# Panels at y 234-304: A x 17-127, B x 141-251, off x 265-375. Buttons are pressed by label.
+# Keys are a hardware keyboard's, sent by the runner.
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", "focused: a" with the ring on A.
+# c is typed after pressing B, d after Tab from A, e after the "focus B" button. Tab is moved by
+# the focusable view itself, so it works on an iPhone with a keyboard as on an iPad.
+# iOS(iPhone 模擬器)上的 P91:普通色塊上的 .focusable()。按鈕以標籤按下;按鍵是 runner 送出的硬體鍵盤按鍵。
+# 結束時應為:A heard: ab、B heard: cde、off heard: 空白、refusal check: refused (correct)、focused: a。
+# Tab 由可聚焦的 view 自己移動，所以接了鍵盤的 iPhone 與 iPad 一樣有效。
+sleep,,,,,,2000000,let P91 lay out,ios
+key,,,,,x,,nothing is focused -- no panel may hear this,ios
+sleep,,,,,,300000,,ios
+click,72,268,client,left,,,press panel A -- focused: a,ios
+sleep,,,,,,600000,,ios
+key,,,,,a,,,ios
+key,,,,,b,,A heard: ab,ios
+sleep,,,,,,300000,,ios
+click,196,268,client,left,,,press panel B -- focused: b,ios
+sleep,,,,,,600000,,ios
+key,,,,,c,,B heard: c,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,focus A,,from code,ios
+sleep,,,,,,600000,,ios
+key,,,,,tab,,Tab from A must reach B,ios
+sleep,,,,,,600000,,ios
+key,,,,,d,,B heard: cd,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,focus none,,,ios
+sleep,,,,,,600000,,ios
+key,,,,,y,,no panel is focused -- nobody may hear this,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,focus B,,from code,ios
+sleep,,,,,,600000,,ios
+key,,,,,e,,B heard: cde,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,focus off,,must be refused,ios
+sleep,,,,,,800000,,ios
+key,,,,,z,,the off panel must not hear this,ios
+sleep,,,,,,300000,,ios
+click,320,268,client,left,,,press the off panel itself -- still no focus,ios
+sleep,,,,,,600000,,ios
+key,,,,,z,,,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,focus A,,end on A so the ring is in the capture,ios
+sleep,,,,,,1000000,,ios

@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on GtkBackend on macOS (TEST_BACKEND=gtk4): .focusable() on plain colour panels.
+# Window 420 x 548 with its title bar; points are in the window frame. Panels at y 153-223:
+# A x 31-141, B x 155-265, off x 279-389. Buttons at y 345: focus A 75, focus B 160,
+# focus none 260; focus off (75, 387).
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", and the focus on A from the last button.
+# c is typed after pressing B, d after Tab from A, e after the "focus B" button.
+# macOS 上 GtkBackend 的 P91:普通色塊上的 .focusable()。座標以視窗框為準。
+# 結束時應為:A heard: ab、B heard: cde、off heard: 空白、refusal check: refused (correct),焦點因最後的按鈕在 A。
+sleep,,,,,,1200000,let the window settle,macos
+click,260,345,frame,left,,,focus none first -- as the AppKit file does,macos
+sleep,,,,,,300000,,macos
+click,86,188,frame,left,,,press panel A -- focused: a,macos
+sleep,,,,,,500000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,A heard: ab,macos
+sleep,,,,,,300000,,macos
+click,210,188,frame,left,,,press panel B -- focused: b,macos
+sleep,,,,,,500000,,macos
+key,,,,,c,,B heard: c,macos
+sleep,,,,,,300000,,macos
+click,75,345,frame,left,,,the focus A button -- from code,macos
+sleep,,,,,,500000,,macos
+key,,,,,tab,,Tab from A must reach B,macos
+sleep,,,,,,500000,,macos
+key,,,,,d,,B heard: cd,macos
+sleep,,,,,,300000,,macos
+click,260,345,frame,left,,,focus none,macos
+sleep,,,,,,500000,,macos
+key,,,,,y,,no panel is focused -- nobody may hear this,macos
+sleep,,,,,,300000,,macos
+click,160,345,frame,left,,,the focus B button,macos
+sleep,,,,,,500000,,macos
+key,,,,,e,,B heard: cde,macos
+sleep,,,,,,300000,,macos
+click,75,387,frame,left,,,focus off -- must be refused,macos
+sleep,,,,,,700000,,macos
+key,,,,,z,,the off panel must not hear this,macos
+sleep,,,,,,300000,,macos
+click,334,188,frame,left,,,press the off panel itself -- still no focus,macos
+sleep,,,,,,500000,,macos
+key,,,,,z,,,macos
+sleep,,,,,,300000,,macos
+click,75,345,frame,left,,,end on A so the focus ring is in the capture,macos
+sleep,,,,,,800000,,macos

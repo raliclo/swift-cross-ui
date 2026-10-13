@@ -56,7 +56,12 @@ final class KeyEventWidget: ContainerWidget {
     /// default, so it is never first responder, so no press ever reaches it.
     /// 少了這個,下面那些覆寫永遠不會執行。`UIView` 預設回傳 false,因此它永遠不是 first responder,
     /// 因此沒有任何按鍵到得了它。
-    override var canBecomeFirstResponder: Bool { isEnabled }
+    // Not around a `.focusable()` view: that view is the first responder and this one hears its
+    // presses through the responder chain.
+    // 包著 `.focusable()` 的 view 時不接受:那個 view 才是 first responder,這裡經由 responder chain 聽它的按鍵。
+    override var canBecomeFirstResponder: Bool {
+        isEnabled && !FocusableView.isHeld(by: view)
+    }
 
     /// `viewDidAppear`, not `didMoveToWindow`.
     ///
@@ -76,6 +81,9 @@ final class KeyEventWidget: ContainerWidget {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard view.window != nil else { return }
+        // Around a `.focusable()` view the keys are that view's: wait for it to be focused.
+        // 包著 `.focusable()` 的 view 時，按鍵屬於那個 view:等它取得焦點。
+        guard !FocusableView.isHeld(by: view) else { return }
         // Deferred for the reason AppKit's is: during assembly the request is
         // accepted and then superseded.
         // 延後一輪,理由與 AppKit 那邊相同:在組裝期間這個要求會被接受、然後被取代。

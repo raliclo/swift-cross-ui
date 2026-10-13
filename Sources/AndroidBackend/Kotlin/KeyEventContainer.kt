@@ -91,7 +91,16 @@ class KeyEventContainer(context: Context) : ViewGroup(context) {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        requestFocus()
+        // Around a `.focusable()` view the keys are that view's: wait for it to be focused.
+        // 包著 `.focusable()` 的 view 時，按鍵屬於那個 view:等它取得焦點。
+        // Nor is this container a focus stop then: Tab would land on it between the two.
+        // 那時這個容器也不是焦點停駐點:否則 Tab 會在兩者之間落到它身上。
+        if (FocusableContainer.isHeldBy(this)) {
+            isFocusable = false
+            isFocusableInTouchMode = false
+        } else {
+            requestFocus()
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
