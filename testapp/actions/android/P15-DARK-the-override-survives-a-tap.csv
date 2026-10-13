@@ -11,5 +11,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P15-DARK 在 Android 上:點那唯一的控制項，深色覆寫必須仍然有效。
 sleep,,,,,,1500000,let P15-DARK render,android
-click,205,494,,left,,,"A button -- must read A button (1); the window must stay dark",android
+click,280,194,,left,,,"A button -- must read A button (1); the window must stay dark",android
 sleep,,,,,,800000,let any configuration change land before the capture,android

@@ -40,5 +40,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 一個「任何觸控都觸發其 drop handler」的實作，會通過一個馬虎的測試，並在此處失敗。
 # 「Accepts files」面板位於像素 x 0-660、y 1200-1650；按下的位置為像素 (157, 1365)，即點 (60, 520)。
 sleep,,,,,,1500000,let P25 lay out both targets,android
-click,60,520,,left,,,"inside the ""Accepts files"" target -- ""state"" must still read idle, ""received"" must still read (nothing yet) and ""count"" must still read 0. REPLAYED 2026-09-03: all three unchanged",android
+click,206,348,,left,,,"inside the ""Accepts files"" target -- ""state"" must still read idle, ""received"" must still read (nothing yet) and ""count"" must still read 0. REPLAYED 2026-09-03: all three unchanged",android
 sleep,,,,,,1500000,give any handler time to fire,android

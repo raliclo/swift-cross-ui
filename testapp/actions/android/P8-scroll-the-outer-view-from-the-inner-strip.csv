@@ -61,6 +61,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 而長條不得橫向捲動——H0 必須仍是最左的標籤，且 x 與啟動時相同。若某個 backend 讓內層接走該手勢
 # 並把它變成水平位移，H0 會被推出左緣。
 sleep,,,,,,1500000,let P8 render,android
-move,205,697,,,,,park between H4 and H5 on the inner horizontal strip,android
+move,314,533,,,,,park between H4 and H5 on the inner horizontal strip,android
 scroll,0,2,,,,,"drag up 210 px from the strip -- the outer rows must move up and H0 must stay the leftmost label at its launch x, so the inner horizontal view did not swallow the gesture (VERIFIED 2026-09-03 in p8-android-final-20260903-090308.png against p8-android-final-20260903-085915.png: the strip moved from band 1814-1847 to 1631-1664, i.e. 183 px = 70 points against the 80 asked for -- the shortfall is Android's touch slop, which eats the first move of a drag; the visible rows went from 0,1,2,3+strip to 2,3,strip,5,6, so #426 does NOT reproduce on AndroidBackend -- the drag that started on the horizontal strip moved the outer vertical view; the strip's dark pixels still run x 14-1053 with H0 leftmost, exactly as at launch, so it did not scroll sideways; and the header band at 1247-1290, which is outside the scroll view, did not move)",android
 sleep,,,,,,1500000,let the scroll settle,android

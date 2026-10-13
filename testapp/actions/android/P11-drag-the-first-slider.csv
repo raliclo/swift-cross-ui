@@ -39,8 +39,8 @@ action,x,y,origin,button,key,micros,note,platform
 # 讀什麼:第一個滑桿的滑塊必須**停在很右邊**。若它只離起點幾個像素,就代表捲動視圖在 8dp 處拿走了
 # 這個手勢,而 Material 事實上並沒有拒絕攔截。
 sleep,,,,,,1500000,let P11 lay out both sliders,android
-click,80,482,,left,,,"""Separate them"" -- puts a thumb on each slider; without it the first thumb is off the track",android
+click,248,367,,left,,,"""Separate them"" -- puts a thumb on each slider; without it the first thumb is off the track",android
 sleep,,,,,,1200000,let both sliders repaint,android
-move,8,376,,,,,the first slider's thumb -- measured off p11-android-final-20260917-151129.png at 420 dpi,android
+move,182,275,,,,,the first slider's thumb -- measured off p11-android-final-20260917-151129.png at 420 dpi,android
 scroll,-4,0,,,,,"drag it 160 points to the right: press, eight intermediate moves, release",android
 sleep,,,,,,1200000,let the slider settle before the capture,android

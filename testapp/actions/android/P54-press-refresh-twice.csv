@@ -25,7 +25,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 按**兩次**。`refreshes: 1` 既可能來自一個「被建立時就觸發」的控制項,也可能來自使用者按下;
 # 而 `refreshes: 2` 加上列數達到 10,則不可能是前者。
 sleep,,,,,,1500000,let P54 render,android
-click,206,32,,left,,,"Refresh -- refreshes must become 1 and the rows must reach 8",android
+click,210,44,,left,,,"Refresh -- refreshes must become 1 and the rows must reach 8",android
 sleep,,,,,,800000,let the rows rebuild,android
-click,206,32,,left,,,"Refresh again -- refreshes must become 2 and the rows must reach 10",android
+click,210,44,,left,,,"Refresh again -- refreshes must become 2 and the rows must reach 10",android
 sleep,,,,,,1200000,settle before the photograph,android

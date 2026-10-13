@@ -27,9 +27,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 「把每個項目都送到同一個 action」的接線錯誤,在剛好命中那兩個時同樣會產生 1、1、0。2、1、0 走不到
 # 那條路上。
 sleep,,,,,,1500000,let P53 render,android
-click,44,24,,left,,,"the Add button (leading) -- add must become 1",android
+click,46,96,,left,,,"the Add button (leading) -- add must become 1",android
 sleep,,,,,,500000,let the counter redraw,android
-click,44,24,,left,,,"Add again -- add must become 2",android
+click,46,96,,left,,,"Add again -- add must become 2",android
 sleep,,,,,,500000,let the counter redraw,android
-click,220,24,,left,,,"the Delete button (trailing) -- trash must become 1, add must stay at 2",android
+click,397,96,,left,,,"the Delete button (trailing) -- trash must become 1, add must stay at 2",android
 sleep,,,,,,1200000,settle before the photograph,android

@@ -69,5 +69,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 沒有開啟的下拉選單，就是一個「排版出來了卻不能用」的選擇器。只點一次：下拉選單是覆蓋層，任何
 # 為其下方畫面所寫的座標，在它出現之後便不再有意義。
 sleep,,,,,,1500000,let P6 lay out its 960-point row inside a 411-point window,android
-click,12,804,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: the Speed picker is the spinner at x 0-25, y 780-828 -- the 960-point row starts scrolled, and only its right edge shows) the Speed picker, which reads ""1x"" -- a dropdown must open listing three rows, ""1x"", ""2x"" and ""3x"". REPLAYED 2026-09-03 and IT HOLDS: the uiautomator dump after the tap finds exactly three TextViews, ""1x"" at [95,1671]-[226,1797], ""2x"" at [95,1797]-[226,1923] and ""3x"" at [95,1923]-[226,2049], each 126 px = 48 points tall and stacked with no gap, and nothing else on the page is listed while the dropdown is up. logcat shows the pair ""replaying P6-actions.csv"" / ""replayed P6-actions.csv"" and geometry scale=2.625",android
+# RE-AIMED 2026-10-13: the Speed picker is at pixels x 852-943, y 2398-2455 of a page taller than the 2400-pixel
+# screen, so the row is reached by the replay scrolling the root. (12, 804) was measured on 2026-10-02, before that layout.
+# 2026-10-13 重新瞄準:Speed 選單在頁面上位於像素 x 852-943、y 2398-2455,而頁面比 2400 像素的螢幕高,所以這一列是靠
+# 重放捲動根 view 才到得了。(12, 804) 是 2026-10-02 在那個版面之前量的。
+click,342,835,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: the Speed picker is the spinner at x 0-25, y 780-828 -- the 960-point row starts scrolled, and only its right edge shows) the Speed picker, which reads ""1x"" -- a dropdown must open listing three rows, ""1x"", ""2x"" and ""3x"". REPLAYED 2026-09-03 and IT HOLDS: the uiautomator dump after the tap finds exactly three TextViews, ""1x"" at [95,1671]-[226,1797], ""2x"" at [95,1797]-[226,1923] and ""3x"" at [95,1923]-[226,2049], each 126 px = 48 points tall and stacked with no gap, and nothing else on the page is listed while the dropdown is up. logcat shows the pair ""replaying P6-actions.csv"" / ""replayed P6-actions.csv"" and geometry scale=2.625",android
 sleep,,,,,,1200000,let the dropdown appear,android

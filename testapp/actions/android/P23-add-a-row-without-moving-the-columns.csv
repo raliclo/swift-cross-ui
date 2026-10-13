@@ -49,5 +49,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 決定的東西。P23 自己的文字說第 2 欄比它的標頭寬、第 3 欄比較窄，並問「隨著列數增加，那些邊界會
 # 怎麼樣」。
 sleep,,,,,,1500000,let P23 lay out its table,android
-click,196,244,,left,,,"the ""More rows"" button -- ""rows: 8"" must become ""rows: 12"" (the button adds four) and the four column boundaries must stay at pixel x 47, 293, 539 and 785, each column 246 pixels wide. REPLAYED 2026-09-03 from a cleared app: rows: 12, columns unmoved at 47/293/539/785",android
+click,154,212,,left,,,"the ""More rows"" button -- ""rows: 8"" must become ""rows: 12"" (the button adds four) and the four column boundaries must stay at pixel x 47, 293, 539 and 785, each column 246 pixels wide. REPLAYED 2026-09-03 from a cleared app: rows: 12, columns unmoved at 47/293/539/785",android
 sleep,,,,,,1500000,let the table relayout,android

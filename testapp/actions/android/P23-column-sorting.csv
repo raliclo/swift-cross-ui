@@ -38,7 +38,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標以點書寫,synthesiser 會再乘上 density。2026-09-16 量自執行中 app 的
 # `uiautomator dump --compressed`,不是量自擷圖:第 3 列的 cell 會折成九行,各列並非等距。
 sleep,,,,,,900000,let the table settle before anything is sorted,android
-click,346,581,,left,,,the Number header -- column 3; this must become ascending,android
+click,703,479,,left,,,the Number header -- column 3; this must become ascending,android
 sleep,,,,,,900000,let the triangle be drawn and the rows re-sort,android
-click,346,581,,left,,,"the SAME header again: descending, not a restart",android
+click,703,479,,left,,,"the SAME header again: descending, not a restart",android
 sleep,,,,,,1000000,let the rows reverse before the capture,android

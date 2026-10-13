@@ -51,5 +51,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 時左右兩側即被切斷，標題列位於上緣之外。此處每一個座標都是從該狀態下的頁面量得，而非從一個
 # 未被切斷的頁面。
 sleep,,,,,,1500000,let P2 render,android
-click,136,61,,left,,,"Use expanded Picker options -- the summary line must change from ""options: 2"" to ""options: 5"" while ""Selected: Vanilla"" and ""changes: 0"" stay as they are (VERIFIED 2026-09-03 in p2-android-final-20260903-084332.png: the line reads ""Selected: Vanilla, options: 5, changes: 0"" where it read ""options: 2"" before the tap, the toggle is drawn in its on state, the picker still shows Vanilla, and the page did not blank -- it is cut off at the sides exactly as it was at launch and no more)",android
+# RE-AIMED 2026-10-13. The toggle is a Switch at the end of its row since 2026-10-09, and the row is wider than
+# the screen: the label is at pixels 52-621 and the Switch at 1409-1574 of a 1627-pixel page. (136, 61) is older; the
+# label the recorded widget resolves to, at (117, 32), is text that toggles nothing: pressed there, "options: 2" stayed.
+# 2026-10-13 重新瞄準。2026-10-09 起這個 toggle 是位於該列尾端的 Switch,而該列比螢幕寬:標籤在 1627 像素寬的頁面上
+# 位於像素 52-621,Switch 位於 1409-1574。(136, 61) 是較早的點;依紀錄元件解析到的標籤位置 (117, 32) 是文字,按在那裡
+# 什麼都不會切換:「options: 2」維持不變。
+click,557,32,,left,,,"Use expanded Picker options -- the summary line must change from ""options: 2"" to ""options: 5"" while ""Selected: Vanilla"" and ""changes: 0"" stay as they are (VERIFIED 2026-09-03 in p2-android-final-20260903-084332.png: the line reads ""Selected: Vanilla, options: 5, changes: 0"" where it read ""options: 2"" before the tap, the toggle is drawn in its on state, the picker still shows Vanilla, and the page did not blank -- it is cut off at the sides exactly as it was at launch and no more)",android
 sleep,,,,,,1500000,let the picker rebuild its options,android

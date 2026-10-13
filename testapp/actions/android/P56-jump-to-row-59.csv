@@ -27,5 +27,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 若這支 app 的 ScrollView 不是垂直的,該呼叫會成功、而且什麼都不會移動,那看起來與靜止狀態一模一樣。
 # 畫面上出現 45-59 列,才是分辨兩者的依據。
 sleep,,,,,,1500000,let P56 render,android
-click,193,181,,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",android
+click,156,168,,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",android
 sleep,,,,,,1200000,let the scroll settle,android

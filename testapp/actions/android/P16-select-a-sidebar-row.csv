@@ -50,5 +50,5 @@ action,x,y,origin,button,key,micros,note,platform
 #    `AdapterView.OnItemSelectedListener`，而它講的是取得焦點的項目，在觸控螢幕上永遠不會觸發；
 #    點擊觸發的是 `OnItemClickListener`。該繫結被接受了，卻什麼都沒做。
 sleep,,,,,,1500000,let P16 lay out both panes,android
-click,93,279,,left,,,"the ""Science"" row in the sidebar -- the detail pane must stop reading ""Select an area"" and read ""Science"", and the two size lines must stay at ""sidebar: 97"" and ""detail: 254 x 22"" (a selection changes the contents of a pane, not the split). REPLAYED 2026-09-03: detail read ""Science"", both size lines unchanged",android
+click,107,220,,left,,,"the ""Science"" row in the sidebar -- the detail pane must stop reading ""Select an area"" and read ""Science"", and the two size lines must stay at ""sidebar: 97"" and ""detail: 254 x 22"" (a selection changes the contents of a pane, not the split). REPLAYED 2026-09-03: detail read ""Science"", both size lines unchanged",android
 sleep,,,,,,1500000,let the detail pane repaint,android

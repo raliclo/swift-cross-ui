@@ -21,7 +21,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 最終狀態:sort column 0 ascending、ID 為 1..8、三角形在 ID 那一欄。
 sleep,,,,,,900000,let the table settle,android
-click,346,581,,left,,,the Number header -- column 3 ascending,android
+click,703,479,,left,,,the Number header -- column 3 ascending,android
 sleep,,,,,,900000,let that land,android
-click,65,581,,left,,,"the ID header -- column 0, and it must start ascending",android
+click,117,479,,left,,,"the ID header -- column 0, and it must start ascending",android
 sleep,,,,,,1000000,let the rows re-sort before the capture,android

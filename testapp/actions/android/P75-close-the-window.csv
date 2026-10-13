@@ -8,5 +8,5 @@ action,x,y,origin,button,key,micros,note,platform
 # close handler 並 finish 它。通過：P75 的 activity 不再處於 resumed（改為桌面），logcat 有 "close
 # requested"。2026-09-30 之前 dismissWindow() 只會警告一次，activity 仍在。
 sleep,,,,,,1500000,let P75 render,android
-click,172,635,,left,,,Close this window,android
+click,238,401,,left,,,Close this window,android
 sleep,,,,,,2000000,let the activity finish,android

@@ -9,9 +9,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P70 在 Android 上:焦點狀態。
 sleep,,,,,,800000,let the window settle,android
-click,205,337,,left,,,the email field -- the app did not ask for this,android
+click,216,272,,left,,,the email field -- the app did not ask for this,android
 sleep,,,,,,600000,,android
-click,205,282,,left,,,and back to name,android
+click,216,242,,left,,,and back to name,android
 sleep,,,,,,600000,,android
-click,104,508,,left,,,ask both for focus -- the disabled button must be refused,android
+click,88,399,,left,,,ask both for focus -- the disabled button must be refused,android
 sleep,,,,,,800000,let the refusal be reported,android

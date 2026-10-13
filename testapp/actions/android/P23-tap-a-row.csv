@@ -34,7 +34,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
 # 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the table settle,android
-click,78,339,,left,,,Select row 2 first -- put the band on the ID-3 row,android
+click,64,273,,left,,,Select row 2 first -- put the band on the ID-3 row,android
 sleep,,,,,,900000,let the band be drawn there,android
-click,120,671,,left,,,the ID-2 row -- index 1; the band must move up here and the readout must read 1,android
+click,222,520,,left,,,the ID-2 row -- index 1; the band must move up here and the readout must read 1,android
 sleep,,,,,,1000000,let the invalidate reach the screen before the capture,android

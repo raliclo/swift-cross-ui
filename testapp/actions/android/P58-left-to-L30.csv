@@ -28,5 +28,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 而 Android 走的是子元件的 parent 鏈，AppKit 用的則是 `isDescendant(of:)`。一個只在 AppKit 上
 # 跑過的測試，會讓那條 parent 鏈的路徑從未被執行。
 sleep,,,,,,1500000,let P58 lay out both columns,android
-click,67,183,,left,,,"left to L30 -- the left column must show L30 and the right column must still show R0",android
+click,54,170,,left,,,"left to L30 -- the left column must show L30 and the right column must still show R0",android
 sleep,,,,,,1200000,let the scroll settle,android

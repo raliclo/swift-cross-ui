@@ -7,6 +7,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P51 在 Android 上:五種容器都畫出來;捲到最右，第二欄必須完整。
 sleep,,,,,,2000000,let P51 render,android
-move,300,800,,,,,the lower right of the page,android
+move,520,502,,,,,the lower right of the page,android
 scroll,10,0,,,,,"right, to the end -- the second column must be whole",android
 sleep,,,,,,1000000,let the scroll settle,android

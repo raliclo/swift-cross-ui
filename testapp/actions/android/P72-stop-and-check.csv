@@ -55,11 +55,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 本 app 無法用 uiautomator dump 來量:它會回報 "ERROR: could not get idle state",
 # 因為那個 frame clock 從不讓視窗進入 idle。在對本處任何一支會動的測試 app 動用它之前,這件事值得先知道。
 sleep,,,,,,2500000,let the surface be created and the first frames land,android
-click,205,584,,left,,,"Stop the clock -- the log must print STOPPED at frame N with N > 0",android
+click,187,532,,left,,,"Stop the clock -- the log must print STOPPED at frame N with N > 0",android
 sleep,,,,,,1500000,"a second and a half in which a self-driving renderer would draw about 90 frames",android
-click,332,584,,left,,,"Check again -- CHECK at frame M, and M minus N must be a few, not ninety",android
+click,296,532,,left,,,"Check again -- CHECK at frame M, and M minus N must be a few, not ninety",android
 sleep,,,,,,800000,,android
-click,73,636,,left,,,"Export .glb -- EXPORTED with a byte count; the scene is the same value the Metal renderer exports",android
+click,67,562,,left,,,"Export .glb -- EXPORTED with a byte count; the scene is the same value the Metal renderer exports",android
 sleep,,,,,,800000,,android
-click,186,636,,left,,,"Snapshot -- SNAPSHOT 892x630 px with MORE THAN ONE distinct colour, which is what separates a read of the GL surface (4) from a read of the hole a SurfaceView punches in the layout (1). The centre pixel is deliberately NOT asserted: the camera orbits, so which face is at the centre depends on the moment",android
+click,153,562,,left,,,"Snapshot -- SNAPSHOT 892x630 px with MORE THAN ONE distinct colour, which is what separates a read of the GL surface (4) from a read of the hole a SurfaceView punches in the layout (1). The centre pixel is deliberately NOT asserted: the camera orbits, so which face is at the centre depends on the moment",android
 sleep,,,,,,1500000,let the readouts redraw before the capture,android

@@ -42,9 +42,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 讀什麼:P65 每個手勢各有一行。`magnify` 與 `rotate` 必須離開它們的起始值——1.00 與 0 代表那個手勢
 # 從未抵達。那些數字本身是合成器的,不是一次保真度量測。
 sleep,,,,,,1500000,let the scene settle before any gesture,android
-move,130,550,,,,,aim at the magnify panel -- see the note on aim,android
+move,209,406,,,,,aim at the magnify panel -- see the note on aim,android
 pinch,200,100,,,,,zoom to twice -- magnify must leave 1.00,android
 sleep,,,,,,900000,,android
-move,130,654,,,,,aim at the rotate panel,android
+move,209,508,,,,,aim at the rotate panel,android
 rotate,45,90,,,,,turn 45 degrees clockwise -- rotate must leave 0,android
 sleep,,,,,,1200000,let the last report land before the capture,android
