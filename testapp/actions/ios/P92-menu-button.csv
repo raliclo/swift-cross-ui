@@ -1,8 +1,10 @@
 action,x,y,origin,button,key,micros,note,platform
+# launch-args: --p92-menu
 # P92 on iPhone: the menu button .enableMenu() adds, since a phone has no menu bar.
 #
-#   SIMCTL_CHILD_SCUI_P92_MODE=after SIMCTL_CHILD_SCUI_P92_MENU=1 \
-#       zsh testapp/test_ios.zsh P92 --actionfile testapp/actions/ios/P92-menu-button.csv
+# The launch-args line above turns the menu on. sweep_apple.zsh reads it; run alone it is
+# TEST_APP_ARGS. Without the switch there is no button and the first taplabel fails:
+#   TEST_APP_ARGS="--debug --p92-menu" zsh testapp/test.zsh P92 --ios --actionfile testapp/actions/ios/P92-menu-button.csv
 #
 # Pass, read from the dumptree rows: the button opens debugTarget, File, Edit, Format, View,
 # Window and Help; Edit holds Undo, AFTER-undoRedo, Cut, Paste, Select All and AFTER-pasteboard;
