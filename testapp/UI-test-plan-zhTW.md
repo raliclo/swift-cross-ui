@@ -84,6 +84,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - 只使用 zsh scripts。目前 helper scripts 包含 `compile.zsh`、`rsync_WSL.zsh`、`screenshot.zsh`、`videoshot.zsh` 與 `test.zsh`。
 - 透過 `zsh testapp/test.zsh Pn --both` 執行的自動 dry-run 會先跑 WSLg，再跑 Windows。每個平台預設會在 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
 - 截圖會寫到 `testapp/output/screenshots`，檔名含平台與階段，例如 `p8-wslg-1s-...png`、`p8-wslg-final-...png`、`p8-windows-1s-...png`、`p8-windows-final-...png`。
+- WSLg 視窗變黑、標題帶 `[WARN:COPY MODE]` 時，是 WSLg 的缺陷，不是 app 的問題:WSLg 在最後一個視窗關閉約 2.5 分鐘後會自己重啟，之後的每個視窗擷取都是黑的，直到 `wsl --shutdown`。`test.zsh --wsl` 會開一個小的 `xclock` 常駐來避免它，偵測到 copy mode 時以結束碼 7 停止。實測於 Windows 10.0.26300.9711 / WSL 2.7.14.0 / WSLg 1.0.73.2;見 `bugs/bug-WSLg.md` 第 1 條。
 
 ### 共通觀察項目
 

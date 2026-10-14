@@ -86,6 +86,7 @@ there is no `P6-v2-WinUI.exe`.
 - Use zsh scripts only. The current helper scripts are `compile.zsh`, `rsync_WSL.zsh`, `screenshot.zsh`, `videoshot.zsh`, and `test.zsh`.
 - Automated dry-runs through `zsh testapp/test.zsh Pn --both` run WSLg first, then Windows. They keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
 - Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
+- WSLg windows that turn black with `[WARN:COPY MODE]` in the title are a WSLg defect, not the app: WSLg restarts itself about 2.5 minutes after its last window closes, and every window after that captures black until `wsl --shutdown`. `test.zsh --wsl` keeps a small `xclock` open to prevent it and stops with exit 7 if it finds copy mode. Measured on Windows 10.0.26300.9711 / WSL 2.7.14.0 / WSLg 1.0.73.2; see `bugs/bug-WSLg.md` #1.
 
 ### Android: Four Things To Check, And What Each One Proves
 

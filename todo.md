@@ -88,6 +88,16 @@ test 與結果。
   **2026-10-14(Windows):程式已修，尚未驗證——保持未完成。**投影改為每次繪製時以 drawable 自己的尺寸計算。
   已在 WSLg 以 Swift 6.4.0 編譯並啟動 P76,但 WSLg 處於「[WARN:COPY MODE]」,兩張截圖皆全黑，尚無幾何可量；
   需重啟 WSL(`wsl --shutdown`,僅由使用者執行)。Windows GTK4 仍畫不出 mesh(WGL,2026-10-08)。
+  **First display measured 2026-10-14 (WSLg, after `wsl --shutdown`).** P76's
+  drawable is 360x300. The cyan helix ring, measured on both captures the same
+  way: before (350b66f8) 360 px wide and cut off at both edges of the drawable,
+  143 px high; after (f191f46c) 314 px wide with even margins (x 103..416), 143
+  px high. Height unchanged, width only: the old projection used an aspect of
+  1 on a 1.2 drawable, and 314 x 1.2 = 377 > 360 is why it was clipped. Still
+  open: repeated resizes, and Windows GTK4.
+  **2026-10-14 量測首次顯示(WSLg)。**P76 的 drawable 為 360x300。青色螺旋環以同一方法量兩張擷取：修正前寬
+  360 px、兩側被 drawable 切掉、高 143 px;修正後寬 314 px、左右留白對稱、高 143 px。只有寬度改變：舊投影以
+  長寬比 1 畫在 1.2 的 drawable 上,314 x 1.2 = 377 > 360,所以被切掉。仍未做：多次縮放，以及 Windows GTK4。
 
 - [ ] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
   `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages
