@@ -1680,6 +1680,32 @@
             // SwiftUI 對「上方向鍵」的共同定義。2026-09-19 實測:一個重放的上方向鍵送到 view 時是 U+001E、
             // 什麼都對不上,而同一顆實體按鍵送達的是 U+F700。一個不重現硬體的 synthesiser,會讓每一個
             // 方向鍵測試自己跟自己一致、卻跟現實不一致。
+            // **A Command chord is built from a CGEvent, not from `NSEvent.keyEvent`.** Measured
+            // 2026-10-14 on a bare NSTextView with Edit > Redo (Shift-Command-Z): an event made by
+            // `NSEvent.keyEvent` and posted redid nothing, whichever of "z" and "Z" its two strings
+            // held; the same chord from a HID-state CGEvent turned into an NSEvent and posted the
+            // same way redid. Command-Z without Shift worked either way. What AppKit reads from the
+            // CGEvent was not found. The event has no window number, so it goes to the key window,
+            // which a replay has clicked into.
+            // **Command 組合鍵由 CGEvent 建立，不用 `NSEvent.keyEvent`。** 2026-10-14 在一個有 Edit > Redo
+            // (Shift-Command-Z)的 NSTextView 上實測:`NSEvent.keyEvent` 做出的事件投遞後不會重做，兩個字串
+            // 不論填 "z" 或 "Z" 都一樣;同一組按鍵由 HID 狀態的 CGEvent 轉成 NSEvent、以同樣方式投遞，就會重做。
+            // 不含 Shift 的 Command-Z 兩種都可以。AppKit 從 CGEvent 讀了什麼，沒有查出來。這個事件沒有視窗編號，
+            // 因此送往 key window,而重放時已先點進該視窗。
+            if modifiers.contains(.command), Self.functionKeyCharacter(for: key) == nil,
+               let cgEvent = CGEvent(
+                   keyboardEventSource: CGEventSource(stateID: .hidSystemState),
+                   virtualKey: code,
+                   keyDown: down
+               )
+            {
+                cgEvent.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
+                if let event = NSEvent(cgEvent: cgEvent) {
+                    NSApp.postEvent(event, atStart: false)
+                    return
+                }
+            }
+
             let characters: String
             let bare: String
             if let functionKey = Self.functionKeyCharacter(for: key) {

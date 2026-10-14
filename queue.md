@@ -22,7 +22,6 @@ entry is closed.
 | 11 | iPad: eleven action files (P80-cursor-ipad shows all six cursor shapes on the simulator, 2026-10-14; P94-undo-ipad); nothing run on a physical iPad | Mac / hardware | open | a physical iPad with a trackpad |
 | 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
 | 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
-| 14 | A synthesised Shift-Command-Z does not reach Edit > Redo on AppKitBackend (P94, 2026-10-14): no change after the key, while the item pressed through System Events as "Redo Cut" redid. Command-Z does reach Undo | Mac | open | untested guess: AppKitSynthesiser gives `charactersIgnoringModifiers` without Shift ("z"), a keyboard gives "Z"; check against a real key before changing it |
 | 15 | P94 (TextEditor undo) on WinUI, and on GTK under Windows and WSL; `TextUndoHistory` for a `GtkTextView` has run on macOS only | Windows / WSL | open | replay it there; `actions/win` and `actions/wsl` have no P94 file yet |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
