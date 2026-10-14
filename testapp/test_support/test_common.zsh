@@ -552,6 +552,10 @@ fi
 # 錯誤的訊息掩蓋了一個主機層級的 EGL 故障，好幾個調查步驟花在追問 screenshot.zsh 是不是壞了，而
 # 56 張 PNG 就躺在磁碟上反駁著它自己的回報。
 screenshot_failures=0
+# How many captures were attempted, and whether WSLg's copy mode was seen; read at
+# the bottom of this file. 嘗試擷取的次數，以及是否見到 WSLg 的 copy mode;於本檔最底端讀取。
+screenshot_attempts=0
+copy_mode_seen=0
 # Replays that did not run to the end; read at the bottom of this file.
 # 沒有跑完的重放次數；在本檔最底端讀取。
 replay_failures=0
@@ -605,9 +609,20 @@ capture() {
     # 不用 `status`。它是 zsh 的特殊參數之一——`$?` 的唯讀別名——因此 `local status=$?` 會以
     # 「capture:2: read-only variable: status」中止執行。與 `path`、`options`、`watch` 同一族；
     # 本檔自身的註解已提出警告，而該警告仍不足以讓人避開它。
+    screenshot_attempts=$(( screenshot_attempts + 1 ))
     [ "$rc" -eq 0 ] && return 0
 
     screenshot_failures=$(( screenshot_failures + 1 ))
+    # WSLg marks a window it can only copy, not share, in the title wincap prints.
+    # Said here by name: "0.0% non-black" alone reads like an app that drew nothing.
+    # WSLg 對只能複製、無法共享的視窗，會在 wincap 印出的標題上標記。在這裡直接點名:
+    # 單看「0.0% non-black」會像是 app 什麼都沒畫。
+    if printf '%s\n' "$out" | grep -q 'WARN:COPY MODE'; then
+        copy_mode_seen=1
+        printf '!! the window title carries [WARN:COPY MODE]: WSLg is not sharing window content\n' >&2
+        printf '!! with Windows, so every capture is black whatever the app drew.\n' >&2
+        printf '!! 視窗標題帶有 [WARN:COPY MODE]:WSLg 沒有把視窗內容共享給 Windows,不論 app 畫了什麼，擷取都是黑的。\n' >&2
+    fi
 
     # The fraction is taken from what wincap already measured, not recomputed
     # here. wincap counts the non-black pixels itself and prints the count into
@@ -1821,6 +1836,26 @@ esac
 if [ "$screenshot_failures" -gt 0 ]; then
     printf '\n!! %d screenshot(s) did not succeed; the "!!" lines above say which kind each was.\n' \
         "$screenshot_failures" >&2
+fi
+
+# Every capture failing is a failed run, not a quiet one -- the same shape as the
+# replay check below. Measured 2026-10-14: P76 under WSLg exited 0 four times
+# while every screenshot was 0.0% non-black, because WSLg had fallen into
+# "[WARN:COPY MODE]"; the runs read as passes and had verified nothing. Some
+# captures failing still exits as before: the ones that came out can be read.
+# 每一張截圖都失敗，就是一次失敗的執行，而不是一次安靜的執行——與下方的重放檢查同一個形狀。2026-10-14
+# 實測：WSLg 落入「[WARN:COPY MODE]」時，P76 在 WSLg 下四次都以 0 結束，而每張截圖都是 0.0% 非黑；那些
+# 執行讀起來像通過，實際上什麼都沒驗證到。只有部分截圖失敗時照舊結束：拍出來的那些仍然可以讀。
+if [ "$screenshot_attempts" -gt 0 ] && [ "$screenshot_failures" -eq "$screenshot_attempts" ]; then
+    printf '!! every screenshot of this run failed (%d of %d); nothing was verified.\n' \
+        "$screenshot_failures" "$screenshot_attempts" >&2
+    printf '!! 本次執行的每一張截圖都失敗(%d / %d);沒有驗證到任何東西。\n' \
+        "$screenshot_failures" "$screenshot_attempts" >&2
+    if [ "$copy_mode_seen" -eq 1 ]; then
+        printf '!! WSLg is in COPY MODE. Run `wsl --shutdown` (it stops everything in WSL),\n' >&2
+        printf '!! then run this test again. / WSLg 處於 COPY MODE:執行 `wsl --shutdown`(會停止 WSL 內的一切)後重跑。\n' >&2
+    fi
+    exit 7
 fi
 
 # A replay that did not run is a failed test, not a quiet one. Measured
