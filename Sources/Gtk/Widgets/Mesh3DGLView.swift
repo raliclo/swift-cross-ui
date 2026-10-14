@@ -24,6 +24,11 @@ public class Mesh3DGLView: GLArea {
         public var light: [Float] = [-0.4, -0.7, -0.6]
         public var background: [Float] = [0, 0, 0, 1]
         public var measuresRenderTime = false
+        /// Every mesh's model-view-projection matrix for a given aspect ratio,
+        /// called at draw time with the drawable's own; `mvps` is used when nil.
+        /// 給定長寬比時每個 mesh 的 model-view-projection 矩陣，在繪製時以 drawable 自己的長寬比呼叫；
+        /// 為 nil 時使用 `mvps`。
+        public var mvpsForAspect: ((Float) -> [Float])?
 
         public init() {}
     }
@@ -184,7 +189,18 @@ public class Mesh3DGLView: GLArea {
             Int(gtk_widget_get_height(widgetPointer)) * scale
         )
 
-        let frame = self.frame
+        var frame = self.frame
+        // The projection follows the size drawn into NOW, not the size the
+        // widget had when the scene was last committed: GTK can reallocate the
+        // area without SwiftCrossUI updating it, and a matrix baked at update
+        // time then draws a non-square scene stretched (todo.md review item,
+        // 2026-10-14).
+        // 投影跟隨**此刻**繪製的尺寸，而不是場景上次 commit 時 widget 的尺寸:GTK 可以在 SwiftCrossUI
+        // 沒有更新它的情況下重新配置 area,而在更新時就烘好的矩陣，會把非正方形的場景畫成拉伸的(todo.md
+        // 審查項目,2026-10-14)。
+        if let mvps = frame.mvpsForAspect, drawableSize.x > 0, drawableSize.y > 0 {
+            frame.mvps = mvps(Float(drawableSize.x) / Float(drawableSize.y))
+        }
         let meshCount = min(
             frame.modes.count, frame.starts.count, frame.counts.count, frame.pointSizes.count,
             frame.flags.count, frame.mvps.count / 16, frame.normals.count / 16

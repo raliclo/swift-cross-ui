@@ -83,6 +83,19 @@ extension GtkBackend: BackendFeatures.Mesh3DViews {
             frame.mvps.append(contentsOf: (viewProjection * .model(mesh.transform)).elements)
             frame.normals.append(contentsOf: Mesh3DMatrix4.rotation(mesh.transform.rotation).elements)
         }
+        // The same matrices again for whatever size the area has when it draws;
+        // the loop above stays as the value for a draw with no size yet.
+        // 以 area 繪製當下的尺寸再算一次同樣的矩陣；上面的迴圈保留作為「還沒有尺寸時」的值。
+        let camera = scene.camera
+        let transforms = scene.meshes.map(\.transform)
+        frame.mvpsForAspect = { aspect in
+            let viewProjection = Mesh3DMatrix4.viewProjection(
+                camera: camera,
+                aspect: aspect,
+                depthRange: .minusOneToOne
+            )
+            return transforms.flatMap { (viewProjection * .model($0)).elements }
+        }
         let light = scene.lightDirection
         frame.light = [light.x, light.y, light.z]
         let background = scene.background.resolve(in: environment)

@@ -78,6 +78,16 @@ test 與結果。
   then Windows GTK4, with screenshot geometry measurements.
   依實際繪製尺寸重算投影；先 WSLg、再 Windows GTK4，量測靜態非正方形場景首次顯示及多次 resize
   後的截圖幾何，確認沒有拉伸變形。
+  **2026-10-14 (Windows): code fixed, NOT verified -- left open.** The view
+  projection is no longer baked at commit time: GtkBackend hands the frame a
+  function of the aspect ratio, and Mesh3DGLView calls it on every draw with
+  the drawable's own size. Compiled and launched in WSLg with Swift 6.4.0 (P76),
+  but WSLg was in "[WARN:COPY MODE]" and both captures were 0.0% non-black, so
+  there is no geometry to measure yet; it needs WSL restarted (`wsl --shutdown`,
+  which only the user runs). Windows GTK4 still draws no mesh (WGL, 2026-10-08).
+  **2026-10-14(Windows):程式已修，尚未驗證——保持未完成。**投影改為每次繪製時以 drawable 自己的尺寸計算。
+  已在 WSLg 以 Swift 6.4.0 編譯並啟動 P76,但 WSLg 處於「[WARN:COPY MODE]」,兩張截圖皆全黑，尚無幾何可量；
+  需重啟 WSL(`wsl --shutdown`,僅由使用者執行)。Windows GTK4 仍畫不出 mesh(WGL,2026-10-08)。
 
 - [ ] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
   `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages
@@ -86,6 +96,15 @@ test 與結果。
   pending, checking the process exits and the quit exit code is preserved.
   保留或重新送出 `WM_QUIT` 並停止巢狀 pump；驗證 snapshot 等待期間關閉 app 能正常結束行程，
   且退出碼不遺失。
+  **2026-10-14 (Windows): code fixed, NOT verified at runtime -- left open.**
+  The pump now re-posts `WM_QUIT` with its exit code (`PostQuitMessage`) and
+  returns. It compiles (the Windows host test build includes WinUIBackend).
+  Not reachable from the public API today: the only caller of snapshotWidget is
+  Mesh3DView, and a WinUI mesh is snapshotted through Mesh3DD3DView's own read
+  -back, which never enters this pump. The runtime test asked for above needs a
+  test-app hook that snapshots a plain widget while a quit is posted.
+  **2026-10-14(Windows):程式已修，尚未 runtime 驗證——保持未完成。**已能編譯。目前公開 API 走不到這裡：唯一
+  呼叫者 Mesh3DView 在 WinUI 上走 Mesh3DD3DView 自己的讀回。要做上述 runtime 測試，需要測試 app 的專用觸發。
 
 - [x] **P2: Test-data checks fail / 兩項測試資料檢查失敗 (reproduced / 已重現).**
   Coverage: seven `macos/appkit` or `macos/gtk4` rows have no matching matrix

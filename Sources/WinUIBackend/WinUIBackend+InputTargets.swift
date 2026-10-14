@@ -475,6 +475,15 @@ extension WinUIBackend: BackendFeatures.WidgetSnapshots {
 
     /// Dispatches this thread's messages until `done` holds or two seconds
     /// pass. 抽取本執行緒的訊息，直到 `done` 成立或經過兩秒。
+    ///
+    /// `WM_QUIT` ends the pump and is posted again for the loop it belongs to.
+    /// A nested loop that removes it and carries on swallows the app's exit:
+    /// the outer loop never sees it, so a window closed while a snapshot was
+    /// pending left the process running (todo.md review item, 2026-10-14).
+    /// `PostQuitMessage` re-queues it with the same exit code.
+    /// `WM_QUIT` 會結束這個 pump,並為它所屬的迴圈重新送出。巢狀迴圈若把它取出後繼續跑，就會吞掉 app 的退出：
+    /// 外層迴圈永遠看不到它，於是 snapshot 等待中關閉視窗時，行程仍留著(todo.md 審查項目,2026-10-14)。
+    /// `PostQuitMessage` 以相同的結束碼把它重新排入。
     @MainActor
     private static func pump(until done: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(2)
@@ -482,6 +491,10 @@ extension WinUIBackend: BackendFeatures.WidgetSnapshots {
         while !done() {
             if Date() > deadline { return false }
             if PeekMessageW(&message, nil, 0, 0, UINT(PM_REMOVE)) {
+                if message.message == UINT(WM_QUIT) {
+                    PostQuitMessage(Int32(truncatingIfNeeded: message.wParam))
+                    return false
+                }
                 TranslateMessage(&message)
                 DispatchMessageW(&message)
             } else {
