@@ -1256,9 +1256,61 @@ run_windows() {
     print_summary_windows
 }
 
+# Keeps one small WSLg window open for as long as WSL runs, and refuses to start
+# a WSLg test when WSLg is already in copy mode.
+#
+# MEASURED 2026-10-14. About two and a half minutes after the last WSLg window
+# closes, WSLg restarts itself -- weston and Windows' msrdc.exe both start
+# again, the VM does not -- and every window after that restart is marked
+# "[WARN:COPY MODE]" and captures black, xclock and a cairo-rendered GTK window
+# as much as a GL one. Only `wsl --shutdown` brought it back; restarting
+# msrdc.exe alone did not. With this window left open, 200 s of idling kept the
+# same weston and msrdc and P76 captured normally; without it, the same 200 s
+# ended in copy mode (rc=7).
+#
+# xclock comes from x11-apps, which install_tool_wsl.zsh already installs. It is
+# left running on purpose; `winmin --clear` minimises it with everything else.
+#
+# 只要 WSL 在執行，就讓一個很小的 WSLg 視窗一直開著；WSLg 已經處於 copy mode 時，拒絕開始 WSLg 測試。
+#
+# 2026-10-14 實測。最後一個 WSLg 視窗關閉約兩分半後,WSLg 會自己重啟——weston 與 Windows 的 msrdc.exe
+# 都重新啟動，虛擬機則沒有——之後的每個視窗都被標為「[WARN:COPY MODE]」且擷取為黑色,xclock 與 cairo
+# 繪製的 GTK 視窗也一樣，不只 GL 視窗。只有 `wsl --shutdown` 能恢復；單獨重啟 msrdc.exe 沒有用。留著這個
+# 視窗時，閒置 200 秒後 weston 與 msrdc 仍是同一份,P76 擷取正常；沒有它時，同樣的 200 秒以 copy mode 收場
+# (rc=7)。
+#
+# xclock 來自 x11-apps,install_tool_wsl.zsh 本來就會安裝。刻意讓它一直執行;`winmin --clear` 會連同
+# 其他視窗一起把它最小化。
+wslg_keeper() {
+    local winmin="$script_dir/helper/bin/winmin.exe" title="" tries=0
+    MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- bash -lc \
+        'pgrep -x xclock >/dev/null || { setsid xclock -geometry 80x80+0+0 >/dev/null 2>&1 & sleep 2; }' \
+        >/dev/null 2>&1 || true
+    [ -x "$winmin" ] || return 0
+    while [ "$tries" -lt 20 ]; do
+        title="$("$winmin" --list 2>/dev/null | grep -a 'xclock (Ubuntu)' | head -1 || true)"
+        [ -n "$title" ] && break
+        sleep 0.5
+        tries=$(( tries + 1 ))
+    done
+    if [ -z "$title" ]; then
+        printf '!! WSLg keeper window did not appear; copy mode cannot be checked before the run\n' >&2
+        return 0
+    fi
+    if [[ "$title" == *'WARN:COPY MODE'* ]]; then
+        printf '!! WSLg is in COPY MODE before the test started: every capture would be black.\n' >&2
+        printf '!! Run `wsl --shutdown` (it stops everything in WSL), then run this test again.\n' >&2
+        printf '!! WSLg 在測試開始前就處於 COPY MODE,每張擷取都會是黑的。請執行 `wsl --shutdown`\n' >&2
+        printf '!! (會停止 WSL 內的一切)後重跑本測試。\n' >&2
+        exit 7
+    fi
+    printf '==> WSLg keeper window: up, not in copy mode\n'
+}
+
 run_wsl() {
     local label="${app:l}-wslg"
 
+    wslg_keeper
     wsl_renderer_preflight
 
     if [ "$do_build" -eq 1 ]; then
