@@ -39,13 +39,26 @@ regression test and its result.
 重現；第 5 項已在 Windows 執行檢查重現。不能只因改了程式就結案，須記錄 regression
 test 與結果。
 
-- [ ] **P1: SVG large-coordinate crash / SVG 大座標可能造成 crash.**
+- [x] **P1: SVG large-coordinate crash / SVG 大座標可能造成 crash.**
   `Sources/SwiftCrossUI/SVG/SVGRasterizer.swift:242` converts coordinates to
   `Int` before clipping to the canvas. A finite coordinate such as `1e20`
   still exceeds the integer range. Clip in floating point before conversion;
   add tests for extreme positive/negative coordinates and fully off-canvas
   shapes, ensuring rendering does not trap.
   先以浮點數裁切，再轉成 `Int`；補極大正負座標與完全位於畫布外的圖形測試，確認不會中止程式。
+  **Done 2026-10-14 (Windows, Swift 6.4.0).** Reproduced first: the new
+  `Tests/SwiftCrossUITests/SVGExtremeCoordinateTests.swift` crashed the test
+  process at SVGRasterizer.swift:242:31 with "Double value cannot be converted
+  to Int because the result would be less than Int.min" (and "greater than
+  Int.max"). Fixed by clamping in Double before the conversion. A second path
+  was found on the way: an edge from -1.7e308 to 1.7e308 overflowed its span,
+  the slope became NaN and so did the crossing; the slope is now taken on
+  halves, a NaN crossing falls back to the edge's x0, and a non-finite span is
+  skipped before `Int()`. After: the 5 new tests and all 112 other SVG tests
+  pass (`swift test --filter SVG`: 117 tests in 11 suites, rc=0).
+  **2026-10-14(Windows,Swift 6.4.0)完成。**先重現：新增的測試讓測試行程在 SVGRasterizer.swift:242:31 中止。
+  改為先在 Double 裡夾值再轉換。途中另發現一條路：跨度溢位使斜率與交點成為 NaN;現以一半計算斜率，NaN 交點
+  退回 x0,非有限的跨度在 `Int()` 之前略過。修正後 117 個 SVG 測試全數通過(rc=0)。
 
 - [ ] **P1: Android save reports success before write-back / Android 儲存可能錯誤回報成功.**
   `Sources/AndroidBackend/Kotlin/AndroidBackendHelpers.kt:1318` writes the

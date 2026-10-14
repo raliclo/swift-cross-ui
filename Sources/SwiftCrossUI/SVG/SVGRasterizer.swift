@@ -211,6 +211,18 @@ struct SVGCanvas {
         var slope: Double
     }
 
+    /// `(dx.0 - dx.1) / (dy.0 - dy.1)`, with each difference taken on halves
+    /// so it cannot overflow: an edge from -1.7e308 to 1.7e308 spans more than
+    /// `Double.greatestFiniteMagnitude`, its slope became infinity over infinity,
+    /// NaN, and NaN crossings reached `Int()` (SVGExtremeCoordinateTests).
+    /// Halving is exact, so the ratio of finite spans is unchanged.
+    /// `(dx.0 - dx.1) / (dy.0 - dy.1)`,每個差都以一半計算，因此不會溢位：從 -1.7e308 到 1.7e308 的邊，跨度
+    /// 超過 `Double.greatestFiniteMagnitude`,斜率成了無限大除以無限大，即 NaN,而 NaN 的交點一路到了 `Int()`
+    /// (SVGExtremeCoordinateTests)。除以二是精確的，所以有限跨度的比值不變。
+    static func slope(dx: (Double, Double), dy: (Double, Double)) -> Double {
+        (dx.0 / 2 - dx.1 / 2) / (dy.0 / 2 - dy.1 / 2)
+    }
+
     static func coverage(
         of polygons: [[SVGPoint]], rule: SVGFillRule, width: Int, height: Int
     ) -> Coverage? {
@@ -230,19 +242,25 @@ struct SVGCanvas {
                 if a.y < b.y {
                     edges.append(
                         Edge(x0: a.x, y0: a.y, x1: b.x, y1: b.y, direction: 1,
-                            slope: (b.x - a.x) / (b.y - a.y)))
+                            slope: Self.slope(dx: (b.x, a.x), dy: (b.y, a.y))))
                 } else {
                     edges.append(
                         Edge(x0: b.x, y0: b.y, x1: a.x, y1: a.y, direction: -1,
-                            slope: (a.x - b.x) / (a.y - b.y)))
+                            slope: Self.slope(dx: (a.x, b.x), dy: (a.y, b.y))))
                 }
             }
         }
         guard !edges.isEmpty else { return nil }
-        let firstRow = max(0, Int(minY.rounded(.down)))
-        let endRow = min(height, Int(maxY.rounded(.up)))
-        let firstColumn = max(0, Int(minX.rounded(.down)))
-        let endColumn = min(width, Int(maxX.rounded(.up)))
+        // Clipped to the canvas in floating point, THEN converted. Converting
+        // first trapped on any finite coordinate past Int's range -- `1e20` is
+        // enough -- and took the app down for one SVG (todo.md review item,
+        // 2026-10-14; SVGExtremeCoordinateTests).
+        // 先以浮點數裁切到畫布，**再**轉換。先轉換時，任何超出 Int 範圍的有限座標——`1e20` 就夠了——都會
+        // 中止，一份 SVG 就拖垮整個 app(todo.md 審查項目,2026-10-14;SVGExtremeCoordinateTests)。
+        let firstRow = Int(min(max(minY.rounded(.down), 0), Double(height)))
+        let endRow = Int(min(max(maxY.rounded(.up), 0), Double(height)))
+        let firstColumn = Int(min(max(minX.rounded(.down), 0), Double(width)))
+        let endColumn = Int(min(max(maxX.rounded(.up), 0), Double(width)))
         guard firstRow < endRow, firstColumn < endColumn else { return nil }
         let columns = endColumn - firstColumn
         let rows = endRow - firstRow
@@ -276,7 +294,11 @@ struct SVGCanvas {
                 crossings.removeAll(keepingCapacity: true)
                 for index in active where edges[index].y0 <= y {
                     let edge = edges[index]
-                    crossings.append((edge.x0 + (y - edge.y0) * edge.slope, edge.direction))
+                    // `(y - y0) * slope` is 0 * infinity, NaN, on an edge's own
+                    // first row when the slope overflowed; the crossing there is x0.
+                    // 斜率溢位時，在邊自己的第一列 `(y - y0) * slope` 是 0 乘無限大，即 NaN;該處的交點就是 x0。
+                    let step = (y - edge.y0) * edge.slope
+                    crossings.append((step.isNaN ? edge.x0 : edge.x0 + step, edge.direction))
                 }
                 if crossings.count < 2 { continue }
                 crossings.sort { $0.x < $1.x }
@@ -291,6 +313,10 @@ struct SVGCanvas {
                     touched = true
                     let a = start - left
                     let b = end - left
+                    // A crossing that is not a number would pass every clamp
+                    // above (each comparison with NaN is false) and trap here.
+                    // 不是數字的交點會穿過上面每一道夾值(與 NaN 的每次比較都是 false),然後在這裡中止。
+                    guard a.isFinite, b.isFinite else { continue }
                     let ia = Int(a)
                     let ib = Int(b)
                     if ia == ib {
