@@ -130,3 +130,4 @@ zsh matrix_coverage/coverage.zsh
 | P91           | -                            | -                              | -                        | pass 2026-10-13              | pass 2026-10-13        | capture screen 2026-10-13 |              |
 | P92           | -                            | -                              | -                        | pass 2026-10-13              | pass 2026-10-14        | capture screen 2026-10-14 |              |
 | P93           | -                            | -                              | -                        | pass 2026-10-14              | -                      | -                         |              |
+| P94           | -                            | -                              | -                        | pass 2026-10-14              | pass 2026-10-14        | pass 2026-10-14           |              |

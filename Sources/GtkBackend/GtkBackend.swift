@@ -4450,9 +4450,9 @@ public final class GtkBackend:
 
     public func createTextField() -> Widget {
         let entry = Entry()
-        // Its undo history is the framework's: see `EntryUndoHistory`.
-        // 它的復原歷史由框架保存:見 `EntryUndoHistory`。
-        EntryUndoHistory.install(on: entry)
+        // Its undo history is the framework's: see `TextUndoHistory`.
+        // 它的復原歷史由框架保存:見 `TextUndoHistory`。
+        TextUndoHistory.install(on: entry)
         return entry
     }
 
@@ -4467,7 +4467,7 @@ public final class GtkBackend:
         textField.sensitive = environment.isEnabled
         textField.placeholderText = placeholder
         textField.changed = { widget in
-            EntryUndoHistory.byPointer[UnsafeMutableRawPointer(widget.widgetPointer)]?
+            TextUndoHistory.byPointer[UnsafeMutableRawPointer(widget.widgetPointer)]?
                 .record(widget.text)
             onChange(widget.text)
         }
@@ -4493,7 +4493,7 @@ public final class GtkBackend:
         textField.withBlockedSignal(named: "changed") {
             textField.text = content
         }
-        EntryUndoHistory.byPointer[UnsafeMutableRawPointer(textField.widgetPointer)]?
+        TextUndoHistory.byPointer[UnsafeMutableRawPointer(textField.widgetPointer)]?
             .record(content, fromApp: true)
     }
 
@@ -4534,6 +4534,9 @@ public final class GtkBackend:
     public func createTextEditor() -> Widget {
         let textEditor = Gtk.TextView()
         textEditor.wrapMode = .wordCharacter
+        // Its undo history is the framework's, as a text field's: see `TextUndoHistory`.
+        // 它的復原歷史與文字欄位一樣由框架保存:見 `TextUndoHistory`。
+        TextUndoHistory.install(on: textEditor)
         return textEditor
     }
 
@@ -4555,7 +4558,9 @@ public final class GtkBackend:
         // TextEditor 在 GtkBackend 上仍可編輯，外觀卻與未被 disable 者相同。
         textEditor.sensitive = environment.isEnabled
 
+        let undoKey = UnsafeMutableRawPointer(textEditor.widgetPointer)
         textEditor.buffer.changed = { buffer in
+            TextUndoHistory.byPointer[undoKey]?.record(buffer.text)
             onChange(buffer.text)
         }
 
@@ -4570,6 +4575,8 @@ public final class GtkBackend:
         textEditor.buffer.withBlockedSignal(named: "changed") {
             textEditor.buffer.text = content
         }
+        TextUndoHistory.byPointer[UnsafeMutableRawPointer(textEditor.widgetPointer)]?
+            .record(content, fromApp: true)
     }
 
     public func getContent(ofTextEditor textEditor: Widget) -> String {

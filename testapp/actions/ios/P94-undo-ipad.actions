@@ -1,0 +1,71 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+#
+# P94 on iPad Pro 11-inch (M5) (UIKitBackend): a TextEditor undoes one change at a time, and redoes.
+#
+#   zsh testapp/test_ios.zsh P94 --device "iPad Pro 11-inch (M5)" --debug \
+#       --actionfile testapp/actions/ios/P94-undo-ipad.actions
+#
+# The editor starts as "hello". Keys only, from the hardware keyboard the runner types on.
+# The pasteboard is used: it ends holding "hello".
+# Expected "[P94] editor" lines in output/p94-ios-stdout.log, in order (an empty one is
+# "[P94] editor "):
+#   "" hello "hello hello" | hello "" hello | "" hello
+# The second paste gives "hello hello": UITextView puts a space between two pasted words
+# (smart insert), which is UIKit's doing and the same in any text view. The fourth Undo has
+# nothing left and must add no line.
+# 2026-10-14, iPad Pro 11-inch (M5) simulator, iOS 27.0: the eight lines above.
+#
+# iPad Pro 11-inch (M5) 上的 P94(UIKitBackend):TextEditor 一次復原一個變更，也能重做。編輯器起始為 hello;只用按鍵;會用到剪貼簿，
+# 結束時內容是 hello。p94-ios-stdout.log 的「[P94] editor」各行應依序如上。第二次貼上得到「hello hello」:UITextView 會在
+# 兩個貼上的字之間加一個空白(smart insert),那是 UIKit 的行為。第四次 Undo 不得多出一行。
+sleep,,,,,,2500000,let P94 lay out,ios
+click,210,189,client,left,,,the text editor,ios
+sleep,,,,,,1000000,,ios
+keydown,,,,,command,,,ios
+key,,,,,a,,select all,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,x,,cut -- editor is empty,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,v,,paste -- hello,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,v,,paste again -- hellohello,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+sleep,,,,,,800000,,ios
+keydown,,,,,command,,,ios
+key,,,,,z,,undo 1 -- hello: one paste only,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,z,,undo 2 -- empty,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,z,,undo 3 -- the first hello,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+key,,,,,z,,undo 4 -- nothing left; no change,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+keydown,,,,,shift,,,ios
+key,,,,,z,,redo 1 -- empty,ios
+keyup,,,,,shift,,,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+keydown,,,,,command,,,ios
+keydown,,,,,shift,,,ios
+key,,,,,z,,redo 2 -- hello; left on screen for the capture,ios
+keyup,,,,,shift,,,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,700000,,ios
+sleep,,,,,,1000000,,ios

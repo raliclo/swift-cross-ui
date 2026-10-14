@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P94 on Android (AndroidBackend): a TextEditor undoes one change at a time, and redoes.
+#
+#   zsh testapp/test_android.zsh P94 --actionfile testapp/actions/android/P94-undo.actions
+#
+# The editor starts as "hello". Keys only, with Control held: Control-A, X, V, V, then
+# Control-Z four times and Control-Shift-Z twice. The clipboard is used: it ends holding "hello".
+# Expected "[P94] editor" lines in logcat, in order (an empty one is "[P94] editor "):
+#   "" hello hellohello | hello "" hello | "" hello
+# and the window ends on "editor: hello", "changes: 8". The fourth Undo has nothing left and
+# must add no line.
+# These keys reach the EditText only since 2026-10-14: AndroidSynthesiser now offers an unhandled
+# key with Control held as a shortcut, as the view root does. Before that the same rows left
+# "changes: 0".
+# 2026-10-14, emulator (1080x2400, 420 dpi): the eight lines above. The editor is at
+# x 56-355, y 160-250 dp (from a uiautomator dump).
+#
+# Android 上的 P94(AndroidBackend):TextEditor 一次復原一個變更，也能重做。編輯器起始為 hello;只用按鍵(按住 Control);
+# 會用到剪貼簿，結束時內容是 hello。logcat 的「[P94] editor」各行應依序如上，視窗最後顯示 editor: hello、changes: 8;
+# 第四次 Undo 不得多出一行。這些按鍵自 2026-10-14 起才到得了 EditText:AndroidSynthesiser 現在會像 view root 一樣，
+# 把按住 Control 而沒被處理的按鍵當成快捷鍵再送一次;在那之前同樣的各列只會留下 changes: 0。
+sleep,,,,,,2500000,let P94 lay out,android
+click,206,205,,left,,,the text editor,android
+sleep,,,,,,1000000,,android
+keydown,,,,,control,,,android
+key,,,,,a,,select all,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,x,,cut -- editor is empty,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,v,,paste -- hello,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,v,,paste again -- hellohello,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+sleep,,,,,,800000,,android
+keydown,,,,,control,,,android
+key,,,,,z,,undo 1 -- hello: one paste only,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,z,,undo 2 -- empty,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,z,,undo 3 -- the first hello,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+key,,,,,z,,undo 4 -- nothing left; no change,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+keydown,,,,,shift,,,android
+key,,,,,z,,redo 1 -- empty,android
+keyup,,,,,shift,,,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+keydown,,,,,control,,,android
+keydown,,,,,shift,,,android
+key,,,,,z,,redo 2 -- hello; left on screen for the capture,android
+keyup,,,,,shift,,,android
+keyup,,,,,control,,,android
+sleep,,,,,,700000,,android
+sleep,,,,,,1000000,,android

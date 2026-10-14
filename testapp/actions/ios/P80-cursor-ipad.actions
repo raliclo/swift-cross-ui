@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+#
+# P80 on iPad: each of the six `.cursor` shapes takes over its own label.
+#
+#   zsh testapp/test_ios.zsh P80 --device "iPad Pro 11-inch (M5)" --debug \
+#       --actionfile testapp/actions/ios/P80-cursor-ipad.actions
+#
+# P72-cursor-ipad.actions showed `crosshair` only; this is the other five with it. Two things are
+# read, as there: UIKitBackend's line under --debug when the system asks a view for a style
+# ("-cursor: pointer style requested for <cursor>", in output/p80-ios-stdout.log), and the
+# capture the runner takes while each hover row rests (screenshots/p80-ios-hover-L<line>-*.png).
+# Pass: no request for the first row, which rests on plain text, then one for each of
+# pointingHand, crosshair, text, resizeHorizontal, resizeVertical and notAllowed, in that order;
+# each resting capture shows that row's shape at the point (UIKitBackend+Cursors.swift has the
+# table: a highlight for the hand, a beam for text, drawn paths for the other four).
+# The plain-text row comes first on purpose: the first hover of a run is captured before any
+# style shows (2026-10-14: with hand first its capture equalled the unhovered one pixel for
+# pixel; second, it showed the highlight).
+# The labels are at y 181-203 on this iPad: hand x 109-156, cross 162-212, text 218-256,
+# ↔ 262-287, ↕ 293-325, no 331-359 (from the tree, 2026-10-14).
+#
+# iPad 上的 P80:六種 `.cursor` 形狀各自在自己的標籤上生效。P72-cursor-ipad.actions 只看過 crosshair,這裡是它加上另外五種。
+# 讀兩樣東西:--debug 下 UIKitBackend 印出的「-cursor: pointer style requested for <cursor>」(output/p80-ios-stdout.log),
+# 以及 runner 在每一列 hover 停留時擷下的畫面。通過:第一列(停在一般文字上)沒有要求，接著 pointingHand、crosshair、text、
+# resizeHorizontal、resizeVertical、notAllowed 依序各有一次;每張停留擷圖在該點顯示該列的形狀。
+# 一般文字那一列放在最前面是有原因的:一次執行的第一個 hover 停留時，擷圖上還沒有樣式(2026-10-14:hand 排第一時擷圖與
+# 沒有 hover 時逐像素相同，排第二時則看得到 highlight)。
+sleep,,,,,,2500000,let P80 lay out,ios
+hover,190,224,client,,,2000000,"plain text -- no request, the system pointer",ios
+sleep,,,,,,1000000,,ios
+hover,132,192,client,,,2000000,hand -- pointingHand: a highlight over the label,ios
+sleep,,,,,,1000000,,ios
+hover,187,192,client,,,2000000,cross -- crosshair: a drawn cross,ios
+sleep,,,,,,1000000,,ios
+hover,237,192,client,,,2000000,text -- a vertical beam,ios
+sleep,,,,,,1000000,,ios
+hover,274,192,client,,,2000000,resizeHorizontal -- a drawn left-right arrow,ios
+sleep,,,,,,1000000,,ios
+hover,309,192,client,,,2000000,resizeVertical -- a drawn up-down arrow,ios
+sleep,,,,,,1000000,,ios
+hover,345,192,client,,,2000000,notAllowed -- a drawn circle with a bar,ios
+sleep,,,,,,1000000,,ios

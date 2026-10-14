@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note,platform
+# P94 on macOS (AppKitBackend): a TextEditor undoes one change at a time.
+#   zsh testapp/test.zsh P94 --macos --actionfile testapp/actions/mac/P94-undo.actions
+# The editor starts as "hello". Keys only. The clipboard is used: it ends holding "hello".
+# Expected "editor" lines in p94-undo.log, in order (an empty one is "editor "):
+#   "" hello hellohello | hello "" hello
+# The fourth Undo has nothing left and must add no line.
+# Redo is not in this file: a synthesised Shift-Command-Z does not reach Edit > Redo on
+# AppKitBackend (2026-10-14: no line after it, while the item, pressed through System Events as
+# "Redo Cut", gave the next line). The Redo keys are in the gtk4 file.
+# macOS(AppKitBackend)上的 P94:TextEditor 一次復原一個變更。編輯器起始為 hello;只用按鍵;會用到剪貼簿，結束時
+# 內容是 hello。p94-undo.log 的 editor 各行應依序如上;第四次 Undo 不得多出一行。
+# 本檔不含 Redo:合成的 Shift-Command-Z 在 AppKitBackend 上到不了 Edit > Redo(2026-10-14:按下後沒有新的一行，
+# 而經 System Events 按選單項目「Redo Cut」則有)。Redo 的按鍵在 gtk4 那個檔案裡。
+sleep,,,,,,1500000,let the window settle,macos
+click,160,200,frame,left,,,the text editor,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,a,,select all,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,x,,cut -- editor is empty,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,v,,paste -- hello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,v,,paste again -- hellohello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+sleep,,,,,,800000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 1 -- hello: one paste only,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 2 -- empty,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 3 -- the first hello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo 4 -- nothing left; no change,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+sleep,,,,,,500000,,macos

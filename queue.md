@@ -9,7 +9,7 @@ entry is closed.
 
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
-| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android. Since then: items pressed in the iPad's real menu bar; Hide Others and Show All pressed on GTK; GTK undo by action file; one app menu and Command shortcuts for GTK on macOS; launch windows as SwiftUI (`SceneLaunch`) | open: GTK's TextEditor keeps GTK's own undo. Not as SwiftUI, on purpose: iPad keeps a Format menu when the app fills `textFormatting`; `windowList` and `singleWindowList` are accepted on iOS |
+| 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android. Since then: items pressed in the iPad's real menu bar; Hide Others and Show All pressed on GTK; GTK undo by action file; one app menu and Command shortcuts for GTK on macOS; launch windows as SwiftUI (`SceneLaunch`); GTK's TextEditor undoes one change at a time through `TextUndoHistory`, by keys and by Edit > Undo and Redo (P94) | Not as SwiftUI, on purpose: iPad keeps a Format menu when the app fills `textFormatting`; `windowList` and `singleWindowList` are accepted on iOS |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
@@ -19,9 +19,11 @@ entry is closed.
 | 8 | #123 accessibility: WinUI's UIA tree, Narrator and Orca speech | Windows / WSL | open | -- |
 | 9 | P64 cell `fail 2026-09-10` in coverage.md | Windows (gtk4 column) | open | re-run and read the failure |
 | 10 | iPhone hover: `onContinuousHover` reports nothing without a pointer | Mac | waits for the user | choose: leave it, or report a held touch as hover (then Android too) |
-| 11 | iPad: only six action files; nothing run on a physical iPad; only `crosshair` seen of the cursors | Mac / hardware | open | the other cursor shapes on the simulator |
+| 11 | iPad: eleven action files (P80-cursor-ipad shows all six cursor shapes on the simulator, 2026-10-14; P94-undo-ipad); nothing run on a physical iPad | Mac / hardware | open | a physical iPad with a trackpad |
 | 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
 | 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
+| 14 | A synthesised Shift-Command-Z does not reach Edit > Redo on AppKitBackend (P94, 2026-10-14): no change after the key, while the item pressed through System Events as "Redo Cut" redid. Command-Z does reach Undo | Mac | open | untested guess: AppKitSynthesiser gives `charactersIgnoringModifiers` without Shift ("z"), a keyboard gives "Z"; check against a real key before changing it |
+| 15 | P94 (TextEditor undo) on WinUI, and on GTK under Windows and WSL; `TextUndoHistory` for a `GtkTextView` has run on macOS only | Windows / WSL | open | replay it there; `actions/win` and `actions/wsl` have no P94 file yet |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 

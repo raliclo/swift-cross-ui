@@ -853,6 +853,23 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 metaState
             )
             let handled = activity.dispatchKeyEvent(event)
+            // An unhandled key with Control held is offered as a shortcut, as the view
+            // root does (`ViewRootImpl`, after the hierarchy turned the key down): that
+            // is how a focused text view gets Control-A, X, C, V, Z and Shift-Z. Without
+            // it P94's editor ignored every one of them from an action file -- "changes:
+            // 0" after 49 rows (2026-10-14). An app menu's shortcuts are still out of
+            // reach, as above: they are not in the view hierarchy.
+            // 按住 Control 而沒被處理的按鍵會被當成快捷鍵再送一次，與 view root 所做的相同(`ViewRootImpl`,
+            // 在整個階層都拒絕該按鍵之後):聚焦的文字 view 就是這樣收到 Control-A、X、C、V、Z 與 Shift-Z 的。
+            // 少了這段，P94 的編輯器對動作檔送來的這些按鍵全無反應——49 列之後仍是「changes: 0」(2026-10-14)。
+            // app 選單的快捷鍵仍然到不了，理由同上:它們不在 view 階層裡。
+            let controlOn: Int32 = 0x1000
+            if !handled, action == self.keyActionDown, metaState & controlOn != 0,
+               Self.modifierBit(for: key) == nil,
+               let decor = activity.getWindow()?.getDecorView()
+            {
+                _ = decor.dispatchKeyShortcutEvent(event)
+            }
             // An unhandled Tab moves the focus, as the view root does for a key
             // that came through the input pipeline. `Activity.dispatchKeyEvent`
             // starts below the view root, so without this a `key,tab` row moved
