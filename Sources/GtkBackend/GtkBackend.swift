@@ -2349,6 +2349,11 @@ public final class GtkBackend:
         // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
         // 分離視窗。
         window.present()
+        #if os(macOS)
+            // After present(), when the NSWindow exists. See GtkBackend+ColourSpace.swift.
+            // 在 present() 之後，此時 NSWindow 已存在。見 GtkBackend+ColourSpace.swift。
+            tagColourSpace(ofWindow: window)
+        #endif
         #if SCUI_DEBUG
             // GTK's own scale, not the display's. `gtk_widget_get_scale_factor` is
             // an integer by design -- it is the buffer scale GTK rendered at -- and

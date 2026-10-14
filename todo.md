@@ -60,7 +60,7 @@ test 與結果。
   改為先在 Double 裡夾值再轉換。途中另發現一條路：跨度溢位使斜率與交點成為 NaN;現以一半計算斜率，NaN 交點
   退回 x0,非有限的跨度在 `Int()` 之前略過。修正後 117 個 SVG 測試全數通過(rc=0)。
 
-- [ ] **P1: Android save reports success before write-back / Android 儲存可能錯誤回報成功.**
+- [x] **P1: Android save reports success before write-back / Android 儲存可能錯誤回報成功.**
   `Sources/AndroidBackend/Kotlin/AndroidBackendHelpers.kt:1318` writes the
   cached file back asynchronously and only logs provider failures, while
   `saveDocument()` returns success after the cache write. Propagate actual
@@ -69,6 +69,28 @@ test 與結果。
   successful saves must be read back from the selected document, not the cache.
   將原文件寫回完成與錯誤傳回呼叫端；驗證 provider 寫入失敗、權限失效與空間不足不會回報成功，
   且成功案例須從使用者選定的原文件讀回，而非只讀 cache。
+  **Done 2026-10-14 (Mac, API 36 emulator, P62).** `saveDocument()` now waits for
+  `commitStagedSave` (new `BackendFeatures.FileWriteBack`), which copies the staged
+  file into the document under the same lock as the FileObserver. Measured, by
+  pressing the buttons over adb and reading `/sdcard/Download` itself:
+  saved through CREATE_DOCUMENT -> `save -> true`, the document reads `AA`;
+  the document replaced by a directory of its name -> `save -> false`, logged
+  `EISDIR`; disk filled -> `save -> false`, but at the cache write (ENOSPC), which
+  shares the partition, so the write-back is not what failed there. **Revoked
+  permission not reproduced:** deleting the document in the Files app left the
+  grant in place and the next save recreated it (true, correct contents); shell
+  cannot reach the Downloads provider. The old behaviour, re-run the same day on a
+  HEAD build with the same steps: the directory case gave `save -> true` while logcat said
+  "could not copy the save to content://...document/21"; the new build, rebuilt right
+  after, gave false. P75 (writes the file itself, observer only) still lands.
+  **2026-10-14 完成(Mac,API 36 emulator,P62)。** `saveDocument()` 現在會等 `commitStagedSave`(新增的
+  `BackendFeatures.FileWriteBack`)把代用檔複製進文件。以 adb 按按鈕、直接讀 `/sdcard/Download` 實測：經
+  CREATE_DOCUMENT 存檔 -> true,文件為 `AA`;文件換成同名資料夾 -> false,記錄 `EISDIR`;磁碟塞滿 -> false,
+  但失敗在寫 cache(ENOSPC,同一分割區),不是寫回。**權限失效未能重現**:在「檔案」app 刪除文件後授權仍在，
+  下一次存檔把它重建(true、內容正確);shell 碰不到 Downloads provider。舊行為已於同日以 HEAD 建置、同樣步驟重跑:
+  資料夾那個情況回報 `save -> true`,logcat 卻寫著「could not copy the save to content://...document/21」;緊接著重建的
+  新版回報 false。
+  P75(自己寫檔、只靠 observer)照常寫到。
 
 - [ ] **P2: GTK 3D projection uses stale allocation / GTK 3D 投影使用舊 allocation 尺寸.**
   `Sources/GtkBackend/GtkBackend+Mesh3DView.swift:75` reads allocation during
@@ -98,6 +120,32 @@ test 與結果。
   **2026-10-14 量測首次顯示(WSLg)。**P76 的 drawable 為 360x300。青色螺旋環以同一方法量兩張擷取：修正前寬
   360 px、兩側被 drawable 切掉、高 143 px;修正後寬 314 px、左右留白對稱、高 143 px。只有寬度改變：舊投影以
   長寬比 1 畫在 1.2 的 drawable 上,314 x 1.2 = 377 > 360,所以被切掉。仍未做：多次縮放，以及 Windows GTK4。
+  **Repeated resizes measured 2026-10-14 (Mac, GtkBackend on macOS, GTK 4.24).**
+  P76's mesh view has a fixed frame, so a resize never reaches its drawable; new
+  testapp/P95.swift fills the window with one circle facing the camera. The corner
+  dragged six times (`measure/drag_at.swift`), each capture measured with
+  `measure/colour_bbox.swift`: the circle's box was 390, 532, 890, 462 and 676 px
+  square at drawables 2420x542, 1220x742, 1620x1242, 1020x642 and 2620x942 -- ratio
+  1.000 -- and its height was 0.715-0.717 of the drawable's height at all six; the
+  sixth, 1020x1542, is clipped at the sides (1024x1104, ratio 0.928) with the same
+  0.715, not stretched. P95 logged each new drawable size. A size set through System
+  Events instead did not redraw the GL area (see measure/README.md). Still open:
+  resizes on WSLg, and Windows GTK4.
+  **2026-10-14 量測多次縮放(Mac,macOS 上的 GtkBackend,GTK 4.24)。** P76 的 mesh view 是固定 frame,縮放到不了
+  它的 drawable;新增的 testapp/P95.swift 以一個正對鏡頭的圓填滿視窗。拖曳視窗角落 6 次(`measure/drag_at.swift`),
+  每張擷圖以 `measure/colour_bbox.swift` 量測：圓的外框在 5 種 drawable 下皆為正方形(比例 1.000),高度 6 次都是
+  drawable 高度的 0.715–0.717;第 6 次 1020x1542 左右被切掉(1024x1104,比例 0.928),高度比例同為 0.715,不是變形。
+  以 System Events 設定尺寸則 GL area 不會重繪(見 measure/README.md)。仍未做:WSLg 上的縮放，以及 Windows GTK4。
+  **For the Windows session:** run `zsh testapp/test.zsh P95 --wsl` and `TEST_BACKEND=gtk4
+  zsh testapp/test.zsh P95 --windows`, resize the window by dragging its corner several
+  times, and photograph each size. Pass: the circle's box is square at every size and
+  its height keeps one share of the drawable's height. `measure/colour_bbox.swift` is
+  macOS-only (CoreGraphics); copy the captures to the Mac, or measure there with any
+  real image reader. Sample the circle's colour first -- see measure/README.md.
+  **給 Windows 的 session:** 執行 `zsh testapp/test.zsh P95 --wsl` 與 `TEST_BACKEND=gtk4 zsh testapp/test.zsh P95
+  --windows`,拖曳視窗角落改變大小數次，每種尺寸都拍一張。通過條件：圓的外框在每種尺寸下都是正方形，高度占 drawable
+  高度的比例固定。`measure/colour_bbox.swift` 只能在 macOS 上用(CoreGraphics);把擷圖複製到 Mac,或在那邊用任何真正的
+  影像讀取工具量。先取樣圓的顏色——見 measure/README.md。
 
 - [ ] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
   `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages

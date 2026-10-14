@@ -116,3 +116,46 @@ WinUI 版的外部探針,七項檢查與 AT-SPI 版相同,在 **control** 與 **
 傾印中寫明 view——raw view 會列出螢幕閱讀器走不到的元素。第一次使用時以 clang 建置 `uia_tree.c`。
 2026-09-17:P69-WinUI 14/14、exit 0;反向對照為 Windows 上的 P69-gtk4.exe(無無障礙後端):exit 1,
 label/hint/value/text_label 皆為 false——證明檢查不是空轉。
+
+## `colour_bbox.swift` — 一種顏色在截圖中的外框(代替 PIL)
+
+```sh
+swiftc -O -o /tmp/colour_bbox testapp/test_support/measure/colour_bbox.swift
+/tmp/colour_bbox --sample capture.png               # 先看螢幕上實際是什麼顏色
+/tmp/colour_bbox 8 232 248 capture1.png capture2.png  # 再量那個顏色的外框
+```
+
+這台 Mac 的 `python3` 沒有 PIL,所以用 CoreGraphics 寫成。每張圖印出該顏色像素的外框、寬高比、像素數,
+以及「drawable」:超過一半為近黑像素的列與欄所圍成的區域(mesh view 的預設背景)。容差預設 75,
+可用 `--tolerance N` 調整;取樣後縮小它:P95 在 AppKit 的擷圖以 75 量到 602x761(標題列的像素也算進去了),以 40 量到 602x602。
+
+**先取樣。** 螢幕上的顏色不等於場景給的顏色:P95 的圓是 `(0.4, 0.9, 1)`,即 102 230 255,而在 macOS 上
+GtkBackend 的擷圖約為 8 232 248,以 102 為中心根本抓不到。
+
+2026-10-14 為 todo.md P2 而寫:P95 的 mesh view 填滿視窗,以 `drag_at.swift` 拖曳視窗角落改變大小 6 次，
+正對鏡頭的圓在 5 種尺寸下寬高比都是 1.000,直徑與 drawable 高度的比例 6 次都在 0.715–0.717。唯一的例外
+(512x800,0.928)是圓比 drawable 寬、左右被切掉，高度比例同樣是 0.715——不是變形。
+
+Written for todo.md P2 because python3 here has no PIL. It prints the box of one
+colour and the near-black area around it. Sample the capture first: the colour on
+screen is not the scene's. With P95 resized six times by `drag_at.swift`, the
+circle's box was square at five sizes and its height kept the same share of the
+drawable's at all six; the one exception was clipped at the sides, not stretched.
+
+## `drag_at.swift` — 在螢幕座標上做一次真正的滑鼠拖曳
+
+```sh
+swiftc -O -o /tmp/drag_at testapp/test_support/measure/drag_at.swift
+/tmp/drag_at 600 500 900 700      # 起點 x y、終點 x y,螢幕座標(點)
+```
+
+以 `CGEvent.post(tap: .cghidEventTap)` 送出按下、8 步拖曳、放開。需要 Accessibility 授權。
+
+**改視窗大小用它，不要用 System Events。** 2026-10-14 在 macOS 上的 GtkBackend:以 System Events 設定
+`size of window 1`,視窗回報新尺寸，但 GL area 沒有重繪，截圖裡的內容停在舊尺寸;拖曳視窗右下角則每次都
+重繪,P95 也記下了新的 drawable 尺寸。另外，視窗不能超出螢幕：靠近螢幕底部的視窗往下拉不會變高，先把它移到上方。
+
+Resize a window with this, not with System Events: on GtkBackend on macOS a size
+set through System Events was reported but the GL area did not redraw, while a
+drag of the corner redrew every time. Move the window up first; it cannot grow
+past the bottom of the screen.

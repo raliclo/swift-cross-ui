@@ -10,7 +10,7 @@ entry is closed.
 | # | Item | Where it is done | State | Next step |
 | --- | --- | --- | --- | --- |
 | 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android. Since then: items pressed in the iPad's real menu bar; Hide Others and Show All pressed on GTK; GTK undo by action file; one app menu and Command shortcuts for GTK on macOS; launch windows as SwiftUI (`SceneLaunch`); GTK's TextEditor undoes one change at a time through `TextUndoHistory`, by keys and by Edit > Undo and Redo (P94) | Not as SwiftUI, on purpose: iPad keeps a Format menu when the app fills `textFormatting`; `windowList` and `singleWindowList` are accepted on iOS |
-| 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | waits for 1 | hand over when the Mac side is done |
+| 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | open (item 1 done on the Mac 2026-10-14) | implement on WinUI; replay P92 there -- `actions/win` and `actions/wsl` have no P92 file yet |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
 | 5 | P89 on WinUI, and on GTK under Linux/WSL and Windows | Windows / WSL | open | run it |
@@ -22,7 +22,7 @@ entry is closed.
 | 11 | iPad: eleven action files (P80-cursor-ipad shows all six cursor shapes on the simulator, 2026-10-14; P94-undo-ipad); nothing run on a physical iPad | Mac / hardware | open | a physical iPad with a trackpad |
 | 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
 | 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
-| 15 | P94 (TextEditor undo) on WinUI, and on GTK under Windows and WSL; `TextUndoHistory` for a `GtkTextView` has run on macOS only | Windows / WSL | open | replay it there; `actions/win` and `actions/wsl` have no P94 file yet |
+| 15 | P94 (TextEditor undo) on WinUI, and on GTK under Windows and WSL; `TextUndoHistory` for a `GtkTextView` has run on macOS only | Windows / WSL | open | replay the DRAFTS `actions/win/P94-undo.actions`, `actions/win/P94-undo-gtk4.actions` and `actions/wsl/P94-undo.actions` (written on the Mac 2026-10-14, never run; focus by Tab, so no coordinates -- if Tab misses the editor, measure it and click) |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 

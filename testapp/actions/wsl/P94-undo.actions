@@ -1,0 +1,64 @@
+action,x,y,origin,button,key,micros,note,platform
+# P94 on WSL (GtkBackend): GTK's own undo is off, the framework's history is used.
+#   zsh testapp/test.zsh P94 --wsl --actionfile testapp/actions/wsl/P94-undo.actions
+# DRAFT, written on the Mac 2026-10-14 from testapp/actions/mac/P94-undo-gtk4.actions and NOT
+# replayed: nothing here has run on this platform. Focus goes to the editor by Tab, the only
+# control in the window, so no coordinate is needed; if Tab does not reach it, measure the
+# editor there and put a click in its place. Keys are Ctrl, as on every Windows/WSL file.
+# The editor starts as "hello". The clipboard is used: it ends holding "hello".
+# Expected "editor" lines in p94-undo.log, in order (an empty one is "editor "):
+#   "" hello hellohello | hello "" hello | "" hello
+# The fourth Undo has nothing left and must add no line; the two Redos give the last two.
+# WSL(GtkBackend)上的 P94:GTK 自己的 undo 已關閉，改用框架的紀錄。
+# 草稿:2026-10-14 在 Mac 上依 testapp/actions/mac/P94-undo-gtk4.actions 寫成，**尚未重播**——這裡沒有任何一步
+# 在這個平台上跑過。焦點以 Tab 移到編輯器(視窗裡唯一的控制項),所以不需要座標;若 Tab 到不了，請在那邊量出編輯器
+# 的位置改用點擊。按鍵是 Ctrl。編輯器起始為 hello;會用到剪貼簿，結束時內容是 hello。p94-undo.log 的 editor 各行
+# 應依序如上;第四次 Undo 不得多出一行，兩次 Redo 給出最後兩行。
+sleep,,,,,,2500000,let the window settle and take the foreground,gtk
+key,,,,,tab,,focus the text editor -- see the header if it does not,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,a,,select all,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,x,,cut -- editor is empty,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,v,,paste -- hello,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,v,,paste again -- hellohello,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,z,,undo 1 -- hello: one paste only,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,z,,undo 2 -- empty,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,z,,undo 3 -- the first hello,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,z,,undo 4 -- nothing left; no change,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+keydown,,,,,shift,,,gtk
+key,,,,,z,,redo 1 -- empty,gtk
+keyup,,,,,shift,,,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+keydown,,,,,shift,,,gtk
+key,,,,,z,,redo 2 -- hello; left on screen for the capture,gtk
+keyup,,,,,shift,,,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+sleep,,,,,,500000,settle before the photograph,gtk

@@ -910,14 +910,25 @@ class AndroidBackendHelpers {
         ScuiWindows.titles[token] = title
         ScuiWindows.onClosed[token] = onClosed
         ScuiWindows.onResized[token] = onResized
+        // Beside the first window only where two fit: a tablet or foldable, or a window
+        // already in split screen. On a phone LAUNCH_ADJACENT put the window in the
+        // split-screen side stage and not on screen -- measured 2026-10-14 on the API 36
+        // emulator with P62 opening a document: "ShellSplitScreen: onTaskAppeared ...
+        // stageId=SIDE", uiautomator bounds 0,0,0,0, and the capture showed window 1
+        // (queue item 17). Without it a phone gives the window a task of its own in
+        // front, as this file's header and ScuiWindowActivity's say it should.
+        // 只有放得下兩個的地方才與第一個視窗並排：平板或折疊機，或已經處於分割畫面的視窗。在手機上 LAUNCH_ADJACENT
+        // 把視窗放進分割畫面的側邊區、不在畫面上——2026-10-14 在 API 36 emulator 以 P62 開啟文件實測:「ShellSplitScreen:
+        // onTaskAppeared ... stageId=SIDE」、uiautomator 的 bounds 為 0,0,0,0、擷圖顯示的是視窗 1(queue 第 17 項)。
+        // 不加這個旗標時，手機會給視窗一個在最前面的獨立工作，如 ScuiWindowActivity 的檔頭所說。
+        var flags = Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+        if (from.isInMultiWindowMode || getDeviceClass(from) != DEVICE_CLASS_PHONE) {
+            flags = flags or Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT
+        }
         val intent =
             Intent(from, ScuiWindowActivity::class.java)
                 .putExtra(ScuiWindowActivity.EXTRA_TOKEN, token)
-                .addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_DOCUMENT or
-                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
-                        Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT
-                )
+                .addFlags(flags)
         from.startActivity(intent)
     }
 
@@ -1421,11 +1432,28 @@ class AndroidBackendHelpers {
         return file.absolutePath
     }
 
+    // Where each staged file goes, by its path, for commitStagedSave.
+    //
+    // 每個代用檔要寫回的位置，以其路徑為鍵，供 commitStagedSave 使用。
+    private val stagedSaves = mutableMapOf<String, StagedSave>()
+
+    private class StagedSave(
+        val file: File,
+        val uri: Uri,
+        val resolver: android.content.ContentResolver,
+    ) {
+        // The length and modification time of the bytes last copied, so the
+        // observer does not copy again what commitStagedSave already did.
+        // 上一次複製的位元組之長度與修改時間，好讓 observer 不再重複 commitStagedSave 已做過的複製。
+        var copied: Pair<Long, Long>? = null
+    }
+
     // Copies `file` into the document at `uri` each time the app finishes writing it.
     //
     // 每當 app 寫完 `file`,就把它複製到 `uri` 所指的文件。
     private fun mirrorBack(activity: Activity, folder: File, file: File, uri: Uri) {
-        val resolver = activity.contentResolver
+        val staged = StagedSave(file, uri, activity.applicationContext.contentResolver)
+        synchronized(stagedSaves) { stagedSaves[file.absolutePath] = staged }
         // The FOLDER is watched, for CLOSE_WRITE and MOVED_TO on this name: a
         // plain write closes the file, an atomic one (`Data.write(options:
         // .atomic)`, which DocumentGroup's saveDocument uses) renames a temporary
@@ -1437,22 +1465,58 @@ class AndroidBackendHelpers {
         // (DocumentGroup 的 saveDocument 所用的 `Data.write(options: .atomic)`)會把暫存檔改名蓋過它，只監看
         // 檔案本身只會看到前者。2026-10-07 以 P75 在 API 36 emulator 上 atomic 寫入實測：兩種都複製成功，所以
         // Foundation 在那裡沒有改名——但那是實作細節，這裡兩者都涵蓋。
+        //
+        // The observer stays for an app that writes the file itself: nothing tells
+        // it when to commit. saveDocument does not rely on it (commitStagedSave).
+        // 對自行寫檔的 app,observer 仍然保留：沒有東西告訴它何時提交。saveDocument 不依賴它(見 commitStagedSave)。
         val observer =
             object : FileObserver(folder, FileObserver.CLOSE_WRITE or FileObserver.MOVED_TO) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path != file.name) return
-                    try {
-                        resolver.openOutputStream(uri, "wt")?.use { output ->
-                            file.inputStream().use { it.copyTo(output) }
-                        }
-                    } catch (error: Exception) {
-                        android.util.Log.e("SwiftCrossUI", "could not copy the save to $uri", error)
-                    }
+                    val failure = copyStaged(staged)
+                    if (failure != null) android.util.Log.e("SwiftCrossUI", failure)
                 }
             }
         observer.startWatching()
         saveMirrors.add(observer)
     }
+
+    // Copies a staged file into its document now; null when the document holds
+    // it, otherwise why not.
+    //
+    // **Added 2026-10-14 (todo.md P1).** The observer alone copied after the
+    // write had returned, so saveDocument reported success for a save whose
+    // copy then failed -- a deleted document, a write refused, a full disk --
+    // and the failure reached logcat only. The caller now waits for this.
+    //
+    // A path that was not staged for a save is not an error: there is nothing
+    // to copy, and the file written is the file.
+    //
+    // 現在就把代用檔複製到它的文件;文件確實存好時回傳 null,否則回傳原因。**2026-10-14 加入(todo.md P1)。**
+    // 只有 observer 時，複製發生在寫入返回之後，所以 saveDocument 對「之後複製失敗」的存檔(文件被刪、寫入被拒、
+    // 磁碟已滿)也回報成功，失敗只到 logcat。呼叫端現在會等這一步。沒有登記為存檔代用檔的路徑不算錯誤：沒有東西要
+    // 複製，寫出的檔案就是那個檔案。
+    fun commitStagedSave(path: String): String? {
+        val staged =
+            synchronized(stagedSaves) { stagedSaves[File(path).absolutePath] } ?: return null
+        return copyStaged(staged)
+    }
+
+    private fun copyStaged(staged: StagedSave): String? =
+        synchronized(staged) {
+            val mark = staged.file.length() to staged.file.lastModified()
+            if (staged.copied == mark) return@synchronized null
+            try {
+                val output =
+                    staged.resolver.openOutputStream(staged.uri, "wt")
+                        ?: return@synchronized "could not open ${staged.uri} for writing"
+                output.use { out -> staged.file.inputStream().use { it.copyTo(out) } }
+                staged.copied = mark
+                null
+            } catch (error: Exception) {
+                "could not copy the save to ${staged.uri}: $error"
+            }
+        }
 
     // Both return null on success and a sentence on failure, so the Swift side
     // can throw something a person can read instead of a bare `false`.

@@ -249,6 +249,23 @@ double scui_window_display_scale(GtkWidget *window);
 // 亦即此處的 `awareness`。
 char *scui_window_scale_diagnostics(GtkWidget *window);
 
+// The NSWindow behind a realized GTK window on macOS; NULL elsewhere and before
+// the window is realized. Implemented in gtk_window_native_macos.c.
+//
+// For the colour space. Measured 2026-10-14 on an MSI MD272UPS (a wide-gamut
+// display) with P95: GtkBackend drew (0.4, 0.9, 1) as 0 237 255 and (0.8, 0.3,
+// 0.25) as 241 70 69 in sRGB, and the same two values taken as the DISPLAY's
+// colours and converted to sRGB by ColorSync are 0 238 255 and 241 69 68.
+// AppKitBackend drew the second one 204 76 64, which is what it is in sRGB. GTK
+// leaves its pixels untagged; GtkBackend tags the window.
+//
+// macOS 上一個已 realize 的 GTK 視窗背後的 NSWindow;其他平台、或 realize 之前為 NULL。實作位於
+// gtk_window_native_macos.c。用於色彩空間:2026-10-14 在 MSI MD272UPS(廣色域螢幕)上以 P95 實測，
+// GtkBackend 把 (0.4, 0.9, 1) 畫成 sRGB 的 0 237 255、把 (0.8, 0.3, 0.25) 畫成 241 70 69;同樣兩個值當成
+// **螢幕的**顏色、經 ColorSync 換成 sRGB 則是 0 238 255 與 241 69 68。AppKitBackend 把後者畫成 204 76 64,
+// 也就是它在 sRGB 的值。GTK 不為像素標記色彩空間;GtkBackend 為視窗標記。
+void *scui_window_native_macos(GtkWidget *window);
+
 // Takes one extra reference on every device the default seat removes, and
 // never gives it back.
 //

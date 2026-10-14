@@ -287,7 +287,15 @@ boot_emulator() {
     # renderer check after boot, which is what actually enforces this.
     # `-gpu host`:用這台 Mac 的 GPU 繪圖。留給 `auto` 時由模擬器自己挑，而記憶體吃緊時它挑過軟體 GL——
     # 真正把關的是開機後的 renderer 檢查。
-    "$emulator" -avd "$1" -no-snapshot -no-boot-anim -no-metrics -gpu host \
+    #
+    # `-crash-report-mode never`: `-no-metrics` was not enough. Measured 2026-10-14:
+    # after an emulator had been killed, the next one logged "Showing crashdialog
+    # to get consent." with `-no-metrics` given, opened no adb port, and the wait
+    # below expired; the same command with this flag was in `adb devices` in 2 s.
+    # `-crash-report-mode never`:只有 `-no-metrics` 不夠。2026-10-14 實測：一個模擬器被砍掉之後，下一個即使
+    # 加了 `-no-metrics` 仍記錄「Showing crashdialog to get consent.」,沒有開 adb 埠，下方的等待逾時;同一個指令
+    # 加上這個旗標，2 秒內就出現在 `adb devices`。
+    "$emulator" -avd "$1" -no-snapshot -no-boot-anim -no-metrics -crash-report-mode never -gpu host \
         >/dev/null 2>&1 &
     serial=""
     for _ in {1..60}; do

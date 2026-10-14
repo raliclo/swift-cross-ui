@@ -130,6 +130,12 @@ public struct SaveDocumentAction {
         guard let destination else { return false }
         do {
             try store.write(destination)
+            // The file written may stand in for the document (Android); it is
+            // not saved until the document holds it. See FileWriteBack.
+            // 寫出的檔案可能只是文件的代用檔(Android);要文件確實存好才算存檔。見 FileWriteBack。
+            if let writeBack = environment.backend as? any BackendFeatures.FileWriteBack {
+                try writeBack.commitWrite(to: destination)
+            }
             return true
         } catch {
             logger.warning(

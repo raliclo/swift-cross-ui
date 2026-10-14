@@ -210,6 +210,12 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func stagingPathForOpen(_ activity: Activity?, _ uriString: String) -> JavaString?
 
+    /// Copies a file staged by one of the two above into its document now; nil
+    /// when the document holds it (or the path was not staged), otherwise why not.
+    /// 現在就把上面兩者之一建立的代用檔複製到它的文件;文件確實存好(或該路徑並非代用檔)時為 nil,否則為原因。
+    @JavaMethod
+    func commitStagedSave(_ path: String) -> JavaString?
+
     /// nil on success, otherwise why it failed.
     @JavaMethod
     func openExternalUrl(_ activity: Activity?, _ urlString: String) -> JavaString?

@@ -72,6 +72,18 @@ extension AndroidBackend: BackendFeatures.FileSaveDialogs {
     }
 }
 
+extension AndroidBackend: BackendFeatures.FileWriteBack {
+    /// Waits for the copy of a staged save to reach its document -- see
+    /// `AndroidBackendHelpers.commitStagedSave`.
+    /// 等代用檔的複製抵達它的文件——見 `AndroidBackendHelpers.commitStagedSave`。
+    public func commitWrite(to url: Foundation.URL) throws {
+        guard url.isFileURL else { return }
+        if let failure = helpers.commitStagedSave(url.path) {
+            throw HandoffError(description: failure.toString())
+        }
+    }
+}
+
 extension AndroidBackend: BackendFeatures.ExternalURLs, BackendFeatures.RevealFiles {
     public struct HandoffError: Error, CustomStringConvertible {
         public let description: String
