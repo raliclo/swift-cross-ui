@@ -35,7 +35,7 @@
 cd "$(dirname "$0")"/../ || exit 1
 
 python3 - "$@" <<'PY'
-import csv, glob, os, re, sys
+import csv, fnmatch, glob, os, re, sys
 
 # encoding="utf-8" is REQUIRED, and leaving it off breaks this guard on exactly
 # one of the two machines that must run it. Python's `open` defaults to the
@@ -84,10 +84,33 @@ for number, row in enumerate(rows[2:], start=3):
     # 會教會大家忽略它。
     # Rows written before 2026-10-14 cite `<file>.csv`; the files are `<file>.actions` since.
     # 2026-10-14 之前寫下的列引用 `<file>.csv`;檔案自那天起是 `<file>.actions`。
-    for name in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
+    #
+    # Two shapes of citation name a file that is there, and both failed this
+    # guard on 2026-10-14 (todo.md, "Test-data checks fail"):
+    #   a wildcard  -- row 1176 cites `actions/mac/P84-*-gtk4.csv` for seven
+    #                  files; the old pattern stopped at the `*` and looked for
+    #                  `gtk4.actions`. A wildcard now passes when it matches at
+    #                  least one file, so one that matches none still fails.
+    #   no prefix   -- P91's rows cite `focusable.csv` in the P91 row itself,
+    #                  meaning P91-focusable. A name that is not found as written
+    #                  is tried once more as `<row's app>-<name>`.
+    # A name found neither way is still reported, so a genuinely missing file
+    # still fails the guard.
+    #
+    # 有兩種引用寫法所指的檔案其實存在，而兩者都在 2026-10-14 讓本守衛失敗(todo.md「兩項測試資料檢查失敗」):
+    #   萬用字元——第 1176 列以 `actions/mac/P84-*-gtk4.csv` 指七個檔；舊的樣式在 `*` 處斷開，去找
+    #             `gtk4.actions`。萬用字元現在只要符合至少一個檔就通過，一個都不符合時仍會失敗。
+    #   沒有前綴——P91 的列在 P91 那一列裡寫 `focusable.csv`,指的是 P91-focusable。照原樣找不到的名稱，
+    #             會再以 `<該列的 app>-<名稱>` 試一次。
+    # 兩種方式都找不到的名稱仍會被回報，因此真正缺的檔案照樣讓守衛失敗。
+    for name in re.findall(r"[A-Za-z0-9*][A-Za-z0-9_.*-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
         if name.endswith(".csv"):
             name = name[:-4] + ".actions"
-        if name not in present:
+        if "*" in name:
+            if not fnmatch.filter(present, name):
+                missing.setdefault(name, []).append((number, row[3]))
+            continue
+        if name not in present and f"{row[3]}-{name}" not in present:
             missing.setdefault(name, []).append((number, row[3]))
 
 if not missing:

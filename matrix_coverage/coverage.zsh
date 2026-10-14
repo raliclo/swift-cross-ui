@@ -173,13 +173,19 @@ trap 'rm -f "$pivot"' EXIT
         # 欄位。這些紀錄過去會直接消失；下方的 `dropped` 會計數，腳本並予以回報——因為一筆在覆蓋率
         # 矩陣中悄悄消失的執行，讀起來就是「從未測試過」，而那正是最不該保持安靜的事。
         BEGIN {
-            ncol = 6
+            ncol = 7
             key[1] = "windows/gtk4";     en[1] = "windows_gtk4";  zh[1] = "Windows·gtk4"
             key[2] = "windows/winui";    en[2] = "windows_winui"; zh[2] = "Windows·WinUI"
             key[3] = "wsl/gtk4";         en[3] = "wsl";           zh[3] = "WSL"
             key[4] = "mac/appkit";       en[4] = "macos_appkit";  zh[4] = "macOS·AppKit"
             key[5] = "ios/uikit";        en[5] = "ios_uikit";     zh[5] = "iOS·UIKit"
             key[6] = "android/android";  en[6] = "android";       zh[6] = "Android"
+            # GtkBackend on macOS has been run since 2026-10-09 (P84 onwards) and
+            # had no column, so its twelve rows were dropped. Last, so the six
+            # columns before it keep their positions.
+            # macOS 上的 GtkBackend 自 2026-10-09(P84 起)就有執行紀錄，卻沒有欄位，因此那十二列被捨棄。
+            # 放在最後，前面六欄的位置不變。
+            key[7] = "mac/gtk4";         en[7] = "macos_gtk4";    zh[7] = "macOS·gtk4"
 
             line = "app"; for (c = 1; c <= ncol; c++) line = line "," en[c]
             print line ",note"
@@ -204,6 +210,13 @@ trap 'rm -f "$pivot"' EXIT
             launch = field("launch"); replay = field("replay")
             capture = field("capture")
 
+            # "macos" is the same platform as "mac": seven rows from 2026-10-09 on
+            # spell it out, and they matched no column (todo.md, 2026-10-14).
+            # Aliased here rather than rewritten in results.csv2, which is the
+            # evidence and append-only.
+            # 「macos」與「mac」是同一個平台:2026-10-09 起有七列寫成全名，因而對不到任何欄位(todo.md,
+            # 2026-10-14)。在這裡當別名處理，而不是去改 results.csv2——那是證據，只能追加。
+            if (platform == "macos") platform = "mac"
             pair = platform "/" backend
             # "n/a" counts as "no replay was expected", alongside "-". An app
             # with no action file launches and is captured and is a perfectly
@@ -310,7 +323,10 @@ trap 'rm -f "$pivot"' EXIT
                     : !(replay == "ok" || noReplayExpected) ? replay \
                     : captured ? "pass" : captureSays
 
-            if (!(pair in known)) { dropped[pair]++; next }
+            # A platform of "-" is a note row (RESTALE markers, a verdict across
+            # apps), not a run: it belongs to no column and is not a typo to report.
+            # 平台為「-」的是註記列(RESTALE 標記、跨 app 的結論),不是一次執行，因此不屬於任何欄位，也不是要回報的拼字錯誤。
+            if (!(pair in known)) { if (platform != "-") dropped[pair]++; next }
 
             # LATEST DATE WINS, AND WITHIN THAT DATE THE ROWS COMBINE.
             #

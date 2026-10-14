@@ -28,6 +28,79 @@ different depending on where "here" was.
 
 ## Now / 現在
 
+### Code review follow-up / 程式碼審查待辦 (2026-10-14, Windows)
+
+Five open review items, ordered by severity. Items 1-4 are source-review
+findings awaiting runtime reproduction; item 5 was reproduced by running the
+checks on Windows. Do not close an item from a code change alone: record the
+regression test and its result.
+
+五項未完成的 review 待辦，依嚴重度排序。第 1-4 項為原始碼審查發現，仍需 runtime
+重現；第 5 項已在 Windows 執行檢查重現。不能只因改了程式就結案，須記錄 regression
+test 與結果。
+
+- [ ] **P1: SVG large-coordinate crash / SVG 大座標可能造成 crash.**
+  `Sources/SwiftCrossUI/SVG/SVGRasterizer.swift:242` converts coordinates to
+  `Int` before clipping to the canvas. A finite coordinate such as `1e20`
+  still exceeds the integer range. Clip in floating point before conversion;
+  add tests for extreme positive/negative coordinates and fully off-canvas
+  shapes, ensuring rendering does not trap.
+  先以浮點數裁切，再轉成 `Int`；補極大正負座標與完全位於畫布外的圖形測試，確認不會中止程式。
+
+- [ ] **P1: Android save reports success before write-back / Android 儲存可能錯誤回報成功.**
+  `Sources/AndroidBackend/Kotlin/AndroidBackendHelpers.kt:1318` writes the
+  cached file back asynchronously and only logs provider failures, while
+  `saveDocument()` returns success after the cache write. Propagate actual
+  write-back completion/errors to the caller. Test provider write failure,
+  revoked permissions and insufficient space; failure must return false and
+  successful saves must be read back from the selected document, not the cache.
+  將原文件寫回完成與錯誤傳回呼叫端；驗證 provider 寫入失敗、權限失效與空間不足不會回報成功，
+  且成功案例須從使用者選定的原文件讀回，而非只讀 cache。
+
+- [ ] **P2: GTK 3D projection uses stale allocation / GTK 3D 投影使用舊 allocation 尺寸.**
+  `Sources/GtkBackend/GtkBackend+Mesh3DView.swift:75` reads allocation during
+  layout commit, but the render path does not recompute projection from the
+  actual drawable size. Recalculate at render/allocation time. Verify a static
+  non-square scene at first display and after repeated resizes: WSLg first,
+  then Windows GTK4, with screenshot geometry measurements.
+  依實際繪製尺寸重算投影；先 WSLg、再 Windows GTK4，量測靜態非正方形場景首次顯示及多次 resize
+  後的截圖幾何，確認沒有拉伸變形。
+
+- [ ] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
+  `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages
+  and dispatches them without handling `WM_QUIT`. Preserve/repost the quit
+  message and stop the nested pump. Test closing the app while a snapshot is
+  pending, checking the process exits and the quit exit code is preserved.
+  保留或重新送出 `WM_QUIT` 並停止巢狀 pump；驗證 snapshot 等待期間關閉 app 能正常結束行程，
+  且退出碼不遺失。
+
+- [x] **P2: Test-data checks fail / 兩項測試資料檢查失敗 (reproduced / 已重現).**
+  Coverage: seven `macos/appkit` or `macos/gtk4` rows have no matching matrix
+  column (`matrix_coverage/coverage.zsh:180`). Reconcile platform/backend names
+  and columns without deleting evidence; confirm all seven results appear.
+  Action references: `Scripts/check_action_files.sh:85` reads the wildcard
+  `P84-*-gtk4.csv` as missing `gtk4.csv`, although all seven matching files
+  exist. Handle wildcard references correctly or cite the exact files; retain
+  detection of genuinely missing references. Both checks must exit 0.
+  Coverage 的七筆結果須統一平台/backend 命名或補對應欄位，不刪除證據，確認全數出現在矩陣。
+  Action 引用檢查須正確處理 wildcard 或改列實際檔名，同時保留對真正缺檔的檢查；兩項檢查皆須 exit 0。
+  **Done 2026-10-14 (Windows), both exit 0.** Re-run on e1dc7101 first: it was
+  wider than written. check_action_files also failed on P91's `focusable.csv`
+  rows, which name the file without its app prefix. The checker now matches a
+  wildcard with fnmatch (pass if it matches at least one file) and retries a
+  bare name as `<row's app>-<name>`. Negative control: two appended rows citing
+  `nothere.csv` and `P84-*-nosuch.csv` were both reported (rc=1), then removed;
+  results.csv2 restored byte-identical. Coverage: seventeen rows matched no
+  column, not seven -- `macos` spelled out (2 appkit, 5 gtk4), seven `mac/gtk4`
+  with no column at all, and three `-/-` note rows. `macos` is aliased to `mac`,
+  a seventh column `macos_gtk4` is added last, and note rows are not reported.
+  P10 and P41 now show their 2026-10-10 AppKit runs; P10, P84, P91 and others
+  fill the GTK column. No evidence row was edited.
+  **2026-10-14(Windows)完成，兩項皆 exit 0。**實際範圍比描述大:P91 以省略 app 前綴的 `focusable.csv`
+  引用也失敗;對不到欄位的是十七列而非七列。檢查器改以 fnmatch 比對 wildcard、對裸名稱補上該列 app 前綴
+  再試一次；以兩列故意缺檔的引用做反向驗證，兩者皆被抓到。coverage 把 `macos` 當成 `mac`,新增最後一欄
+  `macos_gtk4`,註記列不再回報。未修改任何證據列。
+
 ### #123 external verification / 外部驗證 (2026-09-17)
 
 - [x] P69 WSLg AT-SPI: external readback now exists, but the original `X` child
