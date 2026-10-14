@@ -9,7 +9,7 @@
 // two pastes were one Undo. GtkBackend kept its own history for a text field from 2026-10-13
 // (P92) and a TextEditor still used GTK's; from 2026-10-14 both use `TextUndoHistory`.
 //
-// Pass, with the keys of testapp/actions/<platform>/P94-undo*.csv:
+// Pass, with the keys of testapp/actions/<platform>/P94-undo*.actions:
 //   1 Select All, Cut, Paste, Paste leave "", "hello", "hellohello"
 //   2 Undo takes one paste away at a time: "hello", "", and then the starting "hello"
 //   3 one more Undo changes nothing
