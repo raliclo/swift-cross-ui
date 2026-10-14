@@ -66,10 +66,10 @@ mkdir -p "$script_dir/output"
 
 # Read before the app list, which is every remaining argument. It used to be
 # read after, so `--fresh` was first taken for an app name -- "no matches found:
-# actions/android/--fresh-*.csv", zero files run -- and then still wiped the CSV
+# actions/android/--fresh-*.actions", zero files run -- and then still wiped the CSV
 # (2026-10-02).
 # 必須在 app 清單(其餘所有引數)之前讀取。原本在其後讀取，於是 `--fresh` 先被當成 app 名稱——
-# 「no matches found: actions/android/--fresh-*.csv」、一個檔案也沒跑——接著仍把 CSV 清空(2026-10-02)。
+# 「no matches found: actions/android/--fresh-*.actions」、一個檔案也沒跑——接著仍把 CSV 清空(2026-10-02)。
 fresh=0
 if [ "${1:-}" = "--fresh" ]; then
     fresh=1
@@ -79,10 +79,10 @@ fi
 if [ "$#" -gt 0 ]; then
     action_files=()
     for wanted in "$@"; do
-        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.csv 2>/dev/null)"})
+        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.actions 2>/dev/null)"})
     done
 else
-    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.csv \
+    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.actions \
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/android/|")"})
 fi
 

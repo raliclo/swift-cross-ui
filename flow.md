@@ -166,8 +166,8 @@ Windows 軌的情況不同，見第二節第 3 步：那三個目標是同一台
 ### 4. 檢查動作檔
 
     zsh ./test.zsh <Pn> --macos --actionfile
-    zsh ./test_ios.zsh <Pn> --no-build --actionfile actions/ios/<file>.csv --showtime 4
-    SWIFT_BIN=… SCUI_DEBUG=1 zsh ./test_android.zsh <Pn> --actionfile actions/android/<file>.csv
+    zsh ./test_ios.zsh <Pn> --no-build --actionfile actions/ios/<file>.actions --showtime 4
+    SWIFT_BIN=… SCUI_DEBUG=1 zsh ./test_android.zsh <Pn> --actionfile actions/android/<file>.actions
 
 規則見第三節。
 
@@ -321,7 +321,7 @@ This was written after P34 changed on 2026-09-09: a line reading
 `Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`
 was rendered on screen while four of those five existed. Fixing the text
 shortened it, which moved every coordinate below it, which invalidated
-`P34-show-more-rows.csv` — one edit, three consequences, only one of them
+`P34-show-more-rows.actions` — one edit, three consequences, only one of them
 visible in the diff. (The coordinate turned out to survive, but only because
 the replacement Text was the same height; that was established by running the
 file, not by noticing it.)
@@ -342,7 +342,7 @@ file, not by noticing it.)
 
 本節寫於 2026-09-09 P34 變動之後：畫面上有一行寫著
 `Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`，而那五個裡有四個是
-存在的。修正該文字使它變短，於是其下每一個座標都位移了，於是 `P34-show-more-rows.csv` 失效——一次
+存在的。修正該文字使它變短，於是其下每一個座標都位移了，於是 `P34-show-more-rows.actions` 失效——一次
 編輯、三個後果，而其中只有一個看得見於 diff。（那個座標最後其實存活了下來，但那只是因為替換上去的
 Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看出來的。）
 
@@ -425,7 +425,7 @@ sh Scripts/check_action_files.sh
 `Scripts/test.sh` 已經包含它,因此走正常閘門就會跑到。單獨列出,是因為它要回答的問題發生在**提交之前**:
 「我剛寫下的那句 `(VERIFIED …)`,別人跑得起來嗎?」
 
-它檢查的是:results.csv2 中每一個被引用的 `.csv`,都存在於 `testapp/actions/` 之下。
+它檢查的是:results.csv2 中每一個被引用的動作檔(舊列寫 `.csv`,2026-10-14 起是 `.actions`),都存在於 `testapp/actions/` 之下。
 
 **為什麼是動作檔而不是截圖。** 兩者都被 `(VERIFIED …)` 引用,但它們不對等:
 
@@ -437,8 +437,8 @@ sh Scripts/check_action_files.sh
 截圖說明「證據當時在哪裡」;動作檔是可重現的那一半。
 
 首次執行時它抓到兩個斷掉的引用,而兩個都不是遺失的檔案,是**筆誤**:16 列寫著
-`P16-force-update.csv`(實際檔名是 `P16-force-update-winui.csv`),1 列寫著 `P46-actions.csv`
-(實際是 `P46-increment-the-state-object.csv`)。那些列早已提交,而在此之前沒有任何東西會發現。
+`P16-force-update.actions`(實際檔名是 `P16-force-update-winui.actions`),1 列寫著 `P46-actions.csv`
+(實際是 `P46-increment-the-state-object.actions`)。那些列早已提交,而在此之前沒有任何東西會發現。
 
 ### 3e-2. 結果被引用的探針,要留在樹裡
 
@@ -451,7 +451,7 @@ sh Scripts/check_action_files.sh
 2026-09-09 差點如此:P34 的第一次點擊是以一份只帶那一個點擊的檔案單獨驗證的(兩次點擊的那一版停在
 「showing first 500」,而那個數字第二次點擊自己就能達成,因此證明不了第一次)。矩陣裡的那一列引用了
 它,而那個檔案在 `scratchpad/` 裡待了一天。現在它是
-`testapp/actions/ios/P34-first-click-alone.csv`。
+`testapp/actions/ios/P34-first-click-alone.actions`。
 
 判準很簡單:**寫下 `(VERIFIED …)` 之前,先問產生它的那個檔案在哪裡。** 若答案是暫存目錄,先把它移進
 `testapp/actions/`。
@@ -555,7 +555,7 @@ sh Scripts/check_action_files.sh
     apps = sorted(os.path.basename(p)[:-6] for p in glob.glob("P*.swift"))
     for plat in ["mac", "ios", "android", "win", "wsl"]:
         have = set()
-        for f in glob.glob(f"actions/{plat}/*.csv"):
+        for f in glob.glob(f"actions/{plat}/*.actions"):
             m = re.match(r"(P[\w-]*?)-[a-z]", os.path.basename(f))
             if m: have.add(m.group(1))
         missing = [a for a in apps if a not in have]
@@ -582,7 +582,7 @@ sh Scripts/check_action_files.sh
 已被涵蓋。它幾乎是空的。
 
 重新計算：上方那段 `python3 -c` 原樣執行；後兩個數字用
-`ls -1 testapp/actions/win/*-winui.csv | wc -l` 與 `ls -1 testapp/output/*-WinUI.exe | wc -l`。
+`ls -1 testapp/actions/win/*-winui.actions | wc -l` 與 `ls -1 testapp/output/*-WinUI.exe | wc -l`。
 
 **不是每一個空格都是缺口。** `P6-v2.swift` 直接 `import Gtk`，`compile.zsh` 本來就會擋；它在 mac
 與 ios 欄永遠是空的，而那不是覆蓋率有缺，是計數方式錯了。

@@ -47,14 +47,14 @@ Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `test
     `detail: 0 x 22`、之後 `detail: 734 x 22`。已修正 `compile.zsh` 沒把
     `SCUI_DEBUG=1` 傳成 `-Xswiftc -DSCUI_DEBUG` 的問題，也讓 `ActionFileReplay`
     在 WinUI console redirection 下仍能寫出 `actionfile-replay.log`。目前 replay hook
-    可觀察，但 `actions/win/P16-force-update.csv` 尚未讓 Force update / sidebar selection /
+    可觀察，但 `actions/win/P16-force-update.actions` 尚未讓 Force update / sidebar selection /
     column switch 反映到畫面，需改查 Win32 synthetic input 對 WinUI 控制的命中、focus 或
     activation。
   - **2026-09-07 更新：上面這一條已被取代兩次，而它自己沒有被更新過。**
     2026-09-01 記於 `UI-test-plan-en.md#results-log`：三次點擊全部命中；同日結案 #160 在
     WinUIBackend 上不重現。那個 `0 x 22` 的 probe 讀數本身也已被撤回——22 是 probe 自己
     `.frame(height: 22)` 的高度，不是窗格的高度。
-    另外檔名已改為 `actions/win/P16-force-update-winui.csv`。**保留上面的原文而不刪除**，
+    另外檔名已改為 `actions/win/P16-force-update-winui.actions`。**保留上面的原文而不刪除**，
     因為它示範了一條「看起來仍然有效的待辦」在被兩次結論取代之後會是什麼樣子。
   - 2026-08-31 補充：清空 `actionfile-replay.log` 後重跑，`SendInput` 回報
     `ERROR_ACCESS_DENIED`，此輪不能當作 app 行為證據。final screenshot 仍可見 sidebar row

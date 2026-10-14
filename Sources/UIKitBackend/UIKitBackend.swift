@@ -457,7 +457,7 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     ///
     /// **`buildMenu(with:)` is never called with `.main` on iPhone**, because
     /// there is no menu bar to build -- measured 2026-09-16 on an iPhone 17 Pro
-    /// Max and recorded in `actions/ios/P71-shortcuts.csv`. Every `UIKeyCommand`
+    /// Max and recorded in `actions/ios/P71-shortcuts.actions`. Every `UIKeyCommand`
     /// this backend made lived inside that call, so on iPhone `.commands` and
     /// every shortcut in it did nothing at all, while the same binary worked on
     /// an iPad.
@@ -470,7 +470,7 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     /// 一個永遠不會建出主選單的裝置,它的那些快捷鍵——以 key command 的形式。
     ///
     /// **在 iPhone 上,`buildMenu(with:)` 從不以 `.main` 被呼叫**,因為那裡沒有選單列可建
-    /// ——2026-09-16 在 iPhone 17 Pro Max 上量過,記於 `actions/ios/P71-shortcuts.csv`。
+    /// ——2026-09-16 在 iPhone 17 Pro Max 上量過,記於 `actions/ios/P71-shortcuts.actions`。
     /// 這個 backend 所造出的每一個 `UIKeyCommand` 都住在那次呼叫之內,因此在 iPhone 上,`.commands`
     /// 與其中的每一個快捷鍵**完全沒有作用**,而同一個二進位檔在 iPad 上卻能用。
     ///

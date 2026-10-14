@@ -140,7 +140,7 @@ for app in "${apps[@]}"; do
     # 一個「工具不存在」卻被讀成「沒有動作檔」的檢查，正是本欄位所要避免的那種偽陰性。
     action_args=()
     local -a found
-    found=("$testapp_dir/actions/mac/$app"-*.csv(N))
+    found=("$testapp_dir/actions/mac/$app"-*.actions(N))
     [ "${#found}" -gt 0 ] && action_args=(--actionfile)
 
     # Reuse the existing build, except when replaying.

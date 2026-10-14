@@ -208,7 +208,7 @@ was no test for z-order because none could be written: `ForEach` inside a
 was fixed for `Group`, and its own documentation says it exists so that "`Group`
 and `ForEach`" can be transparent — but only `Group` ever read it. So a `ForEach`
 in a `ZStack` fell back to the *grandparent's* axis and laid its children out in
-a column, where z-order is invisible. Both are fixed; `testapp/actions/win/P13-zorder.csv`
+a column, where z-order is invisible. Both are fixed; `testapp/actions/win/P13-zorder.actions`
 drives the check, and P13 gained the section it drives.
 
 已依下述方式修復，使用 `gtk_widget_insert_after`。此處是依陣列重建整個兄弟順序，而非只搬動那兩個
@@ -219,7 +219,7 @@ drives the check, and P13 gained the section it drives.
 出來：`ZStack` 中的 `ForEach` 完全不重疊。`layoutOverlapsChildren` 是在為 `Group` 修 #158 時加入的，
 其文件明寫此旗標的存在是為了讓「`Group` 與 `ForEach`」保持透明——但實際讀取它的只有 `Group`。
 於是 `ZStack` 中的 `ForEach` 退而採用**祖父層**的軸向，把子元件排成一欄，而 z 順序在那裡根本看不見。
-兩者皆已修復；`testapp/actions/win/P13-zorder.csv` 驅動該項檢查，P13 也新增了它所驅動的段落。
+兩者皆已修復；`testapp/actions/win/P13-zorder.actions` 驅動該項檢查，P13 也新增了它所驅動的段落。
 
 <details><summary>The original finding / 原始發現</summary>
 
@@ -552,7 +552,7 @@ AppKit 的字重，我不得不調整這些數值」。
 
 **Measured 2026-08-27, and the original finding below is understated in two
 ways.** P22 gained a nine-row weight ladder and
-`testapp/actions/win/P22-weights.csv` to reach it; nothing in `testapp/` had
+`testapp/actions/win/P22-weights.actions` to reach it; nothing in `testapp/` had
 rendered a single `fontWeight` before, which is why none of this was visible.
 Sample column measured off the capture, same glyphs in every row, on
 Windows/GtkBackend:
@@ -590,7 +590,7 @@ measuring against AppKit — and that measurement cannot be redone on this machi
 and the action file are in place, so the same measurement can be repeated on
 either side. Re-derive with:
 
-    zsh testapp/compile.zsh -gtk4 P22   # then drive actions/win/P22-weights.csv
+    zsh testapp/compile.zsh -gtk4 P22   # then drive actions/win/P22-weights.actions
 
 Unverified hypothesis, worth one command on the Mac or here: the face set implied
 by the numbers — distinct renderings at 300, 400, 600, 700 and 900 — is exactly
@@ -601,7 +601,7 @@ family's, and only the `semibold`/`bold` CSS duplicate is ours to fix.
 **5. `.semibold` 與 `.bold` 繪製結果完全相同 — 嚴重度 wrong，並非一行可解，需要 Mac [src]**
 
 **2026-08-27 實測，下方的原始發現在兩個地方都低估了問題。** P22 新增了九列的字重階梯，並以
-`testapp/actions/win/P22-weights.csv` 捲動至該處；在此之前，`testapp/` 裡沒有任何地方繪製過哪怕
+`testapp/actions/win/P22-weights.actions` 捲動至該處；在此之前，`testapp/` 裡沒有任何地方繪製過哪怕
 一次 `fontWeight`，這正是上述種種都看不見的原因。量測自截圖的樣本欄（每列皆為同一組字形），
 平台為 Windows/GtkBackend，數據見上表。
 

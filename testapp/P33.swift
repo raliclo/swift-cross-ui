@@ -104,7 +104,7 @@ struct P33RootView: View {
             // approximation and the implementation can be compared.
             //
             // The wording was NOT trimmed to fit. Every string here is a
-            // different length from what it replaced, so P33-hide-details.csv's
+            // different length from what it replaced, so P33-hide-details.actions's
             // measured coordinates had to be re-measured in the same change --
             // shortening a wrapped line lifts everything below it, and a click
             // that then lands on empty space raises nothing and still reports a
@@ -115,7 +115,7 @@ struct P33RootView: View {
             // 的形狀放在旁邊，使近似做法與實作可以互相對照。
             //
             // 措辭**並未**為了遷就版面而修剪。此處每個字串的長度都與被取代者不同，因此
-            // P33-hide-details.csv 的量測座標必須在同一次改動中重新量測——縮短一行換行文字會把它
+            // P33-hide-details.actions 的量測座標必須在同一次改動中重新量測——縮短一行換行文字會把它
             // 下方的一切往上抬，而屆時落在空白處的點擊不會引發任何東西，卻仍會回報通過。
             Text("Hand-built shapes, kept for comparison. The real views now exist -- see P46.")
 

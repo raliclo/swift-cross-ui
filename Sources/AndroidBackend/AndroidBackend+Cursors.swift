@@ -40,7 +40,7 @@ import SwiftJava
 /// itself calls to decide. `ViewGroup`'s implementation hit-tests down to the child under the
 /// coordinates, asks it, and only then falls back to its own icon -- so posting an
 /// ACTION_HOVER_MOVE from SOURCE_MOUSE and reading the answer tests the REGION as well as the
-/// shape, with no pointer device anywhere. `actions/android/P72-cursor.csv` reports
+/// shape, with no pointer device anywhere. `actions/android/P72-cursor.actions` reports
 /// `cursor at (190, 259) is crosshair` over the mesh view and `none` over the title text, `none`
 /// being the null that means "no view here claims an icon" -- which is what confinement looks
 /// like. What remains unproved is only the drawing: given a pointer, this resolution is what draws
@@ -58,7 +58,7 @@ import SwiftJava
 /// `View.onResolvePointerIcon(MotionEvent, pointerIndex)` 是公開的,而那正是 Android **自己**用來
 /// 決定的方法。`ViewGroup` 的實作會往下 hit-test 到座標底下的子 view、問它,之後才退回自己的圖示
 /// ——因此投遞一個來自 SOURCE_MOUSE 的 ACTION_HOVER_MOVE 並讀取答案,同時檢驗了**區域**與形狀,
-/// 而且完全不需要指標裝置。`actions/android/P72-cursor.csv` 回報:mesh view 上是
+/// 而且完全不需要指標裝置。`actions/android/P72-cursor.actions` 回報:mesh view 上是
 /// `cursor at (190, 259) is crosshair`,標題文字上是 `none`——而 `none` 就是那個代表
 /// 「此處沒有任何 view 認領圖示」的 null,也正是「被侷限」的樣子。仍未被證明的只剩**繪製**:
 /// 有了指標,畫出它的就是這一次解析;而這個 AVD 沒有指標可畫。

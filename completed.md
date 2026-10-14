@@ -52,7 +52,7 @@ headings say which queue.md section each block came from.
 - [x] **Core: a view's own @State change re-creates it from its parent, and an inline
   `@ObservedObject var m = Model()` is replaced each time.** Measured 2026-09-28 on
   macOS with P45 (a construction counter was added to P45Model): one run of
-  P45-press-the-model-button.csv constructed the model 8 times -- at launch, on each
+  P45-press-the-model-button.actions constructed the model 8 times -- at launch, on each
   seed button (@State), and on the model button, which also writes @State
   `presses`. The model button's flip lands on the old instance and the screen then
   shows the new one: button presses 1, setter writes 0. The toggles that only touch
@@ -222,11 +222,11 @@ headings say which queue.md section each block came from.
     「兩張一樣的圖」;(2) 第二次改了時間,before 那張落在面板**出現之前**,差異變成整個面板 325 x 203,
     那讀起來像「整個面板都動了」。正確做法是**以 app 自己的 log 行為準**去等
     (`popover alpha shown` → 拍 before;`popover counter 10` → 拍 after)。
-  - **順帶修掉兩份過時的動作檔**:`P50-open-first-panel.csv` 與 `P50-panel-press-me.csv` 裡那顆
+  - **順帶修掉兩份過時的動作檔**:`P50-open-first-panel.actions` 與 `P50-panel-press-me.actions` 裡那顆
     「Open the first panel」按鈕座標由 (227,646) 改為 (231,677)。舊座標打在一個 `NSCustomTextField` 上,
     而**重放仍然以 0 結束**——唯一的跡象是事後那行 geometry 寫著 `popover=none`。兩份都已重放驗過。
 - [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
-- [x] **2c. 動作檔已能驅動 AppKit 的 popover** — 兩件事要一起改:(1)`targetWindow()` 不再回傳 popover——popover 會取得 key,於是每一個**非** popover 的座標都在對它解析,而檔案照樣重放成功、每次點擊都落在某個看似合理的位置;(2)`origin=popover` 的事件投遞到 **popover 自己的視窗**,投給後方的視窗會把它 light-dismiss,而「被關掉的 popover」與「沒打中的點擊」是同一張圖。`popoverOrigin` 取的是**內容區**而非視窗框(框比畫出來的面板大 26 點,含箭頭與陰影)。實測:`P50-panel-press-me.csv` 讓 P50 記下 `popover counter 1`
+- [x] **2c. 動作檔已能驅動 AppKit 的 popover** — 兩件事要一起改:(1)`targetWindow()` 不再回傳 popover——popover 會取得 key,於是每一個**非** popover 的座標都在對它解析,而檔案照樣重放成功、每次點擊都落在某個看似合理的位置;(2)`origin=popover` 的事件投遞到 **popover 自己的視窗**,投給後方的視窗會把它 light-dismiss,而「被關掉的 popover」與「沒打中的點擊」是同一張圖。`popoverOrigin` 取的是**內容區**而非視窗框(框比畫出來的面板大 26 點,含箭頭與陰影)。實測:`P50-panel-press-me.actions` 讓 P50 記下 `popover counter 1`
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
 - [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
 - [x] **5. P28:點擊延遲 — 兩條未量的路徑都量完了** — 「真實滑鼠事件合成不出來」不成立:`AppKitSynthesiser` 檔頭那個「CGEvent 送出 0 個事件」量於 `AXIsProcessTrusted() == false`,而這台機器現在是 `true`,`CGEvent.post(.cghidEventTap)` 會送達。實測 click→body:**啟動後第一次點擊(未預熱)16.0 ms**、預熱後 2.9–9.9 ms,三輪。合成路徑先前量到的是 0–2 ms / 像素 69 ms。**沒有任何一條接近一秒。** 工具留在 `testapp/test_support/measure/real_mouse_latency.swift`,檔頭的量測也已補上「已授權」那一半
@@ -247,7 +247,7 @@ headings say which queue.md section each block came from.
 - [x] **M4. #121 在 iPhone 上已補上 — `UIResponder.keyCommands`(2026-09-16 完成並驅動驗證)** — UIKit 的 `#121` 目前是
   **iPad ✅ / iPhone ❌**,而那不是「平台沒有 API」。唯一的註冊路徑是 `buildMenu(with:)`
   (`UIKitBackend+Menu.swift:215`),而 iPhone 沒有選單列、`buildMenu` 從不以 `.main` 被呼叫
-  ——2026-09-16 在 iPhone 17 Pro Max 上量過,寫在 `actions/ios/P71-shortcuts.csv` 的檔頭。
+  ——2026-09-16 在 iPhone 17 Pro Max 上量過,寫在 `actions/ios/P71-shortcuts.actions` 的檔頭。
   `grep -rn keyCommands Sources/UIKitBackend` 回報 0:沒有任何地方覆寫 `UIResponder.keyCommands`,
   而那正是 iPhone 上「不需要選單列」的那條路。依 CLAUDE.md,這是待實作,不是可以記成 ✅ 的東西。
   - **同一個動作檔在兩種裝置上都通過:** iPhone(預設的 `swift-cross-ui` 模擬器,iOS 27.0)
@@ -260,7 +260,7 @@ headings say which queue.md section each block came from.
   - **closure 放在 `FallbackShortcutActions`,不是 `MenuShortcutActions`。** 兩者重建的時機不同:
     `buildMenu` 內的 `beginRebuild` 會默默作廢這條路所持有的每一個 token,而一個找不到東西的快捷鍵
     什麼也不做。
-  - `actions/ios/P71-shortcuts.csv` 的檔頭原本寫著「只跑 iPad」,已更正。
+  - `actions/ios/P71-shortcuts.actions` 的檔頭原本寫著「只跑 iPad」,已更正。
 - [x] **M5. `LazyListRowLifetimes` — 三個 backend 都已實作,而且三個都已驅動驗證(2026-09-16)**
   - **讀法是「建過幾個」對上「持有幾個」,而那讓一次小規模走訪就夠。** `rows built / held`:
     `held == built` 是「從未釋放」、`held < built` 是「釋放了 built − held 個」。那個差額不可能來自
@@ -479,7 +479,7 @@ headings say which queue.md section each block came from.
     而這次我先公開形狀再寫。
   - **2026-09-17 進度:格式與 iOS 已完成並驅動過,Android 還沒建。**
     - `InputAction.pinch/rotate` 與 `ActionFile.swift` 的解析已落地,形狀與上表相同。
-    - **iOS 實測通過**:`actions/ios/P65-pinch-and-rotate.csv`,連續三次執行
+    - **iOS 實測通過**:`actions/ios/P65-pinch-and-rotate.actions`,連續三次執行
       (`p65-ios-final-20260917-113959.png`、`-114256.png`、`-115535.png`),三次都讀到
       `magnify ENDED: 1.625`,`rotate ENDED` 則是 0.995、0.995、1.233 rad;三次
       `drag events: 0`,代表沒有任何一個手勢變成了拖曳。
@@ -497,7 +497,7 @@ headings say which queue.md section each block came from.
     - runner 這一側因此有三樣東西:以 `move` 的指標瞄準、丟棄落在視窗外的候選、以及在只命中到
       容器時於 log 裡直接說出「在第一列手勢之前放一次 `click`」。
     - **Android 也完成了,而且是實機(emulator-5554)驅動過的。**
-      `actions/android/P65-pinch-and-rotate.csv`,擷圖 `p65-android-final-20260917-143345.png`:
+      `actions/android/P65-pinch-and-rotate.actions`,擷圖 `p65-android-final-20260917-143345.png`:
       `magnify ENDED: 2.000`(那一列要求 200)、`rotate ENDED: 0.785 rad`(那一列要求 45 度)、
       `drag events: 0`。**精確**——與 iOS 不同,那裡 XCUITest 送出的是它自己尺寸的手勢。
     - **而這次驅動抓到一個真正的 backend 缺陷。** 修好之前,同一份檔案兩次都回報
@@ -1043,8 +1043,8 @@ WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個
 
 | 檔案 | backend | 判決 |
 | --- | --- | --- |
-| `actions/win/P23-select-rows.csv` | WinUI | 第六列 → `SELECTION now 5`;**標題列 → 一行都沒有**;第一列 → `SELECTION now 0` |
-| `actions/win/P23-select-rows-gtk4.csv` | GTK | 完全相同的三個答案,而走的是完全不同的路徑 |
+| `actions/win/P23-select-rows.actions` | WinUI | 第六列 → `SELECTION now 5`;**標題列 → 一行都沒有**;第一列 → `SELECTION now 0` |
+| `actions/win/P23-select-rows-gtk4.actions` | GTK | 完全相同的三個答案,而走的是完全不同的路徑 |
 
 **分成兩個檔案而非共用座標**,因為兩個視窗大小不同、列的位置也不同(GTK 848x688 自 y=368 起,
 WinUI 822x652 自 y=325 起)。照抄另一份會點到標題列與第一列,而**兩次點擊都仍然會回報成功**。
@@ -1073,7 +1073,7 @@ and both backends selected. The earlier run that saw nothing differed in how the
 app was launched, not in whether input was accepted.
 
 Two action files are kept, three clicks each, the middle one a control:
-`actions/win/P23-select-rows.csv` (WinUI) and `-gtk4.csv` (GTK). Sixth row ->
+`actions/win/P23-select-rows.actions` (WinUI) and `-gtk4.actions` (GTK). Sixth row ->
 `SELECTION now 5`; the HEADER -> no line at all; first row -> `SELECTION now 0`.
 Separate files rather than shared coordinates because the windows differ in size
 and the rows sit elsewhere -- copying would click the header and still report

@@ -40,7 +40,7 @@ import SwiftJava
 /// `setOnTouchListener`,不是這一個。
 ///
 /// **Driven on emulator-5554, 2026-09-21, in two halves because one tool cannot
-/// reach both windows.** `testapp/actions/android/P72-context-menu.csv` long-
+/// reach both windows.** `testapp/actions/android/P72-context-menu.actions` long-
 /// presses the mesh view and the capture taken afterwards
 /// (`p72-android-final-20260921-181017.png`) shows a popup carrying **Reset the
 /// camera** and **Snapshot**. Pressing the item is the other half: an action
@@ -53,7 +53,7 @@ import SwiftJava
 /// (negative control, same session).
 ///
 /// **2026-09-21 於 emulator-5554 實際驅動,分成兩半——因為沒有一個工具同時抵達得了兩個視窗。**
-/// `testapp/actions/android/P72-context-menu.csv` 會長按 mesh view,而其後拍下的擷圖
+/// `testapp/actions/android/P72-context-menu.actions` 會長按 mesh view,而其後拍下的擷圖
 /// (`p72-android-final-20260921-181017.png`)顯示一個帶有 **Reset the camera** 與 **Snapshot** 的
 /// 彈出選單。按下該項目是另一半:動作檔做不到,因為 `Activity.dispatchTouchEvent` 只抵達本 activity 的
 /// 視窗,而 `PopupMenu` 是另一個;因此改由 `adb shell input tap 254 1063` 在系統層級注入——接著 P72 印出

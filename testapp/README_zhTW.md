@@ -71,7 +71,7 @@ zsh testapp/test.zsh P12 --android
 | --- | --- |
 | `-n`、`--no-build` | 重用既有的建置結果 |
 | `--showtime <秒>`、`--no-showtime` | 畫面繪製完成後讓 app 停留多久 |
-| `--actionfile [路徑]` | 視窗出現後重放一份合成輸入的 CSV。未給路徑時使用 `testapp/actions/<平台>/<Pn>-*.csv`——每個平台一個資料夾，因為在別處驗證過的檔案不構成此處的證據 |
+| `--actionfile [路徑]` | 視窗出現後重放一份合成輸入的 CSV。未給路徑時使用 `testapp/actions/<平台>/<Pn>-*.actions`——每個平台一個資料夾，因為在別處驗證過的檔案不構成此處的證據 |
 | `--device <名稱>` | 僅適用於 iOS 與 Android；用於其他平台會被拒絕 |
 
 ### 裝置
@@ -92,11 +92,11 @@ iOS 與 Android 都**不需要**指定裝置或設定環境變數。
 ```sh
 xcrun simctl list devices available | grep -i ipad        # 挑一台
 zsh testapp/test.zsh P5 --ios --device "iPad Pro 11-inch (M5)" \
-    --actionfile=testapp/actions/ios/P75-close-the-window-ipad.csv
+    --actionfile=testapp/actions/ios/P75-close-the-window-ipad.actions
 ```
 
 - **座標依裝置而異。**iPad 是 834x1210 點（@2x），iPhone 是 440x956，所以 iPhone 的動作檔會點錯
-  位置。iPad 用的檔案命名為 `<Pn>-<內容>-ipad.csv`，並在 iPad 擷圖上量：點 = 擷圖像素 / 2。
+  位置。iPad 用的檔案命名為 `<Pn>-<內容>-ipad.actions`，並在 iPad 擷圖上量：點 = 擷圖像素 / 2。
 - **只有 iPad 看得到的：**第二個視窗成為獨立 scene（P5、P59、P62——`openWindow` 在 iPad 上開新的
   scene，在 iPhone 上則疊在主視窗之上）、關閉視窗（`dismissWindow`，P75）、指標懸停與游標（P72）、
   旋轉（P14）。

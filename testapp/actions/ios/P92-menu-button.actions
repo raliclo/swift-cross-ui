@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# launch-args: --p92-menu
+# P92 on iPhone: the menu button .enableMenu() adds, since a phone has no menu bar.
+#
+# The launch-args line above turns the menu on. sweep_apple.zsh reads it; run alone it is
+# TEST_APP_ARGS. Without the switch there is no button and the first taplabel fails:
+#   TEST_APP_ARGS="--debug --p92-menu" zsh testapp/test.zsh P92 --ios --actionfile testapp/actions/ios/P92-menu-button.actions
+#
+# Pass, read from the dumptree rows: the button opens debugTarget, File, Edit, Format, View,
+# Window and Help; Edit holds Undo, AFTER-undoRedo, Cut, Paste, Select All and AFTER-pasteboard;
+# and after the last row the window reads "commands chosen: 1".
+# Without SCUI_P92_MENU=1 there is no button and the first row fails, which is the default.
+# iPhone 上的 P92:.enableMenu() 加上的選單按鈕(手機沒有選單列)。通過:按鈕打開後有 debugTarget、File、Edit、Format、
+# View、Window、Help;Edit 裡有 Undo、AFTER-undoRedo、Cut、Paste、Select All、AFTER-pasteboard;最後視窗顯示
+# commands chosen: 1。沒有設 SCUI_P92_MENU=1 時沒有按鈕，第一列就會失敗——那是預設行為。
+sleep,,,,,,2000000,let P92 lay out,ios
+taplabel,,,,,Menu,,the menu button,ios
+sleep,,,,,,1200000,,ios
+dumptree,,,,,,,the menu,ios
+taplabel,,,,,Edit,,,ios
+sleep,,,,,,1200000,,ios
+dumptree,,,,,,,the Edit submenu,ios
+taplabel,,,,,AFTER-pasteboard,,,ios
+sleep,,,,,,1200000,,ios

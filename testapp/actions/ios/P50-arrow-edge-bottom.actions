@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .bottom on UIKit -- and the side the panel ends up on when
+# it does not fit.
+#
+# **This file has been read three ways in one day, and only the third was
+# measured.** It was written predicting that `.top` and `.bottom` could not
+# differ here -- 144 points of room below an anchor at y 812, against a panel
+# about 200 points tall. The first run disproved that: UIKit SHRANK the popover
+# into the room below, and the capture showed `press me (0)` and `close this
+# panel` cut off the bottom edge. A popover that is present, anchored, obedient
+# and unusable.
+#
+# So UIKit was aligned to Android, which MOVES a popup that does not fit rather
+# than shrinking it (`PopupWindow.showAsDropDown`). `UIKitBackend+Popover.swift`
+# now measures the room against the safe area and asks for the opposite side
+# when the requested one cannot hold the panel. This file's capture is therefore
+# the panel ABOVE the button, whole, with the readout still saying
+# `arrow edge: bottom` -- the request arrived, the platform had no room, and the
+# panel stayed usable.
+#
+# **That makes this pair non-discriminating on THIS device, deliberately**, in
+# exactly the way Android's is. The discriminating evidence for iOS is the
+# before/after of the alignment itself: p50-ios-final-20260917-161400.png
+# (shrunk, clipped) against -200019.png (moved, whole).
+#
+# P50 #109:UIKit 上的 arrowEdge `.bottom`——以及「放不下時面板會落在哪一側」。
+#
+# **這個檔案在同一天裡被讀成三種樣子,而只有第三種是量出來的。** 它最初寫的是預測:`.top` 與
+# `.bottom` 在此不可能不同——錨點在 y 812,其下只有 144 點,而面板約 200 點高。第一次執行推翻了它:
+# UIKit 把 popover **縮**進下方那塊空間,而擷圖裡 `press me (0)` 與 `close this panel` 被下緣切掉了。
+# 一個存在、有錨定、也服從了要求,而且不能用的 popover。
+#
+# 因此 UIKit 被對齊到 Android 的做法——後者面對放不下的 popup 是**移動**它而不是縮小它
+# (`PopupWindow.showAsDropDown`)。`UIKitBackend+Popover.swift` 現在會對著 safe area 量出空間,
+# 在被要求的那一側容不下面板時改要求相反的一側。因此本檔的擷圖是面板在按鈕**上方**、完整,
+# 而讀數仍寫著 `arrow edge: bottom`——要求抵達了、平台沒有空間、而面板仍然可用。
+#
+# **這使得這一對在**這台裝置**上刻意成為「分辨不出東西」的一對**,與 Android 的情況完全相同。
+# iOS 這邊真正做得出差別的證據,是那次對齊本身的前後對照:
+# p50-ios-final-20260917-161400.png(被縮小、被切掉)對上 -200019.png(被移動、完整)。
+# **Scrolled first, from 2026-09-28** -- see P50-arrow-edge-top.actions for why; the rows
+# are measured on p50-ios-final-20260928-051620.png, taken after this scroll.
+# **自 2026-09-28 起先捲動**——原因見 P50-arrow-edge-top.actions;各列量自捲動之後的
+# p50-ios-final-20260928-051620.png。
+sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,1,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
+scroll,0,5,,,,,to the end of the content,ios
+sleep,,,,,,1500000,let the scroll come to rest,ios
+move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
+scroll,-2,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
+click,84,703,client,left,,,cycle 1: none -> top,ios
+sleep,,,,,,500000,,ios
+click,84,703,client,left,,,"cycle 2: top -> bottom. y 719, not 705: after cycle 1 the shorter readout shortens the content, the scroll view re-clamps to the new bottom and every row moves down 14 points -- at 705 this tap missed and the readout stayed at top (p50-ios-final-20260928-051731.png)",ios
+sleep,,,,,,700000,let the readout redraw,ios
+click,143,671,client,left,,,"open PANEL ALPHA with arrowEdge bottom -- y 708: the readout's width sets how the lines above wrap, so each value it shows gives the page a different height and the bottom-clamped rows a different y. With ""bottom"" the text rewraps longer and this button sits at 708 (p50-ios-final-20260928-051854.png, where a tap at 686 missed) (VERIFIED 2026-09-28: PANEL ALPHA opens BELOW its button, readout b..., p50-ios-final-20260928-051926.png)",ios
+sleep,,,,,,1500000,leave the panel open for the final capture,ios

@@ -643,8 +643,8 @@ struct P51GroupBoxSection: View {
 /// not that anything was clicked -- which is why most Windows action files carry
 /// no `# expect:` marker at all. Measured 2026-09-08, and re-derivable:
 ///
-///     ls testapp/actions/win/*.csv | wc -l                        -> 42
-///     grep -l '^# expect:' testapp/actions/win/*.csv | wc -l      -> 19
+///     ls testapp/actions/win/*.actions | wc -l                        -> 42
+///     grep -l '^# expect:' testapp/actions/win/*.actions | wc -l      -> 19
 ///
 /// So 23 of 42 assert nothing, because their app had nothing but startup lines
 /// to assert on. Each button below writes a line that exists in no other
@@ -662,8 +662,8 @@ struct P51GroupBoxSection: View {
 /// 只能證明 app 啟動了，不能證明有東西被點到——這正是多數 Windows action 檔根本沒有 `# expect:`
 /// 標記的理由。2026-09-08 實測，且可重新推導：
 ///
-///     ls testapp/actions/win/*.csv | wc -l                        -> 42
-///     grep -l '^# expect:' testapp/actions/win/*.csv | wc -l      -> 19
+///     ls testapp/actions/win/*.actions | wc -l                        -> 42
+///     grep -l '^# expect:' testapp/actions/win/*.actions | wc -l      -> 19
 ///
 /// 因此 42 個之中有 23 個什麼都沒斷言，因為它們的 app 除了啟動時的訊息之外無物可斷言。下方每個
 /// 按鈕都會寫下一行在任何其他情況下都不存在的訊息，而「Add 3」還會為左上角的網格加上第四列，

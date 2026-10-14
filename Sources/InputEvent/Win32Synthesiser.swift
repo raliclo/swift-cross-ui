@@ -636,7 +636,7 @@
             // input, no window currently holds the foreground, or the foreground is
             // being released.
             //
-            // Measured 2026-09-16: driving P20-ctrl-k-shortcut.csv failed with
+            // Measured 2026-09-16: driving P20-ctrl-k-shortcut.actions failed with
             // `AttachThreadInput ... failed (87)` -- ERROR_INVALID_PARAMETER, not
             // the ACCESS_DENIED the comment above anticipates -- because the
             // foreground was a `ConsoleWindowClass` window belonging to
@@ -655,7 +655,7 @@
             // `SetForegroundWindow` 在數種情況下同樣被允許:呼叫端行程是最後一個收到輸入的、
             // 目前沒有任何視窗持有前景、或前景正在被釋放。
             //
-            // 2026-09-16 實測:驅動 P20-ctrl-k-shortcut.csv 時以
+            // 2026-09-16 實測:驅動 P20-ctrl-k-shortcut.actions 時以
             // `AttachThreadInput ... failed (87)` 失敗——那是 ERROR_INVALID_PARAMETER,**不是**上方註解
             // 所預期的 ACCESS_DENIED——因為當時的前景是 PowerToys.Awake.exe 的一個 `ConsoleWindowClass`
             // 視窗,而 console host 的執行緒是附加不上去的。於是 replay 拒絕了一個它其實完全有機會跑完的檔案。
@@ -2061,7 +2061,7 @@
         /// Keys this replay has sent down with `keydown` and not yet released.
         ///
         /// Asking Windows is not enough for a screen reader's chord. Measured
-        /// 2026-10-08 replaying P69-narrator-walk.csv: `keydown,capsLock`, `key,0`,
+        /// 2026-10-08 replaying P69-narrator-walk.actions: `keydown,capsLock`, `key,0`,
         /// `keyup,capsLock` made Narrator say "not a Narrator command", because the
         /// `0` went out as a Unicode character (VK_PACKET) rather than the 0 key.
         /// Adding VK_CAPITAL and VK_INSERT to `anyModifierHeld` was tried first and
@@ -2072,7 +2072,7 @@
         /// Static and `nonisolated(unsafe)` for the same reason as `focusedWindowBits`.
         ///
         /// 本次重放以 `keydown` 按下、尚未放開的鍵。對螢幕閱讀器的組合鍵，只問 Windows 不夠。2026-10-08 重放
-        /// P69-narrator-walk.csv 實測:`keydown,capsLock`、`key,0`、`keyup,capsLock` 讓 Narrator 回應「not a
+        /// P69-narrator-walk.actions 實測:`keydown,capsLock`、`key,0`、`keyup,capsLock` 讓 Narrator 回應「not a
         /// Narrator command」,因為 `0` 是以 Unicode 字元(VK_PACKET)而非 0 鍵送出。先試過把 VK_CAPITAL 與
         /// VK_INSERT 加進 `anyModifierHeld`,重建 P69 後**毫無改變**:Narrator 在低階 hook 中吃掉 Caps Lock,
         /// 本執行緒的 `GetKeyState` 永遠看不到它被按下。重放自己知道按了什麼，所以問自己。同一組合以 virtual

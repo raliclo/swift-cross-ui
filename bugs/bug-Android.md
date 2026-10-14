@@ -537,7 +537,7 @@ carries one line of its own:
 
     D swift : warning: Attempted to set size of Android window
 
-The action file is `testapp/actions/android/P12-android-smoke.csv`. Its two
+The action file is `testapp/actions/android/P12-android-smoke.actions`. Its two
 clicks are at (90, 260) and (128, 306) points, and at density 2.625 those are
 (236, 682) and (336, 803) pixels. Against the launch screenshot the first lands
 on the "Selected tab: Second counter: 0" label, which does nothing, and the
@@ -790,7 +790,7 @@ log 中只有它自己的一行：
 
     D swift : warning: Attempted to set size of Android window
 
-該動作檔為 `testapp/actions/android/P12-android-smoke.csv`。它的兩次點擊位於 (90, 260) 與
+該動作檔為 `testapp/actions/android/P12-android-smoke.actions`。它的兩次點擊位於 (90, 260) 與
 (128, 306) 點，在 density 2.625 下即為 (236, 682) 與 (336, 803) 像素。對照啟動時的截圖，第一次
 落在「Selected tab: Second counter: 0」這行標籤上，不會有任何作用；第二次則正好落在 **First** 上
 ——該分頁按鈕大致橫跨 x 178..390、y 750..845。

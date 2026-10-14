@@ -94,14 +94,14 @@ mkdir -p "$run_dir" "$shots_dir"
 # **The app a file belongs to is the LONGEST prefix that names an app, not the
 # text before the first dash.** P15-DARK and P17-DOE are apps of their own
 # (testapp/P15-DARK.swift, testapp/P17-DOE.swift), and cutting at the first dash
-# turned `P15-DARK-...csv` into P15: the first two sweeps of 2026-09-27 replayed
+# turned `P15-DARK-...actions` into P15: the first two sweeps of 2026-09-27 replayed
 # those files against the wrong app and counted them as passes, because a tap
 # that lands on some other app's empty space is not an error either.
 # **一份檔案所屬的 app,是「能對應到某支 app 的最長前綴」,不是第一個破折號之前的文字。**P15-DARK 與
-# P17-DOE 是各自獨立的 app,而在第一個破折號處切開,會把 `P15-DARK-...csv` 變成 P15:2026-09-27 的前兩輪
+# P17-DOE 是各自獨立的 app,而在第一個破折號處切開,會把 `P15-DARK-...actions` 變成 P15:2026-09-27 的前兩輪
 # sweep 就是拿這兩份檔案去重放錯的 app,還把它們算成通過。
 app_of() {
-    local stem="${1%.csv}" candidate="" best=""
+    local stem="${1%.actions}" candidate="" best=""
     local -a parts=("${(@s:-:)stem}")
     local i
     for i in {1..${#parts}}; do
@@ -112,7 +112,7 @@ app_of() {
 }
 
 files=()
-for f in "$action_dir"/P*.csv(N); do
+for f in "$action_dir"/P*.actions(N); do
     app="$(app_of "${f:t}")"
     if [ -z "$app" ]; then
         echo "no testapp/<app>.swift matches ${f:t}; skipped and said so" >&2
@@ -126,7 +126,7 @@ for f in "$action_dir"/P*.csv(N); do
     # 2026-10-03. They are run on an iPad by hand (testapp/README.md > iPad).
     # `-ipad` 檔會開多個視窗，而 sweep 跑在只有一個視窗的 iPhone 模擬器上:2026-10-03
     # P59-two-windows-ipad 在那裡失敗。它們在 iPad 上手動執行(見 testapp/README.md > iPad)。
-    if [[ "${f:t}" == *-ipad.csv ]]; then
+    if [[ "${f:t}" == *-ipad.actions ]]; then
         echo "${f:t}: an iPad file, skipped on the iPhone sweep" >&2
         continue
     fi
@@ -157,7 +157,7 @@ csv2_new "$out_csv" \
 for f in "${files[@]}"; do
     name="${f:t}"
     app="$(app_of "$name")"
-    stem="${name%.csv}"
+    stem="${name%.actions}"
     log="$run_dir/$stem.log"
     marker="$run_dir/.started-$stem"
     touch "$marker"
@@ -259,7 +259,7 @@ for f in "${files[@]}"; do
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note" >> "$rows_file"
     csv2_append "$out_csv" "$today" "$platform" "$backend" "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note"
-    update_stats_record "$stats_csv" "$app" "${name%.csv}" "$log"
+    update_stats_record "$stats_csv" "$app" "${name%.actions}" "$log"
     printf '    %-6s %-44s %-7s rc=%-3s replay=%-4s capture=%-4s %4ss\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed"
     rm -f "$marker"

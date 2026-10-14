@@ -1905,7 +1905,7 @@ public final class WinUIBackend:
         // both compile, and both do nothing.
         //
         //  1. `slider.pointerPressed.addHandler { ... }`. Measured 2026-09-10
-        //     with `actions/win/P61-drag-the-trough.csv`: P61 read
+        //     with `actions/win/P61-drag-the-trough.actions`: P61 read
         //     `began=0 ended=1`. `Slider`'s own control template handles the
         //     routed event before it reaches a subscriber, so the handler is
         //     never called.
@@ -1927,7 +1927,7 @@ public final class WinUIBackend:
         // 因為它們**都編譯得過,也都什麼都沒做**。
         //
         //  1. `slider.pointerPressed.addHandler { ... }`。2026-09-10 以
-        //     `actions/win/P61-drag-the-trough.csv` 實測:P61 讀到 `began=0 ended=1`。
+        //     `actions/win/P61-drag-the-trough.actions` 實測:P61 讀到 `began=0 ended=1`。
         //     `Slider` 自己的 control template 在該 routed event 抵達訂閱者**之前**就把它
         //     handle 掉了,因此那個 handler 從未被呼叫。
         //  2. `slider.addHandler(UIElement.pointerPressedEvent, handler, true)`——
@@ -2104,10 +2104,10 @@ public final class WinUIBackend:
             // `apply(to:)` is what carries `.disabled` (it sets `isEnabled`), and
             // this branch never called it: a disabled radioGroup took a click and
             // changed the selection, and drew undimmed. Found 2026-10-08 by
-            // P74-choose-in-every-style.csv, pressing the disabled group's Green
+            // P74-choose-in-every-style.actions, pressing the disabled group's Green
             // ("radioGroup -> Green"). The segmented and wheel styles already apply it.
             // `apply(to:)` 正是傳遞 `.disabled` 的地方(它設定 `isEnabled`),而此分支從未呼叫它：停用的 radioGroup
-            // 接受點擊、改變了選取，且沒有變暗。2026-10-08 由 P74-choose-in-every-style.csv 按下停用群組的 Green
+            // 接受點擊、改變了選取，且沒有變暗。2026-10-08 由 P74-choose-in-every-style.actions 按下停用群組的 Green
             // 發現(「radioGroup -> Green」)。segmented 與 wheel 樣式本來就有套用。
             environment.apply(to: picker)
             for i in 0..<min(picker.items.count, options.count) {

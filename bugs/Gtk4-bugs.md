@@ -840,7 +840,7 @@ content size after correction (+1500ms): allocated 900x561 shortfall 0x39
 ## 6. Not GTK: the Win32 synthesiser cannot address a modal dialog, and steals focus from it
 
 **Measured 2026-09-03 on Windows / GtkBackend, driving P31 with
-`testapp/actions/win/P31-tab-and-escape.csv`.**
+`testapp/actions/win/P31-tab-and-escape.actions`.**
 
 Escape does not dismiss a `.alert`. The alert stays open, the main window's
 controls grey out behind it, and the replay reports nothing wrong.
@@ -863,7 +863,7 @@ The file's own comment already describes this failure shape on another platform:
 reported success while driving something else." This is the same thing, one
 window deeper.
 
-**Corroboration that this is not new.** `testapp/actions/win/P5-stacked-alerts.csv`
+**Corroboration that this is not new.** `testapp/actions/win/P5-stacked-alerts.actions`
 deliberately contains no OK-button coordinate, and says why: an alert is a
 separate top-level window whose position GTK chooses. That file worked around
 the wall; it did not identify it. No action file in this tree has ever dismissed
@@ -887,7 +887,7 @@ only the main window — shows the alert plainly.
 **6. 非 GTK 的問題：Win32 合成器無法定址 modal dialog，並且會從它手上搶走焦點**
 
 **2026-09-03 於 Windows / GtkBackend 實測**，以
-`testapp/actions/win/P31-tab-and-escape.csv` 驅動 P31。
+`testapp/actions/win/P31-tab-and-escape.actions` 驅動 P31。
 
 Escape 無法關閉 `.alert`。alert 持續開啟，主視窗的控制項在它後方變灰，而重放不回報任何異常。
 
@@ -968,7 +968,7 @@ not pinned, so the app's own main window covers its own modal.** Measured
 `GW_ENABLEDPOPUP` named it — and a desktop capture taken while it was up shows no
 sheet at all, only the main window's buttons occupying that rectangle.
 
-`testapp/actions/win/P5-stacked-alerts.csv` has carried this as a stated risk
+`testapp/actions/win/P5-stacked-alerts.actions` has carried this as a stated risk
 since 2026-09-03: *"If the capture shows no alert, that is the first thing to
 suspect rather than a click that missed."* It was right. Fixed by re-running
 `prepareForReplay` when the target window changes, which pins the new target.
@@ -989,7 +989,7 @@ cancel action, Escape has nothing correct to do. So an alert still standing afte
 Escape is a **pass**, and "the replay reports nothing wrong" was accurate — there
 was nothing wrong to report. The diagnosis that followed happened to be right
 about the synthesiser, but it was reached from a symptom that was never a defect,
-and `testapp/actions/win/P31-tab-and-escape.csv` then asserted the opposite of
+and `testapp/actions/win/P31-tab-and-escape.actions` then asserted the opposite of
 the backend's stated behaviour for a day.
 
 What P31 can now assert instead, and could not before 2026-09-04: pressing the
@@ -1102,7 +1102,7 @@ window 0x…50d4c 428x174@344,421 class=gdkSurfaceToplevel enabled=true  owner=0
 如此回報，`GW_ENABLEDPOPUP` 也指名了它——而在它開啟期間所取的桌面擷圖中，完全看不到任何 sheet，
 那個矩形裡只有主視窗的按鈕。
 
-`testapp/actions/win/P5-stacked-alerts.csv` 自 2026-09-03 起就把這件事寫成明列的風險：
+`testapp/actions/win/P5-stacked-alerts.actions` 自 2026-09-03 起就把這件事寫成明列的風險：
 「**若擷圖看不到 alert，這是第一個該懷疑的東西，而不是懷疑點擊沒中。**」它是對的。修法是在目標
 視窗改變時重新執行 `prepareForReplay`，以釘住新的目標。
 
@@ -1119,7 +1119,7 @@ GtkBackend 被寫成要有的行為，而且出現在**兩個**獨立的地方�
 兩者給的理由相同：在 alert 尚不知道自己哪一顆按鈕是取消動作之前，Escape 沒有正確的事可做。
 因此**按下 Escape 後 alert 仍然站著是通過**，而「重放不回報任何異常」也是準確的——本來就沒有
 異常可報。其後的診斷雖然在「合成器」這件事上碰巧是對的，但它是從一個**從來就不是缺陷**的症狀
-出發的；而 `testapp/actions/win/P31-tab-and-escape.csv` 因此有整整一天在主張與 backend 明文
+出發的；而 `testapp/actions/win/P31-tab-and-escape.actions` 因此有整整一天在主張與 backend 明文
 行為相反的事。
 
 P31 現在能改為主張、而在 2026-09-04 之前寫不出來的東西：按下 alert 的 **OK** 按鈕。實測，

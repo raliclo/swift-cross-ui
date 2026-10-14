@@ -42,11 +42,11 @@
 # script drove the first of each, so 11 of them -- P8's other two, P10's other
 # two, P23's other three, P24's other three, P21's other one -- had no path into
 # results.csv2 at all. The row that WAS written said so, `replayed
-# P8-scroll-outer.csv only; 3 action files exist for P8`, which is a truthful
+# P8-scroll-outer.actions only; 3 action files exist for P8`, which is a truthful
 # report of a gap and not a closed one. That is the same shape of gap this
 # script exists to close, one level down.
 #
-# The row names its file at the FRONT of the note, `P8-scroll-outer.csv: ...`,
+# The row names its file at the FRONT of the note, `P8-scroll-outer.actions: ...`,
 # because the `app` column cannot hold it and coverage.zsh keys a cell on that
 # prefix. sweep_drive.zsh has done both since it began driving every file.
 #
@@ -139,11 +139,11 @@
 # **每個動作檔各一列**，而非每支 app 一列。2026-09-08 時 `testapp/actions/wsl` 有 21 個檔案、分屬
 # 10 支 app（`ls -1 testapp/actions/wsl | wc -l`），而本腳本只驅動每支的第一個，因此其中 11 個
 # ——P8 的另外兩個、P10 的另外兩個、P23 的另外三個、P24 的另外三個、P21 的另外一個——完全沒有進入
-# results.csv2 的管道。那些確實被寫下的資料列也如實說了：「replayed P8-scroll-outer.csv only;
+# results.csv2 的管道。那些確實被寫下的資料列也如實說了：「replayed P8-scroll-outer.actions only;
 # 3 action files exist for P8」——那是對一個缺口的如實回報，而不是把它填上。那正是本腳本存在所要
 # 消除的同一種缺口，只是低了一層。
 #
-# 資料列會把檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.csv: ...`，因為 `app` 欄放不下它，
+# 資料列會把檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.actions: ...`，因為 `app` 欄放不下它，
 # 而 coverage.zsh 正是以該前綴作為儲存格的鍵。sweep_drive.zsh 自從開始驅動每一個檔案起，這兩件事
 # 就一直是這樣做的。
 #
@@ -379,13 +379,13 @@ if [ "${#apps[@]}" -eq 0 ]; then
 fi
 
 # The action files for one app, with the ones belonging to a longer-named app
-# removed. `$app-*.csv` is a prefix glob and some apps are prefixes of others
+# removed. `$app-*.actions` is a prefix glob and some apps are prefixes of others
 # -- P15 and P15-DARK, P6 and P6-v2, P17 and P17-DOE -- so asking for P15 also
 # matches P15-DARK's file. test_common.zsh's default_action_file carries the
 # same filter and reports "Several action files for P15", which reads as two
 # files for one app rather than one file each for two apps.
 #
-# 某支 app 的動作檔，並剔除屬於「名稱更長的另一支 app」的那些。`$app-*.csv` 是前綴 glob，而有些
+# 某支 app 的動作檔，並剔除屬於「名稱更長的另一支 app」的那些。`$app-*.actions` 是前綴 glob，而有些
 # app 的名稱正是另一些的前綴——P15 與 P15-DARK、P6 與 P6-v2、P17 與 P17-DOE——因此要求 P15 時會
 # 一併匹配到 P15-DARK 的檔案。test_common.zsh 的 default_action_file 帶有相同的篩選，並會回報
 # 「Several action files for P15」，那讀起來像是「一支 app 有兩個檔案」，而實際上是「兩支 app 各
@@ -394,7 +394,7 @@ action_candidates() {
     local app_name="$1"
     local cand other cand_name claimed
     local -a cands others kept
-    cands=("$testapp_dir/actions/wsl/$app_name"-*.csv(N))
+    cands=("$testapp_dir/actions/wsl/$app_name"-*.actions(N))
     if [ "${#cands}" -le 1 ]; then
         [ "${#cands}" -gt 0 ] && printf '%s\n' "${cands[@]}"
         return 0
@@ -472,7 +472,7 @@ for app in "${apps[@]}"; do
     # EVERY action file for this app, and one row per file.
     #
     # `${action_files[1]}` drove one file per app and the row said so, in words:
-    # `replayed P8-scroll-outer.csv only; 3 action files exist for P8`. That is
+    # `replayed P8-scroll-outer.actions only; 3 action files exist for P8`. That is
     # a truthful report of a gap, which is not the same thing as a closed one --
     # the other two files still had no path into results.csv2 at all, and a
     # matrix cannot show a run nothing appended.
@@ -490,7 +490,7 @@ for app in "${apps[@]}"; do
     #
     # 這支 app 的**每一個**動作檔，且每個檔案各記一列。
     #
-    # 過去只驅動 `${action_files[1]}`，而資料列也用文字如實寫著：「replayed P8-scroll-outer.csv
+    # 過去只驅動 `${action_files[1]}`，而資料列也用文字如實寫著：「replayed P8-scroll-outer.actions
     # only; 3 action files exist for P8」。那是對一個缺口的如實回報，與把它填上並不是同一件事——
     # 其餘兩個檔案依然完全沒有進入 results.csv2 的管道，而矩陣無法顯示一次沒有任何東西追加過的執行。
     #
@@ -515,7 +515,7 @@ for app in "${apps[@]}"; do
     # and then the app name is the only thing there is to print.
     # 表格的鍵。對沒有動作檔的 app 而言 `${action_file:t}` 為空，此時能印的就只有 app 名稱。
     file_label="${action_file:t}"
-    run_key="${file_label%.csv}"
+    run_key="${file_label%.actions}"
     [[ -z "$run_key" ]] && run_key="$app"
 
     action_args=()
@@ -694,7 +694,7 @@ for app in "${apps[@]}"; do
             # `replayed <file> (<n> actions)`, and `replaying <file> at layout
             # scale ...` at the start. Matched WITHOUT the `(n actions)` part,
             # which is newer than the binaries on this host -- the P21 log read
-            # on 2026-09-08 says `-actionfile: replayed P21-text-fields.csv`
+            # on 2026-09-08 says `-actionfile: replayed P21-text-fields.actions`
             # with no count, from a binary dated 2026-09-07.
             #
             # `replaying` without `replayed` is the third answer and it is not
@@ -713,7 +713,7 @@ for app in "${apps[@]}"; do
             # 檔名本來就在那一行裡：ActionFileReplay.report 寫的是 `replayed <檔名> (<n> actions)`，
             # 開始時則是 `replaying <檔名> at layout scale ...`。比對時**不含** `(n actions)`，因為
             # 那個計數比本機上的執行檔還新——2026-09-08 讀到的 P21 log 寫的是
-            # `-actionfile: replayed P21-text-fields.csv`，沒有計數，來自 2026-09-07 的執行檔。
+            # `-actionfile: replayed P21-text-fields.actions`，沒有計數，來自 2026-09-07 的執行檔。
             #
             # 有 `replaying` 卻沒有 `replayed` 是第三種答案，且與第二種不同：本次執行**確實**開始了
             # 這個檔案而沒有跑完，那是被中斷的重放，不是過期的 log。
@@ -813,21 +813,21 @@ for app in "${apps[@]}"; do
     # 附註；而 note 已經被 coverage.zsh 用來解析動作檔前綴——把第二種語意偷渡進同一個自由文字
     # 欄位，正是那個解析器開始「用猜的」的起點。此處寫的是本次 sweep 所**要求**的模式；GTK 隨後
     # 選了哪個 GSK renderer 是關於這台主機的事實，由 print_renderer_wsl 印出，不在此斷言。
-    # THE ACTION FILE GOES AT THE FRONT OF THE NOTE, `P8-scroll-outer.csv: ...`.
+    # THE ACTION FILE GOES AT THE FRONT OF THE NOTE, `P8-scroll-outer.actions: ...`.
     #
     # The `app` column cannot hold it -- it is `P8` for all three of P8's files
     # -- and coverage.zsh keys a cell on exactly that prefix, matching
-    # `^[^ :]+\.csv: ` (coverage.zsh:389) to make a (renderer, action file) key.
+    # `^[^ :]+\.(csv|actions): ` (coverage.zsh:389) to make a (renderer, action file) key.
     # Without it three P8 rows collapse into one cell and the matrix cannot say
     # which file was run, which is a quieter version of not recording them.
     #
     # Same spelling as sweep_drive.zsh, deliberately: two drivers writing the
     # same field two ways is a parser that starts guessing.
     #
-    # 動作檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.csv: ...`。
+    # 動作檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.actions: ...`。
     #
     # `app` 欄放不下它——P8 的三個檔案在該欄一律是 `P8`——而 coverage.zsh 正是以這個前綴作為鍵：
-    # 它比對 `^[^ :]+\.csv: `（coverage.zsh:389）以組成 (renderer, 動作檔) 的鍵。少了它，三列 P8
+    # 它比對 `^[^ :]+\.(csv|actions): `（coverage.zsh:389）以組成 (renderer, 動作檔) 的鍵。少了它，三列 P8
     # 會塌縮成一格，矩陣說不出跑的是哪一個檔案；那是「沒有記錄它們」比較安靜的版本。
     #
     # 寫法刻意與 sweep_drive.zsh 相同：兩個驅動器把同一個欄位寫成兩種樣子，會讓解析器開始用猜的。

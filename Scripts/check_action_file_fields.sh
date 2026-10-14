@@ -9,7 +9,7 @@
 # parses" and enumerates `git ls-files`, so a file created five minutes ago is
 # outside it. Between writing a file and committing it there was nothing.
 #
-# Found on 2026-09-16, writing testapp/actions/mac/P23-column-sorting.csv. A
+# Found on 2026-09-16, writing testapp/actions/mac/P23-column-sorting.actions. A
 # note read `this must REVERSE, not restart` -- an unquoted comma -- so every
 # field after it shifted one place left and `platform` became `not restart`.
 # What that looked like from outside:
@@ -37,7 +37,7 @@
 # parses」,列舉的是 `git ls-files`,因此五分鐘前建立的檔案在它之外。從「寫出一個檔案」到
 # 「提交它」之間,什麼都沒有。
 #
-# 2026-09-16 在寫 testapp/actions/mac/P23-column-sorting.csv 時發現。有一個 note 寫成
+# 2026-09-16 在寫 testapp/actions/mac/P23-column-sorting.actions 時發現。有一個 note 寫成
 # `this must REVERSE, not restart`——一個沒有加引號的逗號——於是它之後的每一欄都左移一格,
 # 而 `platform` 變成了 `not restart`。從外面看起來是這樣:
 #
@@ -134,7 +134,7 @@ def ios_runner_verbs():
 IOS_RUNNER_VERBS = ios_runner_verbs()
 
 problems = []
-for path in sorted(glob.glob("testapp/actions/*/*.csv")):
+for path in sorted(glob.glob("testapp/actions/*/*.actions")):
     with open(path, newline="", encoding="utf-8") as handle:
         rows = list(csv.reader(handle))
     if not rows:
@@ -156,7 +156,7 @@ for path in sorted(glob.glob("testapp/actions/*/*.csv")):
         # A comment whose leading `#` is lost stops being a comment and becomes a data row. The
         # width check below cannot see that: prose has ONE field, fewer than the header, and fewer
         # is legal here because trailing optional columns get left off all the time. So
-        # `actions/mac/P72-cursor.csv` went into a commit carrying
+        # `actions/mac/P72-cursor.actions` went into a commit carrying
         # " `CGWarpMouseCursorPosition` generates no" as row 55 -- which the replay rejects with
         # `unknown action` -- and every guard in this repository said the file was fine.
         #
@@ -164,7 +164,7 @@ for path in sorted(glob.glob("testapp/actions/*/*.csv")):
         #
         # 一句「開頭的 `#` 掉了」的註解,就不再是註解,而成為一列資料。下面那個寬度檢查看不見它:
         # 散文只有**一個**欄位,比表頭少;而「少」在此處是合法的,因為尾端的選用欄位本來就經常被省略。
-        # 於是 `actions/mac/P72-cursor.csv` 帶著第 55 列「 `CGWarpMouseCursorPosition` generates no」
+        # 於是 `actions/mac/P72-cursor.actions` 帶著第 55 列「 `CGWarpMouseCursorPosition` generates no」
         # 進了一個 commit——重放會以 `unknown action` 拒絕它——而本倉庫裡每一個守衛都說那個檔案沒問題。
         verb = row[0].strip()
         # Separators normalised: on Windows glob returns backslashes, and every

@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+#
+# P72 on iPad: `.cursor(.crosshair)` takes, and only over the mesh view.
+#
+#   zsh testapp/test_ios.zsh P72 --device "iPad Pro 11-inch (M5)" --debug \
+#       --actionfile testapp/actions/ios/P72-cursor-ipad.actions
+#
+# iPadOS draws the pointer itself, into the frame buffer. Two things are read:
+# UIKitBackend's line under --debug, printed when the system asks the view for a
+# style ("-cursor: pointer style requested for crosshair"), and the capture the
+# runner takes while each hover row rests (p72-ios-hover-L<line>-*.png).
+# Pass: the line appears after the hover over the mesh view (x 35-375, y 179-419
+# on this iPad since the content starts at the top) and NO new one after the
+# hover over the text below it; the first resting capture shows a crosshair at
+# the point and the second the system pointer.
+#
+# 2026-10-13, iPad Pro 11-inch (M5) simulator, iOS 27.0: passes. One request,
+# between tick 360 and 420; the capture at the mesh shows a thin cross centred on
+# (205, 299) and the one at the text the grey system pointer.
+# The 2026-10-03 note here said the Simulator has no pointer and only a physical
+# iPad could run this. That was XCUICoordinate.hover(), which reaches no app
+# reliably; the runner now sends a synthesized pointer path (see the hover verb
+# in ActionFileUITests.swift), and the points above were stale besides: (360,
+# 446) has been below the mesh view since the layout change of 2026-10-12.
+# A physical iPad with a trackpad has still not been tried.
+#
+# P72 在 iPad 上:`.cursor(.crosshair)` 有作用，且只在 mesh view 上。iPadOS 自己把指標畫進 frame buffer。
+# 讀兩樣東西:--debug 下 UIKitBackend 印出的「-cursor: pointer style requested for crosshair」,以及 runner 在
+# 每一列 hover 停留時擷下的畫面。通過:hover 到 mesh view 上後出現那一行、hover 到下方文字時不再出現;第一張停留
+# 擷圖在該點是十字，第二張是系統指標。
+# 2026-10-13 在 iPad Pro 11 吋 (M5) 模擬器、iOS 27.0 上通過:一次要求;mesh 上是以 (205, 299) 為中心的細十字，
+# 文字上是灰色的系統指標。2026-10-03 這裡寫「模擬器沒有指標、只能在實體 iPad 上執行」,那是 XCUICoordinate.hover()
+# 的行為;runner 現在送的是合成的指標路徑。而且原本的座標也過期了:(360, 446) 自 2026-10-12 版面改變後就在 mesh
+# view 下方。接觸控板的實體 iPad 仍未試過。
+sleep,,,,,,2500000,let P72 lay out,ios
+hover,205,299,client,,,2000000,the centre of the mesh view -- a crosshair request must be printed and the resting capture shows a crosshair,ios
+sleep,,,,,,1500000,,ios
+hover,205,520,client,,,2000000,"the text below it -- no new request, and the resting capture shows the system pointer",ios
+sleep,,,,,,1500000,,ios

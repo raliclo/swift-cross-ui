@@ -5,15 +5,24 @@ to work — not where it might work.
 
 When the default action sequence is not suitable for another platform, create a
 new file in that platform's folder with a `-{platform}` suffix, for example
-`P12-android-smoke.csv`, `P14-ios-smoke.csv`, or `P28-macos-hit-testing.csv`.
+`P12-android-smoke.actions`, `P14-ios-smoke.actions`, or `P28-macos-hit-testing.actions`.
 Do not copy a coordinate sequence across platforms without re-verifying it.
+
+The suffix is `.actions` (`.csv` before 2026-10-14). The first line is the header
+`action,x,y,origin,button,key,micros,note,platform` (with a tenth column, `target`, where a row names its window) and every row after it is
+CSV fields, but a file also carries `#` comment lines and directives
+(`# fresh-install`, `# launch-args:`), which a CSV tool refuses, so it is not
+called `.csv`.
 
 每個平台一個資料夾。檔案存放於「它確實被執行過、且確認可運作」的平台之下——而非「它或許可行」
 之處。
 
 若預設動作流程不適合另一個平台，應在該平台資料夾建立新檔案，並加上 `-{platform}` suffix，例如
-`P12-android-smoke.csv`、`P14-ios-smoke.csv` 或 `P28-macos-hit-testing.csv`。不可未重新驗證就把
+`P12-android-smoke.actions`、`P14-ios-smoke.actions` 或 `P28-macos-hit-testing.actions`。不可未重新驗證就把
 含座標的動作流程直接跨平台複製。
+
+副檔名是 `.actions`(2026-10-14 之前是 `.csv`)。第一行是標頭 `action,x,y,origin,button,key,micros,note,platform`(需要指名視窗的檔案多一欄 `target`),其後每列是 CSV 欄位,
+但檔案還帶有 `#` 開頭的註解行與指示行(`# fresh-install`、`# launch-args:`),CSV 工具會拒絕它們,所以不叫 `.csv`。
 
 ```
 actions/
@@ -68,7 +77,7 @@ old eight-column file has no claim and is treated as `any` for compatibility.
 The filename suffix is descriptive and does not replace the `platform` column;
 the column remains the machine-checked declaration.
 
-They also record different things. `wsl/P8-scroll-outer.csv` proved a scroll
+They also record different things. `wsl/P8-scroll-outer.actions` proved a scroll
 reaches a GTK `ScrolledWindow`; the Windows equivalent, when it exists, will be
 proving that `SendInput`'s wheel does, which is a different mechanism entirely.
 
@@ -81,7 +90,7 @@ proving that `SendInput`'s wheel does, which is a different mechanism entirely.
 的檔案，是一項針對 Windows 的明確主張；而缺少的那些，則是明顯的缺口，而不是一個等著發生的靜默
 失敗。
 
-它們記錄的事情也不同。`wsl/P8-scroll-outer.csv` 證明的是「捲動事件能抵達 GTK 的 `ScrolledWindow`」；
+它們記錄的事情也不同。`wsl/P8-scroll-outer.actions` 證明的是「捲動事件能抵達 GTK 的 `ScrolledWindow`」；
 而 Windows 的對應檔案在存在之後，證明的將是「`SendInput` 的滾輪能抵達」——那是完全不同的機制。
 
 檔名 suffix 只是說明，不會取代 `platform` 欄位；真正由 parser 檢查的平台宣告仍然是該欄位。

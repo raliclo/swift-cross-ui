@@ -6,7 +6,7 @@
 #
 # sweep_android.zsh records that an app built, launched and produced
 # screenshots. None of those answer this question. Its log shows
-# `==> Pushing .../P17-....csv -> /data/local/tmp/P17-actions.csv` and then the
+# `==> Pushing .../P17-....actions -> /data/local/tmp/P17.actions` and then the
 # launch, which proves the file reached the device and the extra was sent -- not
 # that a single event was replayed. The confirmation is a line on stderr,
 # `-actionfile: replayed <name>`, and stderr goes to logcat, which the sweep
@@ -25,7 +25,7 @@
 # 動作檔究竟有沒有真的重放，還是只是被推送過去而已？
 #
 # sweep_android.zsh 記錄的是「app 建置了、啟動了、產出了截圖」。這三件事沒有一件回答得了這個問題。
-# 它的日誌顯示 `==> Pushing .../P17-....csv -> /data/local/tmp/P17-actions.csv` 以及隨後的啟動，那
+# 它的日誌顯示 `==> Pushing .../P17-....actions -> /data/local/tmp/P17.actions` 以及隨後的啟動，那
 # 證明了檔案抵達裝置、extra 被送出——而不是任何一個事件真的被重放。確認訊息是 stderr 上的
 # `-actionfile: replayed <名稱>`，而 stderr 進入 logcat，那正是 sweep 為每支 app 清掉、且從未為此
 # 讀取過的東西。
@@ -71,10 +71,10 @@ mkdir -p "$script_dir/output"
 if [ "$#" -gt 0 ]; then
     action_files=()
     for wanted in "$@"; do
-        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.csv 2>/dev/null)"})
+        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.actions 2>/dev/null)"})
     done
 else
-    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.csv \
+    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.actions \
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/android/|")"})
 fi
 
@@ -161,7 +161,7 @@ for action in $action_files; do
     "$adb" -s "$serial" install -r -d "$apk" >/dev/null 2>&1
     installed=$?
 
-    "$adb" -s "$serial" push "$action" "/data/local/tmp/$app-actions.csv" >/dev/null 2>&1
+    "$adb" -s "$serial" push "$action" "/data/local/tmp/$app.actions" >/dev/null 2>&1
     "$adb" -s "$serial" logcat -c >/dev/null 2>&1
 
     # The inner quotes are for the shell **on the device**: `adb shell` joins its
@@ -172,7 +172,7 @@ for action in $action_files; do
     # 重新斷詞。少了它們，`am` 會把 `-actionfile` 讀成 `-a ctionfile`。理由與 test_android.zsh 相同，
     # 少了它也會以相同的方式失敗。
     "$adb" -s "$serial" shell am start -W -n "$package/dev.swiftcrossui.testapp.MainActivity" \
-        --es scui_args "'--debug -actionfile /data/local/tmp/$app-actions.csv'" >/dev/null 2>&1
+        --es scui_args "'--debug -actionfile /data/local/tmp/$app.actions'" >/dev/null 2>&1
 
     sleep 12
 

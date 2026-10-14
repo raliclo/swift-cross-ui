@@ -35,13 +35,13 @@ import SwiftCrossUI
 // In the test process the nested run loop does not drain the main queue, so the
 // timing this crash needs cannot happen there; in an AppKit app it happens 10 times
 // in 10. A test that passes either way would say the fix is covered when nothing
-// covers it, so this app and actions/mac/P73-publish-during-build.csv are the check.
+// covers it, so this app and actions/mac/P73-publish-during-build.actions are the check.
 //
 // **為什麼是一支 app、而不是單元測試。**2026-09-27 寫過一個用 DummyBackend 的單元測試,然後刪掉了:
 // 它在有修正與沒有修正時都會通過。在子節點的 body 裡印出訊息,就看得出原因——每一次更新都在轉動**之後**
 // 才抵達,從來不在轉動期間。在測試行程裡,巢狀的 run loop 不會清空主佇列,所以這個崩潰所需要的時序在那裡
 // 不可能發生;在 AppKit app 裡,10 次發生 10 次。一個怎樣都會通過的測試,會宣稱這個修正有被涵蓋,而實際上
-// 什麼都沒有涵蓋它,因此擔任檢查的是這支 app 與 actions/mac/P73-publish-during-build.csv。
+// 什麼都沒有涵蓋它,因此擔任檢查的是這支 app 與 actions/mac/P73-publish-during-build.actions。
 //
 // P73:一次在 view graph 還在建構時抵達的發布。
 //

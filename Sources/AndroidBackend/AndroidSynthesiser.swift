@@ -762,7 +762,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// declined the key, one level above anything an app can post to.
     ///
     /// Measured on 2026-09-23 with P71, and the pair is what makes it a finding rather than a
-    /// guess: `actions/android/P71-shortcuts.csv` replayed all 21 of its actions and left the
+    /// guess: `actions/android/P71-shortcuts.actions` replayed all 21 of its actions and left the
     /// counters at 0/0/0, while `adb shell input keycombination -t 120 113 47` -- the same Ctrl-S,
     /// injected at system level -- fired it. The shortcuts work; this route does not carry them.
     ///
@@ -803,7 +803,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 位於任何 app 投遞得到的層級之上。
     ///
     /// 2026-09-23 以 P71 實測,而「成對」正是它之所以是一項發現、而不是一個猜測的原因:
-    /// `actions/android/P71-shortcuts.csv` 把 21 個動作全部重放完成,計數器停在 0/0/0;
+    /// `actions/android/P71-shortcuts.actions` 把 21 個動作全部重放完成,計數器停在 0/0/0;
     /// 而 `adb shell input keycombination -t 120 113 47`——同樣的 Ctrl-S、在系統層級注入——觸發了它。
     /// 那些快捷鍵是好的;是**這條路徑**載不動它們。
     ///

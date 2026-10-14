@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+# P92 on iPad: makes the system build the menu bar, so UIKitBackend prints it ("-menu:" lines
+# in p92-ios-stdout.log) for testapp/test_support/compare_ipad_menu_dump.py.
+#   SIMCTL_CHILD_SCUI_P92_MODE=after zsh testapp/test_ios.zsh P92 --device "iPad Pro 11-inch (M5)" \
+#       --debug --actionfile testapp/actions/ios/P92-build-the-menu-bar-ipad.actions
+# The bar is not built until a key or the pointer arrives: with only a sleep nothing is printed.
+# iPad 上的 P92:讓系統建立選單列，UIKitBackend 才會把它印出來供比對。只有 sleep 時不會建立。
+sleep,,,,,,2500000,,ios
+keydown,,,,,command,,hold Command,ios
+sleep,,,,,,1500000,,ios
+key,,,,,j,,a command key,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,1500000,,ios
+hover,300,3,client,,,1500000,the pointer at the top edge where the menu bar comes down,ios
+sleep,,,,,,2000000,,ios

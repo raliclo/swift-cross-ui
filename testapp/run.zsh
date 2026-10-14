@@ -3,10 +3,10 @@
 #
 #   zsh testapp/run.zsh P9                 launch P9.exe
 #   zsh testapp/run.zsh P9 --debug         pass flags straight through
-#   zsh testapp/run.zsh P19 --debug -actionfile actions/win/P19-open-and-select.csv
+#   zsh testapp/run.zsh P19 --debug -actionfile actions/win/P19-open-and-select.actions
 #
 # An -actionfile path is tried as given, then under testapp/, so both
-# `actions/win/P19-...csv` and `testapp/actions/win/P19-...csv` work from
+# `actions/win/P19-...actions` and `testapp/actions/win/P19-...actions` work from
 # anywhere. Why bother: the app resolves that path itself, with
 # `URL(fileURLWithPath:)` in Sources/InputEvent/ActionFileReplay.swift, and a
 # relative path there is relative to the *process's* working directory --
@@ -20,7 +20,7 @@
 # 在 Windows 上啟動 -gtk4 的 Pn，並讓 GTK 的 DLL 找得到。
 #
 # -actionfile 的路徑會先照原樣嘗試，再嘗試 testapp/ 之下，因此
-# `actions/win/P19-...csv` 與 `testapp/actions/win/P19-...csv` 在任何目錄下都可用。
+# `actions/win/P19-...actions` 與 `testapp/actions/win/P19-...actions` 在任何目錄下都可用。
 # 為何要這麼做：該路徑是由 app 自行解析的（Sources/InputEvent/ActionFileReplay.swift 中的
 # `URL(fileURLWithPath:)`），而其中的相對路徑是相對於**行程**的工作目錄——也就是你執行本腳本時
 # 所在的目錄，因為本腳本不做任何 cd。上方的範例在此解析機制存在之前就寫在標頭中，而從 repo 根目錄

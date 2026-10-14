@@ -17,7 +17,7 @@ import WinUI
 /// AndroidBackend use.
 ///
 /// ~~**Written on macOS and NOT verified.**~~ **VERIFIED BY RUNNING on
-/// Win-WinUI, 2026-09-10.** `actions/win/P54-press-the-refresh.csv` presses the
+/// Win-WinUI, 2026-09-10.** `actions/win/P54-press-the-refresh.actions` presses the
 /// button twice and P54 reports `refreshes: 2` with `last refresh added rows up
 /// to: 10` -- rows 0-5 before, 0-9 after. That is the same pair of numbers the
 /// AppKit and UIKit runs recorded on 2026-09-09, so the three agree.

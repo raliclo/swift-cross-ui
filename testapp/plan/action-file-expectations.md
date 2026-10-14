@@ -3,7 +3,7 @@
 Written 2026-09-07. Regenerate the marker list with:
 
 ```
-for f in testapp/actions/win/*.csv; do
+for f in testapp/actions/win/*.actions; do
     e="$(grep -m1 -E '^# *expect: *log-contains .' "$f")"
     [ -n "$e" ] && printf '%s\t%s\n' "${f:t}" "${e#*log-contains }"
 done
@@ -12,7 +12,7 @@ done
 and the count of files with any marker with
 
 ```
-grep -l -E '^# *expect: *(log-contains|process-exits)' testapp/actions/win/*.csv | wc -l
+grep -l -E '^# *expect: *(log-contains|process-exits)' testapp/actions/win/*.actions | wc -l
 ```
 
 Numbers below are as of the day this was written. Re-derive rather than trust
@@ -30,7 +30,7 @@ while the app wrote something → `UNMET`. Not found and the app wrote nothing a
 all → `UNCHECKED`. See that script's own header for the four states.
 
 Before this pass, two of the 41 win action files declared anything:
-`P10-ctrl-q.csv` (`# expect: process-exits`) and `P44-clip-third-cell.csv`
+`P10-ctrl-q.actions` (`# expect: process-exits`) and `P44-clip-third-cell.actions`
 (`# expect: log-contains third cell clipped: true`). The other 39 reported `ok`
 for a replay that ran, whatever it achieved — and driving P44 on 2026-09-07
 returned `ok / ok / window` while only a hand reading of the capture and the log
@@ -60,8 +60,8 @@ three log heavily, and every line is a layout measurement emitted per frame.
 **本次執行新增的位元組**中尋找該段文字。找到 → 維持原判決並加註；沒找到但 app 有寫東西 →
 `UNMET`；沒找到且 app 從頭到尾什麼都沒寫 → `UNCHECKED`。四種狀態見該腳本自身的檔頭。
 
-在這一輪之前，41 個 win 動作檔中只有兩個有任何宣告：`P10-ctrl-q.csv` 與
-`P44-clip-third-cell.csv`。其餘 39 個無論重放達成了什麼，都一律回報 `ok`——而 2026-09-07 驅動
+在這一輪之前，41 個 win 動作檔中只有兩個有任何宣告：`P10-ctrl-q.actions` 與
+`P44-clip-third-cell.actions`。其餘 39 個無論重放達成了什麼，都一律回報 `ok`——而 2026-09-07 驅動
 P44 得到的是 `ok / ok / window`，唯有人工讀取擷圖與 log 才看得出那顆按鈕有沒有作用。一個
 **每一次點擊都沒中**的檔案，回報的是一模一樣的三個字。
 
@@ -114,11 +114,11 @@ own sleep budget. Two cases turned on it:
 - **P20.** `clicked: level 1` lands ~6 s into the *first* run of each pair —
   2026-09-06 14:10:48 UTC, inside `P20-disabled-item.log` which closed at
   14:10:50, and before `P20-open-level-1.log` which closed at 14:11:21. It
-  belongs to `P20-disabled-item.csv`, whose header calls that click the
-  positive control. `P20-open-level-1.csv` left **no** event line at all.
+  belongs to `P20-disabled-item.actions`, whose header calls that click the
+  positive control. `P20-open-level-1.actions` left **no** event line at all.
 - **P13.** `z-order reversed` lands at 12:27:20 UTC, between
   `P13-duplicates-and-split.log` closing at 12:27:05 and `P13-zorder.log`
-  closing at 12:27:21. It belongs to `P13-zorder.csv`.
+  closing at 12:27:21. It belongs to `P13-zorder.actions`.
 
 ### 把某一行歸屬到某一個檔案，而非它的鄰居
 
@@ -136,59 +136,59 @@ text was read from. Paths are relative to the repo root.
 
 | # | file | app | marker | evidence | if not marked, why |
 | --- | --- | --- | --- | --- | --- |
-| 1 | P0-present-environment-alert.csv | P0 | `immediate alert button clicked` | `p0-debug-events.log`, `testapp/p0-debug-events.log` | — |
-| 2 | P1-open-root-sheet.csv | P1 | — | — | P1 writes no debug-events log anywhere on disk; the verdict is the capture |
-| 3 | P10-ctrl-q.csv | P10 | *(pre-existing)* `# expect: process-exits` | — | already done; not touched |
-| 4 | P10-hit-testing.csv | P10 | — | — | `p10-debug-events.log` holds `RENDER COMPLETE` and nothing else, 18 times over |
-| 5 | P13-duplicates-and-split.csv | P13 | — | — | neither "More duplicates" nor "Narrower" writes; the only P13 interaction line belongs to the other P13 file |
-| 6 | P13-zorder.csv | P13 | `z-order reversed -- top should now be red` | `testapp/output/p13-debug-events.log` | — |
-| 7 | P15-colour-scheme.csv | P15 | — | — | `p15-debug-events.log` holds only `RENDER COMPLETE`, once per launch |
-| 8 | P16-force-update-winui.csv | P16 | — | — | `p16-debug-events.log` holds startup arguments, `RENDER COMPLETE` and per-render `sidebar:`/`detail:` sizes; nothing from the button |
-| 9 | P17-picker-and-sizes.csv | P17 | — | — | 1034 lines, five shapes, all layout measurements emitted on every render |
-| 10 | P18-three-dialogs.csv | P18 | `open: cancelled` | `p18-debug-events.log` (repo root, 2026-09-03) | — (**expected to report UNMET today** — see the note below) |
-| 11 | P19-menu-open.csv | P19 | — | — | the file deliberately has no click and no readout; its own header says the picture is the only evidence there is |
-| 12 | P19-open-and-select.csv | P19 | `clicked: second button item` | `testapp/output/p19-debug-events.log` | — |
-| 13 | P2-controls-and-resizing.csv | P2 | — | — | P2 writes no debug-events log; and its most recent run log is 0 bytes |
-| 14 | P20-disabled-item.csv | P20 | `clicked: level 1` | `testapp/output/p20-debug-events.log` | — |
-| 15 | P20-open-level-1.csv | P20 | — | — | its run (2026-09-06 14:11:01–14:11:21 UTC) produced no event line at all; nothing on disk shows its clicks landing |
-| 16 | P21-buttons-and-disabled.csv | P21 | — | — | `p21-debug-events.log` holds `backend` + `RENDER COMPLETE` only |
-| 17 | P22-weights.csv | P22 | — | — | 91 lines, all text-metric measurements written at render time |
-| 18 | P23-more-rows.csv | P23 | — | — | `p23-debug-events.log` holds `backend` + `RENDER COMPLETE` only |
-| 19 | P24-push-one-level-winui.csv | P24 | — | — | its one row is marked `STALE 125% coordinate`; every P24 push line on disk comes from a GtkBackend run, and the 2026-08-29 WinUI launch wrote startup lines only |
-| 20 | P24-push-one-level.csv | P24 | `push recorded at level 3` | `testapp/output/p24-debug-events.log` | — |
-| 21 | P26-tab-switching.csv | P26 | — | — | `p26-debug-events.log` holds cache-dir, index-row and render lines, all written at startup |
-| 22 | P28-click-through-overlay.csv | P28 | `underlying button clicked count=1` | `p28-debug-events.log`, `testapp/p28-debug-events.log` | — |
-| 23 | P29-texteditor-disabled.csv | P29 | — | — | `p29-debug-events.log` is 0 bytes; no debug-events writer in P29.swift |
-| 24 | P3-sidebar-and-image.csv | P3 | — | — | P3 writes no debug-events log anywhere on disk |
-| 25 | P30-toggle-frame-width.csv | P30 | `size toggled wide=true` | `p30-debug-events.log`, `testapp/p30-debug-events.log` | — |
-| 26 | P31-tab-and-escape.csv | P31 | `alert opened` | `testapp/output/p31-debug-events.log` | — (`alert OK` deliberately not used; see below) |
-| 27 | P32-empty-label-button.csv | P32 | `empty-label button clicked` | `p32-debug-events.log`, `testapp/p32-debug-events.log` | — |
-| 28 | P33-hide-details.csv | P33 | `details expanded=false` | `p33-debug-events.log`, `testapp/p33-debug-events.log` | — |
-| 29 | P34-show-more-rows.csv | P34 | `show plus 100 -> visibleRows=` | `p34-debug-events.log`, `testapp/p34-debug-events.log` | — |
-| 30 | P35-increment-count.csv | P35 | `count=1` | `p35-debug-events.log`, `testapp/p35-debug-events.log` | — |
-| 31 | P36-string-label-button.csv | P36 | `button clicked` | `p36-debug-events.log`, `testapp/p36-debug-events.log` | — |
-| 32 | P4-row-callback.csv | P4 | — | — | P4 writes no debug-events log; its own header opens "READ THIS FIRST -- P4 HAS NO DEBUG LOG" |
-| 33 | P41-wheel-scroll.csv | P41 | — | — | `p41-debug-events.log` is 0 bytes; no debug-events writer in P41.swift |
-| 34 | P44-clip-third-cell.csv | P44 | *(pre-existing)* `third cell clipped: true` | `testapp/output/p44-debug-events.log` | already done; not touched |
-| 35 | P46-increment-model-winui.csv | P46 | `model.count=1 constructions=1` | `testapp/output/p46-debug-events.log` | — |
-| 36 | P46-increment-model.csv | P46 | `model.count=1 constructions=1` | `testapp/output/p46-debug-events.log` (WinUI run — the weakest marker here; see below) | — |
-| 37 | P46-scroll-to-lazy.csv | P46 | — | — | its own header: "this is a case where the log CANNOT help. Nothing in P46 writes on scroll" |
-| 38 | P5-stacked-alerts.csv | P5 | `requesting A, B and C together` | `testapp/output/p5-debug-events.log` | — |
-| 39 | P7-list-selection.csv | P7 | — | — | 910 lines, five shapes, all pane measurements emitted on every render; selection writes nothing |
-| 40 | P8-scroll-outer.csv | P8 | — | — | `p8-debug-events.log` holds four probe sizes and `RENDER COMPLETE`, all at startup; the wheel writes nothing |
-| 41 | P9-force-update-and-width.csv | P9 | — | — | `p9-debug-events.log` holds one line, `RENDER COMPLETE`, per launch |
+| 1 | P0-present-environment-alert.actions | P0 | `immediate alert button clicked` | `p0-debug-events.log`, `testapp/p0-debug-events.log` | — |
+| 2 | P1-open-root-sheet.actions | P1 | — | — | P1 writes no debug-events log anywhere on disk; the verdict is the capture |
+| 3 | P10-ctrl-q.actions | P10 | *(pre-existing)* `# expect: process-exits` | — | already done; not touched |
+| 4 | P10-hit-testing.actions | P10 | — | — | `p10-debug-events.log` holds `RENDER COMPLETE` and nothing else, 18 times over |
+| 5 | P13-duplicates-and-split.actions | P13 | — | — | neither "More duplicates" nor "Narrower" writes; the only P13 interaction line belongs to the other P13 file |
+| 6 | P13-zorder.actions | P13 | `z-order reversed -- top should now be red` | `testapp/output/p13-debug-events.log` | — |
+| 7 | P15-colour-scheme.actions | P15 | — | — | `p15-debug-events.log` holds only `RENDER COMPLETE`, once per launch |
+| 8 | P16-force-update-winui.actions | P16 | — | — | `p16-debug-events.log` holds startup arguments, `RENDER COMPLETE` and per-render `sidebar:`/`detail:` sizes; nothing from the button |
+| 9 | P17-picker-and-sizes.actions | P17 | — | — | 1034 lines, five shapes, all layout measurements emitted on every render |
+| 10 | P18-three-dialogs.actions | P18 | `open: cancelled` | `p18-debug-events.log` (repo root, 2026-09-03) | — (**expected to report UNMET today** — see the note below) |
+| 11 | P19-menu-open.actions | P19 | — | — | the file deliberately has no click and no readout; its own header says the picture is the only evidence there is |
+| 12 | P19-open-and-select.actions | P19 | `clicked: second button item` | `testapp/output/p19-debug-events.log` | — |
+| 13 | P2-controls-and-resizing.actions | P2 | — | — | P2 writes no debug-events log; and its most recent run log is 0 bytes |
+| 14 | P20-disabled-item.actions | P20 | `clicked: level 1` | `testapp/output/p20-debug-events.log` | — |
+| 15 | P20-open-level-1.actions | P20 | — | — | its run (2026-09-06 14:11:01–14:11:21 UTC) produced no event line at all; nothing on disk shows its clicks landing |
+| 16 | P21-buttons-and-disabled.actions | P21 | — | — | `p21-debug-events.log` holds `backend` + `RENDER COMPLETE` only |
+| 17 | P22-weights.actions | P22 | — | — | 91 lines, all text-metric measurements written at render time |
+| 18 | P23-more-rows.actions | P23 | — | — | `p23-debug-events.log` holds `backend` + `RENDER COMPLETE` only |
+| 19 | P24-push-one-level-winui.actions | P24 | — | — | its one row is marked `STALE 125% coordinate`; every P24 push line on disk comes from a GtkBackend run, and the 2026-08-29 WinUI launch wrote startup lines only |
+| 20 | P24-push-one-level.actions | P24 | `push recorded at level 3` | `testapp/output/p24-debug-events.log` | — |
+| 21 | P26-tab-switching.actions | P26 | — | — | `p26-debug-events.log` holds cache-dir, index-row and render lines, all written at startup |
+| 22 | P28-click-through-overlay.actions | P28 | `underlying button clicked count=1` | `p28-debug-events.log`, `testapp/p28-debug-events.log` | — |
+| 23 | P29-texteditor-disabled.actions | P29 | — | — | `p29-debug-events.log` is 0 bytes; no debug-events writer in P29.swift |
+| 24 | P3-sidebar-and-image.actions | P3 | — | — | P3 writes no debug-events log anywhere on disk |
+| 25 | P30-toggle-frame-width.actions | P30 | `size toggled wide=true` | `p30-debug-events.log`, `testapp/p30-debug-events.log` | — |
+| 26 | P31-tab-and-escape.actions | P31 | `alert opened` | `testapp/output/p31-debug-events.log` | — (`alert OK` deliberately not used; see below) |
+| 27 | P32-empty-label-button.actions | P32 | `empty-label button clicked` | `p32-debug-events.log`, `testapp/p32-debug-events.log` | — |
+| 28 | P33-hide-details.actions | P33 | `details expanded=false` | `p33-debug-events.log`, `testapp/p33-debug-events.log` | — |
+| 29 | P34-show-more-rows.actions | P34 | `show plus 100 -> visibleRows=` | `p34-debug-events.log`, `testapp/p34-debug-events.log` | — |
+| 30 | P35-increment-count.actions | P35 | `count=1` | `p35-debug-events.log`, `testapp/p35-debug-events.log` | — |
+| 31 | P36-string-label-button.actions | P36 | `button clicked` | `p36-debug-events.log`, `testapp/p36-debug-events.log` | — |
+| 32 | P4-row-callback.actions | P4 | — | — | P4 writes no debug-events log; its own header opens "READ THIS FIRST -- P4 HAS NO DEBUG LOG" |
+| 33 | P41-wheel-scroll.actions | P41 | — | — | `p41-debug-events.log` is 0 bytes; no debug-events writer in P41.swift |
+| 34 | P44-clip-third-cell.actions | P44 | *(pre-existing)* `third cell clipped: true` | `testapp/output/p44-debug-events.log` | already done; not touched |
+| 35 | P46-increment-model-winui.actions | P46 | `model.count=1 constructions=1` | `testapp/output/p46-debug-events.log` | — |
+| 36 | P46-increment-model.actions | P46 | `model.count=1 constructions=1` | `testapp/output/p46-debug-events.log` (WinUI run — the weakest marker here; see below) | — |
+| 37 | P46-scroll-to-lazy.actions | P46 | — | — | its own header: "this is a case where the log CANNOT help. Nothing in P46 writes on scroll" |
+| 38 | P5-stacked-alerts.actions | P5 | `requesting A, B and C together` | `testapp/output/p5-debug-events.log` | — |
+| 39 | P7-list-selection.actions | P7 | — | — | 910 lines, five shapes, all pane measurements emitted on every render; selection writes nothing |
+| 40 | P8-scroll-outer.actions | P8 | — | — | `p8-debug-events.log` holds four probe sizes and `RENDER COMPLETE`, all at startup; the wheel writes nothing |
+| 41 | P9-force-update-and-width.actions | P9 | — | — | `p9-debug-events.log` holds one line, `RENDER COMPLETE`, per launch |
 
 **Totals: 17 of the 39 got a marker; 22 did not.** With the two that already had
 one, 19 of the 41 files now declare an outcome.
 
-**A 42nd file appeared while this was being written.** `P11-clamped-sliders.csv`
+**A 42nd file appeared while this was being written.** `P11-clamped-sliders.actions`
 was created at 2026-09-07 21:59 by another session and is untracked; it is
 outside this pass and was not touched. For the record it would not have been
 marked either: `p11-debug-events.log` holds one line, `RENDER COMPLETE`, in each
 of its eight runs.
 
 **合計：39 個之中有 17 個加上了標記，22 個沒有。** 連同原本就有的兩個，41 個檔案中現有 19 個
-會宣告結果。本文撰寫期間另有第 42 個檔案 `P11-clamped-sliders.csv` 於 2026-09-07 21:59 由另一個
+會宣告結果。本文撰寫期間另有第 42 個檔案 `P11-clamped-sliders.actions` 於 2026-09-07 21:59 由另一個
 工作階段建立且尚未納入版控；它不在本輪範圍內，也未被更動。附帶一提，它同樣不會被標記：
 `p11-debug-events.log` 在八次執行中每次都只有一行 `RENDER COMPLETE`。
 
@@ -227,7 +227,7 @@ click missed its control, or the control does nothing" for a desktop problem.
 2026-09-03 launch that had no action file. Promote the marker once a run
 produces `alert OK`.
 
-### P46-increment-model.csv — the weakest marker in the directory, and labelled as such
+### P46-increment-model.actions — the weakest marker in the directory, and labelled as such
 
 `model.count=1 constructions=1` is on disk in `testapp/output/p46-debug-events.log`,
 written by the Button's action and by nothing else — but that run reads
@@ -247,7 +247,7 @@ y 586 and GTK gives that window 661 points of content).
 - **P31**：採 `alert opened` 而非其最後一列自稱為判準的 `alert OK`。後者最近三次執行都沒有產生，
   而 run log 指出原因：移動到 frame (53,44) 時 `hitClass=Windows.UI.Core.CoreWindow`。待有任何一次
   執行產生 `alert OK`，再將標記升級。
-- **P46-increment-model.csv**：磁碟上唯一的實例來自 WinUI 那次執行，因此這是本目錄中最弱的標記，
+- **P46-increment-model.actions**：磁碟上唯一的實例來自 WinUI 那次執行，因此這是本目錄中最弱的標記，
   且已在檔案標頭中如此標明，並寫出「若回報 UNMET 該先查座標」。
 
 ---

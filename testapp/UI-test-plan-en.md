@@ -1556,10 +1556,10 @@ still require manual keyboard interaction.
 
 #### Measured 2026-09-03 on Windows / GtkBackend — steps 1 and 2 pass, step 4 cannot be run
 
-Driven by `testapp/actions/win/P31-tab-and-escape.csv`, which is the first
+Driven by `testapp/actions/win/P31-tab-and-escape.actions`, which is the first
 action file in this tree to press a key at a dialog at all.
 
-Regenerate with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`,
+Regenerate with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.actions`,
 then read `p31-debug-events.log` **in the directory you ran it from** — see the
 note below, it is not in `testapp/output/`.
 
@@ -1729,7 +1729,7 @@ no `ScrollViewReader` or `ScrollViewProxy`.~~ **Six of those seven now exist.
 Re-checked 2026-09-09; the only one still absent is `LazyHGrid` (task #118).**
 `LazyVStack`, `LazyHStack`, `LazyVGrid` and `Grid` all landed by 2026-09-08, and
 `ScrollViewReader`/`ScrollViewProxy` on 2026-09-09 — driven and verified on
-Win-gtk4 by `actions/win/P34-scroll-to-row-50.csv`, whose log reads
+Win-gtk4 by `actions/win/P34-scroll-to-row-50.actions`, whose log reads
 `scrollTo row 50 requested, anchor top` and whose capture shows the top visible
 row going from `Row 0` to `Row 50`. So the last sentence of the struck-through
 text — "nor is there a way to scroll to a particular row programmatically" — is
@@ -3078,7 +3078,7 @@ All final screenshots below were captured with `wincap` and measured with PIL. E
 | P24 | 748x589, 91.5% non-black | 736x599, 91.8% non-black | Both platforms built and reached the final capture. |
 | P25 | 748x549, 91.2% non-black | 736x559, 91.3% non-black | Automated run verifies launch/capture only; live drag/drop still needs manual interaction. |
 | P27 | 788x726, 92.6% non-black | 776x702, 92.8% non-black | Both platforms built and reached the final capture. |
-| P29 | 796x657, 82.8% non-black | 736x599, 91.7% non-black | WSLg `P29-texteditor-disabled.csv` was added and verified: final capture shows the editor enabled after replay. Windows smoke final is visible, but WinUI actionfile replay produced no `-actionfile` report in this run and remains unresolved. |
+| P29 | 796x657, 82.8% non-black | 736x599, 91.7% non-black | WSLg `P29-texteditor-disabled.actions` was added and verified: final capture shows the editor enabled after replay. Windows smoke final is visible, but WinUI actionfile replay produced no `-actionfile` report in this run and remains unresolved. |
 | P37 | 788x569, 91.5% non-black | 776x579, 91.6% non-black | WSLg reports supported levels `automatic, normal`; Windows reports `automatic, normal, floating`. Window-level behaviour still needs a second-window foreground/topmost challenge; this run only verifies baseline launch/capture and backend capability reporting. |
 | P38 | 848x692, 92.6% non-black | 836x699, 92.8% non-black | WSLg 1-second and final captures were both visible in the latest run and show the expected GtkBackend placeholder. Windows final capture is visible, but the WebView area is still an empty grey frame with `Navigations reported: 0`. |
 | P39 | 888x649, 92.5% non-black | 876x659, 92.5% non-black | WSLg shows visible opacity, blur, saturation, brightness, contrast, grayscale and hue-rotation effects. ~~Windows shows opacity, but blur and most colour effects appear identical to the control, so WinUI visual effects remain suspect.~~ **Superseded 2026-09-02** (struck through, not deleted, so the stale claim stays on record): Windows now applies all seven through a real Win2D effect graph. Verified 2026-09-02, `applied=8 failed=0 total=8`; regenerate with `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe` then read `winui-visual-effects-debug.log`. |
@@ -3162,7 +3162,7 @@ All final screenshots below were measured with PIL. Every final capture was visi
 - 2026-09-01, settling the entry above: **the panes are measured now, and #160 does not reproduce on WinUIBackend.** The measurement was moved out of the view tree entirely. `SplitView.commit` already had an `SCUI_DEBUG_SPLIT` diagnostic printing the minimums and the bounds it hands the backend; it now also prints the size each pane was actually given. Nothing is added to the view tree, so nothing perturbs what is being measured -- which is what defeated every previous attempt.
 - Run A, `SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`, no action file, killed after 8s. Exactly one committed layout:
   `total=880.0 minLeading=126.0 minTrailing=20.0 -> bounds min=126 max=860 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`
-- Run B, the same with `-actionfile actions/win/P16-force-update.csv`, killed after 12s. Five lines. **Lines 1-3 are byte-identical to run A's single line**; run A establishes that the first render is one line, so lines 2 and 3 are the layouts after the `Force update` click and the `Science` selection. Lines 4-5 are the three-column state, which is two nested split views: inner `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`, outer `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`.
+- Run B, the same with `-actionfile actions/win/P16-force-update.actions`, killed after 12s. Five lines. **Lines 1-3 are byte-identical to run A's single line**; run A establishes that the first render is one line, so lines 2 and 3 are the layouts after the `Force update` click and the `Science` selection. Lines 4-5 are the three-column state, which is two nested split views: inner `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`, outer `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`.
 - **The sizes the panes are given at first render are identical to the sizes after two state changes.** #160 says a split view lays out very incorrectly on first render and snaps as soon as any state changes; there is no snap here, because there is nothing to snap from.
 - The negative is trustworthy because lines 4-5 differ: the diagnostic demonstrably responds to a real layout change in the same run, so "no change across lines 1-3" is a measured no-change rather than a dead log. Without that control it would be indistinguishable from a diagnostic that had stopped firing.
 - Incidentally this disposes of the height question: the panes are **486** tall, not 22. The 22 was the probe's own `.frame(height: 22)`, reported for two weeks as the pane's height.
@@ -3383,8 +3383,8 @@ All final screenshots below were measured with PIL. Every final capture was visi
 
 #### P31 on Windows/GtkBackend: Tab and Space work, Escape cannot be tested
 
-- Driven by `testapp/actions/win/P31-tab-and-escape.csv`, a new file. Regenerate
-  with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`
+- Driven by `testapp/actions/win/P31-tab-and-escape.actions`, a new file. Regenerate
+  with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.actions`
   and read `p31-debug-events.log` **in the directory you ran it from**.
 - **Focus moves and Space activates.** `key tab` out of the `TextField` followed
   by `key space` produced `button clicked count=1`. SwiftCrossUI has no focus

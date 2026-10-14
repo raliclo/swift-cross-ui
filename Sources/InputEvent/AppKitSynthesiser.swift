@@ -755,11 +755,11 @@
                         // `cursorUpdate` still did not fire, because the event it posts then sat
                         // in the queue until the wait below had finished -- the wait did not
                         // dispatch events. With both, the reading is right; see the comment on
-                        // `dispatchEvents` and `actions/mac/P72-cursor.csv`.
+                        // `dispatchEvents` and `actions/mac/P72-cursor.actions`.
                         //
                         // **必要,但單獨不充分。** 做這個改動時 `cursorUpdate` 仍然沒有觸發,因為它投遞的
                         // 事件接著就排在佇列裡,直到下方的等待結束——那個等待不會分派事件。兩者都做了,
-                        // 讀數才是對的;見 `dispatchEvents` 上的註解與 `actions/mac/P72-cursor.csv`。
+                        // 讀數才是對的;見 `dispatchEvents` 上的註解與 `actions/mac/P72-cursor.actions`。
                         //
                         // **經由 HID tap 的 CGEvent,不是 `CGWarpMouseCursorPosition`、也不是
                         // `NSApp.postEvent`;而這兩者都不是隨便挑的。**

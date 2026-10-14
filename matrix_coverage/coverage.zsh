@@ -263,7 +263,7 @@ trap 'rm -f "$pivot"' EXIT
             # produced this defect. The cost until then is exactly two cells,
             # counted 2026-09-07 by regenerating the table both ways:
             # windows/gtk4 P10, `pass 3/3` to `capture n/a 1/3`, whose files
-            # include P10-ctrl-q.csv, and windows/winui P38, `pass` to
+            # include P10-ctrl-q.actions, and windows/winui P38, `pass` to
             # `capture n/a`, a hand-written 2026-08-28 row that recorded a
             # WebView diagnosis and no screenshot at all. Recount by reverting
             # this block and diffing the two coverage.md files.
@@ -298,7 +298,7 @@ trap 'rm -f "$pivot"' EXIT
             # 今天的資料列裡沒有任何東西能區分這兩者，而從 note 的文字去推導規則，將會是另一個
             # 未被寫下的假設——與造就本缺陷的那一個一模一樣。在那之前的代價恰好是兩格，於
             # 2026-09-07 以「兩種版本各產生一次表格再比對」數出：windows/gtk4 的 P10，由
-            # `pass 3/3` 變為 `capture n/a 1/3`，其動作檔中包含 P10-ctrl-q.csv；以及
+            # `pass 3/3` 變為 `capture n/a 1/3`，其動作檔中包含 P10-ctrl-q.actions；以及
             # windows/winui 的 P38，由 `pass` 變為 `capture n/a`——那是 2026-08-28 手寫的一列，
             # 記錄的是一次 WebView 診斷，根本沒有任何截圖。要重新計數，把本區塊還原後比對兩份
             # coverage.md 即可。
@@ -351,12 +351,12 @@ trap 'rm -f "$pivot"' EXIT
             #
             # Rows appended by sweep_drive.zsh and, since 2026-09-08,
             # sweep_drive_wsl.zsh carry their action file at the front of the
-            # note, `P10-ctrl-q.csv: ...`, because the `app` column cannot hold
+            # note, `P10-ctrl-q.actions: ...`, because the `app` column cannot hold
             # it. Rows written before that share one key, which makes them
             # behave exactly as they always did -- including every `wsl` row
             # dated 2026-09-07 or earlier, which was written when that driver
             # replayed only the first file of each app and named it in prose
-            # (`replayed P8-scroll-outer.csv only`) rather than as this prefix.
+            # (`replayed P8-scroll-outer.actions only`) rather than as this prefix.
             #
             # WHY NOT "any failure that day poisons the cell", which is what this
             # was for one commit: because several rows for one app on one date
@@ -376,10 +376,10 @@ trap 'rm -f "$pivot"' EXIT
             # 以**動作檔**為鍵，每個檔案取最新者，再行合併。
             #
             # sweep_drive.zsh 追加的資料列，以及自 2026-09-08 起 sweep_drive_wsl.zsh 追加的資料列，
-            # 都會把動作檔名放在 note 的最前面，形如 `P10-ctrl-q.csv: ...`，因為 `app` 欄放不下它。
+            # 都會把動作檔名放在 note 的最前面，形如 `P10-ctrl-q.actions: ...`，因為 `app` 欄放不下它。
             # 在那之前寫入的資料列共用同一個鍵，因此其行為與過去完全一致——這包含所有日期在
             # 2026-09-07 或更早的 `wsl` 資料列：它們寫入時，該驅動器每支 app 只重放第一個動作檔，
-            # 並以散文形式指名（`replayed P8-scroll-outer.csv only`），而非使用這個前綴。
+            # 並以散文形式指名（`replayed P8-scroll-outer.actions only`），而非使用這個前綴。
             #
             # 為何不採「當天只要有一項失敗就毒化該格」——那正是本處曾有一個 commit 的做法：因為
             # 「同一天、同一支 app 的數列」通常是**一天的除錯過程**，而不是數個檔案，且最後一列才是
@@ -392,8 +392,13 @@ trap 'rm -f "$pivot"' EXIT
             # 區分的那一種情況：同一支 app 的**兩個不同檔案**，過去第二個會覆蓋第一個。
             note = field("note")
             fileKey = "-"
-            if (match(note, /^[^ :]+\.csv: /))
+            # A row written before 2026-10-14 names `<file>.csv`, a later one `<file>.actions`;
+            # the key drops the suffix so both are the same file.
+            # 2026-10-14 之前寫下的列名為 `<file>.csv`,之後的是 `<file>.actions`;鍵去掉副檔名,兩者才是同一個檔案。
+            if (match(note, /^[^ :]+\.(csv|actions): /)) {
                 fileKey = substr(note, 1, RLENGTH - 2)
+                sub(/\.(csv|actions)$/, "", fileKey)
+            }
 
             # THE RENDERER IS PART OF THE KEY, added 2026-09-07 with the
             # `renderer` column itself.

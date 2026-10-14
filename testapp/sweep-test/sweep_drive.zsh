@@ -400,7 +400,7 @@ for app in $apps; do
     #
     # 沒有動作檔的 app 仍會走一次迴圈，`action_file` 為空：把它啟動並擷取本來就是一次真實的執行，
     # 而各欄位已經如實說明了這一點。
-    action_files=("${(@f)$(ls "$actions/$app"-*.csv 2>/dev/null | grep -v -- '-winui')}")
+    action_files=("${(@f)$(ls "$actions/$app"-*.actions 2>/dev/null | grep -v -- '-winui')}")
     [[ -z "${action_files[1]:-}" ]] && action_files=("")
 
     for action_file in "${action_files[@]}"; do
@@ -415,7 +415,7 @@ for app in $apps; do
     # this whole file spends its comments guarding against.
     # 每一個檔案各有自己的 log 與擷圖，以**檔案**而非 app 為鍵。若兩個檔案共用一個名字，第二個會
     # 覆蓋第一個，而命中檢查接著會讀到另一次執行的傾印——那正是本檔的註解通篇在防範的失敗。
-    run_key="${file_label%.csv}"
+    run_key="${file_label%.actions}"
     [[ -z "$run_key" ]] && run_key="$app"
     run_log="$log_dir/$run_key.log"
 
@@ -515,14 +515,14 @@ for app in $apps; do
 
     # Derived from the file rather than fixed, because a fixed wait silently
     # truncates the long ones. Measured 2026-08-27: 14 seconds was hard-coded,
-    # P20-open-level-1.csv holds 16.8 s of sleeps, the replay starts 1 s after
+    # P20-open-level-1.actions holds 16.8 s of sleeps, the replay starts 1 s after
     # launch -- so P20 needed 17.8 s and was captured and killed at 14. Its log
     # had `replaying` and no `replayed`, and the sweep reported it as though the
     # app were at fault. Every other file is at or under 10.4 s, so P20 was the
     # only one affected, which is exactly why it looked like an app defect.
     #
     # 由檔案本身推導而非固定，因為固定的等待會靜默截斷較長的動作檔。2026-08-27 實測：當時寫死
-    # 14 秒，而 P20-open-level-1.csv 的睡眠總長為 16.8 秒，重放又在啟動後 1 秒才開始——因此 P20
+    # 14 秒，而 P20-open-level-1.actions 的睡眠總長為 16.8 秒，重放又在啟動後 1 秒才開始——因此 P20
     # 需要 17.8 秒，卻在第 14 秒就被擷取並終止。它的 log 有 `replaying`、沒有 `replayed`，而掃描
     # 把它報成了 app 的問題。其餘每個檔案都在 10.4 秒以內，所以只有 P20 受影響——這正是它看起來
     # 像 app 缺陷的原因。
@@ -557,7 +557,7 @@ for app in $apps; do
     # SOME FILES PASS BY THE PROCESS BEING GONE, and for those this test is
     # exactly backwards.
     #
-    # `P10-ctrl-q.csv` asks whether Ctrl-Q reaches the application. Its own
+    # `P10-ctrl-q.actions` asks whether Ctrl-Q reaches the application. Its own
     # header says the instrument is the process rather than a screenshot:
     # success is the process having quit. Judged by the rule below it reported
     # `launch FAIL -- exited before the capture` on a run where exiting IS the
@@ -573,7 +573,7 @@ for app in $apps; do
     #
     # 有些檔案的通過條件是「行程已結束」，對它們而言下方這項測試恰好是反的。
     #
-    # `P10-ctrl-q.csv` 要問的是 Ctrl-Q 是否送達應用程式。它自己的標頭寫明：量測儀器是行程本身而非
+    # `P10-ctrl-q.actions` 要問的是 Ctrl-Q 是否送達應用程式。它自己的標頭寫明：量測儀器是行程本身而非
     # 截圖，「成功」即為該行程已經結束。若以下方的規則判定，它會在「結束才是通過」的那次執行中回報
     # `launch FAIL -- exited before the capture`；而一個**恰好相反**的判決比沒有判決更糟，因為它
     # 讀起來像是 app 有缺陷。
@@ -598,7 +598,7 @@ for app in $apps; do
     # matched with `grep -F`, so colons, brackets and parentheses in it are
     # text, not syntax.
     #
-    # P44 IS WHY IT EXISTS. Driving P44-clip-third-cell.csv on 2026-09-07
+    # P44 IS WHY IT EXISTS. Driving P44-clip-third-cell.actions on 2026-09-07
     # reported `ok / ok / window`, and only reading the capture and the log by
     # hand showed the button had worked at all:
     #
@@ -619,7 +619,7 @@ for app in $apps; do
     # 存在的目的」。寫法如上。`log-contains ` 之後的一切都是要尋找的字面文字；比對使用 `grep -F`，
     # 因此其中的冒號、方括號與圓括號都是文字，不是語法。
     #
-    # **P44 就是它存在的理由。** 2026-09-07 驅動 P44-clip-third-cell.csv 回報的是
+    # **P44 就是它存在的理由。** 2026-09-07 驅動 P44-clip-third-cell.actions 回報的是
     # `ok / ok / window`，而唯有以人工讀取擷圖與日誌，才看得出那個按鈕究竟有沒有生效（如上）。
     # 驅動器對此毫無意見。一個「每一次點擊都沒中」的檔案，會回報一模一樣的 `ok / ok / window`，
     # 因為 `replay=ok` 的意思是「重放跑完了，而且每一次點擊都落在該 app 自己的視窗上」——它從來
@@ -988,7 +988,7 @@ for app in $apps; do
     # contents out differently, so the same coordinate reaches something else,
     # and the run is clean, quiet and wrong.
     #
-    # Measured 2026-09-06: P16-force-update.csv records `Measured on a 916x639
+    # Measured 2026-09-06: P16-force-update.actions records `Measured on a 916x639
     # window capture at 100% display scale`, and the live window was 928x629 --
     # twelve pixels wider and ten shorter. Five consecutive rounds reported
     # `ok ok window`, and every one of them clicked somewhere other than
@@ -1011,7 +1011,7 @@ for app in $apps; do
     # 某次點擊落在它所指名的控制項上，而此處也沒有別的東西在檢查那件事。尺寸不同的視窗會以不同方式
     # 排版其內容，於是同一個座標會抵達別的東西，而該次執行乾淨、安靜、且錯誤。
     #
-    # 2026-09-06 實測：P16-force-update.csv 記載「Measured on a 916x639 window capture at 100%
+    # 2026-09-06 實測：P16-force-update.actions 記載「Measured on a 916x639 window capture at 100%
     # display scale」，而實際視窗是 928x629——寬了十二像素、矮了十像素。連續五輪都回報
     # `ok ok window`，而其中每一輪點的都不是「Force update (0)」。操作者在畫面上看見了；本工具
     # 看不見。
@@ -1031,7 +1031,7 @@ for app in $apps; do
     # `no toplevel size in the log -- geometry unchecked` message sitting inside
     # the same block, which could not print for the same reason.
     #
-    # Measured 2026-09-07. P2-controls-and-resizing.csv recorded 648x726 while
+    # Measured 2026-09-07. P2-controls-and-resizing.actions recorded 648x726 while
     # the window was 648x798. Its last click at 115,646 fell inside the Delete
     # row instead of the "Allow window resizing" button 68 px below it: it
     # pressed a different control, reported success, and #401's check never ran
@@ -1060,7 +1060,7 @@ for app in $apps; do
     # 永遠到不了 `replay = ok`，於是什麼都沒被比較、也沒有任何東西這麼說——連同區塊內那句
     # `no toplevel size in the log -- geometry unchecked` 也因為同一個理由而印不出來。
     #
-    # 2026-09-07 實測。P2-controls-and-resizing.csv 記載 648x726，而實際視窗是 648x798。它最後
+    # 2026-09-07 實測。P2-controls-and-resizing.actions 記載 648x726，而實際視窗是 648x798。它最後
     # 一次點擊落在 115,646，落進了 Delete 那一列，而不是位於其下方 68 px 的「Allow window
     # resizing」按鈕：它按了另一個控制項、回報成功，而 #401 的檢查從未執行過——該檔案的每一次執行
     # 皆然。已於 11868267 手動修正；量測儀器全程沉默。那些執行所帶的備註是 `no output at all --

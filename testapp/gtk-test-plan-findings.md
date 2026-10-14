@@ -729,12 +729,12 @@ notches as `click --repeat`, back to back with no gap, and GTK coalesces a rapid
 burst into one kinetic gesture whose distance depends on timing rather than on
 the count. Split a long scroll into bursts with a sleep between them, and end at
 the hard stop of the scroll range if the position has to be reproducible.
-`testapp/actions/P21-disabled-field.csv` is written that way and says so.
+`testapp/actions/P21-disabled-field.actions` is written that way and says so.
 
 **此過程確實產生了一項真實的限制，且與節奏有關。** 單一的 `scroll,0,40` 在三次執行中各走了不同
 距離。xdotool 是以 `click --repeat` 背靠背送出格數、中間毫無間隔，而 GTK 會把急促的連發併為單一
 kinetic 手勢，其距離取決於時序而非次數。若需要可重現的位置，請將長距離捲動拆成數段、段間加入
-sleep，並以捲動範圍的硬性盡頭作結。`testapp/actions/P21-disabled-field.csv` 即依此撰寫並註明。
+sleep，並以捲動範圍的硬性盡頭作結。`testapp/actions/P21-disabled-field.actions` 即依此撰寫並註明。
 
 ## P9: text and field sizing -- all steps pass, neither issue reproduces
 
@@ -1217,12 +1217,12 @@ this a second sweep.
 無法執行的原因」提出，而該原因從未與 app 自身的原始碼對照過。這使本項多花了一輪。
 
 **Reproducibility note.** Scrolling to a *measured* position is not repeatable:
-see the P8 entry on GTK coalescing rapid wheel notches. `P21-disabled-field.csv`
+see the P8 entry on GTK coalescing rapid wheel notches. `P21-disabled-field.actions`
 scrolls in paced bursts to the hard stop at the bottom, which is why its click
 coordinates hold across runs.
 
 **可重現性註記。** 捲動到某個「量測出來的位置」並不可重複：見 P8 條目中關於 GTK 會合併急促滾輪
-格數的說明。`P21-disabled-field.csv` 以分段節奏捲動至底部的硬性邊界，這正是其點擊座標能跨執行
+格數的說明。`P21-disabled-field.actions` 以分段節奏捲動至底部的硬性邊界，這正是其點擊座標能跨執行
 保持有效的原因。
 
 ## P22: remaining steps (3-4) -- pass
@@ -1664,7 +1664,7 @@ the cursor correctly; they are waiting on the click activating.
 
 ### Consequence for the action folders
 
-`actions/win/` stays empty. `P19-open-and-select.csv` was written and its
+`actions/win/` stays empty. `P19-open-and-select.actions` was written and its
 coordinates are correct, but it does not pass -- the clicks do not activate the
 control -- so by the folder's own rule (a file appears only once it has been
 seen to work here) it is not committed.
@@ -1712,5 +1712,5 @@ GTK 的 DLL 與錯誤所指名的 UCRT，而它僅在建置的 shell 中位於 P
 
 ### 對動作資料夾的影響
 
-`actions/win/` 維持空的。`P19-open-and-select.csv` 已撰寫且座標正確，但它並未通過——點擊無法觸發
+`actions/win/` 維持空的。`P19-open-and-select.actions` 已撰寫且座標正確，但它並未通過——點擊無法觸發
 控制項——因此依該資料夾自身的規則（檔案唯有在此平台實際運作過才會出現），它不予提交。

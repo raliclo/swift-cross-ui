@@ -333,7 +333,7 @@ extension Synthesiser {
                 // at 428x174@162,239 -- Win32 reported it, `GW_ENABLEDPOPUP`
                 // named it -- and a desktop capture taken at that moment shows
                 // no sheet at all, only the main window's buttons in that
-                // rectangle. `testapp/actions/win/P5-stacked-alerts.csv` has
+                // rectangle. `testapp/actions/win/P5-stacked-alerts.actions` has
                 // listed this as a suspicion since 2026-09-03 and said to
                 // suspect it first if a capture shows no alert; it was right,
                 // and this is the run that turned it into a measurement.
@@ -346,7 +346,7 @@ extension Synthesiser {
                 // 自己的 modal。**2026-09-04 實測**：P1 的 sheet 確實存在於 428x174@162,239
                 // ——Win32 這麼回報，`GW_ENABLEDPOPUP` 也指名了它——而同一時刻的桌面擷圖中完全
                 // 看不到任何 sheet，那個矩形裡只有主視窗的按鈕。
-                // `testapp/actions/win/P5-stacked-alerts.csv` 自 2026-09-03 起就把這件事列為
+                // `testapp/actions/win/P5-stacked-alerts.actions` 自 2026-09-03 起就把這件事列為
                 // 懷疑，並寫明「若擷圖看不到 alert，這是第一個該懷疑的東西」；它是對的，而這一次
                 // 執行把那個懷疑變成了量測。
                 try prepareForReplay(actions)

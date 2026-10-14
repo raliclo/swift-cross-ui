@@ -267,7 +267,7 @@ struct ActionFileTests {
         for (directory, platform) in platforms.sorted(by: { $0.key < $1.key }) {
             let folder = actions.appendingPathComponent(directory)
             let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-            for name in names.sorted() where name.hasSuffix(".csv") {
+            for name in names.sorted() where name.hasSuffix(".actions") {
                 let path = folder.appendingPathComponent(name)
                 var text = try String(contentsOf: path, encoding: .utf8)
                 if platform == .ios {

@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+# P92 on iPad: two items chosen from the real menu bar, with the pointer.
+#   SIMCTL_CHILD_SCUI_P92_MODE=after zsh testapp/test_ios.zsh P92 --device "iPad Pro 11-inch (M5)" \
+#       --debug --actionfile testapp/actions/ios/P92-press-in-the-menu-bar-ipad.actions
+# The bar belongs to the system, not to the app, so nothing here goes by label: points, in a
+# full-screen window 834 x 1210 (iPadOS 27 simulator). The pointer at the top edge brings the
+# app name down; a click on the name opens the bar out, the menus centred: debugTarget 232,
+# File 313, Edit 362, Format 424, View 489, Window 557, Help 624, all at y 16. The first row
+# of an open menu is 40 points under the bar.
+# Expected: "last command: AFTER-newItem" after the first, then "AFTER-textFormatting" and
+# "commands chosen: 2". Format is the menu SwiftUI leaves out on iPad and this framework keeps
+# when the app put something in it.
+# iPad 上的 P92:用指標從真正的選單列選兩個項目。選單列屬於系統而不是 app,所以全部用座標。指標到頂端會帶出 app 名稱,
+# 點名稱後選單列展開。預期:先是 last command: AFTER-newItem,再是 AFTER-textFormatting,commands chosen: 2。
+sleep,,,,,,2500000,,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,j,,a command key: the system builds the bar,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,1000000,,ios
+hover,300,3,client,,,1500000,the pointer at the top edge,ios
+hover,400,12,client,,,1500000,stay on the bar,ios
+click,215,14,client,left,,,the app name: the bar opens out,ios
+sleep,,,,,,1200000,,ios
+click,313,16,client,left,,,File,ios
+sleep,,,,,,1000000,,ios
+hover,357,56,client,,,1500000,File is open: its first row,ios
+click,357,56,client,left,,,AFTER-newItem,ios
+sleep,,,,,,1200000,,ios
+hover,300,300,client,,,1500000,last command: AFTER-newItem,ios
+hover,300,3,client,,,1500000,the top edge again,ios
+hover,400,12,client,,,1500000,,ios
+click,215,14,client,left,,,the app name,ios
+sleep,,,,,,1200000,,ios
+click,424,16,client,left,,,Format,ios
+sleep,,,,,,1000000,,ios
+hover,470,56,client,,,1500000,Format is open,ios
+click,470,56,client,left,,,AFTER-textFormatting,ios
+sleep,,,,,,1200000,,ios
+hover,300,300,client,,,1500000,last command: AFTER-textFormatting and commands chosen: 2,ios
+sleep,,,,,,500000,,ios

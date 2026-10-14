@@ -13,7 +13,7 @@
 //
 // <title> is a substring of a visible top-level window's title. <cx> <cy> are
 // PHYSICAL pixels relative to that window's frame (GetWindowRect), the same
-// origin as `frame` in testapp/actions/*.csv. A pinch moves two contacts
+// origin as `frame` in testapp/actions/*.actions. A pinch moves two contacts
 // apart along the horizontal axis from <startGap> to <endGap> pixels; a rotate
 // keeps two contacts opposite each other on a circle of <radius> and turns
 // them from <startDeg> to <endDeg>. Defaults: 20 steps, 16 ms apart.
@@ -37,7 +37,7 @@
 // 向指定視窗注入兩指觸控手勢——捏合或旋轉。
 //
 // <title> 是某個可見頂層視窗標題的子字串。<cx> <cy> 是相對於該視窗外框(GetWindowRect)的**實體**
-// 像素,與 testapp/actions/*.csv 中的 `frame` 同一個原點。
+// 像素,與 testapp/actions/*.actions 中的 `frame` 同一個原點。
 //
 // **為何不是動作檔的動詞。** InputEvent 的 `InputAction` 被三個 synthesiser 以窮舉 switch 處理,
 // 其中 AppKit 那個在本機無法編譯。新增一個 case 會在這裡編過、在 Mac 上編不過——本樹已發生過兩次,

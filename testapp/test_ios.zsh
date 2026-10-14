@@ -116,7 +116,7 @@ while [ "$#" -gt 0 ]; do
             ;;
         --actionfile)
             if [ "$#" -lt 2 ] || [[ "$2" == -* ]]; then
-                candidates=("$script_dir/actions/ios/$target"-*.csv(N))
+                candidates=("$script_dir/actions/ios/$target"-*.actions(N))
                 if [ "${#candidates}" -ne 1 ]; then
                     printf 'Provide an iOS action file; no unique default exists for %s.\n' "$target" >&2
                     exit 64

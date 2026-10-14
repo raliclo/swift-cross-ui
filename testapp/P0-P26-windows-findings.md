@@ -4,7 +4,7 @@
 > app.** A second pass on 2026-08-27 re-measured everything at 100% and took the
 > folder from 6 action files to 17. Each file's own header now records what it
 > drives, what it found and when it was verified, so **the file is the record
-> and this document is the history**. Read `testapp/actions/win/<app>.csv` before
+> and this document is the history**. Read `testapp/actions/win/<app>.actions` before
 > anything here.
 >
 > Two findings below were retracted by that pass and are struck through where
@@ -14,7 +14,7 @@
 > **本文件描述的是第一輪、於 125% 顯示縮放下的結果，並已逐 app 被取代。** 2026-08-27 的第二輪在
 > 100% 之下重新量測了全部項目，並使該資料夾從 6 個動作檔增為 17 個。每個檔案的標頭現在都記錄了它
 > 驅動什麼、發現什麼、以及何時驗證，因此**檔案才是紀錄，本文件是沿革**。在相信此處任何內容之前，
-> 請先讀 `testapp/actions/win/<app>.csv`。
+> 請先讀 `testapp/actions/win/<app>.actions`。
 >
 > 下方有兩項發現已被該輪撤回，並於其出現處以刪除線標示。兩者都是「看起來像 app 忽略輸入」的座標
 > 錯誤——正是本文件反覆繞回的那種失敗。
@@ -76,7 +76,7 @@ are specific and neither is in the pin:
    synthesiser and a different window system — where the same click at the
    post-push coordinate increments the counter. The relayout itself is real and
    is now #57; the P20 half is not re-tested and is marked suspect, not
-   corrected. See the correction block in `actions/win/P24-push-one-level.csv`.
+   corrected. See the correction block in `actions/win/P24-push-one-level.actions`.
 
 `Win32Synthesiser` 可用。指標移動、單次點擊與滾輪都能抵達 Windows 上的 GtkBackend 視窗；重放期間
 置頂釘選維持有效，結束後視窗會回到正常的 z 順序。找到的兩項失敗都很具體，且都不在釘選機制上：
@@ -95,7 +95,7 @@ are specific and neither is in the pin:
    重新排版，堆疊之外的控制項也隨之移動。已在 WSL 上以 xdotool 證實（不同的 synthesiser、不同的視窗
    系統）：以推入後的座標點擊同一個按鈕，counter 確實增加。重新排版本身確有其事，現記錄為 #57；
    P20 的那一半尚未重測，僅標記為存疑而非更正。詳見
-   `actions/win/P24-push-one-level.csv` 中的更正區塊。
+   `actions/win/P24-push-one-level.actions` 中的更正區塊。
 
 ---
 
@@ -108,7 +108,7 @@ are specific and neither is in the pin:
 | P3 | none | not run | sidebar list; not reached |
 | P5 | none | not run | alerts; not reached |
 | P7 | none | not run | list selection; not reached |
-| P8 | **new** `P8-scroll-outer.csv` | yes | scrolled down four notches; `Outer row 0–3` became `Outer row 5–8` |
+| P8 | **new** `P8-scroll-outer.actions` | yes | scrolled down four notches; `Outer row 0–3` became `Outer row 5–8` |
 | P9 | none | not run | buttons; not reached |
 | P10 | ~~none — **cannot be driven**~~ **superseded**, see below | ~~n/a~~ yes | ~~launches, registers the title "P10 hit testing and shortcuts", and shows no window at all. Window capture failed twice and a desktop capture found nothing but the taskbar~~ It has a window. See "P10 has a window after all" |
 | P13 | none | not run | buttons; not reached |
@@ -116,12 +116,12 @@ are specific and neither is in the pin:
 | P16 | none | not run | buttons; not reached |
 | P17 | none | not run | buttons; not reached |
 | P18 | none | not run | opens native file dialogs; see "not worth driving" |
-| P19 | existing `P19-open-and-select.csv` | yes | menu opened, `Button item` pressed, `last action -> button item` |
-| P20 | **new** `P20-open-level-1.csv` | yes | menu opened, `Level 1 item` pressed. Level 2 page opens and then ignores clicks |
-| P21 | **new** `P21-buttons-and-disabled.csv` | yes | `clicks: 3` after three clicks on Enabled and two on Disabled; checkbox ticked |
+| P19 | existing `P19-open-and-select.actions` | yes | menu opened, `Button item` pressed, `last action -> button item` |
+| P20 | **new** `P20-open-level-1.actions` | yes | menu opened, `Level 1 item` pressed. Level 2 page opens and then ignores clicks |
+| P21 | **new** `P21-buttons-and-disabled.actions` | yes | `clicks: 3` after three clicks on Enabled and two on Disabled; checkbox ticked |
 | P22 | none — nothing to drive | n/a | a size scale plus two width buttons; a screenshot is the whole test |
 | P23 | none | not run | table row count and selection; not reached |
-| P24 | **new** `P24-push-one-level.csv` | yes | pushed to Level 1, then stopped responding |
+| P24 | **new** `P24-push-one-level.actions` | yes | pushed to Level 1, then stopped responding |
 | P25 | none — **cannot be driven** | n/a | drag and drop is an OLE negotiation, not a held button; `Sources/InputEvent/README.md` says so and these verbs do not promise it |
 | P26 | none | not run | tab switching; not reached |
 
@@ -231,7 +231,7 @@ is not "the second click never works" and not a coordinate drift.
 **What is not established.** Whether *synthesised* clicks stop arriving, or the
 app stops responding to clicks at all. Telling those apart needs somebody to
 press the button by hand while the app is in that state, which no action file
-can do. Note that `testapp/actions/wsl/P24-push-three.csv` pushes three levels in
+can do. Note that `testapp/actions/wsl/P24-push-three.actions` pushes three levels in
 one file on WSLg, so the sequence is not inherently impossible — but that is a
 different platform *and* a different backend build, so it is a hint rather than
 a comparison.
@@ -255,7 +255,7 @@ a comparison.
 
 **尚未確立的部分。** 究竟是**合成的**點擊不再送達，還是 app 根本不再回應任何點擊。要分辨這兩者，
 需要有人在 app 處於該狀態時親手按下按鈕，而任何動作檔都做不到。另外，
-`testapp/actions/wsl/P24-push-three.csv` 在 WSLg 上能於單一檔案中推入三層，因此這串動作並非本質上
+`testapp/actions/wsl/P24-push-three.actions` 在 WSLg 上能於單一檔案中推入三層，因此這串動作並非本質上
 不可能——但那是不同平台**且**不同的 backend 建置，只能算是線索，不能算是對照。
 
 ---
@@ -488,7 +488,7 @@ P10 的無視窗狀態**不是**這一種：它在沒有其他實例的乾淨啟
 
 Everything above this line is the 125% pass. What follows is what the second
 pass found that does not belong in any one action file: the per-app results are
-in `testapp/actions/win/<app>.csv` and are not repeated here.
+in `testapp/actions/win/<app>.actions` and are not repeated here.
 
 Seventeen apps have a verified file, against six before, and the twelve the
 first pass built and never replayed — P0, P2, P3, P5, P7, P9, P13, P15, P16,
@@ -499,12 +499,12 @@ is a logical point at 100% before anything else was measured.
 Count them rather than trusting the number:
 
 ```zsh
-ls testapp/actions/win/*.csv | wc -l     # one more than the app count:
+ls testapp/actions/win/*.actions | wc -l     # one more than the app count:
                                          # P24 has a second, stale, -winui file
 ```
 
 此線以上是 125% 那一輪。以下是第二輪中「不屬於任何單一動作檔」的發現：逐 app 的結果放在
-`testapp/actions/win/<app>.csv`，此處不重複。十七支 app 有已驗證的動作檔，先前為六支；第一輪中
+`testapp/actions/win/<app>.actions`，此處不重複。十七支 app 有已驗證的動作檔，先前為六支；第一輪中
 「已建置但從未重放」的十二支已全部完成重放。P0 沒有自己的動作檔：它是縮放探測，以一個用完即丟的
 檔案驅動，用來在量測其他任何東西之前先確立「在 100% 之下，截圖上的一個像素就是一個邏輯點」。
 數字請以上方指令重新計算，不要直接相信。
@@ -543,7 +543,7 @@ ignoring input: the replay reports success, the capture shows an unchanged app.
 The rule that follows: **a step that changes the layout must be the last step
 that uses that layout's coordinates.** Where a file needs several such steps,
 order them so the ones whose targets never move come last. `P13-duplicates-and-
-split.csv` now presses the split-view buttons first and the duplicate button
+split.actions` now presses the split-view buttons first and the duplicate button
 afterwards, because the duplicate button sits above everything it moves.
 
 An action file cannot re-measure, and that is the whole constraint. It is less a
@@ -560,7 +560,7 @@ app 忽略了輸入。由此得出的規則：**會改變版面的步驟，必�
 The first pass recorded P10 as launching, registering its title, and showing
 **no window at all**, reproduced twice from a clean start, and concluded it could
 not be driven. A `-w` capture on 2026-08-27 returned the window fully drawn on
-the first attempt, and `P10-hit-testing.csv` drives it.
+the first attempt, and `P10-hit-testing.actions` drives it.
 
 Whether something changed in between, or those runs hit the GTK single-instance
 handoff, was not established — so this corrects the conclusion without
@@ -621,7 +621,7 @@ in about two seconds.
 To re-derive: `time (MSYS2_ARG_CONV_EXCL='*' tasklist.exe /v /fo csv > /dev/null)`.
 
 This also explains an observation the first pass wrote down without diagnosing:
-`P8-scroll-outer.csv` already carried the note that "a `screenshot.zsh` call
+`P8-scroll-outer.actions` already carried the note that "a `screenshot.zsh` call
 takes the better part of a minute to return here".
 
 `tasklist /v` 在本機需 54 秒（2026-08-27 三次量測：52.6、54.7、53.3 秒，412 列）。
@@ -697,7 +697,7 @@ the same moment as the result you intend to believe.
 
 ## What the second pass did not do / 第二輪未完成的部分
 
-- **No WinUIBackend run, again.** `P24-push-one-level-winui.csv` is from the
+- **No WinUIBackend run, again.** `P24-push-one-level-winui.actions` is from the
   125% era and was **not** re-measured, so it is stale in exactly the way this
   pass existed to fix. It is marked so in its own header. Driving WinUI remains
   the most valuable single thing left.
@@ -722,7 +722,7 @@ the same moment as the result you intend to believe.
   a real OLE drag; P18 needs a session where somebody can dismiss a modal dialog
   by hand.
 
-- **仍未執行任何 WinUIBackend 的重放。** `P24-push-one-level-winui.csv` 屬於 125% 時期且**未**重新
+- **仍未執行任何 WinUIBackend 的重放。** `P24-push-one-level-winui.actions` 屬於 125% 時期且**未**重新
   量測，正是本輪要修的那種過期狀態，其標頭已如此標註。驅動 WinUI 仍是剩下最有價值的單一項目。
 - **P1 的 in-app sheet** 未驅動；其三個原生檔案對話框則與 P18 基於相同理由略過。
 - **P5 的 alert 有抵達 app，卻沒有對話框出現。** 是釘選把它藏起來、還是 GtkBackend 沒有呈現它，

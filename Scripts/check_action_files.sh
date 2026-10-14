@@ -59,7 +59,7 @@ import csv, glob, os, re, sys
 # 2026-09-09 於 Windows 側實測，那是本守衛第一次在該處被執行；在此之前它從來沒有能力檢查任何東西。
 # macOS 預設 UTF-8，所以它在它被寫出來的地方能動，在別處不能。
 rows = list(csv.reader(open("matrix_coverage/results.csv2", newline="", encoding="utf-8")))
-present = {os.path.basename(p) for p in glob.glob("testapp/actions/*/*.csv")}
+present = {os.path.basename(p) for p in glob.glob("testapp/actions/*/*.actions")}
 
 missing = {}
 for number, row in enumerate(rows[2:], start=3):
@@ -82,7 +82,11 @@ for number, row in enumerate(rows[2:], start=3):
     # 2026-09-17 這道守衛就因為 `window-sizes-winui-sta-20260917.csv2` 讓整個測試套件失敗,
     # 而那是一個**存在的**檔案,而且根本不是動作檔。一道會對正確的工作開火的守衛,
     # 會教會大家忽略它。
-    for name in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.csv(?![0-9A-Za-z])", row[8]):
+    # Rows written before 2026-10-14 cite `<file>.csv`; the files are `<file>.actions` since.
+    # 2026-10-14 之前寫下的列引用 `<file>.csv`;檔案自那天起是 `<file>.actions`。
+    for name in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
+        if name.endswith(".csv"):
+            name = name[:-4] + ".actions"
         if name not in present:
             missing.setdefault(name, []).append((number, row[3]))
 

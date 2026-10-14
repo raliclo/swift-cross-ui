@@ -5,7 +5,7 @@
 #   zsh verify_effect_ios.zsh P10 P23    only those apps'
 #
 # Runs each app twice through the XCUITest runner -- once with
-# `actions/ios/_control-no-actions.csv`, which presses nothing, and once with the
+# `actions/ios/_control-no-actions.actions`, which presses nothing, and once with the
 # real file -- and compares the two final captures.
 #
 # **The control is a no-op action file, not a plain launch.** On iOS a run with
@@ -29,7 +29,7 @@
 # iOS 的動作檔究竟改變了什麼,還是只是回報了它自己執行過?
 #
 # 本腳本讓每支 app 各經由 XCUITest runner 執行兩次——一次使用
-# `actions/ios/_control-no-actions.csv`(不按任何東西),一次使用真正的檔案——然後比對兩張最終擷取。
+# `actions/ios/_control-no-actions.actions`(不按任何東西),一次使用真正的檔案——然後比對兩張最終擷取。
 #
 # **對照組是一份空的動作檔,而不是一次普通啟動。** 在 iOS 上,帶動作檔的執行由 XCUITest 啟動,不帶的
 # 則由 `simctl launch` 啟動;若拿那兩者比對,變動的就不只是動作,還包括啟動路徑與經過時間,而任何
@@ -49,7 +49,7 @@ set -uo pipefail
 script_path="${0:a}"
 script_dir="${script_path:h}"
 
-control="$script_dir/actions/ios/_control-no-actions.csv"
+control="$script_dir/actions/ios/_control-no-actions.actions"
 out_csv="$script_dir/output/ios-effect.csv2"
 shots="$script_dir/output/screenshots"
 keep="$script_dir/output/effect-ios"
@@ -64,10 +64,10 @@ mkdir -p "$keep" "$script_dir/output"
 if [ "$#" -gt 0 ]; then
     action_files=()
     for wanted in "$@"; do
-        action_files+=(${(f)"$(ls "$script_dir"/actions/ios/${wanted}-*.csv 2>/dev/null)"})
+        action_files+=(${(f)"$(ls "$script_dir"/actions/ios/${wanted}-*.actions 2>/dev/null)"})
     done
 else
-    action_files=(${(f)"$(ls "$script_dir"/actions/ios/P*.csv \
+    action_files=(${(f)"$(ls "$script_dir"/actions/ios/P*.actions \
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/ios/|")"})
 fi
 

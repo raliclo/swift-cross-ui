@@ -5,6 +5,9 @@ gyb/* linguist-vendored
 # 資料檔在每一台機器上都用 LF。`*.csv` 匹配不到 `*.csv2`，而後者才是本專案實際寫出的格式，故兩者都要。
 *.csv text eol=lf
 *.csv2 text eol=lf
+# Action files are read line by line on every machine, CRLF would reach the parser.
+# 動作檔在每一台機器上都是逐行讀取,CRLF 會進到解析器。
+*.actions text eol=lf
 
 # Append-only logs merge by union, so two machines appending never conflict.
 # NOT the two matrix files -- their rows are rewritten in place, and union keeps

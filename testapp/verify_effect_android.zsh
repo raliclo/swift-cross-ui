@@ -76,10 +76,10 @@ mkdir -p "$script_dir/output" "$script_dir/output/effect"
 if [ "$#" -gt 0 ]; then
     action_files=()
     for wanted in "$@"; do
-        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.csv 2>/dev/null)"})
+        action_files+=(${(f)"$(ls "$script_dir"/actions/android/${wanted}-*.actions 2>/dev/null)"})
     done
 else
-    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.csv \
+    action_files=(${(f)"$(ls "$script_dir"/actions/android/*.actions \
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/android/|")"})
 fi
 
@@ -209,13 +209,13 @@ for action in $action_files; do
     [ -f "$apk" ] || { failed=$((failed+1)); continue }
 
     "$adb" -s "$serial" install -r -d "$apk" >/dev/null 2>&1
-    "$adb" -s "$serial" push "$action" "/data/local/tmp/$app-actions.csv" >/dev/null 2>&1
+    "$adb" -s "$serial" push "$action" "/data/local/tmp/$app.actions" >/dev/null 2>&1
 
     plain="$script_dir/output/effect/$base${SCUI_RWD:+-rwd}-plain.png"
     driven="$script_dir/output/effect/$base${SCUI_RWD:+-rwd}-driven.png"
 
     shoot "$package" "" "$plain"
-    shoot "$package" "--debug -actionfile /data/local/tmp/$app-actions.csv" "$driven"
+    shoot "$package" "--debug -actionfile /data/local/tmp/$app.actions" "$driven"
     replay_lines=$("$adb" -s "$serial" logcat -d 2>/dev/null | grep -c "actionfile: replayed") \
         || replay_lines=0
 

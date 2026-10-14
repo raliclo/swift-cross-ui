@@ -122,7 +122,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       0.633 rad(31 步的第 25 步,水平移動 20.4 px)——兩個手勢、兩個比例、同一個門檻。修法:
       `ACTION_DOWN` 時 `requestDisallowInterceptTouchEvent(true)`。修後 `magnify ENDED: 2.000`、
       `rotate ENDED: 0.785 rad`,正是那兩列所要求的。
-- [x] **同一個奪取也吃掉滑桿,而且更容易遇到。** `actions/android/P11-drag-the-first-slider.csv`
+- [x] **同一個奪取也吃掉滑桿,而且更容易遇到。** `actions/android/P11-drag-the-first-slider.actions`
       (新增;既有的 P11 檔只**點擊**滑桿,從未拖曳過)。修之前:讀數仍是 `minimum 20`、
       `writes: min 0`,`uiautomator` 給滑塊 319..445 對上起於 368 的軌道(最起點、沒動),而**整頁**
       向右捲了。修之後:`minimum 44`、`writes: min 8`,軌道 0..1078 沒有捲動,滑塊在 378..504。
@@ -269,7 +269,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
         合成截圖:`p50w-popover-arrow-final.png`。
 - [x] **WinUI:popover 內的按鈕按不到(以合成輸入而言)。** P50 的 `press me` 在 flyout 裡,動作檔點擊與
       觸控點擊各 0/2;**沒有箭頭的舊版建置同樣 0/2**,所以不是箭頭造成的。GTK 那邊 2026-09-09 已記過
-      「重放器點不到 popover 內部」(`P50-press-inside-popover.csv`)。尚未區分是合成輸入到不了 flyout 的
+      「重放器點不到 popover 內部」(`P50-press-inside-popover.actions`)。尚未區分是合成輸入到不了 flyout 的
       popup,還是真的按不下去——**需要一次真人點擊**才能定案。
       **同日定案並修正:真的按不下去,而且不限於 popover。** 使用者真實點擊也沒反應;UIA Invoke 同一顆按鈕則記下
       `popover counter 1`,所以壞的是點擊判定。原因:`.border` 是疊在上方的 `Rectangle().stroke(...)`,
@@ -640,14 +640,14 @@ because there was no second appearance to compare against. The styling moved to
 `updateSelectableListView`, which receives the environment and can switch on
 `backendListStyle`.
 
-Verified on Windows/GtkBackend by driving `actions/win/P7-list-selection.csv`,
+Verified on Windows/GtkBackend by driving `actions/win/P7-list-selection.actions`,
 which selects a row in each of P7's two lists. Before, both selections were the
 same muted grey. After, the plain `List` fills the selected row with GTK's blue
 accent across the full row width, and the `NavigationSplitView` sidebar keeps
 the inset grey. Re-run with:
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P7
-    ( cd testapp/output && ./P7-gtk4.exe -actionfile "$(cygpath -m "$PWD/../actions/win/P7-list-selection.csv")" & )
+    ( cd testapp/output && ./P7-gtk4.exe -actionfile "$(cygpath -m "$PWD/../actions/win/P7-list-selection.actions")" & )
 
 `SCUI_DEBUG=1` is not optional: without it `DebugFeatures` strips `-actionfile`,
 the app launches and ignores the flag in silence, and the capture shows the
@@ -1080,7 +1080,7 @@ gave -38,-59 at one and 154,-6 at the other.
   `ambientColorScheme`, so a request that *matched* ambient wrote nothing — and
   after an earlier request had already moved Gtk away, nothing moved it back.
   Reproduced on Windows with the desktop in dark mode by driving
-  `actions/win/P15-colour-scheme.csv`, which presses Light then Dark: P15 ended
+  `actions/win/P15-colour-scheme.actions`, which presses Light then Dark: P15 ended
   up reporting `Requested: dark  Resolved: dark` over a light window with
   dark-scheme (light) text, almost entirely illegible. Now compared against what
   the backend last told Gtk to draw, so the round trip writes. An app that never
@@ -1314,12 +1314,12 @@ gave -38,-59 at one and 154,-6 at the other.
 
   Measured 2026-08-27, with the control run rather than by reading the code.
   `AttachThreadInput` was implemented as the task suggested and made no
-  difference: P10 driven by a new `P10-ctrl-q.csv` quit with it and quit
+  difference: P10 driven by a new `P10-ctrl-q.actions` quit with it and quit
   without it, so it was taken back out and the finding recorded in
   `Win32Synthesiser` beside the call.
 
   The real gap was that **no Windows keyboard action file existed** — the
-  capability was there and untested, and believed broken. `P10-ctrl-q.csv` now
+  capability was there and untested, and believed broken. `P10-ctrl-q.actions` now
   exercises it, and the instrument is the process rather than a screenshot:
   P10 quits on Ctrl-Q, so success is the process being gone. P21's tab
   traversal and the text-entry checks are still unwritten.
@@ -1593,7 +1593,7 @@ Three things this makes visible that the category list did not:
   - `ScrollViewReader` — **done 2026-09-09**, and it was the one that is not
     composition: it needed a new `BackendFeatures` requirement on all five
     backends (`ScrollContainers` had no programmatic scroll at all). Driven and
-    verified on Win-gtk4 by `actions/win/P34-scroll-to-row-50.csv`.
+    verified on Win-gtk4 by `actions/win/P34-scroll-to-row-50.actions`.
   - `LazyHGrid` — still absent. It IS pure composition, and the design is below.
 
   Re-derive the whole table with the loop above before quoting any of it.
@@ -1635,7 +1635,7 @@ Three things this makes visible that the category list did not:
   **Verification, and it must be a running one.** `testapp/P34.swift` already
   says on screen `Still missing: LazyHGrid` — that line is the assertion, and it
   is the last name left in a list that was once five. When this lands, P34's text
-  changes and every coordinate in `actions/win/P34-*.csv` is invalidated by the
+  changes and every coordinate in `actions/win/P34-*.actions` is invalidated by the
   same mechanism recorded in those files' headers. Re-run them; do not re-reason
   about them.
 
@@ -1661,7 +1661,7 @@ Three things this makes visible that the category list did not:
 
   **驗證,而且必須是「跑得動」的驗證。** `testapp/P34.swift` 畫面上已經寫著
   `Still missing: LazyHGrid`——那一行就是斷言,也是一份原本有五個名字的清單裡僅存的最後一個。
-  這一項落地時,P34 的文字會改變,而 `actions/win/P34-*.csv` 中的每一個座標都會因為那些檔案標頭
+  這一項落地時,P34 的文字會改變,而 `actions/win/P34-*.actions` 中的每一個座標都會因為那些檔案標頭
   所記載的同一個機制而失效。**請重跑它們,不要重新推理它們。**
 
 **A behavioural divergence, found 2026-09-01 and not visible in the table
@@ -2421,7 +2421,7 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
   HitTesting has now been run on a Mac and does not work -- see below.
 - **GtkBackend's font weight table collapses nine weights into about five.**
   Instrumented here and deliberately left unfixed, 2026-08-27. P22 gained a
-  nine-row weight ladder and `actions/win/P22-weights.csv`; measured on
+  nine-row weight ladder and `actions/win/P22-weights.actions`; measured on
   Windows/GtkBackend, `light`/`regular` render byte-identically and so do
   `semibold`/`bold`/`heavy`. Numbers and the full argument are in finding 5 of
   `testapp/gtk-silent-noops.md`.
@@ -2560,7 +2560,7 @@ directly on a live window, points at the exact centre of each control:
 
 Confirmed with the project's own test, not only a scratch app:
 `test.zsh P28 --macos --actionfile` replays
-`testapp/actions/mac/P28-hit-testing.csv`, whose single click is the one P28
+`testapp/actions/mac/P28-hit-testing.actions`, whose single click is the one P28
 exists to check, and `p28-debug-events.log` contains "clicked" zero times.
 
 The coordinates are not the problem, which was checked before blaming the

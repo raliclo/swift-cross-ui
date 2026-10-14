@@ -75,7 +75,7 @@ entry is closed.
     such machine here).
   - [ ] **Waits for the Windows side (user, 2026-10-13), with onContinuousHover there.** 等 Windows 端。
     **`taplabel` on WinUI, and on GTK under X11 and Windows.** Works on
-    AppKitBackend and on GtkBackend on macOS (2026-10-10, `actions/mac/P10-taplabel.csv`:
+    AppKitBackend and on GtkBackend on macOS (2026-10-10, `actions/mac/P10-taplabel.actions`:
     Direct, Covered and Hidden clicks all 1 on both): the backend sets
     `ActionFileReplay.locateLabel` and the replay loop clicks where it points.
     GtkBackend's locator is the same code on every OS but has only run on macOS.
@@ -117,7 +117,7 @@ entry is closed.
     macOS (Homebrew branch; output `P84-gtk4`; AppKitBackend dropped, since
     DefaultBackend prefers `canImport(AppKitBackend)` and a stale module made
     the second build an AppKit app). `TEST_BACKEND=gtk4 test.zsh Pn --macos`
-    runs it. Seven files `actions/mac/P84-*-gtk4.csv`, every capture read:
+    runs it. Seven files `actions/mac/P84-*-gtk4.actions`, every capture read:
     same difference numbers as macOS (boards max 14, features max 64 mean
     0.104), larger/smaller sizes, sample 5's six diagnostics. Clicks: posted
     NSEvents reach GDK as press/release but never fire a GtkButton, so
@@ -293,7 +293,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   `allowedContentTypes`, UIKit passes the type identifiers to the picker (and
   names an exported file with an allowed extension), GTK adds a `GtkFileFilter`
   per type, WinUI fills `fileTypeFilter` / `fileTypeChoices`. P62 has an
-  "open…" button; actions/{mac,ios}/P62-open-dialog-filters.csv: on macOS
+  "open…" button; actions/{mac,ios}/P62-open-dialog-filters.actions: on macOS
   not-text.png is greyed (it was selectable with the old AppKit code), on iOS
   too; also-text.swift stays selectable on both, correctly -- Swift source
   conforms to plain text. GTK compiled only (no open panel driven).
@@ -389,14 +389,14 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     (environment action in every document window) writes to the file, or
     through the save dialog (writableContentTypes, "<title>.<ext>") when
     untitled or `saveAs: true`; the window takes the file's name. P62 gains
-    "save"; actions/mac/P62-save-untitled.csv: type A, save, Return ->
+    "save"; actions/mac/P62-save-untitled.actions: type A, save, Return ->
     "save -> true", window titled Untitled.txt, the file holds "A". P62 passes
     `saveDocument(initialDirectory:)` a fresh temp folder, so a sweep neither
     litters ~/Documents nor meets a "replace?" prompt.
     The doc now says what the scene does.
 - [x] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
   "TODO: Implement decimalPlaces"). DONE 2026-10-06, 585788b5: rounded as UIKit
-  does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.csv
+  does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.actions
   read 0.10666666666666667 before, 0.11 after. "The other four read it" was
   wrong -- WinUI does not either (next item).
 - [x] **WinUI: `Slider` ignores `decimalPlaces`** (`WinUIBackend.swift:1907`,
@@ -404,7 +404,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   ValueChanged handler as UIKit and AppKit do. Windows machine.
   DONE 2026-10-07: `updateSlider` wraps the change action, rounding with
   `.toNearestOrEven` to `decimalPlaces` (clamped 0...17), the AppKit code.
-  P61 on WinUI (actions/win/P61-drag-the-trough.csv, rerun by hand with
+  P61 on WinUI (actions/win/P61-drag-the-trough.actions, rerun by hand with
   SCUI_DEBUG_EVENTS_DIR): began=1 ended=1 values=1, "value 0.81" from the drag,
   "value 0.91" from the code button. This run does NOT discriminate: WinUI's
   `stepFrequency` is 0.01, so a drag already lands on a hundredth and 0.81 is
@@ -855,7 +855,7 @@ toolchain was installed (2026-10-05); it is done below.
   ranges unit-tested), `.glb` modes 0/1 and an orthographic camera. Fixed on the
   way: a mesh with no triangle shifted every later mesh onto its predecessor's
   transform. Verified with P76 on macOS and on the iOS simulator, each with
-  `P76-projection.csv`; `Mesh3DTests` added.
+  `P76-projection.actions`; `Mesh3DTests` added.
 - [x] **iOS builds without Swift Bundler by default.** `compile.zsh -ios` runs
   `xcodebuild -scheme <Pn>` and wraps the executable in
   `iosContainer/appTemplate.app` (name, identifier `dev.swiftcrossui.testapp.<Pn>`,
@@ -885,7 +885,7 @@ toolchain was installed (2026-10-05); it is done below.
   benchmark): macOS P72 329, P76 4437, P77 12312 us; Android emulator P76 3929,
   P77 40144 us. Showing a reading redraws the view; the apps skip the frame that
   redraw produces, so the loop stops (CPU 0% against 10.6-13.7% without the guard).
-- [x] **`P72-stop-and-check.csv` on Android missed every target since the api36b
+- [x] **`P72-stop-and-check.actions` on Android missed every target since the api36b
   AVD.** That AVD's renderer string is three lines, not five, so the controls sit
   about 62 pt higher; "Stop" landed on Snapshot and the readout stayed at
   "frames at the stop: -1" with nothing failing. Re-measured: stop 190, check 193.
@@ -1115,7 +1115,7 @@ toolchain was installed (2026-10-05); it is done below.
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
     2026-10-05: ticked -- every item under it was already [x].
     - [x] 1. FIXED 2026-10-04 (CustomPopupWindow.showBeside + resolveEdge; new
-      P50-arrow-edge-leading.csv). P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
+      P50-arrow-edge-leading.actions). P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
       and the arrow does not point at it. presentPopover places leading/trailing
       top-aligned with the anchor; Android shifts a panel that does not fit, and
       the arrow is computed for the unshifted position. Leading shares the code;
@@ -1338,7 +1338,7 @@ toolchain was installed (2026-10-05); it is done below.
     scrolled to the end. Not iOS-specific -- any window narrower than the two
     columns. Evidence: a dumptree row after P51's scroll.
 - [x] **3. P5 on iPad: alerts on two windows at the same time.** DONE 2026-10-02.
-  `actions/ios/P5-alerts-on-two-windows-ipad.csv`: the main window is asked for
+  `actions/ios/P5-alerts-on-two-windows-ipad.actions`: the main window is asked for
   an alert in 3 s (P5's new button), the second window opens over it and shows
   its own, and the dumptree lists 'Alert A (Secondary)' and 'Alert A (Main)'
   together. Verified twice, and the control (no delayed press) lists only one.
@@ -1364,8 +1364,8 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   a fresh Simulator can be set up unattended. `defaults write
   com.apple.WindowManager GloballyEnabled` and `com.apple.springboard
   SBChamoisWindowingEnabled` did NOT switch it (2026-09-30).
-- [x] **P59 / P62 on iPad** (2026-10-03): `P59-two-windows-ipad.csv`,
-  `P62-two-documents-ipad.csv`, read from the dumptree. P59 found a core bug:
+- [x] **P59 / P62 on iPad** (2026-10-03): `P59-two-windows-ipad.actions`,
+  `P62-two-documents-ipad.actions`, read from the dumptree. P59 found a core bug:
   `Publisher.observeAsUIUpdater` kept ONE merge slot per publisher, so when two
   windows observed the same @AppStorage the second window's update was dropped
   as "merged" (window A stayed AA, B showed AAB). Now one slot per observer;
@@ -1381,22 +1381,22 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   reports it, and finishReplay restores the original. Verified with Zhuyin
   selected: P71 plain 1 / shifted 1 / disabled 0, P9 typed "hi", the log reads
   "Zhuyin -> ABC ... restored to Zhuyin", and Zhuyin was current afterwards.
-- [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.csv` -- proposed
+- [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.actions` -- proposed
   width 802 portrait, 1178 landscape, 802 again, read from the tree.
 - [x] **P72 cursor on iPad** -- DONE 2026-10-13 on the iPad simulator, not "physical iPad only": the runner
   rests a synthesized pointer and captures during the rest. One crosshair request over the mesh view, none over
   the text; the captures show a drawn cross and the system pointer. Only `crosshair` was seen; a physical iPad
   with a trackpad is still untried. 2026-10-13 在 iPad 模擬器上完成:十字游標拍到了;實體 iPad 仍未試。
-  Was: **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.csv` and the
+  Was: **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.actions` and the
   runner's `hover` verb are ready, and UIKitBackend prints the pointer style the
   system asks for under --debug; but the Simulator delivers no hover to apps --
   neither the style request nor a UIHoverGestureRecognizer fired across two
   hovers the runner logged. Run it on an iPad with a trackpad.
-- [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad -- six exist and all six
+- [ ] **iPad action files**, named `<Pn>-<what>-ipad.actions`, measured on an iPad -- six exist and all six
   were replayed on 2026-10-13 (P5, P14, P59, P62, P72-cursor, P75); the other apps have none.
   Was: measured on an iPad
   capture (834x1210 points, @2x: points = pixels / 2). One exists:
-  `P75-close-the-window-ipad.csv` (verified).
+  `P75-close-the-window-ipad.actions` (verified).
 - [x] **What to test on iPad** -- run 2026-10-13 on the iPad Pro 11-inch (M5) simulator: multi-window P5, P59
   and P62 pass; closing a window P75 passes (pressed by label; its point was stale); rotation P14 passes once the
   file switches to rwdView first (802 -> 1178 -> 802; in actualView the width is the default size both ways);
@@ -1458,7 +1458,7 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   Mac 這邊跑不了:Orca 用 debug log 或 speech-dispatcher 的 dummy 模組取得逐字稿;Narrator 無法換聲音,但 NVDA 讀的是同一棵
   UIA 樹且可取得語音 log,可作為機器可驗證的等價物。
   **Narrator on WinUI DONE 2026-10-08 (Windows), heard by a person.** One step
-  at a time, then replayed by `testapp/actions/win/P69-narrator-walk.csv`:
+  at a time, then replayed by `testapp/actions/win/P69-narrator-walk.actions`:
   Tab -> "Close, button" (not "X"); Tab -> "Delete, button", "Removes the file
   permanently"; Tab -> "Volume, button"; Caps Lock+0 -> "40 percent"; Caps
   Lock+Right -> "Half past twelve" (not "12:30"); Caps Lock+Right -> the
@@ -1643,7 +1643,7 @@ an empty queue -- mistakes.md entry 1.
       傳遞,而 Android/GTK/WinUI 會**繼承**同一個自轉,不必每支 app 各自重做。
     - **P72**:立方體、相機繞 Y 公轉、mesh 在 XY 平面自轉、`Auto spin` 開關、`Stop the clock` /
       `Check again`。驗收擷圖:macOS frames 176→249、iOS 659→743,兩邊角度都不同。
-    - 動作檔 **`actions/mac/P72-stop-and-check.csv`** 與 **`actions/ios/P72-stop-and-check.csv`**
+    - 動作檔 **`actions/mac/P72-stop-and-check.actions`** 與 **`actions/ios/P72-stop-and-check.actions`**
       都已重放通過(AppKit 停鐘後 1 幀、UIKit 3 幀;自走的話是 90)。
   - **這一刀抓到三個「不會報錯」的缺陷,都記在程式碼裡:**
     1. `SIMD3<Float>` 的 stride 是 **16 不是 12**,`Mesh3DVertex` 因此是 48 位元組而著色器那邊是 36。
@@ -1685,10 +1685,10 @@ an empty queue -- mistakes.md entry 1.
       承載 `.scroll` 的 `UIEvent` 也不會交給 action 方法,因此 iOS 上 `isPrecise` 一律為 true;
       接了滑鼠的 iPad 上,一格滾輪會被誤報為 precise。AppKit 有 `hasPreciseScrollingDeltas`。
       這一點寫在程式碼裡,而不是靜默採用預設值。
-  - **[!] 開著的問題:`actions/ios/P72-stop-and-check.csv` 在 iOS 上跑不完。** 啟動後只有**第一個**
+  - **[!] 開著的問題:`actions/ios/P72-stop-and-check.actions` 在 iOS 上跑不完。** 啟動後只有**第一個**
     互動會落地,其後每一列都毫無作用。以三種方式查證過:座標在 `--dump-tree` 與擷圖之間一致;
     app 之後仍持續算繪(沒有卡住);調換順序會改變「哪一個動作觸發」。同一段序列在 11:21、於捲動與
-    快照加入之前是跑得完的。**它不是捲動的缺陷**——`actions/ios/P72-scroll.csv`(只有捲動)通過,
+    快照加入之前是跑得完的。**它不是捲動的缺陷**——`actions/ios/P72-scroll.actions`(只有捲動)通過,
     而 macOS 那份六項全過。該檔頭部已加上不會被誤讀為通過的警示。
   - **§10.7 第 4 項「原始按鍵」與第 5 項的焦點那一半已關掉(2026-09-19,macOS):**
     `BackendFeatures.KeyEvents` + `KeyPress` + `.onKeyPress`。macOS 實測全部四項:
@@ -1721,7 +1721,7 @@ an empty queue -- mistakes.md entry 1.
     「尺寸以程式設定、未經視窗縮放」的 view 算失效,而這棵樹每次 commit 都在設尺寸。
     - **`Cursor` 刻意很小**:七個 case,每一個在 AppKit、GTK、WinUI、Android 上都存在。
       **沒有 `wait`**(AppKit 沒有公開的忙碌游標),**沒有 `grab`/`grabbing`**(WinUI 沒有系統形狀)。
-    - **證據(`actions/mac/P72-cursor.csv`,需搭配 `screencapture -C`)**:指標在 mesh view 上 → **十字**;
+    - **證據(`actions/mac/P72-cursor.actions`,需搭配 `screencapture -C`)**:指標在 mesh view 上 → **十字**;
       同一個視窗裡指標在純文字上 → **箭頭**。第二張才是關鍵——如果到處都是十字,第一張也會是十字。
     - **修掉一個真實的設計錯誤**:第一版也從 `mouseEntered` 與屬性 `didSet` 呼叫 `NSCursor.set()`,
       而 `set()` 是**全域**的;指標離開之後十字會留著,因為普通文字 view 不會把它改回來。
@@ -1739,13 +1739,13 @@ an empty queue -- mistakes.md entry 1.
     地方讓 submenu / toggle / 分隔線的意思產生些微差異。
     - AppKit 那一側**只設 `NSView.menu`**:AppKit 會從被點擊的 view 往上走、逐一詢問各自的 `menu`,
       因此不需要手勢辨識器、不需要覆寫 `rightMouseDown`、也不需要自己彈出選單。
-    - **斷言的是「項目有執行」,不是「選單有出現」**(`actions/mac/P72-context-menu.csv`):
+    - **斷言的是「項目有執行」,不是「選單有出現」**(`actions/mac/P72-context-menu.actions`):
       右鍵 → 下鍵 → Return → log 出現 `CONTEXT MENU reset the camera: dist 3.40 high 1.30`。
       **已證明會失敗**:把右鍵點擊移到純文字上(y 140),CONTEXT MENU 行數為**零**——那個選單屬於
       那個 view,不屬於那個視窗。
   - **UIKit 的 `Cursors` 與 `ContextMenus` 已落地(2026-09-20):**
     - **`ContextMenus` 已驗證**:`UIContextMenuInteraction`,長按叫出選單,**而且項目會執行**
-      (`actions/ios/P72-context-menu.csv` → `CONTEXT MENU reset the camera: dist 3.40 high 1.30`)。
+      (`actions/ios/P72-context-menu.actions` → `CONTEXT MENU reset the camera: dist 3.40 high 1.30`)。
       形狀與 AppKit 不同:UIKit 先要一份 configuration、等到要呈現時才要 `UIMenu`,因此項目是在
       **呈現當下**才建立;每次都重建、不快取,否則會執行昨天那個 action。
       **兩個 backend 唯一使用者看得見的差異**:UIKit 沒有分隔線元素(分段靠巢狀 inline `UIMenu`),
@@ -1771,7 +1771,7 @@ an empty queue -- mistakes.md entry 1.
       (`View.OnContextClickListener`)。兩個都裝上,並共用 `AttachedMenus` 本來就在建的那個
       `PopupMenu`——不另造一套選單表示法。沒有用 `registerForContextMenu`,因為它會繞經
       `Activity.onCreateContextMenu`,那個 callback 不知道是哪個 view 在問。
-      **證據**:`testapp/actions/android/P72-context-menu.csv`(新的 `longpress` 動作)長按 mesh view,
+      **證據**:`testapp/actions/android/P72-context-menu.actions`(新的 `longpress` 動作)長按 mesh view,
       `p72-android-final-20260921-181017.png` 裡有帶著 **Reset the camera** / **Snapshot** 的彈出選單;
       接著 `adb shell input tap 254 1063` 讓 logcat 印出
       `CONTEXT MENU reset the camera: dist 3.40 high 1.30`。
@@ -1806,7 +1806,7 @@ an empty queue -- mistakes.md entry 1.
     **無相關改動時 0.25 秒,真的要跑時 73 秒。** 已雙向證明:把 `sin(euler.x)` 放回
     `Mesh3DMatrix.swift` → 以 1 結束並指出那一行;改回來 → 真的編過之後以 0 結束。
     找不到 SDK 時是**大聲的**跳過並仍以 0 結束(不擋住沒有 SDK 的人,也不讓沉默被讀成「Android 沒問題」)。
-    修好之後已重跑 macOS 的 `actions/mac/P72-stop-and-check.csv`:十項斷言全數重現,
+    修好之後已重跑 macOS 的 `actions/mac/P72-stop-and-check.actions`:十項斷言全數重現,
     `.glb` 仍通過 three.js 的 `GLTFLoader`(2356 bytes,node euler z 1.0829 rad)。
   - **Android 的 `ScrollGestures`、`KeyEvents`、`WidgetSnapshots` 已落地並驅動過(2026-09-22):**
     - **`ScrollGestures` 已驗證。** 一個屬於本 modifier 自己的 `ViewGroup`,同時覆寫 `onTouchEvent`
@@ -1814,14 +1814,14 @@ an empty queue -- mistakes.md entry 1.
       (真正的 `ACTION_SCROLL` 滾輪,因此 `isPrecise` 在此處**真的**分得出兩種裝置——AppKit 可以,
       UIKit 不行)。不用 listener 的理由是算術:一個 `View` 只有一個 `OnTouchListener` 插槽,
       而 `ButtonPressState` 與 `.onTapGesture(.secondary)` 已經在搶它。
-      **證據**:`actions/android/P72-scroll-and-keys.csv` —— 16 次各 10 點的 `onChange`,
+      **證據**:`actions/android/P72-scroll-and-keys.actions` —— 16 次各 10 點的 `onChange`,
       把相機距離帶到 3.400 → 2.600 → 3.400,與 macOS 兩次各 80 點的端點完全相同。
       **已證明會失敗**:同樣幾列移到標題文字上,SCROLL 行數為零。
     - **[x] 已修(2026-09-23):Android 的 `DragGestureValue` 原本回報像素,而協定寫的是點。**
       `ContinuousGestureContainer` 把 `event.x` 原樣交出去,而 AndroidBackend 的排版是「點乘上
       density」(P72 的 340×240 點量到 892×630 像素)。在 density 2.625 的裝置上,一次拖曳回報的距離
       大了 2.625 倍;換一台裝置就是另一個錯數字。新的 scroll 容器有做除法,舊的三個手勢沒有。
-      已在 `ContinuousGestureContainer` 裡除以 density,並以新的 `actions/android/P65-drag.csv` **雙向證明**:有換算時 `translation (80, 0)`,把換算拿掉重建 APK 之後是 `translation (210, 0)`——也就是 80 × 2.625。縮放與旋轉不需要動:一個是兩個 span 的比值、一個是角度,單位都約掉了。同時掃過其餘 Kotlin:`CustomSlider` 比的是像素對像素的 touch slop(正確),`HoverContainer` 不回報座標,`ScrollGestureContainer` 從第一行就有換算。
+      已在 `ContinuousGestureContainer` 裡除以 density,並以新的 `actions/android/P65-drag.actions` **雙向證明**:有換算時 `translation (80, 0)`,把換算拿掉重建 APK 之後是 `translation (210, 0)`——也就是 80 × 2.625。縮放與旋轉不需要動:一個是兩個 span 的比值、一個是角度,單位都約掉了。同時掃過其餘 Kotlin:`CustomSlider` 比的是像素對像素的 touch slop(正確),`HoverContainer` 不回報座標,`ScrollGestureContainer` 從第一行就有換算。
     - **`KeyEvents` 已驗證,而且它逼出了第二項工作。** 一個可聚焦的容器覆寫 `dispatchKeyEvent`,
       `super` **先**跑(持有焦點的文字欄位保有自己的按鍵),而且回傳 `false`(不吞掉 Back 與 Tab)。
       `onKeyDown`/`onKeyUp` 不夠用:Shift 在抵達它們之前就被框架的 meta-state 追蹤吃掉了,於是
@@ -1838,7 +1838,7 @@ an empty queue -- mistakes.md entry 1.
     - **`WidgetSnapshots` 已驗證。** `View.draw(Canvas)` 畫進一張軟體 `ARGB_8888` Bitmap,再
       `copyPixelsToBuffer` 進一個 heap `ByteBuffer` 並取 `array()`——整張圖一次 JNI 呼叫,
       而不是 326,400 次。不用 `getDrawingCache`(自 API 28 起棄用,且回傳的是上一次的合成結果)。
-      **證據**:`actions/android/P72-snapshot.csv` —— `SNAPSHOT 892x630 px`(340×240 點 × 2.625)、
+      **證據**:`actions/android/P72-snapshot.actions` —— `SNAPSHOT 892x630 px`(340×240 點 × 2.625)、
       1 種顏色(Android 還沒有 `Mesh3DViews`,那個 widget 就是一個空盒子——那是一張**真實的**
       空盒子快照)。從裝置拉回來的 PNG 經 `file` 與 `sips` 判讀為合法的 892×630 8-bit RGBA。
     - **[!] 那一項需要先修兩個東西,而兩個都會說謊。** (1) `Mesh3DView` 把 snapshotter 綁在
@@ -1854,7 +1854,7 @@ an empty queue -- mistakes.md entry 1.
       這種無從指認的形式出現。
     - **`RENDERMODE_WHEN_DIRTY` 是承重的那一行。** 預設是 `RENDERMODE_CONTINUOUSLY`——不論發生什麼、
       每秒約六十幀——而那**正是** P72 存在所要偵測的「自走 renderer」。
-      **證據**:`actions/android/P72-stop-and-check.csv` —— `STOPPED at frame 6`、
+      **證據**:`actions/android/P72-stop-and-check.actions` —— `STOPPED at frame 6`、
       `CHECK at frame 9, 3 since the stop`。一個自走的 view 在那 1.5 秒裡會畫約九十幀;三幀是 UIKit
       給出的同一個數字。`renderer` 讀作 `Android Emulator OpenGL ES Translator (ANGLE ... SwiftShader)`,
       `drawable 892 x 630 px`。
@@ -1862,7 +1862,7 @@ an empty queue -- mistakes.md entry 1.
       現在帶著 model / rotation / lookAt / perspective,而**兩個** renderer 都用它;深度範圍是一個
       參數(Metal 用 `.zeroToOne`、GL 用 `.minusOneToOne`),因為那是兩個 API 真正不同的唯一一件事。
       原本那四個函式是 `Mesh3DMetalView` 的私有函式,各自帶著一段「它選了哪個慣例」的註解——再寫一組,
-      就是多四次選錯的機會。已重驗:macOS 的 `P72-stop-and-check.csv` 十項斷言全數重現,
+      就是多四次選錯的機會。已重驗:macOS 的 `P72-stop-and-check.actions` 十項斷言全數重現,
       snapshot 的中心像素仍是 13,35,61,`.glb` 仍通過 three.js。
     - **快照必須為它多開一條路,而且是**必須**。** `GLSurfaceView` 是 `SurfaceView`:
       `View.draw(Canvas)` 會忠實地畫出它在版面上挖的那個**洞**,回傳一個空盒子而不是失敗。
@@ -1876,9 +1876,9 @@ an empty queue -- mistakes.md entry 1.
       常數一致」的證據。但它**不穩定**:相機在繞行,哪一面落在中心取決於當下那一刻;同一份檔案稍後
       再跑一次,讀到的是 `169,124,34`(橘色面)。
       從裝置拉回來的 PNG 是一張合法的 892×630 RGBA,畫的是一個有明暗的立方體。
-    - **`actions/android/P72-snapshot.csv` 已刪除。** 它是在 renderer 落地**之前**寫的:座標是舊版面的
+    - **`actions/android/P72-snapshot.actions` 已刪除。** 它是在 renderer 落地**之前**寫的:座標是舊版面的
       (renderer 字串會折成五行,把下方控制項推下約 100 點),而它期待的結果是「1 種顏色的空盒子」。
-      兩者都已不成立,而 `P72-stop-and-check.csv` 對真正的 GL 表面斷言同一顆按鈕,嚴格更強。
+      兩者都已不成立,而 `P72-stop-and-check.actions` 對真正的 GL 表面斷言同一顆按鈕,嚴格更強。
     - **量測附記:本 app 不能用 `uiautomator dump` 來量。** 它回報
       `ERROR: could not get idle state`——那個 frame clock 從不讓視窗進入 idle。
       對本處任何一支會動的測試 app 都適用。
@@ -1942,7 +1942,7 @@ an empty queue -- mistakes.md entry 1.
       Win32 是 `SetCursorPos` 加 `GetCursorInfo`(把 `hCursor` 與 `LoadCursorW(nil, IDC_*)` 比對),
       X11 是 `xdotool mousemove` 加 `XFixesGetCursorImage`。
   - **UIKit 的 `KeyEvents` 已驅動(2026-09-22),而它一跑就抓到一個缺陷。**
-    `actions/ios/P72-keys.csv` **完全沒有座標**:backend 自己會取得 first responder,因此經由模擬器
+    `actions/ios/P72-keys.actions` **完全沒有座標**:backend 自己會取得 first responder,因此經由模擬器
     實體鍵盤的 `typeKey` 就夠了;那也順帶避開了 iOS 上「啟動後只有第一次座標互動會生效」那個未解問題。
     - **第一次執行印出 `keys: 2 ... high 1.30`,而且 `last U`。** UIKit 的
       `charactersIgnoringModifiers` 對方向鍵回傳的是 `UIKeyCommand.inputUpArrow`——一個十八字元的
@@ -1981,14 +1981,14 @@ last two do not have a known size yet.
 
 - [x] **T3. AndroidBackend 已遷到 Swift 6 language mode(2026-09-16)** — 五個並行性問題修好並保留:stdi... -> completed.md (archived 2026-10-05)
 - [x] **macOS `Cursors`:驗證(由 M10 拆出,2026-10-05)。** 已實作;未驗證的原因是 `hover` 在 macOS 上的讀數有競爭條件(見 M10 的「游標」段)。要的是一份不靠那個讀數也站得住的量測。
-  - **2026-10-05 結案——其實 2026-09-27 就已完成(`1fea7901` "The macOS cursor works"),我拆出這一項時依據的是 M10 裡 9/23、9/25 的舊段落,沒有查最新紀錄。** 真正的兩個原因當時已找到並修好：座標是照「相對於父 view」的 frame 量的，以及 `hover` 等待時沒有把排隊的事件交給 `sendEvent`。今天重跑 `actions/mac/P72-cursor.csv`,用不依賴 hover 讀數的證據確認:`NSCursorTarget` 自己的 `-cursor:` 行顯示指標在 340x240 的 mesh view 內時 `cursorUpdate ... -> set`(34 次),移出時 `mouseExited`;讀數也一致——(239,284) crosshair、(239,124) arrow。
+  - **2026-10-05 結案——其實 2026-09-27 就已完成(`1fea7901` "The macOS cursor works"),我拆出這一項時依據的是 M10 裡 9/23、9/25 的舊段落,沒有查最新紀錄。** 真正的兩個原因當時已找到並修好：座標是照「相對於父 view」的 frame 量的，以及 `hover` 等待時沒有把排隊的事件交給 `sendEvent`。今天重跑 `actions/mac/P72-cursor.actions`,用不依賴 hover 讀數的證據確認:`NSCursorTarget` 自己的 `-cursor:` 行顯示指標在 340x240 的 mesh view 內時 `cursorUpdate ... -> set`(34 次),移出時 `mouseExited`;讀數也一致——(239,284) crosshair、(239,124) arrow。
 - [x] **Windows 與 Linux 的 `hover` 動作(由 M10 拆出,2026-10-05)。** 目前是具名拒絕,各自該用的 API 寫在拒絕訊息裡;要在那兩台機器上實作並驅動。
   **DONE 2026-10-07, both.** Win32: ten stepped SendInput moves (a SetCursorPos
   jump left WinUI's cursor at arrow), then GetCursorInfo against the shared
-  IDC_* cursors; actions/win/P80-cursor.csv -> pointingHand, crosshair, text,
+  IDC_* cursors; actions/win/P80-cursor.actions -> pointingHand, crosshair, text,
   resizeHorizontal, resizeVertical, notAllowed, and arrow outside every target.
   xdotool: mousemove, then the XFixes cursor NAME read through python3 ctypes
-  (no X11 link in InputEvent); actions/wsl/P80-cursor.csv under WSLg gives the
+  (no X11 link in InputEvent); actions/wsl/P80-cursor.actions under WSLg gives the
   same six and "arrow (unnamed default)" for the control -- XWayland reports the
   inherited default cursor with no name, and the line says so. Both wait for
   the reading to change (2 s limit) and print AppKitSynthesiser's format.
@@ -1998,13 +1998,13 @@ last two do not have a known size yet.
 - [x] **WinUI:`frameClockToken?.dispose()` 真的取消訂閱了嗎(由背景段落拆出,2026-10-05)。** 設計上對,但從沒量過:P64 繞過 `AnimationDriver`。實驗很便宜:start → stop → 再 start,量第二段速率——仍約 141 Hz 表示取消有效,約 283 Hz 表示第一次訂閱洩漏、每次動畫再洩漏一次。原文在 completed.md「減少不必要的重繪」一節。Windows 那台機器上做。
   **DONE 2026-10-07 (Windows):** `P64-WinUI.exe --debug --restart` (start, stop, start; no input needed): pass 1 78 ticks / 1.79 s = 42.9 Hz, pass 2 88 / 2.05 s = 42.4 Hz, **0 of 87 sub-frame gaps in pass 2 -> UNSUBSCRIBE OK.** A leaked first subscription would put a second tick inside each frame. The rate itself was 42 Hz, not the ~141 Hz above -- this run was over a Chrome Remote Desktop session, presumably why; the gap count, not the rate, is the verdict (P64 says both rates are weak).
   **2026-10-07 完成(Windows):** P64 `--restart`:第二段 87 個間隔中 0 個落在同一幀內 -> 取消訂閱有效。速率 42 Hz(經 Chrome 遠端桌面執行),判定依據是間隔而非速率。
-- [x] **T4. #121 step 2 — 與 Windows 撞了同一個功能,採用他們的設計** — 合併時才發現兩邊都實作了 `.keyboardShortcut(_:modifiers:)`:**檔案不同,所以 git 沒報衝突,是編譯器報的**(`invalid redeclaration`)。他們走 **environment**(`environment(\.keyboardShortcut, …)`),而且**已在 GTK 與 WinUI 兩個 backend 上驗過**;我走的是「在 `ResolvedMenu.Item.button` 上加第三個 associated value」,只在 AppKit 驗過。**留他們的**——一個功能兩套機制比其中任何一套都糟,而他們那套已經有兩個 backend 在讀。我的 `ResolvedMenu`/`MenuItem`/`Menu.resolve` 改動與那個 modifier 全部還原,AppKit 與 Android 改讀 `environment.keyboardShortcut`。**AppKit 以 actionfile 重新驗過**(`actions/mac/P71-shortcuts.csv`,選單全程關著):`plain 1、shifted 1、disabled 0`。Android **已驗證(2026-09-23)**,三項斷言全中、含那個已停用的項目:Ctrl-S 觸發 PLAIN、Ctrl-Shift-E 觸發 SHIFTED、Ctrl-D 在已停用項目上什麼也沒觸發。**是 Ctrl 不是 Command**,而那正是 `EventModifiers.command` 那條慣例從驅動端看過去的樣子。**但它驅動不了**——`AndroidSynthesiser` 經由 `Activity.dispatchKeyEvent` 投遞,那抵達得了 view 階層(P72 的 `.onKeyPress` 就是這樣被驅動的),而 app 選單快捷鍵住在 `View.OnUnhandledKeyEventListener`,由 `ViewRootImpl` 在任何 app 投遞得到的層級**之上**執行。成對的證據才是這項發現:動作檔把 21 個動作全部重放完成而計數器停在 0/0/0,同一個 Ctrl-S 改用 `adb shell input keycombination -t 120 113 47` 就觸發了。與觸控側的 `PopupMenu` 限制同族。**[x] 2026-09-25 已解決:動作檔現在驅動得了它。** 見下方。原文保留:**繞過去的辦法試過了,被拒絕。** `Instrumentation.sendKeySync` 是公開 API、經由 `InputManager` 注入,會像鍵盤一樣從 `ViewRootImpl` 進入;而 `InputDispatcher` 的權限檢查對「uid 持有聚焦視窗」的注入者是豁免的,一次重放正是如此。建好、接在 activity 路徑之前、實際執行:**七次全數被拒**,`SecurityException: Injecting input events requires the caller ... INJECT_EVENTS permission`。那個權限在豁免被觸及之前就檢查了——因此這個限制是「一個應用程式持有不了的權限」,不是「少想到一個辦法」。那段程式碼已移除(一條在每個受支援組態下都被拒的路徑,只會在每一列按鍵上輸出日誌);移除後已重驗 P72 的按鍵列,結果不變。**解法(2026-09-25)**:要找到的是**兩**件事,而第二件才是關鍵。(1) 那些快捷鍵住在 decor view 的 `OnUnhandledKeyEventListener` 上,而 `ViewRootImpl` 在任何 app 投遞得到的層級之上執行它。(2) **一個按鍵事件跟著焦點鏈走**——`ViewGroup.dispatchKeyEvent` 只派給 `mFocused` 或自己,否則直接回傳 false;它**不會**走訪子節點。P71 沒有聚焦任何東西,所以 decor 的 `mFocused` 是 null,它底下沒有任何 view 看到過那個按鍵。第二件是靠「對 `ShortcutHostLayout` 加儀器、而它在 21 個重放動作之間一行都沒印」量出來的——在那之前我改了兩次都是猜的。現在 `ShortcutHostLayout` 就是視窗的 content view:它在 `super.dispatchKeyEvent` 拒絕之後查同一張表(與「unhandled」是同一個時刻,只是低一層),並以 `FOCUS_AFTER_DESCENDANTS` 取得焦點,因此只在沒有別的東西要焦點時才持有它。**結果**:`PLAIN 1、SHIFTED 1、DISABLED 0`。**兩項回歸都查過**:不會觸發兩次(本檔跑完 PLAIN=1 後,再送一次系統層級 Ctrl-S 變成 2、不是 3);焦點仍然正常(同版本的 P70 回報 `focused field: name`、`focus changes heard: 1`,文字欄位贏過根節點)。P72 的按鍵列不變。**UIKit 是缺口**,並在原地寫明理由:`UIAction` 收 closure 帶不了按鍵,`UIKeyCommand` 帶得了按鍵卻收 selector、經 responder chain 派送。**測試 app 是新的 P71**,它斷言計數器而非選單外觀——每個 backend 都畫得出「⌘S」,而那樣的截圖與能用的一模一樣。
+- [x] **T4. #121 step 2 — 與 Windows 撞了同一個功能,採用他們的設計** — 合併時才發現兩邊都實作了 `.keyboardShortcut(_:modifiers:)`:**檔案不同,所以 git 沒報衝突,是編譯器報的**(`invalid redeclaration`)。他們走 **environment**(`environment(\.keyboardShortcut, …)`),而且**已在 GTK 與 WinUI 兩個 backend 上驗過**;我走的是「在 `ResolvedMenu.Item.button` 上加第三個 associated value」,只在 AppKit 驗過。**留他們的**——一個功能兩套機制比其中任何一套都糟,而他們那套已經有兩個 backend 在讀。我的 `ResolvedMenu`/`MenuItem`/`Menu.resolve` 改動與那個 modifier 全部還原,AppKit 與 Android 改讀 `environment.keyboardShortcut`。**AppKit 以 actionfile 重新驗過**(`actions/mac/P71-shortcuts.actions`,選單全程關著):`plain 1、shifted 1、disabled 0`。Android **已驗證(2026-09-23)**,三項斷言全中、含那個已停用的項目:Ctrl-S 觸發 PLAIN、Ctrl-Shift-E 觸發 SHIFTED、Ctrl-D 在已停用項目上什麼也沒觸發。**是 Ctrl 不是 Command**,而那正是 `EventModifiers.command` 那條慣例從驅動端看過去的樣子。**但它驅動不了**——`AndroidSynthesiser` 經由 `Activity.dispatchKeyEvent` 投遞,那抵達得了 view 階層(P72 的 `.onKeyPress` 就是這樣被驅動的),而 app 選單快捷鍵住在 `View.OnUnhandledKeyEventListener`,由 `ViewRootImpl` 在任何 app 投遞得到的層級**之上**執行。成對的證據才是這項發現:動作檔把 21 個動作全部重放完成而計數器停在 0/0/0,同一個 Ctrl-S 改用 `adb shell input keycombination -t 120 113 47` 就觸發了。與觸控側的 `PopupMenu` 限制同族。**[x] 2026-09-25 已解決:動作檔現在驅動得了它。** 見下方。原文保留:**繞過去的辦法試過了,被拒絕。** `Instrumentation.sendKeySync` 是公開 API、經由 `InputManager` 注入,會像鍵盤一樣從 `ViewRootImpl` 進入;而 `InputDispatcher` 的權限檢查對「uid 持有聚焦視窗」的注入者是豁免的,一次重放正是如此。建好、接在 activity 路徑之前、實際執行:**七次全數被拒**,`SecurityException: Injecting input events requires the caller ... INJECT_EVENTS permission`。那個權限在豁免被觸及之前就檢查了——因此這個限制是「一個應用程式持有不了的權限」,不是「少想到一個辦法」。那段程式碼已移除(一條在每個受支援組態下都被拒的路徑,只會在每一列按鍵上輸出日誌);移除後已重驗 P72 的按鍵列,結果不變。**解法(2026-09-25)**:要找到的是**兩**件事,而第二件才是關鍵。(1) 那些快捷鍵住在 decor view 的 `OnUnhandledKeyEventListener` 上,而 `ViewRootImpl` 在任何 app 投遞得到的層級之上執行它。(2) **一個按鍵事件跟著焦點鏈走**——`ViewGroup.dispatchKeyEvent` 只派給 `mFocused` 或自己,否則直接回傳 false;它**不會**走訪子節點。P71 沒有聚焦任何東西,所以 decor 的 `mFocused` 是 null,它底下沒有任何 view 看到過那個按鍵。第二件是靠「對 `ShortcutHostLayout` 加儀器、而它在 21 個重放動作之間一行都沒印」量出來的——在那之前我改了兩次都是猜的。現在 `ShortcutHostLayout` 就是視窗的 content view:它在 `super.dispatchKeyEvent` 拒絕之後查同一張表(與「unhandled」是同一個時刻,只是低一層),並以 `FOCUS_AFTER_DESCENDANTS` 取得焦點,因此只在沒有別的東西要焦點時才持有它。**結果**:`PLAIN 1、SHIFTED 1、DISABLED 0`。**兩項回歸都查過**:不會觸發兩次(本檔跑完 PLAIN=1 後,再送一次系統層級 Ctrl-S 變成 2、不是 3);焦點仍然正常(同版本的 P70 回報 `focused field: name`、`focus changes heard: 1`,文字欄位贏過根節點)。P72 的按鍵列不變。**UIKit 是缺口**,並在原地寫明理由:`UIAction` 收 closure 帶不了按鍵,`UIKeyCommand` 帶得了按鍵卻收 selector、經 responder chain 派送。**測試 app 是新的 P71**,它斷言計數器而非選單外觀——每個 backend 都畫得出「⌘S」,而那樣的截圖與能用的一模一樣。
   - **2026-10-05 由 [~] 改為 [x]:** 上文已寫明 2026-09-25 解決:`ShortcutHostLayout` 成為 content view,動作檔驅動得了 Android 的選單快捷鍵;AppKit 與 Android 都讀 `environment.keyboardShortcut`。沒有剩下的部分。
 - [x] **4. #121 鍵盤快捷鍵 — 五個 backend 全數完成(2026-09-16 傍晚由原始碼查得)** — UIKit 那一格已由 Mac 補上(`U... -> completed.md (archived 2026-10-05)
 - [x] **5. focus / accessibility(#122 / #123)— 五個 backend 全數完成** — GTK 與 WinUI 於 2026-... -> completed.md (archived 2026-10-05)
 - [x] **6. #74 `-GPU` on macOS — 已實作(AppKit + UIKit)** — 那個「設計問題」其實已被協定的形狀回答了:`Graphic... -> completed.md (archived 2026-10-05)
 - [x] **7. #28 動畫 / #32 手勢** — 五個 backend 全部 conform(`DragGestures`/`MagnifyGestures`/... -> completed.md (archived 2026-10-05)
-- [x] **8. #117 phase 3 — 五個 backend 都有 `LazyListRows`;缺的換成 `LazyListRowLifetimes`,而且是在你們那三個** — **GTK 的 `LazyListRows` 早就完成**(`5739d453`):它是由 `LazyListRowLifetimes` **繼承**而來的,因此任何「找具名 extension」的掃描都會說它沒有——那正是這一條原本寫錯的原因。**[!] 這一句在 2026-09-23 之前一直是錯的,而我差點照它再做一次。** 它原本寫著「`LazyListRowLifetimes` 只有 GTK 與 WinUI 有,AppKit / UIKit / Android 沒有」。那在 `24319bd6` 之後就不成立了——那個 commit 的標題就是「LazyListRowLifetimes on the three backends that only had LazyListRows」,而三個 conformance 都在:`AppKitBackend+LazyListRows.swift:49`、`UIKitBackend+LazyListRows.swift:40`、`AndroidBackend+LazyListRows.swift:158`。我根據這一句把它推薦為「下一件最大的事」,而接住它的是 `grep`,不是這份文件——**mistakes 第 13 條的第二次發生**。**真正還缺的是驅動,不是實作**:macOS 已驅動且通過(`actions/mac/P57-scroll-the-whole-list.csv`,讀數 19 而不是 ~500);iOS **2026-09-27 已驅動且通過**(`actions/ios/P57-walk-the-list.csv`,建過/持有 1734 / 8,啟動時 1 / 1;先前每一次拖曳都從視窗中心、也就是清單上方的文字開始,什麼都沒推動——在重放當下拍照證實——加了一列 `move 200,810` 到清單上才解決;原本寫的「三十列 scroll 完全沒有移動那個清單」是真的,但成因不是一格的大小);Android **建了、且在小尺度上觀察到釋放**(兩列,而那個模擬器上大約只放得下兩列)。iOS 與 Android 的共同阻礙都是「清單沒有被捲動」。**2026-09-27 更正:**那**不是**與 `actions/ios/P72-stop-and-check.csv` 同一族的問題——那一個是 `RootScrollHost` 在第一次觸控時移動版面(已修),這一個在 iOS 上是拖曳沒有落在清單上(已修)。Android 那一半仍待查,而不應假設它是這兩者之一。WinUI 那份以對照組量過:掃 5000 列,有釋放 146/150 MB、扣住回呼 221/222 MB。原文保留:WinUI / AppKit / UIKit / Android 都 conform `LazyListRows` 並量過(AppKit 423→104 MB、UIKit 449→170、Android 385→92)。**GTK 目前只 conform `LazyListRowLifetimes`**(回收那一半),`LazyListRows` 尚未;Windows 標為 active。那句「400 列 114 MB、10,000 列 423 MB」是**修好之前**的數字,留在此處會讀成現況。
+- [x] **8. #117 phase 3 — 五個 backend 都有 `LazyListRows`;缺的換成 `LazyListRowLifetimes`,而且是在你們那三個** — **GTK 的 `LazyListRows` 早就完成**(`5739d453`):它是由 `LazyListRowLifetimes` **繼承**而來的,因此任何「找具名 extension」的掃描都會說它沒有——那正是這一條原本寫錯的原因。**[!] 這一句在 2026-09-23 之前一直是錯的,而我差點照它再做一次。** 它原本寫著「`LazyListRowLifetimes` 只有 GTK 與 WinUI 有,AppKit / UIKit / Android 沒有」。那在 `24319bd6` 之後就不成立了——那個 commit 的標題就是「LazyListRowLifetimes on the three backends that only had LazyListRows」,而三個 conformance 都在:`AppKitBackend+LazyListRows.swift:49`、`UIKitBackend+LazyListRows.swift:40`、`AndroidBackend+LazyListRows.swift:158`。我根據這一句把它推薦為「下一件最大的事」,而接住它的是 `grep`,不是這份文件——**mistakes 第 13 條的第二次發生**。**真正還缺的是驅動,不是實作**:macOS 已驅動且通過(`actions/mac/P57-scroll-the-whole-list.actions`,讀數 19 而不是 ~500);iOS **2026-09-27 已驅動且通過**(`actions/ios/P57-walk-the-list.actions`,建過/持有 1734 / 8,啟動時 1 / 1;先前每一次拖曳都從視窗中心、也就是清單上方的文字開始,什麼都沒推動——在重放當下拍照證實——加了一列 `move 200,810` 到清單上才解決;原本寫的「三十列 scroll 完全沒有移動那個清單」是真的,但成因不是一格的大小);Android **建了、且在小尺度上觀察到釋放**(兩列,而那個模擬器上大約只放得下兩列)。iOS 與 Android 的共同阻礙都是「清單沒有被捲動」。**2026-09-27 更正:**那**不是**與 `actions/ios/P72-stop-and-check.actions` 同一族的問題——那一個是 `RootScrollHost` 在第一次觸控時移動版面(已修),這一個在 iOS 上是拖曳沒有落在清單上(已修)。Android 那一半仍待查,而不應假設它是這兩者之一。WinUI 那份以對照組量過:掃 5000 列,有釋放 146/150 MB、扣住回呼 221/222 MB。原文保留:WinUI / AppKit / UIKit / Android 都 conform `LazyListRows` 並量過(AppKit 423→104 MB、UIKit 449→170、Android 385→92)。**GTK 目前只 conform `LazyListRowLifetimes`**(回收那一半),`LazyListRows` 尚未;Windows 標為 active。那句「400 列 114 MB、10,000 列 423 MB」是**修好之前**的數字,留在此處會讀成現況。
   - **2026-10-05 由 [~] 改為 [x]:** Android 那一半已驗證:2026-10-05 的 Android 全部重跑中 P57 走完清單,rows built / held 為 409 / 2 與 391 / 2(10-04 為 403 / 2)——清單有被捲動、列有被釋放。五個 backend 都有 `LazyListRows` 與 `LazyListRowLifetimes`,沒有剩下的部分。
   - **上面那一條自己前後矛盾,而後半段是錯的(2026-09-16 查證,型別系統就是證據)。** 它開頭說
     「GTK 的 `LazyListRows` 早就完成,是由 `LazyListRowLifetimes` **繼承**而來」——**這是對的**;

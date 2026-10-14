@@ -65,7 +65,7 @@ private func setCommandLineArguments(_ arguments: __owned [String])
 /// option that is accepted and does nothing.
 ///
 /// An Android activity is started with an `Intent`, and an intent carries
-/// extras. `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.csv"`
+/// extras. `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.actions"`
 /// puts a string there, and this turns that string into argv before `main` runs,
 /// so nothing downstream needs to know Android is different.
 ///
@@ -84,7 +84,7 @@ private func setCommandLineArguments(_ arguments: __owned [String])
 /// 的選項」，正是本檔存在所要消除的那種失敗形狀。
 ///
 /// Android 的 activity 是由 `Intent` 啟動的，而 intent 可攜帶 extra。
-/// `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.csv"` 會在其中放進一個
+/// `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.actions"` 會在其中放進一個
 /// 字串，本檔則在 `main` 執行之前把該字串轉成 argv，使下游完全不需要知道 Android 有何不同。
 ///
 /// **以空白切分，而那是一個真實的限制。** 含有空白的路徑無法以此方式傳遞。要支援它就需要在此處寫一個

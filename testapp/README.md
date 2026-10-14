@@ -161,7 +161,7 @@ The same flags mean the same thing on every platform, iOS and Android included.
 | --- | --- |
 | `-n`, `--no-build` | Reuse what is already built |
 | `--showtime <s>`, `--no-showtime` | How long to leave the app up after it renders |
-| `--actionfile [path]` | Replay a CSV of synthesised input once the window is up. Without a path, `testapp/actions/<platform>/<Pn>-*.csv` is used — one folder per platform, because a file verified elsewhere is not evidence here |
+| `--actionfile [path]` | Replay a CSV of synthesised input once the window is up. Without a path, `testapp/actions/<platform>/<Pn>-*.actions` is used — one folder per platform, because a file verified elsewhere is not evidence here |
 | `--device <name>` | iOS and Android only; refused on the others |
 
 ### Devices
@@ -183,12 +183,12 @@ Same harness, a different Simulator:
 ```sh
 xcrun simctl list devices available | grep -i ipad        # pick one
 zsh testapp/test.zsh P5 --ios --device "iPad Pro 11-inch (M5)" \
-    --actionfile=testapp/actions/ios/P75-close-the-window-ipad.csv
+    --actionfile=testapp/actions/ios/P75-close-the-window-ipad.actions
 ```
 
 - **Coordinates are per device.** An iPad is 834x1210 points (@2x) against the
   iPhone's 440x956, so an iPhone action file taps the wrong places. iPad files
-  are named `<Pn>-<what>-ipad.csv` and measured on an iPad capture:
+  are named `<Pn>-<what>-ipad.actions` and measured on an iPad capture:
   points = capture pixels / 2.
 - **What only an iPad shows:** a second window as its own scene (P5, P59, P62
   -- `openWindow` opens a new scene there, and attaches over the main one on

@@ -8,7 +8,7 @@ To see what is here, list the folder — a hard-coded list in this file would be
 wrong the first time somebody added one without reading this far.
 
 ```zsh
-ls testapp/actions/win/*.csv
+ls testapp/actions/win/*.actions
 ```
 
 What each of them found, and what happened on the apps that have no file, is in
@@ -25,7 +25,7 @@ What each of them found, and what happened on the apps that have no file, is in
 ## A file here is for one backend, not for Windows
 
 Windows runs two backends, and a Pn built for each puts its controls in
-different places. `P24-push-one-level.csv` and `P24-push-one-level-winui.csv`
+different places. `P24-push-one-level.actions` and `P24-push-one-level-winui.actions`
 are the same app and the same first click at different coordinates, measured
 2026-08-27. So a file without a backend suffix was written against GtkBackend
 (`-gtk4`), which is what most of this folder was driven with; a `-winui` suffix
@@ -34,21 +34,21 @@ means the other one.
 Reaching for the wrong one does not fail loudly. The click lands somewhere
 inside the window and nothing happens, which reads as the app ignoring input —
 the same appearance that made a coordinate mistake look like a defect in
-`P24-push-one-level.csv`.
+`P24-push-one-level.actions`.
 
 ## 此處的檔案針對某一個 backend，而非針對 Windows
 
 Windows 上有兩個 backend，同一支 Pn 分別建置後，控制項的位置並不相同。
-`P24-push-one-level.csv` 與 `P24-push-one-level-winui.csv` 是同一支 app、同一次的第一個點擊，座標
+`P24-push-one-level.actions` 與 `P24-push-one-level-winui.actions` 是同一支 app、同一次的第一個點擊，座標
 卻不同，量測於 2026-08-27。因此沒有 backend 後綴的檔案是針對 GtkBackend（`-gtk4`）而寫的——本資料夾
 大多數檔案都是以它驅動的；帶 `-winui` 後綴者則是另一個。
 
 取錯檔案不會大聲失敗。點擊會落在視窗內的某處而什麼也沒發生，看起來就像 app 忽略了輸入——正是那個
-讓 `P24-push-one-level.csv` 把座標錯誤誤判成缺陷的外觀。
+讓 `P24-push-one-level.actions` 把座標錯誤誤判成缺陷的外觀。
 
 ## Nothing inside a dialog can be driven from here yet
 
-**Measured 2026-09-03 with `P31-tab-and-escape.csv`.** Keys work: `key tab`
+**Measured 2026-09-03 with `P31-tab-and-escape.actions`.** Keys work: `key tab`
 moved focus out of a `TextField` and `key space` activated the button,
 `p31-debug-events.log` recording `button clicked count=1`. Escape at an open
 alert did nothing, and **the key never reached the dialog**:
@@ -60,7 +60,7 @@ takes focus off the modal. Write-up and the proposed fix
 
 So an alert's buttons, Escape at a dialog, and a file dialog's contents are all
 out of reach from a file in this folder — and a replay that touches one reports
-no error at all, which is the dangerous part. `P5-stacked-alerts.csv` already
+no error at all, which is the dangerous part. `P5-stacked-alerts.actions` already
 avoided this without naming it.
 
 **`testapp/actions/mac/README.md` recommends Escape** for exactly this job,
@@ -86,7 +86,7 @@ place".
 
 ## 此處尚無法驅動對話框內的任何東西
 
-**2026-09-03 以 `P31-tab-and-escape.csv` 實測。** 按鍵是可用的：`key tab` 把焦點移出 `TextField`，
+**2026-09-03 以 `P31-tab-and-escape.actions` 實測。** 按鍵是可用的：`key tab` 把焦點移出 `TextField`，
 `key space` 觸發了按鈕，`p31-debug-events.log` 記錄了 `button clicked count=1`。但在已開啟的 alert
 上按 Escape 毫無作用，而且**該按鍵從未抵達對話框**：`Win32Synthesiser.ownWindow()` 回傳本行程中
 **面積最大**的可見 top-level 視窗，而 `Gtk.MessageDialog` 是較小的獨立 top-level 視窗，因此永遠
@@ -94,7 +94,7 @@ place".
 修法（`GetWindow(hwnd, GW_ENABLEDPOPUP)`）見 `bugs/Gtk4-bugs.md` 第 6 節。
 
 因此 alert 的按鈕、對話框上的 Escape、檔案對話框的內容，對本資料夾中的檔案而言全都構不到——而
-碰到這些的重放**完全不會回報錯誤**，那才是危險之處。`P5-stacked-alerts.csv` 早已繞過此事，只是
+碰到這些的重放**完全不會回報錯誤**，那才是危險之處。`P5-stacked-alerts.actions` 早已繞過此事，只是
 不曾指出它。
 
 **`testapp/actions/mac/README.md` 正是為了這件工作而推薦 Escape**，理由是它在 macOS 上「無需座標

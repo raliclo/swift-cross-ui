@@ -216,7 +216,7 @@ struct P36RootView: View {
 
             // textFieldStyle, added 2026-09-08 with TextFieldStyle itself.
             // Placed below the button rather than above it because
-            // actions/win/P36-string-label-button.csv clicks that button by
+            // actions/win/P36-string-label-button.actions clicks that button by
             // coordinate; anything inserted higher up would move it and the
             // action would click a text field instead.
             //
@@ -227,7 +227,7 @@ struct P36RootView: View {
             //
             // textFieldStyle，與 TextFieldStyle 本身同於 2026-09-08 加入。
             //
-            // 放在按鈕**下方**而非上方，因為 actions/win/P36-string-label-button.csv 是以座標點擊
+            // 放在按鈕**下方**而非上方，因為 actions/win/P36-string-label-button.actions 是以座標點擊
             // 該按鈕；任何插在更上方的東西都會把它推移，該 action 就會改而點到某個文字輸入框。
             //
             // 排成一列而非一行一個，好讓四個邊框並排；這正是讓它們之間的差異在截圖中可辨識的關鍵

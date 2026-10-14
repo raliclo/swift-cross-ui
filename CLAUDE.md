@@ -110,9 +110,9 @@ line number, and bytes are kept as they are (LF and the trailing newline too).
   newline, or a blank line appears. One `-update` per call with `--value-file`.
 - Separate calls shift line numbers, so edit bottom-up. Several `-insert N` at the
   same N keep their order.
-- A `.csv`/`.csv2` suffix forces CSV parsing even with `--headers 0`, and action
-  files (`#` lines) are refused that way: read them from stdin,
-  `csv2 -si --headers 0 -get N:1 < file.csv`.
+- A `.csv`/`.csv2` suffix forces CSV parsing even with `--headers 0`. Action files
+  have `#` lines and are `.actions` for that reason (2026-10-14), so line mode reads
+  them as any other file. A real `.csv` in line mode goes through stdin: `csv2 -si --headers 0 -get N:1 < file.csv`.
 - A new or rewritten file: `print -rl -- "${lines[@]}" | csv2 -si --headers 0 -r -o FILE`.
   `-append` fails on an empty file.
 - Real CSVs: `testapp/test_support/csv2_rows.zsh` (`csv2_new`, `csv2_append`,
@@ -132,8 +132,8 @@ If csv2 cannot express an edit, say so and name the tool used instead.
 - 改一段：`-update N:1 --value-file F -i FILE --in-place`。F 不可以換行結尾，否則會多出一行空行。
   配合 `--value-file` 時一次只能一個 `-update`。
 - 分開呼叫會讓行號位移，所以由下往上改。同一個 N 的多個 `-insert N` 會保持順序。
-- `.csv`/`.csv2` 副檔名即使加了 `--headers 0` 也會強制以 CSV 解析，動作檔(`#` 開頭的行)因此被拒：
-  改從 stdin 讀，`csv2 -si --headers 0 -get N:1 < file.csv`。
+- `.csv`/`.csv2` 副檔名即使加了 `--headers 0` 也會強制以 CSV 解析。動作檔有 `#` 開頭的行,因此自 2026-10-14 起副檔名是 `.actions`,
+  逐行模式可以像其他檔案一樣直接讀。真正的 `.csv` 要逐行處理時從 stdin 讀:`csv2 -si --headers 0 -get N:1 < file.csv`。
 - 新建或整份重寫：`print -rl -- "${lines[@]}" | csv2 -si --headers 0 -r -o FILE`。
   空檔案上 `-append` 會失敗。
 - 真正的 CSV:`testapp/test_support/csv2_rows.zsh`(`csv2_new`、`csv2_append`、`csv2_has`)。所有 CSV 都是 LF。

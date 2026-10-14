@@ -878,7 +878,7 @@ view **controller**。三個編譯錯誤,在幾天後因為一次為了別的功
 成因是我自己:今天有幾次為了抓 stderr 而直接跑二進位——
 
 ```
-./testapp/output/P70 --debug -actionfile testapp/actions/mac/P70-focus.csv
+./testapp/output/P70 --debug -actionfile testapp/actions/mac/P70-focus.actions
 ```
 
 ——而那些 app 在沒有 `SCUI_DEBUG_EVENTS_DIR` 時的 fallback 是**當前目錄**。`test.zsh` 會設定它,
@@ -1249,7 +1249,7 @@ instrument -- both ends of the distribution, not the big one.
 ### 守衛 / The guard
 
 **在動作檔的標頭裡寫明「哪一行是判決」。** 動作檔已經會說明每一步在斷言什麼;
-此處要多寫一句:結論該從**哪裡**讀。`P70-focus.csv` 現在寫著:判決是 app 畫面上那行
+此處要多寫一句:結論該從**哪裡**讀。`P70-focus.actions` 現在寫著:判決是 app 畫面上那行
 `refused (correct)`,而 log 中的 `DISABLED FOCUS reported true` 是 `@FocusState` 被樂觀設定、
 尚未經 backend 回寫的**過渡狀態**。
 
@@ -1267,7 +1267,7 @@ already say what each step asserts; this adds which line answers it.
 
 ### 症狀 / What it looks like
 
-寫完 `testapp/actions/mac/P23-column-sorting.csv`、跑了測試,然後:
+寫完 `testapp/actions/mac/P23-column-sorting.actions`、跑了測試,然後:
 
 | 看到的東西 | 它說了什麼 |
 | --- | --- |
@@ -1294,8 +1294,8 @@ click,430,385,frame,left,,,the SAME header again -- this must REVERSE, not resta
 note 欄裡的一個逗號,把它右邊每一欄都左移一格,於是 `platform` 欄拿到的是 `not restart`。
 
 **而我 grep 不到,不是因為那行不存在。** harness 的摘要只 grep `TEST_SUMMARY_PATTERN`
-(`RENDER COMPLETE|rows|selection|table|cell|header`),而 `P23-column-sorting.csv` 不含其中
-任何一個字。同一個 harness 在同一天稍早顯示過 `P23-row-**selection**.csv` 的那一行——**因為那個
+(`RENDER COMPLETE|rows|selection|table|cell|header`),而 `P23-column-sorting.actions` 不含其中
+任何一個字。同一個 harness 在同一天稍早顯示過 `P23-row-**selection**.actions` 的那一行——**因為那個
 檔名裡剛好有 "selection"**。過濾器的樣式決定了我看不看得見一次失敗,而樣式是為了「好讀」寫的。
 
 ### 為什麼既有的守衛都沒攔下它
@@ -1310,12 +1310,12 @@ note 欄裡的一個逗號,把它右邊每一欄都左移一格,於是 `platform
 ### 矯正 / Corrective
 
 新增 `Scripts/check_action_file_fields.sh`,接在 `Scripts/test.sh` 中
-`check_action_files.sh` 之後。它掃描 `testapp/actions/*/*.csv`——**不問 git**——並回報
+`check_action_files.sh` 之後。它掃描 `testapp/actions/*/*.actions`——**不問 git**——並回報
 「欄位數多於表頭」與「platform 欄不是已知平台」。
 
 寫出來之後**兩個方向都驗過**:把原來那一行放回去,它以 rc=1 指名該行;移除之後回到 rc=0。
 第一版還太嚴(寫死 `row[-1]` 取 platform,而帶 `target` 欄的檔案 platform 不在最後),在乾淨的樹上
-就誤報了 `P60-open-settings.csv`——那次誤報本身是好事:它是在「這個守衛第一次執行」時發生的。
+就誤報了 `P60-open-settings.actions`——那次誤報本身是好事:它是在「這個守衛第一次執行」時發生的。
 
 這與全域 CLAUDE.md 那條 CSV 規則是同一件事,只是從另一個方向抵達:那條講的是**讀** CSV 時不要用
 逗號切割;這一條講的是**寫** CSV 時,一個沒加引號的逗號同樣不會有人報錯。
@@ -1346,7 +1346,7 @@ received `not restart`.
 **The grep missed it because the harness only greps its summary pattern** --
 `RENDER COMPLETE|rows|selection|table|cell|header` -- and this file's name contains none of those
 words. The same harness had shown me the equivalent line earlier the same day for
-`P23-row-selection.csv`, because that name happens to contain "selection".
+`P23-row-selection.actions`, because that name happens to contain "selection".
 
 ### Why neither existing guard caught it
 
@@ -1358,13 +1358,13 @@ five minutes ago is outside it. Between writing an action file and committing it
 ### Corrective
 
 `Scripts/check_action_file_fields.sh`, wired into `Scripts/test.sh` directly after
-`check_action_files.sh`. It reads every `testapp/actions/*/*.csv` without asking git, and reports
+`check_action_files.sh`. It reads every `testapp/actions/*/*.actions` without asking git, and reports
 rows with more fields than the header, or a `platform` column that is not a known platform.
 
 Proved in both directions before being trusted: it exits 1 and names the line with the original
 defect restored, and 0 without it. Its first version was too strict -- it took `platform` as the
 last column, which is wrong for files carrying a trailing `target` -- and reported
-`P60-open-settings.csv` on a clean tree. That false positive is worth recording: it happened on the
+`P60-open-settings.actions` on a clean tree. That false positive is worth recording: it happened on the
 guard's first run, which is the only cheap time to find one.
 
 Same defect as the global CSV rule, from the other direction: that rule is about splitting a CSV on
@@ -1789,7 +1789,7 @@ WinUI 上**沒有指定 arrowEdge 的 popover 完全不會出現**——而那�
 - `presentPopover` 裡是 `placement = preferredPlacement ?? .auto`。驗收**只驅動了有設定的偏好**,`??` 右邊
   從沒被走過;而 `FlyoutPlacementMode.auto` 在這裡什麼都不顯示、也不擲錯。
 - `popover ... shown` 是 app 在**呼叫** present 時寫的,不是面板出現時。既有的 GTK 動作檔
-  `P50-open-first-panel.csv` 的斷言正是 `log-contains popover alpha shown`——對這個缺陷而言它必然通過。
+  `P50-open-first-panel.actions` 的斷言正是 `log-contains popover alpha shown`——對這個缺陷而言它必然通過。
 - 行程外 UIA dump 的 0 個 PANEL 節點,需要正向對照(設 `.trailing` 時同一份 dump 找得到 `PANEL ALPHA`)
   才能算證據。
 
@@ -1816,7 +1816,7 @@ On WinUI a popover with NO arrowEdge, the default most apps use, never appeared,
 still read `popover alpha shown`. The #109 verification the day before drove only SET preferences
 (`.top`/`.bottom` pair), so the `?? .auto` fallback was never exercised, and
 `FlyoutPlacementMode.auto` shows nothing without throwing. The log line is written when present is
-CALLED, and the existing `P50-open-first-panel.csv` asserts exactly that line, so it passes
+CALLED, and the existing `P50-open-first-panel.actions` asserts exactly that line, so it passes
 regardless. When adding a preference, verify the no-preference default in the same set: three
 captures, not two. Evidence that something was presented must come from after presentation (UIA
 node, window rect, capture), never from the app's own pre-call log line. A zero-node UIA result
@@ -1839,7 +1839,7 @@ new feature before committing.
 **1 occurrence / 1 day (2026-09-19).**
 
 P72's `.defaultSize` went from 660 to 780 points so its title would stop being clipped. A
-hand-launched capture showed 780 and every coordinate in `actions/mac/P72-stop-and-check.csv` was
+hand-launched capture showed 780 and every coordinate in `actions/mac/P72-stop-and-check.actions` was
 re-measured against it. Under `test.zsh` the window was still 688px — 660 points — because
 `createWindow` calls `setFrameAutosaveName`, and the BUNDLE has its own defaults domain
 (`dev.swiftcrossui.testapp.p72`), which is not the one I had been deleting all day (`P72`, the bare
@@ -2006,8 +2006,8 @@ Three independent places, one shape. In each case the entire visible symptom was
 the end of a log: `MODIFIERS up shift=true`.
 
 **What found it, all three times, was the same thing.** An action file whose last row is a `keyup`
-and whose note says what that row must print. `actions/mac/P72-stop-and-check.csv`,
-`actions/android/P72-scroll-and-keys.csv` and `actions/ios/P72-keys.csv` all end that way, and all
+and whose note says what that row must print. `actions/mac/P72-stop-and-check.actions`,
+`actions/android/P72-scroll-and-keys.actions` and `actions/ios/P72-keys.actions` all end that way, and all
 three would have passed their first three lines while failing the last.
 
 **Corrective.** When adding or reviewing a key path on any backend or synthesiser, drive a
@@ -2032,8 +2032,8 @@ Shift 被永遠按住了。
 `MODIFIERS up shift=true`。
 
 **三次都是同一樣東西找出來的。** 一份「最後一列是 `keyup`、而那一列的 note 寫明它必須印出什麼」的
-動作檔。`actions/mac/P72-stop-and-check.csv`、`actions/android/P72-scroll-and-keys.csv` 與
-`actions/ios/P72-keys.csv` 都是這樣結尾的;而三者都會通過前三行、在最後一行失敗。
+動作檔。`actions/mac/P72-stop-and-check.actions`、`actions/android/P72-scroll-and-keys.actions` 與
+`actions/ios/P72-keys.actions` 都是這樣結尾的;而三者都會通過前三行、在最後一行失敗。
 
 **矯正措施。** 在任何 backend 或 synthesiser 上新增或審查按鍵路徑時,驅動一組
 `keydown` / `key` / `keyup`,並讀**最後一行**。要斷言的不是那個修飾鍵**抵達了**,而是它**離開了**。
@@ -2128,7 +2128,7 @@ C_TOTAL=3; C_SAMEDAY=4; C_SDATE=5; C_DAYS=6; C_LAST=8; C_CORR=9
 
 ## 27. A string replacement split a comment in half, and half of it became an action
 
-**2026-09-25, `testapp/actions/mac/P72-cursor.csv`, found 2026-09-26, one occurrence.**
+**2026-09-25, `testapp/actions/mac/P72-cursor.actions`, found 2026-09-26, one occurrence.**
 
 I was adding a paragraph to the header of an action file and did it with a python string
 replacement rather than an editor. The replacement matched, the script exited 0, and it turned
@@ -2174,7 +2174,7 @@ it; I read the diff for the paragraph I had added and not for the line above it.
 
 **一次字串替換把一句註解切成兩半,而其中一半變成了一個動作**
 
-2026-09-25 於 `testapp/actions/mac/P72-cursor.csv`,2026-09-26 發現,一次。
+2026-09-25 於 `testapp/actions/mac/P72-cursor.actions`,2026-09-26 發現,一次。
 
 我在替一個動作檔的檔頭加一段文字,而用的是 python 字串替換、不是編輯器。替換命中了、腳本以 0 結束,
 然後把原本一行的註解切成兩行——第二行沒有開頭的 `#`。它不再是註解,而是這個 CSV 的第 55 列,而第一欄
@@ -2200,7 +2200,7 @@ it; I read the diff for the paragraph I had added and not for the line above it.
    的結束狀態,不是那支腳本的。
 
 **Second occurrence, 2026-09-28: the form, not the damage.** Moving three rows of
-`actions/mac/P6-transport-toggles.csv` from y 741 to 750, I used a Python
+`actions/mac/P6-transport-toggles.actions` from y 741 to 750, I used a Python
 `str.replace` over lines selected by prefix instead of the Edit tool, with this
 entry's rule in the session's own constraints. `git diff` and a re-listing showed
 exactly the three rows changed, and the file was right. It is recorded because the
@@ -2209,7 +2209,7 @@ unsafe: a replacement aimed at text nobody is looking at. That it happened to be
 correct this time is not what the rule asks for. No new corrective: the existing
 one -- the Edit tool, then `check_action_file_fields.sh` -- was available and
 skipped for speed.
-**第二次發生,2026-09-28:犯的是形式,不是損害。**把 `actions/mac/P6-transport-toggles.csv` 的三列從 y 741
+**第二次發生,2026-09-28:犯的是形式,不是損害。**把 `actions/mac/P6-transport-toggles.actions` 的三列從 y 741
 移到 750 時,我用了依前綴挑行的 Python `str.replace`,而不是 Edit 工具——而本條規則就寫在本 session 自己的
 約束裡。`git diff` 與重新列出顯示只改到那三列,檔案是對的。之所以記下來,是因為規則講的是方法,而第一次
 發生證明不安全的正是這個方法:瞄準一段沒人在看的文字的替換。這次剛好對,不是規則要求的東西。沒有新的矯正
@@ -2221,7 +2221,7 @@ skipped for speed.
 
 **2026-09-22 to 2026-09-26, the macOS cursor in P72, solved 2026-09-27.**
 
-For five days `actions/mac/P72-cursor.csv` reported the arrow over the mesh view, and ten
+For five days `actions/mac/P72-cursor.actions` reported the arrow over the mesh view, and ten
 candidates were eliminated by measurement: timing, which property is read, activation, the
 tracking area's size, its registration, hit-testing, occlusion, `acceptsMouseMovedEvents`,
 the event source, and the modifier nesting. Each elimination was real. None was the cause.
@@ -2256,7 +2256,7 @@ layout dump whose origin is not the window's.
 
 2026-09-22 到 2026-09-26,P72 的 macOS 游標;2026-09-27 解決。
 
-五天來 `actions/mac/P72-cursor.csv` 在 mesh view 上回報箭頭,期間以量測排除了十個候選。每一次排除都是真的,
+五天來 `actions/mac/P72-cursor.actions` 在 mesh view 上回報箭頭,期間以量測排除了十個候選。每一次排除都是真的,
 沒有一個是成因。第一張「在某一列執行**期間**」拍下指標的 `screencapture -C`,一次就找到兩個成因:
 
 1. 指標根本不在 mesh view 上。2026-09-23 依據 `NSContextMenuTarget(0, 346 340x240)`——一個**相對於
@@ -2278,14 +2278,14 @@ layout dump whose origin is not the window's.
 macOS 用 `screencapture -C`、Android 用 `screencap`、iOS 用 `simctl io screenshot`——並從那張照片量座標,
 絕不從一個原點不是視窗的 layout 傾印量。
 
-**Second occurrence, found the same day: iOS, 2026-09-19.** `actions/ios/P72-stop-and-check.csv`
+**Second occurrence, found the same day: iOS, 2026-09-19.** `actions/ios/P72-stop-and-check.actions`
 declared "only the first interaction lands, and that is NOT a coordinate problem", having checked
 the accessibility tree against a capture taken at LAUNCH. Nobody photographed the screen after
 the first tap. `RootScrollHost` moved the whole column 25 points left and 29 up on the first
 touch, so it was exactly a coordinate problem, made by the app. Twenty-two screenshots two
 seconds apart found it on 2026-09-27.
 
-**第二次發生,同一天發現:iOS,2026-09-19。** `actions/ios/P72-stop-and-check.csv` 宣稱「只有第一個互動
+**第二次發生,同一天發現:iOS,2026-09-19。** `actions/ios/P72-stop-and-check.actions` 宣稱「只有第一個互動
 會生效,而那**不是**座標問題」,依據是把無障礙樹與一張**啟動當下**的擷圖對過。沒有人在第一次點擊**之後**拍過
 螢幕。`RootScrollHost` 在第一次觸控時把整欄往左推 25 點、往上推 29 點,所以那**正是**座標問題,只是是 app
 造成的。2026-09-27 以每兩秒一張、共二十二張的擷圖找到它。

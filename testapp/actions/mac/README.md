@@ -13,14 +13,14 @@ AppKit hit testing was fixed on 2026-09-01 (`226a4af7`), together with the
 bundle-identity fault that had the same symptom (`test_common.zsh`). Files
 run here since:
 
-- `P28-hit-testing.csv` — `underlying button clicked count=1` then `count=2`
+- `P28-hit-testing.actions` — `underlying button clicked count=1` then `count=2`
   in `testapp/output/p28-debug-events.log`. Its coordinates were also stale
   and are corrected.
-- `P21-enabled-and-disabled.csv` — `Button — clicks: 1`. One, not two: the
+- `P21-enabled-and-disabled.actions` — `Button — clicks: 1`. One, not two: the
   enabled button counted and the disabled one did not. Toggle, toggle-button
   and checkbox all flipped; every disabled counterpart stayed put.
-- `P0-appstorage.csv` — the Reset click lands and the status line says so.
-- `P26-swiftcrossui-tab.csv` — the tab click reaches the tab strip and one
+- `P0-appstorage.actions` — the Reset click lands and the status line says so.
+- `P26-swiftcrossui-tab.actions` — the tab click reaches the tab strip and one
   artifact is fetched.
 
 ## Everything else here is written but not yet replayed
@@ -84,7 +84,7 @@ a window that did not exist when the capture was taken.
 
 **That technique is macOS-only, and the sentence above is the reason someone
 will try it elsewhere.** Measured 2026-09-03 on Windows/GtkBackend with
-`testapp/actions/win/P31-tab-and-escape.csv`: Escape does **not** reach a
+`testapp/actions/win/P31-tab-and-escape.actions`: Escape does **not** reach a
 modal there. `Win32Synthesiser` does not have AppKit's notion of a key window —
 `ownWindow()` picks the process's **largest-area** visible top-level window, and
 a dialog is a smaller separate top-level window, so it can never be chosen; the
@@ -106,9 +106,9 @@ WinUI 上重放。
 
 兩份檔案曾在此實際執行並確認可運作：
 
-- `P28-hit-testing.csv` — `testapp/output/p28-debug-events.log` 中的
+- `P28-hit-testing.actions` — `testapp/output/p28-debug-events.log` 中的
   `underlying button clicked count=1`。
-- `P26-swiftcrossui-tab.csv` — 分頁點擊抵達分頁列，並取得一項 artifact。
+- `P26-swiftcrossui-tab.actions` — 分頁點擊抵達分頁列，並取得一項 artifact。
 
 ## 此處其餘一切皆未驗證，而這是規則的變更
 
@@ -153,7 +153,7 @@ AppKit 的 hit testing 在這台機器上是壞的（見 `todo.md`）。重放�
 視窗」所無法提供的東西。
 
 **這個手法僅限 macOS，而上面那句話正是有人會把它搬到別處的原因。** 2026-09-03 於
-Windows/GtkBackend 以 `testapp/actions/win/P31-tab-and-escape.csv` 實測：Escape 在那裡**到不了**
+Windows/GtkBackend 以 `testapp/actions/win/P31-tab-and-escape.actions` 實測：Escape 在那裡**到不了**
 modal。`Win32Synthesiser` 沒有 AppKit 的 key window 概念——`ownWindow()` 挑的是本行程中**面積最大**
 的可見 top-level 視窗，而對話框是較小的獨立 top-level 視窗，因此永遠選不到；合成器接著又對主視窗
 呼叫 `SetForegroundWindow`，在按鍵送出之前就把焦點從 modal 手上拿走。完整記述見

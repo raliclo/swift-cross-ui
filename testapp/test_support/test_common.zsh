@@ -181,7 +181,7 @@ fi
 # without any of them knowing about it -- see Sources/GtkBackend/
 # ActionFileReplay.swift and the format in Sources/InputEvent/README.md.
 #
-# `--actionfile` with no path uses testapp/actions/<app>-*.csv, because the
+# `--actionfile` with no path uses testapp/actions/<app>-*.actions, because the
 # common case is one file per app named after it and typing the path each time
 # invites the wrong one being replayed against the right app.
 #
@@ -190,7 +190,7 @@ fi
 # 由 backend 而非 app 處理，因此每一支 Pn 都不需要知道它的存在——詳見
 # Sources/GtkBackend/ActionFileReplay.swift，格式見 Sources/InputEvent/README.md。
 #
-# `--actionfile` 未帶路徑時使用 testapp/actions/<app>-*.csv：常見情況是每支 app 一個以其命名的
+# `--actionfile` 未帶路徑時使用 testapp/actions/<app>-*.actions：常見情況是每支 app 一個以其命名的
 # 檔案，而每次都手打路徑，只會招來「對正確的 app 重放了錯誤的檔案」。
 action_file="${TEST_ACTION_FILE:-}"
 actionfile_log="${app:l}-actionfile.log"
@@ -233,11 +233,11 @@ platform_folder() {
 default_action_file() {
     local folder
     folder="$(platform_folder)"
-    local candidates=("$script_dir/actions/$folder/$app"-*.csv(N))
+    local candidates=("$script_dir/actions/$folder/$app"-*.actions(N))
 
     # Drop candidates that belong to a longer-named app.
     #
-    # `$app-*.csv` is a prefix glob, and some apps are prefixes of others:
+    # `$app-*.actions` is a prefix glob, and some apps are prefixes of others:
     # P15 and P15-DARK, P6 and P6-v2, P17 and P17-DOE. Asking for P15 matched
     # P15-DARK's file too and the run stopped with "Several action files for
     # P15" -- which reads as two files for one app rather than one file each
@@ -248,7 +248,7 @@ default_action_file() {
     #
     # 排除屬於「名稱更長的另一支 app」的候選檔。
     #
-    # `$app-*.csv` 是前綴 glob，而有些 app 的名稱正是另一些的前綴：P15 與 P15-DARK、P6 與 P6-v2、
+    # `$app-*.actions` 是前綴 glob，而有些 app 的名稱正是另一些的前綴：P15 與 P15-DARK、P6 與 P6-v2、
     # P17 與 P17-DOE。要求 P15 時會連 P15-DARK 的檔案一起匹配，執行便以「Several action files for
     # P15」中止——那讀起來像是「一支 app 有兩個檔案」，而實際上是「兩支 app 各有一個檔案」。
     #
@@ -294,7 +294,7 @@ cannot drive is refused rather than redirected.
 Default showtime: ${showtime_seconds}s
 
 --actionfile replays a CSV of synthesised clicks and keystrokes once the window
-is up. With no path, testapp/actions/$app-*.csv is used. The format is
+is up. With no path, testapp/actions/$app-*.actions is used. The format is
 documented in Sources/InputEvent/README.md.
 
 -render hw|sw selects D3D12/NVIDIA or llvmpipe for WSLg GtkBackend runs.
@@ -1824,13 +1824,13 @@ if [ "$screenshot_failures" -gt 0 ]; then
 fi
 
 # A replay that did not run is a failed test, not a quiet one. Measured
-# 2026-10-08: `--actionfile P69-narrator-walk.csv` from the repo root named a
+# 2026-10-08: `--actionfile P69-narrator-walk.actions` from the repo root named a
 # file that did not exist, the app logged "-actionfile: failed ... The file
 # doesn't exist", the window sat for 30 s untouched, and test.zsh exited 0.
 # print_actionfile_report counts a report with no "replayed" line, or a
 # "failed" one; exit 6 says so.
 # 一次沒有執行的重放就是失敗的測試，而不是安靜的測試。2026-10-08 實測：在 repo 根目錄下
-# `--actionfile P69-narrator-walk.csv` 指向一個不存在的檔案,app 記下「-actionfile: failed ... The file
+# `--actionfile P69-narrator-walk.actions` 指向一個不存在的檔案,app 記下「-actionfile: failed ... The file
 # doesn't exist」,視窗原封不動地停了 30 秒，而 test.zsh 以 0 結束。print_actionfile_report 會計入
 # 沒有「replayed」那一行、或有「failed」那一行的報告;以 exit 6 表明。
 if [ "$replay_failures" -gt 0 ]; then

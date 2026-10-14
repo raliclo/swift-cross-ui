@@ -1880,7 +1880,7 @@ public final class GtkBackend:
         // Nothing else provides the second reading. `updateWindow` is the only
         // caller of this method and it is not invoked again in an app that
         // simply sits there -- measured 2026-09-04, including with
-        // `actions/win/P16-force-update.csv`, which produced the same single
+        // `actions/win/P16-force-update.actions`, which produced the same single
         // pass. So the after-value has to be asked for explicitly.
         //
         // On a timeout rather than an idle callback: the new default size takes
@@ -1896,7 +1896,7 @@ public final class GtkBackend:
         //
         // 沒有別的東西會提供第二次讀數。`updateWindow` 是本方法唯一的呼叫端，而在一個就這麼放著
         // 的 app 中它不會被再次呼叫——2026-09-04 實測，連用
-        // `actions/win/P16-force-update.csv` 也一樣只有單獨一輪。因此事後的值必須主動去要。
+        // `actions/win/P16-force-update.actions` 也一樣只有單獨一輪。因此事後的值必須主動去要。
         //
         // 使用 timeout 而非 idle callback：新的預設尺寸要透過 GTK 自身的 resize 才會生效，而
         // idle handler 可能在那之前就執行，於是回報**舊的**配置，讀起來就像修正失敗。這個延遲是
@@ -1989,7 +1989,7 @@ public final class GtkBackend:
         //
         // Comparing with the ambient scheme was wrong in one direction only, and
         // that direction is a round trip. Measured 2026-08-27 on Windows with the
-        // desktop in dark mode, driving actions/win/P15-colour-scheme.csv, which
+        // desktop in dark mode, driving actions/win/P15-colour-scheme.actions, which
         // presses Light and then Dark: the Light press differs from ambient, so
         // it writes `false` and GTK goes light; the Dark press equals ambient, so
         // the guard returns and nothing writes `true` back. GTK stays light while
@@ -2005,7 +2005,7 @@ public final class GtkBackend:
         // 與「GTK 目前實際顯示的狀態」比較，而非與環境配色比較。
         //
         // 與環境配色比較只在單一方向上是錯的，而那個方向就是「來回切換」。2026-08-27 於 Windows、
-        // 桌面為深色模式下實測，驅動 actions/win/P15-colour-scheme.csv（該檔先按 Light 再按 Dark）：
+        // 桌面為深色模式下實測，驅動 actions/win/P15-colour-scheme.actions（該檔先按 Light 再按 Dark）：
         // Light 那次與 ambient 不同，於是寫入 `false`，GTK 轉為淺色；Dark 那次與 ambient 相同，
         // guard 直接 return，沒有任何地方把 `true` 寫回去。GTK 停留在淺色，而 environment 說是深色，
         // 於是 SwiftCrossUI 在其上繪製淺色文字——P15 最後回報 `Requested: dark  Resolved: dark`，
@@ -4400,7 +4400,7 @@ public final class GtkBackend:
         // The end of an edit comes from `end`, NOT from `released`.
         //
         // MEASURED 2026-09-10 by connecting all four of pressed/released/end/
-        // cancel at once and driving `actions/win/P61-drag-the-trough.csv`. One
+        // cancel at once and driving `actions/win/P61-drag-the-trough.actions`. One
         // press and one release on the trough produced exactly:
         //
         //     pressed  1        released  0
@@ -4420,7 +4420,7 @@ public final class GtkBackend:
         // 一次編輯的**結束**來自 `end`,**不是** `released`。
         //
         // **2026-09-10 實測**,做法是把 pressed／released／end／cancel 四者同時接上,再驅動
-        // `actions/win/P61-drag-the-trough.csv`。在軌道上一次按下、一次放開,得到的恰好是:
+        // `actions/win/P61-drag-the-trough.actions`。在軌道上一次按下、一次放開,得到的恰好是:
         //
         //     pressed  1        released  0
         //     end      1        cancel    0

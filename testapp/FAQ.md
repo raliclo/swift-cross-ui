@@ -141,7 +141,7 @@ A replay spends nearly all its wall time asleep — waiting for an `xdotool`
 subprocess, waiting out a `sleep` row. On the main thread that sleep is the UI's
 sleep too, so posted events queue up unprocessed.
 
-Measured: `P19-open-and-select.csv` opens a menu, waits 800 ms, then presses an
+Measured: `P19-open-and-select.actions` opens a menu, waits 800 ms, then presses an
 item. Run from the main thread it completed without error and logged
 `action file replayed`, and the screenshot still read `last action -> nothing
 yet` — the application never got to process the first click and map the popover,
@@ -156,7 +156,7 @@ This is why `Synthesiser` is deliberately **not** `@MainActor`.
 重放的絕大部分實際時間都在睡眠——等待 `xdotool` 子行程、等待某個 `sleep` 列。在主執行緒上，那份
 睡眠同時也是 UI 的睡眠，於是已投遞的事件只能排隊而無法被處理。
 
-實測：`P19-open-and-select.csv` 會開啟選單、等待 800 ms、再按下項目。由主執行緒執行時，它毫無
+實測：`P19-open-and-select.actions` 會開啟選單、等待 800 ms、再按下項目。由主執行緒執行時，它毫無
 錯誤地完成並記錄了 `action file replayed`，而截圖仍顯示 `last action -> nothing yet`——應用程式
 根本來不及處理第一次點擊並將 popover map 出來，因此第二次點擊落在「popover 本應出現之處」後方的
 空白視窗上。僅把重放移到背景 queue，其餘一律不動，結果即為 `last action -> button item`。
@@ -277,7 +277,7 @@ zsh testapp/test.zsh P14 --ios --showtime 10
 To replay an iOS action file through XCUITest:
 
 ```sh
-zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.actions
 ```
 
 For a live view of the same Simulator log, use the fixed executable name:
@@ -292,7 +292,7 @@ XCUITest action replay uses the standard Xcode UI-test runner generated from
 Windows input synthesiser. Run it with an explicit CSV path:
 
 ```sh
-zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.actions
 ```
 
 The supported rows are `click`, `doubleclick`, `move`, `sleep`, and a
@@ -304,7 +304,7 @@ XCUITest action replay 使用由
 不使用 Linux 或 Windows 的 input synthesiser。請指定 CSV 路徑執行：
 
 ```sh
-zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.actions
 ```
 
 目前支援的列為 `click`、`doubleclick`、`move`、`sleep`，以及
@@ -331,7 +331,7 @@ zsh testapp/test.zsh P14 --ios --showtime 10
 透過 XCUITest 重放 iOS action file：
 
 ```sh
-zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.actions
 ```
 
 若要即時查看同一份 Simulator log，請使用固定的執行檔名稱：

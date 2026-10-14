@@ -30,12 +30,12 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 2. #117 Android: implemented, with device memory measurements recorded in queue.md.
    Android：已實作並有裝置記憶體量測，不再列為待轉換。
 3. #121 shortcuts: **DONE on both Windows backends, 2026-09-16.**
-   `actions/win/P20-ctrl-k-shortcut.csv` replayed 5 actions on each, and
+   `actions/win/P20-ctrl-k-shortcut.actions` replayed 5 actions on each, and
    `SHORTCUT FIRED` appears in `p20-debug-events.log` exactly **once** per run --
    not zero, which would mean the accelerator never reached the item, and not
    twice, which is the `began=5` shape this tree has hit before. Regenerate:
    `zsh testapp/compile.zsh P20 [-gtk4]`, run with `--debug -actionfile
-   ../actions/win/P20-ctrl-k-shortcut.csv`, then
+   ../actions/win/P20-ctrl-k-shortcut.actions`, then
    `grep -c 'SHORTCUT FIRED' p20-debug-events.log`. Other backend coverage is separate.
    快捷鍵:**2026-09-16 於兩個 Windows backend 完成。** 各重放 5 個動作,
    `SHORTCUT FIRED` 每次執行**恰好出現一次**——不是 0(加速鍵沒抵達該項目),也不是 2
@@ -48,8 +48,8 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    The 2026-09-17 AT-SPI probe exposes an extra `X` child; Windows UIA and
    Narrator limitations are in `verification-followup-20260917.md`.
 
-   #122: FocusableViews now has all five backends. P70-focus.csv and
-   P70-focus-gtk4.csv drive all four protocol methods plus one refusal, 13
+   #122: FocusableViews now has all five backends. P70-focus.actions and
+   P70-focus-gtk4.actions drive all four protocol methods plus one refusal, 13
    actions each. GtkEventControllerFocus is hand-written (zero hits in
    Sources/Gtk/Generated, none needed -- CGtk/header.h is the whole gtk.h).
 
@@ -86,7 +86,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    the hit test are hand-built on each. Verified in both directions:
    `--select-probe` writes the binding with no mouse (captures show the band on
    index 2 under WinUI and index 5 under GTK, and gone when cleared), and
-   `actions/win/P23-select-rows.csv` / `-gtk4.csv` click real rows -- sixth row
+   `actions/win/P23-select-rows.actions` / `-gtk4.actions` click real rows -- sixth row
    gives `SELECTION now 5`, the HEADER gives nothing, the first row gives 0.
    選取兩個方向都已驅動驗收:探針寫 binding(不需滑鼠)、動作檔以真實點擊驅動,
    兩個 backend 三次點擊的答案一致,含「點標題列不得選取」的拒絕對照。排序未做。
@@ -95,7 +95,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    Table：待 selection／sortOrder 回報與驗證。
    **Superseded 2026-09-16: sorting is DONE too.** `BackendFeatures.TableColumnSorting`
    is conformed at `GtkBackend+TableSelection.swift:55` and `WinUIBackend+Tables.swift:87`,
-   driven by `actions/win/P23-sort-columns.csv`, `-sort-indicator.csv` and their `-gtk4`
+   driven by `actions/win/P23-sort-columns.actions`, `-sort-indicator.actions` and their `-gtk4`
    twins. The "sorting still needs its own protocol" line above is kept as written.
    **2026-09-16 起已過期:排序也已完成。** 兩個 Windows backend 皆 conform
    `TableColumnSorting`,並以 P23 的排序動作檔(含 `-gtk4` 版)驅動。上面那句保留原樣。
@@ -104,7 +104,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    **Superseded 2026-09-16: DONE on both Windows backends, verified in pairs.**
    `BackendFeatures.PopoverArrowEdges`; WinUI via `Flyout.placement`, GTK via
    `GtkPopover.position`, where the beak GTK draws states the direction in the capture.
-   Action files `actions/win/P50-arrow-edge.csv`, `-gtk4.csv`, `-bottom-gtk4.csv`.
+   Action files `actions/win/P50-arrow-edge.actions`, `-gtk4.actions`, `-bottom-gtk4.actions`.
    Remaining: AppKit, UIKit, Android (Mac side).
    **2026-09-16 起已過期:兩個 Windows backend 皆完成並成對驗收。** 剩下 AppKit / UIKit /
    Android,屬 Mac 那邊。
@@ -224,7 +224,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
   | 400 | 143 MB | 139 MB |
   | 10,000 | **328 MB** | **146 MB** |
 
-  Pointer pass, `actions/win/P57-lazy-list-winui.csv`, 20 actions replayed --
+  Pointer pass, `actions/win/P57-lazy-list-winui.actions`, 20 actions replayed --
   the same sequence GTK passed, at WinUI's own coordinates:
 
       selection=1 -> selection=9   same y after six wheel notches, so it scrolled
@@ -251,7 +251,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
   原因——它是自己建 `ListViewItem` 的,那些沒有 template。
 
   conformance 已接回。在**列確實算繪**的前提下重新量測(數字見上表),並以
-  `actions/win/P57-lazy-list-winui.csv` 重放 20 個動作,走完與 GTK 相同的序列:
+  `actions/win/P57-lazy-list-winui.actions` 重放 20 個動作,走完與 GTK 相同的序列:
   `selection=1 → selection=9`(同一個 y、滾輪六格之後,代表確實捲動了)、`revision=1`、
   `selection=none`、`rows=1 → rows=10000`、`selection=9999`(選到已實體化窗口之外)、`selection=none`。
   擷圖 `screen-20260916-081927.png`:非黑 96.0%,列文字為「row N revision 1」。
@@ -263,7 +263,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 - 2026-09-16 (Windows): **the visual and pointer pass GTK owed is DONE, and it
   found that WinUI's half has never rendered.**
 
-  GTK4, driven by `actions/win/P57-lazy-list-gtk4.csv` (25 actions replayed, real
+  GTK4, driven by `actions/win/P57-lazy-list-gtk4.actions` (25 actions replayed, real
   synthesised pointer input, not an API probe). The app's own log:
 
       selection=1                 click selected row 1
@@ -313,7 +313,7 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 
 - 2026-09-16(Windows):**GTK 所欠的外觀與指標驗證已完成,並且發現 WinUI 那一半從未算繪過。**
 
-  GTK4 由 `actions/win/P57-lazy-list-gtk4.csv` 驅動(重放 25 個動作,真實合成指標輸入,不是 API 探針)。
+  GTK4 由 `actions/win/P57-lazy-list-gtk4.actions` 驅動(重放 25 個動作,真實合成指標輸入,不是 API 探針)。
   app 自己的 log 依序記下:選取第 1 列 → 滾輪 6 格後在**同一個 y** 點擊得到 `selection=10`(代表清單
   確實捲動了)→ `revision=1` → `selection=none` → `rows=1` → `rows=10000` → `selection=9999`
   (遠在已實體化窗口之外)→ 清除並重新選取。擷圖 `screen-20260916-074154.png`:非黑 92.2%、

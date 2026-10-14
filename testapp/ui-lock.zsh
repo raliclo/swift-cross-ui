@@ -421,7 +421,7 @@ case "$command" in
         # produced: there was no send to fail. The gate was silent in exactly the
         # case where the denial is detected soonest.
         #
-        # Measured: driving P20-ctrl-k-shortcut.csv on Win-WinUI produced
+        # Measured: driving P20-ctrl-k-shortcut.actions on Win-WinUI produced
         #
         #   AttachThreadInput to the foreground thread failed (5)
         #   failed: could not bring our window to the front
@@ -442,7 +442,7 @@ case "$command" in
         # 那一行永遠不會出現:根本沒有任何一次送出可以失敗。這道閘門,恰恰在「拒絕最早被偵測到」
         # 的情況下保持沉默。
         #
-        # 實測:在 Win-WinUI 上驅動 P20-ctrl-k-shortcut.csv 產生了上述兩行,而 `check` 回答
+        # 實測:在 Win-WinUI 上驅動 P20-ctrl-k-shortcut.actions 產生了上述兩行,而 `check` 回答
         # 「says nothing about a replay」。那不是一個中立的答案——它會讓**先前的**判決繼續成立,
         # 於是一句過期的「桌面沒問題」得以在一次被斷然拒絕的執行之後存活下來。
         #

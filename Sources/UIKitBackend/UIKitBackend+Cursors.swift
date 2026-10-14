@@ -3,7 +3,7 @@ import UIKit
 
 /// **Driven on 2026-10-13, on the iPad Pro 11-inch (M5) simulator, iOS 27.0.**
 ///
-/// `testapp/actions/ios/P72-cursor-ipad.csv` rests a synthesized pointer over P72's mesh view
+/// `testapp/actions/ios/P72-cursor-ipad.actions` rests a synthesized pointer over P72's mesh view
 /// and then over the text below it; the runner captures the screen during each rest. Over the
 /// mesh view the system asked for a style once ("-cursor: pointer style requested for
 /// crosshair") and the capture shows the drawn cross at the point; over the text it did not ask
@@ -19,7 +19,7 @@ import UIKit
 ///
 /// **2026-10-13 已在 iPad Pro 11 吋 (M5) 模擬器、iOS 27.0 上驅動。**
 ///
-/// `testapp/actions/ios/P72-cursor-ipad.csv` 讓合成的指標先停在 P72 的 mesh view 上、再停在其下方的文字上;
+/// `testapp/actions/ios/P72-cursor-ipad.actions` 讓合成的指標先停在 P72 的 mesh view 上、再停在其下方的文字上;
 /// runner 在每次停留時擷取畫面。在 mesh view 上系統要求了一次樣式，擷圖在該點是畫出來的十字;在文字上沒有再要求，
 /// 擷圖是系統指標。iPadOS 把指標畫進 frame buffer,所以普通的擷圖就含有它。
 ///
@@ -104,9 +104,9 @@ extension CursorWidget: UIPointerInteractionDelegate {
         // Under --debug, say which cursor the system asked for. iPadOS draws
         // the pointer itself and nothing outside the app can read its style,
         // so this request is the only evidence a hover reached the right
-        // view (P72-cursor-ipad.csv reads it).
+        // view (P72-cursor-ipad.actions reads it).
         // --debug 時，說出系統要求的是哪一個游標。iPadOS 自己畫指標，app 外沒有任何東西讀得到它的樣式，
-        // 所以這個要求是「hover 抵達正確 view」的唯一證據(P72-cursor-ipad.csv 讀它)。
+        // 所以這個要求是「hover 抵達正確 view」的唯一證據(P72-cursor-ipad.actions 讀它)。
         if Self.logsPointerRequests {
             print("-cursor: pointer style requested for \(cursor)")
             fflush(stdout)

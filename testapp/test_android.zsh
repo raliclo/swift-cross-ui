@@ -4,7 +4,7 @@
 #
 #   zsh testapp/test_android.zsh P12
 #   zsh testapp/test_android.zsh P12 --no-build
-#   zsh testapp/test_android.zsh P12 --actionfile actions/android/P12-android-smoke.csv
+#   zsh testapp/test_android.zsh P12 --actionfile actions/android/P12-android-smoke.actions
 #
 # Usually reached as `zsh testapp/test.zsh P12 --android`, which is the same
 # command and the same flags as every other platform.
@@ -43,11 +43,11 @@ optimisation setting nothing was reading. `SCUI_DEBUG` is a separate thing and
 still works: it is a compilation condition, not a build configuration, so
 action-file replay and `--debug` diagnostics are available in both. Verified in
 release on P43: the gradients measure what they did in debug and the replay
-still reports `replayed P43-actions.csv`.
+still reports `replayed P43.actions`.
 --no-build: reuse testapp/.androidApk/<Pn>.apk and skip compile/bundle.
             Aliases: -noApk, --no-apk.
 --actionfile: replay an Android action file after launch; without a path, use
-         testapp/actions/android/<Pn>-*.csv when exactly one file exists.
+         testapp/actions/android/<Pn>-*.actions when exactly one file exists.
          Aliases: -replay, --replay.
 --no-showtime: return as soon as the app is up.
 --device: use an existing adb serial; otherwise boot the selected AVD.
@@ -90,7 +90,7 @@ while [ "$#" -gt 0 ]; do
                 action_file="$2"
                 shift 2
             else
-                candidates=("$script_dir/actions/android/$app"-*.csv(N))
+                candidates=("$script_dir/actions/android/$app"-*.actions(N))
                 [ "${#candidates}" -eq 1 ] || die "Provide one Android action file for $app"
                 action_file="${candidates[1]}"
                 shift
@@ -475,7 +475,7 @@ ANDROID_SERIAL="$serial" "$adb" shell settings put secure stylus_handwriting_ena
 app_args=()
 if [ -n "$action_file" ]; then
     [ -f "$action_file" ] || die "No such action file: $action_file"
-    device_action_file="/data/local/tmp/$app-actions.csv"
+    device_action_file="/data/local/tmp/$app.actions"
     print "==> Pushing $action_file -> $device_action_file"
     ANDROID_SERIAL="$serial" "$adb" push "$action_file" "$device_action_file" >/dev/null \
         || die "Could not push the action file to the device"
@@ -540,7 +540,7 @@ if [ "${#app_args}" -gt 0 ]; then
     # Quoted for the shell ON THE DEVICE, which is a second round of word
     # splitting `adb shell` does not protect against: it joins its arguments
     # into one command line and the device's shell re-parses it. Without the
-    # inner quotes, `--es scui_args "--debug -actionfile /data/local/tmp/x.csv"`
+    # inner quotes, `--es scui_args "--debug -actionfile /data/local/tmp/x.actions"`
     # arrives as three words, and `am` reads `-actionfile` as `-a ctionfile` --
     # it sets the intent's ACTION to "ctionfile" and takes the path as the
     # component:
@@ -553,7 +553,7 @@ if [ "${#app_args}" -gt 0 ]; then
     #
     # 這裡的引號是給**裝置上的** shell 的——那是 `adb shell` 並不會替你擋掉的第二輪斷詞：它把自己的
     # 引數併成一行命令，再由裝置端的 shell 重新解析。少了內層引號，
-    # `--es scui_args "--debug -actionfile /data/local/tmp/x.csv"` 抵達時會是三個詞，而 `am` 會把
+    # `--es scui_args "--debug -actionfile /data/local/tmp/x.actions"` 抵達時會是三個詞，而 `am` 會把
     # `-actionfile` 讀成 `-a ctionfile`——它把 intent 的 ACTION 設為「ctionfile」，並把該路徑當成
     # component（輸出見上方英文）。此事於 emulator 上實測：app 根本沒有啟動，而腳本停下時沒有任何
     # 一行說明原因。

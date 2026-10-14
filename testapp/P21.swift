@@ -96,7 +96,7 @@ struct P21RootView: View {
     /// So 0.3 is the point for the opposite reason: `step:` governs values the
     /// USER produces, and an application's own initial value is left alone. This
     /// starting value shows that, and the assertion is what happens AFTER a
-    /// click -- see `actions/win/P21-slider-step.csv`.
+    /// click -- see `actions/win/P21-slider-step.actions`.
     ///
     /// #126 的分段滑桿。初始值為 0.3,**不**落在 0.25 的步進上。
     ///
@@ -107,7 +107,7 @@ struct P21RootView: View {
     ///
     /// 因此 0.3 是重點,但理由恰好相反:`step:` 管的是**使用者所產生**的值,而應用程式自己的初始值
     /// 不予變動。這個起始值展示的正是這件事,而斷言在於**點擊之後**發生什麼——見
-    /// `actions/win/P21-slider-step.csv`。
+    /// `actions/win/P21-slider-step.actions`。
     @State var steppedValue = 0.3
     @State var text = "editable"
     @State var secret = "hunter2"

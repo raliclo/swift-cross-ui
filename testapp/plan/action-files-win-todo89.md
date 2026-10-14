@@ -4,14 +4,14 @@
 would defeat its purpose.** Every number in an action file has to be read off a
 capture of the real window. A plausible coordinate that was never measured
 replays without error, clicks empty space, and reports success — the one failure
-shape this project has already paid for twice (`P24-push-one-level.csv`, and the
+shape this project has already paid for twice (`P24-push-one-level.actions`, and the
 `748x518` / `648x458` capture sizes corrected on 2026-09-06). What follows is
 everything that can be settled from the source; the coordinates come from the
 captures.
 
 **僅為設計，本文件不含任何座標，寫入座標會使其失去意義。** 動作檔中的每一個數字都必須從真實視窗
 的擷圖上讀出。一個從未量測過、卻看似合理的座標，重放時不會報錯、會點在空白處，並回報成功——而這
-正是本專案已經付過兩次代價的失敗形狀（`P24-push-one-level.csv`，以及 2026-09-06 更正的
+正是本專案已經付過兩次代價的失敗形狀（`P24-push-one-level.actions`，以及 2026-09-06 更正的
 `748x518` / `648x458` 擷圖尺寸）。以下是所有能從原始碼確立的事；座標則來自擷圖。
 
 ---
@@ -92,14 +92,14 @@ way."*
 it for these exact apps. Every one of the ten except P15-DARK and P17-DOE has a
 mac file; ios has all ten. Their form is not an empty `sleep` — it is a sequence
 of `sleep` rows whose `note` column each carries **one measured, falsifiable
-claim** about the capture, marked `(VERIFIED)`. `mac/P43-gradient-clipped-to-the-shape.csv`
+claim** about the capture, marked `(VERIFIED)`. `mac/P43-gradient-clipped-to-the-shape.actions`
 asserts that a probe at the corner of the circle's frame reads the window
 background while the same relative corner of the *rectangle* reads a filled
 colour — which is what turns "the fill was clipped" from an impression into a
 measurement, and the second probe is the control that stops the first from being
 a miss.
 
-**`actions/wsl/P13-zstack.csv` is the precedent on this backend**, and it is the
+**`actions/wsl/P13-zstack.actions` is the precedent on this backend**, and it is the
 weak form: a single `sleep` whose note says only *"let the window settle before
 the screenshot"*. Its header gives the honest reason — the file exists *"so the
 run is driven the same way as every other, and so the screenshot is taken at a
@@ -135,11 +135,11 @@ P38、P39、P40、P42、P43——即**這十支中的六支**——並主張：�
 **`actions/mac/`、`actions/ios/` 與 `actions/android/` 說是**，而且正是針對這些 app 這麼說。除
 P15-DARK 與 P17-DOE 外，這十支每一支都有 mac 檔；ios 則十支俱全。它們的形式並非一個空的 `sleep`
 ——而是一串 `sleep` 列，每一列的 `note` 欄承載**一項已量測、可證偽的主張**，並標記 `(VERIFIED)`。
-`mac/P43-gradient-clipped-to-the-shape.csv` 主張：在圓形 frame 角落的取樣點讀到視窗背景，而**矩形**
+`mac/P43-gradient-clipped-to-the-shape.actions` 主張：在圓形 frame 角落的取樣點讀到視窗背景，而**矩形**
 的相同相對角落卻讀到填充色——正是這一點把「填充被裁切了」從印象變成量測，而第二個取樣點就是那個
 「使第一個不至於只是落空」的對照。
 
-**`actions/wsl/P13-zstack.csv` 是本 backend 上的先例**，且屬於弱形式：單一個 `sleep`，其 note 只寫
+**`actions/wsl/P13-zstack.actions` 是本 backend 上的先例**，且屬於弱形式：單一個 `sleep`，其 note 只寫
 *「讓視窗在截圖前安定下來」*。其標頭給出了誠實的理由——該檔存在的目的，是*「讓這次執行與其他所有
 執行以相同方式驅動，並使截圖發生在一個明確的時點，而非腳本恰好輪到的時候。」* 那是真實但微小的
 好處，也正是 `win/README.md` 有理由指出「`screenshot.zsh` 本來就能提供」的那一項。
@@ -336,7 +336,7 @@ rather than visual.
 | 192 | `Button("Reset counters")` | **Yes.** Zeroes both write counters and rewrites `status` |
 | 198 | `Button("Separate them")` | **Yes.** Sets 20 / 80 — neither clamp active |
 | 204 | `Button("Collide them")` | **Yes.** Sets 50 / 50 — any further drag hits the clamp |
-| 218 | `ScrollView` of 40 rows, `.frame(340x130)` | **Yes — needs `scroll`**, which is proven on Windows by `P41-wheel-scroll.csv` |
+| 218 | `ScrollView` of 40 rows, `.frame(340x130)` | **Yes — needs `scroll`**, which is proven on Windows by `P41-wheel-scroll.actions` |
 | 276-281 | `DatePicker`, `.compact` if the backend offers it | **Yes**, but see the caveat below — the style branch is not what the source comment says |
 | 286 | `Button("Reference")` | **Yes.** Rewrites `status`; exists as a height reference for #473 |
 
@@ -350,7 +350,7 @@ travel.
 ### 3. The sequence worth replaying / 值得重放的序列
 
 The order is chosen so each step starts from a state a previous step
-established. `mac/P11-sliders-scrollbar-and-picker.csv` uses this same shape and
+established. `mac/P11-sliders-scrollbar-and-picker.actions` uses this same shape and
 is worth reading first — for the shape, not the coordinates.
 
 1. **Click `Reset counters`.** *Puts both write counters at 0 so step 3's numbers
@@ -428,7 +428,7 @@ and nothing on it responds.
   is **true**, the `if` branch at line 277 is taken, and a genuinely `.compact`
   picker is on screen. That is good news for #473 — the style the issue names is
   actually being exercised — but anyone reading the comment would expect the
-  fallback. Corroborated by `P41-wheel-scroll.csv`, which drives a `.wheel` cell
+  fallback. Corroborated by `P41-wheel-scroll.actions`, which drives a `.wheel` cell
   on Windows and could not exist if that list were the two-element one.
 - **Two drags in one file is the most input-heavy design of the ten.** If the
   run has to be cut short, steps 1-3 alone answer #82 and are worth more than
@@ -442,7 +442,7 @@ and nothing on it responds.
   支援 `[.automatic, .graphical]`；而 `GtkBackend.swift:193-196` 現在對所有非 macOS 平台宣告
   `[.automatic, .graphical, .compact, .wheel]`。因此在 Windows/GtkBackend 上第 277 行的 `if` 分支
   會被採用，畫面上是一個真正 `.compact` 的選取器。對 #473 而言這是好消息，但照著註解讀的人會預期
-  回退分支。`P41-wheel-scroll.csv` 在 Windows 上驅動 `.wheel` 格，可作佐證。
+  回退分支。`P41-wheel-scroll.actions` 在 Windows 上驅動 `.wheel` 格，可作佐證。
 
 ---
 
@@ -487,7 +487,7 @@ describes for backends without one.
 
 ### 3. The sequence worth replaying / 值得重放的序列
 
-Exactly what `mac/P27-scroll-the-webview.csv` does, and for the same reason:
+Exactly what `mac/P27-scroll-the-webview.actions` does, and for the same reason:
 
 1. **`move` the pointer into the `WebView`'s frame**, then settle.
 2. **`scroll` down a few notches.** *Proves the page moves **inside** the view
@@ -599,7 +599,7 @@ If a file is written anyway, the only defensible content is the mac form — one
 4. *`Plain text on the default background` is legible against that background*,
    as a foreground/background contrast pair rather than as an impression.
 
-`mac/P15-DARK-button-under-an-overridden-scheme.csv` does click the button, with
+`mac/P15-DARK-button-under-an-overridden-scheme.actions` does click the button, with
 the note *"it must respond inside an overridden window"* — that is a real
 question on AppKit, where an appearance override is per-window and could plausibly
 break hit-testing. **On GtkBackend the override is per-display** (see below), so
@@ -698,7 +698,7 @@ a circular test that reports success is worse than no test.
 不了。那是循環論證，而一個回報成功的循環測試比沒有測試更糟。
 
 This reason is **stronger and different from the one recorded elsewhere**.
-`mac/P37-floating-level-and-what-a-replay-cannot-do.csv` gives the reason as
+`mac/P37-floating-level-and-what-a-replay-cannot-do.actions` gives the reason as
 *"there is no button here, which is why this file drives nothing"*, and
 `actions/win/README.md` groups P37 under "zero interactive controls". Both are
 true and neither is the binding constraint on Windows. **Contamination is.**
@@ -784,7 +784,7 @@ written against.
 ### 4-5. What a run can establish, and the honest form
 
 Only the resting state, and only as measured claims — which is precisely what
-`mac/P25-drop-zones-at-rest.csv` does, and its filename says so. Its five rows
+`mac/P25-drop-zones-at-rest.actions` does, and its filename says so. Its five rows
 assert the backend line, both zones' titles and geometry, that both read
 `state idle / received (nothing yet) / type - / count 0`, and that both are the
 resting half of the app's own hover colour with blue below green. **That last
@@ -794,7 +794,7 @@ capture can tell "not hovering" from "hover is broken". On Windows the
 `text/uri-list`), and it can only be answered by a real drag performed by a
 person, with `--debug` on so `p25-debug-events.log` catches the verbatim payload.
 
-僅能確立靜止狀態，且只能以「已量測的主張」形式呈現——`mac/P25-drop-zones-at-rest.csv` 正是如此，
+僅能確立靜止狀態，且只能以「已量測的主張」形式呈現——`mac/P25-drop-zones-at-rest.actions` 正是如此，
 其檔名亦已言明。Windows 上 `received` 的值是跨平台的關鍵問題（`CF_HDROP` 路徑 vs `text/uri-list`），
 而它只能由真人執行一次真正的拖曳來回答，並開啟 `--debug` 以便 `p25-debug-events.log` 捕捉原樣酬載。
 
@@ -864,7 +864,7 @@ captures. Each is chosen because it is falsifiable and has a built-in control:
   so overflow is vertical only and the columns cannot bleed into each other.
   **The control spilling is the load-bearing half**: if all three confine, #389
   does not reproduce and the DOE says nothing — which is exactly what
-  `mac/P17-DOE-the-control-clips-too.csv` recorded on AppKit.
+  `mac/P17-DOE-the-control-clips-too.actions` recorded on AppKit.
 - **P39** — one row per cell, each naming the cell's probe colour against cell
   1's. The three saturation cells are the strongest set because they must form a
   **monotonic ladder** (0 < 0.5 < control < 2.5); a single cell "looking
@@ -922,8 +922,8 @@ captures. Each is chosen because it is falsifiable and has a built-in control:
 
 # Format notes for whoever writes the files / 撰寫檔案者須知
 
-Learned from `P7-list-selection.csv`, `P10-hit-testing.csv`, `P10-ctrl-q.csv`
-and `P21-buttons-and-disabled.csv`. Not a substitute for reading them.
+Learned from `P7-list-selection.actions`, `P10-hit-testing.actions`, `P10-ctrl-q.actions`
+and `P21-buttons-and-disabled.actions`. Not a substitute for reading them.
 
 - **Columns**: `action,x,y,origin,button,key,micros,note,platform`. Verbs the
   parser accepts, from `Sources/InputEvent/ActionFile.swift:166-188`: `move`,
@@ -948,11 +948,11 @@ and `P21-buttons-and-disabled.csv`. Not a substitute for reading them.
 
 - **Bilingual header comment block**, English then Traditional Chinese, saying
   what the file asks and what would count as a failure. Where a measurement
-  contradicts the expectation, record both — `P10-hit-testing.csv`'s
+  contradicts the expectation, record both — `P10-hit-testing.actions`'s
   `Expected: ... Hidden clicks: 0 / Measured: ... Hidden clicks: 1` is the model.
 - **`# expect: process-exits`** marks a file whose pass condition is the process
   being *gone* afterwards. It is read by `sweep_drive.zsh:477`, and
-  `P10-ctrl-q.csv` is currently the only file carrying it. **None of these ten
+  `P10-ctrl-q.actions` is currently the only file carrying it. **None of these ten
   needs it** — no app among them quits from its own controls.
 - **Kill leftover GTK processes before any launch test.** A leftover makes the
   next Windows launch exit 0 with no window, via GTK's single-instance handoff —
@@ -993,11 +993,11 @@ next reader, and four of them would change how a result is judged.
    `if supportedDatePickerStyles.contains(.compact)` at `:276` is **true** on
    Windows and a genuinely `.compact` picker renders. **Changes the verdict** for
    #473: the style the issue names is on screen, not the fallback. Corroborated
-   by `P41-wheel-scroll.csv` driving a `.wheel` cell on Windows.
+   by `P41-wheel-scroll.actions` driving a `.wheel` cell on Windows.
 
 3. **Keyboard rows: three docs, three different claims, none matching the
    code.**
-   - `P10-hit-testing.csv` header: *"`prepareForReplay` refuses any file
+   - `P10-hit-testing.actions` header: *"`prepareForReplay` refuses any file
      containing `key`, `keydown` or `keyup`"*. **False** — there is no such
      refusal anywhere in `Sources/InputEvent/`.
    - `P0-P26-windows-findings.md:178-202`: *"Keyboard files cannot run"*, and
@@ -1012,7 +1012,7 @@ next reader, and four of them would change how a result is judged.
    fatal only for a file that presses keys. A mouse-only file is safe on the
    topmost pin alone."* So key files are **attempted, not refused**, and whether
    they work depends on whether the process can take the foreground.
-   `P10-ctrl-q.csv` exists in `actions/win/`, whose README says a file appears
+   `P10-ctrl-q.actions` exists in `actions/win/`, whose README says a file appears
    there *only* after being run and seen to work. **Does not affect these ten**
    — none of the designs above needs a key — but it will affect the next person
    who reads the P10 header.
@@ -1028,7 +1028,7 @@ next reader, and four of them would change how a result is judged.
    ten.
 
 5. **P37's stated reason for being undrivable is not the binding one on
-   Windows.** `mac/P37-...csv` and `actions/win/README.md` both give "no
+   Windows.** `mac/P37-...actions` and `actions/win/README.md` both give "no
    interactive controls". The binding constraint is that
    `prepareForReplay` pins `HWND_TOPMOST` unconditionally
    (`Win32Synthesiser.swift:163-180`), so a replay supplies the property under

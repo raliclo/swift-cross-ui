@@ -111,7 +111,7 @@ if [ "$host_kind" = mac ]; then
     wsl() { zsh -lc "$1"; }
     cache_dir="$HOME/Library/Caches/P26/appCache"
     app_dir="$script_dir/output"
-    actions="$script_dir/actions/mac/P26-swiftcrossui-tab.csv"
+    actions="$script_dir/actions/mac/P26-swiftcrossui-tab.actions"
     repo_root="${script_dir:h}"
     render_env=""
     build_step="cd $repo_root && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 | grep -E 'error:|complete!'"
@@ -122,7 +122,7 @@ else
     }
     cache_dir='$HOME/.cache/P26/appCache'
     app_dir='$HOME/proj/swift-cross-ui/testapp/output'
-    actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
+    actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.actions'
     render_env="${TEST_RENDER_ENV:-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer}"
     build_step="cd \$HOME/proj/swift-cross-ui && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 | grep -E 'error:|complete!'"
     gui_target=wsl

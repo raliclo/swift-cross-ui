@@ -1494,9 +1494,9 @@ Escape 行為與 Ctrl+Q 仍需要人工鍵盤互動確認。
 
 #### 2026-09-03 於 Windows / GtkBackend 實測——步驟 1、2 通過，步驟 4 無法執行
 
-以 `testapp/actions/win/P31-tab-and-escape.csv` 驅動；這是本樹中第一個真的對對話框按下按鍵的動作檔。
+以 `testapp/actions/win/P31-tab-and-escape.actions` 驅動；這是本樹中第一個真的對對話框按下按鍵的動作檔。
 
-重新產生：`zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`，
+重新產生：`zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.actions`，
 再讀取**你執行該指令所在目錄下**的 `p31-debug-events.log`——見下方說明，它不在 `testapp/output/`。
 
 - **步驟 1 與 2 通過。** `key tab` 把焦點移出 `TextField`，緊接的 `key space` 觸發了按鈕：
@@ -1622,7 +1622,7 @@ app 會顯示 missing-view 清單，並以手寫方式近似 Stepper、Disclosur
 `ScrollViewProxy`。~~ **那七個裡現在有六個是存在的。2026-09-09 重新查證，仍然缺席的只有
 `LazyHGrid`(任務 #118)。** `LazyVStack`、`LazyHStack`、`LazyVGrid` 與 `Grid` 皆已於 2026-09-08
 之前落地，`ScrollViewReader`／`ScrollViewProxy` 則在 2026-09-09——並已由
-`actions/win/P34-scroll-to-row-50.csv` 在 Win-gtk4 上驅動並驗證：其 log 為
+`actions/win/P34-scroll-to-row-50.actions` 在 Win-gtk4 上驅動並驗證：其 log 為
 `scrollTo row 50 requested, anchor top`，其擷圖顯示最上方可見列由 `Row 0` 變為 `Row 50`。因此被
 劃掉那段的最後一句——「同樣也沒有以程式捲動至特定列的方法」——現在是錯的，而那正是整段的結論。
 
@@ -2647,7 +2647,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 | P24 | 748x589，91.5% 非黑 | 736x599，91.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
 | P25 | 748x549，91.2% 非黑 | 736x559，91.3% 非黑 | 自動流程只驗證啟動與截圖；live drag/drop 仍需要手動互動。 |
 | P27 | 788x726，92.6% 非黑 | 776x702，92.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
-| P29 | 796x657，82.8% 非黑 | 736x599，91.7% 非黑 | 已新增並驗證 WSLg `P29-texteditor-disabled.csv`：final capture 顯示 replay 後 editor 已切成 enabled。Windows smoke final 可見，但本輪 WinUI actionfile replay 沒有產生 `-actionfile` report，仍待查。 |
+| P29 | 796x657，82.8% 非黑 | 736x599，91.7% 非黑 | 已新增並驗證 WSLg `P29-texteditor-disabled.actions`：final capture 顯示 replay 後 editor 已切成 enabled。Windows smoke final 可見，但本輪 WinUI actionfile replay 沒有產生 `-actionfile` report，仍待查。 |
 | P37 | 788x569，91.5% 非黑 | 776x579，91.6% 非黑 | WSLg 回報 supported levels 為 `automatic, normal`；Windows 回報 `automatic, normal, floating`。Window-level 行為仍需要第二視窗 foreground/topmost 挑戰；本次只驗證 baseline launch/capture 與 backend capability report。 |
 | P38 | 848x692，92.6% 非黑 | 836x699，92.8% 非黑 | 最新一輪 WSLg 1 秒與 final capture 都可見，並顯示預期的 GtkBackend placeholder。Windows final capture 可見，但 WebView 區域仍是灰色空框，且 `Navigations reported: 0`。 |
 | P39 | 888x649，92.5% 非黑 | 876x659，92.5% 非黑 | WSLg 可見 opacity、blur、saturation、brightness、contrast、grayscale 與 hue-rotation 效果。~~Windows 只有 opacity 明顯；blur 與多數色彩效果看起來與 control 相同，因此 WinUI visual effects 仍可疑。~~ **2026-09-02 起已被取代**（劃掉保留而非刪除，讓過時主張留在紀錄裡）：Windows 現已透過真正的 Win2D effect graph 套用全部七項。2026-09-02 驗證：`applied=8 failed=0 total=8`；重跑指令為 `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`。 |
@@ -2731,7 +2731,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 - 2026-09-01，為上一條定案：**窗格現在量得到了，而 #160 在 WinUIBackend 上並未重現。** 量測被完全移出 view tree。`SplitView.commit` 原本就有一個 `SCUI_DEBUG_SPLIT` 診斷，會印出各 minimum 與交給 backend 的上下界；現在它也印出每個窗格實際獲得的尺寸。view tree 中不新增任何東西，因此不會擾動被量測的對象——而那正是先前每一次嘗試失敗的原因。
 - Run A：`SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`，不帶動作檔，8 秒後結束。恰好一次 committed layout：
   `total=880.0 minLeading=126.0 minTrailing=20.0 -> bounds min=126 max=860 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`
-- Run B：同上再加 `-actionfile actions/win/P16-force-update.csv`，12 秒後結束。共五行。**第 1 至 3 行與 Run A 的那一行逐位元組相同**；Run A 已確立「首次算繪只有一行」，因此第 2、3 行分別是 `Force update` 點擊之後與 `Science` 選取之後的版面。第 4、5 行是三欄狀態，也就是兩層巢狀的 split view：內層 `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`，外層 `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`。
+- Run B：同上再加 `-actionfile actions/win/P16-force-update.actions`，12 秒後結束。共五行。**第 1 至 3 行與 Run A 的那一行逐位元組相同**；Run A 已確立「首次算繪只有一行」，因此第 2、3 行分別是 `Force update` 點擊之後與 `Science` 選取之後的版面。第 4、5 行是三欄狀態，也就是兩層巢狀的 split view：內層 `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`，外層 `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`。
 - **首次算繪時各窗格獲得的尺寸，與經過兩次狀態改變之後完全相同。** #160 的說法是「分割視圖在第一次算繪時排版嚴重錯誤，之後只要有任何狀態改變就會跳成正確的排版」；此處沒有那次跳正，因為沒有可跳的錯誤起點。
 - 這個否定結論之所以可信，在於第 4、5 行確實不同：同一次執行中，該診斷對一次真實的版面變化有反應，因此「第 1 至 3 行不變」是量到的不變，而非一份已經停止輸出的日誌。少了這個對照組，兩者在畫面上完全一樣。
 - 順帶也解決了高度的問題：窗格高 **486**，不是 22。那個 22 是探針自己的 `.frame(height: 22)`，卻被當成窗格高度回報了兩週。
@@ -2905,8 +2905,8 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 
 #### P31 於 Windows/GtkBackend：Tab 與 Space 可運作，Escape 無法被測試
 
-- 以新增的 `testapp/actions/win/P31-tab-and-escape.csv` 驅動。重新產生：
-  `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`，
+- 以新增的 `testapp/actions/win/P31-tab-and-escape.actions` 驅動。重新產生：
+  `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.actions`，
   再讀取**你執行該指令所在目錄下**的 `p31-debug-events.log`。
 - **焦點會移動，Space 會觸發。** 由 `TextField` 按 `key tab` 之後接 `key space`，產生了
   `button clicked count=1`。SwiftCrossUI 沒有任何 focus API——沒有 `@FocusState`、沒有

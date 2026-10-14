@@ -109,7 +109,7 @@ final class NSCursorTarget: NSView {
         // `cursorUpdate` is delivered as part of that processing -- so the area can be registered
         // at the right bounds, in a key window of an active app that is frontmost with nothing
         // over it, and still never be asked. Every one of those was measured before this line was
-        // written; `actions/mac/P72-cursor.csv` lists them.
+        // written; `actions/mac/P72-cursor.actions` lists them.
         //
         // Set here rather than on every window, because the cost belongs to the feature that
         // needs it: a window with no `.cursor(_:)` in it has no reason to be woken for every
@@ -120,7 +120,7 @@ final class NSCursorTarget: NSView {
         // 一個不接受 mouse-moved 事件的視窗,不會被告知指標移動過;而 `cursorUpdate` 正是在那個處理過程中
         // 被送出的——因此那塊區域可以用正確的 bounds 註冊在一個「使用中 app 的 key 視窗、而且位於最前方、
         // 上面什麼都沒有」的視窗裡,卻依然從來不被詢問。上述每一項都在寫下這一行之前量過;
-        // `actions/mac/P72-cursor.csv` 列出了它們。
+        // `actions/mac/P72-cursor.actions` 列出了它們。
         //
         // 設在此處而不是設在每一個視窗上,因為這個代價該由需要它的那項功能承擔:一個裡面沒有任何
         // `.cursor(_:)` 的視窗,沒有理由為指標經過的每一個像素被叫醒。
@@ -178,7 +178,7 @@ final class NSCursorTarget: NSView {
     /// restores the arrow itself. Handling only this means the region is exactly
     /// the tracking area and nothing has to be undone on the way out.
     ///
-    /// **VERIFIED on macOS on 2026-09-27**: `actions/mac/P72-cursor.csv` reports crosshair over
+    /// **VERIFIED on macOS on 2026-09-27**: `actions/mac/P72-cursor.actions` reports crosshair over
     /// the mesh view and arrow over the label above it, three runs out of three, and a
     /// `screencapture -C` taken during each row shows the same.
     ///
@@ -190,7 +190,7 @@ final class NSCursorTarget: NSView {
     /// `sendEvent`. The other cause was the action file's coordinates, "corrected" on 2026-09-23
     /// from a superview-relative frame. That file's header has both.
     ///
-    /// **macOS 上已於 2026-09-27 驗證**:`actions/mac/P72-cursor.csv` 在 mesh view 上回報十字、在它
+    /// **macOS 上已於 2026-09-27 驗證**:`actions/mac/P72-cursor.actions` 在 mesh view 上回報十字、在它
     /// 上方的標籤上回報箭頭,三次中三次;而每一列執行期間拍下的 `screencapture -C` 顯示的也一樣。
     ///
     /// 出錯的不是這個類別,而自 2026-09-22 起被排除的十個候選也都不是。2026-09-22 版的這段註解其實已經
@@ -209,7 +209,7 @@ final class NSCursorTarget: NSView {
     /// **The instrument this class did not have, and the absence of which cost four attempts at
     /// the wrong problem.**
     ///
-    /// `actions/mac/P72-cursor.csv` reads the cursor back after moving the pointer, and when the
+    /// `actions/mac/P72-cursor.actions` reads the cursor back after moving the pointer, and when the
     /// answer is wrong there are two entirely different reasons: the pointer never reached this
     /// view, or it reached it and the reading is stale. From outside they are one symptom. This
     /// line separates them -- a hover row with no `-cursor:` line beside it did not reach the
@@ -221,7 +221,7 @@ final class NSCursorTarget: NSView {
     ///
     /// **本類別原本沒有的那個儀器,而它的缺席讓四次嘗試都花在錯的問題上。**
     ///
-    /// `actions/mac/P72-cursor.csv` 會在移動指標之後把游標讀回來;而當答案是錯的時,可能有兩個
+    /// `actions/mac/P72-cursor.actions` 會在移動指標之後把游標讀回來;而當答案是錯的時,可能有兩個
     /// 截然不同的理由:指標根本沒有抵達這個 view,或者它抵達了而讀數是過期的。從外面看,那是同一個症狀。
     /// 這一行把它們分開——一列 hover 旁邊沒有 `-cursor:` 行,就代表它沒有抵達這個 view,
     /// 不論讀數說了什麼。

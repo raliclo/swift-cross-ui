@@ -50,7 +50,7 @@ the value nor Narrator hidden-subtree behavior is established by that output.
 
 **Update 2026-10-08: Narrator speech on WinUI verified by a person.** The bold
 line above was true when written and is kept. P69 (WinUI), heard step by step,
-then replayed with `testapp/actions/win/P69-narrator-walk.csv`: "Close, button"
+then replayed with `testapp/actions/win/P69-narrator-walk.actions`: "Close, button"
 (not "X"); "Delete, button", "Removes the file permanently"; "Volume, button";
 Caps Lock+0 "40 percent"; "Half past twelve" (not "12:30"); "decorative" never
 spoken. Remaining gap: the value is ItemStatus, read only on Caps Lock+0. Orca

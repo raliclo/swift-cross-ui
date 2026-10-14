@@ -8,7 +8,7 @@ import SwiftCrossUI
 // which is why they were done before the protocol-level parity items.
 //
 // It is a SEPARATE app rather than an extension of P33 on purpose. P33's Windows
-// action file (P33-hide-details.csv) carries measured pixel coordinates, and
+// action file (P33-hide-details.actions) carries measured pixel coordinates, and
 // adding rows above or around its controls moves every one of them -- the replay
 // would then click empty space and report a pass, because a click that lands
 // nowhere raises nothing. A new app costs one file; re-measuring an action file
@@ -36,7 +36,7 @@ import SwiftCrossUI
 // 機制組合而成，因此在五個 backend 上的行為完全相同——這正是它們先於協定層級的 parity 項目被
 // 完成的理由。
 //
-// 這裡刻意寫成**獨立的 app** 而非擴充 P33。P33 的 Windows 動作檔（P33-hide-details.csv）帶有
+// 這裡刻意寫成**獨立的 app** 而非擴充 P33。P33 的 Windows 動作檔（P33-hide-details.actions）帶有
 // 量測出來的像素座標，而在它的控制項上方或周圍加入任何一列都會移動其中每一個——replay 接著會點到
 // 空白處並回報通過，因為一次落在空處的點擊不會引發任何東西。新增一支 app 的成本是一個檔案；
 // 重新量測一份動作檔的成本是一次啟動、一次擷圖，以及仔細把兩者都讀過一遍。

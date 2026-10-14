@@ -181,7 +181,7 @@ AppKit, the other four need not be written.
 ## 六、已經知道會被打到的東西 / Known collateral
 
 - **動作檔。** 清單一旦捲動,列在畫面上的位置就取決於捲動位置。任何點某一列的動作檔都會需要
-  重新量測。目前有幾份不確定;`grep -l "List" testapp/actions/*/*.csv` 是起點。
+  重新量測。目前有幾份不確定;`grep -l "List" testapp/actions/*/*.actions` 是起點。
 - **`minimumRowSize` 與 `baseItemPadding`** 兩個 requirement 是為「框架自行排版每一列」而存在的。
   Phase 2 之後它們可能失去意義,但**不要在確認之前移除**——它們也被 `updateSelectableListView`
   以外的地方用到。

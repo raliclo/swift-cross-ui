@@ -121,7 +121,7 @@ def report(work, actions, args):
         # the same displacement to those would move every point a second time.
         # 位移是由「瞄準當時」的檔案算出，而不是現在的檔案：`write` 之後檔案已經是新座標，
         # 再對它加一次同樣的位移，每個點就會被搬第二次。
-        rows, current = point_rows(f"{work}/aim-{stem}.csv"), point_rows(f"{actions}/{stem}.csv")
+        rows, current = point_rows(f"{work}/aim-{stem}.actions"), point_rows(f"{actions}/{stem}.actions")
         if current is None:
             entry["flags"].append("no action file")
         if rows is None:
