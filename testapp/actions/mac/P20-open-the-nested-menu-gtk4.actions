@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20 on GtkBackend on macOS (TEST_BACKEND=gtk4): three levels of menu, an item chosen at the deepest.
+# Key counts measured on GTK 2026-10-16 with the menu captured open: one Down from the open menu reaches Level 2 submenu (two on AppKit), and a submenu slides in with focus on its back row ("< Level 2 submenu"), so each level takes one Down more.
+# 按鍵次數在 GTK 上實測(2026-10-16)。
+click,85,240,frame,left,,,Open the menu -- Level 1 item is focused on open,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,"Level 2 submenu -- the disabled item is skipped",macos
+key,,,,,rightArrow,,into level 2 -- its back row is focused,macos
+sleep,,,,,,500000,let it slide in,macos
+key,,,,,downArrow,,Level 2 item,macos
+key,,,,,downArrow,,Level 3 submenu,macos
+key,,,,,rightArrow,,into level 3 -- its back row is focused,macos
+sleep,,,,,,500000,let it slide in,macos
+key,,,,,downArrow,,Level 3 item,macos
+key,,,,,downArrow,,Level 3 toggle,macos
+key,,,,,return,,flip it -- level 3 toggle -> true,macos
+sleep,,,,,,1200000,let the menu close,macos
+click,85,240,frame,left,,,Open the menu again,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Level 2 submenu,macos
+key,,,,,rightArrow,,into level 2,macos
+sleep,,,,,,500000,,macos
+key,,,,,downArrow,,Level 2 item,macos
+key,,,,,downArrow,,Level 3 submenu,macos
+key,,,,,rightArrow,,into level 3,macos
+sleep,,,,,,500000,,macos
+key,,,,,downArrow,,Level 3 item,macos
+key,,,,,return,,"choose it -- the capture must read last action -> level 3 and level 3 toggle -> true",macos
+sleep,,,,,,1200000,let the menu close,macos

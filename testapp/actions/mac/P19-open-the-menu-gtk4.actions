@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on GtkBackend on macOS (TEST_BACKEND=gtk4): one menu, every item kind; the toggle and the button item are chosen from the keyboard.
+# The keys are the AppKit file's (the first Down selects Button item here too; measured 2026-10-16). One difference: GTK keeps a popover menu open after a check item -- GtkModelButton pops down only for a plain item -- so the AppKit file's second open closed the menu instead and the last Down/Return chose "second button item". Escape closes it first.
+# 按鍵與 AppKit 檔相同;唯一差別是 GTK 在勾選項目之後不關閉選單(只有一般項目會),所以先按 Escape 關閉。
+click,72,232,frame,left,,,Open the menu,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Button item,macos
+key,,,,,downArrow,,"Toggle item -- the text item and the divider are skipped",macos
+key,,,,,return,,choose it -- toggle item -> true,macos
+sleep,,,,,,500000,,macos
+key,,,,,escape,,GTK keeps the menu open after a check item,macos
+sleep,,,,,,700000,let the menu close,macos
+click,72,232,frame,left,,,Open the menu again,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Button item,macos
+key,,,,,return,,"choose it -- the capture must read last action -> button item and toggle item -> true",macos
+sleep,,,,,,1200000,let the menu close,macos

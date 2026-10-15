@@ -2048,7 +2048,8 @@ public final class GtkBackend:
     ///
     /// GTK 4 removed `gtk_window_set_keep_above` and has no replacement, so the
     /// answer is never GTK's -- it is the platform's. On Windows a GTK window is
-    /// an ordinary `HWND` and `SetWindowPos` works on it. Elsewhere it does not:
+    /// an ordinary `HWND` and `SetWindowPos` works on it; on macOS it is an
+    /// `NSWindow` in this process and its level is set (2026-10-16). Elsewhere it does not:
     /// Wayland forbids a client raising itself above another application by
     /// design, and while X11's `_NET_WM_STATE_ABOVE` would serve where a window
     /// manager implements it, WSLg's does not advertise it (measured
@@ -2068,7 +2069,7 @@ public final class GtkBackend:
     ///
     /// 採用 property 而非常數，是因為它確實不是常數：同一個 backend 在兩個平台上的答案並不相同。
     public var supportedWindowLevels: [WindowLevel] {
-        #if os(Windows)
+        #if os(Windows) || os(macOS)
             [.automatic, .normal, .floating]
         #else
             [.automatic, .normal]
@@ -4153,6 +4154,26 @@ public final class GtkBackend:
         }
 
         let pango = Pango(for: widget)
+
+        // A width that cannot hold one character holds one clipped line, as
+        // NSTextField measures it (measured: width 0 or 1 gives one 16 pt line).
+        // Pango wraps at every character instead, and P9's zero-width frame
+        // became a hyphenated column that pushed the buttons below it down by
+        // about 120 pt (2026-10-16).
+        // 容不下一個字元的寬度，就容納一行被裁切的文字，與 NSTextField 的量測相同(實測：寬 0 或 1
+        // 得到一行 16 pt)。Pango 則在每個字元處換行,P9 的零寬框變成一串加了連字號的直欄，把下方按鈕
+        // 往下推了約 120 pt(2026-10-16)。
+        if let proposedWidth, let first = text.first {
+            let oneCharacter = pango.getTextSize(
+                String(first),
+                ellipsize: .none,
+                proposedWidth: nil,
+                proposedHeight: nil
+            )
+            if proposedWidth < oneCharacter.width {
+                return SIMD2(max(proposedWidth, 0), oneCharacter.height)
+            }
+        }
         let (width, height) = pango.getTextSize(
             text,
             ellipsize: proposedHeight == nil ? .none : ellipsize,
@@ -6294,6 +6315,14 @@ class CustomLabel: Gtk.Label {
     override func setSizeRequest(width: Int, height: Int) {
         super.setSizeRequest(width: width, height: height)
 
+        // A label given no width draws nothing, as on AppKit. GTK will not size a
+        // label below its minimum, which with ellipsizing is the "…" itself, so a
+        // zero-width frame still showed one (P9, 2026-10-16). Not mapping it keeps
+        // its size request and draws nothing.
+        // 沒有寬度的 label 什麼也不畫，與 AppKit 相同。GTK 不會把 label 縮到最小寬度以下，而有省略時
+        // 最小寬度就是「…」本身，所以零寬的框仍會顯示一個(P9,2026-10-16)。不映射它，保留尺寸要求而不繪製。
+        gtk_widget_set_child_visible(widgetPointer, width > 0 ? 1 : 0)
+
         // Override the label's layout height. We do this so that the label grows
         // vertically to fill available space even though we have ellipsizing
         // enabled (which generally causes labels to limit themselves to a single line).
@@ -6920,9 +6949,15 @@ final class DatePickerWidget: Box {
     ) -> Contents {
         let presentation: Presentation? =
             switch style {
-                case .compact:
+                // `.automatic` is the compact button, as SwiftUI's `.automatic` is the
+                // compact field on macOS and iOS and as GNOME apps show a date; it was
+                // the grid until 2026-10-16, which made P41's `.automatic` and
+                // `.graphical` the same picture.
+                // `.automatic` 是精簡按鈕，與 SwiftUI 在 macOS、iOS 上 `.automatic` 為精簡欄位、以及 GNOME
+                // app 顯示日期的方式一致；在 2026-10-16 之前它是月曆格，使 P41 的 `.automatic` 與 `.graphical` 成為同一張圖。
+                case .automatic, .compact:
                     .button
-                case .automatic, .graphical:
+                case .graphical:
                     .grid
                 case .wheel:
                     .wheel
@@ -6946,6 +6981,25 @@ final class DatePickerWidget: Box {
         )
     }
 
+    /// Every way a `GtkCalendar`'s date changes, not only `day-selected`. The month
+    /// and year arrows move the selected day into the new month, and clicking that
+    /// day afterwards emits nothing because it is already selected -- so P41's
+    /// picker showed 24 September highlighted while the binding still read
+    /// 2025-08-24 (2026-10-16).
+    /// `GtkCalendar` 日期改變的每一種方式，而不只是 `day-selected`。月份與年份箭頭會把選取的日子移到新的
+    /// 月份，之後再點那一天不會發出任何訊號，因為它已經是選取狀態——於是 P41 的選擇器顯示 9 月 24 日被選取，
+    /// 綁定卻仍是 2025-08-24(2026-10-16)。
+    private func wireDateChanges(of grid: Gtk.Calendar) {
+        let changed: (Gtk.Calendar) -> Void = { [weak self] grid in
+            self?.daySelected(shownBy: grid)
+        }
+        grid.daySelected = changed
+        grid.nextMonth = changed
+        grid.prevMonth = changed
+        grid.nextYear = changed
+        grid.prevYear = changed
+    }
+
     private func install(_ contents: Contents) {
         guard contents != self.contents else { return }
         self.contents = contents
@@ -6959,18 +7013,14 @@ final class DatePickerWidget: Box {
         switch contents.presentation {
             case .grid:
                 let grid = Gtk.Calendar()
-                grid.daySelected = { [weak self] grid in
-                    self?.daySelected(shownBy: grid)
-                }
+                wireDateChanges(of: grid)
                 // Adding is what registers the signal (see Widget.parentWidget),
                 // so the handler has to be in place first.
                 add(grid)
                 self.grid = grid
             case .button:
                 let button = CompactDatePicker()
-                button.grid.daySelected = { [weak self] grid in
-                    self?.daySelected(shownBy: grid)
-                }
+                wireDateChanges(of: button.grid)
                 add(button)
                 self.button = button
             case .wheel:

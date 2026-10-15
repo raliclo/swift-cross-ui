@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on GtkBackend on macOS (TEST_BACKEND=gtk4): a context menu whose first item resets the camera.
+# GTK opens the context menu under the pointer, which then hovers Reset the camera and selects it; the AppKit file's Down moved on to Snapshot (2026-10-16, SNAPSHOT logged). Return alone activates it.
+# 按鍵次數在 GTK 上實測(2026-10-16)。
+sleep,,,,,,1500000,let P72 lay out,macos
+click,238,518,frame,left,,,stop the clock first so the readout is stable,macos
+sleep,,,,,,500000,,macos
+move,239,284,frame,,,,"onto the mesh view -- added 2026-09-28: Reset the camera sets dist back to 3.40, which is also its launch value, so without moving the camera first the capture (p72-macos-final-20260928-090808.png, dist 3.40, scrolls 0) could not show the menu item had done anything",macos
+sleep,,,,,,300000,,macos
+scroll,0,5,,,,,five notches: the camera comes closer and dist drops below 3.40,macos
+sleep,,,,,,800000,,macos
+click,239,284,frame,right,,,secondary click on the mesh view -- the context menu must open,macos
+sleep,,,,,,1200000,let the menu open and start tracking,macos
+key,,,,,return,,"activate Reset the camera -- focused on open; CONTEXT MENU must appear in the log and the capture must read dist 3.40 with scrolls 1",macos
+sleep,,,,,,1000000,,macos
