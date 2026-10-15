@@ -50,6 +50,9 @@ typeset -A chip note
 while IFS=$'\t' read -r app text; do
     rest=${text#GTK/macOS comparison:}
     rest=${rest## }
+    # The run behind the row follows " Run: "; the slide shows the comparison only.
+    # 「 Run: 」之後是該列的執行紀錄;投影片只顯示比較。
+    rest=${rest%% Run: *}
     case $rest in
         aligned*) chip[$app]=aligned ;;
         noted*) chip[$app]=noted ;;

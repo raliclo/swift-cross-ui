@@ -243,7 +243,7 @@
         public func currentWindowGeometry() throws -> WindowGeometry {
             try onMain {
                 guard let window = Self.targetWindow() else {
-                    throw SynthesiserError.unsupported("no window to replay against")
+                    throw SynthesiserError.unsupported("no window to replay against; \(Self.windowCensus())")
                 }
                 let content = window.contentView.map { window.convertToScreen($0.frame) } ?? window
                     .frame
@@ -325,6 +325,22 @@
         private static func targetWindow() -> NSWindow? {
             let ownWindows = NSApp.windows.filter { $0.isVisible && $0.parent == nil }
             return ownWindows.first { $0.isKeyWindow } ?? ownWindows.first
+        }
+
+        /// Every window this process holds, for an error that says none fitted.
+        /// A failure that only says "no window" leaves the reader to guess which
+        /// test refused which window.
+        ///
+        /// 此行程持有的每一個視窗，給「沒有一個合用」的錯誤訊息使用。只說「沒有視窗」的失敗，
+        /// 會讓讀者去猜是哪一項條件排除了哪一個視窗。
+        @MainActor
+        static func windowCensus() -> String {
+            let rows = NSApp.windows.map { window in
+                "\(type(of: window)) \"\(window.title)\" visible=\(window.isVisible) "
+                    + "key=\(window.isKeyWindow) parent=\(window.parent.map { "\(type(of: $0))" } ?? "none") "
+                    + "frame=\(Int(window.frame.width))x\(Int(window.frame.height))"
+            }
+            return "windows: " + (rows.isEmpty ? "none" : rows.joined(separator: " | "))
         }
 
         /// The popover attached to `window`, if one is open.
@@ -610,7 +626,7 @@
 
             try onMain {
                 guard let mainWindow = Self.targetWindow() else {
-                    throw SynthesiserError.unsupported("no window to replay against")
+                    throw SynthesiserError.unsupported("no window to replay against; \(Self.windowCensus())")
                 }
 
                 // A popover is its OWN window, and an event addressed to the main
@@ -631,7 +647,7 @@
                 if action.point?.origin == .popover {
                     guard let popover = Self.popoverWindow(ownedBy: mainWindow) else {
                         throw SynthesiserError.unsupported(
-                            "origin=popover, but no popover is open on this window"
+                            "origin=popover, but no popover is open on this window; \(Self.windowCensus())"
                         )
                     }
                     window = popover

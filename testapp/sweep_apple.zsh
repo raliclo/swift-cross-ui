@@ -2,6 +2,7 @@
 # Drive and photograph every macOS or iOS action file, one at a time.
 #
 #   zsh testapp/sweep_apple.zsh --macos            every file under actions/mac/
+#   zsh testapp/sweep_apple.zsh --macos-gtk4       the same mac files through GtkBackend
 #   zsh testapp/sweep_apple.zsh --ios              every file under actions/ios/
 #   zsh testapp/sweep_apple.zsh --ios P57 P72      only those apps' files
 #
@@ -62,33 +63,43 @@ set -u
 script_dir="${0:A:h}"
 repo_root="${script_dir:h}"
 
-platform=""
+platform="" gtk=0
 timeout_s=600
 apps=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --macos) platform=macos; shift ;;
+        --macos-gtk4) platform=macos; gtk=1; shift ;;
         --ios) platform=ios; shift ;;
         --timeout) timeout_s="$2"; shift 2 ;;
-        -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
         P[0-9]*) apps+=("$1"); shift ;;
         *) echo "unknown argument: $1" >&2; exit 64 ;;
     esac
 done
 if [ -z "$platform" ]; then
-    echo "usage: sweep_apple.zsh --macos|--ios [--timeout seconds] [Pn ...]" >&2
+    echo "usage: sweep_apple.zsh --macos|--macos-gtk4|--ios [--timeout seconds] [Pn ...]" >&2
     exit 64
 fi
 
+test_backend=""
 case "$platform" in
     macos) action_dir="$script_dir/actions/mac"; backend=appkit ;;
     ios) action_dir="$script_dir/actions/ios"; backend=uikit ;;
 esac
+# `--macos-gtk4`: the same mac files through GtkBackend on this Mac (TEST_BACKEND=gtk4),
+# written apart (output/macos-gtk4-sweep.csv2) so the AppKit sweep is not overwritten.
+# `--macos-gtk4`:同一批 mac 動作檔，在這台 Mac 上改走 GtkBackend(TEST_BACKEND=gtk4),
+# 另外寫出(output/macos-gtk4-sweep.csv2),不覆蓋 AppKit 的 sweep。
+tag="$platform"
+if (( gtk )); then
+    backend=gtk4 test_backend=gtk4 tag=macos-gtk4
+fi
 
 output_dir="$script_dir/output"
 shots_dir="$output_dir/screenshots"
-run_dir="$output_dir/sweep-$platform"
-out_csv="$output_dir/$platform-sweep.csv2"
+run_dir="$output_dir/sweep-$tag"
+out_csv="$output_dir/$tag-sweep.csv2"
 mkdir -p "$run_dir" "$shots_dir"
 
 # **The app a file belongs to is the LONGEST prefix that names an app, not the
@@ -130,6 +141,28 @@ for f in "$action_dir"/P*.actions(N); do
         echo "${f:t}: an iPad file, skipped on the iPhone sweep" >&2
         continue
     fi
+    # **A `-gtk4` file is the GtkBackend version of the file without it**, re-measured
+    # because GTK lays a window out differently (P84-larger-gtk4 beside P84-larger). The
+    # gtk4 sweep runs it in place of its base; the AppKit sweep leaves it out.
+    # **`-gtk4` 檔是去掉該字尾那份檔案的 GtkBackend 版本**,因為 GTK 的視窗排版不同而重新量過(P84-larger-gtk4
+    # 與 P84-larger 並列)。gtk4 sweep 以它取代原檔;AppKit sweep 不跑它。
+    if [ "$platform" = macos ]; then
+        if [[ "${f:t}" == *-gtk4.actions ]]; then
+            [ "$backend" = gtk4 ] || continue
+        elif [ "$backend" = gtk4 ] && [ -f "${f%.actions}-gtk4.actions" ]; then
+            continue
+        fi
+    fi
+    # **An app that imports the WinUI products has no GtkBackend build**: compile.zsh -gtk4
+    # skips it and says so (P6, whose GTK twin is P6-v2). The 2026-10-16 gtk4 sweep ran
+    # P6 anyway and reported a failure for a build that cannot exist.
+    # **匯入 WinUI product 的 app 沒有 GtkBackend 建置**:compile.zsh -gtk4 會略過並說明(P6,其 GTK 版是
+    # P6-v2)。2026-10-16 的 gtk4 sweep 仍然執行了 P6,為一個不可能存在的建置回報了失敗。
+    if [ "$backend" = gtk4 ] \
+        && grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$script_dir/$app.swift"; then
+        echo "${f:t}: $app imports the WinUI products and has no gtk4 build; skipped" >&2
+        continue
+    fi
     files+=("$f")
 done
 if [ "${#files[@]}" -eq 0 ]; then
@@ -148,7 +181,7 @@ rows_file="$run_dir/rows.tsv"
 source "$script_dir/test_support/csv2_rows.zsh"
 export SCUI_UPDATE_STATS=1
 today="$(date +%Y-%m-%d)"
-stats_csv="$output_dir/update-stats-$platform.csv2"
+stats_csv="$output_dir/update-stats-$tag.csv2"
 rm -f "$stats_csv"
 csv2_new "$out_csv" \
     "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,note" \
@@ -177,7 +210,7 @@ for f in "${files[@]}"; do
     launch_args="$(grep -m1 -E '^# *launch-args:' "$f" | sed -E 's/^# *launch-args: *//')"
     if [ "$platform" = macos ]; then
         rm -f "$output_dir/${app:l}-actionfile.log"
-        TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
+        TEST_BACKEND="$test_backend" TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
             zsh "$script_dir/test.zsh" "$app" --macos --showtime 2 --actionfile "$f" > "$log" 2>&1 &
     else
         # Through TEST_APP_ARGS, not `--`: test.zsh hands its options to test_common,
@@ -224,7 +257,7 @@ for f in "${files[@]}"; do
 
     capture=fail
     shot=""
-    for s in "$shots_dir"/${app:l}-$platform-final-*.png(N.om); do
+    for s in "$shots_dir"/${app:l}-$tag-final-*.png(N.om); do
         if [ "$s" -nt "$marker" ]; then
             capture=ok
             shot="${s:t}"
@@ -270,4 +303,4 @@ done
 # 以真正的 CSV writer 寫出:note 欄帶著含逗號的錯誤訊息,而這棵樹已經為「以逗號切割」付過兩次代價。
 total=$(csv2 -r --json -i "$out_csv" | grep -c '"record":' || true)
 passed=$(csv2 -r --json -i "$out_csv" | grep -c '"result":"pass"' || true)
-print "==> $platform: $passed of $total action files pass; written to $out_csv"
+print "==> $tag: $passed of $total action files pass; written to $out_csv"

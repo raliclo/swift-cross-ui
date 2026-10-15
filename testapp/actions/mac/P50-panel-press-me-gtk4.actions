@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on GtkBackend on macOS (TEST_BACKEND=gtk4): a button inside the popover is pressed in the popover's own window.
+# Measured from p50-macos-gtk4-final-20261016-024834.png (1560x1856 for the 780x928 window, native title
+# bar, origin=frame, pixels halved): Show title B (292,435), Open the first panel (239,656), Cycle arrow
+# edge (191,700); inside PANEL ALPHA, press me at (80,132). GTK spaces text more loosely than AppKit, so
+# the AppKit file's (231,677) and (273,457) land in gaps between buttons here. Before this file
+# existed the 2026-10-16 gtk4 sweep replayed the AppKit coordinates: five files "passed" with no
+# button pressed, and panel-press-me failed with no popover open.
+# GTK 的文字間距比 AppKit 寬，AppKit 檔的座標在這裡落在按鈕之間的空隙;座標量自上述擷圖(點)。
+sleep,,,,,,1200000,let P50 lay out,macos
+click,239,656,frame,left,,,open the first panel (top anchor),macos
+sleep,,,,,,1500000,let the popover appear and be measured,macos
+click,80,132,popover,left,,,"press me -- inside the popover's own window; it must read press me (1)",macos
+sleep,,,,,,800000,let the press be logged,macos

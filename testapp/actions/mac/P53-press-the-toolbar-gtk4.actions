@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P53 on GtkBackend on macOS (TEST_BACKEND=gtk4): the toolbar items are wired, not merely drawn.
+# The GTK header bar puts its own window controls on the right, so the AppKit file's Add at
+# (612,28) is the minimise button here: the window was minimised, and the next click found no
+# visible window (2026-10-16, "GdkMacosWindow visible=false"). Measured from
+# p53-macos-gtk4-final-20261016-024722.png, 1440x1040 for a 720x520 window, client-side
+# decorations so frame = client: Add (leading) at px (48,46), Info at (1028,46), Delete at
+# (1112,46), giving (24,23), (514,23) and (556,23) in points.
+# After this file "add" must read 2 and "trash" 1, with "info" still 0, as on AppKit.
+# macOS 上 GtkBackend 的 P53:GTK 標題列把自己的視窗按鈕放在右側，AppKit 檔的 Add (612,28) 在這裡是最小化鈕。
+# 量自上述擷圖:Add (24,23)、Info (514,23)、Delete (556,23)(點)。之後 add 必須是 2、trash 是 1、info 仍為 0。
+sleep,,,,,,1500000,let P53 render,macos
+click,24,23,frame,left,,,"Add -- add must go 0 -> 1",macos
+sleep,,,,,,400000,,macos
+click,24,23,frame,left,,,"Add again -- add must go 1 -> 2",macos
+sleep,,,,,,400000,,macos
+click,556,23,frame,left,,,"Delete -- trash must go 0 -> 1 while info stays 0",macos
+sleep,,,,,,900000,let the three lines redraw,macos

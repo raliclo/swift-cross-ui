@@ -11,5 +11,15 @@ action,x,y,origin,button,key,micros,note,platform
 # because XCUITest rows are taps and there is no measured coordinate for a
 # sheet that did not exist when the capture was taken. The file therefore stops
 # at the open and the evidence is the status line plus a screenshot.
-click,310,161,client,left,,,Open file dialog -- the Open line must stop saying "No open result yet",ios
-sleep,,,,,,1000000,let the presentation animate in,ios
+#
+# Re-aimed 2026-10-16 on the iPhone 17 simulator (402 x 874 pt). The open tap was
+# inside the button already; the 2026-09-27 "misaimed" was the sweep's rule that a
+# file is unconfirmed until replayed and seen. The picker's own X is now a measured
+# coordinate (from p1-ios-final-20261016-025545.png, 3:1), so the file closes it, and
+# the replay ended on "Open: Cancelled" (p1-ios-final-20261016-025749.png).
+# 2026-10-16 於 iPhone 17 模擬器重新瞄準：開啟的點擊本來就落在按鈕內;現在加上關閉選擇器的 X,
+# 重放結束時狀態列為「Open: Cancelled」。
+click,310,166,client,left,,,"Open file dialog -- at the centre of Button 'Open file dialog' {{251,155},{119,22}} in the 2026-10-16 --dump-tree",ios
+sleep,,,,,,2000000,let the picker animate in,ios
+click,309,100,client,left,,,"the picker's X (close) -- the Open line must then read Open: Cancelled",ios
+sleep,,,,,,1500000,let the picker dismiss and the status line redraw,ios

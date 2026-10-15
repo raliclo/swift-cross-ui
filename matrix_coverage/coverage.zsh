@@ -50,7 +50,7 @@
 # A CELL IS `pass` ONLY IF AN IMAGE WAS CAPTURED. Also 2026-09-07. The verdict
 # read `launch` and `replay` and never looked at `capture`, so a run that
 # photographed nothing still reported `pass`: 46 of the 47 WSL cells did, over
-# captures that came back 0.0% non-black. `window` and `desktop` mean an image
+# captures that came back 0.0% non-black. `window`, `desktop` and (Android only) `screen` mean an image
 # exists; every other value fails the cell and names itself -- `no image` for
 # `fail`, `capture n/a` for `n/a`. See the block above `captured =` for why
 # `n/a` is not read as a pass and where that has to be repaired.
@@ -79,7 +79,7 @@
 #
 # 只有「拍到影像」的執行才算 `pass`。同樣是 2026-09-07。判決原本只讀 `launch` 與 `replay`，
 # 從未看過 `capture`，於是一次什麼也沒拍到的執行仍被報成 `pass`：47 格 WSL 中有 46 格如此，
-# 而那些擷取的非黑比例是 0.0%。`window` 與 `desktop` 代表影像存在；其餘任何值都會使該格失敗
+# 而那些擷取的非黑比例是 0.0%。`window`、`desktop` 與(僅限 Android 的)`screen` 代表影像存在；其餘任何值都會使該格失敗
 # 並自報其名——`fail` 顯示為 `no image`，`n/a` 顯示為 `capture n/a`。至於 `n/a` 為何不讀作通過、
 # 以及那應該在哪裡被修好，見 `captured =` 上方的註解區塊。
 #
@@ -315,7 +315,22 @@ trap 'rm -f "$pivot"' EXIT
             # windows/winui 的 P38，由 `pass` 變為 `capture n/a`——那是 2026-08-28 手寫的一列，
             # 記錄的是一次 WebView 診斷，根本沒有任何截圖。要重新計數，把本區塊還原後比對兩份
             # coverage.md 即可。
-            captured = (capture == "window" || capture == "desktop")
+            #
+            # ANDROID `screen` IS AN IMAGE, added 2026-10-16. An Android app fills the
+            # device screen and `adb exec-out screencap` photographs that screen, so it is
+            # the only capture Android has, not a fallback; on macOS `screen` means the
+            # window capture failed and stays a failure. Every Android row since 2026-09-30
+            # said `screen`, and 95 Android cells read `capture screen` over runs that
+            # launched, replayed and captured. The one way it shows nothing is an all-black
+            # framebuffer, and test_android.zsh counts that as a failed screenshot.
+            #
+            # Android 的 `screen` 是影像，2026-10-16 加入。Android app 佔滿裝置螢幕，而
+            # `adb exec-out screencap` 拍的就是那個螢幕，所以它是 Android 唯一的擷取方式，不是回退;
+            # macOS 上的 `screen` 代表視窗擷取失敗，仍然算失敗。自 2026-09-30 起每一列 Android 都寫
+            # `screen`,95 格 Android 因此顯示 `capture screen`,而那些執行都啟動、重放、擷取成功。
+            # 它唯一拍不到東西的情形是全黑的 framebuffer,test_android.zsh 會把那算成截圖失敗。
+            captured = (capture == "window" || capture == "desktop" \
+                        || (capture == "screen" && platform == "android"))
             captureSays = "capture " capture
             if (capture == "fail") captureSays = "no image"
             if (capture == "") captureSays = "capture -"

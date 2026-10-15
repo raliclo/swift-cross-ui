@@ -182,7 +182,7 @@ fi
 booted=($(xcrun simctl list devices booted 2>/dev/null | grep -oE '[0-9A-F-]{36}' || true))
 for dev in "$sim_root"/*(N/); do
     id="${dev:t}"
-    name="$(xcrun simctl list devices 2>/dev/null | grep -F "$id" | sed -E 's/^ *//; s/ \(.*//' | head -n 1)"
+    name="$(xcrun simctl list devices 2>/dev/null | grep -F "$id" | sed -E 's/^ *//; s/ \(.*//' | head -n 1 || true)"
     print "  ${name:-unknown} ($id): $(du -xsh "$dev" | cut -f1)"
     if (( ${booted[(Ie)$id]} )); then
         print "    booted -- skipped; \`xcrun simctl shutdown all\` and run again"

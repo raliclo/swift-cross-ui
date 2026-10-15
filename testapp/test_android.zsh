@@ -417,6 +417,33 @@ fi
 #
 # 失敗會被回報並計數，不會被吞掉，也絕不中止執行：截圖是證據，而非斷言。
 screenshot_failures=0
+
+# How many of 256 sampled pixels are not black: the capture reduced to 16x16 by sips, read
+# as an uncompressed BMP. A pixel counts when at least two of its four bytes exceed 8,
+# because alpha alone is 255 on a black pixel; 8 rather than more because Material dark
+# surfaces are #121212. Prints nothing where sips is missing (not macOS), so the check
+# is skipped there rather than failing every capture. Measured 2026-10-16: 0 on a black
+# control, 256 on all 26 Android captures in testapp/output/screenshots.
+# 256 個取樣像素中有幾個不是黑色：以 sips 把擷圖縮成 16x16,讀成未壓縮的 BMP。一個像素有至少兩個
+# 位元組大於 8 才算，因為黑色像素光是 alpha 就是 255;門檻是 8 而不是更高，因為 Material 的深色
+# 表面是 #121212。沒有 sips(不是 macOS)時什麼也不印，因此在那裡略過檢查，而不是讓每張擷圖失敗。
+# 2026-10-16 實測：黑色對照為 0,testapp/output/screenshots 中 26 張 Android 擷圖全部為 256。
+nonblack_pixels() {
+    local bmp="${TMPDIR:-/tmp}/nonblack-$$.bmp" off n=0 hits=0 count=0 b
+    command -v sips >/dev/null 2>&1 || return 1
+    sips -s format bmp -z 16 16 "$1" --out "$bmp" >/dev/null 2>&1 || return 1
+    off=$(od -An -tu4 -j10 -N4 "$bmp" | tr -d " ")
+    for b in $(od -An -tu1 -v -j"$off" -N1024 "$bmp"); do
+        if (( b > 8 )); then hits=$(( hits + 1 )); fi
+        n=$(( n + 1 ))
+        if (( n % 4 == 0 )); then
+            if (( hits >= 2 )); then count=$(( count + 1 )); fi
+            hits=0
+        fi
+    done
+    rm -f "$bmp"
+    print -r -- "$count"
+}
 capture() {
     local label="$1"
     local dir="$script_dir/output/screenshots"
@@ -435,6 +462,15 @@ capture() {
     if ANDROID_SERIAL="$serial" "$adb" exec-out screencap -p > "$shot" 2>/dev/null \
         && [ -s "$shot" ]; then
         print "==> Screenshot: ${shot:t}"
+        # An all-black frame is a framebuffer nobody drew into, and on Android the screen is
+        # the app, so it is the one way a capture of the screen can show nothing. Said and
+        # counted, not dropped: the file is kept to look at.
+        # 全黑的畫面是沒有人畫進去的 framebuffer;Android 的螢幕就是 app,所以這是擷取整個螢幕
+        # 卻什麼也沒拍到的唯一情形。明講並計數，不丟掉：檔案留著供檢查。
+        if [ "$(nonblack_pixels "$shot")" = 0 ]; then
+            screenshot_failures=$(( screenshot_failures + 1 ))
+            print -u2 -r -- "!! ${shot:t} is all black (0 of 256 sampled pixels lit)"
+        fi
         return 0
     fi
 

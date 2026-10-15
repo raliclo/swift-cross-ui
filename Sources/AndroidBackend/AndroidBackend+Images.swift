@@ -28,7 +28,16 @@ extension AndroidBackend {
     public var requiresImageUpdateOnScaleFactorChange: Bool { false }
 
     public func createImageView() -> Widget {
-        AndroidKit.ImageView(Self.activity, environment: Self.env)
+        let view = AndroidKit.ImageView(Self.activity, environment: Self.env)
+        // Fill the frame the layout gave the image. The core already sized that frame (a
+        // `.resizable()` image without `aspectRatio` is stretched), so the default FIT_CENTER
+        // kept the bitmap's own aspect a second time: P95's 8x8 swatch, framed 60x24, was
+        // drawn 24x24 in the middle of its frame on 2026-10-16 while AppKit filled it.
+        // 填滿版面給這張圖的 frame。frame 的大小已由核心決定(沒有 `aspectRatio` 的 `.resizable()` 圖會被拉伸),
+        // 預設的 FIT_CENTER 卻再保持一次 bitmap 自己的長寬比:2026-10-16 P95 的 8x8 色塊 frame 為 60x24,
+        // 在 Android 上被畫成 frame 中央 24x24,AppKit 則填滿。
+        view.setScaleType(try! JavaClass<AndroidKit.ImageView.ScaleType>().FIT_XY)
+        return view
     }
 
     public func updateImageView(
