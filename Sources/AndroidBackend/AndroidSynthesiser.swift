@@ -232,6 +232,16 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 // 不投遞任何事件。在觸控螢幕上，`move` 列沒有東西可投遞——沒有 hover 這回事——
                 // 因此它只記錄「下一個沒有座標的點擊該落在哪裡」。在按壓之外投遞 ACTION_MOVE，
                 // 會是一個檔案並未要求的手勢。
+                //
+                // Inside a press -- between `mousedown` and `mouseup` -- the
+                // finger is down, so a `move` row is the finger moving and is
+                // posted as ACTION_MOVE. That is how a file drags after a held
+                // press (P88's long-press hover, 2026-10-15).
+                // 在按壓之內——`mousedown` 與 `mouseup` 之間——手指是按著的，因此 `move` 列就是手指在移動，
+                // 以 ACTION_MOVE 投遞。檔案就是這樣在按住之後拖曳(P88 的長按 hover,2026-10-15)。
+                if let downTime = pressDownTime {
+                    try dispatchMove(at: (Double(position.x), Double(position.y)), downTime: downTime)
+                }
 
             case .click(_, let point):
                 let position = try resolve(point, in: geometry)

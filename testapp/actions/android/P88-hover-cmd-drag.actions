@@ -18,3 +18,18 @@ mouseup,200,300,,left,,,,android
 sleep,,,,,,400000,,android
 hover,200,190,,,,,end inside the panel,android
 sleep,,,,,,1200000,let the readout redraw,android
+# A finger held 0.8 s on the panel, then moved 100 points right while still down (2026-10-15):
+# the hold is hover on a touch screen (the system long-press timeout, 400 ms by default), so
+# "last active" moves with the finger and the lift shows "pointer: ended". A `move` row inside a
+# press is posted as ACTION_MOVE. The same press is also a drag on the panel: "drags" goes up by one.
+# 手指在面板上按住 0.8 秒，仍按著向右移 100 點(2026-10-15):觸控螢幕上按住系統長按逾時(預設 400 毫秒)即是
+# hover,所以「last active」跟著手指移動，放開後顯示「pointer: ended」。按壓之內的 `move` 列以 ACTION_MOVE 投遞。
+# 同一次按壓也是面板上的拖曳:「drags」加一。
+mousedown,120,260,,left,,,hold on the panel,android
+sleep,,,,,,800000,longer than the long-press timeout,android
+move,170,260,,,,,the finger moves while held,android
+sleep,,,,,,100000,,android
+move,220,260,,,,,,android
+sleep,,,,,,300000,,android
+mouseup,220,260,,left,,,lift: hover ends,android
+sleep,,,,,,1200000,let the readout redraw,android

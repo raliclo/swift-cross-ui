@@ -3,6 +3,7 @@ package dev.swiftcrossui.androidbackend
 import android.app.Activity
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
 
@@ -58,5 +59,67 @@ class PointerHoverContainer(activity: Activity) : FrameLayout(activity) {
             }
         }
         return super.dispatchHoverEvent(event) || inside
+    }
+
+    /**
+     * A finger hovers by holding still for the system's long-press timeout
+     * (`ViewConfiguration.getLongPressTimeout()`: 400 ms by default, longer when the user sets
+     * the touch-and-hold delay in Accessibility); from then on, until it lifts, every move is
+     * reported, and the lift ends it. The user's choice for queue item 10 (2026-10-15), the same
+     * as the iPhone's 0.5 s hold. A mouse is left to `dispatchHoverEvent`, which already
+     * reports it. The touch still goes to the children first; the hold only watches.
+     *
+     * 手指靜止按住系統的長按逾時(`ViewConfiguration.getLongPressTimeout()`:預設 400 毫秒，使用者在無障礙設定裡
+     * 調整「觸控並按住的延遲」時會更長)即開始 hover;此後到放開為止，每次移動都回報，放開即結束。這是使用者對
+     * queue 第 10 項的選擇(2026-10-15),與 iPhone 的 0.5 秒按住相同。滑鼠交給 `dispatchHoverEvent`,它已經會回報。
+     * 觸控仍先送到子元件;按住只是在旁觀察。
+     */
+    private var holding = false
+    private var downX = 0f
+    private var downY = 0f
+    private val beginHold = Runnable {
+        holding = true
+        inside = true
+        changeAction?.call()
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        val handled = super.dispatchTouchEvent(event)
+        if (changeAction == null || event.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE) {
+            return handled
+        }
+        val density = resources.displayMetrics.density
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                pointX = event.x / density
+                pointY = event.y / density
+                metaState = event.metaState
+                postDelayed(beginHold, ViewConfiguration.getLongPressTimeout().toLong())
+            }
+            MotionEvent.ACTION_MOVE ->
+                if (holding) {
+                    pointX = event.x / density
+                    pointY = event.y / density
+                    metaState = event.metaState
+                    changeAction?.call()
+                } else if (Math.hypot((event.x - downX).toDouble(), (event.y - downY).toDouble()) >
+                    ViewConfiguration.get(context).scaledTouchSlop
+                ) {
+                    removeCallbacks(beginHold)
+                }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(beginHold)
+                if (holding) {
+                    holding = false
+                    inside = false
+                    changeAction?.call()
+                }
+            }
+        }
+        // Keep receiving the gesture even when no child took the down.
+        // 即使沒有子元件接下 down,也要繼續收到這個手勢。
+        return true
     }
 }

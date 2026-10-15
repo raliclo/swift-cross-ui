@@ -48,3 +48,11 @@ mouseup,200,430,client,left,,,,ios
 sleep,,,,,,400000,,ios
 hover,200,190,client,,,2000000,end inside the panel and rest there 2 s: the resting capture must read pointer: x= y=,ios
 sleep,,,,,,1500000,let the readout redraw,ios
+# A finger held 1 s on the panel, then dragged slowly 100 points right (2026-10-15): the hold is
+# hover on a touch screen (0.5 s), so "last active" moves to panel x=204 y=90 and the lift
+# shows "pointer: ended". The same press is also a drag on the panel, so "drags" goes up by one.
+# 手指在面板上按住 1 秒，再慢慢向右拖 100 點(2026-10-15):觸控螢幕上按住 0.5 秒即是 hover,所以「last active」
+# 移到面板 x=204 y=90,放開後顯示「pointer: ended」。同一次按壓也是面板上的拖曳，所以「drags」加一。
+mousedown,120,260,client,left,,,hold on the panel,ios
+mouseup,220,260,client,left,,1000000,held 1 s then dragged: hover by touch,ios
+sleep,,,,,,1500000,let the readout redraw,ios

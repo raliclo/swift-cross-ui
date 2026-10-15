@@ -163,3 +163,25 @@ Resize a window with this, not with System Events: on GtkBackend on macOS a size
 set through System Events was reported but the GL area did not redraw, while a
 drag of the corner redrew every time. Move the window up first; it cannot grow
 past the bottom of the screen.
+
+## `frames_during.zsh` — 在測試執行「期間」由外部連續擷圖
+
+```sh
+zsh testapp/test_support/measure/frames_during.zsh OUTDIR 30 "replaying P88" LOG <模擬器 UDID 或 mac> -- \
+    zsh testapp/test_ios.zsh P88 --no-build --device "iPhone 17" --actionfile hold.actions
+```
+
+先在背景啟動 `--` 之後的指令(輸出寫到 LOG),等 LOG 出現 WAIT_FOR 這段字之後，連拍 COUNT 張:來源是模擬器 UDID 時用
+`simctl io screenshot`,是 `mac` 時用 `screencapture` 拍整個螢幕(每 0.4 秒一張)。再用 `colour_bbox.swift` 量每一張。
+
+測試執行器只在最後擷圖，所以只在「手指按著」時才存在的狀態從來拍不到。2026-10-15 為 P88 的長按 hover 而寫:
+iPhone 17 模擬器上 XCUITest 按住 3 秒，30 張中第 10–18 張面板是橘色(1080x720 像素，即整個面板),前後都是藍色;
+再跑一次同樣是 9 張。macOS 上的 GtkBackend,30 張螢幕畫面中第 21–28 張是橘色。整個螢幕的畫面會拍到桌面上其他視窗，
+只放在暫存區，不要放進 repo 或發布。
+
+A test runner captures only at the end, so a state that lasts only while a
+finger is held never reached a capture. This starts the command in the
+background, waits for a marker in its log, and takes COUNT frames from the
+simulator (simctl) or the whole Mac screen. On the iPhone 17 simulator, 9 of 30
+frames during a 3 s press showed the panel orange, twice. Whole-screen frames
+show the rest of the desktop: keep them in the scratchpad.

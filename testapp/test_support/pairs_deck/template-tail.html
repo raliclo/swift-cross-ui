@@ -1,0 +1,50 @@
+</div></div>
+
+<form id="jump" data-prevent-swipe><label for="jump-app">App</label><input id="jump-app" inputmode="numeric" placeholder="50" type="text" pattern="[0-9]*" aria-label="App number" autocomplete="off"><button type="submit">Go</button><button type="button" id="grid">Grid</button></form>
+<div id="tiles" data-prevent-swipe hidden><div class="bar"><b>All apps</b><button type="button" id="tiles-close">Close</button></div><div class="wrap"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.js"></script>
+<script>
+Reveal.initialize({
+  width: @@SLIDE_W@@, height: @@SLIDE_H@@, margin: 0.03, minScale: 0.1, maxScale: 2,
+  hash: false, history: false, respondToHashChanges: false, scrollActivationWidth: null, slideNumber: 'c/t', transition: 'none', backgroundTransition: 'none',
+  center: false, preloadIframes: false, viewDistance: 3, mobileViewDistance: 2, embedded: false
+});
+var sections = Array.prototype.slice.call(document.querySelectorAll('.slides > section'));
+function jumpTo(text, done) {
+  var n = parseInt(String(text).replace(/\D/g, ''), 10);
+  var i = sections.findIndex(function (s) { return s.dataset.app === 'P' + n; });
+  if (i >= 0) { Reveal.slide(i); if (done) document.getElementById('jump-app').blur(); }
+}
+var field = document.getElementById('jump-app');
+field.addEventListener('input', function () { jumpTo(field.value, false); });
+document.getElementById('jump').addEventListener('submit', function (e) { e.preventDefault(); jumpTo(field.value, true); });
+// The box shows the app on screen, however the deck got there.
+function showApp() { var c = Reveal.getCurrentSlide(); if (document.activeElement !== field) field.value = c && c.dataset.app ? c.dataset.app.slice(1) : ''; }
+Reveal.on('slidechanged', showApp); Reveal.on('ready', showApp);
+var tiles = document.getElementById('tiles'), wrap = tiles.querySelector('.wrap');
+function showTiles(on) {
+  if (on && !wrap.firstChild) {
+    sections.forEach(function (s, i) {
+      if (!s.dataset.app) return;
+      var b = document.createElement('button'); b.type = 'button';
+      var img = document.createElement('img'); img.loading = 'lazy'; img.alt = '';
+      img.src = 'img/@@TILE_SIDE@@-' + s.dataset.app.toLowerCase() + '.jpg';
+      b.appendChild(img); b.appendChild(document.createTextNode(s.dataset.app.slice(1)));
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        field.value = s.dataset.app.slice(1);
+        showTiles(false); Reveal.slide(i);
+        // Again once the tap has fully ended: on a touch screen something after the tap could move the deck.
+        setTimeout(function () { if (Reveal.getIndices().h !== i) Reveal.slide(i); }, 400);
+      });
+      wrap.appendChild(b);
+    });
+  }
+  tiles.hidden = !on;
+}
+document.getElementById('grid').addEventListener('click', function () { showTiles(true); });
+document.getElementById('tiles-close').addEventListener('click', function () { showTiles(false); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') showTiles(false); });
+</script>
+

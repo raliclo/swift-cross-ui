@@ -10,6 +10,9 @@
 //   3 "last with cmd" keeps where Command was last held
 //   4 dragging across the panel still counts drags (the wrapper takes no clicks)
 //   5 leaving the panel shows "ended"
+//   6 touch screens: a finger held still (iOS 0.5 s, Android the long-press timeout) then moved
+//     reports hover; "last active" keeps where it was, and lifting shows "ended" (2026-10-15)
+//   7 the panel is orange while hovered, blue again once the hover ends
 // Fail: nothing changes (no hover), (cmd) never appears, or drags stay at 0.
 //
 // P88:onContinuousHover——指標在哪裡、按住了哪些修飾鍵(2026-10-10)。為 SoftPCB 的三維檢視而寫：在模型上
@@ -24,6 +27,11 @@ final class P88Model: SwiftCrossUI.ObservableObject {
     static let shared = P88Model()
     @SwiftCrossUI.Published var pointer = "pointer: not yet"
     @SwiftCrossUI.Published var lastCommand = "last with cmd: never"
+    /// Kept after `.ended`, so a capture after a finger lifts still shows where the hold was.
+    /// `.ended` 之後仍保留，手指放開後的擷圖仍看得到按住時在哪裡。
+    @SwiftCrossUI.Published var lastActive = "last active: never"
+    /// The panel is orange while hovered and blue otherwise. / 被 hover 時面板是橘色，否則是藍色。
+    @SwiftCrossUI.Published var hovering = false
     @SwiftCrossUI.Published var drags = 0
     /// The control: a panel with the same drag and no hover wrapper. / 對照組：同樣的拖曳、沒有 hover 包裝的面板。
     @SwiftCrossUI.Published var controlDrags = 0
@@ -46,6 +54,8 @@ final class P88Model: SwiftCrossUI.ObservableObject {
             case .active(let location, let modifiers):
                 let at = "x=\(Int(location.x.rounded())) y=\(Int(location.y.rounded()))"
                 pointer = "pointer: \(at)\(Self.keys(modifiers))"
+                lastActive = "last active: \(at)"
+                hovering = true
                 if modifiers.contains(.command) { lastCommand = "last with cmd: \(at)" }
                 if let (place, keys) = previous, place == location, keys != modifiers, !modifiers.isEmpty {
                     stillChange = "modifier change without moving: seen\(Self.keys(modifiers))"
@@ -53,6 +63,7 @@ final class P88Model: SwiftCrossUI.ObservableObject {
                 previous = (location, modifiers)
             case .ended:
                 pointer = "pointer: ended"
+                hovering = false
                 previous = nil
         }
     }
@@ -80,7 +91,7 @@ struct P88View: View {
             Text(
                 "pointer hover supported: \(backend is any BackendFeatures.PointerHover ? "yes" : "NO")"
             )
-            Color.blue
+            (model.hovering ? Color.orange : Color.blue)
                 .frame(width: 360, height: 240)
                 .onDragGesture { _ in
                 } onEnded: { _ in
@@ -94,6 +105,7 @@ struct P88View: View {
                     P88Model.shared.controlDrags += 1
                 }
             Text(model.pointer)
+            Text(model.lastActive)
             Text(model.lastCommand)
             Text(model.stillChange)
             Text("drags: \(model.drags) · control drags: \(model.controlDrags) · hover reports: \(model.reports)")

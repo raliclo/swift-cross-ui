@@ -12,17 +12,17 @@ entry is closed.
 | 1 | `CommandGroup` as SwiftUI has it, all twenty placements, `enableMenu` switch | Mac | DONE on the Mac 2026-10-14: macOS, GTK (on macOS), iPad, iPhone, Android. Since then: items pressed in the iPad's real menu bar; Hide Others and Show All pressed on GTK; GTK undo by action file; one app menu and Command shortcuts for GTK on macOS; launch windows as SwiftUI (`SceneLaunch`); GTK's TextEditor undoes one change at a time through `TextUndoHistory`, by keys and by Edit > Undo and Redo (P94) | Not as SwiftUI, on purpose: iPad keeps a Format menu when the app fills `textFormatting`; `windowList` and `singleWindowList` are accepted on iOS |
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | open (item 1 done on the Mac 2026-10-14) | implement on WinUI; replay P92 there -- `actions/win` and `actions/wsl` have no P92 file yet |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | open | a Control with IsTabStop; replay P91 |
-| 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there |
+| 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows; and the touch-hold hover of queue item 10 (2026-10-15) on WinUI, and on GTK with a real touch screen | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there. WinUI: a touch PointerPressed has to wait for a hold timer before PointerMoved counts as hover -- not written yet, nothing here compiles WinUI. GTK: `GtkTouchHold` in `GtkBackend+PointerHover.swift` was measured on macOS with the mouse standing in (results.csv2 2026-10-15); a real GDK_TOUCH_* sequence needs a touch screen |
 | 5 | P89 on WinUI, and on GTK under Linux/WSL and Windows | Windows / WSL | open | run it |
 | 6 | `Mesh3DViews` on WinUI | Windows | open | -- |
 | 7 | WinUI parity: date picker colour, font design, picker font, scale-change notice, fullscreen | Windows | open | -- |
 | 8 | #123 accessibility: WinUI's UIA tree, Narrator and Orca speech | Windows / WSL | open | -- |
 | 9 | P64 cell `fail 2026-09-10` in coverage.md | Windows (gtk4 column) | open | re-run and read the failure |
-| 10 | iPhone hover: `onContinuousHover` reports nothing without a pointer | Mac | waits for the user | choose: leave it, or report a held touch as hover (then Android too) |
-| 11 | iPad: eleven action files (P80-cursor-ipad shows all six cursor shapes on the simulator, 2026-10-14; P94-undo-ipad); nothing run on a physical iPad | Mac / hardware | open | a physical iPad with a trackpad |
+| 10 | iPhone hover: `onContinuousHover` reports nothing without a pointer | Mac | DONE 2026-10-15: the user chose "long click is hover". iOS: a finger held 0.5 s (UIKit's default); Android: the system long-press timeout (400 ms by default, follows the Accessibility touch-and-hold delay). From then on every move is reported and the lift ends it. P88 on iPhone, iPad, Android, macOS and GTK on macOS, see results.csv2 | -- |
+| 11 | iPad: eleven action files (P80-cursor-ipad shows all six cursor shapes on the simulator, 2026-10-14; P94-undo-ipad); nothing run on a physical iPad | Mac | DONE 2026-10-15: the user accepts the iPad simulator ("It is ok to just have it on iPad") | -- |
 | 12 | `reaim_android`: a real cross-build move, parking rows, several files in one write | Mac | open | next layout change is the test |
-| 13 | Android draws everything at 92.5% brightness | Mac | PENDING by the user | not to be worked on until asked |
 | 15 | P94 (TextEditor undo) on WinUI, and on GTK under Windows and WSL; `TextUndoHistory` for a `GtkTextView` has run on macOS only | Windows / WSL | open | replay the DRAFTS `actions/win/P94-undo.actions`, `actions/win/P94-undo-gtk4.actions` and `actions/wsl/P94-undo.actions` (written on the Mac 2026-10-14, never run; focus by Tab, so no coordinates -- if Tab misses the editor, measure it and click) |
+| 16 | P6 in the macOS sweep: `P6-transport-toggles` fails capture here because its stream folder `~/proj/LZFSE2/swift_tar/images` exists neither on this Mac nor on the Mac mini (2026-10-14) | M4 | handed to the M4 (user, 2026-10-15) | replay `actions/mac/P6-transport-toggles.actions` on the M4, where the folder is |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 
@@ -49,6 +49,14 @@ entry is closed.
   drags 1; iPad simulator hover 2 reports, ended, drags 1 and control
   drags 1 -- cmd is not checkable there, XCUITest hover carries no
   modifiers.
+  2026-10-15, queue item 10: on a touch screen a held finger is hover --
+  `UILongPressGestureRecognizer` (0.5 s, direct touches only, cancels no
+  touches) in `PointerHoverWidget`, and `dispatchTouchEvent` with the system
+  long-press timeout in `PointerHoverContainer.kt`. P88 now has "last active"
+  and an orange panel while hovered; every P88 cell was re-run and recorded
+  in results.csv2 the same day (macOS and GTK on macOS had no row before).
+  2026-10-15,queue 第 10 項：觸控螢幕上按住的手指即是 hover。P88 多了「last active」,hover 時面板變橘色;
+  各平台當天重跑並寫進 results.csv2(macOS 與 macOS 上的 GTK 之前沒有紀錄)。
   - [ ] **WinUI: `onContinuousHover` -- written, NOT compiled** (2026-10-10,
     on macOS). `WinUIBackend+InputTargets.swift`: `PointerMoved` /
     `PointerExited` on a `WinUIFeatureTarget`, modifiers from
