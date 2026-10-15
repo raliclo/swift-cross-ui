@@ -124,9 +124,30 @@ extension GtkBackend {
     /// ``updateSymbolView`` 的做法刻意不同：symbol view 除了字符之外一無所有，因此它只能畫退路、
     /// 否則就是一片空白；而工具列項目本來就帶著標籤，兩者都畫等於把同一個意思顯示兩次。
     private func makeToolbarButton(for item: ToolbarItem) -> Gtk.Button {
-        let iconName = item.systemImage
-            .flatMap { SystemSymbol.named($0) }
-            .flatMap { GtkBackend.availableIconName(for: $0) }
+        let symbol = item.systemImage.flatMap { SystemSymbol.named($0) }
+        // On macOS the SF Symbol itself, as `Image(systemName:)` draws it there
+        // (`sfSymbolTexture`): the icon theme's nearest names drew P53's info
+        // as a lightbulb and its trash as a circled cross (2026-10-16).
+        // macOS 上用 SF Symbol 本身，與 `Image(systemName:)` 在那裡的畫法相同(`sfSymbolTexture`):
+        // 圖示主題最接近的名稱把 P53 的 info 畫成燈泡、trash 畫成圈叉(2026-10-16)。
+        if let symbol,
+            let drawn = GtkBackend.sfSymbolTexture(
+                for: symbol,
+                in: computeRootEnvironment(defaultEnvironment: EnvironmentValues(backend: self))
+            )
+        {
+            let button = Gtk.Button()
+            let picture = Gtk.Picture()
+            picture.setPaintable(drawn.texture)
+            gtk_widget_set_size_request(picture.widgetPointer, Int32(drawn.size.x), Int32(drawn.size.y))
+            gtk_button_set_child(button.widgetPointer.cast(), picture.widgetPointer)
+            gtk_widget_set_tooltip_text(button.widgetPointer, item.label)
+            button.sensitive = item.isEnabled
+            let action = item.action
+            button.clicked = { _ in MainActor.assumeIsolated { action() } }
+            return button
+        }
+        let iconName = symbol.flatMap { GtkBackend.availableIconName(for: $0) }
 
         let button: Gtk.Button
         if let iconName {

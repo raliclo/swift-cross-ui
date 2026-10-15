@@ -100,7 +100,10 @@ extension GtkBackend {
         // GTK 自有的破壞性動作類別，與 `updateSimpleButton` 對 Menu 的做法相同：用主題的警示樣式(Adwaita 上是紅色),
         // 而不是我們的顏色。有加也有移除，因為 widget 會被重複使用。2026-10-07 之前只有 Menu 路徑讀取 role,
         // 因此 `Button("Delete", role: .destructive)` 畫得與其他按鈕無異。
-        if environment.buttonRole == .destructive {
+        // A colour the application set wins, as on AppKit: the class fills the
+        // button red, and P82's "blue set" drew blue on red (2026-10-16).
+        // 應用程式設定的顏色優先，與 AppKit 相同：該類別會把按鈕填成紅色,P82 的「blue set」成了紅底藍字(2026-10-16)。
+        if environment.buttonRole == .destructive, environment.foregroundColor == nil {
             gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
         } else {
             gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
@@ -127,7 +130,15 @@ extension GtkBackend {
         let probe = Gtk.Button()
         gtk_widget_add_css_class(probe.widgetPointer, "flat")
         gtk_widget_add_css_class(probe.widgetPointer, "destructive-action")
+        // Inside a throwaway window: GTK resolves theme CSS only for a widget with a
+        // root (see `readAmbientColorScheme`), so a loose probe read the light
+        // variant's dark red, which P82 drew on the dark background (2026-10-16).
+        // 放在一個暫時性視窗裡:GTK 只為有 root 的 widget 解析主題 CSS(見 `readAmbientColorScheme`),
+        // 游離的探針讀到的是淺色變體的深紅色,P82 把它畫在深色背景上(2026-10-16)。
+        let probeWindow = Gtk.Window()
+        probeWindow.setChild(probe)
         let colour = probe.getColor()
+        probeWindow.destroy()
         return SwiftCrossUI.Color(
             red: Double(colour.red), green: Double(colour.green),
             blue: Double(colour.blue), opacity: Double(colour.alpha)
@@ -229,10 +240,13 @@ fileprivate final class GtkCustomButton: Gtk.Button {
         // the theme, so a background here would silently beat the
         // `destructive-action` class `updateButton` adds -- the trap
         // `cssProperties(deferToThemeStyleClass:)` documents for the Menu button.
+        // A destructive button with a colour of the app's gets no class (see
+        // `updateButton`), so it keeps the ordinary background.
+        // 帶有 app 指定顏色的危險按鈕不加該類別(見 `updateButton`),因此保留一般背景。
         // 破壞性按鈕上不寫我們自己的背景：本 provider 位階高於主題，在此寫背景會靜默壓過 `updateButton`
         // 加上的 `destructive-action` 類別——即 `cssProperties(deferToThemeStyleClass:)` 為 Menu 按鈕記載的陷阱。
         let backgroundRule =
-            environment.buttonRole == .destructive
+            environment.buttonRole == .destructive && environment.foregroundColor == nil
             ? "" : "background: \(CSSProperty.rgba(backgroundColor));"
         baseCSS = """
                 button.customButton {

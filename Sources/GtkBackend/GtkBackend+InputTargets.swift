@@ -150,6 +150,7 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
             return gtk_widget_child_focus(widget, direction) != 0
         }
         target.addEventController(keys)
+        claimInitialFocusWhenMapped(target, attemptsLeft: 20)
         return target
     }
 
@@ -171,6 +172,42 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
         // `focus(_:)` 在要求之前會打開 can-focus;這裡關掉，要求就會被拒絕。
         gtk_widget_set_can_focus(pointer, wanted ? 1 : 0)
     }
+
+    /// The window's first key view, as AppKit picks one: when a window first shows,
+    /// the first `.focusable()` view takes the focus unless a text field or another
+    /// focusable view already has it. GTK leaves a new window with nothing focused,
+    /// so P91 read "focused: none" where AppKit reads "focused: a" (2026-10-16).
+    /// Once per window, so a view created later does not take the focus away.
+    /// 與 AppKit 選擇視窗第一個 key view 的方式相同：視窗第一次顯示時，第一個 `.focusable()` view 取得焦點，
+    /// 除非文字欄位或另一個 focusable view 已經有焦點。GTK 讓新視窗沒有任何焦點，因此 P91 顯示 focused: none,
+    /// AppKit 顯示 focused: a(2026-10-16)。每個視窗只做一次，之後建立的 view 不會把焦點搶走。
+    private func claimInitialFocusWhenMapped(_ target: GtkFeatureTarget, attemptsLeft: Int) {
+        runInMainThread { [weak self, weak target] in
+            guard let self, let target, attemptsLeft > 0 else { return }
+            guard gtk_widget_get_mapped(target.widgetPointer) != 0,
+                let root = gtk_widget_get_root(target.widgetPointer)
+            else {
+                self.claimInitialFocusWhenMapped(target, attemptsLeft: attemptsLeft - 1)
+                return
+            }
+            let window = UnsafeMutableRawPointer(root)
+            guard !Self.windowsWithInitialFocus.contains(window) else { return }
+            Self.windowsWithInitialFocus.insert(window)
+            if let current = gtk_root_get_focus(root) {
+                let isEditable = g_type_check_instance_is_a(
+                    UnsafeMutablePointer(OpaquePointer(current)), gtk_editable_get_type()) != 0
+                if isEditable || Self.focusableTargets.contains(UnsafeMutableRawPointer(current)) {
+                    return
+                }
+            }
+            if gtk_widget_get_focusable(target.widgetPointer) != 0 {
+                gtk_widget_grab_focus(target.widgetPointer)
+            }
+        }
+    }
+
+    /// Windows whose first key view has been chosen. 已選定第一個 key view 的視窗。
+    nonisolated(unsafe) static var windowsWithInitialFocus: Set<UnsafeMutableRawPointer> = []
 
     /// The wrappers `.focusable()` has made, by widget pointer.
     /// `.focusable()` 建過的包裝，以 widget 指標為鍵。
