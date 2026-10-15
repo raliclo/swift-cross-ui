@@ -321,6 +321,8 @@ public final class GtkBackend:
     /// first is dismissed, rather than a pile of modal dialogs fighting over the
     /// window (the P5 regression).
     private var shownAlert: [ObjectIdentifier: Alert] = [:]
+    /// The macOS appearance observer (`watchSystemColorSchemeChanges`), kept so it lives.
+    private var colorSchemeObserver: (any NSObjectProtocol)?
     private var shownAlertHandler: [ObjectIdentifier: (Int) -> Void] = [:]
     /// Alerts with exactly one button, which Escape answers (P31).
     private var oneButtonAlerts: Set<ObjectIdentifier> = []
@@ -2892,7 +2894,7 @@ public final class GtkBackend:
     /// The colour scheme the desktop itself is set to, where the platform has
     /// one this backend can read and GTK does not already follow it.
     ///
-    /// Only Windows: GTK there ships its own theme and does not track the system
+    /// Windows and macOS: GTK there ships its own theme and does not track the system
     /// light/dark setting, so an app would sit in Adwaita light on a dark
     /// desktop. On Linux the GTK theme *is* the desktop setting, so reading the
     /// theme's colour already answers the question and there is nothing separate
@@ -2927,6 +2929,14 @@ public final class GtkBackend:
                 }
             guard status == ERROR_SUCCESS else { return nil }
             return value == 0 ? .dark : .light
+        #elseif os(macOS)
+            // The system appearance, which GTK on macOS does not follow: Homebrew's
+            // GTK draws Adwaita light on a dark Mac, so P3's headings were the light
+            // scheme's dark grey on the app's black (2026-10-16). AppleInterfaceStyle
+            // is "Dark" in dark mode and absent in light mode.
+            // 系統外觀,macOS 上的 GTK 不會跟隨:Homebrew 的 GTK 在深色的 Mac 上畫 Adwaita 淺色，因此 P3 的標題
+            // 是淺色配置的深灰色，畫在 app 的黑底上(2026-10-16)。深色模式下 AppleInterfaceStyle 為 "Dark",淺色時不存在。
+            return UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .dark : .light
         #else
             return nil
         #endif
@@ -3251,6 +3261,37 @@ public final class GtkBackend:
             }
             thread.stackSize = 1 << 18
             thread.start()
+        #elseif os(macOS)
+            // The appearance switch in System Settings posts this distributed
+            // notification; GTK on macOS does not follow it, which is why
+            // `systemColorScheme` has a macOS branch at all. The handler hops to
+            // GTK's thread through `g_idle_add`, as the Windows watch does.
+            // 系統設定中的外觀切換會發出這個分散式通知;macOS 上的 GTK 不會跟隨它，這正是 `systemColorScheme`
+            // 有 macOS 分支的原因。handler 經由 `g_idle_add` 回到 GTK 的執行緒，與 Windows 的監看相同。
+            let box = ColorSchemeWatchBox(backend: self)
+            colorSchemeObserver = DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+                object: nil,
+                queue: nil
+            ) { _ in
+                g_idle_add_full(
+                    0,
+                    { pointer in
+                        guard let pointer else { return 0 }
+                        let box = Unmanaged<ColorSchemeWatchBox>.fromOpaque(pointer)
+                            .takeUnretainedValue()
+                        MainActor.assumeIsolated {
+                            box.backend?.recheckAmbientColorScheme()
+                        }
+                        return 0
+                    },
+                    Unmanaged.passRetained(box).toOpaque(),
+                    { pointer in
+                        guard let pointer else { return }
+                        Unmanaged<ColorSchemeWatchBox>.fromOpaque(pointer).release()
+                    }
+                )
+            }
         #endif
     }
 

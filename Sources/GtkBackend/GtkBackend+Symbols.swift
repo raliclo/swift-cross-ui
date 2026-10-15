@@ -2,6 +2,10 @@ import CGtk
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 /// Freedesktop icons, asked for by name and checked before they are drawn.
 ///
 /// **The check is the feature.** `gtk_image_new_from_icon_name` does not fail on
@@ -51,7 +55,11 @@ extension GtkBackend {
         removeAllChildren(of: symbolView)
 
         let child: Widget
-        if let iconName = Self.availableIconName(for: symbol) {
+        if let drawn = Self.sfSymbolTexture(for: symbol, in: environment) {
+            let picture = Gtk.Picture()
+            picture.setPaintable(drawn.texture)
+            child = picture
+        } else if let iconName = Self.availableIconName(for: symbol) {
             let image = Gtk.Image(iconName: iconName)
             image.pixelSize = Int(environment.resolvedFont.pointSize.rounded(.awayFromZero))
             child = image
@@ -106,10 +114,21 @@ extension GtkBackend {
         whenDisplayedIn widget: Widget,
         environment: EnvironmentValues
     ) -> SIMD2<Int> {
+        if let drawn = Self.sfSymbolTexture(for: symbol, in: environment) {
+            return drawn.size
+        }
         guard Self.availableIconName(for: symbol) != nil else {
+            // Measured through a label styled as the one that draws it. `widget` is
+            // the container, whose font is GTK's default rather than the
+            // environment's, so the name came out a few points short and the
+            // label ellipsized it ("definitely.not.a.sy…", P47, 2026-10-16).
+            // 以一個與實際繪製者相同樣式的 label 量測。`widget` 是容器，其字型是 GTK 預設而非
+            // environment 的，因此名稱量短了幾點,label 便把它省略了(P47,2026-10-16)。
+            let label = createTextView()
+            updateTextView(label, content: symbol.textFallback, environment: environment)
             return size(
                 of: symbol.textFallback,
-                whenDisplayedIn: widget,
+                whenDisplayedIn: label,
                 proposedWidth: nil,
                 proposedHeight: nil,
                 environment: environment
@@ -126,6 +145,89 @@ extension GtkBackend {
         let side = Int(environment.resolvedFont.pointSize.rounded(.awayFromZero))
         return SIMD2(side, side)
     }
+
+    /// The SF Symbol itself, drawn by AppKit, when GTK runs on macOS.
+    ///
+    /// GTK on macOS is in a process that can draw the system's symbols, and
+    /// the icon theme cannot: Homebrew's GTK ships GTK's own 138 icons, so
+    /// 18 of P47's 36 symbols fell back to their names, squeezed into a
+    /// glyph-sized cell ("Pho...", "M..."; 2026-10-16). Drawn here at the font's
+    /// point size and weight-free, tinted with the foreground colour, at 2x, and
+    /// handed to GTK as a texture -- the picture AppKitBackend shows.
+    ///
+    /// GTK 在 macOS 上所在的行程畫得出系統的符號，而圖示主題畫不出來:Homebrew 的 GTK 只帶 GTK 自己的
+    /// 138 個圖示，因此 P47 的 36 個符號中有 18 個退回成名稱，被擠進一個字形大小的格子裡。這裡以字型點級、
+    /// 前景色、2 倍解析度由 AppKit 畫出，再以 texture 交給 GTK——與 AppKitBackend 顯示的是同一張圖。
+    static func sfSymbolTexture(
+        for symbol: SystemSymbol,
+        in environment: EnvironmentValues
+    ) -> (texture: OpaquePointer, size: SIMD2<Int>)? {
+        #if os(macOS)
+            guard !symbol.sfSymbol.isEmpty,
+                let base = NSImage(
+                    systemSymbolName: symbol.sfSymbol,
+                    accessibilityDescription: symbol.name
+                )
+            else { return nil }
+            let font = environment.resolvedFont
+            let image =
+                base.withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(pointSize: CGFloat(font.pointSize), weight: .regular)
+                ) ?? base
+            let width = max(Int(image.size.width.rounded(.up)), 1)
+            let height = max(Int(image.size.height.rounded(.up)), 1)
+            let scale = 2
+            guard
+                let rep = NSBitmapImageRep(
+                    bitmapDataPlanes: nil,
+                    pixelsWide: width * scale,
+                    pixelsHigh: height * scale,
+                    bitsPerSample: 8,
+                    samplesPerPixel: 4,
+                    hasAlpha: true,
+                    isPlanar: false,
+                    colorSpaceName: .deviceRGB,
+                    bytesPerRow: width * scale * 4,
+                    bitsPerPixel: 32
+                ),
+                let context = NSGraphicsContext(bitmapImageRep: rep)
+            else { return nil }
+            let colour = (environment.foregroundColor ?? environment.suggestedForegroundColor)
+                .resolve(in: environment)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            let bounds = NSRect(x: 0, y: 0, width: width * scale, height: height * scale)
+            image.draw(in: bounds)
+            NSColor(
+                srgbRed: CGFloat(colour.red),
+                green: CGFloat(colour.green),
+                blue: CGFloat(colour.blue),
+                alpha: CGFloat(colour.opacity)
+            ).setFill()
+            bounds.fill(using: .sourceAtop)
+            NSGraphicsContext.restoreGraphicsState()
+            guard let bytes = rep.bitmapData else { return nil }
+            // The bitmap is premultiplied; a GdkPixbuf with alpha is straight.
+            // 點陣圖是預乘的;帶 alpha 的 GdkPixbuf 是未預乘的。
+            let count = width * scale * height * scale * 4
+            var rgba = [UInt8](repeating: 0, count: count)
+            for index in stride(from: 0, to: count, by: 4) {
+                let alpha = Int(bytes[index + 3])
+                rgba[index + 3] = UInt8(alpha)
+                guard alpha > 0 else { continue }
+                for channel in 0..<3 {
+                    rgba[index + channel] = UInt8(
+                        min(255, (Int(bytes[index + channel]) * 255 + alpha / 2) / alpha)
+                    )
+                }
+            }
+            let texture = texture(fromStraightRGBA: rgba, width: width * scale, height: height * scale)
+            return (texture, SIMD2(width, height))
+        #else
+            return nil
+        #endif
+    }
+
 
     /// The name this theme will actually draw, or `nil` if it will draw nothing.
     ///
