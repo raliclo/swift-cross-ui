@@ -179,7 +179,10 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1)
                 setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1)
             } else {
-                setenv("DRI_PRIME", "pci-" + card.busID.map { ":.".contains($0) ? "_" : $0 }, 1)
+                // 0000:03:00.0 is spelled pci-0000_03_00_0. / 0000:03:00.0 寫作 pci-0000_03_00_0。
+                let prime = "pci-" + card.busID.replacingOccurrences(of: ":", with: "_")
+                    .replacingOccurrences(of: ".", with: "_")
+                setenv("DRI_PRIME", prime, 1)
             }
             return .applied
         #endif
@@ -238,6 +241,16 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 } else {
                     cards.append(card)
                 }
+            }
+            // Low power means the integrated half of a hybrid machine: the boot GPU
+            // when there is another one. A desktop with one discrete card has none.
+            // 低功耗指的是混合顯示機器上內建的那一半：有另一張卡時，開機用的那張。只有一張獨顯的桌機沒有低功耗卡。
+            if cards.count < 2, let only = cards.first {
+                cards[0].adapter = GraphicsAdapter(
+                    name: only.adapter.name,
+                    isRemovable: only.adapter.isRemovable,
+                    isLowPower: false
+                )
             }
             return cards
         }
