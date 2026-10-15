@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P74 on GtkBackend on macOS (TEST_BACKEND=gtk4): a choice can be made in every picker style and the disabled one refuses it.
+# Measured 2026-10-16 from p74-macos-gtk4-final-20261016-022917.png (1040x1576 = 520x788 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's segmented click fell in the gap above the control and the radio and wheel clicks hit one row high on GTK's taller layout (gtk4-aim-20261016.csv2).
+# GTK: menu (120,145); segmented Three (255,215); radioGroup Blue (100,328); wheel Thu (105,481); disabled Green (100,600).
+# After this file menu -> Cherry; segmented -> Three; radioGroup -> Blue; wheel -> Thu; the disabled group untouched.
+# GTK 版 P74:GTK 版面較高，分段、單選與滾輪的點擊重新量測；結束時 Cherry、Three、Blue、Thu。
+sleep,,,,,,1200000,let P74 render,macos
+click,120,145,frame,left,,,open the menu picker -- re-centred from (114;138),macos
+sleep,,,,,,1000000,let it open,macos
+key,,,,,downArrow,,Banana,macos
+key,,,,,downArrow,,Cherry,macos
+key,,,,,return,,choose it -- menu -> Cherry,macos
+sleep,,,,,,800000,let the menu close,macos
+click,255,215,frame,left,,,segmented: Three -- segmented -> Three; was (180;193) in the gap above the control,macos
+sleep,,,,,,600000,,macos
+click,100,328,frame,left,,,radioGroup: Blue -- radioGroup -> Blue; was (100;297) which hit Green,macos
+sleep,,,,,,600000,,macos
+click,105,481,frame,left,,,wheel: Thu -- wheel -> Thu; was (102;413) which hit Tue,macos
+sleep,,,,,,600000,,macos
+click,100,600,frame,left,,,the DISABLED radio group's Green -- must be refused: radioGroup must still read Blue; was (100;518) which hit the wheel's Fri,macos
+sleep,,,,,,1000000,settle before the photograph,macos

@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P32 on GtkBackend on macOS (TEST_BACKEND=gtk4): click the Toggle label button once; the verdict compares this capture with the unclicked one.
+# Measured 2026-10-16 from p32-macos-gtk4-final-20261016-015108.png (1520x1176, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's click (65,289) fell in the gap between the text field and the Toggle label button on GTK's taller layout (gtk4-aim-20261016.csv2).
+# After this file toggle state must read ON and the Toggle label button must be drawn pressed.
+# macOS 上 GtkBackend 的 P32:Toggle label 重新瞄準 (72,308);之後 toggle state 必須是 ON。
+sleep,,,,,,1000000,let P32 lay out,macos,
+click,72,308,frame,left,,,"click the toggle -- Toggle label button, re-aimed from y 289 (button y 293-325)",macos,
+sleep,,,,,,1200000,,macos,

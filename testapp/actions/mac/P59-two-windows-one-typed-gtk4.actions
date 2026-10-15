@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on GtkBackend on macOS (TEST_BACKEND=gtk4): clear, append A three times in window A, then open the second window -- the app row must match across windows and the scene row must not.
+# Measured 2026-10-16 from p59-macos-gtk4-final-20261016-021815.png (1120x976, halved to 560x488, window A; origin=frame, 28 pt native title bar, geometry frame=(680,264) client=(680,292)): append A x 20-113, clear x 238-286, both y 220-252; open second window y 261-295.
+# The AppKit file's clear click at (220,239) landed in the gap left of the clear button on GTK (gtk4-aim-20261016.csv2), so the drafts kept the previous run's AAA. The append and open-window clicks had landed and are re-centred.
+# After this file: window A scene draft AAA and app draft AAA; window B scene draft empty and app draft AAA.
+# macOS 上 GtkBackend 的 P59:clear 依 GTK 擷圖重新量測，結束時視窗 A 為 AAA、視窗 B 的 scene 為空。
+click,262,236,frame,left,,,"clear (was 220;239, left of the button) -- first, because both drafts persist between runs. After this row the three appends must leave exactly AAA",macos
+sleep,,,,,,400000,,macos
+click,66,236,frame,left,,,append A (re-centred) -- window A is the only window open at this point,macos
+sleep,,,,,,300000,,macos
+click,66,236,frame,left,,,again,macos
+sleep,,,,,,300000,,macos
+click,66,236,frame,left,,,and again -- three appends into window A,macos
+sleep,,,,,,500000,,macos
+click,101,278,frame,left,,,now open the second window (re-centred),macos
+sleep,,,,,,1200000,let the second window map and read its own storage,macos

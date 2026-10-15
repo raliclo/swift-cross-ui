@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12 on GtkBackend on macOS (TEST_BACKEND=gtk4): tabs and a counter hold their values (#580); the margin buttons respond (#632); forced toggles show their state (#544).
+# Measured 2026-10-16 from p12-macos-gtk4-final-20261016-012533.png (840x1496 = 420x748 pt; 2x halved; origin=frame with the 28 pt title bar). Every AppKit click landed beside its control on GTK's taller layout: the tab clicks at y 301 hit Increment counter (gtk4-aim-20261016.csv2).
+# GTK: tabs at y 264 (First 128 / Second 207 / Third 289); Increment (171,304); narrow button (209,384); Wide (209,428); toggles at y 528; Set both on (149,568); Set opposite (268,568); switch (173,626).
+# After this file Selected tab must read Second with counter 2; forced-on and forced-off must look different; the switch must be on.
+# GTK 版 P12:GTK 版面較高，每一下點擊都重新量測；結束時 Second、counter 2、兩個 toggle 外觀不同、switch 開。
+click,128,264,frame,left,,,First -- Selected tab must leave Second; y 301 -> 264 (y 301 is Increment counter on GTK),macos
+sleep,,,,,,700000,,macos
+click,289,264,frame,left,,,Third -- was (263;301),macos
+sleep,,,,,,700000,,macos
+click,171,304,frame,left,,,Increment counter -- was (174;327) in the gap below it,macos
+sleep,,,,,,500000,,macos
+click,171,304,frame,left,,,again -- counter must reach 2,macos
+sleep,,,,,,500000,,macos
+click,207,264,frame,left,,,back to Second -- the counter must survive the tab change; was (196;301),macos
+sleep,,,,,,800000,,macos
+click,209,384,frame,left,,,the narrow button between the green bars -- #632; was (210;393),macos
+sleep,,,,,,600000,,macos
+click,209,428,frame,left,,,Wide button -- was (210;423),macos
+sleep,,,,,,800000,,macos
+click,134,528,frame,left,,,the forced-on Toggle -- was (142;509) above it,macos
+sleep,,,,,,600000,,macos
+click,226,528,frame,left,,,the forced-off one -- was (220;509),macos
+sleep,,,,,,700000,,macos
+click,173,626,frame,left,,,the switch-styled toggle -- BEFORE the two Set buttons (it shares toggleOn with forced-on); was (181;587) above the switch,macos
+sleep,,,,,,700000,,macos
+click,149,568,frame,left,,,Set both on -- was (157;537) above it,macos
+sleep,,,,,,700000,,macos
+click,268,568,frame,left,,,Set opposite -- #544; the capture must show forced-on and forced-off looking different and the switch on; was (261;537),macos
+sleep,,,,,,1000000,,macos

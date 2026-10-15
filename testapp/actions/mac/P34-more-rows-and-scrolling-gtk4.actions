@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# launch-args: -rows 500
+# P34 on GtkBackend on macOS (TEST_BACKEND=gtk4): raise the row count past the cap and scroll through what arrived.
+# Measured 2026-10-16 from p34-macos-gtk4-final-20261016-015235.png (1560x1328 = 780x664 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit clicks landed (requested rows: 500; showing first 500); the miss was the scroll, which did not reach GtkBackend scroll views on that run (gtk4-aim-20261016.csv2). Wheel delivery to GTK was fixed on 2026-10-16, so the scroll rows stay.
+# Show +100 (197,211) and Show all capped rows (342,211) re-centred; the pointer (165,425) is inside the row list on GTK too.
+# GTK also has a Scroll to row 50 button at (211,257); it is not pressed, because the point of this file is that the wheel reaches the list.
+# After this file the header must read requested rows: 500; showing first 500, and the list must show rows well past Row 0 at its top.
+# GTK 版 P34:兩顆按鈕原本就點到了，失敗在滾輪；滾輪送達 GTK 已於 2026-10-16 修好，因此保留捲動列。
+click,197,211,frame,left,,,Show +100 -- requested rows must reach 200; re-centred from (194;210),macos
+sleep,,,,,,1200000,,macos
+click,197,211,frame,left,,,and 300,macos
+sleep,,,,,,1200000,,macos
+click,342,211,frame,left,,,Show all capped rows -- the header must read requested rows: 500; showing first 500; re-centred from (327;210),macos
+sleep,,,,,,2000000,let an eager build of every row finish,macos
+move,165,425,frame,,,,into the list,macos
+sleep,,,,,,300000,,macos
+scroll,0,10,,,,,ten notches down,macos
+sleep,,,,,,1000000,,macos
+scroll,0,10,,,,,ten more -- the capture must show rows well past Row 0 at the top of the list,macos
+sleep,,,,,,1200000,,macos

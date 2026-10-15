@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13 on GtkBackend on macOS (TEST_BACKEND=gtk4): raise the duplicate count to 5, press Narrower twice to 280 below the sidebar minimum, and Reverse the z-order once. #415 is not pressed.
+# Measured 2026-10-16 from p13-macos-gtk4-final-20261016-012634.png (1800x1896, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's More duplicates and Reverse clicks landed beside their buttons on GTK's taller layout (gtk4-aim-20261016.csv2).
+# More duplicates is measured (260,153). Narrower and Reverse are DERIVED, not measured: the capture is the launch layout (Narrower y 417-449, x 250-381; Reverse y 896-929, x 340-424). The GTK window is sized to its content (948 pt, over the 760 default), so two more 18 pt duplicate rows push everything below by 36 pt, not the 18 pt of AppKit's centred layout.
+# Narrower x 330 is inside the button both at width 400 (x 250-381) and after it shifts right 30 pt at width 340 (x 280-411). Reverse x 357 stays left of the z-order squares (x 375-525), which GTK draws over the button.
+# After this file More duplicates must read (5), Narrower (280) with the Detail pane visible, and Top of the stack must stop saying blue.
+# macOS 上 GtkBackend 的 P13:More duplicates 為量測值;Narrower 與 Reverse 由啟動版面加 36 點推得，未經量測。
+click,260,153,frame,left,,,"More duplicates (3) -> 4 -- re-aimed from y 196, which hit the Identifiable text (button y 137-170)",macos
+sleep,,,,,,700000,,macos
+click,260,153,frame,left,,,-> 5: the button must read More duplicates (5),macos
+sleep,,,,,,700000,,macos
+click,330,469,frame,left,,,"Narrower (400) -> 340 -- derived: launch y 433 plus 36 pt for the two added duplicate rows",macos
+sleep,,,,,,700000,,macos
+click,330,469,frame,left,,,"and again -> 280: below the sidebar's own minimum; the button must read Narrower (280) and the Detail pane must still be visible. x 330 is inside the button at both widths",macos
+sleep,,,,,,900000,the Detail pane must still be visible,macos
+click,357,948,frame,left,,,"Reverse -- once; derived: launch y 912 plus 36 pt, x 357 left of the overlapping squares. The middle square must change colour and Top of the stack must stop saying blue",macos
+sleep,,,,,,1000000,,macos

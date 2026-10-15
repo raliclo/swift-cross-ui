@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on GtkBackend on macOS (TEST_BACKEND=gtk4): move .automatic and .compact one month forward to 2025-09-24 and pick the 17th on .graphical, each without disturbing the other two.
+# Measured 2026-10-16 from p41-macos-gtk4-final-20261016-015753.png (1880x1296, halved to 940x648; origin=frame, 28 pt native title bar, geometry frame=(490,184) client=(490,212)).
+# On GTK .automatic is the same calendar grid as .graphical (no stepper), so the AppKit stepper clicks at (205,264) picked Aug 12; the .compact click (198,395) hit its label, not the button at (172,431) (gtk4-aim-20261016.csv2). The month arrows here stand in for the stepper: next, next, previous.
+# GTK month arrows move the selected day without emitting day-selected (the backend listens only to that), so each calendar then gets two day clicks, 23 then 24 of September: a click on the day already selected emits nothing.
+# .automatic rows are measured (September 2025 starts on Monday: 23/24 are row 4, x 205/240, y 303). The .compact popover rows are derived, not measured: the calendar is assumed centred under the button with its top about 17 pt below it (tail 8 + border + padding 8), so > at (169,480) and 23/24 at (137,605)/(172,605).
+# After this file: .automatic 2025-09-24, .compact 2025-09-24, .graphical 2025-08-17.
+# macOS 上 GtkBackend 的 P41:.automatic 在 GTK 是月曆，以月份箭頭加點日期代替步進器;.compact 彈出月曆的座標為推算值。
+click,237,178,frame,left,,,.automatic month > (replaces the stepper up at 205;264 -- .automatic is a calendar on GTK),macos
+sleep,,,,,,700000,,macos
+click,237,178,frame,left,,,again -- October,macos
+sleep,,,,,,700000,,macos
+click,133,178,frame,left,,,"and month < once -- net one month forward, September 2025",macos
+sleep,,,,,,700000,,macos
+click,205,303,frame,left,,,"September 23 -- a day different from the one the arrows carried over, so day-selected fires",macos
+sleep,,,,,,700000,,macos
+click,240,303,frame,left,,,September 24 -- .automatic must read 2025-09-24,macos
+sleep,,,,,,900000,,macos
+click,172,431,frame,left,,,.compact button (was 198;395 on its label) -- opens the calendar popover,macos
+sleep,,,,,,1200000,,macos
+click,169,480,frame,left,,,"popover month > (derived, not measured) -- September",macos
+sleep,,,,,,700000,,macos
+click,137,605,frame,left,,,popover September 23 (derived),macos
+sleep,,,,,,700000,,macos
+click,172,605,frame,left,,,"popover September 24 (derived) -- .compact must read 2025-09-24 and the others must not move",macos
+sleep,,,,,,700000,,macos
+key,,,,,escape,,close the popover so the next click is not eaten by its dismissal,macos
+sleep,,,,,,800000,,macos
+click,570,303,frame,left,,,".graphical -- the 17th (it landed at 569;303): the calendar must highlight 17, and the other two must keep their own dates",macos
+sleep,,,,,,1200000,,macos

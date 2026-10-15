@@ -4,6 +4,8 @@ import Foundation
 
 #if os(Windows)
     import WinSDK
+#elseif os(macOS)
+    import Metal
 #endif
 
 /// GtkBackend's half of adapter selection: what exists, and how to select it.
@@ -58,18 +60,27 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 }
             }
             return adapters
+        #elseif os(macOS)
+            // The same list AppKitBackend reports, from Metal, system default first:
+            // the GPUs exist whichever toolkit draws the window. Until 2026-10-16 this
+            // branch was the Linux one and P68 read "adapters: 0" on a Mac with one.
+            // 與 AppKitBackend 回報的是同一份清單，取自 Metal,系統預設排第一：不論由哪個工具組繪製視窗，
+            // GPU 都在那裡。2026-10-16 之前這裡走的是 Linux 分支,P68 在有一張卡的 Mac 上顯示 adapters: 0。
+            let systemDefault = MTLCreateSystemDefaultDevice()
+            let ordered = MTLCopyAllDevices().sorted { first, _ in
+                first.registryID == systemDefault?.registryID
+            }
+            return ordered.map { device in
+                GraphicsAdapter(
+                    name: device.name,
+                    isRemovable: device.isRemovable,
+                    isLowPower: device.isLowPower
+                )
+            }
         #else
-            // Not implemented on Linux. Returning nothing is honest -- the
-            // shared resolution then falls back and says why -- whereas
-            // inventing a single unnamed adapter would report a choice that
-            // was never made. Selecting on Linux is DRI_PRIME or
-            // __NV_PRIME_RENDER_OFFLOAD, set before GL initialises, and needs
-            // no restart; see testapp/plan/plan-gpu-selection.md.
-            // 在 Linux 上尚未實作。回傳空集合才是誠實的——共用的解析邏輯會據此退路並說明原因——
-            // 而憑空捏造一張無名介面卡，等於回報一個從未做過的選擇。Linux 上的選擇方式是
-            // DRI_PRIME 或 __NV_PRIME_RENDER_OFFLOAD，於 GL 初始化前設定，且不需要重新啟動；
-            // 詳見 testapp/plan/plan-gpu-selection.md。
-            return []
+            // Linux: the cards /sys/class/drm lists, the boot GPU first (`drmCards`).
+            // Linux:/sys/class/drm 列出的顯示卡，開機用的那張排第一(`drmCards`)。
+            return Self.drmCards().map(\.adapter)
         #endif
     }
 
@@ -130,14 +141,105 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                     "\(adapter.name)" means writing GpuPreference=\(wanted) and starting again.
                     """
             )
-        #else
+        #elseif os(macOS)
+            // GTK on macOS draws through the system's OpenGL, which runs on the GPU
+            // Metal calls the system default: the process does not pick one. Selecting
+            // the default is therefore already in effect, and another card cannot be
+            // chosen from inside GTK (GDK creates its own context).
+            // macOS 上的 GTK 經由系統的 OpenGL 繪製，它跑在 Metal 稱為系統預設的那張 GPU 上，行程不自行挑選。
+            // 因此選預設那張就是已生效；其他卡無法從 GTK 內部選定(GDK 自己建立 context)。
+            guard let adapter = resolution.adapter else { return .applied }
+            if adapter.name == MTLCreateSystemDefaultDevice()?.name {
+                return .alreadyActive
+            }
             return .unavailable(
                 reason: """
-                    Adapter selection is not implemented for GtkBackend on this platform. On \
-                    Linux it would be DRI_PRIME or __NV_PRIME_RENDER_OFFLOAD, set before GL \
-                    initialises, which needs no restart.
+                    GtkBackend on macOS renders through GDK's OpenGL context, which macOS puts on \
+                    the system default GPU. "\(adapter.name)" is not that GPU, and GDK has no \
+                    call to place its context elsewhere.
                     """
             )
+        #else
+            // Linux selects a GL device per process from the environment, read when GL
+            // initialises -- and this runs before any drawing (`_App`). Mesa takes
+            // DRI_PRIME=pci-<bus id>; the NVIDIA driver takes PRIME render offload.
+            // Linux 由環境變數為每個行程選定 GL 裝置，於 GL 初始化時讀取——而這段在任何繪製之前執行(`_App`)。
+            // Mesa 接受 DRI_PRIME=pci-<匯流排位址>;NVIDIA 驅動接受 PRIME render offload。
+            guard let adapter = resolution.adapter else {
+                setenv("LIBGL_ALWAYS_SOFTWARE", "1", 1)
+                return .applied
+            }
+            guard let card = Self.drmCards().first(where: { $0.adapter.name == adapter.name }) else {
+                return .unavailable(reason: "\"\(adapter.name)\" is no longer listed under /sys/class/drm")
+            }
+            if card.isBootVGA {
+                return .alreadyActive
+            }
+            if card.driver == "nvidia" {
+                setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1)
+                setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1)
+            } else {
+                setenv("DRI_PRIME", "pci-" + card.busID.map { ":.".contains($0) ? "_" : $0 }, 1)
+            }
+            return .applied
         #endif
     }
+
+    #if !os(Windows) && !os(macOS)
+        /// One GPU as /sys/class/drm describes it.
+        struct DRMCard {
+            var adapter: GraphicsAdapter
+            var driver: String
+            var busID: String
+            var isBootVGA: Bool
+        }
+
+        /// The cards under /sys/class/drm (card0, card1, ...; not their connectors),
+        /// the one the firmware booted on first, which is what GL picks unasked.
+        /// /sys/class/drm 底下的顯示卡(card0、card1……,不含其接頭),韌體開機所用的那張排第一，
+        /// 也就是不指定時 GL 會選的那張。
+        static func drmCards() -> [DRMCard] {
+            let root = "/sys/class/drm"
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
+            func read(_ path: String) -> String? {
+                (try? String(contentsOfFile: path, encoding: .utf8))?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            var cards: [DRMCard] = []
+            for name in names.sorted()
+            where name.hasPrefix("card") && name.dropFirst(4).allSatisfy(\.isNumber) {
+                let device = "\(root)/\(name)/device"
+                let uevent = read("\(device)/uevent") ?? ""
+                func field(_ key: String) -> String? {
+                    uevent.split(separator: "\n").first { $0.hasPrefix(key + "=") }
+                        .map { String($0.dropFirst(key.count + 1)) }
+                }
+                let driver = field("DRIVER") ?? "unknown"
+                let busID = field("PCI_SLOT_NAME")
+                    ?? ((try? FileManager.default.destinationOfSymbolicLink(atPath: device))
+                        .map { ($0 as NSString).lastPathComponent } ?? name)
+                let pciID = field("PCI_ID") ?? ""
+                let isBootVGA = read("\(device)/boot_vga") == "1"
+                let removable = read("\(device)/removable") == "removable"
+                let card = DRMCard(
+                    adapter: GraphicsAdapter(
+                        name: "\(driver) \(pciID.isEmpty ? busID : pciID) (\(busID))",
+                        isRemovable: removable,
+                        // The boot GPU is the integrated one on a hybrid laptop.
+                        // 混合顯示筆電上，開機用的 GPU 是內建的那張。
+                        isLowPower: isBootVGA
+                    ),
+                    driver: driver,
+                    busID: busID,
+                    isBootVGA: isBootVGA
+                )
+                if isBootVGA {
+                    cards.insert(card, at: 0)
+                } else {
+                    cards.append(card)
+                }
+            }
+            return cards
+        }
+    #endif
 }

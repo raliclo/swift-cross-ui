@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16 on GtkBackend on macOS (TEST_BACKEND=gtk4): force an update twice, switch to three columns, select Science then Humanities, and force an update again.
+# Measured 2026-10-16 from p16-macos-gtk4-final-20261016-013005.png (1800x1256, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's Humanities click (62,206) hit the bottom of the Science row (y 176-211) on GTK's taller rows (gtk4-aim-20261016.csv2).
+# Force update (369,109), Switch (524,109), Science (78,193), Humanities (62,226): centres on the three-column layout the capture shows. The AppKit button clicks also landed; they are centred here.
+# After this file Force update must read (3), three columns must show, and the sidebar, middle column and detail pane must all be on Humanities.
+# macOS 上 GtkBackend 的 P16:Humanities 重新瞄準 (62,226);之後三個窗格都必須是 Humanities。
+click,369,109,frame,left,,,"Force update (0) -> 1; the pane sizes must not move -- centred (button y 93-125)",macos
+sleep,,,,,,800000,,macos
+click,369,109,frame,left,,,-> 2; still no movement,macos
+sleep,,,,,,800000,,macos
+click,524,109,frame,left,,,Switch to 3 column -- centred,macos
+sleep,,,,,,1200000,,macos
+click,78,193,frame,left,,,"Science -- a middle column and a detail pane must both fill; row y 176-211",macos
+sleep,,,,,,800000,,macos
+click,62,226,frame,left,,,"Humanities -- re-aimed from y 206, the bottom of the Science row; the sidebar row, the middle column and the detail pane must all move to Humanities",macos
+sleep,,,,,,800000,,macos
+click,369,109,frame,left,,,Force update again in three columns,macos
+sleep,,,,,,1000000,,macos

@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15 on GtkBackend on macOS (TEST_BACKEND=gtk4): request each colour scheme in turn (ending on Dark), type into the field, then make the content too tall (#386, #289).
+# Measured 2026-10-16 from p15-macos-gtk4-final-20261016-012807.png (1440x1176, halved to 720x588; origin=frame, 28 pt native title bar, geometry frame=(600,214) client=(600,242)). The capture is the short layout, which is the one every row meets.
+# The AppKit file's System/Light/Dark clicks (y 235) fell below the scheme buttons (frame y 190-223) and Use tall content (y 446) above its button (y 456-489) on GTK's layout (gtk4-aim-20261016.csv2). The field, toggle and Button had landed and are only re-centred.
+# After this file: Requested: dark, six Extra rows and Content is taller; the field reads Editable textxy.
+# macOS 上 GtkBackend 的 P15:配色按鈕與 Use tall content 依 GTK 擷圖重新量測，結束時 Requested: dark。
+click,360,293,frame,left,,,focus the editable field (re-centred; it landed at y 308),macos
+sleep,,,,,,500000,,macos
+key,,,,,x,,,macos
+key,,,,,y,,text that must stay legible in every scheme,macos
+sleep,,,,,,600000,,macos
+click,346,207,frame,left,,,Light (was 322;235 below the button) -- Requested and Resolved must both say light,macos
+sleep,,,,,,1200000,,macos
+click,359,331,frame,left,,,the toggle under light (re-centred),macos
+sleep,,,,,,600000,,macos
+click,267,369,frame,left,,,and the button (re-centred; it landed at 260;356),macos
+sleep,,,,,,800000,,macos
+click,264,207,frame,left,,,System (was 256;235) -- the one case where Requested and Resolved may differ,macos
+sleep,,,,,,1200000,,macos
+click,419,207,frame,left,,,"Dark (was 380;235), LAST of the three -- the capture must read Requested: dark. Coordinates are for the SHORT layout: after Use tall content the centred content moves up",macos
+sleep,,,,,,1200000,,macos
+click,245,473,frame,left,,,"Use tall content (was 240;446 above the button) -- six Extra rows must appear and the status line must read Content is taller. Content area stays 300 x 24 by construction",macos
+sleep,,,,,,1200000,,macos

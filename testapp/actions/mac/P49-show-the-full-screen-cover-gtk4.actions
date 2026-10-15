@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on GtkBackend on macOS (TEST_BACKEND=gtk4): the "Show the cover" button presents; the cover must fill the window and cover opens must read 1 with coverShown = true.
+# Measured 2026-10-16 from p49-macos-gtk4-final-20261016-020658.png (1560x1296 = 780x648 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's click at (80;329) landed beside the button on GTK's taller layout: the button is at y 278; y 329 hit the gap above the "3. popover" caption (gtk4-aim-20261016.csv2).
+# After this file the cover must fill the window and cover opens must read 1 with coverShown = true.
+# GTK 版 P49:cover 按鈕在 y 278,AppKit 檔的點擊落在按鈕旁；改點 (82,278)。
+sleep,,,,,,1500000,let P49 render,macos
+click,82,278,frame,left,,,"the ""Show the cover"" button -- was (80;329) beside it; the cover must fill the window and cover opens must read 1 with coverShown = true",macos
+sleep,,,,,,1500000,let the presentation animate in,macos

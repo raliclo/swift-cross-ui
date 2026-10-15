@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P61 on GtkBackend on macOS (TEST_BACKEND=gtk4): one drag gives one onEditingChanged begin and one end; moving the slider from code changes neither count.
+# Measured 2026-10-16 from p61-macos-gtk4-final-20261016-021925.png (1240x896 = 620x448 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's drag ran at frame y 232 about 12 pt below the GTK track (y 220; x 29-325) so the thumb never followed and values seen stayed at 1 (gtk4-aim-20261016.csv2).
+# The code button move it from code (+0.1) is centred at (110,263); the AppKit (104,261) landed and is only re-centred.
+# After this file began must read 1 and ended 1 with values seen above 1 from the drag; the code move then changes value but not the counts.
+# GTK 版 P61:滑桿軌道在 frame y 220,AppKit 檔的拖曳在 y 232 低了 12 pt;拖曳改在 y 220。
+sleep,,,,,,1200000,let P61 lay out,macos,
+mousedown,60,220,frame,left,,,press on the slider track -- y 232 -> 220 (the GTK track),macos,
+sleep,,,,,,200000,,macos,
+move,120,220,frame,,,,drag,macos,
+sleep,,,,,,150000,,macos,
+move,200,220,frame,,,,drag further,macos,
+sleep,,,,,,150000,,macos,
+move,280,220,frame,,,,and further,macos,
+sleep,,,,,,150000,,macos,
+mouseup,280,220,frame,left,,,let go -- one begin and one end so far,macos,
+sleep,,,,,,600000,,macos,
+click,110,263,frame,left,,,move it from code -- the counts must NOT change; re-centred from (104;261),macos,
+sleep,,,,,,800000,,macos,

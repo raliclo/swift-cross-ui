@@ -1,3 +1,4 @@
+import CGtk
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
@@ -36,6 +37,16 @@ extension GtkBackend {
         anchor: UnitPoint?
     ) {
         guard let container = scrollView as? ScrolledWindow else { return }
+        // Only a container that holds the child scrolls to it. GTK can compute
+        // the child's position relative to ANY widget in the window, so without
+        // this check every scroll view under a reader moved to the same offset:
+        // P58's "left to L30" put the right column at R30 too (2026-10-16).
+        // 只有包含該子 view 的容器才捲動。GTK 可以算出子 view 相對於視窗中**任何** widget 的位置，
+        // 因此少了這項檢查,reader 底下的每個捲動視圖都會移到同一個偏移:P58 的「left to L30」
+        // 也把右欄帶到了 R30(2026-10-16)。
+        guard gtk_widget_is_ancestor(child.widgetPointer, container.widgetPointer) != 0 else {
+            return
+        }
         container.scroll(
             to: child,
             anchor: anchor.map { (x: Double($0.x), y: Double($0.y)) }

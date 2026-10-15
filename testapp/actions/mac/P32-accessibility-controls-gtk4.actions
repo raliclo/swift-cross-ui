@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P32 on GtkBackend on macOS (TEST_BACKEND=gtk4): press the labelled button and the unlabelled toggle, type ab into the placeholder field, press Toggle label and drag the slider well off its default.
+# Measured 2026-10-16 from p32-macos-gtk4-final-20261016-015015.png (1520x1176, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's Labelled button, unlabelled toggle and slider rows landed beside their controls on GTK's taller layout (gtk4-aim-20261016.csv2).
+# Labelled button (84,171), unlabelled square (35,217), field (380,263), Toggle label (72,308), slider thumb (148,382). The GTK slider track ends at x 266, so the drag goes to 250, not 300.
+# After this file the field must read ab, toggle state ON, and the slider thumb must sit right of its default.
+# macOS 上 GtkBackend 的 P32:按鈕、無標籤 toggle 與滑桿重新量測;滑桿拖到 250(GTK 滑軌止於 266)。
+click,84,171,frame,left,,,"Labelled button -- re-aimed from (76,206), which was below it (y 155-187)",macos
+sleep,,,,,,600000,,macos
+click,35,217,frame,left,,,"the toggle with no visible text -- re-aimed from (26,238), just below the square (x 18-52, y 200-234)",macos
+sleep,,,,,,600000,,macos
+click,380,263,frame,left,,,"into the placeholder field -- centred (y 246-280); AppKit y 270 also landed",macos
+sleep,,,,,,500000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,a value for an inspector to read back,macos
+sleep,,,,,,600000,,macos
+click,72,308,frame,left,,,"Toggle label -- centred (y 293-325); AppKit (65,303) also landed",macos
+sleep,,,,,,600000,,macos
+mousedown,148,382,frame,left,,,"take hold of the slider -- re-aimed from y 334, the toggle state label; thumb at (148,382)",macos
+move,250,382,frame,,,,"and move it well off its default (track ends at x 266)",macos
+sleep,,,,,,300000,,macos
+mouseup,250,382,frame,left,,,,macos
+sleep,,,,,,1200000,,macos

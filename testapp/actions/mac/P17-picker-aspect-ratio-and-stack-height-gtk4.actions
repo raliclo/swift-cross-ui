@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17 on GtkBackend on macOS (TEST_BACKEND=gtk4): step the three sizing controls (picker #161, aspect ratio in a ScrollView #266a, ideal-width VStack #266b) and read the numbers they print.
+# Measured 2026-10-16 from p17-macos-gtk4-final-20261016-013213.png (1800x1736, halved to 900x868; origin=frame, 28 pt native title bar, geometry frame=(510,75) client=(510,103)). The capture is the launch geometry: Shorter/Taller ended where they began.
+# The AppKit file's Less height / More height clicks (y 736) landed in the coloured stack on GTK's taller layout; the buttons are at frame y 796-829 (gtk4-aim-20261016.csv2). The picker row, picker and Shorter/Taller had landed and are re-centred.
+# Derived, not measured: Shorter/Taller move by 5 pt per press and More height by up to 20 pt after Less height, so those rows aim where the button sits in every case (y 548 and y 802) rather than at the capture centre.
+# After this file: presses: SML--++<> and stack: 145 x 140 again after one Less and one More.
+# macOS 上 GtkBackend 的 P17:Less/More height 依 GTK 擷圖重新量測；按鈕會隨高度移動的列取各狀態共同可命中的 y。
+click,298,313,frame,left,,,Shortest (re-centred; was y 330 at the button edge) -- picker: W x H must change or must not,macos
+sleep,,,,,,800000,,macos
+click,392,313,frame,left,,,Medium (re-centred),macos
+sleep,,,,,,800000,,macos
+click,484,313,frame,left,,,Longest (re-centred) -- the widest selection,macos
+sleep,,,,,,800000,,macos
+click,500,273,frame,left,,,open the picker itself (was 440;305 -- the picker is at y 256-289; aimed right of the picker: label drawn over it),macos
+sleep,,,,,,1200000,,macos
+key,,,,,escape,,and close it without choosing,macos
+sleep,,,,,,800000,,macos
+click,333,548,frame,left,,,Shorter (120) (was 327;536) -- #266a; the scroll bar may come and go,macos
+sleep,,,,,,800000,,macos
+click,333,548,frame,left,,,shorter again -- the button rises 5 pt per press,macos
+sleep,,,,,,800000,,macos
+click,434,548,frame,left,,,Taller (was 418;536),macos
+sleep,,,,,,800000,,macos
+click,434,548,frame,left,,,taller again -- it must settle rather than flicker,macos
+sleep,,,,,,1000000,,macos
+click,336,812,frame,left,,,Less height (140) (was 332;736 inside the coloured stack) -- #266b; the three bands must stay equal width,macos
+sleep,,,,,,800000,,macos
+click,469,802,frame,left,,,More height (was 450;736) -- y 802 is inside the button whether Less height moved it up 0; 10 or 20 pt,macos
+sleep,,,,,,1000000,,macos

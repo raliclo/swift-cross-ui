@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P1 on GtkBackend on macOS (TEST_BACKEND=gtk4): open each of the three dialogs and the root sheet, dismiss each with Escape, and replace all four result lines.
+# Measured 2026-10-16 from p1-macos-gtk4-final-20261016-012153.png (1240x1096, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's Open file dialog and Open root sheet clicks landed 4 pt beside their buttons on GTK's taller layout (gtk4-aim-20261016.csv2).
+# All four buttons are aimed at their centres: Open file (310,186), Open folder (310,234), Save file (310,282), Open root sheet (310,330). The four result lines are always present, so the column does not move between presses.
+# After this file Open, Folder and Save must read Cancelled and the timing line must name a dialog; if the sheet does not take Escape, that difference is the finding.
+# macOS 上 GtkBackend 的 P1:四顆按鈕瞄準中心重新量測;之後三個結果行都必須是 Cancelled。
+click,310,186,frame,left,,,"Open file dialog -- re-aimed from y 207, which was 4 pt below the button (y 169-203)",macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,234,frame,left,,,"Open folder dialog -- centred (y 218-250); the AppKit y 241 also landed",macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,282,frame,left,,,"Save file dialog -- centred (y 266-298); the AppKit y 275 also landed",macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,330,frame,left,,,"Open root sheet -- re-aimed from y 309, which was 4 pt above the button (y 313-347)",macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,dismiss it -- a sheet is not a panel and may not take Escape,macos
+sleep,,,,,,1500000,let the four result lines settle,macos

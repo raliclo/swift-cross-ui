@@ -1361,6 +1361,7 @@
                 mouseButton: .left
             )?.post(tap: .cghidEventTap)
 
+            let gdk = Self.isGdkWindow(window)
             let steps = 10
             // AppKit's rotation is positive counter-clockwise; the action-file
             // verb is positive clockwise.
@@ -1381,6 +1382,13 @@
                 event.post(tap: .cghidEventTap)
             }
             func pump(_ interval: Double) {
+                // GDK reads the queue itself, as for the wheel in `postScroll`: drained
+                // here, the gestures never reached GTK (P65 on GtkBackend, 2026-10-16).
+                // GDK 自己讀佇列，與 `postScroll` 的滾輪相同：在這裡取空，手勢就到不了 GTK。
+                if gdk {
+                    usleep(useconds_t(interval * 1_000_000))
+                    return
+                }
                 let until = Date().addingTimeInterval(interval)
                 while let next = NSApp.nextEvent(
                     matching: .any,
@@ -1513,8 +1521,30 @@
                     mouseCursorPosition: at,
                     mouseButton: .left
                 )?.post(tap: .cghidEventTap)
+                // GDK takes its pointer surface from motion (the click path's measurement).
+                // GDK 由移動事件決定指標所在的 surface(點擊路徑的量測)。
+                if Self.isGdkWindow(window) { usleep(150_000) }
                 cg.location = at
                 cg.post(tap: .cghidEventTap)
+                // **A GDK window reads the queue itself; draining it here took the wheel
+                // events away from GTK.** GDK's event source pulls each NSEvent off the
+                // queue and translates it; one handed to `NSApp.sendEvent` instead goes to
+                // the NSWindow, which does not scroll anything. Every gtk4 sweep scroll
+                // (P8, P21, P34, P57, P72) moved nothing on 2026-10-16. So for GDK the
+                // event is left where it is, as the click path above leaves its presses.
+                // **GDK 視窗自己讀佇列;在這裡把它取空，就把滾輪事件從 GTK 手上拿走了。**GDK 的事件來源
+                // 會把每個 NSEvent 從佇列取出再轉換；改交給 `NSApp.sendEvent` 的事件則送到 NSWindow,不會捲動
+                // 任何東西。2026-10-16 gtk4 sweep 的每一次捲動都沒有移動。因此 GDK 的事件留在佇列裡，與上方點擊
+                // 路徑留下它的按壓一樣。
+                if Self.isGdkWindow(window) {
+                    FileHandle.standardError.write(
+                        Data(
+                            ("-scroll: dx=\(dx) dy=\(dy) via HID at (\(Int(point.x)),\(Int(point.y)))"
+                                + " to GDK, left on the queue\n").utf8
+                        )
+                    )
+                    return
+                }
                 // Dispatched, not just waited for: this runs on the main thread,
                 // so the event reaches the scroll view only when it is taken off
                 // the queue -- the lesson of the hover path above.

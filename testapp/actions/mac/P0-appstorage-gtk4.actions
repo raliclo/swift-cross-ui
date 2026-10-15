@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P0 on GtkBackend on macOS (TEST_BACKEND=gtk4): @AppStorage survives a click and a reset.
+# Measured 2026-10-16 from p0-macos-gtk4-final-20261016-012047.png (1040x776 = 520x388 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's four clicks at y 197 landed just below the buttons on GTK's taller layout: the buttons span frame y 160-193 (gtk4-aim-20261016.csv2).
+# Increment @AppStorage px (440,354) -> (220,177); Reset px (716,354) -> (358,177).
+# The three alert buttons are deliberately not pressed, as in the AppKit file.
+# After this file the capture must read Launch count stored in @AppStorage: 2.
+# GTK 版 P0:按鈕在 frame y 160-193,AppKit 檔的 y 197 落在按鈕下方；改為 Increment (220,177)、Reset (358,177),結束時必須是 2。
+click,220,177,frame,left,,,Increment @AppStorage -- y 197 -> 177 (button centre); makes the stored value non-zero before Reset,macos
+sleep,,,,,,400000,,macos
+click,358,177,frame,left,,,Reset -- to 0; was (351;197) below the button,macos
+sleep,,,,,,400000,,macos
+click,220,177,frame,left,,,Increment -- 0 -> 1,macos
+sleep,,,,,,400000,,macos
+click,220,177,frame,left,,,Increment -- 1 -> 2: the capture must read Launch count stored in @AppStorage: 2,macos
+sleep,,,,,,600000,let the label settle,macos

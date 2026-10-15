@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21 lower half on GtkBackend on macOS (TEST_BACKEND=gtk4): after scrolling to the bottom, the DISABLED TextField refuses a key, the enabled one takes one, the SecureField takes a dot and the TextEditor an x.
+# DERIVED, not measured: no GTK capture shows the lower half (p21-macos-gtk4-final-20261016-013710.png is unscrolled, because the wheel did not reach GTK then). origin=frame, 28 pt native title bar, window 820x748 frame. The AppKit file's field clicks were all in the top half on GTK (gtk4-aim-20261016.csv2).
+# Stacked up from the frame bottom (748) with GTK sizes measured elsewhere: padding 18, ContentUnavailableView 110, text 18, spacing 12, Divider 1, TextEditor 70, entry 34 (P32 capture). That gives TextEditor y 495-565, SecureField 419-453, disabled TextField 343-377, enabled TextField 297-331.
+# It assumes the scroll reaches the very bottom; if a capture shows otherwise, re-measure from it.
+# After this file the label must read editablez, the editor textqx, and Nothing here must be visible.
+# macOS 上 GtkBackend 的 P21 下半部：座標由版面推算(自視窗底部往上疊)，不是量測值。
+sleep,,,,,,1500000,settle,macos
+move,400,500,frame,,,,,macos
+scroll,0,120,,,,,"to the bottom; on GTK this needs the wheel fix of 2026-10-16 (before it, scrollView=none)",macos
+sleep,,,,,,1000000,,macos
+click,200,530,frame,left,,,"focus the TextEditor first (derived centre, y 495-565): at launch the ENABLED field holds focus, so a key after a refused click would land there",macos
+click,400,360,frame,left,,,"the DISABLED TextField -- derived centre, y 343-377",macos
+key,,,,,q,,"refused: the q lands in the editor (textq) and the label still reads editable; accepted: the label reads editableq",macos
+sleep,,,,,,500000,,macos
+click,780,314,frame,left,,,"the enabled TextField, at the end of its text -- derived centre y, y 297-331",macos
+key,,,,,rightArrow,,drop the selection so the key appends,macos
+key,,,,,z,,the label must now read editablez,macos
+sleep,,,,,,300000,,macos
+click,400,436,frame,left,,,"the SecureField -- derived centre, y 419-453",macos
+key,,,,,c,,one more dot -- and no echo of the letter,macos
+sleep,,,,,,300000,,macos
+click,200,530,frame,left,,,the TextEditor -- derived centre,macos
+key,,,,,x,,an x must appear in the editor after the q,macos
+sleep,,,,,,800000,settle before the photograph -- Nothing here must still be visible,macos

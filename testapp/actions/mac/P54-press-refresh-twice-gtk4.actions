@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P54 on GtkBackend on macOS (TEST_BACKEND=gtk4): trigger the refresh affordance twice and read the counter back; refreshes 2 with rows reaching 10 rules out a refresh that fires on creation.
+# From p54-macos-gtk4-final-20261016-021418.png (1440x1296, 2x, halved; origin=frame, 28 pt native title bar). GTK has no Refresh button: GtkBackend wires .refreshable to the GtkScrolledWindow edge-overshot signal (GtkBackend+Refreshable.swift), so the AppKit click at (43,43) hit empty space above the title (gtk4-aim-20261016.csv2).
+# The closest honest equivalent replaces each click: the pointer over the rows at (100,400) (Row 2) and upward wheel scrolls to overshoot the top edge. UNVERIFIED: GTK may emit edge-overshot only for kinetic or touch scrolling, and the content does not overflow.
+# If refreshes stays 0, that is a GtkBackend finding (no mouse-reachable refresh), not a missed aim.
+# After this file refreshes must read 2 and the rows must reach 10.
+# macOS 上 GtkBackend 的 P54:GTK 沒有 Refresh 按鈕，改以滾輪往上越過頂端觸發 edge-overshot(未驗證)。
+sleep,,,,,,1000000,let P54 render,macos
+move,100,400,frame,,,,"over the rows (Row 2) -- replaces the Refresh click: GTK has no button",macos
+scroll,0,-10,,,,,"wheel up past the top edge -- edge-overshot must fire once: refreshes must become 1 and the rows must reach 8",macos
+sleep,,,,,,600000,let the rows rebuild,macos
+scroll,0,-10,,,,,"and again -- refreshes must become 2 and the rows must reach 10",macos
+sleep,,,,,,800000,settle before the photograph,macos

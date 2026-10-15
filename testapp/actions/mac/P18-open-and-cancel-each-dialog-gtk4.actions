@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P18 on GtkBackend on macOS (TEST_BACKEND=gtk4): each file dialog opens and a cancel is reported back.
+# Measured 2026-10-16 from p18-macos-gtk4-final-20261016-013317.png (1440x1096 = 720x548 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's Open a file click at y 243 fell below the button (frame y 204-238) on GTK's layout (gtk4-aim-20261016.csv2); folder and save landed near their edges and are re-centred.
+# Escape cancelled the folder and save dialogs on the same run so the key rows are unchanged.
+# After this file all three lines must read cancelled (open -> cancelled; folder -> cancelled; save -> cancelled).
+# GTK 版 P18:Open a file 在 frame y 204-238,改點 (88,221);另兩顆按鈕重新置中。三行都必須是 cancelled。
+click,88,221,frame,left,,,Open a file -- was (62;243) below the button,macos
+sleep,,,,,,1500000,let the panel come up,macos
+key,,,,,escape,,cancel it -- the open line must stop saying "nothing yet",macos
+sleep,,,,,,1000000,,macos
+click,104,289,frame,left,,,Choose a folder -- re-centred from (77;297),macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,136,357,frame,left,,,Choose a save destination -- re-centred from (109;351),macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,let the last line settle,macos

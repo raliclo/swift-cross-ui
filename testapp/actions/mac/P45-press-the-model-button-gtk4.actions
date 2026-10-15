@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on GtkBackend on macOS (TEST_BACKEND=gtk4): seed the sibling state, then press the button that calls a model method; the inline model and the siblings must survive.
+# Measured 2026-10-16 from p45-macos-gtk4-final-20261016-020011.png (1520x1296, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's seed clicks at y 482 landed above the seed buttons (y 494-527) on GTK's taller layout (gtk4-aim-20261016.csv2).
+# Centres: stateToggle (77,231), honest (63,301), stubborn (69,371), flip honest (74,441), selection = 2 (74,511), typed = seeded (204,511).
+# After this file honest must read true, setter writes 1, button presses 1, selection 2 and typed seeded.
+# macOS 上 GtkBackend 的 P45:seed 重新瞄準 y 511;flip honest 瞄準中心 (74,441)。
+sleep,,,,,,1500000,let P45 render,macos
+click,74,511,frame,left,,,"seed the sibling selection -- the line must read selection: 2; re-aimed from (64,482), above the button",macos
+sleep,,,,,,400000,,macos
+click,204,511,frame,left,,,"seed the sibling field -- the line must read typed: seeded; re-aimed from (179,482), above the button",macos
+sleep,,,,,,400000,,macos
+click,74,441,frame,left,,,"pressing the button control (flip honest, y 425-457; centred from (64,426), which landed at its top edge) -- the capture must read honest: true, setter writes: 1, button presses: 1, with selection 2 and typed seeded kept",macos
+sleep,,,,,,1200000,let any rebuild settle,macos

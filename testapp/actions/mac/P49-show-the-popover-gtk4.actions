@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on GtkBackend on macOS (TEST_BACKEND=gtk4): the "Show the popover" button presents; the popover must appear anchored to the button and popover opens must read 1.
+# Measured 2026-10-16 from p49-macos-gtk4-final-20261016-020658.png (1560x1296 = 780x648 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's click at (89;390) landed beside the button on GTK's taller layout: the button is at y 353; y 390 hit the "2. sheet" caption (gtk4-aim-20261016.csv2).
+# After this file the popover must appear anchored to the button and popover opens must read 1.
+# GTK 版 P49:popover 按鈕在 y 353,AppKit 檔的點擊落在按鈕旁；改點 (90,353)。
+sleep,,,,,,1500000,let P49 render,macos
+click,90,353,frame,left,,,"the ""Show the popover"" button -- was (89;390) beside it; the popover must appear anchored to the button and popover opens must read 1",macos
+sleep,,,,,,1500000,let the popover animate in,macos

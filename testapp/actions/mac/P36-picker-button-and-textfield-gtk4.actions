@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P36 on GtkBackend on macOS (TEST_BACKEND=gtk4): press String label button, open and close the first picker, and append 12 to the text field without losing its text.
+# Measured 2026-10-16 from p36-macos-gtk4-final-20261016-015431.png (1640x1606, 2x, halved; origin=frame, 28 pt native title bar). All three AppKit clicks landed on other rows on GTK's taller layout: the button click hit the Tagged picker, the picker click the Labelled text, the field click the Tagged selection text (gtk4-aim-20261016.csv2).
+# String label button (93,379), first picker (59,157), text field (410,425). x 410 is past the end of the text, so GTK puts the caret at the end on its own; Cmd-Right is kept from the AppKit file and is harmless either way.
+# After this file the field must read SwiftCrossUI TextField12.
+# macOS 上 GtkBackend 的 P36:三個點擊都重新量測;之後欄位必須是 SwiftCrossUI TextField12。
+click,93,379,frame,left,,,"String label button -- re-aimed from (84,298), which hit the Tagged picker (button y 363-395)",macos
+sleep,,,,,,700000,,macos
+click,59,157,frame,left,,,"open the picker -- the first (Vanilla) picker, re-aimed from (66,240), which hit the Labelled text",macos
+sleep,,,,,,1200000,,macos
+key,,,,,escape,,and close it without choosing,macos
+sleep,,,,,,800000,,macos
+click,410,425,frame,left,,,"into the text field which already has a value -- re-aimed from y 331, the Tagged selection text (field y 408-441)",macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,"go to the end with Cmd-Right, kept from the AppKit file; on GTK the click past the text already put the caret at the end",macos
+key,,,,,rightArrow,,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,300000,,macos
+key,,,,,1,,,macos
+key,,,,,2,,"two characters appended; the existing text must survive: the field must read SwiftCrossUI TextField12",macos
+sleep,,,,,,1200000,,macos

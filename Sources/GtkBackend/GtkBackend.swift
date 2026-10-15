@@ -321,6 +321,11 @@ public final class GtkBackend:
     /// first is dismissed, rather than a pile of modal dialogs fighting over the
     /// window (the P5 regression).
     private var shownAlert: [ObjectIdentifier: Alert] = [:]
+    private var shownAlertHandler: [ObjectIdentifier: (Int) -> Void] = [:]
+    /// Alerts with exactly one button, which Escape answers (P31).
+    private var oneButtonAlerts: Set<ObjectIdentifier> = []
+    /// The Escape-swallowing controller each alert was created with.
+    private var alertEscapeControllers: [ObjectIdentifier: OpaquePointer] = [:]
     private var pendingAlerts:
         [ObjectIdentifier: [(alert: Alert, window: Window, handler: (Int) -> Void)]] = [:]
 
@@ -4922,6 +4927,7 @@ public final class GtkBackend:
         let shortcut = gtk_shortcut_new(trigger, action)
         gtk_shortcut_controller_add_shortcut(controller, shortcut)
         gtk_widget_add_controller(dialog.widgetPointer, controller)
+        alertEscapeControllers[ObjectIdentifier(dialog)] = controller
 
         return dialog
     }
@@ -4936,6 +4942,15 @@ public final class GtkBackend:
         for (i, label) in actionLabels.enumerated() {
             alert.addButton(label: label, responseId: i)
         }
+        // One button: let Escape through to it (see `present`). The controller
+        // `createAlert` added swallows Escape, so it comes off.
+        // 一顆按鈕：讓 Escape 送到它(見 `present`)。`createAlert` 加上的控制器會吞掉 Escape,因此移除。
+        if actionLabels.count == 1 {
+            oneButtonAlerts.insert(ObjectIdentifier(alert))
+            if let controller = alertEscapeControllers.removeValue(forKey: ObjectIdentifier(alert)) {
+                gtk_widget_remove_controller(alert.widgetPointer, controller)
+            }
+        }
     }
 
     public func showAlert(
@@ -4946,11 +4961,16 @@ public final class GtkBackend:
         let target = window ?? windows[0]
         let key = ObjectIdentifier(target)
 
-        // One alert per window at a time. If this window already has one up,
-        // queue this behind it instead of stacking a second modal dialog.
-        guard shownAlert[key] == nil else {
-            pendingAlerts[key, default: []].append((alert, target, handleResponse))
-            return
+        // One alert per window on screen at a time, the latest on top: an alert
+        // already up is hidden and comes back when this one is answered, so they
+        // are answered newest first, as on AppKit (P5, #675: C, B, A). Until
+        // 2026-10-16 the new one waited behind the old, and GTK answered A, B, C.
+        // 每個視窗同時只顯示一個 alert,最新的在上面：已顯示的那個先隱藏，等這個被回應後再回來，
+        // 因此回應順序是由新到舊，與 AppKit 相同(P5、#675:C、B、A)。2026-10-16 之前新的排在舊的後面，
+        // GTK 的順序是 A、B、C。
+        if let current = shownAlert[key], let currentHandler = shownAlertHandler[key] {
+            current.hide()
+            pendingAlerts[key, default: []].append((current, target, currentHandler))
         }
 
         present(alert, on: target, key: key, responseHandler: handleResponse)
@@ -4963,7 +4983,18 @@ public final class GtkBackend:
         responseHandler handleResponse: @escaping (Int) -> Void
     ) {
         shownAlert[key] = alert
+        shownAlertHandler[key] = handleResponse
         alert.response = { [weak self] _, responseId in
+            var responseId = responseId
+            // Escape on a one-button alert answers it with that button, as on AppKit
+            // (P31): the button can mean nothing but "acknowledged". Alerts with more
+            // buttons still ignore Escape until the cancel action can be told apart.
+            // 只有一顆按鈕的 alert,Escape 以那顆按鈕回應，與 AppKit 相同(P31)。多顆按鈕的仍忽略 Escape。
+            if responseId == Int(UInt32(bitPattern: -4)),
+                self?.oneButtonAlerts.contains(ObjectIdentifier(alert)) == true
+            {
+                responseId = 0
+            }
             guard responseId != Int(UInt32(bitPattern: -4)) else {
                 // Ignore escape key for now. Once we support detecting
                 // the primary and secondary actions of alerts we can wire
@@ -4973,6 +5004,8 @@ public final class GtkBackend:
             }
 
             alert.destroy()
+            self?.oneButtonAlerts.remove(ObjectIdentifier(alert))
+            self?.alertEscapeControllers[ObjectIdentifier(alert)] = nil
             self?.advanceAlerts(for: key)
             handleResponse(responseId)
         }
@@ -4987,7 +5020,9 @@ public final class GtkBackend:
     private func advanceAlerts(for key: ObjectIdentifier) {
         shownAlert[key] = nil
         guard var queue = pendingAlerts[key], !queue.isEmpty else { return }
-        let next = queue.removeFirst()
+        // The most recent one waiting is the one that was on top before.
+        // 等待中最新的那一個，就是之前在最上面的那一個。
+        let next = queue.removeLast()
         pendingAlerts[key] = queue.isEmpty ? nil : queue
         present(next.alert, on: next.window, key: key, responseHandler: next.handler)
     }

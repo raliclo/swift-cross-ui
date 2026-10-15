@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P4 on GtkBackend on macOS (TEST_BACKEND=gtk4): put the row count up to 250 and then make row callbacks fire against it.
+# Measured 2026-10-16 from p4-macos-gtk4-final-20261016-015708.png (1680x1576 = 840x788 pt; 2x halved; origin=frame with the 28 pt title bar). The AppKit file's Run 0 (60,344) fell in the gap above the first row and Run 5 (60,514) hit the fourth row on GTK's taller rows (gtk4-aim-20261016.csv2): callbacks read 2, not 3.
+# GTK rows: Run <first> centred at y 370, one row every 48 pt, so Run 5 is at y 610; button centre x 75. Top buttons centred at y 111; Load next rows at (205,311).
+# After this file the capture must read Rows: 275 and callbacks: 3, with the selected row 249 from Run last and the window slid to rows 200-249.
+# GTK 版 P4:列較高，第一列 Run 在 y 370、每列 48 pt;Run 0 改 (75,370)、Run 5 改 (75,610),結束時 Rows: 275、callbacks: 3。
+click,642,111,frame,left,,,Rows 250 -- re-centred from (612;125) onto the button,macos
+sleep,,,,,,1000000,,macos
+click,433,111,frame,left,,,Force update -- the update tick must move; y 125 -> 111,macos
+sleep,,,,,,800000,,macos
+click,75,370,frame,left,,,Run 0 -- callbacks 0 -> 1; was (60;344) in the gap above the first row,macos
+sleep,,,,,,600000,,macos
+click,75,610,frame,left,,,Run 5 -- and the selected row must follow; was (60;514) which hit Run 3,macos
+sleep,,,,,,600000,,macos
+click,543,111,frame,left,,,Run last -- the far end of 250 rows; re-centred from (528;125),macos
+sleep,,,,,,800000,,macos
+click,205,311,frame,left,,,Load next rows -- the 0-49 window must slide; re-centred from (210;298),macos
+sleep,,,,,,1000000,,macos
+move,400,500,frame,,,,into the row list,macos
+sleep,,,,,,300000,,macos
+scroll,0,8,,,,,near the bottom; on Windows this slides the row window,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-8,,,,,and back to the top,macos
+sleep,,,,,,1000000,,macos
+click,315,111,frame,left,,,More rows -- the file stops here: the capture must read Rows: 275; re-centred from (330;125),macos
+sleep,,,,,,1000000,,macos

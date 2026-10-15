@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on GtkBackend on macOS (TEST_BACKEND=gtk4): does a click at x0 + 0.8w on a button register? One click on the right half of selection = 2.
+# Measured 2026-10-16 from p45-macos-gtk4-final-20261016-020127.png (1520x1296, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's click (93,482) landed above the button on GTK's taller layout, so the right-half question was never asked (gtk4-aim-20261016.csv2).
+# selection = 2 spans x 17-131, y 494-527 (full-resolution crop), so x0 + 0.8w = 17 + 91 = 108 at the vertical centre 511.
+# After this file selection reads 2 if the right half is live, and stays 0 if the top-left-quarter rule holds here.
+# macOS 上 GtkBackend 的 P45:在 selection = 2 按鈕的 0.8 寬度處點擊 (108,511)。
+sleep,,,,,,1500000,let P45 render,macos
+click,108,511,frame,left,,,"x0 + 0.8w on the selection = 2 button, which spans x 17..131 on GTK; re-aimed from (93,482). If the peer's rule holds, this misses and selection stays 0; if it hits, selection reads 2",macos
+sleep,,,,,,1200000,,macos

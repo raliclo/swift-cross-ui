@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21 on GtkBackend on macOS (TEST_BACKEND=gtk4): each enabled control takes a click and each disabled twin refuses it.
+# Measured 2026-10-16 from p21-macos-gtk4-final-20261016-013652.png (1640x1496, 2x, halved; origin=client as in the AppKit file, so 28 pt is taken off the capture's frame y). The AppKit file's Toggle, ToggleSwitch, Toggle button style and Checkbox clicks landed 2-30 pt above their controls on GTK's taller rows (gtk4-aim-20261016.csv2).
+# Client centres: Button (60,183)/(156,183), Toggle (60,270)/(156,270), ToggleSwitch (103,340)/(228,340), Toggle button style (60,410), Checkbox (86,475).
+# After this file Button clicks must read 1, Toggle true, ToggleSwitch false, Toggle button style true and Checkbox true.
+# macOS 上 GtkBackend 的 P21:座標為 client(扣掉 28 點標題列);停用的那一個都不能改變狀態。
+click,60,183,,left,,,"Button enabled -- clicks must rise (centred; AppKit y 178 also landed)",macos
+sleep,,,,,,300000,,macos
+click,156,183,,left,,,"Button disabled -- clicks must not rise (centred on the disabled button)",macos
+sleep,,,,,,300000,,macos
+click,60,270,,left,,,"Toggle enabled -- must flip to true; re-aimed from y 251, above the button (client y 254-286)",macos
+sleep,,,,,,300000,,macos
+click,156,270,,left,,,"Toggle disabled -- must not flip; re-aimed from (141,251)",macos
+sleep,,,,,,300000,,macos
+click,103,340,,left,,,"ToggleSwitch enabled -- it STARTS ON, so it must flip to false; re-aimed from (104,312), 28 pt above the switch",macos
+sleep,,,,,,300000,,macos
+click,228,340,,left,,,"ToggleSwitch disabled -- must not flip; re-aimed from (215,312)",macos
+sleep,,,,,,300000,,macos
+click,60,410,,left,,,"Toggle button style enabled -- must read true; re-aimed from y 373",macos
+sleep,,,,,,300000,,macos
+click,86,475,,left,,,"Checkbox enabled -- must read true; re-aimed from (92,431), on the box at client (86,475)",macos
+sleep,,,,,,500000,let the last state settle,macos

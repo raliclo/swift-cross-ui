@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on GtkBackend on macOS (TEST_BACKEND=gtk4): write p75-reveal.txt into the temporary folder and reveal it; Finder must come forward with it selected.
+# Measured 2026-10-16 from p75-macos-gtk4-final-20261016-023005.png (1120x896, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's click (236,165) landed just below Reveal a file (y 129-163) on GTK's taller layout (gtk4-aim-20261016.csv2).
+# After this file reveal must no longer read not pressed, and Finder must have p75-reveal.txt selected.
+# macOS 上 GtkBackend 的 P75:Reveal a file 重新瞄準 (242,146)。
+sleep,,,,,,1500000,let P75 render,macos
+click,242,146,frame,left,,,"Reveal a file -- re-aimed from (236,165), just below the button",macos
+sleep,,,,,,2500000,let Finder come forward,macos

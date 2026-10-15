@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on GtkBackend on macOS (TEST_BACKEND=gtk4), #125: Sort by Number from code, then one click on the Number header must REVERSE that order rather than restart it.
+# Measured 2026-10-16 from p23-macos-gtk4-final-20261016-013935.png (1640x1296, halved to 820x648; origin=frame, 28 pt native title bar, geometry frame=(550,184) client=(550,212)). Nothing in the file changes the layout, so the capture is the layout every click meets.
+# The AppKit file's Sort by Number click (y 292) fell above its button (frame y 310-344), and its header click at (430,413) hit the first/last id line; GTK's Number header is at about (776,448) (gtk4-aim-20261016.csv2).
+# After this file: sort: column 3 descending and the rows run 8 to 1.
+# macOS 上 GtkBackend 的 P23:Sort by Number 與 Number 表頭依 GTK 擷圖重新量測，結束時 sort: column 3 descending。
+sleep,,,,,,700000,let the window settle before anything is sorted,macos
+click,84,327,frame,left,,,Sort by Number (was 77;292 above the button) -- the framework writing into the backend: column 3 ascending,macos
+sleep,,,,,,900000,let setSortOrder redraw the indicator,macos
+click,776,448,frame,left,,,"the Number header (was 430;413 on the first/last id line) -- it must REVERSE the order the code set, not restart: the capture must read sort: column 3 descending and the rows run 8 to 1",macos
+sleep,,,,,,900000,let the rows reverse before the capture,macos

@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on GtkBackend on macOS (TEST_BACKEND=gtk4), #125: row selection in both directions -- a click on a row (log: SELECTION now 4), Clear selection, then Select row 2 from code on the screen.
+# Measured 2026-10-16 from p23-macos-gtk4-final-20261016-013951.png (1640x1296, halved to 820x648; origin=frame, 28 pt native title bar, geometry frame=(550,184) client=(550,212)). Nothing in the file changes the layout, so the capture is the layout every click meets.
+# The AppKit file's Clear selection and Select row 2 clicks (y 231) fell above their buttons (frame y 236-270), and the row click at (100,558) landed on row 4 instead of row 5 on GTK's layout (gtk4-aim-20261016.csv2).
+# After this file: selected row: 2 with row 3 highlighted, and the log holds SELECTION now 4 from the row click.
+# macOS 上 GtkBackend 的 P23:第 5 列、Clear selection 與 Select row 2 依 GTK 擷圖重新量測。
+sleep,,,,,,700000,let the window settle before anything is selected,macos
+click,100,581,frame,left,,,row 5 (was 100;558 on row 4) -- a click the app never asked for; index 4,macos
+sleep,,,,,,700000,let the binding be written and the highlight drawn,macos
+click,200,253,frame,left,,,Clear selection (was 183;231 above the button) -- the highlight must go,macos
+sleep,,,,,,700000,,macos
+click,73,253,frame,left,,,Select row 2 (was 67;231 above the button) -- the framework writing into the backend,macos
+sleep,,,,,,900000,let the async selection land before the capture,macos

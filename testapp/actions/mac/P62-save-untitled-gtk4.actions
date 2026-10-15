@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P62 on GtkBackend on macOS (TEST_BACKEND=gtk4): type A into an untitled document, save it, and accept Untitled.txt with Return.
+# Measured 2026-10-16 from p62-macos-gtk4-final-20261016-022024.png (1800x956, 2x, halved; origin=frame, 28 pt native title bar): P62-two-documents' window 2, which has the same row of buttons as window 1. The save-untitled capture itself is covered by the open panel. The AppKit file's save click (260,237) landed on the right edge of open... on GTK's wider buttons, so an OPEN panel came up (gtk4-aim-20261016.csv2).
+# Buttons at y 217-249: type A (56,233), open... (222,233), save (300,233).
+# After this file the window must be titled Untitled.txt.
+# macOS 上 GtkBackend 的 P62:save 重新瞄準 (300,233);之後視窗標題必須是 Untitled.txt。
+sleep,,,,,,1200000,let the document window lay out,macos,
+click,56,233,frame,left,,,"type A -- the document reads A; centred (AppKit (48,237) also landed)",macos,
+sleep,,,,,,300000,,macos,
+click,300,233,frame,left,,,"save -- untitled, so the save panel opens with Untitled.txt; re-aimed from (260,237), the edge of open...",macos,
+sleep,,,,,,2500000,let the save panel appear,macos,
+key,,,,,return,,"Return -- saves; the window must then be titled Untitled.txt",macos,
+sleep,,,,,,2500000,hold for the capture,macos,

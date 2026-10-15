@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11 on GtkBackend on macOS (TEST_BACKEND=gtk4): the two mutually clamped sliders (#82), the wheel inside the forty-row list (#485) and a value change on the compact DatePicker (#473).
+# Measured 2026-10-16 from p11-macos-gtk4-final-20261016-012424.png (1520x1296, halved to 760x648; origin=frame, 28 pt native title bar, geometry frame=(580,184) client=(580,212)).
+# The AppKit file's Reset/Separate/Collide row and slider drag landed beside their controls on GTK (gtk4-aim-20261016.csv2): the drag at y 276 fell between the sliders (y 250 and 290). The min knob starts at the left end of its track (x 42) because minimum is 0 at launch -- derived from the track, the capture shows it at 50.
+# GTK's compact DatePicker has no month stepper: it is a date dropdown (a popover calendar whose month arrows change the day without emitting day-selected) plus hour/minute steppers. The stepper rows therefore use the hour stepper beside it -- up, up, down, net one hour -- the nearest honest equivalent; the month-change path is not exercised here.
+# After this file: writes count both sliders after Reset, minimum 50 / maximum 50 and Both at 50, and the hour field one hour after launch with the date unchanged.
+# macOS 上 GtkBackend 的 P11:GTK 精簡 DatePicker 沒有月份步進器，改用小時步進器(上、上、下，淨加一小時)。
+click,94,331,frame,left,,,Reset counters (was 86;329) -- writes must go to min 0 max 0,macos
+sleep,,,,,,600000,,macos
+mousedown,42,250,frame,left,,,grab the minimum slider knob at the far left (was y 276 -- between the two sliders on GTK),macos
+move,200,250,frame,,,,,macos
+sleep,,,,,,200000,,macos
+move,400,250,frame,,,,,macos
+sleep,,,,,,200000,,macos
+move,700,250,frame,,,,past where the maximum sits -- #82 clamp,macos
+sleep,,,,,,300000,,macos
+mouseup,700,250,frame,left,,,,macos
+sleep,,,,,,1000000,,macos
+click,230,331,frame,left,,,Separate them (was 211;329),macos
+sleep,,,,,,800000,,macos
+click,359,331,frame,left,,,"Collide them (was 328;329) -- the capture must read minimum 50 / maximum 50 and Both at 50",macos
+sleep,,,,,,800000,,macos
+move,375,450,frame,,,,put the pointer inside the forty-row list (rows at y 390-515 on GTK),macos
+sleep,,,,,,300000,,macos
+scroll,0,5,,,,,five notches -- #485 asks which way it goes,macos
+sleep,,,,,,800000,,macos
+scroll,0,-5,,,,,and back,macos
+sleep,,,,,,800000,,macos
+click,332,566,frame,left,,,hour + of the compact DatePicker (GTK has no month stepper; was 263;534 on the Compact DatePicker sizing label),macos
+sleep,,,,,,600000,,macos
+click,332,566,frame,left,,,hour + again,macos
+sleep,,,,,,600000,,macos
+click,297,566,frame,left,,,"hour - -- the hour must end one after launch: two ups and a down. A missed down ends two on, a missed up on the launch hour",macos
+sleep,,,,,,600000,,macos
+click,594,566,frame,left,,,Reference (was 322;539),macos
+sleep,,,,,,1000000,,macos

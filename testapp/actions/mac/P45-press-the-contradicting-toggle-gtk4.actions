@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on GtkBackend on macOS (TEST_BACKEND=gtk4): seed the sibling state, then press the toggle whose getter contradicts its setter; it must look unchanged while setter writes climbs.
+# Measured 2026-10-16 from p45-macos-gtk4-final-20261016-020011.png (1520x1296, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's seed clicks at y 482 landed above the seed buttons (y 494-527) on GTK's taller layout (gtk4-aim-20261016.csv2).
+# Centres: stateToggle (77,231), honest (63,301), stubborn (69,371), flip honest (74,441), selection = 2 (74,511), typed = seeded (204,511).
+# Not a coordinate problem: on 2026-10-16 the press landed and GTK drew the stubborn toggle pressed although its getter says false -- GtkBackend does not put the native state back.
+# After this file stubborn must look unpressed, setter writes 1, selection 2 and typed seeded.
+# macOS 上 GtkBackend 的 P45:seed 重新瞄準;stubborn 被畫成按下狀態是 GtkBackend 的缺陷，座標修不了。
+sleep,,,,,,1500000,let P45 render,macos
+click,74,511,frame,left,,,"seed the sibling selection -- the line must read selection: 2; re-aimed from (64,482), above the button",macos
+sleep,,,,,,400000,,macos
+click,204,511,frame,left,,,"seed the sibling field -- the line must read typed: seeded; re-aimed from (179,482), above the button",macos
+sleep,,,,,,400000,,macos
+click,69,371,frame,left,,,"the Binding(get:set:) toggle whose getter contradicts the setter (stubborn, y 355-387; centred from (60,370), which landed). Expected: it looks unchanged because the getter says false, while setter writes climbs to 1",macos
+sleep,,,,,,1200000,let any rebuild settle,macos
+move,600,120,frame,,,,"move the pointer off the toggle: GTK draws a hovered button darker, which read as pressed in the 2026-10-16 sweep",macos
+sleep,,,,,,800000,let the hover clear,macos
