@@ -27,6 +27,9 @@ import SwiftCrossUI
 @MainActor
 enum P95Log {
     static var lastSize: SIMD2<Int>?
+    /// SCUI_P95_GROW=1: the content changes width every 3 s and the window follows.
+    /// SCUI_P95_GROW=1:內容每 3 秒改變寬度，視窗跟著改變。
+    static let grow = ProcessInfo.processInfo.environment["SCUI_P95_GROW"] == "1"
 
     /// Appends a line to p95-mesh.log. / 在 p95-mesh.log 加一行。
     static func log(_ line: String) {
@@ -106,10 +109,13 @@ struct P95App: App {
             }
         }
         .defaultSize(width: 520, height: 420)
+        .windowResizability(P95Log.grow ? .contentSize : .automatic)
     }
 }
 
 struct P95View: View {
+    @State var wide = false
+
     var body: some View {
         VStack(spacing: 0) {
             // The same two colours drawn by the backend's ordinary views, outside GL, to
@@ -134,8 +140,25 @@ struct P95View: View {
                 Image(P95Scene.swatchImage).resizable().frame(width: 60, height: 24)
                 Spacer()
             }
-            Mesh3DView(P95Scene.scene, onFrame: { P95Log.frame($0) })
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if P95Log.grow {
+                // Grow mode: the window follows its content (`.contentSize`), so the
+                // core resizes it through setSize(ofWindow:) -- a resize made by the
+                // program rather than by a hand on the corner.
+                // 成長模式：視窗跟著內容走(`.contentSize`),因此由核心經 setSize(ofWindow:) 改變它的大小——
+                // 由程式而不是由手拖曳角落造成的縮放。
+                Mesh3DView(P95Scene.scene, onFrame: { P95Log.frame($0) })
+                    .frame(width: wide ? 720 : 360, height: 300)
+                    .task {
+                        while !Task.isCancelled {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
+                            wide.toggle()
+                            P95Log.log("content width \(wide ? 720 : 360)")
+                        }
+                    }
+            } else {
+                Mesh3DView(P95Scene.scene, onFrame: { P95Log.frame($0) })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 }

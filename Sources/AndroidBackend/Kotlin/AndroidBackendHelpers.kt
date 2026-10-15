@@ -929,7 +929,41 @@ class AndroidBackendHelpers {
             Intent(from, ScuiWindowActivity::class.java)
                 .putExtra(ScuiWindowActivity.EXTRA_TOKEN, token)
                 .addFlags(flags)
-        from.startActivity(intent)
+        // Started once the opening window has focus again. A window opened from a
+        // picker's result -- P62 opening a document -- is asked for while the picker is
+        // still closing, and on a tablet the side stage then found no task to pair
+        // with. Measured 2026-10-14 on a Pixel Tablet (API 36) emulator: started at
+        // once, the main stage stayed empty (sz=0) and window 2 had bounds 0,0,0,0;
+        // started on ON_RESUME, window 2 took the right half and the left half was
+        // black, window 1 hidden; "new document", pressed in a focused window, split
+        // the screen with window 1 in MAIN and the new one in SIDE. Focus comes back
+        // only after the picker's closing transition. A second at most, so a window
+        // still opens if focus never returns.
+        // 等開啟它的視窗重新取得焦點後才啟動。從選擇器結果開啟的視窗(P62 開啟文件)是在選擇器還在關閉時被要求的，
+        // 於是在平板上側邊區找不到可配對的任務。2026-10-14 在 Pixel Tablet(API 36)emulator 實測：立即啟動時主區一直
+        // 是空的(sz=0)、視窗 2 的 bounds 為 0,0,0,0;在 ON_RESUME 啟動時視窗 2 佔右半邊、左半邊全黑、視窗 1 被藏起;
+        // 在有焦點的視窗中按「new document」則會分割畫面，視窗 1 在 MAIN、新視窗在 SIDE。焦點要等選擇器的關閉轉場結束
+        // 才會回來。最多等一秒，焦點一直沒回來時視窗仍會開啟。
+        if (from.hasWindowFocus()) {
+            from.startActivity(intent)
+            return
+        }
+        val decor = from.window.decorView
+        var started = false
+        lateinit var listener: android.view.ViewTreeObserver.OnWindowFocusChangeListener
+        val start = {
+            if (!started) {
+                started = true
+                decor.viewTreeObserver.removeOnWindowFocusChangeListener(listener)
+                from.startActivity(intent)
+            }
+        }
+        listener =
+            android.view.ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+                if (hasFocus) decor.post { start() }
+            }
+        decor.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+        decor.postDelayed({ start() }, 1000)
     }
 
     fun closeWindow(token: String) {

@@ -77,17 +77,23 @@ test 與結果。
   the document replaced by a directory of its name -> `save -> false`, logged
   `EISDIR`; disk filled -> `save -> false`, but at the cache write (ENOSPC), which
   shares the partition, so the write-back is not what failed there. **Revoked
-  permission not reproduced:** deleting the document in the Files app left the
-  grant in place and the next save recreated it (true, correct contents); shell
-  cannot reach the Downloads provider. The old behaviour, re-run the same day on a
+  permission:** in Downloads it did not happen -- deleting the document in the Files
+  app left the grant in place and the next save recreated it (true, correct
+  contents); shell cannot reach the Downloads provider. Saved instead to Documents
+  on the device storage (ExternalStorageProvider), deleting it in Files revoked the
+  grant (no entry left in `dumpsys activity permissions`), and the next save gave
+  `save -> false` with "SecurityException: Permission Denial" from the write-back.
+  The old behaviour, re-run the same day on a
   HEAD build with the same steps: the directory case gave `save -> true` while logcat said
   "could not copy the save to content://...document/21"; the new build, rebuilt right
   after, gave false. P75 (writes the file itself, observer only) still lands.
   **2026-10-14 完成(Mac,API 36 emulator,P62)。** `saveDocument()` 現在會等 `commitStagedSave`(新增的
   `BackendFeatures.FileWriteBack`)把代用檔複製進文件。以 adb 按按鈕、直接讀 `/sdcard/Download` 實測：經
   CREATE_DOCUMENT 存檔 -> true,文件為 `AA`;文件換成同名資料夾 -> false,記錄 `EISDIR`;磁碟塞滿 -> false,
-  但失敗在寫 cache(ENOSPC,同一分割區),不是寫回。**權限失效未能重現**:在「檔案」app 刪除文件後授權仍在，
-  下一次存檔把它重建(true、內容正確);shell 碰不到 Downloads provider。舊行為已於同日以 HEAD 建置、同樣步驟重跑:
+  但失敗在寫 cache(ENOSPC,同一分割區),不是寫回。**權限失效：在 Downloads 重現不出來**:在「檔案」app 刪除文件後授權仍在，
+  下一次存檔把它重建(true、內容正確);shell 碰不到 Downloads provider。**稍後重現**:改存到裝置儲存空間的 Documents
+  (ExternalStorageProvider),在「檔案」app 刪除後授權被撤銷(授權清單剩 0 筆),下一次存檔寫回時拋出
+  `SecurityException: Permission Denial`,回報 false。舊行為已於同日以 HEAD 建置、同樣步驟重跑:
   資料夾那個情況回報 `save -> true`,logcat 卻寫著「could not copy the save to content://...document/21」;緊接著重建的
   新版回報 false。
   P75(自己寫檔、只靠 observer)照常寫到。

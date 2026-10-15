@@ -123,11 +123,13 @@ label/hint/value/text_label 皆為 false——證明檢查不是空轉。
 swiftc -O -o /tmp/colour_bbox testapp/test_support/measure/colour_bbox.swift
 /tmp/colour_bbox --sample capture.png               # 先看螢幕上實際是什麼顏色
 /tmp/colour_bbox 8 232 248 capture1.png capture2.png  # 再量那個顏色的外框
+/tmp/colour_bbox 102 230 255 --from-row 110 capture.png  # 第 110 列以上不算(排除同色的色塊)
 ```
 
 這台 Mac 的 `python3` 沒有 PIL,所以用 CoreGraphics 寫成。每張圖印出該顏色像素的外框、寬高比、像素數,
 以及「drawable」:超過一半為近黑像素的列與欄所圍成的區域(mesh view 的預設背景)。容差預設 75,
 可用 `--tolerance N` 調整;取樣後縮小它:P95 在 AppKit 的擷圖以 75 量到 602x761(標題列的像素也算進去了),以 40 量到 602x602。
+「drawable」只認超過一半為深色的列與欄：深色區不到截圖寬度(或高度)的一半時抓不到——P95 成長模式窄的那一半量成 720x27。
 
 **先取樣。** 螢幕上的顏色不等於場景給的顏色:P95 的圓是 `(0.4, 0.9, 1)`,即 102 230 255,而在 macOS 上
 GtkBackend 的擷圖約為 8 232 248,以 102 為中心根本抓不到。
@@ -154,6 +156,8 @@ swiftc -O -o /tmp/drag_at testapp/test_support/measure/drag_at.swift
 **改視窗大小用它，不要用 System Events。** 2026-10-14 在 macOS 上的 GtkBackend:以 System Events 設定
 `size of window 1`,視窗回報新尺寸，但 GL area 沒有重繪，截圖裡的內容停在舊尺寸;拖曳視窗右下角則每次都
 重繪,P95 也記下了新的 drawable 尺寸。另外，視窗不能超出螢幕：靠近螢幕底部的視窗往下拉不會變高，先把它移到上方。
+由程式改變的尺寸則會重繪:P95 的成長模式(`SCUI_P95_GROW=1`,內容寬度每 3 秒在 360 與 720 間切換，視窗為 `.contentSize`)
+8 張擷圖中 drawable 在 720 與 1440 像素寬之間切換，圓皆為 430x430、置中(2026-10-14)。所以不重繪的只有 System Events 這條路。
 
 Resize a window with this, not with System Events: on GtkBackend on macOS a size
 set through System Events was reported but the GL area did not redraw, while a

@@ -6,6 +6,7 @@ import AppKit
 //   swiftc -O -o /tmp/colour_bbox testapp/test_support/measure/colour_bbox.swift
 //   /tmp/colour_bbox 102 230 255 capture1.png capture2.png ...
 //   /tmp/colour_bbox 102 230 255 --tolerance 80 capture.png
+//   /tmp/colour_bbox 102 230 255 --from-row 110 capture.png   only rows 110 and below
 //   /tmp/colour_bbox --sample capture.png      the commonest saturated colours
 //
 // **Sample first.** What reaches the screen is not the scene's colour: P95's circle
@@ -33,6 +34,13 @@ let sampling = arguments.first == "--sample"
 if sampling { arguments.removeFirst() }
 if let flag = arguments.firstIndex(of: "--tolerance"), flag + 1 < arguments.count {
     tolerance = Int(arguments[flag + 1]) ?? tolerance
+    arguments.removeSubrange(flag...(flag + 1))
+}
+// Rows above this one are not searched for the colour, so a swatch or a title bar
+// of the same colour can be left out. / 這一列以上不搜尋該顏色，以排除同色的色塊或標題列。
+var fromRow = 0
+if let flag = arguments.firstIndex(of: "--from-row"), flag + 1 < arguments.count {
+    fromRow = Int(arguments[flag + 1]) ?? 0
     arguments.removeSubrange(flag...(flag + 1))
 }
 func load(_ path: String) -> (pixels: [UInt8], width: Int, height: Int)? {
@@ -79,7 +87,7 @@ if sampling {
 guard arguments.count >= 4, let red = Int(arguments[0]), let green = Int(arguments[1]),
       let blue = Int(arguments[2])
 else {
-    print("usage: colour_bbox R G B [--tolerance N] image.png ...")
+    print("usage: colour_bbox R G B [--tolerance N] [--from-row N] image.png ...")
     exit(2)
 }
 
@@ -106,7 +114,7 @@ for path in arguments.dropFirst(3) {
 
     var box = (x0: width, x1: -1, y0: height, y1: -1)
     var count = 0
-    for y in 0..<height {
+    for y in min(fromRow, height)..<height {
         for x in 0..<width {
             let i = (y * width + x) * 4
             if abs(Int(pixels[i]) - red) <= tolerance, abs(Int(pixels[i + 1]) - green) <= tolerance,
