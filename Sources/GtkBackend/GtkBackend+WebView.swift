@@ -110,6 +110,11 @@ extension GtkBackend {
     // WebKitGTK 6.0(gtk_webkit.c),因此不增加建置相依,2026-09-04 的限制依然成立。沒有
     // libwebkitgtk-6.0-4 的機器會得到一個寫出套件名稱的框。下方的佔位現在只給沒有 WebView2.h 的 Windows 建置。
     public func createWebView() -> Widget {
+        #if os(macOS)
+            // WebKit itself, kept over the box (GtkBackend+WebEngine.swift, +WebViewMac.swift).
+            // WebKit 本身，覆蓋在 box 上(GtkBackend+WebEngine.swift、+WebViewMac.swift)。
+            return GtkWebViewHost(engine: WKWebEngine())
+        #endif
         if scui_webview_is_compiled_in() != 0 {
             return WebViewHost()
         }
@@ -138,6 +143,12 @@ extension GtkBackend {
         environment: EnvironmentValues,
         onNavigate: @escaping (URL) -> Void
     ) {
+        #if os(macOS)
+            if let host = webView as? GtkWebViewHost {
+                host.engine.onNavigate = onNavigate
+                return
+            }
+        #endif
         if let host = webView as? WebViewHost {
             host.onNavigate = onNavigate
             return
@@ -150,6 +161,12 @@ extension GtkBackend {
     }
 
     public func navigateWebView(_ webView: Widget, to url: URL) {
+        #if os(macOS)
+            if let host = webView as? GtkWebViewHost {
+                host.engine.navigate(to: url)
+                return
+            }
+        #endif
         if let host = webView as? WebViewHost {
             host.navigate(to: url)
             return
