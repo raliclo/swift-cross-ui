@@ -1,21 +1,23 @@
-action,x,y,origin,button,key,micros,note,platform
+action,x,y,origin,button,key,micros,note,platform,target
 # P5 on GtkBackend on macOS (TEST_BACKEND=gtk4): #675 -- alerts on two windows at once, and three alerts stacked on one, each dismissed with Return.
 # Measured 2026-10-16 from p5-macos-gtk4-final-20261016-020757.png (1180x816, 2x, halved; origin=frame, 28 pt native title bar). The AppKit file's Open another window click (270,202) landed below its button on GTK's taller layout, so the alerts were logged as Main: and the two-window half never ran (gtk4-aim-20261016.csv2).
 # Open another window (295,181), Show Alert A (68,227), Show A+B+C at once (295,273): button centres. The last two AppKit clicks also landed; they are centred here.
 # A coordinate cannot fix the other finding: on 2026-10-16 GTK logged Alert A, B, C dismissed (earliest on top). p5-debug-events.log must list C, B, A.
-# After this file Ready. must be back and the log must hold Secondary: lines as well as Main: lines.
-# macOS 上 GtkBackend 的 P5:Open another window 重新瞄準 (295,181);警示順序 A、B、C 是 GtkBackend 的缺陷，座標修不了。
-click,295,181,frame,left,,,"Open another window -- re-aimed from (270,202), which was below the button (y 165-197)",macos
-sleep,,,,,,2000000,let the second window settle,macos
-click,68,227,frame,left,,,"Show Alert A -- centred (y 211-243); AppKit y 235 also landed",macos
-sleep,,,,,,2000000,,macos
-key,,,,,return,,dismiss A -- Return is the alert's OK; see the note on escape,macos
-sleep,,,,,,1500000,,macos
-click,295,273,frame,left,,,"Show A+B+C at once -- the stacking half of #675; centred (y 257-289), AppKit (270,267) also landed",macos
-sleep,,,,,,2500000,,macos
-key,,,,,return,,dismiss the topmost; the one under it must come back,macos
-sleep,,,,,,1500000,,macos
-key,,,,,return,,and the next,macos
-sleep,,,,,,1500000,,macos
-key,,,,,return,,"and the last -- Ready. must return. The capture cannot show the order, so debug-events/p5-debug-events.log is the evidence: after 'requesting A, B and C together' it must list Alert C dismissed, Alert B dismissed, Alert A dismissed -- the later alert on top. On GTK 2026-10-16 it listed A, B, C",macos
-sleep,,,,,,2000000,,macos
+# After this file Ready. must be back in both windows, and the log must hold a Secondary: line (Alert A, shown on the window just opened, which takes key on GTK) and Main: lines (A+B+C, after a focus back to the main window). Until 2026-10-16 every click after the open went to the secondary window, which held the key, so the log had no Main: line.
+# macOS 上 GtkBackend 的 P5:新開的視窗在 GTK 上取得 key,所以 Alert A 在副視窗;之後 focus 回主視窗再按 A+B+C,log 才同時有 Secondary: 與 Main:。
+click,295,181,frame,left,,,"Open another window -- re-aimed from (270,202), which was below the button (y 165-197); the new window takes key",macos,
+sleep,,,,,,2000000,let the second window settle,macos,
+click,68,227,frame,left,,,"Show Alert A -- on the secondary window, the one with key: a Secondary: line",macos,
+sleep,,,,,,2000000,,macos,
+key,,,,,return,,dismiss A -- Return is the alert's OK; see the note on escape,macos,
+sleep,,,,,,1500000,,macos,
+focus,,,,,,,back to the main window -- the stacked alerts go there,macos,P5 multi-window alerts
+sleep,,,,,,1000000,,macos,
+click,295,273,frame,left,,,"Show A+B+C at once on the main window -- the stacking half of #675; centred (y 257-289)",macos,
+sleep,,,,,,2500000,,macos,
+key,,,,,return,,dismiss the topmost; the one under it must come back,macos,
+sleep,,,,,,1500000,,macos,
+key,,,,,return,,and the next,macos,
+sleep,,,,,,1500000,,macos,
+key,,,,,return,,"and the last -- Ready. must return. debug-events/p5-debug-events.log is the evidence: after 'requesting A, B and C together' it must list Main: Alert C, B, A dismissed -- the later alert on top",macos,
+sleep,,,,,,2000000,,macos,

@@ -1,25 +1,25 @@
 action,x,y,origin,button,key,micros,note,platform
 # P41 on GtkBackend on macOS (TEST_BACKEND=gtk4): three date picker styles, each moved on its own.
 # GTK has no stepper field: .automatic and .compact are a button whose popover holds a calendar (.automatic was the grid until 2026-10-16), so "one month forward" is the popover's month arrows -- next, next, previous, as the AppKit file steps up, up, down. The arrows now report the date (they moved the calendar without telling the binding until 2026-10-16).
-# Measured 2026-10-16 from p41-macos-gtk4-final-20261016-065823.png and -065846.png (popover open), 2x halved, origin=frame. The .compact popover is the .automatic one moved by the buttons' offset (-7, +168).
+# Measured 2026-10-16 from p41-macos-gtk4-final-20261016-065823.png and -065846.png (popover open), 2x halved, origin=frame. The .compact popover is the .automatic one moved by the buttons' offset (-7, +168). Every y moved +37 the same day (p41-macos-gtk4-final-20261016-100633.png): the .hourMinuteAndSecond label no longer wraps a character per line, so the shorter content sits centred in the 648 pt window.
 # After this file: .automatic 2025-09-24, .compact 2025-09-24, .graphical 2025-08-17.
 # GTK 沒有步進欄位：.automatic 與 .compact 是開啟月曆的按鈕，以月份箭頭前進一個月；之後 .automatic 與 .compact 為 2025-09-24、.graphical 為 2025-08-17。
 sleep,,,,,,800000,let P41 lay out,macos
-click,179,263,frame,left,,,open the .automatic popover,macos
+click,179,300,frame,left,,,open the .automatic popover,macos
 sleep,,,,,,900000,,macos
-click,176,317,frame,left,,,next month,macos
+click,176,354,frame,left,,,next month,macos
 sleep,,,,,,500000,,macos
-click,176,317,frame,left,,,next month again,macos
+click,176,354,frame,left,,,next month again,macos
 sleep,,,,,,500000,,macos
-click,72,317,frame,left,,,"previous month -- net one month forward: .automatic must read 2025-09-24",macos
+click,72,354,frame,left,,,"previous month -- net one month forward: .automatic must read 2025-09-24",macos
 sleep,,,,,,500000,,macos
 key,,,,,escape,,close the popover,macos
 sleep,,,,,,700000,,macos
-click,172,431,frame,left,,,open the .compact popover,macos
+click,172,468,frame,left,,,open the .compact popover,macos
 sleep,,,,,,900000,,macos
-click,169,485,frame,left,,,"next month -- .compact must read 2025-09-24 and the others must not move",macos
+click,169,522,frame,left,,,"next month -- .compact must read 2025-09-24 and the others must not move",macos
 sleep,,,,,,500000,,macos
 key,,,,,escape,,close the popover,macos
 sleep,,,,,,700000,,macos
-click,570,303,frame,left,,,".graphical -- the 17th: it must read 2025-08-17, and the other two keep their own dates",macos
+click,570,340,frame,left,,,".graphical -- the 17th: it must read 2025-08-17, and the other two keep their own dates",macos
 sleep,,,,,,1200000,,macos

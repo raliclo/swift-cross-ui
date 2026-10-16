@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on GtkBackend on macOS (TEST_BACKEND=gtk4): the AppKit file's rows and selection steps; only the drag moves.
+# Measured 2026-10-16 from p23-macos-gtk4-final-20261016-095712.png (1640x1296, halved to 820x648; origin=frame, 28 pt native title bar). The More rows (157,165), Fewer rows (63,165) and Selection (66,197) clicks of the AppKit file land on GTK's buttons too. Its drag at y 267 is an AppKit row-1 position and landed on the selected row label here; GTK's row 1 is at y 470, its third column from x 437.
+# After this file: rows: 16, Selection on, and the drag across row 1's third cell reported by the line beside the Selection button.
+# macOS 上 GtkBackend 的 P23:按鈕座標與 AppKit 檔相同;拖曳改到 GTK 的第 1 列(y 470)第三欄。
+click,157,165,frame,left,,,More rows -- rows: 8 must rise,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,again,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,again,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,and again -- now past what the window holds,macos
+sleep,,,,,,1000000,,macos
+click,63,165,frame,left,,,Fewer rows,macos
+sleep,,,,,,500000,,macos
+click,63,165,frame,left,,,and back within the window,macos
+sleep,,,,,,1000000,,macos
+click,66,197,frame,left,,,Selection off -> on,macos
+sleep,,,,,,800000,,macos
+mousedown,445,470,frame,left,,,"start of a drag across row 1's third cell (AppKit: 300;267)",macos
+move,600,470,frame,,,,drag right across it,macos
+sleep,,,,,,300000,,macos
+mouseup,600,470,frame,left,,,,macos
+sleep,,,,,,1000000,,macos
