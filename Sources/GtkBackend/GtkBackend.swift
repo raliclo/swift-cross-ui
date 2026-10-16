@@ -4314,7 +4314,7 @@ public final class GtkBackend:
     // 搬移，而非直接採用 upstream 的整份實作。
 
     public func createToggle() -> Widget {
-        return ToggleButton()
+        return Self.withoutFocusOnClick(ToggleButton())
     }
 
     public func updateToggle(
@@ -4344,7 +4344,7 @@ public final class GtkBackend:
     }
 
     public func createSwitch() -> Widget {
-        return Switch()
+        return Self.withoutFocusOnClick(Switch())
     }
 
     public func updateSwitch(
@@ -4368,7 +4368,7 @@ public final class GtkBackend:
     }
 
     public func createCheckbox() -> Widget {
-        return Gtk.CheckButton()
+        return Self.withoutFocusOnClick(Gtk.CheckButton())
     }
 
     public func updateCheckbox(

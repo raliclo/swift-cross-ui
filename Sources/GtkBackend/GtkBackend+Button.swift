@@ -4,8 +4,26 @@ import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
 extension GtkBackend {
+    /// A click on a button, toggle, switch or checkbox leaves keyboard focus
+    /// where it was, as AppKit and UIKit controls do; Tab still reaches it.
+    ///
+    /// GTK's default moves focus to the clicked control. P70's "ask both for
+    /// focus" click then took focus off the name field (focused field: none,
+    /// 4 changes heard instead of 3), and P72's plain Up after a click on
+    /// "Check again" went to GTK's focus navigation instead of the mesh view's
+    /// onKeyPress (keys: 1, high 2.30 instead of 2 and 2.40) -- the 2026-10-16
+    /// gtk4 sweep on macOS.
+    ///
+    /// 點擊按鈕、toggle、switch 或 checkbox 時，鍵盤焦點留在原處，與 AppKit、UIKit 的控制項相同;Tab 仍然能到達它。
+    /// GTK 預設會把焦點移到被點的控制項。P70 的「ask both for focus」因此把焦點從 name 欄拿走(focused field: none,
+    /// 聽到 4 次而非 3 次),P72 點「Check again」之後的 Up 被 GTK 的焦點導覽吃掉，沒有送到 mesh view 的 onKeyPress
+    /// (keys: 1、high 2.30,應為 2 與 2.40)——2026-10-16 macOS 上的 gtk4 sweep。
+    static func withoutFocusOnClick<W: Widget>(_ widget: W) -> W {
+        gtk_widget_set_focus_on_click(widget.widgetPointer, 0)
+        return widget
+    }
     public func createSimpleButton() -> Widget {
-        return Button()
+        return Self.withoutFocusOnClick(Button())
     }
 
     public func updateSimpleButton(
@@ -80,7 +98,7 @@ extension GtkBackend {
         widget.horizontalAlignment = .center
         widget.verticalAlignment = .center
 
-        return button
+        return Self.withoutFocusOnClick(button)
     }
 
     public func updateButton(

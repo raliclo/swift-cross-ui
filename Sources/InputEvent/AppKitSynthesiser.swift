@@ -72,6 +72,9 @@
     /// 開始」那樣外洩至別的應用程式。而由於 AppKit 是從事件本身而非硬體讀取修飾鍵狀態，動作檔按住的
     /// 修飾鍵在此處追蹤（見 ``heldModifiers``），而不交由系統處理。
     public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
+        /// Signalled when a GDK scroll's last notch has been posted; set on the main
+        /// thread inside `perform`'s hop and taken after it returns.
+        nonisolated(unsafe) static var scrollInFlight: DispatchSemaphore?
         /// Modifiers the file is currently holding down.
         ///
         /// Needed because nothing else tracks them. `SendInput` and XTEST post real
@@ -598,6 +601,15 @@
         // MARK: - Performing
 
         public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
+            // A GDK scroll posts its notches from a background queue (`postScroll`);
+            // the next action waits for the last of them here, off the main thread.
+            // GDK 的捲動由背景佇列送出每一格(`postScroll`);下一個動作在這裡、主執行緒之外等最後一格送完。
+            defer {
+                if let done = Self.scrollInFlight {
+                    Self.scrollInFlight = nil
+                    done.wait()
+                }
+            }
             // Sleeping stays on the calling thread. Hopping to the main queue for it
             // would make the application sleep too, which is the failure the
             // protocol's own documentation records.
@@ -1524,8 +1536,47 @@
                 // GDK takes its pointer surface from motion (the click path's measurement).
                 // GDK 由移動事件決定指標所在的 surface(點擊路徑的量測)。
                 if Self.isGdkWindow(window) { usleep(150_000) }
-                cg.location = at
-                cg.post(tap: .cghidEventTap)
+                if Self.isGdkWindow(window) {
+                    // **One event per notch, posted off the main thread.** GTK scrolls one
+                    // step (page^(2/3), 78.8 pt in P22's 700 pt page) per wheel event it
+                    // reads, so a 6-line event moved as far as a 1-line one: P22's six
+                    // down, six down, twelve up read value 78.8, 157.7, 78.8 on the
+                    // vadjustment (2026-10-16). Six 1-line events posted from here did the
+                    // same, at 16 ms or 120 ms apart, because this runs on the main thread:
+                    // nothing reads the queue until it returns, and AppKit coalesces
+                    // scroll events waiting in it into one. So they are posted from a
+                    // background queue, and `perform` waits for the last one on the
+                    // replay thread, with the main thread free to hand each to GDK.
+                    // **每一格一個事件，而且不在主執行緒上送。**GTK 每讀到一個滾輪事件捲一步(page^(2/3),P22 的 700 pt
+                    // 頁面為 78.8 pt),所以 6 行的事件與 1 行的捲得一樣遠:P22 的下 6、下 6、上 12 在 vadjustment 上讀到
+                    // 78.8、157.7、78.8(2026-10-16)。從這裡送 6 個 1 行事件結果相同，間隔 16 ms 或 120 ms 都一樣，因為這段
+                    // 在主執行緒上：它返回之前沒有人讀佇列，而 AppKit 會把佇列裡等著的滾輪事件合併成一個。因此改由背景佇列
+                    // 送出，`perform` 在重播執行緒上等最後一個送完，主執行緒則空著把每一個交給 GDK。
+                    let notches: [CGEvent] = (0..<max(abs(dx), abs(dy))).compactMap { notch in
+                        let one = CGEvent(
+                            scrollWheelEvent2Source: nil,
+                            units: .line,
+                            wheelCount: 2,
+                            wheel1: notch < abs(dy) ? Int32(-dy.signum()) : 0,
+                            wheel2: notch < abs(dx) ? Int32(-dx.signum()) : 0,
+                            wheel3: 0
+                        )
+                        one?.location = at
+                        return one
+                    }
+                    let done = DispatchSemaphore(value: 0)
+                    Self.scrollInFlight = done
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        for one in notches {
+                            one.post(tap: .cghidEventTap)
+                            usleep(40_000)
+                        }
+                        done.signal()
+                    }
+                } else {
+                    cg.location = at
+                    cg.post(tap: .cghidEventTap)
+                }
                 // **A GDK window reads the queue itself; draining it here took the wheel
                 // events away from GTK.** GDK's event source pulls each NSEvent off the
                 // queue and translates it; one handed to `NSApp.sendEvent` instead goes to
@@ -1540,7 +1591,7 @@
                     FileHandle.standardError.write(
                         Data(
                             ("-scroll: dx=\(dx) dy=\(dy) via HID at (\(Int(point.x)),\(Int(point.y)))"
-                                + " to GDK, left on the queue\n").utf8
+                                + " to GDK, one event per notch, left on the queue\n").utf8
                         )
                     )
                     return
