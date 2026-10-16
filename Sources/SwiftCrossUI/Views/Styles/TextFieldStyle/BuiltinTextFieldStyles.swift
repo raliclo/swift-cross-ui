@@ -203,6 +203,9 @@ public struct _BuiltinTextFieldImplementation: ElementaryView, View {
             backend.setContent(ofTextField: widget, to: text)
         }
 
+        LongPressTextSelectionSupport.update(
+            widget, kind: .textField, backend: backend, environment: environment
+        )
         backend.setSize(of: widget, to: layout.size.vector)
     }
 }

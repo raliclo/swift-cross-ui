@@ -10,7 +10,7 @@ import WinUI
 
 extension WinUIBackend {
     public func createTextField() -> Widget {
-        let textField = TextBox()
+        let textField = LongPressTextBox()
         textField.textChanged.addHandler { [weak internalState] _, _ in
             guard let internalState else { return }
             let identifier = ObjectIdentifier(textField)

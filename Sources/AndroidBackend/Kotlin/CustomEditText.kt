@@ -3,8 +3,13 @@ package dev.swiftcrossui.androidbackend
 import android.app.Activity
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
+import android.text.Selection
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import kotlin.math.hypot
 
 open class CustomEditText(activity: Activity) : EditText(activity) {
     var onChange: SwiftAction? = null
@@ -95,6 +100,132 @@ open class CustomEditText(activity: Activity) : EditText(activity) {
         } finally {
             isSettingText = false
         }
+    }
+
+    // Long-press drag selection (SwiftCrossUI's longPressTextSelection()). The
+    // same rules as LongPressSelectionTracker in Swift, here because touch
+    // events never cross into Swift: the platform's long-press timeout and
+    // touch slop decide; until the timeout the press is EditText's (a tap still
+    // places the caret and focuses); a move past the slop first leaves it all to
+    // EditText and its parents (a scroll stays a scroll). When the timeout
+    // fires with the finger still near, the press is taken away: EditText gets
+    // ACTION_CANCEL, every parent is told requestDisallowInterceptTouchEvent,
+    // and from then on the moves set the selection from the anchor with
+    // getOffsetForPosition -- Selection.setSelection keeps a backward one
+    // backward -- and are not passed on, so nothing scrolls. The release keeps
+    // the selection and shows no menu. Long-clickable is off meanwhile, which
+    // is what stops EditText's own long press (word selection and its action
+    // mode) from firing at the same timeout.
+    //
+    // 長按拖曳選取(SwiftCrossUI 的 longPressTextSelection())。規則與 Swift 的 LongPressSelectionTracker
+    // 相同，放在這裡是因為觸控事件從不進入 Swift:由平台的長按逾時與 touch slop 決定;逾時之前按壓屬於
+    // EditText(點擊照樣放插入點並取得焦點);先移動超過 slop 就全部交給 EditText 與它的父層(捲動仍是捲動)。
+    // 逾時觸發時手指仍在附近，就把按壓拿走:EditText 收到 ACTION_CANCEL,每個父層都被
+    // requestDisallowInterceptTouchEvent,之後每次移動以 getOffsetForPosition 從錨點設定選取——
+    // Selection.setSelection 讓反向選取保持反向——且不往下傳，所以不會捲動。放開後保留選取、不顯示選單。
+    // 期間關閉 long-clickable,正是它讓 EditText 自己的長按(選字與 action mode)不會在同一個逾時觸發。
+    private var longPressSelection: SwiftAction? = null
+    private var longPressWasLongClickable = true
+    private var longPressState = 0 // 0 idle, 1 pending, 2 selecting, 3 passed through
+    private var longPressDownX = 0f
+    private var longPressDownY = 0f
+    private var longPressLastX = 0f
+    private var longPressLastY = 0f
+    private var longPressDownTime = 0L
+    private var longPressAnchor = 0
+    private var longPressPhase = 0 // 0 began, 1 changed, 2 ended
+    private val longPressSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val longPressFire = Runnable { beginLongPressSelection() }
+
+    /** Turns long-press drag selection on (a handler) or off (null). */
+    fun setLongPressSelection(action: SwiftAction?) {
+        val wasEnabled = longPressSelection != null
+        longPressSelection = action
+        if (action != null && !wasEnabled) {
+            longPressWasLongClickable = isLongClickable
+            isLongClickable = false
+        } else if (action == null && wasEnabled) {
+            isLongClickable = longPressWasLongClickable
+            removeCallbacks(longPressFire)
+            longPressState = 0
+        }
+    }
+
+    /** What the last call to the handler reported: 0 began, 1 changed, 2 ended. */
+    fun longPressSelectionPhase(): Int = longPressPhase
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (longPressSelection == null) return super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                longPressDownX = event.x
+                longPressDownY = event.y
+                longPressLastX = event.x
+                longPressLastY = event.y
+                longPressDownTime = event.downTime
+                longPressState = 1
+                removeCallbacks(longPressFire)
+                postDelayed(longPressFire, ViewConfiguration.getLongPressTimeout().toLong())
+            }
+            MotionEvent.ACTION_MOVE -> {
+                longPressLastX = event.x
+                longPressLastY = event.y
+                if (longPressState == 2) {
+                    extendLongPressSelection(event.x, event.y, 1)
+                    return true
+                }
+                if (longPressState == 1 &&
+                    hypot(event.x - longPressDownX, event.y - longPressDownY) > longPressSlop
+                ) {
+                    longPressState = 3
+                    removeCallbacks(longPressFire)
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                removeCallbacks(longPressFire)
+                if (longPressState == 2) {
+                    longPressState = 0
+                    extendLongPressSelection(event.x, event.y, 2)
+                    return true
+                }
+                longPressState = 0
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPressFire)
+                if (longPressState == 2) {
+                    longPressState = 0
+                    extendLongPressSelection(longPressLastX, longPressLastY, 2)
+                    return true
+                }
+                longPressState = 0
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    private fun beginLongPressSelection() {
+        if (longPressState != 1 || longPressSelection == null) return
+        longPressState = 2
+        val now = SystemClock.uptimeMillis()
+        val cancel = MotionEvent.obtain(
+            longPressDownTime, now, MotionEvent.ACTION_CANCEL, longPressLastX, longPressLastY, 0
+        )
+        super.onTouchEvent(cancel)
+        cancel.recycle()
+        parent?.requestDisallowInterceptTouchEvent(true)
+        if (!hasFocus()) requestFocus()
+        longPressAnchor = getOffsetForPosition(longPressDownX, longPressDownY)
+        extendLongPressSelection(longPressLastX, longPressLastY, 0)
+    }
+
+    private fun extendLongPressSelection(x: Float, y: Float, phase: Int) {
+        val text = editableText ?: return
+        val length = text.length
+        val anchor = longPressAnchor.coerceIn(0, length)
+        val extent = getOffsetForPosition(x, y).coerceIn(0, length)
+        Selection.setSelection(text, anchor, extent)
+        longPressPhase = phase
+        longPressSelection?.call()
     }
 
     protected override fun onDraw(canvas: Canvas) {

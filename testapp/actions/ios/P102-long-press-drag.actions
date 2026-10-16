@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P102 on iOS (UIKitBackend), through XCUITest: a mousedown then a mouseup with micros is
+# press(forDuration: micros, thenDragTo:, withVelocity: 300, thenHoldForDuration: 0.3) -- a held press, then a drag.
+# Positions from p102-ios-final-20261017-025856.png (1179x2556 px = 393x852 pt at 3x, the swift-cross-ui simulator):
+# FIELD text at y 214, EDITOR lines at y 273/291/310, CONTROL at y 422.
+# Pass (p102-select.log): FIELD began with an empty range then ended forward and non-empty; EDITOR ended backward;
+# no line for the CONTROL long press or for the quick FIELD drag at the end (held 0.1 s: UIKit's own handling).
+# P102 在 iOS 上：經 XCUITest 長按後拖曳。通過條件同 mac 檔:FIELD 正向、EDITOR 反向、CONTROL 與快速拖曳都沒有任何一行。
+sleep,,,,,,1500000,let P102 lay out,ios
+mousedown,64,214,client,left,,,FIELD: press on 'quick',ios
+mouseup,213,214,client,left,,800000,held 0.8 s then dragged right,ios
+sleep,,,,,,1200000,,ios
+mousedown,128,310,client,left,,,EDITOR: press on the third line,ios
+mouseup,51,273,client,left,,800000,held 0.8 s then dragged up and left onto the first line,ios
+sleep,,,,,,1200000,,ios
+mousedown,51,422,client,left,,,CONTROL: a long press with no modifier,ios
+mouseup,128,422,client,left,,800000,held then dragged -- nothing may be logged,ios
+sleep,,,,,,1200000,,ios
+mousedown,40,214,client,left,,,FIELD: a quick drag,ios
+mouseup,150,214,client,left,,,pressed 0.1 s then dragged -- nothing may be logged,ios
+sleep,,,,,,1500000,let the last settled line be written,ios

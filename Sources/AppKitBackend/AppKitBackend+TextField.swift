@@ -252,12 +252,45 @@ extension AppKitBackend {
 
 // MARK: Custom views
 
-private class NSObservableTextField: NSTextField {
+final class NSObservableTextField: NSTextField {
     override func textDidChange(_ notification: Notification) {
         onEdit?(self)
     }
 
     var onEdit: ((NSTextField) -> Void)?
+
+    /// Set by `setLongPressTextSelection`; nil when it is off.
+    /// 由 `setLongPressTextSelection` 設定;關閉時為 nil。
+    var longPressSelection: AppKitLongPressSelection?
+
+    /// So that a long-press field can be given its own field editor.
+    /// 好讓長按欄位能有自己的 field editor。
+    override class var cellClass: AnyClass? {
+        get { LongPressTextFieldCell.self }
+        set {}
+    }
+
+    /// A press on a field that is not being edited yet. Once it is, AppKit
+    /// sends presses to the field editor, `LongPressFieldEditor`.
+    /// 按在尚未編輯中的欄位上。一旦開始編輯,AppKit 會把按壓送給 field editor,也就是 `LongPressFieldEditor`。
+    override func mouseDown(with event: NSEvent) {
+        guard let longPressSelection else {
+            super.mouseDown(with: event)
+            return
+        }
+        let tracked = longPressSelection.track(event) { [weak self] () -> NSTextView? in
+            guard let self, let window = self.window else { return nil }
+            if self.currentEditor() == nil { window.makeFirstResponder(self) }
+            return self.currentEditor() as? NSTextView
+        }
+        if tracked { return }
+        // Not a long press: AppKit takes it, and the field editor it starts
+        // must not track the same press a second time.
+        // 不是長按：交給 AppKit,而它啟動的 field editor 不可以再追蹤同一次按壓。
+        (cell?.fieldEditor(for: self) as? LongPressFieldEditor)?.passesNextPress = true
+        super.mouseDown(with: event)
+        (cell?.fieldEditor(for: self) as? LongPressFieldEditor)?.passesNextPress = false
+    }
     var _onSubmitAction = Action({})
     var onSubmit: () -> Void {
         get {
@@ -296,4 +329,15 @@ class NSObservableTextView: NSTextView, NSTextViewDelegate {
     }
 
     var onEdit: ((NSTextView) -> Void)?
+
+    /// Set by `setLongPressTextSelection`; nil when it is off.
+    /// 由 `setLongPressTextSelection` 設定;關閉時為 nil。
+    var longPressSelection: AppKitLongPressSelection?
+
+    override func mouseDown(with event: NSEvent) {
+        if let longPressSelection, longPressSelection.track(event, textView: { self }) {
+            return
+        }
+        super.mouseDown(with: event)
+    }
 }

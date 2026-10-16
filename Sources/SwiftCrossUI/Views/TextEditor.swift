@@ -89,6 +89,9 @@ public struct TextEditor: ElementaryView {
             backend.setContent(ofTextEditor: widget, to: content)
         }
 
+        LongPressTextSelectionSupport.update(
+            widget, kind: .textEditor, backend: backend, environment: environment
+        )
         backend.setSize(of: widget, to: layout.size.vector)
     }
 }

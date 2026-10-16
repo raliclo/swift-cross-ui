@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P102 on AppKit: longPressTextSelection() in a TextField and a TextEditor, and not in a plain TextField.
+# Positions from the AppKit window on 2026-10-17 (880x1096 px = 440x548 pt at 2x; origin=frame, 28 pt title bar):
+# FIELD text at frame y 191 (x 24-380), EDITOR lines at y 248/264/280, CONTROL at y 398.
+# Pass (p102-select.log): FIELD began with an empty range then ended forward and non-empty; EDITOR ended backward;
+# no line at all for the CONTROL press or for the quick FIELD drag at the end (held 0.1 s: AppKit's own drag-select).
+# P102 在 AppKit 上：長按後拖曳。通過條件:FIELD 先以空範圍 began、再以非空的正向範圍 ended;EDITOR ended 為 backward;
+# CONTROL 的長按與最後那次快速拖曳(只按 0.1 秒，交給 AppKit 自己的拖曳選取)都不能有任何一行。
+sleep,,,,,,1500000,let P102 lay out,macos
+mousedown,60,191,frame,left,,,FIELD: press on 'quick',macos
+sleep,,,,,,800000,hold past the 0.5 s long-press delay,macos
+move,100,191,frame,,,,drag right,macos
+sleep,,,,,,100000,,macos
+move,150,191,frame,,,,drag right,macos
+sleep,,,,,,100000,,macos
+move,200,191,frame,,,,drag right,macos
+sleep,,,,,,150000,,macos
+mouseup,200,191,frame,left,,,let go -- the selection stays,macos
+sleep,,,,,,1000000,,macos
+mousedown,150,280,frame,left,,,EDITOR: press on the third line,macos
+sleep,,,,,,800000,hold,macos
+move,120,270,frame,,,,drag up and left,macos
+sleep,,,,,,100000,,macos
+move,90,258,frame,,,,drag up and left,macos
+sleep,,,,,,100000,,macos
+move,60,248,frame,,,,onto the first line,macos
+sleep,,,,,,150000,,macos
+mouseup,60,248,frame,left,,,let go -- backward selection stays,macos
+sleep,,,,,,1000000,,macos
+mousedown,60,398,frame,left,,,CONTROL: a long press with no modifier,macos
+sleep,,,,,,800000,hold,macos
+move,150,398,frame,,,,drag,macos
+sleep,,,,,,150000,,macos
+mouseup,150,398,frame,left,,,let go -- nothing may be logged,macos
+sleep,,,,,,1000000,,macos
+mousedown,40,191,frame,left,,,FIELD: a quick drag,macos
+sleep,,,,,,100000,held only 0.1 s,macos
+move,150,191,frame,,,,drag right -- the toolkit's drag-select,macos
+sleep,,,,,,150000,,macos
+mouseup,150,191,frame,left,,,let go -- nothing may be logged,macos
+sleep,,,,,,1500000,let the last settled line be written,macos

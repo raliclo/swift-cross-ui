@@ -185,3 +185,34 @@ background, waits for a marker in its log, and takes COUNT frames from the
 simulator (simctl) or the whole Mac screen. On the iPhone 17 simulator, 9 of 30
 frames during a 3 s press showed the panel orange, twice. Whole-screen frames
 show the rest of the desktop: keep them in the scratchpad.
+
+## `long_press_drag.swift` — 一次真正的長按拖曳(P102 的 longPressTextSelection)
+
+```sh
+swiftc -O -o /tmp/lpdrag testapp/test_support/measure/long_press_drag.swift
+/tmp/lpdrag P102 60 163 200 163 0.8     # 視窗 owner、起點 x y、終點 x y(視窗內容座標，點)、按住秒數
+```
+
+以 HID event tap 按下左鍵、靜止按住(預設 0.8 秒，超過 0.5 秒的長按延遲)、分 12 步拖曳後放開。座標是視窗**內容**
+的點(左上為原點，標題列預設 28 點),視窗以 owner 名稱在 CGWindowList 中找，取一般層級中最大的那個——AppKit 會在
+取得焦點的文字視圖旁另開一個約 53 x 48 的小視窗，第一個符合的曾經就是它。傳 `0.1` 當按住秒數就是對照組：一次普通拖曳。
+
+2026-10-17,P102 在 AppKit 上:FIELD 從 x 60 拖到 200,`began anchor 5 extent 5`、`ended 5..<27`;EDITOR 從第三行
+往左上拖，`ended anchor 94 extent 6 backward`——與 `actions/mac/P102-long-press-drag.actions`(行程內 NSApp.postEvent)
+量到的完全相同。**它移動的是真正的指標，會點到最上層的任何視窗**:同一天另一個視窗(系統權限對話框、別人的當機報告)
+蓋在 P102 上時，拖曳落在那裡。共用的桌面上請改用動作檔。
+
+Real HID events: press, hold still (0.8 s by default), drag in 12 steps,
+release, in window-content points of the largest normal-layer window owned by
+the given name. On 2026-10-17 it gave the same P102 numbers on AppKit as the
+in-process action file. It moves the real pointer, so it presses whatever
+window is on top -- on a shared desktop, use the action file instead.
+
+Android has no tool file: the same press is a few `adb shell input motionevent`
+lines run on the device in one `sh` (pushed to /data/local/tmp), so the 0.9 s
+hold is not stretched by adb round trips. P102 on the 2560x1600 tablet
+emulator, device pixels: `DOWN 160 356`, `sleep 0.9`, `MOVE 250 356`,
+`MOVE 380 356`, `MOVE 490 356`, `UP 490 356` gave FIELD `7..<28`; from
+`DOWN 300 560` up to `UP 100 472`, EDITOR `anchor 89 extent 3 backward`.
+Android 沒有工具檔：同一個按壓是幾行 `adb shell input motionevent`,寫成一個 sh 推到 /data/local/tmp 在裝置上一次
+執行，0.9 秒的按住才不會被 adb 往返拉長。座標與結果見上方英文。

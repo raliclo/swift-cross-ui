@@ -2154,7 +2154,7 @@ public final class WinUIBackend:
     }
 
     public func createTextEditor() -> Widget {
-        let textEditor = TextBox()
+        let textEditor = LongPressTextBox()
         textEditor.textChanged.addHandler { [weak internalState, weak textEditor] _, _ in
             guard
                 let internalState,

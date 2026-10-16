@@ -29,6 +29,16 @@ class CustomEditText: AndroidKit.EditText {
     /// 而非由 Swift 端事後讀回，見 `Kotlin/CustomEditText.kt`。
     @JavaMethod
     func restoreDefaultChrome()
+
+    /// Long-press drag selection on (a handler) or off (nil); see
+    /// `Kotlin/CustomEditText.kt`. / 長按拖曳選取開(handler)或關(nil);見 `Kotlin/CustomEditText.kt`。
+    @JavaMethod
+    func setLongPressSelection(_ action: SwiftAction?)
+
+    /// 0 began, 1 changed, 2 ended: what the handler is being called for.
+    /// 0 began、1 changed、2 ended:handler 這次被呼叫的原因。
+    @JavaMethod
+    func longPressSelectionPhase() -> Int32
 }
 
 @JavaClass("dev.swiftcrossui.androidbackend.SecureEditText", extends: CustomEditText.self)
