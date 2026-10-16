@@ -56,4 +56,4 @@ Root package 會保留 24 個 pin，因為 dependencies 在那裡直接宣告。
 ## 參考
 
 完整本機設定與驗證步驟：
-`Scripts/build-tool-install-android-on-Mac.sh`
+`Scripts/build-tool-install-android-on-Mac.zsh`

@@ -50,7 +50,7 @@ Apply and rebuild with the script, which does both and refuses rather than
 half-applying:
 
 ```zsh
-bash Scripts/build-android-bundler.sh
+zsh Scripts/build-android-bundler.zsh
 ```
 
 `SCUI_KEEP_SWIFT_AST=1` on an APK build leaves the section in, for a build you
@@ -59,7 +59,7 @@ intend to attach lldb to. The default strips it.
 以腳本套用並重建；它會兩件事一起做，而且寧可拒絕也不會做到一半：
 
 ```zsh
-bash Scripts/build-android-bundler.sh
+zsh Scripts/build-android-bundler.zsh
 ```
 
 在建置 APK 時設定 `SCUI_KEEP_SWIFT_AST=1` 會把該 section 留著，供「你打算以 lldb 附加」的建置使用。

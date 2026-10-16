@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Says whether this working tree currently compiles, in one line, for anyone
 # building against it by local path.
@@ -19,8 +19,8 @@
 # script answers the question the message is about, and answers it from the
 # compiler rather than from intent:
 #
-#     sh Scripts/announce_window.sh
-#     OPEN: the working tree does not compile (Scripts/test.sh fails)
+#     zsh Scripts/announce_window.zsh
+#     OPEN: the working tree does not compile (Scripts/test.zsh fails)
 #
 # Run it before saying the window is closed. "I think I finished" and "the tree
 # compiles" are different claims and only the second one is checkable.
@@ -40,19 +40,19 @@
 #
 # 在宣布空窗已關閉之前先跑它。「我想我做完了」與「這棵樹編得過」是兩個不同的主張，而只有後者可被檢查。
 
-cd "$(dirname "$0")"/../ || exit 1
+cd ${0:A:h}/.. || exit 1
 
-if sh Scripts/test.sh >/dev/null 2>&1; then
-    echo "CLOSED: the working tree compiles and the tests pass"
-    echo "CLOSED：工作目錄編得過，測試也通過"
+if zsh Scripts/test.zsh >/dev/null 2>&1; then
+    print -r -- "CLOSED: the working tree compiles and the tests pass"
+    print -r -- "CLOSED：工作目錄編得過，測試也通過"
     exit 0
 fi
 
-echo "OPEN: the working tree does not compile (Scripts/test.sh fails)"
-echo "OPEN：工作目錄編不過（Scripts/test.sh 失敗）"
-echo
-echo "  Anyone building against this checkout by local path will fail, and the"
-echo "  failure will look like theirs. Tell them before they find it."
-echo "  任何以 local path 建置於本 checkout 之上的人都會失敗，而那個失敗看起來會像是他們自己的。"
-echo "  在他們自己撞到之前告訴他們。"
+print -r -- "OPEN: the working tree does not compile (Scripts/test.zsh fails)"
+print -r -- "OPEN：工作目錄編不過（Scripts/test.zsh 失敗）"
+print
+print -r -- "  Anyone building against this checkout by local path will fail, and the"
+print -r -- "  failure will look like theirs. Tell them before they find it."
+print -r -- "  任何以 local path 建置於本 checkout 之上的人都會失敗，而那個失敗看起來會像是他們自己的。"
+print -r -- "  在他們自己撞到之前告訴他們。"
 exit 1

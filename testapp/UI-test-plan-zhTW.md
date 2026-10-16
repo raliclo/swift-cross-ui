@@ -2034,7 +2034,7 @@ cd Examples
 SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product P12
 ```
 
-或依照 `Scripts/build-tool-install-android-on-Mac.sh` bundle 並安裝成 APK。P12 也能在 host platform render，這對部署前檢查 layout 很有用，但只有 Android run 能驗證這些 issues。
+或依照 `Scripts/build-tool-install-android-on-Mac.zsh` bundle 並安裝成 APK。P12 也能在 host platform render，這對部署前檢查 layout 很有用，但只有 Android run 能驗證這些 issues。
 
 涵蓋 issues：
 
@@ -2235,7 +2235,7 @@ GTK 4.22.4 很新，所以 #702（關於*較舊* GTK 4）在開始前就已經�
 在碰任何 issue 前，先於 WSLg 下 build 並執行 repository 自己的一個 example。如果 window 沒出現，那是環境問題，不是被測程式的 bug；後續所有結果都會可疑。
 
 ```sh
-./Scripts/test.sh                    # unit tests
+./Scripts/test.zsh                   # unit tests
 swift build --target GtkBackend      # not --product
 ```
 
@@ -2306,7 +2306,7 @@ swift build --target GtkBackend      # not --product
 
 ### 提交 upstream 前
 
-- `Scripts/format.sh`（SwiftFormat 已安裝在 Windows 端；也可在 WSL 安裝，或從 Windows format）。
+- `Scripts/format.zsh`（SwiftFormat 已安裝在 Windows 端；也可在 WSL 安裝，或從 Windows format）。
 - 專案的 LLM policy 適用：pull request description 必須揭露使用情況，作者必須理解程式碼，而且 **description 必須由作者撰寫，不可由 LLM 代寫**。
 - 優先一個 issue 一個 pull request。Contributing guide 要求 focused changes，而這裡較小的項目正好符合。
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Fails when results.csv2 records a platform/backend pair that
 # matrix_coverage/coverage.zsh has no column for.
@@ -42,10 +42,10 @@ if not known:
     print("check_results_columns: found no key[] entries in coverage.zsh", file=sys.stderr)
     sys.exit(1)
 
-# UTF-8 stated, as check_mistakes_numbering.sh learned: Python opens files in
+# UTF-8 stated, as check_mistakes_numbering.zsh learned: Python opens files in
 # the locale's encoding, cp950 on the Windows machine, and both files hold
 # Chinese -- UnicodeDecodeError before any check ran (review, 2026-10-07).
-# 明確指定 UTF-8,與 check_mistakes_numbering.sh 學到的相同:Python 以 locale 編碼開檔，Windows 上是 cp950,
+# 明確指定 UTF-8,與 check_mistakes_numbering.zsh 學到的相同:Python 以 locale 編碼開檔，Windows 上是 cp950,
 # 而兩個檔案都有中文——在任何檢查之前就 UnicodeDecodeError(review,2026-10-07)。
 rows = list(csv.reader(results.open(newline="", encoding="utf-8")))[2:]
 bad = {}

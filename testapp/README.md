@@ -267,7 +267,7 @@ flag. Set `SCUI_KEEP_SWIFT_AST=1` for a build you mean to attach a debugger to.
 That strip lives in a patch against `Vendor/swift-bundler`, so a bundler built
 without it produces a correct APK that is merely 43 MB larger -- nothing fails.
 `test_android.zsh` checks for the marker and says so; if you see that warning,
-run `bash Scripts/build-android-bundler.sh`. **Use that script rather than
+run `zsh Scripts/build-android-bundler.zsh`. **Use that script rather than
 `swift build` by hand**: the Android path uses
 `Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler`, and
 `swift build -c debug` writes somewhere it never looks.
@@ -304,7 +304,7 @@ section。bundler 會從打包的副本中剝除它，因此 `test.zsh --android
 
 該剝除位於一份針對 `Vendor/swift-bundler` 的 patch 之中，因此一個未套用它的 bundler 會產生完全正確、
 只是多出 43 MB 的 APK——不會有任何東西失敗。`test_android.zsh` 會檢查該標記並提示；若你看到那則警告，
-請執行 `bash Scripts/build-android-bundler.sh`。**請用那支腳本，不要自己下 `swift build`**：Android
+請執行 `zsh Scripts/build-android-bundler.zsh`。**請用那支腳本，不要自己下 `swift build`**：Android
 路徑使用的是 `Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler`，而 `swift build -c debug`
 寫出的位置它從不查看。
 

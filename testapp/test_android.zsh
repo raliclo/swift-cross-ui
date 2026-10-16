@@ -224,7 +224,7 @@ zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
 [ -x "$adb" ] || die "Missing adb: $adb"
 
 if [ "$do_apk" -eq 1 ]; then
-    [ -x "$swift_bin" ] || die "Missing Swift Android toolchain: $swift_bin; run Scripts/build-tool-install-android-on-Mac.sh"
+    [ -x "$swift_bin" ] || die "Missing Swift Android toolchain: $swift_bin; run Scripts/build-tool-install-android-on-Mac.zsh"
 
     print "==> Building $app for Android"
     ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \

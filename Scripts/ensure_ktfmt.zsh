@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-set -e
-cd "$(dirname "$0")"
+setopt err_exit
+cd ${0:A:h}
 
 VERSION=0.62
 

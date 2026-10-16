@@ -35,7 +35,7 @@ struct SettingsHost<Content: View>: View {
         // backend with no `BackendFeatures.Sheets` conformance. `DummyBackend`
         // is one, so wrapping unconditionally turned every windowed test into
         // "Fatal error: 'DummyBackend' does not implement 'BackendFeatures.Sheets'".
-        // Caught 2026-09-09 by `Scripts/test.sh`, which is the only reason it is
+        // Caught 2026-09-09 by `Scripts/test.zsh`, which is the only reason it is
         // not in the tree: the build itself was perfectly happy.
         //
         // The condition is the same one that decides the route, so a backend
@@ -45,7 +45,7 @@ struct SettingsHost<Content: View>: View {
         // `.sheet` 走的是 `@CastBackend`，它在沒有 `BackendFeatures.Sheets` conformance 的 backend 上
         // 會展開為 `fatalError`。`DummyBackend` 正是其中之一，因此無條件包裹會讓每一個帶視窗的測試
         // 變成「Fatal error: 'DummyBackend' does not implement 'BackendFeatures.Sheets'」。
-        // 2026-09-09 由 `Scripts/test.sh` 抓到，而那正是它沒有進到樹裡的唯一理由：建置本身毫無怨言。
+        // 2026-09-09 由 `Scripts/test.zsh` 抓到，而那正是它沒有進到樹裡的唯一理由：建置本身毫無怨言。
         //
         // 這個條件與「決定走哪條路」的條件是同一個，因此不會有任何 backend 拿到一個它本來也不會呈現的
         // sheet。

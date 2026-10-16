@@ -17,17 +17,17 @@ jobs:
         platform: [android, linux, macos, uikit, windows, apitool]
         include:
           - platform: android
-            paths: 'Sources/AndroidBackend/ Sources/AndroidBackendShim/ Vendor/ .gitmodules Examples/Bundler.toml Scripts/build-tool-install-android-on-Mac.sh'
+            paths: 'Sources/AndroidBackend/ Sources/AndroidBackendShim/ Vendor/ .gitmodules Examples/Bundler.toml Scripts/build-tool-install-android-on-Mac.zsh'
           - platform: linux
-            paths: 'Sources/*Gtk*/ Tests/ Scripts/test.sh'
+            paths: 'Sources/*Gtk*/ Tests/ Scripts/test.zsh'
           - platform: macos
-            paths: 'Sources/AppKitBackend/ Sources/*Gtk*/ Tests/ Scripts/test.sh'
+            paths: 'Sources/AppKitBackend/ Sources/*Gtk*/ Tests/ Scripts/test.zsh'
           - platform: uikit
             paths: 'Sources/UIKitBackend/'
           - platform: windows
             paths: 'Sources/WinUIBackend/ Sources/WinUIInterop/ vcpkg.json'
           - platform: apitool
-            paths: 'APITool/ Scripts/analyze_api.sh Scripts/generate_porting_kit.sh'
+            paths: 'APITool/ Scripts/analyze_api.zsh Scripts/generate_porting_kit.zsh'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -90,7 +90,7 @@ jobs:
         working-directory: ./Examples
 
     - name: Test
-      run: SCUI_TEST_GTK3BACKEND=1 ./Scripts/test.sh
+      run: SCUI_TEST_GTK3BACKEND=1 ./Scripts/test.zsh
 
     - name: Build other targets and examples
       run: |
@@ -134,10 +134,10 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Run APITool analysis
-      run: ./Scripts/analyze_api.sh
+      run: ./Scripts/analyze_api.zsh
 
     - name: Run APITool stub generation
-      run: ./Scripts/generate_porting_kit.sh
+      run: ./Scripts/generate_porting_kit.zsh
 
   android:
     runs-on: macos-15
@@ -514,7 +514,7 @@ jobs:
       run: |
         sudo apt update && \
         # Gtk 3/4 dependencies
-        sudo apt install -y libgtk-4-dev libgtk-3-dev clang && \
+        sudo apt install -y libgtk-4-dev libgtk-3-dev clang zsh && \
         # Headless testing dependencies
         sudo apt-get install -y xvfb x11-xserver-utils
 
@@ -543,7 +543,7 @@ jobs:
 
     - name: Test
       # Use xvfb to get a virtual x11 context for the Gtk backend tests
-      run: xvfb-run --auto-servernum ./Scripts/test.sh
+      run: xvfb-run --auto-servernum ./Scripts/test.zsh
 
     - name: Build examples
       working-directory: ./Examples

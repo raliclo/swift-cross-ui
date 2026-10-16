@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Compiles for Android when, and only when, the change touches code Android
 # links.
@@ -16,7 +16,7 @@
 #
 # **Gated, not unconditional, and the gate is the whole design.** An Android
 # compile is 30 to 95 seconds on this machine. Paying that on every run of
-# `Scripts/test.sh` would buy nothing for the many changes that cannot break
+# `Scripts/test.zsh` would buy nothing for the many changes that cannot break
 # Android -- an AppKit file, an action file, a test app. Paying it when the
 # change is in code Android links buys exactly the thing that was missed.
 #
@@ -52,7 +52,7 @@
 # 關口 4:三個平台全綠,對第四個平台什麼也沒說。
 #
 # **有閘門、不是無條件執行,而那個閘門就是整個設計。** 一次 Android 編譯在這台機器上是 30 到 95 秒。
-# 讓 `Scripts/test.sh` 每次都付這筆錢,對「不可能弄壞 Android 的那些改動」什麼也買不到——一個 AppKit
+# 讓 `Scripts/test.zsh` 每次都付這筆錢,對「不可能弄壞 Android 的那些改動」什麼也買不到——一個 AppKit
 # 檔案、一個動作檔、一支測試 app。而在「改動就落在 Android 會連結的程式碼裡」時付這筆錢,買到的
 # 恰好就是當初漏掉的那一樣東西。
 #
@@ -70,7 +70,7 @@
 # 而且它建的是套件、不是測試 app:一支帶著同樣錯誤的 `testapp/Pn.swift` 是**刻意**被留在閘門之外的,
 # 因為把 `testapp/` 納入閘門會讓它在每一次動作檔編輯時都觸發,而那支 app 本來就是由跑它的人建的。
 
-cd "$(dirname "$0")"/../ || exit 1
+cd ${0:A:h}/.. || exit 1
 
 # The base to compare against, in the order that is most likely to be right.
 # `origin/develop` covers commits made but not yet pushed AS WELL AS the working
@@ -115,32 +115,33 @@ fi
 # 在與 `testapp/compile.zsh` 相同的地方尋找 Android SDK。交給 compile.zsh 去發現,會把
 # 「這裡沒有 SDK」與「程式碼壞了」混為一談,而這兩者需要相反的回應。
 android_sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$(cd .. && pwd)/.android-sdk}}"
-swift_android_sdk=$(ls -d "$HOME"/Library/org.swift.swiftpm/swift-sdks/*android*.artifactbundle 2>/dev/null | head -1)
+swift_android_sdks=("$HOME"/Library/org.swift.swiftpm/swift-sdks/*android*.artifactbundle(N))
+swift_android_sdk=${swift_android_sdks[1]:-}
 
 if [ ! -d "$android_sdk_root" ] || [ -z "$swift_android_sdk" ]; then
-    echo "check_android_build: THIS CHECK DID NOT RUN." >&2
-    echo "check_android_build: 這項檢查沒有執行。" >&2
-    echo >&2
-    echo "  The change touches code Android links:" >&2
-    echo "  這次改動觸及了 Android 會連結的程式碼:" >&2
+    print -r -- "check_android_build: THIS CHECK DID NOT RUN." >&2
+    print -r -- "check_android_build: 這項檢查沒有執行。" >&2
+    print >&2
+    print -r -- "  The change touches code Android links:" >&2
+    print -r -- "  這次改動觸及了 Android 會連結的程式碼:" >&2
     printf '%s\n' "$relevant" | sort -u | sed 's/^/    /' >&2
-    echo >&2
-    echo "  ...and no Android SDK was found, so nothing was compiled for it." >&2
-    echo "  ...而找不到 Android SDK,因此沒有任何東西為它編譯過。" >&2
-    echo "    ANDROID_HOME / ANDROID_SDK_ROOT: $android_sdk_root" >&2
-    echo "    Swift Android SDK: ${swift_android_sdk:-<none under ~/Library/org.swift.swiftpm/swift-sdks>}" >&2
-    echo >&2
-    echo "  Exiting 0 so that a contributor without the SDK is not blocked." >&2
-    echo "  This message is the whole point: silence here would read as" >&2
-    echo "  'Android is fine', and it is not a statement about Android at all." >&2
-    echo "  以 0 結束,好讓沒有 SDK 的貢獻者不被擋住。這段訊息就是重點所在:" >&2
-    echo "  此處的沉默會被讀成「Android 沒問題」,而它根本不是一句關於 Android 的話。" >&2
-    echo >&2
-    echo "  To install it: testapp/install_tools_android.zsh" >&2
+    print >&2
+    print -r -- "  ...and no Android SDK was found, so nothing was compiled for it." >&2
+    print -r -- "  ...而找不到 Android SDK,因此沒有任何東西為它編譯過。" >&2
+    print -r -- "    ANDROID_HOME / ANDROID_SDK_ROOT: $android_sdk_root" >&2
+    print -r -- "    Swift Android SDK: ${swift_android_sdk:-<none under ~/Library/org.swift.swiftpm/swift-sdks>}" >&2
+    print >&2
+    print -r -- "  Exiting 0 so that a contributor without the SDK is not blocked." >&2
+    print -r -- "  This message is the whole point: silence here would read as" >&2
+    print -r -- "  'Android is fine', and it is not a statement about Android at all." >&2
+    print -r -- "  以 0 結束,好讓沒有 SDK 的貢獻者不被擋住。這段訊息就是重點所在:" >&2
+    print -r -- "  此處的沉默會被讀成「Android 沒問題」,而它根本不是一句關於 Android 的話。" >&2
+    print >&2
+    print -r -- "  To install it: testapp/install_tools_android.zsh" >&2
     exit 0
 fi
 
-echo "check_android_build: core code changed; compiling for Android." >&2
+print -r -- "check_android_build: core code changed; compiling for Android." >&2
 printf '%s\n' "$relevant" | sort -u | sed 's/^/  /' >&2
 
 # P0 rather than something larger: the package is the bulk of the work and every
@@ -153,19 +154,19 @@ if zsh testapp/compile.zsh -android P0 >"$log" 2>&1; then
     exit 0
 fi
 
-echo >&2
-echo "check_android_build: the package does NOT compile for Android." >&2
-echo "check_android_build: 本套件在 Android 上編不過。" >&2
-echo >&2
+print >&2
+print -r -- "check_android_build: the package does NOT compile for Android." >&2
+print -r -- "check_android_build: 本套件在 Android 上編不過。" >&2
+print >&2
 grep -E 'error:' "$log" | head -20 | sed 's/^/  /' >&2
-echo >&2
-echo "  Full log: $log" >&2
-echo >&2
-echo "  macOS and iOS compiling says nothing about this. If the fault is in a" >&2
-echo "  C maths or POSIX function, check whether Bionic has the overload --" >&2
-echo "  sin(Float) is Darwin-only, and for trigonometry the fix is to compute" >&2
-echo "  in Double and convert, which needs no #if." >&2
-echo "  macOS 與 iOS 編得過,對這件事什麼也沒說。若問題出在某個 C 數學或 POSIX 函式," >&2
-echo "  先確認 Bionic 有沒有那個多載——sin(Float) 是 Darwin 專屬的;三角函數的修法是" >&2
-echo "  以 Double 運算再轉回來,那不需要任何 #if。" >&2
+print >&2
+print -r -- "  Full log: $log" >&2
+print >&2
+print -r -- "  macOS and iOS compiling says nothing about this. If the fault is in a" >&2
+print -r -- "  C maths or POSIX function, check whether Bionic has the overload --" >&2
+print -r -- "  sin(Float) is Darwin-only, and for trigonometry the fix is to compute" >&2
+print -r -- "  in Double and convert, which needs no #if." >&2
+print -r -- "  macOS 與 iOS 編得過,對這件事什麼也沒說。若問題出在某個 C 數學或 POSIX 函式," >&2
+print -r -- "  先確認 Bionic 有沒有那個多載——sin(Float) 是 Darwin 專屬的;三角函數的修法是" >&2
+print -r -- "  以 Double 運算再轉回來,那不需要任何 #if。" >&2
 exit 1

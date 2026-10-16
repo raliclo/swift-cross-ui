@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 # Installs everything needed to build swift-cross-ui for Android on macOS, then
 # verifies the result by cross-compiling and bundling CounterExample into an APK.
@@ -6,10 +6,10 @@
 # Idempotent: every step is skipped when its output already exists, so it is safe
 # to re-run after a partial failure.
 #
-#   Scripts/build-tool-install-android-on-Mac.sh             # install, then verify
-#   Scripts/build-tool-install-android-on-Mac.sh -cleanup    # same, and remove older versions
-#   Scripts/build-tool-install-android-on-Mac.sh --verify     # verify only
-#   Scripts/build-tool-install-android-on-Mac.sh --print-env  # print env exports
+#   Scripts/build-tool-install-android-on-Mac.zsh            # install, then verify
+#   Scripts/build-tool-install-android-on-Mac.zsh -cleanup   # same, and remove older versions
+#   Scripts/build-tool-install-android-on-Mac.zsh --verify    # verify only
+#   Scripts/build-tool-install-android-on-Mac.zsh --print-env # print env exports
 #
 # Since 2026-10-05 the Swift toolchain, the Swift Android SDK, the NDK and Google's
 # SDK are installed by testapp/install_tools_android.zsh, which this calls; this
@@ -22,7 +22,7 @@
 # 的驗證。它原本自己釘住 6.3 snapshot、NDK r27d 與 API 28，與 testapp 的腳本（6.3.3 release、API 31）
 # 不一致，而且會把另一支剛移除的東西裝回去。
 
-set -euo pipefail
+setopt err_exit no_unset pipe_fail
 
 # ==============================================================================
 # Versions live in testapp/install_tools_android.zsh: the Swift toolchain and the
@@ -46,7 +46,7 @@ ANDROID_PLATFORMS=("platforms;android-36")
 TOOLCHAIN_DIR="$HOME/Library/Developer/Toolchains/swift-latest.xctoolchain"
 TOOLCHAIN_BIN="$TOOLCHAIN_DIR/usr/bin"
 
-repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+repo_root="${0:A:h:h}"
 # Where install_tools_android.zsh keeps Google's SDK: the project volume.
 ANDROID_SDK_HOME="${ANDROID_HOME:-$(cd "$repo_root/.." && pwd)/.android-sdk}"
 work_dir="${TMPDIR:-/tmp}/scui-android-install"
@@ -87,7 +87,7 @@ esac
 # ==============================================================================
 install_android_tools() {
     log "Installing the Android toolchain, SDK and NDK (testapp/install_tools_android.zsh)"
-    zsh "$repo_root/testapp/install_tools_android.zsh" ${cleanup_flag[@]+"${cleanup_flag[@]}"} \
+    zsh "$repo_root/testapp/install_tools_android.zsh" "${cleanup_flag[@]}" \
         || die "testapp/install_tools_android.zsh failed"
 }
 

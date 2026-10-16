@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Fails when mistakes.md and mistakes_counter.csv2 disagree about numbering.
 #

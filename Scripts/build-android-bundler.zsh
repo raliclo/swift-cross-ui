@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # Builds the Swift Bundler that Android APK builds actually use.
 #
-#   bash Scripts/build-android-bundler.sh
+#   zsh Scripts/build-android-bundler.zsh
 #
 # Two things this exists for, and both were learned by getting them wrong.
 #
@@ -58,14 +58,14 @@
 # `windowLevel(.floating)` 少了就無法運作的 `<service>` 元素，以及讓 APK 由 212 MB 降到 169 的
 # 剝除步驟。該 submodule 指向上游的 `moreSwift/swift-bundler`，不是我們可以推送的對象，因此每次
 # `git submodule update` 之後都必須重新套用這份 patch。
-set -euo pipefail
+setopt err_exit no_unset pipe_fail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="${0:A:h:h}"
 bundler_dir="$repo_root/Vendor/swift-bundler"
 patch_file="$repo_root/testapp/patches/swift-bundler-android-service.patch"
 
 [ -f "$bundler_dir/Package.swift" ] || {
-    echo "Vendor/swift-bundler is empty; run: git submodule update --init --recursive" >&2
+    print -r -- "Vendor/swift-bundler is empty; run: git submodule update --init --recursive" >&2
     exit 1
 }
 
@@ -78,28 +78,28 @@ cd "$bundler_dir"
 # 與「這份 patch 已經不再吻合」無從區分。
 if git apply --check "$patch_file" 2>/dev/null; then
     git apply "$patch_file"
-    echo "==> applied $(basename "$patch_file")"
+    print -r -- "==> applied $(basename "$patch_file")"
 elif git apply --reverse --check "$patch_file" 2>/dev/null; then
-    echo "==> patch already applied"
+    print -r -- "==> patch already applied"
 else
-    echo "$(basename "$patch_file") does not apply and is not applied." >&2
-    echo "The submodule has moved under it; re-make the patch." >&2
+    print -r -- "$(basename "$patch_file") does not apply and is not applied." >&2
+    print -r -- "The submodule has moved under it; re-make the patch." >&2
     exit 1
 fi
 
-echo "==> building the swiftbuild product (the one Android uses)"
+print -r -- "==> building the swiftbuild product (the one Android uses)"
 swift build --build-system swiftbuild --product swift-bundler
 
-echo "==> building the plain product (the one iOS uses)"
+print -r -- "==> building the plain product (the one iOS uses)"
 swift build -c debug --product swift-bundler
 cp .build/debug/swift-bundler "$repo_root/swift-bundler"
 
 android="$bundler_dir/.build/out/Products/Debug/swift-bundler"
-[ -x "$android" ] || { echo "swiftbuild product missing: $android" >&2; exit 1; }
+[ -x "$android" ] || { print -r -- "swiftbuild product missing: $android" >&2; exit 1; }
 
-echo
-echo "Android:  $android"
-echo "iOS:      $repo_root/swift-bundler"
-echo
-echo "Set SCUI_KEEP_SWIFT_AST=1 when building an APK you intend to attach lldb to;"
-echo "the default strips .swift_ast and takes about 43 MB off each APK."
+print
+print -r -- "Android:  $android"
+print -r -- "iOS:      $repo_root/swift-bundler"
+print
+print -r -- "Set SCUI_KEEP_SWIFT_AST=1 when building an APK you intend to attach lldb to;"
+print -r -- "the default strips .swift_ast and takes about 43 MB off each APK."

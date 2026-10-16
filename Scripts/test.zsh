@@ -1,18 +1,18 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 
-cd "$(dirname "$0")"/../
+cd ${0:A:h}/..
 
 # A submodule at the wrong commit compiles, so nothing else here would notice.
-# See Scripts/check_submodules.sh for the day it did not.
+# See Scripts/check_submodules.zsh for the day it did not.
 # 停在錯誤 commit 的 submodule 照樣編得過，因此此處沒有別的東西會注意到它。它沒被注意到的那一天，
-# 見 Scripts/check_submodules.sh。
-sh Scripts/check_submodules.sh || exit 1
+# 見 Scripts/check_submodules.zsh。
+zsh Scripts/check_submodules.zsh || exit 1
 
 # A `(VERIFIED …)` note citing an action file nobody has is a claim nobody can
 # check, and it reads exactly like one they can.
 # 一句引用了「沒有人擁有的動作檔」的 `(VERIFIED …)`，是一個沒有人能檢查的主張，而它讀起來與一個
 # 可以檢查的主張完全相同。
-sh Scripts/check_action_files.sh || exit 1
+zsh Scripts/check_action_files.zsh || exit 1
 # Immediately after it, and they are not the same check: that one asks whether
 # a cited file EXISTS, this one whether its rows will parse -- and unlike the
 # Swift suite's "every tracked action file parses", this one covers a file that
@@ -21,9 +21,9 @@ sh Scripts/check_action_files.sh || exit 1
 # 緊接在它之後,而兩者不是同一項檢查:那一個問的是被引用的檔案**是否存在**,這一個問的是它的
 # 各列**解析得過嗎**——而且與 Swift 測試套件那個「every tracked action file parses」不同,
 # 這一個涵蓋「git 還不知道它存在」的檔案,而那正是每一個動作檔最要緊的那一刻。
-sh Scripts/check_action_file_fields.sh || exit 1
-sh Scripts/check_results_columns.sh || exit 1
-sh Scripts/check_mistakes_numbering.sh || exit 1
+zsh Scripts/check_action_file_fields.zsh || exit 1
+zsh Scripts/check_results_columns.zsh || exit 1
+zsh Scripts/check_mistakes_numbering.zsh || exit 1
 
 # The only check here that costs real time, and it is gated so that it usually
 # costs none. It compiles for Android when the change touches code Android
@@ -37,7 +37,7 @@ sh Scripts/check_mistakes_numbering.sh || exit 1
 # 它會為 Android 編譯一次——因為下面的 `swift test` 建的是**這台主機**的 target,對一個它建不起來的
 # 平台什麼也沒說;而那正是 SwiftCrossUI 的核心在 macOS 與 iOS 全綠的情況下、兩天沒有為 Android
 # 編譯成功過的原因。mistakes.md 第 24 條;量測數字與「跳過代表什麼」寫在該腳本自己的檔頭。
-sh Scripts/check_android_build.sh || exit 1
+zsh Scripts/check_android_build.zsh || exit 1
 
 # `swift test` builds all targets in the package (even those not depended upon
 # by any test targets), which leads to `swift test` on its own being broken
@@ -65,4 +65,4 @@ sh Scripts/check_android_build.sh || exit 1
 # 兩者都源於「本套件含有這台主機建不起來的 target」，而那正是一個跨平台工具組的意義所在。伸手去用
 # `swift build` 的人會拿到兩個並非自己造成的失敗，而最自然的讀法是「我把樹弄壞了」。請用本腳本；
 # 要針對特定平台，請用 `testapp/compile.zsh`。
-swift test --test-product swift-cross-uiPackageTests $@
+swift test --test-product swift-cross-uiPackageTests "$@"

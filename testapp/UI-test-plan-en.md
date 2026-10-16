@@ -2287,7 +2287,7 @@ SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product
 ```
 
 Or bundle and install it as an APK, following
-`Scripts/build-tool-install-android-on-Mac.sh`. P12 also renders on the host
+`Scripts/build-tool-install-android-on-Mac.zsh`. P12 also renders on the host
 platform, which is useful for checking the layout before deploying, but only
 the Android run can verify these issues.
 
@@ -2562,7 +2562,7 @@ issue. If a window does not appear, that is an environment problem, not a bug in
 the code being tested, and every later result would be suspect.
 
 ```sh
-./Scripts/test.sh                    # unit tests
+./Scripts/test.zsh                   # unit tests
 swift build --target GtkBackend      # not --product
 ```
 
@@ -2659,7 +2659,7 @@ Start with Tier 1, cheapest first: #389 and #390 need no new test code.
 
 ### Before submitting anything upstream
 
-- `Scripts/format.sh` (SwiftFormat is installed on the Windows side; install it
+- `Scripts/format.zsh` (SwiftFormat is installed on the Windows side; install it
   in WSL too, or format from Windows).
 - The project's LLM policy applies: usage must be disclosed in the pull request
   description, the author must understand the code, and **the description must

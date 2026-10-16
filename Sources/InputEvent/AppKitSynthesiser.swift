@@ -568,7 +568,7 @@
         /// written.** `AppKitSynthesiser.swift` is macOS-only, so a `try` added
         /// inside a non-throwing function here is invisible on the Windows side --
         /// the file is never handed to the compiler there. Found 2026-09-09 by the
-        /// first `Scripts/test.sh` run on a Mac after the merge, with
+        /// first `Scripts/test.zsh` run on a Mac after the merge, with
         /// "errors thrown from here are not handled". The fix propagates the throw
         /// rather than swallowing it: a coordinate that cannot be resolved must
         /// stop the replay, not silently click at the last known point.
@@ -577,7 +577,7 @@
         ///
         /// **這在 macOS 上編不過，而在它被寫出來的地方編得過。** `AppKitSynthesiser.swift` 僅限 macOS，
         /// 因此「在一個不會 throw 的函式裡加上 `try`」這件事在 Windows 側看不見——那個檔案在那裡根本不會
-        /// 被交給編譯器。2026-09-09 由合併之後 Mac 上的第一次 `Scripts/test.sh` 執行發現，訊息為
+        /// 被交給編譯器。2026-09-09 由合併之後 Mac 上的第一次 `Scripts/test.zsh` 執行發現，訊息為
         /// 「errors thrown from here are not handled」。此處的修法是把該 throw 往外傳，而不是把它吞掉：
         /// 一個無法解析的座標必須讓重放停止，而不是靜靜地點在上一個已知位置。
         @MainActor

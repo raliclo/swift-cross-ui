@@ -34,7 +34,7 @@
 3. Supply screenshots for each applicable platform if you’ve introduced a UI feature or otherwise changed the appearance of a SwiftCrossUI feature in some way
 4. Add unit tests to cover your changes if your changes would benefit from tests. If it’s not obvious whether a change would benefit from unit tests, omit them and ask for clarification in your pull request description.
 5. If you are adding a new feature, consider adding an example usage of it to the examples
-6. Run `Scripts/format.sh` (requires installing [`SwiftFormat`](https://github.com/nicklockwood/SwiftFormat?tab=readme-ov-file#command-line-tool))
+6. Run `Scripts/format.zsh` (requires installing [`SwiftFormat`](https://github.com/nicklockwood/SwiftFormat?tab=readme-ov-file#command-line-tool))
 7. Large pull requests (generally ones with over 1000 additions+deletions) should focus on one specific piece of work unless there is a very compelling reason that the pull request should/must tackle multiple pieces of work at once.
    - If you're ever unsure whether a piece of work belongs in a pull request, consult the reviewer or the [Discord server](https://moreswift.dev/discord).
    - Generally, as PRs grow in size, each new change adds another dimension of complexity for the reviewer to keep track of in their head. They then also have exponentially more interactions between changes to think about each time that the PR comes back for another review.
@@ -45,11 +45,11 @@ Look through [the issues on GitHub](https://github.com/moreSwift/swift-cross-ui/
 
 ## 4. Running tests
 
-To run the tests, run `./Scripts/test.sh` in the root of the repository.
+To run the tests, run `./Scripts/test.zsh` in the root of the repository.
 
 ```sh
 # Run SwiftCrossUI's tests
-./Scripts/test.sh
+./Scripts/test.zsh
 ```
 
 The script is required due to limitations of SwiftPM and the way this project is structured. Running `swift test` without any arguments causes SwiftPM to build all backends, even those not supported on the current platform. 
@@ -59,16 +59,16 @@ The script is required due to limitations of SwiftPM and the way this project is
 Here are a few rules regarding special files;
 
 1. Do not directly modify a file that has a corresponding `.gyb` template file (which will be in the
-   same directory). Instead, modify the template file and then run `./Scripts/generate_gyb.sh`
+   same directory). Instead, modify the template file and then run `./Scripts/generate_gyb.zsh`
    to build all of the templates. To learn more about gyb
    [read this post](https://nshipster.com/swift-gyb/)
 2. Do not directly modify files in `Sources/Gtk/Generated`. Update the
-   generator at `Sources/GtkCodeGen` instead and run `./Scripts/generate_gtk.sh` to regenerate the
+   generator at `Sources/GtkCodeGen` instead and run `./Scripts/generate_gtk.zsh` to regenerate the
    Gtk 4 bindings. If the changes can not be made by updating the generator, pull the
    target file out of `Sources/Gtk/Generated` and into `Sources/Gtk/Widgets` and
    modify it however you want. Remember to remove the class from `allowListedClasses`
    or `gtk4AllowListedClasses` so that it doesn't get regenerated the
-   next time someone runs `./Scripts/generate_gtk.sh`. Alternatively, if possible, add
+   next time someone runs `./Scripts/generate_gtk.zsh`. Alternatively, if possible, add
    code to the generated classes via extensions outside of the Generated directories. I usually
    name these extension files `ClassName+ManualAdditions.swift`.
 
@@ -164,15 +164,15 @@ If using Xcode, pressing option+cmd+/ generates a template documentation comment
 
 ### 9.5. Previewing documentation
 
-To preview documentation, run `./Scripts/preview_docs.sh` from the root of the repository.
+To preview documentation, run `./Scripts/preview_docs.zsh` from the root of the repository.
 
 ```sh
 # Preview docs (builds SwiftCrossUI first to obtain symbol graphs, and then
 # previews Sources/SwiftCrossUI/SwiftCrossUI.docc)
-./Scripts/preview_docs.sh
+./Scripts/preview_docs.zsh
 
 # Preview docs without symbol graphs (faster if just working on articles/tutorials)
-SKIP_SYMBOL_GRAPHS=1 ./Scripts/preview_docs.sh
+SKIP_SYMBOL_GRAPHS=1 ./Scripts/preview_docs.zsh
 ```
 
 ### 9.6. Documentation formatting

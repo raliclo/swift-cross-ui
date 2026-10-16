@@ -95,4 +95,4 @@ without the variable no target in the graph uses them, so they are dropped.
 ## Reference
 
 Full local setup and verification steps:
-`Scripts/build-tool-install-android-on-Mac.sh`
+`Scripts/build-tool-install-android-on-Mac.zsh`

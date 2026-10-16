@@ -26,9 +26,9 @@ and are read and written with `csv2`.
 **檢查:**
 
 ```sh
-csv2 -r -i mistakes_counter.csv2 | awk -F, '{print $1}' | sort | uniq -d   # 應該沒有輸出
+csv2 -r --json -i mistakes_counter.csv2 | jq -r 'select(.fields)|.fields.id' | sort | uniq -d   # 應該沒有輸出
 grep -o "^## [0-9]*\." mistakes.md | sort | uniq -c                        # 每個編號的標題數
-sh Scripts/check_mistakes_numbering.sh                                     # 上面兩者,會失敗
+zsh Scripts/check_mistakes_numbering.zsh                                   # 上面兩者,會失敗
 ```
 
 **哪一種合併會自動過、哪一種不會,已經各發生過一次:** 兩邊都**追加在檔尾**時,git 會把兩段都留下,
@@ -499,7 +499,7 @@ error: Build failed
 要摘要**也**要判定時,把兩者分開,不要讓其中一個吃掉另一個:
 
 ```sh
-run_checked.zsh --want 'Test run with' -- sh Scripts/test.sh > /tmp/t.log 2>&1
+run_checked.zsh --want 'Test run with' -- zsh Scripts/test.zsh > /tmp/t.log 2>&1
 echo "exit=$?"        # ← 判定，單獨一行
 grep -aE "Test run with|error:" /tmp/t.log
 ```
@@ -813,7 +813,7 @@ Android 上。
 
 > 改動一份**每個平台都會讀**的檔案(manifest、共用腳本、設定)之前,先問:**哪些平台走的是另一條
 > 分支?** 然後在宣稱它可用之前,至少跑其中最便宜的那一個。在本樹上那就是 host 上的
-> `Scripts/test.sh`——它同時也是最便宜的那一個。
+> `Scripts/test.zsh`——它同時也是最便宜的那一個。
 
 **一次只在自身條件下被驗過的條件式改動,等於沒有被驗過。**
 

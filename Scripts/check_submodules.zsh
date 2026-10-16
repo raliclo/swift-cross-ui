@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Fails when a submodule's working tree is not at the commit this repository
 # recorded for it.
@@ -33,7 +33,7 @@
 # 在那裡造成的後果,是一個沒有 `<service>` 的 Android manifest,於是 `windowLevel(.floating)` 的視窗
 # 會在其 activity 停止時消失,沒有建置失敗,也沒有任何東西指出成因。
 
-cd "$(dirname "$0")"/../ || exit 1
+cd ${0:A:h}/.. || exit 1
 
 # `status` is NOT used as a variable name here, and the reason is not style.
 #
@@ -60,34 +60,34 @@ cd "$(dirname "$0")"/../ || exit 1
 stale=$(git submodule status 2>/dev/null | grep '^+' || true)
 
 if [ -n "$stale" ]; then
-    echo "check_submodules: a submodule is NOT at the commit this repository records." >&2
-    echo "check_submodules: 有 submodule 不在本倉庫所記錄的 commit 上。" >&2
-    echo "$stale" | while IFS= read -r line; do
-        echo "  $line" >&2
+    print -r -- "check_submodules: a submodule is NOT at the commit this repository records." >&2
+    print -r -- "check_submodules: 有 submodule 不在本倉庫所記錄的 commit 上。" >&2
+    print -r -- "$stale" | while IFS= read -r line; do
+        print -r -- "  $line" >&2
     done
-    echo >&2
-    echo "  Two different faults look identical here, and the fixes are opposite." >&2
-    echo "  此處有兩種截然不同的故障看起來一模一樣,而它們的修法是相反的。" >&2
-    echo >&2
-    echo "  A) The CHECKOUT is stale -- you have not run submodule update since" >&2
-    echo "     the gitlink moved." >&2
-    echo "         git submodule update --init --recursive" >&2
-    echo "  A)**checkout** 過時——gitlink 移動之後你沒有跑過 submodule update。" >&2
-    echo >&2
-    echo "  B) The GITLINK is stale -- a merge resolved it back to an older" >&2
-    echo "     value while your checkout is the newer one. Running update would" >&2
-    echo "     DISCARD the newer submodule commit." >&2
-    echo "         git add <path>   # record what is checked out" >&2
-    echo "  B)**gitlink** 過時——某次合併把它解回了較舊的值,而你的 checkout 才是較新的那個。" >&2
-    echo "     此時去跑 update 會**丟棄**那個較新的 submodule commit。" >&2
-    echo >&2
-    echo "  Tell them apart by asking which commit is newer, not by which is" >&2
-    echo "  recorded:  git -C <path> log --oneline -1 <each sha>" >&2
-    echo "  分辨方式是問「哪一個 commit 較新」,而不是問「哪一個被記錄著」。" >&2
-    echo >&2
-    echo "  B is not hypothetical: it happened on the first real merge after this" >&2
-    echo "  script was written, and the first draft of this message recommended A." >&2
-    echo "  B 不是假設:它就發生在本腳本寫成之後的第一次真實合併,而本訊息的初稿建議的是 A。" >&2
+    print >&2
+    print -r -- "  Two different faults look identical here, and the fixes are opposite." >&2
+    print -r -- "  此處有兩種截然不同的故障看起來一模一樣,而它們的修法是相反的。" >&2
+    print >&2
+    print -r -- "  A) The CHECKOUT is stale -- you have not run submodule update since" >&2
+    print -r -- "     the gitlink moved." >&2
+    print -r -- "         git submodule update --init --recursive" >&2
+    print -r -- "  A)**checkout** 過時——gitlink 移動之後你沒有跑過 submodule update。" >&2
+    print >&2
+    print -r -- "  B) The GITLINK is stale -- a merge resolved it back to an older" >&2
+    print -r -- "     value while your checkout is the newer one. Running update would" >&2
+    print -r -- "     DISCARD the newer submodule commit." >&2
+    print -r -- "         git add <path>   # record what is checked out" >&2
+    print -r -- "  B)**gitlink** 過時——某次合併把它解回了較舊的值,而你的 checkout 才是較新的那個。" >&2
+    print -r -- "     此時去跑 update 會**丟棄**那個較新的 submodule commit。" >&2
+    print >&2
+    print -r -- "  Tell them apart by asking which commit is newer, not by which is" >&2
+    print -r -- "  recorded:  git -C <path> log --oneline -1 <each sha>" >&2
+    print -r -- "  分辨方式是問「哪一個 commit 較新」,而不是問「哪一個被記錄著」。" >&2
+    print >&2
+    print -r -- "  B is not hypothetical: it happened on the first real merge after this" >&2
+    print -r -- "  script was written, and the first draft of this message recommended A." >&2
+    print -r -- "  B 不是假設:它就發生在本腳本寫成之後的第一次真實合併,而本訊息的初稿建議的是 A。" >&2
     exit 1
 fi
 

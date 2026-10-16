@@ -419,10 +419,10 @@ changed now, so nothing in progress moves.
 ### 3e-0. 提交之前,先跑動作檔就緒檢查
 
 ```sh
-sh Scripts/check_action_files.sh
+zsh Scripts/check_action_files.zsh
 ```
 
-`Scripts/test.sh` 已經包含它,因此走正常閘門就會跑到。單獨列出,是因為它要回答的問題發生在**提交之前**:
+`Scripts/test.zsh` 已經包含它,因此走正常閘門就會跑到。單獨列出,是因為它要回答的問題發生在**提交之前**:
 「我剛寫下的那句 `(VERIFIED …)`,別人跑得起來嗎?」
 
 它檢查的是:results.csv2 中每一個被引用的動作檔(舊列寫 `.csv`,2026-10-14 起是 `.actions`),都存在於 `testapp/actions/` 之下。

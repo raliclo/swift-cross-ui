@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Fails when results.csv2 cites an action file that is not in the tree.
 #
@@ -32,7 +32,7 @@
 #
 # 2026-09-09 發現：P34 的第一次點擊是由一個在暫存目錄裡待了一天的檔案驗證的，而引用它的那一列早已提交。
 
-cd "$(dirname "$0")"/../ || exit 1
+cd ${0:A:h}/.. || exit 1
 
 python3 - "$@" <<'PY'
 import csv, fnmatch, glob, os, re, sys

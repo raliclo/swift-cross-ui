@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-cd "$(dirname "$0")"/../APITool
+cd ${0:A:h}/../APITool
 
 swift run -c release APITool analyze --scui-checkout ..

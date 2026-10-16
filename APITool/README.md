@@ -7,7 +7,7 @@ This tool helps with the analysis and management of SwiftCrossUI's public API su
 
 ### Diffing SwiftCrossUI and SwiftUI
 
-SwiftCrossUI has a convenient script at `../Scripts/analyze_api.sh` for diffing SwiftCrossUI and SwiftUI, but in case you want to do it manually, here's the command:
+SwiftCrossUI has a convenient script at `../Scripts/analyze_api.zsh` for diffing SwiftCrossUI and SwiftUI, but in case you want to do it manually, here's the command:
 
 ```sh
 # Diff SwiftCrossUI and SwiftUI. If you want to use a developer directory
@@ -18,7 +18,7 @@ swift run -c release APITool analyze --scui-checkout ..
 
 ### Regenerating SwiftCrossUIPortingKit's generated files
 
-SwiftCrossUI has a convenient script at `../Scripts/generate_porting_kit.sh` for regenerating the porting kit's generated files, but in case you want to do it manually, here's the command:
+SwiftCrossUI has a convenient script at `../Scripts/generate_porting_kit.zsh` for regenerating the porting kit's generated files, but in case you want to do it manually, here's the command:
 
 ```sh
 # Regenerate the porting kit's generated files
@@ -26,7 +26,7 @@ swift run -c release APITool generate --scui-checkout .. \
   ../Sources/_SwiftCrossUIPortingKit/Generated
 ```
 
-Unlike `../Scripts/generate_porting_kit.sh`, this won't format the generated files. Run `../Scripts/format.sh ../Sources/_SwiftCrossUIPortingKit/Generated` to format the generated files.
+Unlike `../Scripts/generate_porting_kit.zsh`, this won't format the generated files. Run `../Scripts/format.zsh ../Sources/_SwiftCrossUIPortingKit/Generated` to format the generated files.
 
 ### Generating SwiftCrossUI's swiftinterface file manually
 

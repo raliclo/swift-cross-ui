@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Records another occurrence of a mistakes.md entry, resolving columns BY NAME.
 #
@@ -39,16 +39,16 @@
 # **因此這一支會拿名稱去比對表頭列,而在名稱不存在時拒絕。** schema 改變時它會大聲失敗,
 # 而不是往「剛好坐在那個索引上的東西」寫進去——而那是唯一重要的差別。
 #
-# Usage: Scripts/bump_mistake.sh <id> [YYYY-MM-DD]
+# Usage: Scripts/bump_mistake.zsh <id> [YYYY-MM-DD]
 
-cd "$(dirname "$0")"/../ || exit 1
+cd ${0:A:h}/.. || exit 1
 
 file=${SCUI_COUNTER:-mistakes_counter.csv2}
 id="$1"
 day="${2:-$(date +%F)}"
 
 if [ -z "$id" ]; then
-    echo "usage: Scripts/bump_mistake.sh <id> [YYYY-MM-DD]" >&2
+    print -r -- "usage: Scripts/bump_mistake.zsh <id> [YYYY-MM-DD]" >&2
     exit 64
 fi
 

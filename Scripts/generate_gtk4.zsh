@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-cd "$(dirname "$0")"/../
+cd ${0:A:h}/..
 
 # Generate Gtk4 wrapper
 swift run GtkCodeGen Sources/GtkCodeGen/GirFiles/Gtk-4.0.gir Sources/Gtk/Generated CGtk
-./Scripts/format.sh Sources/Gtk/Generated
+zsh Scripts/format.zsh Sources/Gtk/Generated

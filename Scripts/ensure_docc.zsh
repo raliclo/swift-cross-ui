@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-set -e
-cd "$(dirname "$0")"
+setopt err_exit
+cd ${0:A:h}
 
 # This script ensures that a build of DocC is available at ./Tools/docc. By default
 # it builds stackotter's fork of DocC which supports WebP image files.

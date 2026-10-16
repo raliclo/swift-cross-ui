@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 #
 # Fails when an action file has a row that will not parse, WHETHER OR NOT git
 # tracks it yet.
 #
 # **The existing guards both miss a file that has just been written.**
-# `check_action_files.sh` checks that results.csv2 cites files that exist; it
+# `check_action_files.zsh` checks that results.csv2 cites files that exist; it
 # never opens them. The Swift suite's check is named "every TRACKED action file
 # parses" and enumerates `git ls-files`, so a file created five minutes ago is
 # outside it. Between writing a file and committing it there was nothing.
@@ -32,7 +32,7 @@
 #
 # 當某個動作檔有一列無法解析時失敗——**無論 git 是否已經追蹤它**。
 #
-# **既有的兩道防線都漏掉「剛剛才寫出來」的檔案。** `check_action_files.sh` 檢查的是 results.csv2
+# **既有的兩道防線都漏掉「剛剛才寫出來」的檔案。** `check_action_files.zsh` 檢查的是 results.csv2
 # 所引用的檔案是否存在,它從不打開它們。Swift 測試套件那一項名為「every TRACKED action file
 # parses」,列舉的是 `git ls-files`,因此五分鐘前建立的檔案在它之外。從「寫出一個檔案」到
 # 「提交它」之間,什麼都沒有。
@@ -52,8 +52,8 @@
 #
 # 那個逗號正是這棵樹早已帶著的全域 CSV 規則,只是從另一個方向抵達:那條規則講的是「用逗號切割去
 # **讀** CSV」。用手**寫** CSV 有同樣的失敗模式,而先前沒有任何工具被指向它。
-set -eu
-cd "$(dirname "$0")/.."
+setopt err_exit no_unset
+cd ${0:A:h}/..
 exec python3 - "$@" <<'PY'
 import csv, glob, pathlib, re, sys
 
@@ -101,13 +101,13 @@ def ios_runner_verbs():
     synthesise, so the shared parser rightly rejects them. Read from the runner's
     `switch action.kind`, at the indentation of its own `case` lines, because a nested
     `switch action.key` inside it lists orientations that are not verbs. Until 2026-10-05 this
-    check flagged five iPad files for these verbs and stopped Scripts/test.sh on every Mac run.
+    check flagged five iPad files for these verbs and stopped Scripts/test.zsh on every Mac run.
 
     iOS XCUITest runner 在共用解析器之外處理的動詞。testapp/actions/ios/ 底下的檔案由那個 runner 執行,
     它還會點標籤、啟用其他 app、印出視窗框或元素樹——那些是 app 內重放合成不出來的,因此共用解析器拒絕
     它們是對的。從 runner 的 `switch action.kind` 讀出,且只取與它自己的 `case` 同縮排的那些,因為其中
     巢狀的 `switch action.key` 列出的方向不是動詞。2026-10-05 之前,本檢查因這些動詞標出五個 iPad 檔案,
-    讓 Scripts/test.sh 每次在 Mac 上都停下。
+    讓 Scripts/test.zsh 每次在 Mac 上都停下。
     """
     lines = pathlib.Path(
         "testapp/iosContainer/xcodeTestRunner/Tests/ActionFileUITests.swift"

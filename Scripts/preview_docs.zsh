@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-set -e
-cd "$(dirname "$0")"
+setopt err_exit
+cd ${0:A:h}
 
 # This script previews SwiftCrossUI's documentation locally. Changes to
 # Sources/SwiftCrossUI/SwiftCrossUI.docc should be refected live, but
@@ -10,11 +10,11 @@ cd "$(dirname "$0")"
 # To skip symbol graph generation (when you don't care about symbol
 # links or source documentation) set SKIP_SYMBOL_GRAPHS=1.
 
-./ensure_docc.sh
+zsh ensure_docc.zsh
 
 cd ..
 
-if [ -z "$DOCC_HTML_DIR"]; then
+if [[ -z $DOCC_HTML_DIR ]]; then
     docc_path=""
     if command -v xcrun >/dev/null 2>&1; then
         # If on macOS, use xcrun to find the real docc executable

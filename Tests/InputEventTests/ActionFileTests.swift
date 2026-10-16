@@ -246,13 +246,13 @@ struct ActionFileTests {
         // set aside before parsing, and the runner's own source is checked to
         // still handle each one, so this list cannot outlive the runner.
         // Until 2026-10-05 this test failed on five iPad files for exactly these
-        // verbs, and `Scripts/test.sh` stopped there on every Mac run.
+        // verbs, and `Scripts/test.zsh` stopped there on every Mac run.
         //
         // **iOS 的檔案由 XCUITest runner 執行,而它認得四個 app 內重放無法合成的動詞**——點標籤、
         // 啟用另一個 app、印出視窗框或元素樹。共用解析器拒絕它們是對的:一個略過 `taplabel` 的 app 內
         // 重放,會在做得比檔案所寫還少的情況下跑完。因此對 `ios/`,這些列在解析前先被剔除,並檢查 runner
         // 自己的原始碼仍處理每一個,讓這份清單不會比 runner 活得久。2026-10-05 之前,本測試就因為這些
-        // 動詞在五個 iPad 檔案上失敗,而 `Scripts/test.sh` 每次在 Mac 上都停在那裡。
+        // 動詞在五個 iPad 檔案上失敗,而 `Scripts/test.zsh` 每次在 Mac 上都停在那裡。
         let runnerOnlyVerbs = ["activate", "dumptree", "taplabel", "windowframes"]
         let runnerSource = try String(
             contentsOf: root.appendingPathComponent(

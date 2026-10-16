@@ -981,7 +981,7 @@ let migratedToSwift6: Set<String> = [
 // typo check misfiring on a real name.** `AndroidBackend` exists only when
 // `SCUI_ANDROID=1`; adding it to the list made every macOS build of this
 // package die with "which is not a target in this package" -- true as stated,
-// and not a typo. Caught by `Scripts/test.sh` rather than by any Android build,
+// and not a typo. Caught by `Scripts/test.zsh` rather than by any Android build,
 // because the Android builds are exactly the ones where the name IS present.
 //
 // The guard keeps its value: a genuine typo matches neither the snapshot nor
@@ -994,7 +994,7 @@ let migratedToSwift6: Set<String> = [
 // **把其中之一列進 `migratedToSwift6` 過去會造成 fatal error,而那是打字檢查對一個真實名稱誤擊。**
 // `AndroidBackend` 只在 `SCUI_ANDROID=1` 時存在;把它加進那份清單,會讓本套件在 macOS 上的**每一次**
 // 建置都以「which is not a target in this package」死掉——那句話就字面而言是真的,而它不是一個打錯。
-// 抓到它的是 `Scripts/test.sh`,而不是任何一次 Android 建置——因為 Android 建置恰恰就是「那個名字
+// 抓到它的是 `Scripts/test.zsh`,而不是任何一次 Android 建置——因為 Android 建置恰恰就是「那個名字
 // **存在**」的那些場合。
 //
 // 這道守衛仍保有它的價值:一個真正的打錯,兩份名單都對不上;而把一個名字加到這裡是一個刻意的動作,
