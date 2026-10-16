@@ -28,6 +28,10 @@ public struct TweenClock: Sendable {
         /// last play ran, because the state holds the value that was assigned.
         /// 動畫已結束;不論最後一次往哪個方向播放,``progress`` 都是 `1`,因為狀態保存的是被賦予的那個值。
         public var isFinished: Bool
+        /// Still inside the delay: nothing has moved yet, and GSAP's `onStart` has
+        /// not fired.
+        /// 仍在延遲之中：還沒有任何東西移動,GSAP 的 `onStart` 也還沒觸發。
+        public var isWaiting: Bool
     }
 
     public var animation: Animation
@@ -42,7 +46,8 @@ public struct TweenClock: Sendable {
             progress: 1,
             iteration: animation.repeatsForever ? 0 : plays - 1,
             isReversed: false,
-            isFinished: true
+            isFinished: true,
+            isWaiting: false
         )
         guard animation.duration > 0, animation.playbackSpeed > 0 else {
             return finished
@@ -59,7 +64,8 @@ public struct TweenClock: Sendable {
             progress: animation.curve.progress(at: isReversed ? 1 - fraction : fraction),
             iteration: iteration,
             isReversed: isReversed,
-            isFinished: false
+            isFinished: false,
+            isWaiting: elapsed < animation.startDelay
         )
     }
 }

@@ -82,6 +82,9 @@ public struct Animation: Equatable, Sendable {
     /// Every second play runs backwards. GSAP's `yoyo`.
     /// 每隔一次倒著播放。即 GSAP 的 `yoyo`。
     public var autoreverses = false
+    /// GSAP's `onStart`, `onRepeat` and `onUpdate`; see ``AnimationCallbacks``.
+    /// GSAP 的 `onStart`、`onRepeat` 與 `onUpdate`;見 ``AnimationCallbacks``。
+    public var callbacks = AnimationCallbacks()
 
     public init(duration: Double, curve: Curve) {
         self.duration = duration
@@ -234,5 +237,128 @@ public struct Animation: Equatable, Sendable {
         animation.repeatsForever = true
         animation.autoreverses = autoreverses
         return animation
+    }
+}
+
+/// GSAP's `onStart`, `onRepeat` and `onUpdate`, carried by the animation.
+///
+/// They fire once per `withAnimation`, however many states its body assigns,
+/// as a GSAP tween with several targets fires once: every tween started by one
+/// `withAnimation` shares its animation and its first frame, so they are one
+/// timeline. Callbacks do not take part in `==`; two animations that move
+/// values the same way are equal whatever they report.
+///
+/// GSAP 的 `onStart`、`onRepeat` 與 `onUpdate`,由動畫攜帶。不論 body 賦值了幾個狀態，每次 `withAnimation`
+/// 只觸發一次，如同帶有多個目標的 GSAP tween 只觸發一次：同一個 `withAnimation` 啟動的補間共用同一個動畫與
+/// 同一個第一幀，所以它們是同一條時間軸。回呼不參與 `==`;兩個以相同方式移動數值的動畫，不論回報什麼都相等。
+public struct AnimationCallbacks: Sendable {
+    public var onStart: (@MainActor @Sendable () -> Void)?
+    public var onRepeat: (@MainActor @Sendable (Int) -> Void)?
+    public var onUpdate: (@MainActor @Sendable (Double) -> Void)?
+
+    public init() {}
+}
+
+/// Where a stagger starts from: GSAP's `from`.
+/// stagger 從哪裡開始：即 GSAP 的 `from`。
+public enum StaggerOrigin: Equatable, Sendable {
+    case start
+    case center
+    case end
+    /// Both ends first, the middle last.
+    /// 兩端先開始，中間最後。
+    case edges
+    /// Outwards from one item.
+    /// 從某一項往外擴散。
+    case index(Int)
+    /// A shuffled order that the seed makes the same on every run and backend.
+    /// 打亂的順序；同一個種子在每次執行、每個 backend 上都相同。
+    case random(seed: UInt64)
+}
+
+extension Animation {
+    /// Runs when the first frame after the delay moves the value.
+    /// 在延遲之後、第一個移動數值的幀執行。
+    public func onStart(_ action: @escaping @MainActor @Sendable () -> Void) -> Animation {
+        var animation = self
+        animation.callbacks.onStart = action
+        return animation
+    }
+
+    /// Runs when a repeat begins, with its index: 1 for the second play.
+    /// 在每次重複開始時執行，帶入它的索引：第二次播放為 1。
+    public func onRepeat(_ action: @escaping @MainActor @Sendable (Int) -> Void) -> Animation {
+        var animation = self
+        animation.callbacks.onRepeat = action
+        return animation
+    }
+
+    /// Runs on every frame after the start, with the curve's progress; the last
+    /// call is 1.
+    /// 在開始之後的每一幀執行，帶入曲線的進度；最後一次是 1。
+    public func onUpdate(_ action: @escaping @MainActor @Sendable (Double) -> Void) -> Animation {
+        var animation = self
+        animation.callbacks.onUpdate = action
+        return animation
+    }
+
+    /// Adds item `index`'s share of a stagger to the delay: GSAP's
+    /// `stagger: { each, from }` for one of `count` items.
+    ///
+    /// ```swift
+    /// for i in boxes.indices {
+    ///     withAnimation(.easeOut(duration: 0.4).stagger(i, of: boxes.count, each: 0.1, from: .center)) {
+    ///         boxes[i].lifted = 1
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// 把第 `index` 項在 stagger 中分到的延遲加到 delay 上：即 `count` 項之一的 GSAP
+    /// `stagger: { each, from }`。
+    public func stagger(
+        _ index: Int,
+        of count: Int,
+        each: Double,
+        from origin: StaggerOrigin = .start
+    ) -> Animation {
+        var animation = self
+        animation.startDelay += each * Self.staggerSteps(index, of: count, from: origin)
+        return animation
+    }
+
+    /// How many `each` steps item `index` waits.
+    /// 第 `index` 項要等幾個 `each`。
+    static func staggerSteps(_ index: Int, of count: Int, from origin: StaggerOrigin) -> Double {
+        let last = Double(max(count, 1) - 1)
+        let i = Double(index)
+        switch origin {
+            case .start:
+                return i
+            case .end:
+                return last - i
+            case .center:
+                return abs(i - last / 2)
+            case .edges:
+                return last / 2 - abs(i - last / 2)
+            case .index(let origin):
+                return abs(i - Double(origin))
+            case .random(let seed):
+                // Fisher-Yates driven by SplitMix64, so the order is the same
+                // everywhere a seed is used.
+                // 以 SplitMix64 驅動的 Fisher-Yates,讓同一個種子在每個地方得到相同的順序。
+                var state = seed
+                func next() -> UInt64 {
+                    state &+= 0x9E37_79B9_7F4A_7C15
+                    var z = state
+                    z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+                    z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+                    return z ^ (z >> 31)
+                }
+                var order = Array(0..<max(count, 1))
+                for j in stride(from: order.count - 1, to: 0, by: -1) {
+                    order.swapAt(j, Int(next() % UInt64(j + 1)))
+                }
+                return Double(order.firstIndex(of: index) ?? index)
+        }
     }
 }

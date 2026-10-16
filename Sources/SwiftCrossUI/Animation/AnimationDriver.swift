@@ -60,6 +60,9 @@ public final class AnimationDriver: @unchecked Sendable {
         /// 對一個位於 `0...1` 的進度套用其值，且不回傳任何東西:它寫入的對象，正是啟動這個動畫的
         /// 那個 state box。
         var apply: (Double) -> Void
+        /// The `withAnimation` that started it, for callbacks and completion.
+        /// 啟動它的那個 `withAnimation`,用於回呼與 completion。
+        var group: AnimationGroup?
     }
 
     private init() {}
@@ -77,11 +80,15 @@ public final class AnimationDriver: @unchecked Sendable {
     /// 繼續，而不是讓兩個補間去爭奪同一份儲存——而那正是「使用者連續拖了兩次」時，「中途再設一次值」
     /// 看起來的樣子。
     func start(key: UUID, animation: Animation, apply: @escaping (Double) -> Void) {
-        tweens[key] = Tween(animation: animation, startTime: nil, apply: apply)
+        tweens[key]?.group?.tweenEnded()
+        let group = AnimationTransaction.group
+        group?.tweenStarted()
+        tweens[key] = Tween(animation: animation, startTime: nil, apply: apply, group: group)
         startClockIfNeeded()
     }
 
     func cancel(key: UUID) {
+        tweens[key]?.group?.tweenEnded()
         tweens[key] = nil
         stopClockIfIdle()
     }
@@ -129,6 +136,7 @@ public final class AnimationDriver: @unchecked Sendable {
         for (key, tween) in tweens {
             tween.apply(1)
             tweens[key] = nil
+            tween.group?.tweenEnded()
         }
     }
 
@@ -147,6 +155,7 @@ public final class AnimationDriver: @unchecked Sendable {
                 tween.startTime = timestamp
                 tweens[key] = tween
                 tween.apply(0)
+                tween.group?.report(TweenClock(tween.animation).state(at: 0), at: timestamp)
                 continue
             }
 
@@ -156,6 +165,10 @@ public final class AnimationDriver: @unchecked Sendable {
                 tween.apply(1)
             } else {
                 tween.apply(state.progress)
+            }
+            tween.group?.report(state, at: timestamp)
+            if state.isFinished {
+                tween.group?.tweenEnded()
             }
         }
         stopClockIfIdle()
@@ -181,6 +194,78 @@ enum AnimationTransaction {
     /// invariant and why it is not an annotation.
     /// 由構造保證只在主執行緒上使用;該不變式以及它為何不是一個標註，見 ``AnimationDriver``。
     nonisolated(unsafe) static var current: Animation?
+    /// The tweens the current `withAnimation` starts join this group.
+    /// 目前這個 `withAnimation` 啟動的補間都加入這個群組。
+    nonisolated(unsafe) static var group: AnimationGroup?
+}
+
+/// The tweens one `withAnimation` started: one timeline for GSAP's callbacks,
+/// and one `completion`.
+///
+/// Every tween in a group has the same animation and the same first frame, so
+/// the callbacks fire from whichever tween the driver reaches first in a tick
+/// and are skipped for the rest of that tick. Main-thread only, by the same
+/// construction as ``AnimationDriver``.
+///
+/// 同一個 `withAnimation` 啟動的補間：GSAP 回呼的一條時間軸，以及一個 `completion`。群組裡每個補間都有
+/// 相同的動畫與相同的第一幀，所以回呼由 driver 在一次 tick 中最先處理到的那個補間觸發，同一次 tick 的其他
+/// 補間略過。只在主執行緒上使用，理由與 ``AnimationDriver`` 相同。
+final class AnimationGroup: @unchecked Sendable {
+    private let callbacks: AnimationCallbacks
+    private let completion: (@MainActor () -> Void)?
+    private var live = 0
+    private var isOpen = true
+    private var isDone = false
+    private var lastReport: Double?
+    private var hasStarted = false
+    private var iteration = 0
+
+    init(animation: Animation, completion: (@MainActor () -> Void)?) {
+        callbacks = animation.callbacks
+        self.completion = completion
+    }
+
+    func tweenStarted() {
+        live += 1
+    }
+
+    /// Finished, cancelled or replaced.
+    /// 結束、取消或被取代。
+    func tweenEnded() {
+        live -= 1
+        finishIfDone()
+    }
+
+    /// The body has returned: no more tweens can join.
+    /// body 已經返回：不會再有補間加入。
+    func close() {
+        isOpen = false
+        finishIfDone()
+    }
+
+    func report(_ state: TweenClock.State, at timestamp: Double) {
+        guard lastReport != timestamp, !state.isWaiting else { return }
+        lastReport = timestamp
+        MainActor.assumeIsolated {
+            if !hasStarted {
+                hasStarted = true
+                iteration = state.iteration
+                callbacks.onStart?()
+            } else if state.iteration != iteration {
+                iteration = state.iteration
+                callbacks.onRepeat?(state.iteration)
+            }
+            callbacks.onUpdate?(state.progress)
+        }
+    }
+
+    private func finishIfDone() {
+        guard !isOpen, live <= 0, !isDone else { return }
+        isDone = true
+        if let completion {
+            MainActor.assumeIsolated { completion() }
+        }
+    }
 }
 
 /// Runs `body`, animating any animatable state it assigns to.
@@ -204,8 +289,51 @@ public func withAnimation<Result>(
     _ animation: Animation = .default,
     _ body: () throws -> Result
 ) rethrows -> Result {
-    let previous = AnimationTransaction.current
+    try runAnimationTransaction(animation, completion: nil, body)
+}
+
+/// Runs `body` as ``withAnimation(_:_:)`` does, then `completion` once, when
+/// every tween the body started has finished or been replaced by a later
+/// animation of the same state -- SwiftUI's iOS 17 signature, and GSAP's
+/// `onComplete`.
+///
+/// ```swift
+/// withAnimation(.bouncy) {
+///     scale = 1.2
+/// } completion: {
+///     scale = 1
+/// }
+/// ```
+///
+/// `repeatForever` never completes. When the body animates nothing,
+/// `completion` runs as `withAnimation` returns.
+///
+/// 與 ``withAnimation(_:_:)`` 一樣執行 `body`,然後在 body 啟動的每一個補間都結束、或被同一個狀態的新動畫
+/// 取代時，執行 `completion` 一次——SwiftUI iOS 17 的寫法，也就是 GSAP 的 `onComplete`。`repeatForever`
+/// 永遠不會完成。body 沒有讓任何東西動起來時,`completion` 在 `withAnimation` 返回時執行。
+@MainActor
+public func withAnimation<Result>(
+    _ animation: Animation = .default,
+    _ body: () throws -> Result,
+    completion: @escaping @MainActor () -> Void
+) rethrows -> Result {
+    try runAnimationTransaction(animation, completion: completion, body)
+}
+
+@MainActor
+private func runAnimationTransaction<Result>(
+    _ animation: Animation,
+    completion: (@MainActor () -> Void)?,
+    _ body: () throws -> Result
+) rethrows -> Result {
+    let previous = (AnimationTransaction.current, AnimationTransaction.group)
+    let group = AnimationGroup(animation: animation, completion: completion)
     AnimationTransaction.current = animation
-    defer { AnimationTransaction.current = previous }
+    AnimationTransaction.group = group
+    defer {
+        AnimationTransaction.current = previous.0
+        AnimationTransaction.group = previous.1
+        group.close()
+    }
     return try body()
 }
