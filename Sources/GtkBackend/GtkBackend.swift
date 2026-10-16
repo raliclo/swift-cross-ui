@@ -4395,7 +4395,7 @@ public final class GtkBackend:
         let scale = Scale()
         scale.expandHorizontally = true
 
-        // The gesture that reports editing is added HERE, once, and only its
+        // The controller that reports editing is added HERE, once, and only its
         // callbacks are replaced in `updateSlider`. This mirrors
         // `createTapGestureTarget`/`updateTapGestureTarget` below, which is the
         // established shape in this file for a controller whose closure has to
@@ -4408,7 +4408,7 @@ public final class GtkBackend:
         // each. It compounds, because `onEditingChanged` changes state, which
         // schedules the update that adds the next controller.
         //
-        // 回報編輯狀態的 gesture 在**此處**加入，只加一次，而 `updateSlider` 只替換它的
+        // 回報編輯狀態的控制器在**此處**加入，只加一次，而 `updateSlider` 只替換它的
         // callback。這與本檔下方的 `createTapGestureTarget`／`updateTapGestureTarget`
         // 同形——那是本檔中「closure 每次 update 都要更換的 controller」既有的寫法。
         //
@@ -4417,9 +4417,7 @@ public final class GtkBackend:
         // `began=5`——那不是 GTK 觸發了五次，而是五個累積下來的 controller 各觸發一次。
         // 而且它會滾雪球，因為 `onEditingChanged` 會改變 state，而那正好排程了下一次
         // 「再加一個 controller」的 update。
-        let press = GestureClick()
-        press.propagationPhase = .capture
-        scale.addEventController(press)
+        GtkSliderEditing.install(on: scale)
 
         return scale
     }
@@ -4442,76 +4440,15 @@ public final class GtkBackend:
             onChange(widget.value)
         }
 
-        // **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine cannot build
-        // GtkBackend, so what follows is written against the API as it reads in
-        // `Sources/Gtk/` and needs verifying on the Windows or WSL side -- the
-        // same handoff shape the Android popover arrived in, and that one had a
-        // method that did not exist. The two things to check, named rather than
-        // left for the compiler:
-        //
-        //   1. that a `GestureClick` added to a `Scale` receives the press at
-        //      all. `GtkScale` handles its own dragging, and a gesture in the
-        //      bubble phase may never see it; `GtkBackend+Popovers.swift:223`
-        //      sets `.capture` for exactly this reason, which is why it is set
-        //      here too.
-        //   2. that `pressed`/`released` fire for a drag that starts on the
-        //      trough rather than on the handle, since that is also an edit.
-        //
-        // `Scale` has no began/ended signal of its own -- this is why the
-        // gesture is here at all rather than a property being read.
-        //
-        // **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器建不了 GtkBackend，因此以下是對照
-        // `Sources/Gtk/` 中該 API 的樣貌寫出來的，需由 Windows 或 WSL 側驗證——與 Android popover
-        // 抵達此處時相同的交接形狀，而那一份用到了一個並不存在的方法。有兩件事要查，此處明白指名、
-        // 不留給編譯器去找：
-        //
-        //   1. 加在 `Scale` 上的 `GestureClick` 究竟收不收得到那次按下。`GtkScale` 自己處理拖曳，
-        //      而處於 bubble 階段的 gesture 可能永遠看不到它；`GtkBackend+Popovers.swift:223`
-        //      正是為此設定 `.capture`，此處也照做。
-        //   2. 對「起始於軌道而非把手」的拖曳，`pressed`／`released` 是否也會觸發——那同樣是一次編輯。
-        //
-        // `Scale` 自身沒有 began／ended 訊號——這正是此處出現一個 gesture、而不是讀取某個屬性的原因。
-        // The end of an edit comes from `end`, NOT from `released`.
-        //
-        // MEASURED 2026-09-10 by connecting all four of pressed/released/end/
-        // cancel at once and driving `actions/win/P61-drag-the-trough.actions`. One
-        // press and one release on the trough produced exactly:
-        //
-        //     pressed  1        released  0
-        //     end      1        cancel    0
-        //
-        // `GtkScale` claims the sequence for its own drag while the button is
-        // held, so this gesture stops recognising the interaction as a click and
-        // never emits `released` -- but the SEQUENCE still ends when the button
-        // comes up, and `end` fires there. `cancel` was the mechanism I expected
-        // and it is not what happens; it is left unconnected because it was
-        // measured not to fire, and because GTK resets a cancelled gesture,
-        // which emits `end` anyway.
-        //
-        // This is why the whole probe was worth building: `released` compiles,
-        // reads correctly, and silently never runs.
-        //
-        // 一次編輯的**結束**來自 `end`,**不是** `released`。
-        //
-        // **2026-09-10 實測**,做法是把 pressed／released／end／cancel 四者同時接上,再驅動
-        // `actions/win/P61-drag-the-trough.actions`。在軌道上一次按下、一次放開,得到的恰好是:
-        //
-        //     pressed  1        released  0
-        //     end      1        cancel    0
-        //
-        // 按鍵按住期間,`GtkScale` 為了自己的拖曳而**取走了該序列**,於是這顆 gesture 不再把這次
-        // 互動辨識為一次 click,`released` 永遠不會發出——但**序列本身**仍會在按鍵彈起時結束,
-        // 而 `end` 就在那裡觸發。`cancel` 是我原本預期的機制,而事實並非如此;此處不接它,
-        // 因為實測它不觸發,也因為 GTK 會重置一顆被取消的 gesture,而那本來就會發出 `end`。
-        //
-        // **這正是那支探針值得寫的原因**:`released` 編譯得過、讀起來也對,卻靜靜地從不執行。
-        let press = slider.eventControllers.lazy.compactMap { $0 as? GestureClick }.first!
-        press.pressed = { _, _, _, _ in
-            onEditingChanged(true)
-        }
-        press.end = { _, _ in
-            onEditingChanged(false)
-        }
+        // Began at the press and ended at the release, from a capture-phase
+        // legacy controller: see `GtkSliderEditing` for why not a gesture. A
+        // 2026-09-10 probe here (pressed 1, released 0, end 1) measured what a
+        // GestureClick does once GtkScale claims the sequence -- and `end` came at
+        // the claim, at the press, before the drag's values (P61, 2026-10-16).
+        // 開始於按下、結束於放開，來自 capture 階段的 legacy 控制器：為何不用手勢見 `GtkSliderEditing`。
+        // 2026-09-10 的探針(pressed 1、released 0、end 1)量到的是 GtkScale claim 序列後 GestureClick 的行為——
+        // 而 `end` 在 claim 時、也就是按下時就來了，早於拖曳的值(P61,2026-10-16)。
+        GtkSliderEditing.setHandler(on: slider, onEditingChanged)
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {

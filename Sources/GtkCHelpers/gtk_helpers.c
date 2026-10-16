@@ -41,3 +41,9 @@ const GConnectFlags SHIM_G_CONNECT_SWAPPED = G_CONNECT_SWAPPED;
 // GtkSignalListItemFactory 的 setup/bind/unbind 正是這種情形。
 const GConnectFlags SHIM_G_CONNECT_DEFAULT = G_CONNECT_DEFAULT;
 const GApplicationFlags SHIM_G_APPLICATION_HANDLES_OPEN = G_APPLICATION_HANDLES_OPEN;
+
+gboolean scui_primary_button_warps_slider(void) {
+    gboolean warps = TRUE;
+    g_object_get(gtk_settings_get_default(), "gtk-primary-button-warps-slider", &warps, NULL);
+    return warps;
+}

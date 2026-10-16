@@ -399,6 +399,11 @@ char *scui_drop_value_uri_list(const GValue *value);
 // string. The caller owns the result and must g_free it.
 char *scui_drop_value_string(const GValue *value);
 
+// Whether a primary-button press on a range's trough jumps the slider there
+// (GtkSettings gtk-primary-button-warps-slider). g_object_get is variadic,
+// so Swift cannot call it. GDK on macOS answers 0 by default.
+gboolean scui_primary_button_warps_slider(void);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
