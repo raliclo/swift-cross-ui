@@ -27,11 +27,14 @@
 emulate -L zsh
 set -uo pipefail
 
-root="${0:A:h}"
+# $0 here, not inside usage(): in a function zsh gives the function's name. / 在這裡取 $0,不是在 usage()
+# 裡面：函式裡 zsh 給的是函式名稱。
+script_path="${0:A}"
+root="${script_path:h}"
 api18=testapp/api18
 
 usage() {
-  awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${0:A}"
+  awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$script_path"
 }
 
 do_pull=1
