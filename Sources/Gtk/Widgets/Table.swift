@@ -426,7 +426,10 @@ public class Table: ScrolledWindow {
         {
             candidate = parent
         }
-        guard let child = candidate, let position = grid.queryChild(child) else { return }
+        guard
+            let position = candidate.flatMap({ grid.queryChild($0) })
+                ?? cellPosition(atX: x, y: y)
+        else { return }
 
         // Row 0 is the header; a click there is not a row selection.
         // 第 0 列是標題;點在那裡不是一次列選取。
@@ -451,6 +454,44 @@ public class Table: ScrolledWindow {
         selectedRow = index
         applySelectionHighlight()
         onRowSelected?(index)
+    }
+
+    /// The cell under a point from the cells' bounds, for a click `gtk_widget_pick`
+    /// cannot place: one in the spacing between cells, or on a cell whose
+    /// widgets do not take events, picks the grid itself, and walking up from
+    /// the grid never reaches one of its children. A row runs from its top to
+    /// the next row's top, so the spacing belongs to the row above it; the same
+    /// for columns. Measured on GtkBackend on macOS (P23, 2026-10-16): a click
+    /// inside row 5 left "selected row: 2" unchanged.
+    ///
+    /// 由儲存格的範圍找出點底下的儲存格，給 `gtk_widget_pick` 定位不了的點擊用：落在儲存格之間的間距、或落在其 widget
+    /// 不接受事件的儲存格上，pick 到的是 grid 本身，而從 grid 往上走永遠到不了它的子元件。一列從它的頂端延伸到下一列的
+    /// 頂端，所以間距屬於上面那一列;欄亦同。macOS 上的 GtkBackend 實測(P23,2026-10-16):點在第 5 列裡，
+    /// 「selected row: 2」沒有改變。
+    private func cellPosition(atX x: Double, y: Double) -> (column: Int, row: Int)? {
+        var rowTops: [Int: Double] = [:]
+        var columnLefts: [Int: Double] = [:]
+        var bottom = -Double.infinity
+        var right = -Double.infinity
+        var child = gtk_widget_get_first_child(grid.widgetPointer)
+        while let current = child {
+            child = gtk_widget_get_next_sibling(current)
+            var bounds = graphene_rect_t()
+            guard let position = grid.queryChild(current),
+                gtk_widget_compute_bounds(current, grid.widgetPointer, &bounds) != 0
+            else { continue }
+            let top = Double(bounds.origin.y)
+            let left = Double(bounds.origin.x)
+            rowTops[position.row] = min(rowTops[position.row] ?? top, top)
+            columnLefts[position.column] = min(columnLefts[position.column] ?? left, left)
+            bottom = max(bottom, top + Double(bounds.size.height))
+            right = max(right, left + Double(bounds.size.width))
+        }
+        guard y < bottom, x < right,
+            let row = rowTops.filter({ $0.value <= y }).max(by: { $0.value < $1.value })?.key,
+            let column = columnLefts.filter({ $0.value <= x }).max(by: { $0.value < $1.value })?.key
+        else { return nil }
+        return (column: column, row: row)
     }
 
     /// Sets whether the user can select and copy the table's text.
