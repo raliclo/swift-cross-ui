@@ -50,6 +50,7 @@ public final class AnimationDriver: @unchecked Sendable {
 
 
     private var tweens: [UUID: Tween] = [:]
+    private var tickers: [UUID: (Double?) -> Bool] = [:]
     private var isRunning = false
 
     private struct Tween {
@@ -87,6 +88,23 @@ public final class AnimationDriver: @unchecked Sendable {
         startClockIfNeeded()
     }
 
+    /// Calls `ticker` with every frame's timestamp until it returns false or is removed;
+    /// `nil` means the backend has no clock and the ticker should finish now. What a
+    /// ``TimelinePlayer`` plays on, sharing the one clock with the tweens.
+    /// 以每一幀的時間戳呼叫 `ticker`,直到它回傳 false 或被移除;`nil` 代表 backend 沒有時鐘,ticker 應立刻結束。
+    /// ``TimelinePlayer`` 就是靠它播放，與補間共用同一個時鐘。
+    func addTicker(_ ticker: @escaping (Double?) -> Bool) -> UUID {
+        let key = UUID()
+        tickers[key] = ticker
+        startClockIfNeeded()
+        return key
+    }
+
+    func removeTicker(_ key: UUID) {
+        tickers[key] = nil
+        stopClockIfIdle()
+    }
+
     func cancel(key: UUID) {
         tweens[key]?.group?.tweenEnded()
         tweens[key] = nil
@@ -94,7 +112,7 @@ public final class AnimationDriver: @unchecked Sendable {
     }
 
     private func startClockIfNeeded() {
-        guard !isRunning, !tweens.isEmpty else { return }
+        guard !isRunning, !tweens.isEmpty || !tickers.isEmpty else { return }
         guard let clock = MainActor.assumeIsolated({ backend as? any BackendFeatures.FrameClocks })
         else {
             // No clock: every animation lands on its final value immediately.
@@ -121,7 +139,7 @@ public final class AnimationDriver: @unchecked Sendable {
     }
 
     private func stopClockIfIdle() {
-        guard isRunning, tweens.isEmpty else { return }
+        guard isRunning, tweens.isEmpty, tickers.isEmpty else { return }
         isRunning = false
         if let clock = MainActor.assumeIsolated({ backend as? any BackendFeatures.FrameClocks }) {
             stop(clock: clock)
@@ -133,6 +151,12 @@ public final class AnimationDriver: @unchecked Sendable {
     }
 
     private func finishAllImmediately() {
+        // A ticker told there is no clock finishes where it would have ended.
+        // 被告知沒有時鐘的 ticker,直接停在它本來會結束的地方。
+        for (key, ticker) in tickers {
+            _ = ticker(nil)
+            tickers[key] = nil
+        }
         for (key, tween) in tweens {
             tween.apply(1)
             tweens[key] = nil
@@ -170,6 +194,12 @@ public final class AnimationDriver: @unchecked Sendable {
             if state.isFinished {
                 tween.group?.tweenEnded()
             }
+        }
+        // Tickers after the tweens, so a timeline renders on top of a tween started in the
+        // same frame, as the later of two writes to one state wins anywhere else.
+        // ticker 在補間之後執行，讓 timeline 的結果蓋過同一幀啟動的補間——與其他地方「同一狀態兩次寫入，後者為準」相同。
+        for (key, ticker) in tickers where !ticker(timestamp) {
+            tickers[key] = nil
         }
         stopClockIfIdle()
     }
