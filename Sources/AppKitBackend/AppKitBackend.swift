@@ -1427,10 +1427,27 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         table.rowHeight = CGFloat(
             defaultTableRowContentHeight + 2 * defaultTableCellVerticalPadding
         )
-        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        // No autoresizing and no spacing: the widths come from `Table`, through
+        // setColumnWidths. See `columnWidthSpecification`.
+        // 不自動調整、沒有間距：欄寬來自 `Table`,經由 setColumnWidths。見 `columnWidthSpecification`。
+        table.columnAutoresizingStyle = .noColumnAutoresizing
+        table.intercellSpacing = NSSize(width: 0, height: table.intercellSpacing.height)
+        // Full width, not the inset style macOS 11 picks by default: the inset
+        // adds 16 pt each side, which made P26's table 904 pt wide in an 872 pt
+        // view and pushed the last column 32 pt past the edge.
+        // 全寬，而不是 macOS 11 預設的 inset 樣式:inset 每邊加 16 pt,使 P26 的表格在 872 pt 的 view 中
+        // 變成 904 pt 寬，把最後一欄推出邊緣 32 pt。
+        if #available(macOS 11.0, *) {
+            table.style = .fullWidth
+        }
         table.allowsColumnSelection = false
         scrollView.documentView = table
         return scrollView
+    }
+
+    public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {
+        let table = (table as! NSScrollView).documentView as! NSCustomTableView
+        table.columnWidthSpecification = widths
     }
 
     public func headerHeight(ofTable table: Widget) -> Int {
@@ -2066,6 +2083,49 @@ final class Action: NSObject {
 
 class NSCustomTableView: NSTableView {
     var customDelegate = NSCustomTableViewDelegate()
+
+    /// The widths `Table` measured its cells at: a fixed width, or nil for a
+    /// share of what the fixed columns leave. `Table` proposes each cell
+    /// `(width - fixed) / flexibleCount`, so the columns have to be exactly
+    /// that wide, with no spacing between them, as GtkBackend's grid is. AppKit
+    /// left at its own defaults made every column about 234 pt in P23 and P26
+    /// while the cells were measured at about 392 pt, so text ran into the
+    /// next column and a wrapped cell lost its second line under a row height
+    /// measured for one (queue item 17 c, 2026-10-16).
+    ///
+    /// `Table` 量測儲存格時所用的寬度：固定寬度，或 nil 代表平分固定欄剩下的空間。`Table` 給每個儲存格的
+    /// 提議是 `(寬度 - 固定) / 彈性欄數`,所以欄必須正好那麼寬，欄與欄之間沒有間距，與 GtkBackend 的
+    /// grid 相同。維持 AppKit 自己的預設值時,P23 與 P26 的每一欄約 234 pt,而儲存格是以約 392 pt
+    /// 量測的，於是文字跑進下一欄，換行的儲存格在依一行量出的列高之下失去第二行(queue 第 17 項 c,
+    /// 2026-10-16)。
+    var columnWidthSpecification: [Double?] = [] {
+        didSet { applyColumnWidths() }
+    }
+
+    override func tile() {
+        applyColumnWidths()
+        super.tile()
+    }
+
+    private func applyColumnWidths() {
+        let columns = tableColumns
+        guard !columns.isEmpty else { return }
+        let total = enclosingScrollView?.contentSize.width ?? bounds.width
+        let widths = (0..<columns.count).map { index in
+            index < columnWidthSpecification.count ? columnWidthSpecification[index] : nil
+        }
+        let fixed = widths.compactMap { $0 }.reduce(0, +)
+        let flexibleCount = widths.filter { $0 == nil }.count
+        let flexible = flexibleCount > 0 ? max(0, total - fixed) / Double(flexibleCount) : 0
+        for (column, width) in zip(columns, widths) {
+            let target = CGFloat(width ?? flexible)
+            column.resizingMask = []
+            column.minWidth = 0
+            if column.width != target {
+                column.width = target
+            }
+        }
+    }
 }
 
 class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataSource {

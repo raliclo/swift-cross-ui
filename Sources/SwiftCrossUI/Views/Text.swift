@@ -142,21 +142,32 @@ extension Text: ElementaryView {
                 size.x = 0
             }
         } else if let proposedHeight = proposedSize.height, proposedHeight != .infinity,
-            size.y <= max(1, LayoutSystem.roundSize(proposedHeight)),
-            let line = oneLineHeight(), size.y < line
+            size.y >= max(1, LayoutSystem.roundSize(proposedHeight)),
+            let line = oneLineHeight(), line > 0
         {
-            // A height proposal shorter than one line still gets one line, as
-            // the comment above asks. AppKit's NSTextField sizes its cell to the
-            // bounds it is given, so a zero height proposal (sent as 1) came back
-            // 1 pt tall and P10's captions above its fixed-size buttons were
-            // never drawn, the buttons rising into their place (2026-10-16).
-            // Only measured when the backend's answer filled the proposal, which
-            // is the clamped case.
-            // 比一行還矮的高度提議仍得到一行，如上方註解所要求。AppKit 的 NSTextField 會把 cell 定為
-            // 所給的框，因此零高度的提議(以 1 送出)回來時只有 1 pt 高，P10 固定尺寸按鈕上方的說明文字
-            // 從未畫出，按鈕往上移進它的位置(2026-10-16)。只在 backend 的答案填滿提議時(即被壓住的情況)
-            // 才多量一次。
-            size.y = line
+            // A height the backend's answer filled is a clamped one, and it is
+            // whole lines: at least one, as the comment above asks, and no part
+            // of a line, as SwiftUI shows only the lines that fit.
+            //
+            // At least one: AppKit's NSTextField sizes its cell to the bounds it
+            // is given, so a zero height proposal (sent as 1) came back 1 pt tall
+            // and P10's captions above its fixed-size buttons were never drawn,
+            // the buttons rising into their place. No partial line: a table cell
+            // proposed one row's height came back that height, and AppKit drew a
+            // wrapped cell's second line half cut off below the first, where
+            // GtkBackend ends the first line with an ellipsis (P23, 2026-10-16).
+            // A frame of whole lines lets NSTextField's truncatesLastVisibleLine
+            // do the same.
+            //
+            // 被 backend 的答案填滿的高度就是被壓住的高度，而它必須是整行：至少一行(如上方註解所要求),
+            // 而且不留半行(SwiftUI 只顯示放得下的行)。
+            //
+            // 至少一行:AppKit 的 NSTextField 會把 cell 定為所給的框，因此零高度的提議(以 1 送出)回來時
+            // 只有 1 pt 高,P10 固定尺寸按鈕上方的說明文字從未畫出，按鈕往上移進它的位置。不留半行：被提議
+            // 一列高度的表格儲存格回來時就是那個高度,AppKit 把換行儲存格的第二行畫在第一行下方、被切掉一半，
+            // 而 GtkBackend 是以刪節號結束第一行(P23,2026-10-16)。整行的框讓 NSTextField 的
+            // truncatesLastVisibleLine 也能這樣做。
+            size.y = max(line, size.y / line * line)
         }
 
         // The line limit, applied here rather than in each backend.
