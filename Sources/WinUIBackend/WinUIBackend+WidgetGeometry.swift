@@ -25,6 +25,14 @@ extension WinUIBackend: BackendFeatures.WidgetGeometry {
     /// 東西是否如下方所寫——形狀是對的，名字未必。
     public func originInWindow(ofWidget widget: Widget) -> SIMD2<Int>? {
         guard let root = widget.xamlRoot?.content else { return nil }
+        // Canvas positions take effect at the next layout pass, so a transform
+        // read straight after a commit would be the last layout's -- the stale
+        // read AppKitBackend measured on P100 (2026-10-17). Run the pass first,
+        // as `setChild(ofWindow:to:)` does with `updateLayout`.
+        // Canvas 的位置在下一次排版時才生效，所以 commit 之後立刻讀到的 transform 會是上一次排版的
+        // ——正是 AppKitBackend 在 P100 上量到的過期讀數(2026-10-17)。先跑排版，與 `setChild(ofWindow:to:)`
+        // 以 `updateLayout` 所做的相同。
+        try? root.updateLayout()
         guard let transform = try? widget.transformToVisual(root) else { return nil }
         // `transformPoint` throws TOO. The version that arrived had `try?` on
         // `transformToVisual` and none here, which is the whole of the build

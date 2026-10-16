@@ -27,6 +27,16 @@ extension AppKitBackend: BackendFeatures.WidgetGeometry {
     /// 於是這個錯誤讀起來會像是呼叫端的版面 bug，而不像一個從未被轉換過的軸。
     public func originInWindow(ofWidget widget: Widget) -> SIMD2<Int>? {
         guard let window = widget.window else { return nil }
+        // Positions here are Auto Layout constants (`setPosition` sets a
+        // constraint), so a frame read straight after a commit is the LAST
+        // layout's. Flushing the pass first is what UIKitBackend does with
+        // `layoutIfNeeded`. Without it P100 measured every block where it had
+        // been, right after the reorder, and the flip started an update late
+        // (2026-10-17).
+        // 這裡的位置是 Auto Layout 常數(`setPosition` 設的是 constraint),所以 commit 之後立刻讀到的
+        // frame 是**上一次**排版的。先把排版跑完，正是 UIKitBackend 以 `layoutIfNeeded` 所做的事。少了它，
+        // P100 在重排之後量到的每個方塊都還在原位,flip 晚了一次更新才開始(2026-10-17)。
+        window.contentView?.layoutSubtreeIfNeeded()
         let inWindow = widget.convert(NSPoint.zero, to: nil)
         // The top edge of the widget, which in AppKit's flipped-up world is the
         // corner with the LARGER y unless the view itself is flipped.

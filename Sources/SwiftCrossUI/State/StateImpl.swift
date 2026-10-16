@@ -69,6 +69,14 @@ struct StateImpl<Storage: StateStorageProtocol> {
                 return
             }
 
+            // Inside withAnimation but with no value in between: what animates
+            // instead is the layout it changes (matchedGeometryEffect), in the
+            // update that applies it -- see LayoutTransaction.
+            // 在 withAnimation 內、但沒有中間值：改為由它所改變的版面來動畫(matchedGeometryEffect),
+            // 於套用它的那次更新中——見 LayoutTransaction。
+            if let animation = currentAnimation {
+                LayoutTransaction.arm(animation)
+            }
             cancelAnyAnimation()
             storage.value = newValue
             storage.postSet()

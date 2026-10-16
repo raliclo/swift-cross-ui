@@ -81,8 +81,20 @@ public final class AnimationDriver: @unchecked Sendable {
     /// 繼續，而不是讓兩個補間去爭奪同一份儲存——而那正是「使用者連續拖了兩次」時，「中途再設一次值」
     /// 看起來的樣子。
     func start(key: UUID, animation: Animation, apply: @escaping (Double) -> Void) {
+        start(key: key, animation: animation, group: AnimationTransaction.group, apply: apply)
+    }
+
+    /// The same, joining `group` rather than the current `withAnimation`'s: a
+    /// flip starts in the update after its `withAnimation` has returned.
+    /// 同上，但加入 `group` 而非目前這個 `withAnimation` 的群組:flip 是在它的 `withAnimation` 返回之後的
+    /// 那次更新裡才啟動的。
+    func start(
+        key: UUID,
+        animation: Animation,
+        group: AnimationGroup?,
+        apply: @escaping (Double) -> Void
+    ) {
         tweens[key]?.group?.tweenEnded()
-        let group = AnimationTransaction.group
         group?.tweenStarted()
         tweens[key] = Tween(animation: animation, startTime: nil, apply: apply, group: group)
         startClockIfNeeded()
@@ -165,6 +177,16 @@ public final class AnimationDriver: @unchecked Sendable {
     }
 
     private func tick(at timestamp: Double) {
+        // Callbacks after EVERY tween of the frame has written, so an onUpdate
+        // reads one consistent frame. Reported per tween, the first tween's
+        // callback saw the others a frame behind: P100's mid-flight probe read
+        // three blocks 3 points behind the fourth, one 60 Hz frame (2026-10-17).
+        // GSAP's onUpdate also fires after the render.
+        // 回呼在這一幀**每個**補間都寫入之後才觸發，讓 onUpdate 讀到一致的一幀。逐補間回報時，第一個補間的
+        // 回呼看到的其他補間落後一幀:P100 的飛行中探針讀到三個方塊落後第四個 3 點，正好是 60 Hz 的一幀
+        // (2026-10-17)。GSAP 的 onUpdate 也是在算繪之後觸發。
+        var reports: [(AnimationGroup, TweenClock.State)] = []
+        var ended: [AnimationGroup] = []
         for (key, tween) in tweens {
             var tween = tween
             // The clock's origin is the backend's, so the first tick is what
@@ -179,7 +201,9 @@ public final class AnimationDriver: @unchecked Sendable {
                 tween.startTime = timestamp
                 tweens[key] = tween
                 tween.apply(0)
-                tween.group?.report(TweenClock(tween.animation).state(at: 0), at: timestamp)
+                if let group = tween.group {
+                    reports.append((group, TweenClock(tween.animation).state(at: 0)))
+                }
                 continue
             }
 
@@ -190,10 +214,18 @@ public final class AnimationDriver: @unchecked Sendable {
             } else {
                 tween.apply(state.progress)
             }
-            tween.group?.report(state, at: timestamp)
-            if state.isFinished {
-                tween.group?.tweenEnded()
+            if let group = tween.group {
+                reports.append((group, state))
+                if state.isFinished {
+                    ended.append(group)
+                }
             }
+        }
+        for (group, state) in reports {
+            group.report(state, at: timestamp)
+        }
+        for group in ended {
+            group.tweenEnded()
         }
         // Tickers after the tweens, so a timeline renders on top of a tween started in the
         // same frame, as the later of two writes to one state wins anywhere else.

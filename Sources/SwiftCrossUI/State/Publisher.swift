@@ -139,7 +139,15 @@ public class Publisher {
                     // Run the closure and while we're at it measure how long it takes
                     // so that we can use it when throttling if updates start backing up.
                     let start = ProcessInfo.processInfo.systemUptime
+                    // A layout change this update applies is animated when a
+                    // withAnimation armed one, and work that waits for the
+                    // widgets' positions runs before the frame is drawn. See
+                    // LayoutTransaction. / 若有 withAnimation 上膛，這次更新套用的版面改變會帶動畫;
+                    // 等待 widget 位置的工作在這一幀畫出之前執行。見 LayoutTransaction。
+                    LayoutTransaction.beginUpdate()
                     action()
+                    LayoutSettleQueue.drain()
+                    LayoutTransaction.endUpdate()
                     let elapsed = ProcessInfo.processInfo.systemUptime - start
                     UpdateTimings.record(elapsed)
 
