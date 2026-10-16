@@ -117,23 +117,46 @@ extension Text: ElementaryView {
             environment: environment
         )
 
-        // The zero width proposal: one line, measured from one visible
-        // character so it is the line height of this font, at zero width. See
-        // above.
-        // 零寬度的提議：一行，以一個可見字元量測，所以是此字型的行高，寬度為零。見上方。
+        // One line of this font, measured from one visible character; nil for
+        // a string with none.
+        // 此字型的一行，以一個可見字元量測；字串中沒有可見字元時為 nil。
+        func oneLineHeight() -> Int? {
+            guard let first = transformedString.first(where: { !$0.isWhitespace }) else {
+                return nil
+            }
+            return backend.size(
+                of: String(first),
+                whenDisplayedIn: widget,
+                proposedWidth: nil,
+                proposedHeight: nil,
+                environment: environment
+            ).y
+        }
+
+        // The zero width proposal: one line at zero width. See above.
+        // 零寬度的提議：一行，寬度為零。見上方。
         if proposedSize.width == 0 {
-            if let first = transformedString.first(where: { !$0.isWhitespace }) {
-                let line = backend.size(
-                    of: String(first),
-                    whenDisplayedIn: widget,
-                    proposedWidth: nil,
-                    proposedHeight: nil,
-                    environment: environment
-                )
-                size = SIMD2(0, line.y)
+            if let line = oneLineHeight() {
+                size = SIMD2(0, line)
             } else if size.x == 1 {
                 size.x = 0
             }
+        } else if let proposedHeight = proposedSize.height, proposedHeight != .infinity,
+            size.y <= max(1, LayoutSystem.roundSize(proposedHeight)),
+            let line = oneLineHeight(), size.y < line
+        {
+            // A height proposal shorter than one line still gets one line, as
+            // the comment above asks. AppKit's NSTextField sizes its cell to the
+            // bounds it is given, so a zero height proposal (sent as 1) came back
+            // 1 pt tall and P10's captions above its fixed-size buttons were
+            // never drawn, the buttons rising into their place (2026-10-16).
+            // Only measured when the backend's answer filled the proposal, which
+            // is the clamped case.
+            // 比一行還矮的高度提議仍得到一行，如上方註解所要求。AppKit 的 NSTextField 會把 cell 定為
+            // 所給的框，因此零高度的提議(以 1 送出)回來時只有 1 pt 高，P10 固定尺寸按鈕上方的說明文字
+            // 從未畫出，按鈕往上移進它的位置(2026-10-16)。只在 backend 的答案填滿提議時(即被壓住的情況)
+            // 才多量一次。
+            size.y = line
         }
 
         // The line limit, applied here rather than in each backend.
