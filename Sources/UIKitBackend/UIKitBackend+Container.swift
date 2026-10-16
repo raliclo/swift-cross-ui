@@ -3,6 +3,10 @@ import UIKit
 
 final class ScrollWidget: ContainerWidget {
     var scrollView = UIScrollView()
+    /// For `ScrollOffsetReporting`: the observation and the handler it calls.
+    /// 供 `ScrollOffsetReporting` 使用：觀察本身與它呼叫的 handler。
+    var offsetObservation: NSKeyValueObservation?
+    var offsetHandler: (@MainActor (SIMD2<Double>) -> Void)?
     private var childWidthConstraint: NSLayoutConstraint?
     private var childHeightConstraint: NSLayoutConstraint?
 

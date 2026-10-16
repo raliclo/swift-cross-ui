@@ -33,18 +33,37 @@ extension AppKitBackend {
             child.isDescendant(of: container)
         else { return }
 
-        guard let anchor, let document = container.documentView else {
+        guard let anchor, container.documentView != nil else {
             child.scrollToVisible(child.bounds)
             return
         }
 
-        let frame = child.convert(child.bounds, to: document)
-        let clip = container.contentView.bounds.size
+        // In the CLIP view's bounds coordinates, which is what `scroll(to:)`
+        // takes. The document's own coordinates were used before, and they are
+        // not the clip's: the document (a non-flipped NSStackView) sits at
+        // y -700 in a 300-point clip when its content is 1000 tall, its top
+        // pinned to the clip's top. P101's scrollTo(3, anchor: .center) then
+        // scrolled to y 675, past the content, and showed an empty scroll view
+        // (2026-10-17). The anchor's y counts from the top, so a non-flipped
+        // clip places the child's top edge (maxY) rather than its minY.
+        // 使用 **clip view** 的 bounds 座標，那正是 `scroll(to:)` 所接受的。先前用的是文件自己的座標，而它們
+        // 不是 clip 的：內容 1000 高時，文件(未 flipped 的 NSStackView)位於 300 點高 clip 的 y -700,頂端由
+        // constraint 釘在 clip 頂端。於是 P101 的 scrollTo(3, anchor: .center) 捲到 y 675,超出內容，畫面上是
+        // 一個空的捲動視圖(2026-10-17)。anchor 的 y 從頂端算起，所以未 flipped 的 clip 對齊的是子元件的上緣
+        // (maxY)而非 minY。
+        let clipView = container.contentView
+        let frame = child.convert(child.bounds, to: clipView)
+        let clip = clipView.bounds.size
+        let slackX = (clip.width - frame.width) * CGFloat(anchor.x)
+        let slackY = (clip.height - frame.height) * CGFloat(anchor.y)
         let target = NSPoint(
-            x: frame.minX - (clip.width - frame.width) * CGFloat(anchor.x),
-            y: frame.minY - (clip.height - frame.height) * CGFloat(anchor.y)
+            x: frame.minX - slackX,
+            y: clipView.isFlipped
+                ? frame.minY - slackY
+                : frame.maxY + slackY - clip.height
         )
-        container.contentView.scroll(to: target)
-        container.reflectScrolledClipView(container.contentView)
+        let constrained = clipView.constrainBoundsRect(NSRect(origin: target, size: clip)).origin
+        clipView.scroll(to: constrained)
+        container.reflectScrolledClipView(clipView)
     }
 }

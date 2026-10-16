@@ -546,6 +546,18 @@ extension EnvironmentValues {
     /// 的原因:該 modifier 會檢查這個值然後直接返回。
     @Entry public var scrollAnchors: ScrollAnchorRegistry?
 
+    /// The innermost ScrollView's geometry, which `scrollTransition` and
+    /// `onScrollVisibilityChange` read; `nil` outside a ScrollView.
+    /// 最內層 ScrollView 的幾何，供 `scrollTransition` 與 `onScrollVisibilityChange` 讀取;不在
+    /// ScrollView 內時為 `nil`。
+    @Entry internal var scrollGeometryHub: ScrollGeometryHub? = nil
+
+    /// `onScrollGeometryChange` registrations waiting for the ScrollView they
+    /// were applied to; each ScrollView takes them and clears them for its content.
+    /// 等待其所套用之 ScrollView 的 `onScrollGeometryChange` 登記;每個 ScrollView 取走它們，並為自己的
+    /// 內容清空。
+    @Entry internal var scrollGeometryObservers: [ScrollGeometryObserver] = []
+
     /// The scale factor of the current window.
     @Entry public var windowScaleFactor: Double = 1
 

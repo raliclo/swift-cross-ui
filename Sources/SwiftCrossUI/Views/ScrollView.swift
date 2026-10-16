@@ -25,14 +25,18 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
         environment: EnvironmentValues
     ) -> ScrollViewChildren<Content> {
         // TODO: Verify that snapshotting works correctly with this
+        let hub = ScrollGeometryHub()
         return ScrollViewChildren(
             wrapping: TupleViewChildren1(
                 body,
                 backend: backend,
                 snapshots: snapshots,
                 environment: environment
+                    .with(\.scrollGeometryHub, hub)
+                    .with(\.scrollGeometryObservers, [])
             ),
-            backend: backend
+            backend: backend,
+            hub: hub
         )
     }
 
@@ -57,6 +61,12 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // The content sees this scroll view's hub, and none of the
+        // onScrollGeometryChange actions meant for this scroll view.
+        // 內容看到的是本捲動視圖的 hub,而看不到要給本捲動視圖的 onScrollGeometryChange 動作。
+        let environment = environment
+            .with(\.scrollGeometryHub, children.hub)
+            .with(\.scrollGeometryObservers, [])
         // If all scroll axes are unspecified, then our size is exactly that of
         // the child view. This includes when we have no scroll axes.
         let willEarlyExit = Axis.allCases.allSatisfy({ axis in
@@ -249,11 +259,36 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
             // 得以安全的原因。
             backend.scrollContainer(widget, to: child.into(), anchor: anchor)
         }
+
+        // GSAP's ScrollTrigger: the hub hands this scroll view's geometry to the
+        // scrollTransition and onScrollVisibilityChange views inside it and to
+        // the onScrollGeometryChange actions applied to it.
+        // GSAP 的 ScrollTrigger:hub 把本捲動視圖的幾何交給內部的 scrollTransition 與
+        // onScrollVisibilityChange view,以及套用在它身上的 onScrollGeometryChange 動作。
+        let hub = children.hub
+        hub.axes = axes
+        hub.setObservers(environment.scrollGeometryObservers)
+        let innerContainer = children.innerContainer
+        hub.contentOrigin = {
+            GeometryReader<EmptyView>.originInWindow(
+                of: innerContainer.into() as Backend.Widget,
+                backend: backend
+            )
+        }
+        let offset = ScrollOffsets.connect(widget, backend: backend, hub: hub)
+        hub.update(
+            contentOffset: offset,
+            contentSize: finalContentSize,
+            containerSize: scrollViewSize
+        )
     }
 }
 
 class ScrollViewChildren<Content: View>: ViewGraphNodeChildren {
     var children: TupleView1<VStack<Content>>.Children
+    /// This scroll view's geometry and its listeners (scrollTransition and co.).
+    /// 本捲動視圖的幾何與其聆聽者(scrollTransition 等)。
+    let hub: ScrollGeometryHub
     var innerContainer: AnyWidget
 
     var hasVerticalScrollBar = false
@@ -275,11 +310,13 @@ class ScrollViewChildren<Content: View>: ViewGraphNodeChildren {
 
     init<Backend: BaseAppBackend>(
         wrapping children: TupleView1<VStack<Content>>.Children,
-        backend: Backend
+        backend: Backend,
+        hub: ScrollGeometryHub
     ) {
         self.children = children
         let innerContainer = backend.createContainer()
         backend.insert(children.child0.widget.into(), into: innerContainer, at: 0)
         self.innerContainer = AnyWidget(innerContainer)
+        self.hub = hub
     }
 }

@@ -36,7 +36,12 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
     // 在它 360 點高的清單裡拖曳，移動的是整個頁面（標題 y 404 -> 109），而清單頂端仍是「Row 0」。
     // 啟用之後，內層先捲，捲不動的部分——在任一端——再交給頁面。
     private val verticalScrollView =
-        ScrollView(activity).apply {
+        object : ScrollView(activity) {
+            override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+                super.onScrollChanged(l, t, oldl, oldt)
+                scrollAction?.call()
+            }
+        }.apply {
             layoutParams =
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -47,7 +52,12 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
         }
 
     private val horizontalScrollView =
-        HorizontalScrollView(activity).apply {
+        object : HorizontalScrollView(activity) {
+            override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+                super.onScrollChanged(l, t, oldl, oldt)
+                scrollAction?.call()
+            }
+        }.apply {
             layoutParams =
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -58,6 +68,30 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
         }
 
     private var isVerticalScrollViewAdded = false
+
+    /**
+     * Called after every scroll of either scroll view, for
+     * `ScrollOffsetReporting` (scrollTransition and co.). Swift reads the
+     * offset back through [contentOffsetX] / [contentOffsetY], because a
+     * `SwiftAction` takes no arguments -- the shape `FrameClockCallback` uses.
+     * `onScrollChanged` rather than `setOnScrollChangeListener`, which is
+     * API 23 and this backend also builds for API 18.
+     *
+     * 任一捲動視圖每次捲動後呼叫，供 `ScrollOffsetReporting`(scrollTransition 等)使用。Swift 透過
+     * [contentOffsetX] / [contentOffsetY] 讀回位移，因為 `SwiftAction` 不帶參數——與
+     * `FrameClockCallback` 相同的形狀。用 `onScrollChanged` 而非 `setOnScrollChangeListener`,
+     * 後者需要 API 23,而本 backend 也為 API 18 建置。
+     */
+    private var scrollAction: SwiftAction? = null
+
+    fun setScrollAction(action: SwiftAction?) {
+        scrollAction = action
+    }
+
+    /** Pixels; 0 on an axis that is not scrolling. / 像素;未捲動的軸為 0。 */
+    fun contentOffsetX(): Int = if (isHorizontalScrollViewAdded) horizontalScrollView.scrollX else 0
+
+    fun contentOffsetY(): Int = if (isVerticalScrollViewAdded) verticalScrollView.scrollY else 0
     private var isHorizontalScrollViewAdded = false
 
     fun updateScroll(vertical: Boolean, horizontal: Boolean) {
