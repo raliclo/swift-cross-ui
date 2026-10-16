@@ -3973,7 +3973,9 @@ public final class GtkBackend:
     public func createScrollContainer(for child: Widget) -> Widget {
         let scrollView = ScrolledWindow()
         scrollView.setChild(child)
-        return scrollView
+        // Wrapped, so `.refreshable` can float a button over it (ScrollContainer).
+        // 包起來，讓 `.refreshable` 能在上方浮一顆按鈕(ScrollContainer)。
+        return ScrollContainer(scrollView)
     }
 
     public func updateScrollContainer(
@@ -3984,7 +3986,7 @@ public final class GtkBackend:
         hasHorizontalScrollBar: Bool,
         hasVerticalScrollBar: Bool
     ) {
-        let scrollView = scrollView as! ScrolledWindow
+        guard let scrollView = Self.scrolledWindow(of: scrollView) else { return }
         scrollView.setScrollBarPresence(
             hasVerticalScrollBar: hasVerticalScrollBar,
             hasHorizontalScrollBar: hasHorizontalScrollBar

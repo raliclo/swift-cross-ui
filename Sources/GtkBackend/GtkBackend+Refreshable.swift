@@ -1,3 +1,4 @@
+import CGtk
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
@@ -36,7 +37,18 @@ extension GtkBackend {
         ofScrollContainer scrollView: Widget,
         to handler: (@MainActor @Sendable () -> Void)?
     ) {
-        guard let scrolledWindow = scrollView as? ScrolledWindow else { return }
+        guard let scrolledWindow = Self.scrolledWindow(of: scrollView) else { return }
+        // A visible Refresh button as well as the overshoot, as AppKit and WinUI
+        // float one in the corner: GTK emits `edge-overshot` for touch and kinetic
+        // scrolling, not for a mouse wheel on content that does not overflow, and
+        // P54 on GtkBackend on macOS stayed at "refreshes: 0" through two wheel
+        // turns past the top (2026-10-16) -- the case the note above foresaw.
+        // 除了 overshoot 之外再加一顆看得見的 Refresh 按鈕，與 AppKit、WinUI 浮在角落的那顆相同:GTK 只在觸控與
+        // 慣性捲動時發出 `edge-overshot`,內容沒有溢出時的滑鼠滾輪不會;P54 在 macOS 的 GtkBackend 上經過兩次越過
+        // 頂端的滾輪仍是「refreshes: 0」(2026-10-16)——正是上方註記預見的情況。
+        if let container = scrollView as? ScrollContainer {
+            container.setRefreshAction(handler)
+        }
 
         guard let handler else {
             Self.refreshHandlers[ObjectIdentifier(scrolledWindow)] = nil
@@ -83,4 +95,60 @@ extension GtkBackend {
 
     nonisolated(unsafe) static var refreshHandlers:
         [ObjectIdentifier: @MainActor @Sendable () -> Void] = [:]
+}
+
+extension GtkBackend {
+    /// The ScrolledWindow behind a scroll container widget. 捲動容器 widget 背後的 ScrolledWindow。
+    static func scrolledWindow(of widget: Widget) -> ScrolledWindow? {
+        (widget as? ScrollContainer)?.scrolled ?? (widget as? ScrolledWindow)
+    }
+}
+
+/// A scroll view's widget: a GtkOverlay holding the ScrolledWindow, so that a
+/// Refresh button can float over its top-leading corner without scrolling with
+/// the content. A GtkScrolledWindow lays out only its scrolled child, so the
+/// button cannot be its own child.
+/// 捲動視圖的 widget:一個包著 ScrolledWindow 的 GtkOverlay,讓 Refresh 按鈕能浮在左上角、不隨內容捲動。
+/// GtkScrolledWindow 只排它捲動的那個子元件，因此按鈕不能是它的子元件。
+final class ScrollContainer: Widget {
+    let scrolled: ScrolledWindow
+    private var refreshButton: Gtk.Button?
+    private var refreshAction: (@MainActor @Sendable () -> Void)?
+
+    init(_ scrolled: ScrolledWindow) {
+        self.scrolled = scrolled
+        super.init(OpaquePointer(gtk_overlay_new()))
+        gtk_overlay_set_child(OpaquePointer(widgetPointer), scrolled.widgetPointer)
+        // Setting the parent is what registers the child's signals (Widget.parentWidget).
+        // 設定 parent 才會註冊子元件的訊號(Widget.parentWidget)。
+        scrolled.parentWidget = self
+    }
+
+    /// Shows the Refresh button with `action`, or removes it for nil.
+    /// 以 `action` 顯示 Refresh 按鈕;nil 則移除它。
+    func setRefreshAction(_ action: (@MainActor @Sendable () -> Void)?) {
+        refreshAction = action
+        guard action != nil else {
+            if let refreshButton {
+                gtk_overlay_remove_overlay(OpaquePointer(widgetPointer), refreshButton.widgetPointer)
+                self.refreshButton = nil
+            }
+            return
+        }
+        guard refreshButton == nil else { return }
+        let button = Gtk.Button()
+        button.label = "Refresh"
+        gtk_widget_set_halign(button.widgetPointer, GTK_ALIGN_START)
+        gtk_widget_set_valign(button.widgetPointer, GTK_ALIGN_START)
+        gtk_widget_set_margin_start(button.widgetPointer, 6)
+        gtk_widget_set_margin_top(button.widgetPointer, 6)
+        gtk_widget_add_css_class(button.widgetPointer, "osd")
+        button.clicked = { [weak self] _ in
+            let action = self?.refreshAction
+            MainActor.assumeIsolated { action?() }
+        }
+        gtk_overlay_add_overlay(OpaquePointer(widgetPointer), button.widgetPointer)
+        button.parentWidget = self
+        refreshButton = button
+    }
 }

@@ -36,7 +36,7 @@ extension GtkBackend {
         to child: Widget,
         anchor: UnitPoint?
     ) {
-        guard let container = scrollView as? ScrolledWindow else { return }
+        guard let container = Self.scrolledWindow(of: scrollView) else { return }
         // Only a container that holds the child scrolls to it. GTK can compute
         // the child's position relative to ANY widget in the window, so without
         // this check every scroll view under a reader moved to the same offset:
