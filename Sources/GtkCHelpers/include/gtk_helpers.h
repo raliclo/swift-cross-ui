@@ -51,6 +51,17 @@ GtkWidget *gtk_passthrough_fixed_new(void);
 // 都仍可點擊。
 void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque);
 
+// Draws the children through a VisualEffect colour chain -- blur, saturation,
+// brightness, contrast, grayscale, hue rotation in degrees -- in the order and
+// with the grayscale AppKitBackend draws. Identity values turn it off. See
+// gtk_passthrough_fixed.c.
+// 讓子元件經過 VisualEffect 的色彩鏈繪製——模糊、飽和度、亮度、對比、灰階、以度為單位的色相旋轉——
+// 順序與灰階皆與 AppKitBackend 相同。全部為單位值時即關閉。詳見 gtk_passthrough_fixed.c。
+void gtk_passthrough_fixed_set_effect(
+    GtkWidget *widget, float blur, float saturation, float brightness, float contrast,
+    float grayscale, float hue_degrees
+);
+
 // A GtkDrawingArea that does not claim pointer events for a path it did not
 // fill. Implemented in gtk_passthrough_drawing_area.c, which records the
 // measurement it came from.

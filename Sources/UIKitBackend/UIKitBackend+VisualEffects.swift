@@ -154,15 +154,32 @@ final class VisualEffectWidget: BaseViewWidget {
 
         // Grayscale separately from saturation, because SwiftUI's
         // .grayscale(_:) takes an amount and has to be able to land halfway.
+        //
+        // And in linear light, unlike the filters around it, because that is
+        // the grey AppKitBackend draws -- its layer filters run in Core Image's
+        // linear working space -- and the user chose AppKit's (P39,
+        // 2026-10-16). This context has no working space, so the filter is
+        // wrapped in the sRGB curves by hand, and the tint is 0.5 grey already
+        // in linear (0.214). Checked against CIColorMonochrome in a linear
+        // context: (255, 103, 49) -> 102, mid grey 127 -> 85, both identical.
+        //
         // 灰階與飽和度分開處理，因為 SwiftUI 的 .grayscale(_:) 接受一個程度值，必須能停在中途。
+        //
+        // 而且與周圍的濾鏡不同，它在線性光中運算，因為那是 AppKitBackend 畫出的灰——它的 layer filter
+        // 在 Core Image 的線性工作空間中執行——而使用者選擇以 AppKit 為準(P39,2026-10-16)。本 context
+        // 沒有工作空間，所以手動以 sRGB 曲線包住濾鏡，上色值則直接給線性的 0.5 灰(0.214)。已對照線性
+        // context 中的 CIColorMonochrome:(255, 103, 49) -> 102、中灰 127 -> 85,兩者完全相同。
         if effect.grayscale != 0 {
-            if let monochrome = CIFilter(name: "CIColorMonochrome") {
+            if let toLinear = CIFilter(name: "CISRGBToneCurveToLinear"),
+                let monochrome = CIFilter(name: "CIColorMonochrome"),
+                let toSRGB = CIFilter(name: "CILinearToSRGBToneCurve")
+            {
                 monochrome.setValue(
-                    CIColor(red: 0.5, green: 0.5, blue: 0.5),
+                    CIColor(red: 0.21404, green: 0.21404, blue: 0.21404),
                     forKey: "inputColor"
                 )
                 monochrome.setValue(effect.grayscale, forKey: "inputIntensity")
-                colorFilters.append(monochrome)
+                colorFilters.append(contentsOf: [toLinear, monochrome, toSRGB])
             }
         }
 

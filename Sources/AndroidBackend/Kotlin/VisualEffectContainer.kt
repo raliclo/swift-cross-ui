@@ -4,7 +4,9 @@ import android.app.Activity
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.os.Build
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -73,10 +75,47 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // 使用 NSView.alphaValue，GtkBackend 則使用 gtk_widget_set_opacity。
         alpha = opacity
 
-        val matrix = colourMatrix(saturation, brightness, contrast, grayscale, hueRotationDegrees)
-        val colourEffect =
+        // Grayscale through a shader when the platform has one (API 33), so it
+        // is the grey AppKitBackend draws: CIColorMonochrome tinted 0.5 grey in
+        // Core Image's linear working space, which maps luminance through an
+        // overlay and comes out darker than saturation 0 -- the user chose
+        // AppKit's (P39, 2026-10-16). A ColorMatrix is linear in the sRGB
+        // values and cannot draw that curve, so on API 31 and 32 grayscale
+        // stays the desaturation in the matrix below, the same grey as
+        // saturation 0. Hue rotation then has to come after the shader, as on
+        // AppKit, so it moves to a matrix of its own.
+        //
+        // 平台有 shader 時(API 33)以 shader 繪製灰階，使它成為 AppKitBackend 畫出的那種灰：在 Core Image
+        // 線性工作空間中以 0.5 灰上色的 CIColorMonochrome,會把亮度經過 overlay 映射，比 saturation 0
+        // 更暗——使用者選擇以 AppKit 為準(P39,2026-10-16)。ColorMatrix 對 sRGB 數值是線性的，畫不出
+        // 那條曲線，因此在 API 31 與 32 上灰階仍是下方矩陣中的去飽和，與 saturation 0 同一種灰。色相旋轉
+        // 必須在 shader 之後(與 AppKit 相同),所以改用它自己的矩陣。
+        val greyShader =
+            if (grayscale != 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                RuntimeShader(GREY_SHADER).apply { setFloatUniform("amount", grayscale) }
+            else null
+        val matrix =
+            if (greyShader == null)
+                colourMatrix(saturation, brightness, contrast, grayscale, hueRotationDegrees)
+            else colourMatrix(saturation, brightness, contrast, 0f, 0f)
+        var colourEffect =
             if (matrix == null) null
             else RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(matrix))
+        if (greyShader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val grey = RenderEffect.createRuntimeShaderEffect(greyShader, "content")
+            colourEffect =
+                if (colourEffect == null) grey
+                else RenderEffect.createChainEffect(grey, colourEffect)
+            if (hueRotationDegrees != 0f) {
+                colourEffect =
+                    RenderEffect.createChainEffect(
+                        RenderEffect.createColorFilterEffect(
+                            ColorMatrixColorFilter(hueRotationMatrix(hueRotationDegrees))
+                        ),
+                        colourEffect,
+                    )
+            }
+        }
 
         // Blur before colour, so the blur reads the original pixels rather than
         // recoloured ones -- the order SwiftUI's .blur(radius:).saturation(0)
@@ -252,5 +291,47 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
                 0f,
             )
         )
+    }
+
+    companion object {
+        // CIColorMonochrome as Core Image runs it in a linear working space:
+        // decode sRGB, take luminance with its weights, overlay it against the
+        // tint c (0.5 grey, linear 0.21404) -- 2Lc below 0.5, 1 - 2(1 - L)(1 - c)
+        // above -- blend by `amount` in linear light, encode. Colours arrive
+        // premultiplied, so the curve runs on the unpremultiplied values.
+        //
+        // 依 Core Image 在線性工作空間中的方式實作 CIColorMonochrome:解碼 sRGB,以其權重取亮度，
+        // 對上色值 c(0.5 灰，線性 0.21404)做 overlay——0.5 以下為 2Lc,以上為 1 - 2(1 - L)(1 - c)——
+        // 在線性光中依 `amount` 混合，再編碼。顏色是預乘過的，所以曲線作用於還原後的數值。
+        private const val GREY_SHADER =
+            """
+            uniform shader content;
+            uniform float amount;
+
+            float decode(float v) {
+                return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4);
+            }
+
+            float encode(float v) {
+                return v <= 0.0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - 0.055;
+            }
+
+            half4 main(float2 position) {
+                half4 colour = content.eval(position);
+                if (colour.a == 0.0) {
+                    return colour;
+                }
+                float3 rgb = float3(colour.rgb) / float(colour.a);
+                float3 lin = float3(decode(rgb.r), decode(rgb.g), decode(rgb.b));
+                float luminance = dot(lin, float3(0.2125, 0.7154, 0.0721));
+                const float tint = 0.21404;
+                float grey = luminance < 0.5
+                    ? 2.0 * luminance * tint
+                    : 1.0 - 2.0 * (1.0 - luminance) * (1.0 - tint);
+                float3 mixed = mix(lin, float3(grey), amount);
+                float3 result = float3(encode(mixed.r), encode(mixed.g), encode(mixed.b));
+                return half4(half3(result * float(colour.a)), colour.a);
+            }
+            """
     }
 }

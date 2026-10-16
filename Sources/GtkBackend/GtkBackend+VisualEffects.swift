@@ -1,5 +1,6 @@
 import CGtk
 import Gtk
+import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
 extension GtkBackend: BackendFeatures.VisualEffects {
@@ -33,47 +34,25 @@ extension GtkBackend: BackendFeatures.VisualEffects {
         // 繼承，於是兩個重疊、各為 0.5 的子元件會互相透出——外觀明顯不同，而且是錯的。
         widget.opacity = effect.opacity
 
-        // Everything else is one CSS `filter`. Written as a single property
-        // because that is how CSS composes them: the functions apply in the
-        // order given, and setting `filter` twice replaces rather than combines.
+        // Everything else is drawn by the container itself, in its snapshot
+        // (gtk_passthrough_fixed.c): blur, saturation, brightness, contrast,
+        // grayscale, hue, in AppKitBackend's order. Not a CSS `filter` any
+        // more, because CSS `grayscale(1)` is the same grey as `saturate(0)`
+        // and AppKit's is darker -- the user chose AppKit's (P39, 2026-10-16)
+        // -- and because CSS `brightness()` multiplies where SwiftUI adds.
         //
-        // 其餘全部合併為一條 CSS `filter`。之所以寫成單一屬性，是因為 CSS 就是這樣組合它們的：
-        // 各個函式依所給順序套用，而重複設定 `filter` 是取代而非合併。
-        var functions: [String] = []
-
-        if effect.blurRadius != 0 {
-            functions.append("blur(\(effect.blurRadius)px)")
-        }
-        if effect.saturation != 1 {
-            functions.append("saturate(\(effect.saturation))")
-        }
-        if effect.brightness != 0 {
-            // SwiftUI's brightness adds to each channel and is neutral at 0;
-            // CSS multiplies and is neutral at 1. Converting rather than passing
-            // it through, or `.brightness(0)` -- the value that means "do
-            // nothing" -- would render the view black.
-            //
-            // SwiftUI 的 brightness 是對每個通道做加法、以 0 為中性值；CSS 則是乘法、以 1 為中性
-            // 值。此處必須換算而非直接傳遞，否則 `.brightness(0)`——那個代表「什麼都不做」的值——
-            // 會把 view 畫成全黑。
-            functions.append("brightness(\(1 + effect.brightness))")
-        }
-        if effect.contrast != 1 {
-            functions.append("contrast(\(effect.contrast))")
-        }
-        if effect.grayscale != 0 {
-            functions.append("grayscale(\(effect.grayscale))")
-        }
-        if effect.hueRotation != .zero {
-            functions.append("hue-rotate(\(effect.hueRotation.degrees)deg)")
-        }
-
-        if functions.isEmpty {
-            widget.css.set(property: .init(key: "filter", value: "none"))
-        } else {
-            widget.css.set(
-                property: .init(key: "filter", value: functions.joined(separator: " "))
-            )
-        }
+        // 其餘全部由容器自己在 snapshot 中繪製(gtk_passthrough_fixed.c):模糊、飽和度、亮度、對比、
+        // 灰階、色相，順序同 AppKitBackend。不再使用 CSS `filter`,因為 CSS 的 `grayscale(1)` 與
+        // `saturate(0)` 是同一種灰，而 AppKit 的更暗——使用者選擇以 AppKit 為準(P39,2026-10-16)——
+        // 也因為 CSS 的 `brightness()` 是乘法，而 SwiftUI 是加法。
+        gtk_passthrough_fixed_set_effect(
+            widget.widgetPointer,
+            Float(effect.blurRadius),
+            Float(effect.saturation),
+            Float(effect.brightness),
+            Float(effect.contrast),
+            Float(effect.grayscale),
+            Float(effect.hueRotation.degrees)
+        )
     }
 }
