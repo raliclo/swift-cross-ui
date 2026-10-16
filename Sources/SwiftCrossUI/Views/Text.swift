@@ -89,12 +89,16 @@ extension Text: ElementaryView {
         // propose zero in either dimension and then fix up the resulting size
         // to match our expectations.
         //
-        // Our desired behaviour is for a zero width proposal to result in at least
-        // one line's worth of height (for a non-empty string). Furthermore, if
-        // proposed more than one line's worth of height, then a zero width
-        // proposal should result in height equivalent to however many lines are
-        // required to put each character of the text on a new line (excluding
-        // whitespace).
+        // A zero width proposal results in one line's worth of height for a
+        // non-empty string, clipped to zero width -- what AppKit's NSTextField
+        // measures (width 0 or 1 gives one 16 pt line). The user chose that over
+        // the one-character-per-line column this comment used to ask for (P9,
+        // 2026-10-16): UIKitBackend drew that column, clipped to nothing, as
+        // about 300 pt of empty space above P9's buttons.
+        //
+        // 零寬度的提議，對非空字串得到一行的高度、裁切成零寬——那是 AppKit 的 NSTextField 量出的結果
+        // (寬 0 或 1 得到一行 16 pt)。使用者選擇了它，而不是這段註解原本要求的「一個字元一行」的直欄
+        // (P9,2026-10-16):UIKitBackend 畫出的就是那種直欄，被裁到看不見，在 P9 的按鈕上方留下約 300 pt 的空白。
         //
         // A zero height proposal should result in the text using at least one
         // line of height (if non-empty).
@@ -113,10 +117,23 @@ extension Text: ElementaryView {
             environment: environment
         )
 
-        // If the proposed width was 0 and the resuling width was 1, then set the
-        // resulting width to 0. See above for more detail.
-        if proposedSize.width == 0 && size.x == 1 {
-            size.x = 0
+        // The zero width proposal: one line, measured from one visible
+        // character so it is the line height of this font, at zero width. See
+        // above.
+        // 零寬度的提議：一行，以一個可見字元量測，所以是此字型的行高，寬度為零。見上方。
+        if proposedSize.width == 0 {
+            if let first = transformedString.first(where: { !$0.isWhitespace }) {
+                let line = backend.size(
+                    of: String(first),
+                    whenDisplayedIn: widget,
+                    proposedWidth: nil,
+                    proposedHeight: nil,
+                    environment: environment
+                )
+                size = SIMD2(0, line.y)
+            } else if size.x == 1 {
+                size.x = 0
+            }
         }
 
         // The line limit, applied here rather than in each backend.
