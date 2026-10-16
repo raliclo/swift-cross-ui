@@ -61,6 +61,20 @@ public struct GeometryReader<Content: View>: TypeSafeView, View {
     ) -> ViewLayoutResult {
         let size = proposedSize.replacingUnspecifiedDimensions(by: ViewSize(10, 10))
 
+        // A probe is answered with the size alone, as SwiftUI's GeometryReader does:
+        // its size is the proposal whatever the content is, so building the content
+        // for a stack's minimum or maximum probe only handed the closure a size it
+        // was never given. P14 logged "0 -> 388 -> 0 -> 388" on AppKit and GTK alike,
+        // one 0 per relayout, from the stacks' zero-proposal probes (2026-10-16).
+        // The final pass, which runs without layout caching, builds the content.
+        // 探測只回答尺寸，與 SwiftUI 的 GeometryReader 相同：不論內容是什麼，它的尺寸就是提議值，因此為堆疊的
+        // 最小或最大探測建構內容，只會把一個它從未真正得到的尺寸交給 closure。P14 在 AppKit 與 GTK 上都記下
+        // 「0 -> 388 -> 0 -> 388」,每次重新排版一個 0,來自堆疊以零提議所做的探測(2026-10-16)。最終那一趟
+        // (不使用版面快取)才建構內容。
+        if environment.allowLayoutCaching {
+            return ViewLayoutResult(size: size, childResults: [])
+        }
+
         // Where this reader sits, taken from what COMMIT last learned.
         //
         // Not asked here, and that is the whole of the ordering problem: at
