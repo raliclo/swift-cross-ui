@@ -150,12 +150,12 @@ public final class AnimationDriver: @unchecked Sendable {
                 continue
             }
 
-            let elapsed = timestamp - startTime
-            if tween.animation.duration <= 0 || elapsed >= tween.animation.duration {
+            let state = TweenClock(tween.animation).state(at: timestamp - startTime)
+            if state.isFinished {
                 tweens[key] = nil
                 tween.apply(1)
             } else {
-                tween.apply(tween.animation.curve.progress(at: elapsed / tween.animation.duration))
+                tween.apply(state.progress)
             }
         }
         stopClockIfIdle()
