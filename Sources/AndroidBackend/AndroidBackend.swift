@@ -1162,7 +1162,18 @@ public final class AndroidBackend: BaseAppBackend {
     /// 或按一個會讓狀態文字變長的控制項，結果相同。`adb shell input tap` 也一樣，因此這從來就不是
     /// 動作檔機制的問題。詳見 `bugs/bug-Android.md`。
     static func layoutLength(_ points: Int, density: Float) -> Int32 {
-        points < 0 ? Int32(points) : Int32(Float(points) * density)
+        // Rounded up, while positions are truncated: a view then always reaches the
+        // next one's left edge, so two adjacent views never leave an unpainted
+        // column between them. Both truncated left one: P95's strip at density
+        // 2.625 drew a light 1 px seam at 120 dp, where a view at 60 dp ended at
+        // pixel 314 (157 + 157) and the next began at 315 (2026-10-16). The cost is
+        // at most a 1 px overlap. The 0.001 keeps an exact product (120 x 2.625 =
+        // 315) from rounding up by float error.
+        // 尺寸無條件進位，位置則截斷：如此一個 view 一定能接到下一個 view 的左緣，相鄰的兩個 view 之間不會留下一欄
+        // 沒畫到的像素。兩者都截斷時會留下一欄:P95 的色條在 density 2.625 下於 120 dp 處出現一條 1 px 的淺色縫，
+        // 位於 60 dp 的 view 結束於第 314 像素(157 + 157),下一個從 315 開始(2026-10-16)。代價最多是 1 px 的重疊。
+        // 0.001 讓剛好整除的乘積(120 x 2.625 = 315)不會因浮點誤差而進位。
+        points < 0 ? Int32(points) : Int32((Float(points) * density - 0.001).rounded(.up))
     }
 
     public func createSimpleButton() -> Widget {

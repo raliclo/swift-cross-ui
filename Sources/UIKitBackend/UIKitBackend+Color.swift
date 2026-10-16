@@ -47,9 +47,16 @@ extension Color.Resolved {
         )
     }
 
+    /// The colour in sRGB, the space `uiColor` uses. `CGColor(red:green:blue:alpha:)`
+    /// is Generic RGB: P95's one-colour gradient, drawn from these, read 216 99 81
+    /// beside its 204 77 64 swatch on the iPhone 17 simulator (2026-10-16), with
+    /// either a CGGradient or a CAGradientLayer.
+    /// sRGB,與 `uiColor` 相同的色彩空間。`CGColor(red:green:blue:alpha:)` 是 Generic RGB:
+    /// P95 以它畫的單色漸層在 iPhone 17 模擬器上讀到 216 99 81,旁邊的色塊是 204 77 64(2026-10-16),
+    /// 不論用 CGGradient 或 CAGradientLayer 都一樣。
     var cgColor: CGColor {
         CGColor(
-            red: CGFloat(red),
+            srgbRed: CGFloat(red),
             green: CGFloat(green),
             blue: CGFloat(blue),
             alpha: CGFloat(opacity)

@@ -201,9 +201,15 @@ extension Angle {
 }
 
 extension Color.Resolved {
+    /// The colour in sRGB, as `nsColor` and the path gradients' CGGradient are.
+    /// `CGColor(red:green:blue:alpha:)` is Generic RGB: 0.8 0.3 0.25 filled into an
+    /// sRGB context reads 216 99 81 instead of 204 77 64 (measured 2026-10-16), the
+    /// same shift P95 showed on UIKitBackend.
+    /// sRGB,與 `nsColor` 及路徑漸層的 CGGradient 相同。`CGColor(red:green:blue:alpha:)` 是 Generic RGB:
+    /// 0.8 0.3 0.25 填進 sRGB context 讀到 216 99 81 而不是 204 77 64(2026-10-16 實測),與 P95 在 UIKitBackend 上的偏移相同。
     var cgColor: CGColor {
         CGColor(
-            red: CGFloat(red),
+            srgbRed: CGFloat(red),
             green: CGFloat(green),
             blue: CGFloat(blue),
             alpha: CGFloat(opacity)
