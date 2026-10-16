@@ -74,6 +74,9 @@ struct P100App: App {
 final class P100Probe: @unchecked Sendable {
     var before: [AnyHashable: Path.Rect] = [:]
     var midLogged = false
+    /// Frames the flip drew (onUpdate calls): data for the compositor decision.
+    /// flip 畫了幾幀(onUpdate 次數):compositor 決策用的數據。
+    var frames = 0
     var started = 0.0
 }
 
@@ -253,6 +256,7 @@ struct P100RootView: View {
             }
             probe.started = uptime
             let animation = Animation.linear(duration: 1).onUpdate { p in
+                probe.frames += 1
                 guard !probe.midLogged, p >= 0.5 else { return }
                 probe.midLogged = true
                 record(
@@ -270,8 +274,9 @@ struct P100RootView: View {
             } completion: {
                 record(
                     String(
-                        format: "REVERSE DONE at %.2f err=%.2f; mid seen %@",
-                        uptime - probe.started, restError(blocks), probe.midLogged ? "yes" : "no"
+                        format: "REVERSE DONE at %.2f err=%.2f; mid seen %@; %ld frames drawn",
+                        uptime - probe.started, restError(blocks), probe.midLogged ? "yes" : "no",
+                        probe.frames
                     )
                 )
                 next(hero)
