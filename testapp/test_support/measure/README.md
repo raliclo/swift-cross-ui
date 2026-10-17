@@ -216,3 +216,43 @@ emulator, device pixels: `DOWN 160 356`, `sleep 0.9`, `MOVE 250 356`,
 `DOWN 300 560` up to `UP 100 472`, EDITOR `anchor 89 extent 3 backward`.
 Android 沒有工具檔：同一個按壓是幾行 `adb shell input motionevent`,寫成一個 sh 推到 /data/local/tmp 在裝置上一次
 執行，0.9 秒的按住才不會被 adb 往返拉長。座標與結果見上方英文。
+
+
+## `window_shots.swift` — 一支 app 的每一個畫面上視窗各拍一張(包括 sheet)
+
+```sh
+swiftc -O -o /tmp/window_shots testapp/test_support/measure/window_shots.swift
+/tmp/window_shots debugTarget /tmp/p103     # 擁有者名稱或 pid;每個視窗印一行並存成 /tmp/p103-<id>.png
+```
+
+`screencapture -l <視窗編號>` 拍的是視窗本身，不是螢幕上看到的樣子：被別的 app 蓋住也拍得到。測試執行器的最後
+擷圖按標題找視窗，所以 AppKit 的 sheet(另一個沒有標題的視窗)從來不在圖裡;整個螢幕的擷圖則會拍到前面別人的視窗
+(2026-10-17 是另一個 session 的 Android 模擬器)。在 showtime 期間執行一次，P103 長按叫出的選擇器就在
+`<id>.png` 裡:🏪 排第一、淺紫色。
+
+`screencapture -l` captures a window as it is, covered or not. The runner's
+final capture finds the window by title, so an AppKit sheet -- a second,
+untitled window -- never reached it, and a whole-screen capture showed another
+session's emulator in front (2026-10-17). Run once during showtime; P103's
+long-press picker sheet is one of the files.
+
+
+## `real_click.swift` — 一次真正的點擊，只在那一點屬於指定的 app 時
+
+```sh
+swiftc -O -o /tmp/real_click testapp/test_support/measure/real_click.swift
+/tmp/real_click 884 365 debugTarget     # 螢幕座標(點);那一點最上層的視窗不屬於 debugTarget 就拒絕
+```
+
+經 HID event tap 送出的移動、按下、放開，與手的點擊走同一條路。先查 `CGWindowListCopyWindowInfo`:那一點最上層的
+一般視窗若不屬於指定的擁有者就拒絕，不會點到別人的視窗。為 P103 而寫(2026-10-17):AppKitSynthesiser 以
+`NSApp.postEvent` 送進 sheet 視窗的點擊，到不了 sheet 裡的手勢辨識器(sheet 的 Button 則可以),所以「點選擇器裡的
+一格沒反應」可能是工具、也可能是元件。這支在同一格上點一次:`ROW 便利商店 emoji ⛽`、sheet 關閉——元件沒問題，
+是合成器到不了。
+
+One real HID click, refused unless the top window under the point belongs to
+the named owner. Written for P103 (2026-10-17): clicks posted into a sheet by
+AppKitSynthesiser did not reach a gesture recognizer there (the sheet's Button
+did), which leaves "the cell did nothing" ambiguous between the tool and the
+component. A real click on the same cell logged `ROW 便利商店 emoji ⛽` and
+closed the sheet: the component works; the synthesiser does not reach it.

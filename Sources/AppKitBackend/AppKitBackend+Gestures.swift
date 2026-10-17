@@ -89,7 +89,7 @@ extension AppKitBackend {
     }
 }
 
-final class NSCustomTapGestureTarget: NSView {
+final class NSCustomTapGestureTarget: NSView, NSGestureRecognizerDelegate {
     var leftClickHandler: (() -> Void)? {
         didSet {
             if leftClickHandler != nil && leftClickRecognizer == nil {
@@ -98,6 +98,7 @@ final class NSCustomTapGestureTarget: NSView {
                     action: #selector(leftClick)
                 )
                 addGestureRecognizer(gestureRecognizer)
+                gestureRecognizer.delegate = self
                 leftClickRecognizer = gestureRecognizer
             } else if leftClickHandler == nil, let leftClickRecognizer {
                 removeGestureRecognizer(leftClickRecognizer)
@@ -141,9 +142,9 @@ final class NSCustomTapGestureTarget: NSView {
         }
     }
 
-    private var leftClickRecognizer: NSClickGestureRecognizer?
+    var leftClickRecognizer: NSClickGestureRecognizer?
     private var rightClickRecognizer: NSClickGestureRecognizer?
-    private var longPressRecognizer: NSPressGestureRecognizer?
+    var longPressRecognizer: NSPressGestureRecognizer?
 
     @objc
     func leftClick() {
@@ -158,11 +159,27 @@ final class NSCustomTapGestureTarget: NSView {
     @objc
     func longPress(sender: NSPressGestureRecognizer) {
         // GTK emits the event once as soon as the gesture is recognized.
-        // AppKit emits it twice, once when it's recognized and once when you release the mouse button.
-        // For consistency, ignore the second event.
-        if sender.state != .ended {
+        // AppKit reports `.began`, then `.changed` for every mouse move while
+        // held, then `.ended`. Only `.began` is the long press; a press that
+        // wanders used to report several (2026-10-17, onTapAndLongPressGesture).
+        // GTK 在辨識成立時發出一次。AppKit 先報 `.began`,按住移動時每次報 `.changed`,最後 `.ended`。
+        // 只有 `.began` 才是長按;按住時移動過去會回報好幾次(2026-10-17,onTapAndLongPressGesture)。
+        if sender.state == .began {
             longPressHandler?()
         }
+    }
+
+    // With both a click and a long-press handler (onTapAndLongPressGesture),
+    // the click waits for the press recogniser to fail: released before
+    // 0.5 s, the press fails and the click fires at once; held, the press
+    // wins and the click never does. A long press is then not also a tap.
+    // 同時有點擊與長按 handler 時(onTapAndLongPressGesture),點擊要等長按辨識器失敗:0.5 秒內放開，長按
+    // 失敗、點擊立即觸發;按住不放則長按勝出、點擊永不觸發。長按因此不會同時算成點按。
+    func gestureRecognizer(
+        _ gestureRecognizer: NSGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: NSGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer === leftClickRecognizer && otherGestureRecognizer === longPressRecognizer
     }
 }
 

@@ -1,0 +1,52 @@
+action,x,y,origin,button,key,micros,note,platform
+# P103 on GtkBackend on macOS (TEST_BACKEND=gtk4), part 2: choose in the long-press picker, Add, delete, the 📍 pin,
+# the inline picker and a typed value.
+# Positions from the GTK window on 2026-10-17 (480x985 pt; origin=frame, 28 pt title bar): 便利商店's emoji 43,277;
+# in its sheet (drawn inside the window) the ⛽ cell 165,382; field 100,363, Add 233,363; 加油站's ✕ 255,321; pin 266,158;
+# inline picker's ⛽ cell 191,527 and its filter field 195,822.
+# Pass (p103-emoji.log): ROW 便利商店 picker; ROW 便利商店 emoji ⛽; ROW added bank #8e24aa; ROW removed 加油站;
+# PIN closed; PIN open; PICKER chose ⛽; PICKER chose bank (typed, no name matches).
+# Keys are 150 ms apart: sent back to back, GTK typed "bann" for b,a,n,k (2026-10-17). The window is 960 pt tall so a fourth
+# row does not resize it: GTK grows the window from its bottom-left corner on macOS, moving everything under the pinned origin.
+# P103 在 GtkBackend(macOS)上第二部分：在長按選擇器中選擇、新增、刪除、📍 釘選鈕、內嵌選擇器與輸入的值。通過條件見上方英文。
+sleep,,,,,,1500000,let P103 lay out,macos
+mousedown,43,277,frame,left,,,便利商店: press,macos
+sleep,,,,,,900000,held 0.9 s -- the picker opens,macos
+mouseup,43,277,frame,left,,,let go,macos
+sleep,,,,,,1200000,,macos
+click,165,382,frame,left,,,in the sheet: ⛽ -- chosen and the sheet closes,macos
+sleep,,,,,,1200000,,macos
+click,100,363,frame,left,,,the new keyword field,macos
+sleep,,,,,,300000,,macos
+key,,,,,b,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,a,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,n,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,k,,,macos
+sleep,,,,,,150000,,macos
+sleep,,,,,,300000,,macos
+click,233,363,frame,left,,,Add -- a fourth row: bank with the fourth palette colour,macos
+sleep,,,,,,1000000,,macos
+click,255,321,frame,left,,,✕ on 加油站,macos
+sleep,,,,,,1000000,,macos
+click,266,158,frame,left,,,the 📍 pin closes the list,macos
+sleep,,,,,,1000000,,macos
+click,266,158,frame,left,,,and opens it again,macos
+sleep,,,,,,1000000,,macos
+click,191,527,frame,left,,,inline picker: ⛽,macos
+sleep,,,,,,800000,,macos
+click,195,822,frame,left,,,inline picker's filter field,macos
+sleep,,,,,,300000,,macos
+key,,,,,b,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,a,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,n,,,macos
+sleep,,,,,,150000,,macos
+key,,,,,k,,,macos
+sleep,,,,,,150000,,macos
+sleep,,,,,,600000,the grid shows only 🏦,macos
+key,,,,,return,,Return takes the typed text as the emoji,macos
+sleep,,,,,,1500000,,macos

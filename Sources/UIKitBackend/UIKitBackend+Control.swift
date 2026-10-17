@@ -135,7 +135,7 @@ final class TextEditorWidget: WrapperWidget<UITextView>, UITextViewDelegate {
     }
 #endif
 
-final class TappableWidget: ContainerWidget {
+final class TappableWidget: ContainerWidget, UIGestureRecognizerDelegate {
     private var tapGestureRecognizer: UITapGestureRecognizer?
     private var longPressGestureRecognizer: UILongPressGestureRecognizer?
 
@@ -147,6 +147,7 @@ final class TappableWidget: ContainerWidget {
                     action: #selector(viewTouched)
                 )
                 child.view.addGestureRecognizer(gestureRecognizer)
+                gestureRecognizer.delegate = self
                 self.tapGestureRecognizer = gestureRecognizer
             } else if onTap == nil, let tapGestureRecognizer {
                 child.view.removeGestureRecognizer(tapGestureRecognizer)
@@ -166,7 +167,7 @@ final class TappableWidget: ContainerWidget {
                 self.longPressGestureRecognizer = gestureRecognizer
             } else if onLongPress == nil, let longPressGestureRecognizer {
                 child.view.removeGestureRecognizer(longPressGestureRecognizer)
-                self.onLongPress = nil
+                self.longPressGestureRecognizer = nil
             }
         }
     }
@@ -179,11 +180,24 @@ final class TappableWidget: ContainerWidget {
     @objc
     func viewLongPressed(sender: UILongPressGestureRecognizer) {
         // GTK emits the event once as soon as the gesture is recognized.
-        // UIKit emits it twice, once when it's recognized and once when you lift your finger.
-        // For consistency, ignore the second event.
-        if sender.state != .ended {
+        // UIKit reports `.began`, `.changed` for each move while held, then
+        // `.ended`; only `.began` is the long press.
+        // GTK 在辨識成立時發出一次。UIKit 報 `.began`、按住移動時每次 `.changed`、最後 `.ended`;只有 `.began` 是長按。
+        if sender.state == .began {
             onLongPress?()
         }
+    }
+
+    // With both handlers (onTapAndLongPressGesture) the tap waits for the long
+    // press to fail, so a held press is not also a tap. A delegate rather than
+    // `require(toFail:)`, which cannot be undone when a handler goes away.
+    // 兩個 handler 都在時(onTapAndLongPressGesture),點按要等長按失敗，所以按住不放不會同時是點按。用委派而非
+    // `require(toFail:)`,因為後者在 handler 移除時無法撤銷。
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer === tapGestureRecognizer && otherGestureRecognizer === longPressGestureRecognizer
     }
 }
 
