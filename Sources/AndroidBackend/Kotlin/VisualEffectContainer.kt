@@ -51,6 +51,10 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
     //
     // 一次呼叫帶入所有數值，因為該 protocol 是「取代整個效果」而非累加。若拆成七個 setter，每一個
     // 都必須依據其餘六個所記住的狀態重建整條鏈——那是同樣的工作量，卻多出一個讓兩者不一致的地方。
+    /// The non-opacity values the current RenderEffect was built from; null before the first.
+    /// 目前的 RenderEffect 所依據的、opacity 以外的數值;第一次之前為 null。
+    private var lastFilters: FloatArray? = null
+
     fun setVisualEffect(
         opacity: Float,
         blurRadius: Float,
@@ -74,6 +78,17 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // 的 alpha，每個後代會各自淡出，兩個半透明的同層元件會互相透出。AppKitBackend 基於同樣理由
         // 使用 NSView.alphaValue，GtkBackend 則使用 gtk_widget_set_opacity。
         alpha = opacity
+
+        // The direct path sets the effect every frame while opacity animates
+        // (EffectAnimation.swift). When nothing but the opacity changed, the
+        // RenderEffect already set still holds, so it is not rebuilt.
+        // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。除了 opacity 什麼都沒變時，
+        // 已設定的 RenderEffect 仍然適用，因此不重建。
+        val filters = floatArrayOf(blurRadius, saturation, brightness, contrast, grayscale, hueRotationDegrees)
+        if (filters.contentEquals(lastFilters)) {
+            return
+        }
+        lastFilters = filters
 
         // Grayscale through a shader when the platform has one (API 33), so it
         // is the grey AppKitBackend draws: CIColorMonochrome tinted 0.5 grey in

@@ -64,6 +64,9 @@ public final class AnimationDriver: @unchecked Sendable {
         /// The `withAnimation` that started it, for callbacks and completion.
         /// 啟動它的那個 `withAnimation`,用於回呼與 completion。
         var group: AnimationGroup?
+        /// Called once when the tween reaches its end (not when cancelled or replaced).
+        /// 補間抵達終點時呼叫一次(被取消或取代時不呼叫)。
+        var finish: (() -> Void)? = nil
     }
 
     private init() {}
@@ -92,11 +95,14 @@ public final class AnimationDriver: @unchecked Sendable {
         key: UUID,
         animation: Animation,
         group: AnimationGroup?,
-        apply: @escaping (Double) -> Void
+        apply: @escaping (Double) -> Void,
+        finish: (() -> Void)? = nil
     ) {
         tweens[key]?.group?.tweenEnded()
         group?.tweenStarted()
-        tweens[key] = Tween(animation: animation, startTime: nil, apply: apply, group: group)
+        tweens[key] = Tween(
+            animation: animation, startTime: nil, apply: apply, group: group, finish: finish
+        )
         startClockIfNeeded()
     }
 
@@ -171,6 +177,7 @@ public final class AnimationDriver: @unchecked Sendable {
         }
         for (key, tween) in tweens {
             tween.apply(1)
+            tween.finish?()
             tweens[key] = nil
             tween.group?.tweenEnded()
         }
@@ -211,6 +218,7 @@ public final class AnimationDriver: @unchecked Sendable {
             if state.isFinished {
                 tweens[key] = nil
                 tween.apply(1)
+                tween.finish?()
             } else {
                 tween.apply(state.progress)
             }

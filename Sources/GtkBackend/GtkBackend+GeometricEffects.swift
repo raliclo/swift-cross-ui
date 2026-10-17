@@ -19,6 +19,7 @@ extension GtkBackend: BackendFeatures.GeometricEffects {
         widget.css.set(property: CSSProperty(key: "transform-origin", value: "0px 0px"))
         guard transform != .identity else {
             widget.css.set(property: CSSProperty(key: "transform", value: "none"))
+            (widget.parentWidget as? Fixed)?.setChildMatrix(widget, nil)
             return
         }
 
@@ -227,6 +228,19 @@ extension GtkBackend: BackendFeatures.GeometricEffects {
     ) {
         let m = transform.linearTransform
         let t = transform.translation
+        // Inside a GtkFixed -- every SwiftCrossUI container is one -- the matrix
+        // goes on the parent's child transform: hit testing follows it as it does a
+        // CSS transform, and there is no style recalculation, which made CSS the
+        // larger part of each frame when the direct path animates many offsets
+        // (P96, 2026-10-17). See Fixed.setChildMatrix.
+        // 在 GtkFixed 之內(每個 SwiftCrossUI 容器都是)時，矩陣放在父容器的 child transform 上:hit testing
+        // 與 CSS transform 一樣跟著它，而且沒有樣式重算——直接路徑同時動很多 offset 時，CSS 曾是每幀的大半
+        // (P96,2026-10-17)。見 Fixed.setChildMatrix。
+        if let parent = widget.parentWidget as? Fixed {
+            widget.css.set(property: CSSProperty(key: "transform", value: "none"))
+            parent.setChildMatrix(widget, [m.x, m.z, m.y, m.w, t.x, t.y])
+            return
+        }
         widget.css.set(
             property: CSSProperty(
                 key: "transform",

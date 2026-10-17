@@ -75,14 +75,16 @@ struct VisualEffectModifier<Content: View>: View, TypeSafeView {
 
     var body: TupleView1<Content> { content }
 
-    typealias Children = TupleView1<Content>.Children
+    /// TupleView1's children with this modifier's tween (the direct path, see
+    /// EffectAnimation.swift). / TupleView1 的 children,加上本 modifier 的補間(直接路徑，見 EffectAnimation.swift)。
+    typealias Children = EffectModifierChildren<Content, VisualEffect>
 
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
     ) -> Children {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+        Children(content, backend: backend, snapshots: snapshots, environment: environment)
     }
 
     // Degrades to the unmodified view rather than aborting the process.
@@ -184,13 +186,15 @@ struct VisualEffectModifier<Content: View>: View, TypeSafeView {
         let size = children.child0.commit().size
         backend.setSize(of: widget, to: size.vector)
 
-        func apply<B: BaseAppBackend & BackendFeatures.VisualEffects>(backend: B) {
-            backend.setVisualEffect(effect, ofWidget: widget as! B.Widget)
-        }
-        guard let capable = backend as? any BaseAppBackend & BackendFeatures.VisualEffects
-        else {
+        // Drawn through the modifier's tween, as GeometricEffectModifier does
+        // (EffectAnimation.swift). / 經由本 modifier 的補間畫出，與 GeometricEffectModifier 相同。
+        guard let setter = VisualEffectWidgets.setter(for: widget, backend: backend) else {
             return
         }
-        apply(backend: capable)
+        let tween = children.tween ?? EffectTween<VisualEffect>()
+        children.tween = tween
+        tween.draw = setter
+        tween.diagnosticsLabel = environment.effectDiagnosticsLabel
+        tween.commit(effect, transaction: EffectTransaction.current(in: environment))
     }
 }

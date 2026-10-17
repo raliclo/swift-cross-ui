@@ -110,6 +110,9 @@ final class VisualEffectWidget: BaseViewWidget {
 
     private var blurRadius: Double = 0
     private var colorFilters: [CIFilter] = []
+    /// The non-opacity part of the last effect set; `nil` before the first.
+    /// 上次設定的效果中 opacity 以外的部分;第一次之前為 `nil`。
+    private var lastFilters: VisualEffect?
 
     private var hasImageEffects: Bool { blurRadius != 0 || !colorFilters.isEmpty }
 
@@ -133,6 +136,18 @@ final class VisualEffectWidget: BaseViewWidget {
         // 「讓每個後代各自淡出」的 per-layer 不透明度的理由。它同時也是 iOS 唯一真的會合成的效果，
         // 因此它不走影像那條路，也因而保持活的。
         alpha = CGFloat(effect.opacity)
+
+        // The direct path sets the effect every frame while opacity animates
+        // (EffectAnimation.swift). When nothing but the opacity changed, the
+        // filtered snapshot is still right, so it is not rendered again.
+        // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。除了 opacity 什麼都沒變時，
+        // 濾鏡後的快照仍然正確，因此不重新算繪。
+        var filters = effect
+        filters.opacity = 1
+        if filters == lastFilters {
+            return
+        }
+        lastFilters = filters
 
         blurRadius = effect.blurRadius
         colorFilters = []

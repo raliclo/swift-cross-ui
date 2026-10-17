@@ -154,14 +154,16 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
 
     var body: TupleView1<Content> { content }
 
-    typealias Children = TupleView1<Content>.Children
+    /// TupleView1's children with this modifier's tween (the direct path, see
+    /// EffectAnimation.swift). / TupleView1 的 children,加上本 modifier 的補間(直接路徑，見 EffectAnimation.swift)。
+    typealias Children = EffectModifierChildren<Content, GeometricEffect>
 
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
     ) -> Children {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+        Children(content, backend: backend, snapshots: snapshots, environment: environment)
     }
 
     // Degrades to the untransformed view rather than aborting the process.
@@ -258,16 +260,19 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
         let size = children.child0.commit().size
         backend.setSize(of: widget, to: size.vector)
 
-        func apply<B: BaseAppBackend & BackendFeatures.GeometricEffects>(backend: B) {
-            backend.setGeometricEffect(
-                effect.resolved(in: SIMD2(Double(size.vector.x), Double(size.vector.y))),
-                ofWidget: widget as! B.Widget
-            )
-        }
-        guard let capable = backend as? any BaseAppBackend & BackendFeatures.GeometricEffects
-        else {
+        // Drawn through the modifier's tween: at once, or -- when the update runs
+        // under an animation and the value changed -- from the drawn value on the
+        // frame clock with no re-render (EffectAnimation.swift).
+        // 經由本 modifier 的補間畫出：立刻，或——更新帶動畫且值改變時——在 frame clock 上從畫出的值補間，
+        // 不重新算繪(EffectAnimation.swift)。
+        guard let setter = GeometricEffectWidgets.setter(for: widget, backend: backend) else {
             return
         }
-        apply(backend: capable)
+        let resolvedSize = SIMD2(Double(size.vector.x), Double(size.vector.y))
+        let tween = children.tween ?? EffectTween<GeometricEffect>()
+        children.tween = tween
+        tween.draw = { setter($0.resolved(in: resolvedSize)) }
+        tween.diagnosticsLabel = environment.effectDiagnosticsLabel
+        tween.commit(effect, transaction: EffectTransaction.current(in: environment))
     }
 }

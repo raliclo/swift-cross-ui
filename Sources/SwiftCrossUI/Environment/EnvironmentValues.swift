@@ -558,6 +558,15 @@ extension EnvironmentValues {
     /// 內容清空。
     @Entry internal var scrollGeometryObservers: [ScrollGeometryObserver] = []
 
+    /// The animation an `.animation(_:value:)` above gives the effect modifiers
+    /// below it, when its value changed in this update. See EffectAnimation.swift.
+    /// 上方的 `.animation(_:value:)` 在本次更新值改變時，交給下方效果 modifier 的動畫。見 EffectAnimation.swift。
+    @Entry internal var effectAnimationOverride: EffectTransaction? = nil
+
+    /// The label effect modifiers report under to `EffectAnimationDiagnostics`.
+    /// 效果 modifier 向 `EffectAnimationDiagnostics` 回報時使用的標籤。
+    @Entry internal var effectDiagnosticsLabel: String? = nil
+
     /// The scale factor of the current window.
     @Entry public var windowScaleFactor: Double = 1
 

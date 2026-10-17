@@ -9,6 +9,9 @@ import WinSDK
 @preconcurrency import WindowsFoundation
 
 private let visualEffectChildren = Mutex<[UInt: WinUIVisualEffectChild]>([:])
+/// The non-opacity part of the effect each widget's graph was last built for.
+/// 每個 widget 的效果圖上次建立時，效果中 opacity 以外的部分。
+private let visualEffectLastFilters = Mutex<[UInt: VisualEffect]>([:])
 private let visualEffectStates = Mutex<[UInt: WinUIVisualEffectState]>([:])
 private let win2DActivation = Mutex<Win2DActivationState>(Win2DActivationState())
 
@@ -62,6 +65,22 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
         widget.opacity = effect.opacity
 
         let key = winUIVisualEffectKey(widget)
+
+        // The direct path sets the effect every frame while opacity animates
+        // (EffectAnimation.swift). When only the opacity changed, the effect graph
+        // built for the rest still holds: Opacity, set above, is all there is to do.
+        // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。只有 opacity 改變時，為其餘
+        // 部分建好的效果圖仍然適用：上面設好的 Opacity 就是全部要做的事。
+        var filters = effect
+        filters.opacity = 1
+        let unchanged = visualEffectLastFilters.withLock { last in
+            let same = !filters.needsOnlyOpacity && last[key] == filters
+            last[key] = filters.needsOnlyOpacity ? nil : filters
+            return same
+        }
+        if unchanged, visualEffectStates.withLock({ $0[key] != nil }) {
+            return
+        }
         if effect.needsOnlyOpacity {
             try? WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: nil)
             visualEffectChildren.withLock { children in
