@@ -36,6 +36,8 @@ entry is closed.
 | 27 | GSAP on SwiftCrossUI (2026-10-16), phases 1, 2a and 2b done on four backends, phases 3a (Flip) and 3b (ScrollTrigger) on two, 3c (direct path for effects animated by `withAnimation`) on three. Phase 1: `TimingCurve` with GSAP's eases (`.power2(.out)` etc.), `Steps`, `CubicBezier`, `Spring` and SwiftUI's `.spring`/`.smooth`/`.snappy`/`.bouncy`; `delay`, `speed`, `repeatCount`, `repeatForever` (SwiftUI names; GSAP's `repeat: n` is `repeatCount(n + 1)`, `yoyo` is `autoreverses`) through the pure `TweenClock` -- P96, P97. Phase 2a: `withAnimation(_:_:completion:)`, `.onStart`/`.onRepeat`/`.onUpdate` (once per call), `.stagger(i, of:, each:, from:)` -- P98. Phase 2b: `AnimationTimeline` (positions `.afterPrevious`, `.withPrevious`, `.at`, `.label`) and `TimelinePlayer` (play, pause, reverse, restart, seek, `timeScale`, `onUpdate` for a bound slider) on a driver ticker -- P99. All pass on AppKit, GTK (macOS), iOS and Android. Phase 3a (2026-10-17): Flip as `matchedGeometryEffect(id:in:properties:anchor:isSource:)` and `@Namespace` -- a moved view, a view replacing one with the same id, and an `isSource: false` follower fly from the old frame by a translation and scale set on the widget each frame (no re-layout); a non-tweenable assignment inside `withAnimation` arms a `LayoutTransaction` that the next updates (0.3 s window) read, and frames are measured after the commit, before the frame is drawn. Found on the way: AppKit's `originInWindow` read the previous layout (positions are constraints) and now flushes layout first, WinUI the same by `updateLayout` (untested); group callbacks fire after every tween of a frame has written. P100 passes on AppKit and GTK (macOS): mid-flight error 0.00 pt on all three cases. iOS and Android not run: the disk had under 1 GB free and the iOS build failed for space. Phase 3b (2026-10-17): ScrollTrigger as `scrollTransition(_:axis:transition:)` (`.interactive(timingCurve:)` = GSAP scrub, `.animated(_:)` = toggleActions, thresholds `.visible(_:)` and `.centered`; the closure gets SwiftUI-style content with `opacity`, `scaleEffect`, `offset`, `rotationEffect`, `blur` ...), `onScrollVisibilityChange(threshold:_:)` (onEnter/onLeave) and `onScrollGeometryChange(for:of:action:)` with `ScrollGeometry` (scrubbing a `TimelinePlayer`), on a new conformance-checked `BackendFeatures.ScrollOffsetReporting` that all five shipped backends implement (NSClipView bounds notification, UIScrollView contentOffset KVO, GtkAdjustment value-changed, Android ScrollView onScrollChanged through a SwiftAction, WinUI ScrollViewer ViewChanged); effects are set on the widgets on each scroll, no re-render. AppKitBackend scrollTo was fixed on the way (it scrolled past the content). P101 passes on AppKit and GTK (macOS), opacity error 0.000 over 20 rows at three scroll positions; UIKit, Android and WinUI code is written but not compiled or run here (disk full; WinUI cannot build on the Mac). P96 about 60 fps on AppKit, about 10 fps on GTK (33 shape paths per frame); the first tick arrives 0.1 s (AppKit, iOS) to 0.2-0.3 s (GTK, Android) after the call. **Compositor decision (2026-10-17): no `CompositorAnimations` protocol, measured.** P96 drew about 60 fps on AppKit and about 10 fps on GTK, but its animation goes through `@State`: every frame re-evaluates the body, re-lays out and redraws 33 shape paths. P100's flip animates the same kind of property (a transform) by setting it on the widget each frame from the same main-thread frame clock, with no re-render: 61 frames in its 1 s flip on GTK and 62 on AppKit, mid-flight error 0.00 pt, done at 1.03 / 1.04 s. So the 10 fps was the re-render, not the lack of a compositor, and the direct path already reaches the display rate on the slow backend. A compositor protocol (Core Animation `CAAnimation`, Android `ViewPropertyAnimator`, WinUI Composition) would also split the five backends: GTK has no off-thread animation API, so GTK would be the one left on the main thread, and the rule here is that every feature works on all five. The first-tick delay (0.1 s AppKit/iOS, 0.2-0.3 s GTK/Android) is the frame clock starting, which a compositor would not remove. What followed instead is phase 3c below; reopen the compositor question only if a measured frame is lost to main-thread work while the direct path is in use. **Phase 3c (2026-10-17): `.offset`, `.scaleEffect`, `.rotationEffect`, `.transformEffect`, `.opacity` (and blur and the colour effects) on the direct path** (Sources/SwiftCrossUI/Animation/EffectAnimation.swift). When an update runs under an animation -- a `withAnimation` assignment that cannot tween (a Bool, an enum) armed a `LayoutTransaction`, or a new SwiftUI `.animation(_:value:)` above the modifier saw its value change -- each effect modifier whose value changed tweens its widget from the drawn value to the new one on the frame clock (`EffectTween`, one tween per modifier per transaction), with no body re-evaluation or re-layout; SwiftUI semantics, so an effect moves in a straight line between two renders, and a view that should follow a curve gives that coordinate its own animation. A tweenable `@State` (Double) inside `withAnimation` keeps its own tween and per-frame re-render: P66 animates `.padding` that way and P96-P99 read the intermediate state values, and the view graph does not record which views read a state for something other than an effect, so that path cannot be made direct automatically. Unchanged backend protocols (all five already implement `setGeometricEffect`/`setVisualEffect`); written for the per-frame cost: GtkBackend now puts geometric effects on the parent GtkFixed child transform instead of CSS `transform` (Fixed.setChildMatrix; with CSS the dots alone drew 28 fps on GTK, most of each frame in gtk_css_node_validate), and UIKit, Android and WinUI skip rebuilding the filter snapshot / RenderEffect / Win2D graph when only the opacity changed. P96 now flips one `running` Bool (x linear, y through each tile's curve via `.animation(.timingCurve(curve), value:)`, both direct; the driven tweens moved to their own child view) and logs FRAMES and ERROR. Measured on this Mac, first 3 s of the run, frame-clock ticks: **AppKit 181 before, 181 after (60 fps), but one tile's body evaluated 2327 times before and 3 after; GTK 25-27 before (8-9 fps), 98-100 after (33 fps) while the driven panel re-renders, and 97-180 (32-60 fps) for the dots alone at 5-8 s** (spread from machine load: another session's Android emulator was running). ERROR: drawn y against the curve at the drawn x, 0.000 pt on all 33 tiles at 1.0/1.5/2.0/2.5 s on both backends; x against the clock 0.000. Driven tweens on GTK 22-26 distinct values per 0.8 s (before 7-9). What is left on GTK per frame is GTK re-rasterizing the 33 curve strokes through cairo (sampled). P100 and P101 re-run on AppKit and GTK: err 0.00 / 0.000 as before; P40 captured on GTK with the child transform, every transform drawn as before. 286 + 14 unit tests pass (8 new in EffectAnimationTests), one known issue. iOS (iPhone simulator, UIKit compiled and run): 180 ticks in the first 3 s (60 fps), 3 tile body evaluations, curve and x error 0.000 pt; no tick-count baseline exists for iOS (the 2026-10-16 row has 21-26 distinct driven values per tween). On iOS the tiles were committed by an update not begun in observeAsUIUpdater (LayoutTransaction.active nil 14 ms after arming), so the x offsets jumped; the effect transaction now also reads the armed 0.3 s window, one tween per modifier per token. P96 flips `running` only once the dots have been drawn at their start (onAppear runs before the first commit). Android and WinUI parts written, not compiled or run (the emulator belongs to another session; WinUI does not build on the Mac) | Mac, then Windows | phases 1-2b done on the Mac; 3a and 3b on AppKit and GTK, 3c on AppKit, GTK and iOS; WinUI untested | run P100-P101 on iOS and Android (P101 is the first build of the UIKit and Android scroll-offset code); run P96-P101 on WinUI and GTK under Windows; run P96 (3c) on Android and WinUI; GTK: draw Shapes as GskPath nodes so a moving view does not re-rasterize every stroke per frame; `.animation(_:value:)` drives only the effect modifiers so far, not layout or state |
 | 28 | Long-press drag selection in text fields (2026-10-17), from the api18 WebView: `longPressTextSelection(_:)` (not SwiftUI API; off by default, opt-in, inherited by every `TextField`/`TextEditor` below) on a conformance-checked `BackendFeatures.LongPressTextSelection`, implemented on all five shipped backends with each toolkit's hit-testing (AppKit `characterIndexForInsertion(at:)` with its own field editor; UIKit `closestPosition(to:)`; GTK `gtk_text_view_get_iter_at_position` and GtkText cursor extents through a capture-phase legacy controller; Android `getOffsetForPosition` in `CustomEditText.kt`; WinUI `GetRectFromCharacterIndex` in `LongPressTextBox`). P102 passes on AppKit, GTK (macOS), iOS and Android: forward selection in the field, backward in the editor, nothing for the plain field or a quick drag | Mac, then Windows | done on four; WinUI written, not compiled or run | build WinUIBackend on Windows and run P102 there (needs a `actions/win` file); GTK under Linux/WSL with a real touch screen; Android: an `actions/android` file through AndroidSynthesiser (this run used `adb shell input motionevent`) |
 | 29 | The api18 "interested places" list as library components (2026-10-17): `EmojiPicker(selection:keyword:)` (grid plus filter field; EMOJI_NAMES ported, Chinese and English; keyword matches first on #e1bee7 with a #8e24aa border; OK/Return takes a typed value no name matches), `EmojiToggleButton(emoji:isOn:keyword:)` (tap toggles, long press opens the picker in a sheet), `EmojiKeywordList(items:)` (rows of toggle, colour bar, keyword, ✕; field and Add with PALETTE colours and 📍), `EmojiKeywordListButton(items:isOpen:)` (the 📍 pin that opens the list), model `EmojiKeywordItem` (alias `InterestedItem`) with api18's CSV rows. The tap and the long press on one view are a new conformance-checked `BackendFeatures.TapAndLongPressGestures` behind `onTapAndLongPressGesture(onTap:onLongPress:)`, implemented on all five (AppKit/UIKit: the click requires the press recogniser to fail; GTK: tap on release unless the long press fired; Android: the consumed long click; WinUI: a timed press). Also fixed: AppKit/UIKit `.longPress` fired again on every `.changed`; UIKit's `TappableWidget` never forgot a removed long-press recogniser. 17 unit tests; P103 passes on AppKit and GTK (macOS) with two action files each | Mac, then Windows | done on two; UIKit, Android and WinUI written, not compiled or run (iOS skipped: under 5 GB free; Android: emulator in use by another session) | run P103 on the iOS simulator and Android (actions/ios, actions/android files); build WinUIBackend and run P103 on Windows; GTK on Linux/WSL; a sheet cell cannot be clicked by AppKitSynthesiser (posted clicks miss gesture recognizers in a sheet window; measured with measure/real_click.swift) |
+| 30 | GSAP, what is left after item 27 (2026-10-18). Done today: `.animation(_:value:)` and a `withAnimation` assignment that cannot tween now drive `.frame` (strict and flexible bounds), `.padding`, a `Color` view and a `Shape`'s flat fill and stroke, not only the effect modifiers (585a8085, ParameterTween in Animation/LayoutAnimation.swift: a layout value re-lays out its node each frame through `onResize`, a colour is redrawn); P104 on AppKit and GTK (macOS): mid-flight err 0.00 pt, colour 0.0, `.animation(_:value:)` 0.31 / 0.90 pt, `nil` and an unanimated change jump; 313 + 14 unit tests. Found on the way and fixed: `return X.onAppear {...}` in a body never ran the action (e26e0d2a) | Mac, then Windows | open | from the original GSAP plan, not started: #8 MotionPath (position along a `Path`), #9 Draggable with Inertia (a decelerating tween after a drag), SwiftUI's `keyframeAnimator` and `PhaseAnimator`, insert/remove `.transition` (the other half of Flip); GTK: draw Shapes as GskPath nodes; run P100, P101, P104 on iOS and Android (P101 is the first build of the UIKit and Android scroll-offset code) and P96 (3c) on Android; P96-P104 on WinUI and GTK under Windows and Linux; still not tweening: `.foregroundColor` on Text, gradients; GTK draws 32 frames in P104's WITH step against 60 for one tween (several re-layouts per frame) |
+| 31 | The GTK/macOS pairs deck reviewed by the user (2026-10-18), on the 2026-10-15 captures: P27 and P38 WebView on GTK; P29, P30, P32 AppKit captions covered; P37 GTK `.floating`; P41 `.hourAndMinute` should be two defined looks on every platform, a clock (as macOS) and rows (as GTK); P42 gap; P44 window size gap and AppKit; P47 GTK text; P51 wrapped text ends in an ellipsis; P52 GTK grid alignment, follow macOS; P53 window size differs; P54 prefer the macOS output; P57 which list is more efficient; P68 gap; P90 the wheel style is missing on macOS, can it be drawn in Swift; P91 align GTK with macOS. Colour differences are acceptable | Mac | open | checked with the current code on 2026-10-18: P27, P38 (GTK uses WKWebView on macOS), P29, P30, P32 and P37 already draw correctly here, fixed after the deck by items 17 and 22 -- Windows/Linux not checked (WebView2, WebKitGTK 6.0; floating on Linux has no Wayland API, X11 `_NET_WM_STATE_ABOVE` only where the window manager advertises it). Fixed: GTK cut wrapped Chinese text to one line and an ellipsis (869298ff, P52). Seen, not fixed yet: P44 and P51 captions end in an ellipsis because a window that has to grow beyond its default size grows only to the content's minimum, where every Text is one line (grow to the ideal height instead); P52 GTK's default button is larger than AppKit's, so the 8-wide grid overflows its column. Next: re-capture the whole deck with the current code (pairs_deck/capture_macos.zsh, about 1.5 h, stopped once today to fix the above first) and go through the list; P41 needs the API name decided |
 
 ## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
 
@@ -104,13 +106,7 @@ entry is closed.
     WinUIBackend sets none, so the row reaches Win32Synthesiser, whose refusal
     (`case .tapLabel`, like XdotoolSynthesiser's) is written from the Mac and not
     compiled -- a non-exhaustive-switch error there is this.
-  - [x] **GTK drew P89's 14 x 14 stroked Circle as a rounded square** (fixed
-    2026-10-10). GtkDrawingArea draws through a cairo node the size of the widget,
-    so the half of a stroke that lies outside the shape's frame was cut off flat.
-    The path widget now draws through its own snapshot with room for the stroke
-    (`gtk_passthrough_drawing_area_set_overflowing_draw_func`). Seen on macOS with
-    gtk4 4.24.1: P89's ring is round, P43's fills and gradient stroke unchanged.
-    Not run on Linux/WSL or Windows GTK.
+  - [x] **GTK drew P89's 14 x 14 stroked Circle as a rounded square** (fixed -> completed.md (archived 2026-10-18)
 
 ## 2026-10-09 SVG in Image (user request, priority one)
 
@@ -153,107 +149,19 @@ entry is closed.
     the document's folder or on the network, and a filter holding an element SVG does not
     define. Gradients, clipPath, mask, patterns, markers, images and every SVG 1.1 filter
     primitive are drawn since 2026-10-10; P87 shows the common ones together.
-    - [x] **Visible `<text>`: drawn by each platform's own text engine**
-      (2026-10-09). The user chose this over bundling a font, for size: no font
-      file in the library, and every script the platform has fonts for draws,
-      Chinese included; the price is that text differs a little between
-      platforms. Core: `SVGBuilder` turns `<text>` into a text node (font-family,
-      font-weight, font-style, font-size, text-anchor, fill, stroke, transform,
-      whitespace collapsed); `rasterize(..., textMasker:)` asks for a coverage
-      mask per run (`SVGTextMaskRequest`) and composites it with the SVG's colour,
-      opacity and paint order. Backends: `BackendFeatures.SVGText` --
-      AppKit/UIKit through `SVGCoreTextMasker` (Core Text), Android through
-      `SVGTextMasker.kt` (Canvas, ALPHA_8), GTK through PangoCairo (A8; no
-      font-family means sans-serif, as on the others). Without a text renderer
-      the run stays outlined in magenta and listed as `textNeedsRenderer`.
-      Checked: SVGTextTests (7, with a fake masker and real Core Text incl.
-      "電"), all 34 SVG tests; P85 (new, nine numbered checks incl. Chinese,
-      rotation, 40% opacity and a box painted over text) passes on macOS,
-      GTK on macOS, the iOS simulator and the Android emulator.
+    - [x] **Visible `<text>`: drawn by each platform's own text engine** -> completed.md (archived 2026-10-18)
     - [ ] **WinUI: SVG text.** `BackendFeatures.SVGText` on WinUIBackend, e.g.
       Win2D `CanvasRenderTarget` + `CanvasTextLayout` drawn white on a
       transparent target and read back as alpha; then P85 on WinUI (and GTK on
       Windows/WSL, which already has the PangoCairo path but has not been run).
-    - [x] **Gradients: `linearGradient` and `radialGradient`** (2026-10-10), in
-      the core rasteriser, so every backend has them: objectBoundingBox and
-      userSpaceOnUse, `gradientTransform`, spreadMethod pad/reflect/repeat, the
-      SVG 2 focal circle (`fx`, `fy`, `fr`), stop-color/stop-opacity from
-      attributes or `style`, `href` inheritance (16 links at most), stops
-      interpolated premultiplied; on shapes, strokes and text (through the text
-      mask). No stops paints nothing, one stop paints solid. Only a broken
-      reference falls back to the paint's fallback colour and stays reported.
-      Checked: SVGPaintTests (10), all 44 SVG tests.
-    - [x] **`clip-path` and `mask`** (2026-10-10), in the core rasteriser: the
-      element's nodes go into a layer, multiplied by the clip's coverage and
-      the mask's value, then composited at the element's opacity. clipPath:
-      shapes, text (through the text mask) and use; geometry only, filled with
-      `clip-rule`; clipPathUnits both ways; a clip-path on the clipPath
-      intersects. mask: luminance (sRGB coefficients) or `mask-type: alpha`;
-      the region (x/y/width/height, -10%/120% default) in either maskUnits;
-      maskContentUnits both ways. Broken or circular references draw
-      unclipped/unmasked, reported and outlined. Checked: SVGEffectsTests (13),
-      all 57 SVG tests, the full suite (161 + 14).
-    - [x] **`<pattern>` paint** (2026-10-10), in the core rasteriser: the tile
-      content is built in tile space per shape; at draw time the tile is
-      rendered at device resolution (at most 4 million pixels) and sampled
-      with wrap-around. patternUnits and patternContentUnits both ways,
-      viewBox + preserveAspectRatio, patternTransform, href inheritance of
-      attributes and content; fills, strokes and text. A zero-sized tile or
-      empty content paints nothing; a pattern painting with itself is
-      reported. Checked: SVGPatternTests (9), all 66 SVG tests.
-    - [x] **Markers: `marker-start`, `marker-mid`, `marker-end`** (2026-10-10),
-      on path, line, polyline and polygon, drawn after fill and stroke inside
-      the shape's opacity, clip and mask. Vertices with directions in and out
-      (curves by their end tangents, closed subpaths joined); orient auto,
-      auto-start-reverse and angles; markerUnits strokeWidth and
-      userSpaceOnUse; markerWidth/Height, viewBox, refX/refY; overflow hidden
-      (the default) clips to the marker viewport. Checked: SVGMarkerTests (9),
-      all 75 SVG tests.
-    - [x] **`<image>` with a `data:` URI** (2026-10-10): PNG, JPEG and the
-      other formats ImageFormats decodes, base64 or percent-encoded. The
-      picture is a paint and the element a rectangle filled with it, so edges
-      are antialiased; preserveAspectRatio (meet, slice cut to the viewport,
-      none), width/height auto from the picture, bilinear sampling, opacity.
-      A file reference (`href="photo.png"`) is still reported and outlined: a
-      document parsed from a string has nowhere to resolve it. Checked:
-      SVGImageTests (8), all 83 SVG tests.
-    - [x] **`<image>` of a file, and of an SVG** (2026-10-10). A document read
-      from a file (`SVGDocument(contentsOf:)`, `baseURL:`, and `Image` for a
-      file URL) reads pictures from its own folder or below; absolute paths,
-      `../` escapes and network addresses are refused and reported, and a
-      document from a string still reads none. A picture that is an SVG (file
-      or `data:image/svg+xml`) is placed as vectors -- its nodes moved and
-      scaled into the viewport and clipped to it, text still through the text
-      engine -- and what it cannot draw is reported against the `<image>`
-      ("in inner.svg: ..."). Nesting stops at 8 and at a cycle (the document
-      itself included). Checked: SVGImageFileTests (7), all 104 SVG tests, the
-      full suite (208 + 14), `compile.zsh -android P87`.
-    - [x] **Filters, the common subset** (2026-10-10), run on the element's
-      layer in device pixels before its clip, mask and opacity:
-      feGaussianBlur (three box blurs from 2 px, an exact kernel below),
-      feOffset, feDropShadow, feFlood, feColorMatrix (matrix, saturate,
-      hueRotate, luminanceToAlpha), feComposite (all operators incl.
-      arithmetic), feMerge, feBlend (normal, multiply, screen, darken,
-      lighten), feComponentTransfer; in/in2/result, SourceGraphic and
-      SourceAlpha; filter region and primitive subregions in either unit;
-      color-interpolation-filters, linearRGB by default. A filter with any
-      other primitive or input is not applied at all and stays reported and
-      outlined. A rotated or skewed element is filtered along its own axes
-      (drawn in filter space and resampled back, SVGFilterTests.rotatedBlur).
-      Checked: SVGFilterTests (14), all 97 SVG tests, the full
-      suite (200 + 14); P87 (new, nine cells, 0 diagnostics) on macOS.
-    - [x] **The rest of the SVG 1.1 filter primitives** (2026-10-10): feMorphology,
-      feConvolveMatrix (kernel turned 180 degrees, edgeMode, preserveAlpha), feTile
-      (the input's subregion), feDisplacementMap, feTurbulence (SVG 1.1 reference code,
-      stitchTiles), feDiffuseLighting and feSpecularLighting (distant, point and spot
-      lights, SVG's Sobel normals with edge forms), feImage (an element by #id, or a
-      picture placed in the subregion). BackgroundImage, BackgroundAlpha, FillPaint and
-      StrokePaint read as transparent, as browsers draw them. Written and tested in a
-      separate worktree first, so the shared tree never held a half-applied change.
-      Checked: SVGFilterMoreTests (10; diffuse at 30 degrees gives 128, N.L = 0.5), all
-      114 SVG tests, the full suite (218 + 14), `compile.zsh -android P87`. Not checked
-      against a browser: feTurbulence's values follow the reference code, but no
-      rendering of the same SVG was compared pixel for pixel.
+    - [x] **Gradients: `linearGradient` and `radialGradient`** (2026-10-10), in -> completed.md (archived 2026-10-18)
+    - [x] **`clip-path` and `mask`** (2026-10-10), in the core rasteriser: the -> completed.md (archived 2026-10-18)
+    - [x] **`<pattern>` paint** (2026-10-10), in the core rasteriser: the tile -> completed.md (archived 2026-10-18)
+    - [x] **Markers: `marker-start`, `marker-mid`, `marker-end`** (2026-10-10), -> completed.md (archived 2026-10-18)
+    - [x] **`<image>` with a `data:` URI** (2026-10-10): PNG, JPEG and the -> completed.md (archived 2026-10-18)
+    - [x] **`<image>` of a file, and of an SVG** (2026-10-10). A document read -> completed.md (archived 2026-10-18)
+    - [x] **Filters, the common subset** (2026-10-10), run on the element's -> completed.md (archived 2026-10-18)
+    - [x] **The rest of the SVG 1.1 filter primitives** (2026-10-10): feMorphology, -> completed.md (archived 2026-10-18)
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent
@@ -289,18 +197,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 ### On this Mac
 
-- [x] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part
-  of `FullAppBackend`; GTK, WinUI, AppKit and UIKit have it, Android does not
-  declare it, and `AndroidBackend.swift:609` still carries upstream's commented
-  "Handle incoming URLs". An app opened by a link on Android never hears about it.
-  DONE 2026-10-06 (AndroidBackend+IncomingURLs.swift): the launch intent's data
-  is read when the handler is set, `onNewIntent` through an ActivityListener
-  installed for it; early URLs queue and replay. The manifest gains one VIEW
-  filter per `url_schemes` entry in Bundler.android.toml (`scui-testapp`) and
-  `launchMode="singleTop"`, so a link to the app in front is `onNewIntent`
-  rather than a second activity. P78 (new): cold start with
-  scui-testapp://launch, then scui-testapp://running while in front ->
-  "received 2" in order on the emulator.
+- [x] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part -> completed.md (archived 2026-10-18)
 - [x] **File dialogs never filter by type, on any platform.** The core never sets
   it: `PresentSingleFileOpenDialogAction.swift:54`, `PresentMultipleFileOpenDialogAction.swift:73`
   and `PresentFileSaveDialogAction.swift:49` all pass `allowedContentTypes: []`,
@@ -319,91 +216,10 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   not-text.png is greyed (it was selectable with the old AppKit code), on iOS
   too; also-text.swift stays selectable on both, correctly -- Swift source
   conforms to plain text. GTK compiled only (no open panel driven).
-  - [x] **WinUI: compile and run the file-dialog filters.** DONE 2026-10-07,
-    after replacing the WinRT pickers with the Win32 shell dialogs
-    (`IFileOpenDialog` / `IFileSaveDialog`, `WinUIBackend+FileDialogs.swift`):
-    WinRT could start only at a `PickerLocationId`, so `initialDirectory` was
-    lost (P62 landed in Documents, P75 in OneDrive Documents). P62 "open…"
-    starts in `%TEMP%\p62-open`, offers "Plain text", lists readable.txt only,
-    and opening it brings up window 2 titled readable.txt
-    (`p62w-open-filter-20261007-033800.png`). The "." question is moot: with no
-    types the save dialog offers "All files" (`*.*`) and P75 saved
-    p75-saved.txt under that exact name. P18: open, folder (`Select`), save
-    destination and Cancel all reach the app (`p18w-*-20261007-03*.png`).
-    Difference from macOS/iOS: `ContentType` is extension-only, so Windows also
-    hides also-text.swift, which UTType conformance keeps selectable there.
-    **FIXED later the same day:** `ContentType.conformingFileExtensions` holds
-    the 95 extensions macOS 27.2 maps to types conforming to public.plain-text
-    (measured with `UTType(filenameExtension:)?.conforms(to: .plainText)`);
-    WinUI and GTK add them to the open filter only. P62 on WinUI and on GTK on
-    Windows (which also shows the shell dialog) lists also-text.swift beside
-    readable.txt, still hides not-text.png, and opens it as window 2
-    (p62w-/p62g-open-conforming-20261007-07*.png). Not run: GTK on WSL (GIO
-    types by MIME there; the suffixes are added as well). Android: see below.
-    完成 2026-10-07：以 Win32 shell 對話框取代 WinRT picker（WinRT 只能從
-    `PickerLocationId` 開始，`initialDirectory` 因此遺失）。P62 開檔從 `%TEMP%\p62-open`
-    開始、只列 readable.txt、開啟後出現 readable.txt 視窗；無類型時存檔提供「All files」；
-    P18 開檔、資料夾、存檔、取消皆回到 app。與 macOS/iOS 的差異：`ContentType` 只有副檔名，
-    所以 Windows 也隱藏 also-text.swift。**同日稍後已修：**`ContentType.conformingFileExtensions`
-    (macOS 27.2 上 95 個屬於 public.plain-text 的副檔名),WinUI 與 Windows 上的 GTK 現在都會列出並開啟 also-text.swift。
-  - [x] **WinUI: the save dialog ignores `defaultFileName`** -- FIXED 2026-10-07
-    by the same change (`SetFileName`): P18's save dialog shows "p18-example",
-    P62's "Untitled". 同一變更修正（`SetFileName`）：P18 顯示 p18-example、P62 顯示 Untitled。
-  - [x] **Android: plain-text open hides source files such as also-text.swift.**
-    Unverified on a device, reasoned from the API: the picker filters by the
-    MIME type the storage provider reports, and an extension Android's
-    `MimeTypeMap` does not know (`swift`) is reported as
-    `application/octet-stream`, so `text/plain` cannot reach it and
-    `conformingFileExtensions` has no MIME to add. Run P62 "open…" on the
-    emulator first; if hidden, find the way Android does express it (e.g.
-    mapping the extensions it does know through `MimeTypeMap`).
-    Android 依 provider 回報的 MIME 過濾，`swift` 會被報成 octet-stream;先在模擬器上跑 P62 確認。
-    DONE 2026-10-07. Confirmed first, on the API 36 emulator with ACTION_OPEN_DOCUMENT
-    and the three files in /sdcard/Download/p62-open (uiautomator `enabled`):
-    `text/plain` -> readable.txt yes, also-text.swift NO, not-text.png no; `*/*` -> all
-    three yes; `text/plain` + `application/octet-stream` -> txt yes, swift yes, png no.
-    Fixed in FilesActivityContract.kt: the open dialog now gets every allowed
-    extension (`fileExtensions` + `conformingFileExtensions`), maps each through
-    `MimeTypeMap`, and adds octet-stream when one has no MIME type; what comes back is
-    then checked by display name, so an unknown binary is refused with a warning
-    instead of opened as text. P62 "open…" after the change: txt yes, swift yes, png
-    no, data.bin offered (octet-stream) and refused on choosing it ("open dialog:
-    data.bin is not one of [txt, text, swift, ...]").
-  - [x] **Android: a document chosen in the open dialog cannot be read.** Found
-    2026-10-07 while checking the item above: choosing also-text.swift in P62 logs
-    "could not open document" with NSURLErrorDomain -1002 "unsupported URL" for
-    `content://com.android.externalstorage.documents/...`, because
-    `DocumentGroup.swift:207` reads it with `Data(contentsOf:)`, which Foundation on
-    Android cannot do for content:// URIs. Every file opened this way should fail
-    the same way (reasoned; only the .swift file was tried). The save side already
-    avoids handing content:// back (AndroidBackend+SystemHandoffs.swift); the open
-    side needs a decision: copy into the app's cache and return a file URL, or read
-    through ContentResolver -- and how a later save reaches the original.
-    DONE 2026-10-07 (user: "fix Content issue"), the copy: the open dialog's
-    content:// URIs become files in the cache (`stagingPathForOpen`: each in its own
-    `open-<ns>` folder under its display name, read through ContentResolver,
-    persistable read+write grant taken when offered), and the save mirror that
-    `stagingPathForSave` already used is now `mirrorBack`, shared by both, so a save
-    over the opened file is written back with "wt". Checked on the API 36 emulator
-    with P62: before, /sdcard/Download/p62-open/also-text.swift held
-    "P62 also-text.swift"; "open…" -> also-text.swift opened and showed that text;
-    "type A" then "save" showed "...\nA", and the original on the device then read
-    "P62 also-text.swift\nA". Regression, P75 save-and-read-back: the new
-    "p75-saved.txt (1)" holds "saved by P75". Not checked: a provider that grants
-    read only (its saves would log "could not copy the save" and stay local).
-    FOLLOW-UP 2026-10-07: that silent case is closed. `stagingPathForOpen` probes
-    the document with `openFileDescriptor(uri, "wa")` (nothing written); if it
-    cannot be opened for writing, the copy and its folder are made read-only and
-    no mirror is started, so the save fails in Swift (`saveDocument` returns
-    false and logs) rather than "succeeding" locally. Not COLUMN_FLAGS: a text
-    file in Documents > Download (MediaDocumentsProvider) reported flags=4, no
-    FLAG_SUPPORTS_WRITE, and the "wt" write-back to it succeeded anyway -- a
-    flag-based check, tried first, made that file read-only (Swift: Code=513
-    "Permission denied", original untouched). With the probe, P62 on the API 36
-    emulator: that media document "type A" + "save" wrote back "revealed by
-    P75\nA"; also-text.swift in Download wrote back "...ABA". Not found on the
-    emulator: a provider that actually refuses "wa", so the read-only branch is
-    proven only from the save side (the 513 above), not from the probe failing.
+  - [x] **WinUI: compile and run the file-dialog filters.** DONE 2026-10-07, -> completed.md (archived 2026-10-18)
+  - [x] **WinUI: the save dialog ignores `defaultFileName`** -- FIXED 2026-10-07 -> completed.md (archived 2026-10-18)
+  - [x] **Android: plain-text open hides source files such as also-text.swift.** -> completed.md (archived 2026-10-18)
+  - [x] **Android: a document chosen in the open dialog cannot be read.** Found -> completed.md (archived 2026-10-18)
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
@@ -434,147 +250,12 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   would show it; not reached by this file.
   2026-10-07 完成：比照 AppKit 依 `decimalPlaces` 四捨五入。P61 讀到 0.81 與 0.91,但這次執行
   無法區分修改前後——`stepFrequency` 為 0.01,拖曳本來就落在百分位上。
-- [x] **`Picker.inspect` is commented out on all five backends**
-  ("Repair Picker.inspect implementations post PickerStyle refactor" in each
-  `InspectionModifiers.swift`; Android has none at all). Every other control
-  has its `.inspect`. DONE 2026-10-06 on four of five: `.inspect { picker in }`
-  hands over the `.menu` control (NSPopUpButton / UIButton / Gtk.DropDown /
-  WinUI.ComboBox / Spinner), `.inspect(as: T.self) { }` any other. Found on the
-  way: a typed `.inspect` at `.onCreate` trapped whenever the control sits in a
-  container (the example's Slider) -- descendants are not in
-  the container until the first update -- so the search now also walks the view
-  graph (`InspectView.init(child:inspectionPoints:searching:)`), all five
-  backends. AdvancedCustomizationExample runs on AppKit and on Gtk-on-macOS with
-  its Picker block restored; P4 runs on iOS and Android.
-  - [x] **WinUI: compile and run AdvancedCustomizationExample** -- the WinUI
-    half was written here and has not been compiled. Windows machine.
-    **Done 2026-10-07 on Windows:** `swift build --product AdvancedCustomizationExample`
-    in Examples/ built with 0 errors (first build 1117 s). Run: the magenta custom
-    native button, the red `+` with a 10-point top-left corner, and the red picker
-    all show (`ace-winui-20261007-030552.png`); through UIA, + + - read
-    `Count: 1`. Not checked by eye: the slider thumb tooltip, the selectable count
-    text and the green text-field selection highlight.
-    **2026-10-07 已在 Windows 完成:** 編譯 0 error;洋紅按鈕、左上圓角 10 的紅色 `+`、紅色選單都正確顯示,
-    經 UIA 按 + + - 讀到 `Count: 1`。滑桿提示、可選取文字與綠色選取色未以肉眼確認。
-  - [x] **Gtk (macOS): the example's red `+` button stays grey** -- its
-    `.inspect(.afterUpdate)` sets `css backgroundColor`, and nothing trapped, so
-    the closure ran; whether the CSS is overridden by the theme is not known.
-    FIXED 2026-10-06: not the theme. The button's own rules and the app's
-    `css` share one CssProvider and each `loadCss` replaced the other, so the
-    next `updateButton` erased the red. `Widget.reloadCSS()` is open now and
-    GtkCustomButton writes both, the app's under a more specific selector.
-    The example's `+` is red on Gtk-on-macOS.
-- [x] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
-  (`UIKitBackend+Window.swift:283`) only paints the background from
-  `colorScheme` and carries "TODO: Support preferredColorScheme"; views set
-  `overrideUserInterfaceStyle` one by one (Symbols, Passive), system controls in
-  between may not follow. P15 on iOS is the check. DONE 2026-10-06: they did
-  not follow -- P15-DARK (now with a TextField and a Toggle) on a light
-  simulator showed an unreadable placeholder and light-style controls on the
-  dark background. The window now carries `overrideUserInterfaceStyle` while
-  the scheme differs from the system's, and the system's is read from the window
-  scene (the override would otherwise read back as the system's). Captures
-  p15-dark-ios-final-20261006-130110 (after) / -130141 (before). Not yet
-  exercised: removing the preference at runtime.
-- [x] **Android TODOs to verify, each a possible gap:** navigation titles
-  (`AndroidBackend.swift:460`), orientation and configuration changes (`:580`),
-  live system light/dark changes (`:804`), per-window environment changes
-  (`:822`), more than one `createWindow` (`:430`), sheet background and detents
-  (`AndroidBackend+Sheets.swift:51`), `dismantleAndroidView`
-  (`AndroidViewRepresentable.swift:53`). UIKit: sheet detents before iOS 16
-  (`UIKitBackend+Sheet.swift:171`).
-  CHECKED 2026-10-06, six of seven were real gaps and are fixed:
-  - navigation titles were already a row (Toolbar); the empty one was the
-    WINDOW title -- now the activity title and the Recents label (P78:
-    `dumpsys activity recents` shows label="P78 incoming URLs").
-  - rotation, light/dark, density, font scale RESTARTED THE APP: no
-    `configChanges`, so the activity was recreated and `setup()` ran the Swift
-    app again in the same process (P78: received 2 -> rotate -> received 0,
-    same PID). The manifest declares them now and onConfigurationChanged feeds
-    the resize, root- and window-environment handlers (all three were empty
-    TODOs). P78 after: rotate and night mode keep "received 2", same PID, the
-    layout goes landscape and the background dark.
-  - sheet detents, corner radius, drag indicator: implemented in CustomSheet.kt
-    (BottomSheetBehavior peek / half-expanded / expanded, MaterialShapeDrawable,
-    BottomSheetDragHandleView); the frame is as tall as the largest detent, which
-    was the "background" problem. P49 gains a detent sheet: half height, round
-    corners, handle, drags to full; P1's green background and the plain sheet
-    unchanged.
-  - `dismantleAndroidView` added, run when the node is released (as UIKit). P79
-    (new): show, hide, show, hide -> made 2, dismantled 2.
-  - UIKit before iOS 16: `.fraction`/`.height` map to the nearer of medium/large
-    on iOS 15 instead of always medium. Built, not run (only an iOS 27 runtime
-    here).
-  - [x] **Android: more than one `createWindow`** (`AndroidBackend.swift:430`).
-    One activity, so a second window replaces the first; `supportsMultipleWindows`
-    is false, as on iPhone. On tablets Android can run several activities
-    (multi-instance); doing it means one activity per window and an
-    `AndroidBackend.activity` that is no longer a singleton. DONE 2026-10-06:
-    every window after the first is a `ScuiWindowActivity` (Kotlin), started
-    with NEW_DOCUMENT|MULTIPLE_TASK|LAUNCH_ADJACENT; its content is built in
-    Swift and handed over by token. Per-window title, background, insets, size,
-    toolbar stack, resize and environment handlers (the static single handlers
-    were the last window's, so a second window took the first's away);
-    close by finish/back runs the close handler. `supportsMultipleWindows` is
-    true. P59 on the emulator: "open second window" put B beside A in split
-    screen, both relaid to their halves; append B in B -> scene draft B only in
-    B (A keeps A), app draft AB in both; Back closed B and A went full screen;
-    reopening B restored its scene draft. P1 (one window, sheets) unchanged.
-    - [x] **Android: presentations from a later window** -- sheets, alerts,
-      popovers, file dialogs and the synthesiser still use the first activity
-      (`AndroidBackend.activity`), so they appear over window A. Views in a
-      later window are created with the first activity's context.
-      FIXED 2026-10-07: sheets and alerts use the window's own activity's
-      FragmentManager (`presentingActivity(for:)`); open, folder and save
-      dialogs from a later window register a one-shot launcher on that
-      activity's ActivityResultRegistry, so DocumentsUI opens in its task.
-      Popovers already followed the anchor's window. P81 (new) on the
-      emulator, split screen: sheet, alert, popover and the open dialog from
-      window B all appeared over B naming B, the picked file came back to B;
-      window A's sheet still over A. Save dialog from B not driven (same path
-      as open). Views of a later window are still built with the first
-      activity's context; nothing seen to depend on it.
-  - [-] **UIKit: sheet detents on iOS 13-14** need a custom
-    UIPresentationController (no sheetPresentationController there). Not started.
-    CANCELLED 2026-10-06 by the user ("no need"): no iOS 13/14 runtime here to
-    test it on.
-- [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
-  `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
-  `Scripts/check_action_files.sh`, `Scripts/check_action_file_fields.sh`,
-  `Scripts/check_mistakes_numbering.sh`, `Scripts/check_results_columns.sh`.
-  CLOSED, no change, 2026-10-06. The global rule is csv2 *or Python's csv
-  module*; what it forbids is splitting on commas, and none of these does. Three
-  read action files, whose `#` comment lines csv2 refuses by design
-  ("record 1 (line 2) starts with '#'. csv2 has no comment syntax", measured)
-  -- moving them would mean stripping lines and losing the line numbers their
-  reports cite. The only writer, fill_matrix_from_sweep.py, already passes
-  `lineterminator="\n"`, so the CRLF that the sweep writers produced does not
-  happen here. The four check_*.sh run from Scripts/test.sh on every machine,
-  including ones without csv2.
+- [x] **`Picker.inspect` is commented out on all five backends** -> completed.md (archived 2026-10-18)
+- [x] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow` -> completed.md (archived 2026-10-18)
+- [x] **Android TODOs to verify, each a possible gap:** navigation titles -> completed.md (archived 2026-10-18)
+- [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:** -> completed.md (archived 2026-10-18)
 
-- [x] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07).
-  `sweep_drive_macos.zsh P77..P81` recorded P78-P81 "never launched" three
-  times; each time `ui-lock.zsh status` showed the lock held by the last app
-  that failed (test-p81, test-p79) with no such process alive, and every later
-  app waited on it until the 900 s timeout. Run alone with test.zsh, each of
-  those apps launched in seconds, and a sweep of P81 alone recorded ok. So a
-  test.zsh that dies (or is killed by the sweep's `timeout 900`) does not
-  release the UI lock, and one failure cascades into the rest of the sweep.
-  The bogus rows were removed before commit; the stale locks were released
-  with `ui-lock.zsh release`. Fix: release the lock on every exit path of
-  test.zsh (trap, as platform_lock.zsh does), and find why the first app in
-  the cascade failed.
-  **Done (2026-10-07):** the cause was zsh, not a kill. Under `set -e` the EXIT
-  trap does not run when errexit fires inside a function (zsh 5.9:
-  `f() { false; }; f` exits 1 with no trap), and run_macos is a function, so
-  any failing step before "Launching" left the lock held. test_common.zsh now
-  also traps ZERR (only while errexit is on, so capture()'s `noerrexit` does
-  not free it) and never releases from a `$(...)` subshell. Proved with a log
-  path made a directory: before, `ui lock: held by test-p80` after the run;
-  after, free, and a sweep of P80 P81 recorded P81 ok right behind the failed
-  P80. The sweep note now carries test.zsh's last line. **Not found:** what
-  made P78/P79/P81 fail on 2026-10-07 -- that output was discarded; the next
-  occurrence will say.
+- [x] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07). -> completed.md (archived 2026-10-18)
 
 - [ ] **PENDING by the user (2026-10-13: "it is ok, put this in pending") -- not to be worked on until asked.**
   使用者 2026-10-13 指示擱置,未被要求前不處理。
@@ -593,62 +274,8 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 ### Windows side (GTK and WinUI)
 
-- [x] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
-  `Cursors`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` (AppKit, UIKit and
-  Android have all five). `Mesh3DViews` is the sixth, already its own item above.
-  GTK DONE 2026-10-06 (GtkBackend+InputTargets.swift, a `Fixed` per target, and a
-  hand-written Gtk.EventControllerScroll). Driven on GtkBackend on macOS with P80
-  (new) and synthetic events: keys ("a" down/up, Escape), wheel scroll
-  (translation 0,16 per notch, one gesture per notch), long press opens the
-  menu every time (a kept popover opened once only -- now one per showing),
-  snapshot of a red label 56x36 with 1856 of 2016 pixels red. NOT verified:
-  choosing a menu item (on GTK-macOS synthetic clicks into a popover do not
-  activate it -- the existing `Menu` would not even open that way), right-click
-  delivery from CGEvent, cursor shapes (seen only by a person). The snapshot is
-  in logical pixels, AppKit's in backing pixels. WinUI's five remain.
-  WinUI DONE 2026-10-07 (WinUIBackend+InputTargets.swift, a transparent Canvas
-  per target as the tap and hover targets use). Driven on P80 with real
-  SendInput (UIA only to locate elements):
-  - cursors: `ProtectedCursor` with `InputSystemCursor`, set on the target's
-    whole subtree -- hand, cross, ibeam, sizeWE, sizeNS and no read back with
-    `GetCursorInfo`. Whether the target alone suffices is NOT settled (the
-    target-only run was blocked, see below).
-  - context menu: `ContextFlyout` = a `MenuFlyout`; right-click opens First /
-    Second at the pointer, invoking Second reads "menu picked: Second".
-  - keys: A, Shift+A (modifier events too), Escape, and a KEYEVENTF_UNICODE "z"
-    (VK_PACKET, reported from CharacterReceived) -- 10 events. Fixed on the
-    way: focus is taken on the NEXT main-queue turn, because the root
-    ScrollViewer focuses itself after the target's PointerPressed and won.
-  - scroll: three wheel notches -> "scroll: 0, 16 ended: 3", as GTK.
-  - snapshot: `RenderTargetBitmap`, pumping messages until the async ops
-    finish (2 s limit). A red `Text("SNAP").padding(8).background(.red)`:
-    49x32, 1421 of 1568 pixels red, 64 ms. Checked with a temporary P80 edit,
-    reverted, not committed.
-  Most of the afternoon was lost to injected input being silently dropped:
-  first a leftover P75 window in front, then two ASUS utilities running
-  elevated (AsMonitorControl.exe, then AsHotplugCtrl.exe). test.zsh now stops
-  known blockers before a Windows test (user's instruction), and
-  enable_input.zsh no longer skips them while a remote session is connected.
-  WinUI 於 2026-10-07 完成五項(InputTargets.swift),P80 以真實 SendInput 驅動：游標六種、右鍵選單、按鍵(含
-  VK_PACKET)、捲動、截圖(1421/1568 紅)皆正確。只設 target 是否足以顯示游標尚未確定。下午大半時間耗在輸入被無聲丟棄：
-  先是殘留的 P75,後是兩支提權的華碩工具;test.zsh 現在會在 Windows 測試前停掉已知阻擋者。
-- [x] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
-  `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
-  (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
-  CLAUDE.md rules out on shipped backends. AppKit, UIKit and Android have all four.
-  GTK DONE 2026-10-06 (GtkBackend/WheelPicker.swift: a five-row ListBox in a
-  ScrolledWindow, the shape AppKit uses; it was a `fatalError` before). P74
-  built against GtkBackend on macOS: the wheel shows Mon..Fri, a click on Wed
-  reads "wheel -> Wed". WinUI DONE 2026-10-07 (WinUIBackend+PickerStyles.swift):
-  `.segmented` is a row of mutually exclusive ToggleButtons (WinUI 3 has no
-  segmented control); `.wheel` a five-row ListView like AppKit and GTK, measured
-  with its height held because `naturalSize(of:)` clears width/height and the
-  first build came out seven rows tall. P74 on WinUI, driven through UIA
-  (Toggle / SelectionItem.Select): "segmented -> Two" with only Two pressed,
-  pressing Two again keeps it; "wheel -> Wed", then Sun scrolls into view and
-  reads "wheel -> Sun" (p74w-after/-edge-20261007-0754*.png).
-  WinUI 於 2026-10-07 完成：`.segmented` 為一列互斥的 ToggleButton,`.wheel` 為五列高的 ListView;
-  P74 經 UIA 驅動，兩者讀數皆正確，選 Sun 時會自動捲動到它。
+- [x] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`, -> completed.md (archived 2026-10-18)
+- [x] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`, -> completed.md (archived 2026-10-18)
 - [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),
@@ -690,44 +317,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     returned it to 536x659.
   WinUI 項目：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)、全螢幕偵測已驅動驗證;**縮放變更未驅動**
   (這台只有一台 96 DPI 的螢幕),因此本項維持未勾。
-- [x] **`Button(_:role: .destructive)` changes nothing on any backend** (found
-  2026-10-07). The core passes the role to `updateButton` in the environment
-  (`Button.swift:438`), and no backend reads it there: on GtkBackend (macOS)
-  "button, destructive" drew like any other button. Only GTK's
-  `updateSimpleButton` (the Menu trigger, which has no role) uses it. Needs a
-  decision on what each platform shows -- red label as on iOS, or the
-  platform's own destructive style -- before five implementations.
-  Decided 2026-10-07: each platform's own style. Core: a new
-  `destructiveButtonLabelColor(in:)` on ViewLabelButtons (default nil); Button
-  hands it to the label when the role is destructive and the app named no
-  colour. P82 is the test app.
-  - AppKit DONE: `.system(.red)` plus `NSButton.hasDestructiveAction`; P82 red,
-    disabled dimmed, 'blue set' blue.
-  - UIKit DONE: `.system(.red)` (systemRed); P82 as on AppKit. Fixing it found
-    `Button("x").foregroundColor(...)` ambiguous on UIKitBackend
-    (KeyboardToolbar's ToolbarItem overload); now `@_disfavoredOverload`.
-  - Android DONE: the theme's `colorError`; P82 on the emulator 2026-10-08:
-    destructive labels orange-red, disabled dimmed, save/cancel ordinary, blue kept.
-  - GTK (Windows session, 865d9b32): Adwaita `destructive-action`. On GtkBackend
-    (macOS) bordered is red; borderless draws grey (the default borderless
-    label colour overrides the inherited red) and disabled shows almost no red.
-    **Fixed 2026-10-08:** the GTK hook returns, for borderless/plain only, the
-    colour the theme gives a `.flat.destructive-action` button's text, read from
-    an unshown probe button (bordered stays nil; the class paints it). P82 on
-    Windows GTK (dark variant) and WSLg (light): bordered red with white text,
-    borderless red, save/cancel unchanged. Disabled: Adwaita draws a disabled
-    destructive bordered button as plain insensitive -- no red -- so the faint
-    look is the native one. 'blue set' is red with blue text: the app's colour
-    wins by design, left as is.
-  - WinUI DONE 2026-10-08: the hook returns `SystemFillColorCriticalBrush` from
-    the app's theme resources (WinUI has no destructive button style). P82:
-    bordered and borderless in the critical red, disabled dimmed, 'blue set'
-    blue, save/cancel unchanged. Hover/pressed driven later the same day (real
-    SendInput on 'destructive, bordered'): the label stays (255,153,164) at rest,
-    hovered, held down and released; only WinUI's own chrome changes (background
-    45 -> 47 hovered, 39 held, 50 released). The click fires: the app shows
-    'pressed: destructive, bordered'. Earlier this line read "Hover/pressed not
-    driven (input blocked by an elevated ASUS window at the time)".
+- [x] **`Button(_:role: .destructive)` changes nothing on any backend** (found -> completed.md (archived 2026-10-18)
 ## 2026-10-12 API gaps P31 still names: `.focusable` and `CommandGroup`
 
 P31's "Missing APIs" line named six. Checked against `Sources/SwiftCrossUI` on
@@ -878,35 +468,9 @@ toolchain was installed (2026-10-05); it is done below.
   way: a mesh with no triangle shifted every later mesh onto its predecessor's
   transform. Verified with P76 on macOS and on the iOS simulator, each with
   `P76-projection.actions`; `Mesh3DTests` added.
-- [x] **iOS builds without Swift Bundler by default.** `compile.zsh -ios` runs
-  `xcodebuild -scheme <Pn>` and wraps the executable in
-  `iosContainer/appTemplate.app` (name, identifier `dev.swiftcrossui.testapp.<Pn>`,
-  ad-hoc signature); the bundler is the fallback when that fails. P76 built,
-  installed directly with `simctl install`, and replayed through `test.zsh --ios`.
-  **Full sweep 2026-10-05: all 101 iOS action files pass with no bundler on the
-  machine** (92 on the first pass; the other 9 failed in 4 s because an up-to-date
-  xcodebuild did not relink, so the freshness check rejected an old executable --
-  compile.zsh now removes it first, and those 9 then passed). No Pn fell back.
-- [x] **Android: the GLES path for the same options.** DONE 2026-10-05, built with
-  the swift.org 6.4.0 toolchain and the 6.4.0 Android SDK, NDK r30, AVD
-  `swift-cross-ui-api36b`.
-  - B: 32-bit indices when the context is GLES 3 or has `OES_element_index_uint`
-    (`IntBuffer`, `GL_UNSIGNED_INT`); otherwise `ShortBuffer` while every index fits,
-    and a one-time warning past 65,535. The old `Int16.max` refusal is gone.
-  - D: lines and points with `glDrawArrays`, `gl_PointSize` from a uniform; both
-    unlit. `lit` and `depthTested` per mesh (`GL_ALWAYS` + depth mask off), the
-    mask restored before `glClear`. Every mesh now gets a draw entry, so the
-    matrices stay aligned with it.
-  - Accepted: P76 shows all six claims on the emulator and on the iOS simulator;
-    P77 (new: 1,002,001 vertices, 2,000,000 triangles, largest index 1,002,000)
-    shows one gradient with no hole and no streak on Android, iOS and macOS.
-- [x] **Render time in microseconds, off by default.** `Mesh3DScene.measuresRenderTime`
-  and `Mesh3DFrameInfo.renderMicros` (nil when not measured): from the start of
-  the frame until the GPU finishes it -- `waitUntilCompleted` on Metal, `glFinish`
-  on GLES. P72, P76 and P77 have a button for it. Measured once each (not a
-  benchmark): macOS P72 329, P76 4437, P77 12312 us; Android emulator P76 3929,
-  P77 40144 us. Showing a reading redraws the view; the apps skip the frame that
-  redraw produces, so the loop stops (CPU 0% against 10.6-13.7% without the guard).
+- [x] **iOS builds without Swift Bundler by default.** `compile.zsh -ios` runs -> completed.md (archived 2026-10-18)
+- [x] **Android: the GLES path for the same options.** DONE 2026-10-05, built with -> completed.md (archived 2026-10-18)
+- [x] **Render time in microseconds, off by default.** `Mesh3DScene.measuresRenderTime... -> completed.md (archived 2026-10-18)
 - [x] **`P72-stop-and-check.actions` on Android missed every target since the api36b
   AVD.** That AVD's renderer string is three lines, not five, so the controls sit
   about 62 pt higher; "Stop" landed on Snapshot and the readout stayed at
@@ -973,166 +537,24 @@ toolchain was installed (2026-10-05); it is done below.
   硬體介面卡(RTX 4060);WSL GTK 修正 GLES shader 後 P72/P76/P77 全部成立;Windows GTK 須等 AMD 介面卡恢復。
   WinUI 於 2026-10-07 完成(D3D11 + SwapChainPanel,在 WARP 上 P72/P76/P77 全部成立)。Windows GTK:修好一個崩潰(產生的
   GLArea binding 把 void 處理常式接到回傳指標的 create-context),但本工作階段只有 GDI Generic OpenGL 1.1,繪製未能驗證。
-- [x] **Skip the per-commit geometry comparison.** Not needed, measured
-  2026-10-05: `Array ==` returns at once when both arrays share storage (0.003 ms
-  for 2,000,000 vertices, against 2.2 ms for equal contents in another buffer,
-  `-O`). A scene built from stored arrays is already O(1) per commit; a revision
-  token would only add a way to draw stale geometry by forgetting to bump it.
-  Documented on `Mesh3D` as "keep the arrays; do not rebuild them per update".
+- [x] **Skip the per-commit geometry comparison.** Not needed, measured -> completed.md (archived 2026-10-18)
 
 ## 2026-10-01 open after the UIScene change (8272b7a2) -- in this order
 
 1-4 first, in the order 4, 1, 2, 3 (the user's choice); the iPad plan after all four.
 
-- [x] **4. Why the iOS executable says `sdk 15.0`.** DONE 2026-10-01. The Swift
-  driver's link job hands clang `--sysroot <SDK>`; clang reads an SDK's version
-  only from `-isysroot` or $SDKROOT, so it fell back to the deployment target:
-  the logged link line re-run with `-###` gave `-platform_version ios-simulator
-  15.0.0 15.0.0`, and `15.0.0 27.0` with -isysroot. Not Homebrew's CC (an Apple
-  clang build gave the same), not swift-bundler's metadata object, not any link
-  flag (each removed in turn). Fixed at the source:
-  `testapp/iosContainer/link-sdk.xcconfig` adds `-Xclang-linker -isysroot`
-  through XCODE_XCCONFIG_FILE, and the link now writes sdk 27.0 itself. The
-  `vtool` rewrite is gone; compile.zsh only CHECKS the field and stops the build
-  if it is wrong (shown to fail on an sdk-15 copy).
-- [x] **1. Re-aim every iOS action file.** DONE 2026-10-01. Apps now run at
-  native size (440x956 points instead of a zoomed 428x926), so layouts moved.
-  Swept all 84 files, read each capture against its file's assertion, re-aimed
-  the misses (P2 P3 P13 P17 P21 ×2 P22 P23 ×5 P33 P43 P44 P45 ×2 P46 P74 P75
-  save) and replayed every re-aimed file until its capture showed the
-  assertion. Two tools came out of it: `testapp/test_support/ios_aim_check.py`
-  checks each positioned row against the accessibility tree, and the iOS runner
-  takes a `dumptree` row that prints the tree mid-file, for targets that only
-  sit where they do after earlier rows (P17's More height was mis-aimed from a
-  capture taken after the closing scroll). P75 deletes last run's saved file on
-  launch so the save file is repeatable.
+- [x] **4. Why the iOS executable says `sdk 15.0`.** DONE 2026-10-01. The Swift -> completed.md (archived 2026-10-18)
+- [x] **1. Re-aim every iOS action file.** DONE 2026-10-01. Apps now run at -> completed.md (archived 2026-10-18)
 - [x] **2. Write the missing action files.** iOS 14: P47 P48 P49 P51 P52 P58
   P59 P61 P62 P63 P64 P66 P68 P70 (captured 2026-09-30, but at the zoomed size
   -- re-measure). Android 20: P15-DARK P17-DOE P47 P48 P49 P51 P52 P59 P60 P61
   P62 P63 P64 P66 P67 P68 P69 P70 P73 (+ P6-v2, GTK-only, never).
-  - [x] iOS: 16 files written 2026-10-01, measured from the native-size tree and
-    each replayed and read. Two defects found and fixed on the way:
-    DocumentGroup's binding never redrew its window (P62 read (empty) while
-    its log said AA; macOS hid it because opening a second document redrew
-    window 1), and a sheet whose content was wider than the window was laid
-    out at that width and centred, cutting both ends of every line (P49).
-  - [x] Android: all 20 written 2026-10-01/02, measured from uiautomator dumps and
-    replayed (sweep_android 19/19 launched; each capture read). On the way:
-    the Android host SDK (Xcode 27 Foundation interfaces the snapshot toolchain
-    cannot read) broke every Android build; test_android refused P15-DARK and
-    P17-DOE, and a hyphen made an invalid application id; an app that crashed at
-    launch still exited 0 and photographed the app behind it; P63 read global
-    x=0 y=0 (pending LayoutParams, pixels); a default popover had no panel; a
-    popover wider than the window ran off it (Android and iOS); taps aimed into a
-    sheet or popover reached the activity behind (P60); main-queue work waited
-    up to 50 ms for the tickler. All fixed.
-  - [x] **Re-aim the Android action files.** DONE 2026-10-02. Every file's taps
-    checked against a uiautomator dump (`ios_aim_check.py` reads .xml now), 16
-    re-aimed, and a full sweep -- 98/98 launched, no crash, every replay
-    finished -- read capture by capture against each file's assertion. Fixed on
-    the way: launch focus went to the first text field (keyboard over P2 P15
-    P21 P36, and P21's buttons scrolled away on a relayout) -- ShortcutHostLayout
-    now takes the default focus; P72's long-press menu had been unreachable since
-    the scroll-gesture container took every touch -- it now takes a touch only
-    past the slop and hands a still press to the long-click ancestor; the final
-    capture now waits for the replay to finish; P75 reveal writes a fresh name
-    when the old file belongs to an earlier install.
-  - [x] **Android per-frame update cost.** Re-measured 2026-10-04 on the new AVD
-    after the reboot: P64 54-56 Hz (median gap 16.7 ms, max 117-150 ms), P66
-    16-22 samples in 0.6 s (iOS 31). The earlier 37 Hz / 7 samples were the
-    stuck emulator eating 7 cores. Findings, all measured, nothing changed yet:
-    - Not the update pipeline: no merged or throttled updates during P66's
-      animation; each SwiftCrossUI update takes 4-10 ms and runs every frame.
-    - Main thread is busy ~20 ms per frame during the animation (P66's 8 ms
-      sampler runs every 20-30 ms then, every 8 ms after), and values sometimes
-      advance two frames at once -- dropped frames.
-    - A ~100 ms main-thread stall at the animation's start (sampler t=76 ->
-      178), the same shape as P64's 117-150 ms max gap; ART's JIT thread is
-      6-10 % of the process then, so first-run JIT/class loading is the lead.
-    - simpleperf: libart 28 %, libswiftCore 18 %. The top symbol was
-      `art::mirror::Class::FindClassMethod` (8.9 %): swift-java's
-      `javaMethodLookup` runs GetObjectClass + GetMethodID on EVERY call (from
-      AndroidBackend.setSize -> setLayoutParams among others). A method-ID cache
-      prototyped in the checkout removed it but cut main-thread CPU only ~5 %
-      (2.38 s -> 2.26 s over 6 s) and did not move P66, so it was reverted; a
-      swift-java fork is not justified by that alone.
-    FIXED 2026-10-04 (second pass, counting calls rather than their cost):
-    `AndroidBackend.size(of:whenDisplayedIn:)` built a new Java TextView and a
-    full TextStyle for every text measurement (50.5 % of the main thread),
-    `getTextStyle` rebuilt Typeface/classes every call (19.6 %), and 94-96 % of
-    setPosition/setSize calls and ~half of setText calls changed nothing yet
-    each requested an Android layout. Now: measurements and text styles are
-    cached by key, unchanged positions/sizes/text are skipped. P66 16-22 ->
-    24-28 samples (iOS 31); P64 54-56 -> 57-58 Hz, max gap 117-167 -> 67-100 ms.
-    Full Android sweep 98/98, captures compared with the run before.
-    PARITY 2026-10-04 (third pass): the remaining read-back checks were
-    themselves JNI calls (updateTextView 27 %, setPosition 22 %), and
-    swift-java's per-call method lookup was 29 %. The last value set on each
-    widget is now kept on the Swift side (AndroidBackend+LastSet.swift), so an
-    unchanged call costs a dictionary lookup. P66 29-31 samples (iOS 31), P64
-    59.0-59.5 Hz with a 33-50 ms worst gap (iOS 58.9-59.8 Hz, 22-43 ms). Not
-    done, and not needed at parity: a method-ID cache in swift-java (a fork).
-    CLOSED 2026-10-05 with all three platforms measured the same way (full
-    sweeps with SCUI_UPDATE_STATS=1, table in
-    testapp/measurements/update-stats-20261005.md). Steady state is at parity:
-    for the four apps with >= 50 updates, Android median / p95 vs iOS -- P52
-    5.8/114 vs 9.5/52, P64 2.5/3.8 vs 3.6/5.1, P66 2.3/5.3 vs 1.0/1.9, P72
-    7.4/10.0 vs 5.3/6.1 ms. The gap left is elsewhere, see the next item.
-  - [x] **Android: the first updates after launch.** Over 58 apps the Android
-    median is 1.44x iOS (median of medians 17.0 vs 10.8 ms, p95 52.5 vs 29.2),
-    and the difference sits in apps with few updates, i.e. the first ones after
-    launch: P2 83 vs 11 ms for its one update, P4 69 vs 28, P7 max 140 vs 50.
-    Likely first-run JIT, class loading and first View creation through JNI --
-    unproven. Next: have UpdateTimings report the first update separately, then
-    decide whether a warm-up or an ART baseline profile is worth it.
-    DONE 2026-10-05, and the guess was wrong. The line now ends in
-    `first_ms=` and `rest_median_ms=` (UpdateTimings.swift, its tests,
-    csv2_rows.zsh and update_stats_table.zsh carry the two columns; files from
-    before have them blank). Android, three runs each, first / rest median ms:
-    P1 open-the-root-sheet 15.4 / 55.3, 19.5 / 102.6, 22.6 / 43.0; P2
-    expand-the-picker-options 70.1 / 92.4, 161.1 / 96.0, 62.6 / 98.1; P12
-    increment-the-counter 35.2 / 69.5, 36.5 / 68.7, 36.4 / 12.1. One run each
-    of P0 13.0 / 13.3, P4 59.1 / 50.9, P7 32.3 / 9.0, P66 11.0 / 1.8. The
-    slow updates are the later ones that open a sheet or a picker, not the
-    first after launch, so a warm-up or baseline profile aimed at start-up is
-    not supported; only P7 looks like a start-up cost. (iOS runs use different
-    action files, so they are not compared per app.) See the next item.
-  - [x] **Android: updates that create views are slow** (found 2026-10-05,
-    above). P1's sheet 43-103 ms and P2's picker 92-98 ms on Android. Next:
-    time where those updates go -- widget creation through JNI, layout, or the
-    Kotlin side -- before choosing a fix.
-    - [x] **P2: a quarter of the update was swift-java class lookups** (2026-10-05).
-      simpleperf on the emulator (cpu-clock plus --trace-offcpu, dwarf stacks,
-      symbols from the unstripped libP2.so), aligned to the update by a temporary
-      end-time marker from UpdateTimings (removed again): of P2's 103.9 ms picker
-      update, 25.5 ms was `_withJNIClassFromCustomClassLoader` ->
-      `JavaClassLoader.loadClass`, reached from `AndroidBackend.updateButton`
-      building a new `SwiftAction` and `SwiftObject` for every button on every
-      update, and from `JavaClass<CustomButton>()` reads of constants in
-      `buttonPadding` and `kotlinRepresentation`. Also in the window: 28 ms with no
-      sample at all (the vCPU not running; likely the emulator), 6 ms Kotlin button
-      styling, 3.5 ms ART class loading on the main thread. Fixed in
-      AndroidBackend+CustomButton.swift: the Java action is built once per button
-      and calls a Swift box whose closure is swapped on each update; `set` is called
-      only when style, enabled state or colour scheme change (`LastSet`); the
-      constants are read once. P2's picker update, three runs each: 92.4 / 96.0 /
-      98.1 ms before, 82.6 / 62.7 / 72.5 after. Checked: P12 clicked twice reads
-      "counter: 2" (the swapped closure is the one that runs), P21 reads
-      "Button -- clicks: 1" with the disabled one dimmed. Not checked: a button whose
-      enabled state changes while the app runs.
-    - [x] **P1: the sheet is not this.** 63.0 / 51.4 / 57.8 ms after the fix against
-      55.3 / 102.6 / 43.0 before -- no clear change. Next: the same profile on P1.
-      DONE 2026-10-05: P1's sheet is a cost paid once, the first time. The same
-      profile on its 104.4 ms update: 35 ms on the main thread's CPU and one 57.9 ms
-      stretch with no sample at all, inside `__swift_instantiateGenericMetadata` ->
-      `swift_getGenericMetadata` (the same four libswiftCore frames on both sides of
-      the gap; resolved with llvm-symbolizer against the 6.4.0 Android SDK's
-      libswiftCore.so). Opening the sheet three times in one run (open, dismiss,
-      open, dismiss, open) gave 82.3 then at most 17.7 ms, and 54.9 then at most
-      21.3 ms: only the first open is slow. So it is the runtime building the sheet
-      view type's generic metadata, plus the emulator not running the vCPU for part
-      of it, not per-update work in AndroidBackend. Not pursued: warming that
-      metadata at launch would move the cost, not remove it.
+  - [x] iOS: 16 files written 2026-10-01, measured from the native-size tree and -> completed.md (archived 2026-10-18)
+  - [x] Android: all 20 written 2026-10-01/02, measured from uiautomator dumps and -> completed.md (archived 2026-10-18)
+  - [x] **Re-aim the Android action files.** DONE 2026-10-02. Every file's taps -> completed.md (archived 2026-10-18)
+  - [x] **Android per-frame update cost.** Re-measured 2026-10-04 on the new AVD -> completed.md (archived 2026-10-18)
+  - [x] **Android: the first updates after launch.** Over 58 apps the Android -> completed.md (archived 2026-10-18)
+  - [x] **Android: updates that create views are slow** (found 2026-10-05, -> completed.md (archived 2026-10-18)
   - [x] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
     2026-10-05: ticked -- every item under it was already [x].
@@ -1142,223 +564,19 @@ toolchain was installed (2026-10-05); it is done below.
       top-aligned with the anchor; Android shifts a panel that does not fit, and
       the arrow is computed for the unshifted position. Leading shares the code;
       Android has no leading file.
-    - [x] 3. FIXED 2026-10-04 (CustomRadioGroup dims disabled options to 0.4). P74 disabled radio group: labels stay full black on Android; iOS dims
-      them.
-    - [x] 2. FIXED 2026-10-04 (TableContainer clips to its own frame). P23 table: a long cell wraps to many lines and spills over the text
-      below; iOS truncates with an ellipsis. Remaining difference, part of 4:
-      Android cells wrap to several lines (column = width / 4) so only ~2.5 of
-      12 rows fit, where iOS keeps each row to one truncated line.
-    - [x] 4. NOT A DEFECT (measured 2026-10-04). Text in narrow places breaking
-      per character on Android ("Sci enc e" P16, "Disa ble it" P29, "Re mo ve 3"
-      P51, "u n k n o w n" P47, P23's multi-line cells):
-      - P16: identical on iOS -- sidebar 106 pt on both, "Science" 2 lines and
-        "Humanities" 3 lines there too; the iOS capture compared was cropped.
-      - P51: content wider than any phone; iOS overlaps where Android wraps.
-      - P47, P29: the emulator is 411 pt wide against iPhone's 440, Roboto runs
-        ~4 % wider than SF (178 vs 171 pt), and Material buttons carry more
-        padding. With `wm density 393` (440 pt wide) P29's button fits and P47
-        becomes 3 lines (iOS 2).
-      Not changed: a 440-pt AVD would invalidate every Android action file's
-      coordinates, and 411 pt is a common Android width.
-    - [x] 5. NOT A DEFECT (measured 2026-10-04). P41 date pickers "clipped" on
-      Android: the page is wider than the phone on BOTH -- iOS puts .graphical
-      at x 525 and .wheel at x 499 in a 440-pt window and scrolls too; the two
-      action files simply end at different scroll positions. Android's large
-      calendar header is the Material picker's own look.
-    - [x] iOS, the other way: P57's 500-row List built 29,718 rows on iOS against
-      403 on Android. FIXED 2026-10-04 (bca777db): setLazyRows reloaded the whole
-      table on every update (343 reloads), and each reload released and rebuilt
-      the visible rows; same-count updates now refresh visible rows in place.
-      Now 1,913 / 8. A per-cell trace of that run shows 1,906 cellForRowAt calls,
-      so each build is one row coming on screen. The rest of the gap to Android
-      is the walk, not waste: on iOS the same `scroll 6` rows reach row 446 and
-      back (~900), plus a 0..499 burst and 455 scattered rows (6, 33, 71, 119 ...)
-      that look like XCUITest's accessibility snapshot making UITableView vend
-      off-screen cells -- not yet proven.
-    - [x] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
-      earlier app; the sweep does not clear the task stack between apps.
-      FIXED 2026-10-05: the sweep did force-stop and uninstall each app after its
-      file, but as dev.swiftcrossui.testapp.${app:l} -- "p17-doe", while the
-      package is "p17doe" (test_android.zsh drops the hyphen). am force-stop of a
-      package that does not exist says nothing, so P17-DOE and P15-DARK were never
-      stopped or removed. Same spelling fixed in verify_effect_android.zsh,
-      verify_replay_android.zsh and test_rootscroll_android.zsh. Verified: sweep
-      of P17-DOE then P75 -- close-the-window now ends on the home screen.
-    - [x] Android aim after the AVD change (2026-10-05). SoftPCB-mac found P72
-      measured on the old api36/SwiftShader AVD, ~62 pt off on api36b. Every
-      app with an Android file was launched and its uiautomator tree checked
-      against every positioned row (test_support/ios_aim_check.py): 68 apps, 59
-      HIT, 6 AFTER (screen changed first; covered by the sweep captures), 36
-      MISS -- each read against its note: all land on their target, the MISS is
-      the checker failing to match a note written as an action ("cycle 1: none
-      -> top") or a target with no text (drop zone, effect tiles, web view).
-      None re-aimed. P72 could not be dumped (it animates, uiautomator never
-      idles); its files were re-measured by SoftPCB-mac the same day.
-  - [x] **Emulator GPU.** DONE 2026-10-04. AVD config pinned to
-    hw.gpu.enabled=yes / hw.gpu.mode=host (was no / auto, which fell back to
-    software GL under memory pressure). test_android.zsh and sweep_android.zsh
-    boot with `-gpu host`; test_android reuses a running emulator, reads the
-    renderer from SurfaceFlinger, and if it is SwiftShader/llvmpipe/lavapipe
-    restarts that AVD on the host GPU by itself (no flag) and stops if it still
-    cannot get one. Proven on an emulator booted with swiftshader_indirect:
-    restarted, `Renderer: ... Apple M4 ... Metal`, P1 ran. Full Android sweep
-    afterwards: 99 / 99 launched; finals against the previous sweep: 66
-    identical, the rest differ only in content (clock, frame counters, files
-    the earlier runs saved in Downloads/Recents). That previous sweep was
-    already on the host GPU (P72 prints its renderer), so this shows pinning
-    changed nothing; it is not a comparison against software rendering.
-  - [x] **Disk cleanup: testapp/cleanup.zsh** (2026-10-04). Report by default,
-    --apply removes regenerable items: iOS simulators' unified logs (skips
-    booted ones), DerivedData, clang module cache, Instruments cache, emulator
-    crash db, helper processes left by a dead emulator. Opt-in: --erase-sims,
-    --wipe-avd, --deep (SwiftPM/Gradle/Homebrew). First run: 11 -> 18 GB free.
-    - [x] scui-wear AVD (1.4 GB, unregistered, untouched since 2026-09-05) and
-      its android-34 wear image (4.1 GB): removed 2026-10-04 at the user's
-      request (image via sdkmanager --uninstall).
-    - [x] test_ios.zsh left a new DerivedData/iOSActionFileRunner-<hash> per
-      run (166 on 2026-10-04): `test-without-building` had no
-      -derivedDataPath. Fixed; two runs after, zero new folders.
-    - [x] Stale build trees removed 2026-10-04 (44 GB on /Volumes/Windows):
-      testapp/.compile-work (retired, no suffix), the android31 debug trees
-      under .compile-work-android (harness builds release), android28,
-      Examples/.build. **Vendor/swift-bundler/.build was removed too and had
-      to be rebuilt:** the root `swift-bundler` binary loads its
-      ErrorKit_ErrorKit resource bundle from that .build by absolute path, so
-      "not modified in 7 days" meant read-only use, not unused. Android P1 then
-      died bundling with "unable to find bundle named ErrorKit_ErrorKit"; after
-      `swift build -c debug --product swift-bundler` there, Android P1 and iOS
-      P12 build and run. Never delete Vendor/swift-bundler/.build.
-    - [x] `.swift-bundler-stamp` says the root binary was built from
-      swift-bundler 4ad3f14f, the submodule is at 922ba2a7: the installer
-      would rebuild it. Pre-existing drift, not changed here.
-      CLOSED 2026-10-05, moot: nothing in the harness runs the root binary any
-      more -- Android packages through package_android.zsh, and compile.zsh -ios
-      no longer has a bundler fallback. CI builds its own from the Vendor commit
-      (cache keyed by it), so it never used this binary. The untracked root
-      swift-bundler and .swift-bundler-stamp were deleted the same day, at the
-      user's request. Scripts/build-tool-install-android-on-Mac.sh (its
-      CounterExample check) and Scripts/build-android-bundler.sh still build and
-      copy them there, so running either brings them back.
-    - [x] **Swift Bundler replaced for Android** (2026-10-05). One tracked Gradle
-      project, testapp/androidContainer/gradleProject, built in place at
-      .compile-work-android/gradleProject; testapp/package_android.zsh relinks
-      compile.zsh's product as lib<Pn>.so from SwiftPM's own link command, strips
-      .swift_ast, copies the needed .so files (llvm-readelf), builds libshim.so
-      with the NDK's clang, and runs Gradle with the app as -P properties. The
-      second Swift build in .build-bundler is gone (27 GB deleted). MainActivity
-      is now dev.swiftcrossui.testapp.MainActivity in every app; the four
-      scripts that launched `<pkg>/.MainActivity` were updated. Verified:
-      bundler and new APKs of P1 hold the same 27 entries, and their manifests
-      differ only in that class name; full Android sweep 99/99, finals against
-      the bundler sweep of the same day 69 identical, the rest P72 (Mesh3D work
-      landed between the runs), P38 (live web page), P57/P75 (counters, files).
-      Gradle for a second app: 3-4 s, Kotlin UP-TO-DATE. A first version read
-      the 111 MB build plan with yaml.safe_load, 17.5 s per app; now 0.04 s.
-      Swift Bundler is still built by the installer for compile.zsh -ios's
-      fallback; Android no longer needs it.
-    - [x] **iOS: an xcodebuild failure is a defect to root-cause, not something
-      for the Swift Bundler fallback to absorb** (user, 2026-10-05). The
-      fallback at compile.zsh ~1759 prints one stderr line and carries on, which
-      is how P76/P77's "Redefinition of module '_SwiftSyntaxCShims'" at 05:24
-      went unnoticed until read back later. Next time it happens: stop, find the
-      cause, fix it. Then make the fallback fail loudly (or count it in the
-      build manifest and the sweep CSV) so a run that used it cannot read as a
-      clean xcodebuild pass, and remove it once xcodebuild has held across a
-      full iOS sweep. The _SwiftSyntaxCShims case is root-caused below.
-      DONE 2026-10-05: after the root-cause fix, a full iOS sweep built all 101
-      files with xcodebuild (101 x "built by: xcodebuild + iosContainer",
-      101/101 pass), so the fallback was removed from compile.zsh: an xcodebuild
-      failure exits 1 with its log and state, and nothing else runs.
-      - [x] Fallback made loud (2026-10-05): compile.zsh -ios keeps the xcodebuild
-        output in testapp/output/ios-xcodebuild-<Pn>.log, and on failure appends
-        the state (product, DerivedData/TestApps-* with creation times, the
-        Redefinition lines) and exits 1. Swift Bundler runs only with
-        SCUI_IOS_BUNDLER_FALLBACK=1, reported as a warning and in "built by".
-        Proven on a real failure: P12 at 07:00 and 07:05, both
-        "Redefinition of module '_SwiftSyntaxCShims'", deterministic. The first
-        version died with `print: bad option: -` on its own heading -- the check
-        would have read as working until a failure tried to use it.
-      - [x] Root cause found and fixed (2026-10-05). xcodebuild had no
-        -derivedDataPath, so it resolved packages into
-        ~/Library/Developer/Xcode/DerivedData/TestApps-*/SourcePackages while
-        Swift Bundler (-derivedDataPath = $ios_derived_data) resolved them into
-        .compile-work-ios/.../arm64-apple-iphonesimulator/SourcePackages, and both
-        shared OBJROOT. Every target's cached PIF (XCBuildData/PIFCache) carries
-        the swift-syntax prebuilts' absolute path, and an unchanged target keeps
-        its cached PIF: SwiftCrossUIMacrosPlugin's (2026-09-29, bundler) named
-        .build's checkout, MacroToolkit's (regenerated) named DerivedData's, and
-        the plugin got both sets of -I. Fix: compile.zsh passes the same
-        -derivedDataPath as the bundler, and the stale XCBuildData was removed
-        once. Verified: P12, which failed twice in a row, builds; after the
-        purge xcodebuild -> bundler -> xcodebuild all succeed with the plugin
-        recompiled each time and 0 DerivedData/TestApps paths in any log; P76 and
-        P77 run on the simulator built by xcodebuild. Adding the flag WITHOUT the
-        purge passed P12 but still showed DerivedData paths from the old PIFs --
-        the purge is part of the fix on any tree built before it.
-      - [x] Homebrew clang in iOS builds (found in the same log): a shell profile
-        exporting CC/CXX=/opt/homebrew/opt/llvm/bin/clang made xcodebuild compile
-        the C targets with it, explicit modules off ("did not match the configured
-        compiler", 354 times in one P12 build). compile.zsh unsets CC and CXX for
-        xcodebuild only; the next P12 build: 0 and 0, BUILD SUCCEEDED.
-      - [x] The purge is automatic (2026-10-05, at the user's request): before the
-        iOS build loop compile.zsh lists every SourcePackages path in
-        XCBuildData/PIFCache, and if any is not $ios_derived_data/SourcePackages it
-        says so and removes XCBuildData (one full rebuild). Proven both ways: on
-        the clean tree P12 built with no message and XCBuildData untouched; with a
-        PIF naming DerivedData/TestApps-fake planted, the run named it, removed
-        the cache, rebuilt from scratch (rc 0, xcodebuild), and the rebuilt cache
-        names only this tree. Covers clones built before 5deb2156 and trees that
-        have moved, without a manual step.
-    - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
-      was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
-      regenerates the project on every bundle (APKBundler.swift), so a shared
-      folder would reuse nothing; test_android.zsh now moves the APK out and
-      drops the project, so one Gradle project exists at a time (2026-10-05).
-      Existing ones removed: 400 -> 456 GB free. P1 then P12 built and
-      launched; P12's bundle 33 s against 32 s before.
-    - [x] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
-      build, and the .xctestrun it edits with PlistBuddy) across all apps, and
-      compile.zsh shares one .compile-work-<backend> tree per backend, so two
-      runs on the same platform at once are not safe -- they were not before
-      the DerivedData fix either.
-      DONE 2026-10-05 as serialisation, not parallelism: test_support/
-      platform_lock.zsh gives Android and iOS a lock each (mkdir + owner PID,
-      dead-owner takeover, re-entrant for a child, released through zshexit),
-      taken by test_android.zsh, test_ios.zsh and compile.zsh -android/-ios. A
-      second run now waits. Verified on both: two runs started 3 s apart, the
-      second printed "waiting for the <platform> lock" and ran after the first,
-      both rc 0, the nested compile.zsh passed straight through. True parallel
-      runs would need a device and a 5-15 GB tree per run; not done.
-  - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
-    recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
-    Kotlin helpers do several things per crossing, pure JNI would add crossings.
-    Only worth it to drop the Kotlin/Gradle build dependency.
-  - [-] **CANCELLED 2026-10-04. swift-java method-ID cache (fork): deferred** -- not needed at parity.
-  - [x] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
-    an env var that makes SwiftCrossUI print update-time statistics (count,
-    median, p95, max) at exit; the sweeps collect them per platform so every
-    Pn is compared Android vs iOS vs macOS on the same action file.
-    DONE 2026-10-05. SCUI_UPDATE_STATS=1 (or --update-stats, which is how it
-    reaches an Android app) makes UpdateTimings.swift time every update in
-    Publisher.observeAsUIUpdater and print a cumulative "update-stats: count
-    median_ms p95_ms max_ms" line on stderr after 1.5 s of quiet, and every 5 s
-    while an app animates without pause -- not at exit, since apps under test
-    are killed. test_android / test_ios / test_common (macOS, Windows) pass the
-    flag and print the last line as "==> update-stats:"; the sweeps export it
-    and write testapp/output/update-stats-<platform>.csv2;
-    testapp/update_stats_table.zsh joins the three into one Markdown table.
-    Verified on all three with P12 and P66 (P66: android 1.6/3.2/9.3 ms n=309,
-    ios 1.1/4.0/16.2 n=231, macos 1.3/1.9/2.4 n=310). The sweep CSVs are now
-    written through csv2 (test_support/csv2_rows.zsh) instead of Python csv,
-    whose writer put CRLF on every line. Not yet: WSL (print_summary_wsl reads
-    the log through wsl.exe) and a full three-platform sweep to fill the table.
-  - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
-    redistribution offered the stack's overflowed result (522) instead of its
-    proposal (408); it now offers the smaller of the two. On iPhone the outer VStack
-    reports 522 pt while the two-column HStack inside it draws to 579, so the
-    root scroll host stops 57 pt short and the second column is cut even
-    scrolled to the end. Not iOS-specific -- any window narrower than the two
-    columns. Evidence: a dumptree row after P51's scroll.
+    - [x] 3. FIXED 2026-10-04 (CustomRadioGroup dims disabled options to 0.4). P74 disable... -> completed.md (archived 2026-10-18)
+    - [x] 2. FIXED 2026-10-04 (TableContainer clips to its own frame). P23 table: a long c... -> completed.md (archived 2026-10-18)
+    - [x] 4. NOT A DEFECT (measured 2026-10-04). Text in narrow places breaking -> completed.md (archived 2026-10-18)
+    - [x] 5. NOT A DEFECT (measured 2026-10-04). P41 date pickers "clipped" on -> completed.md (archived 2026-10-18)
+    - [x] iOS, the other way: P57's 500-row List built 29,718 rows on iOS against -> completed.md (archived 2026-10-18)
+    - [x] Harness: P75-close-the-window's capture shows P17-DOE left behind by an -> completed.md (archived 2026-10-18)
+    - [x] Android aim after the AVD change (2026-10-05). SoftPCB-mac found P72 -> completed.md (archived 2026-10-18)
+  - [x] **Emulator GPU.** DONE 2026-10-04. AVD config pinned to -> completed.md (archived 2026-10-18)
+  - [x] **Disk cleanup: testapp/cleanup.zsh** (2026-10-04). Report by default, -> completed.md (archived 2026-10-18)
+  - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): ... -> completed.md (archived 2026-10-18)
+  - [-] **CANCELLED 2026-10-04. swift-java method-ID cache (fork): deferred** -- not nee... -> completed.md (archived 2026-10-18)
+  - [x] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed: -> completed.md (archived 2026-10-18)
+  - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time -> completed.md (archived 2026-10-18)
 - [x] **3. P5 on iPad: alerts on two windows at the same time.** DONE 2026-10-02.
   `actions/ios/P5-alerts-on-two-windows-ipad.actions`: the main window is asked for
   an alert in 3 s (P5's new button), the second window opens over it and shows
@@ -1370,22 +588,13 @@ toolchain was installed (2026-10-05); it is done below.
   uninstalls first, so last run's windows are not restored. Runner: `screen`
   origin, `windowframes`, held slow drags, `taplabel` falls back to a
   non-hittable match (alert buttons report isHittable false).
-  - [x] Android P5 re-aimed (2026-10-04, verified: Alert C on top). The AVD
-    whose data went bad when /Volumes/Windows dropped was replaced by
-    swift-cross-ui-api36b on /Volumes/Windows and the old one deleted; full
-    Android sweep on it: 98/98 launched, every capture read.
+  - [x] Android P5 re-aimed (2026-10-04, verified: Alert C on top). The AVD -> completed.md (archived 2026-10-18)
 
 ### Then: iPad testing (after 1-4)
 
 How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
 
-- [x] **Windowed mode.** DONE 2026-10-02: `test_support/ipad-windowed-apps.csv`.
-  Fastest: set it once by hand in the iPad Simulator,
-  Settings > Multitasking & Gestures > Windowed Apps (it persists). Durable:
-  have the XCUITest runner drive the Settings app (`com.apple.Preferences`) so
-  a fresh Simulator can be set up unattended. `defaults write
-  com.apple.WindowManager GloballyEnabled` and `com.apple.springboard
-  SBChamoisWindowingEnabled` did NOT switch it (2026-09-30).
+- [x] **Windowed mode.** DONE 2026-10-02: `test_support/ipad-windowed-apps.csv`. -> completed.md (archived 2026-10-18)
 - [x] **P59 / P62 on iPad** (2026-10-03): `P59-two-windows-ipad.actions`,
   `P62-two-documents-ipad.actions`, read from the dumptree. P59 found a core bug:
   `Publisher.observeAsUIUpdater` kept ONE merge slot per publisher, so when two
@@ -1393,16 +602,7 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   as "merged" (window A stayed AA, B showed AAB). Now one slot per observer;
   verified twice, and full macOS (97/97) and iOS (103/103) sweeps compared
   capture by capture. `-ipad` files are skipped by the iPhone sweep.
-- [x] **Mac input source.** Since 2026-10-03 the active input source is Zhuyin
-  (com.apple.inputmethod.TCIM.Zhuyin), and the macOS synthesiser's keys go
-  through it: P71's Cmd-S / Cmd-Shift-E fire 0 times and P9 types kana instead
-  of "hi" -- with the old Publisher too, so not a code change. Switch to ABC
-  before macOS sweeps, or make the synthesiser select an ASCII source itself.
-  DONE 2026-10-05: AppKitSynthesiser.prepareForReplay switches to the ASCII
-  keyboard layout when the file sends keys and the current source is not one,
-  reports it, and finishReplay restores the original. Verified with Zhuyin
-  selected: P71 plain 1 / shifted 1 / disabled 0, P9 typed "hi", the log reads
-  "Zhuyin -> ABC ... restored to Zhuyin", and Zhuyin was current afterwards.
+- [x] **Mac input source.** Since 2026-10-03 the active input source is Zhuyin -> completed.md (archived 2026-10-18)
 - [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.actions` -- proposed
   width 802 portrait, 1178 landscape, 802 again, read from the tree.
 - [x] **P72 cursor on iPad** -- DONE 2026-10-13 on the iPad simulator, not "physical iPad only": the runner
@@ -1522,8 +722,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `S... -> completed.md (archived 2026-10-05)
 - [x] **5. P28:點擊延遲 — 兩條未量的路徑都量完了** — 「真實滑鼠事件合成不出來」不成立:`AppKitSynthesiser` 檔頭那個「CGEven... -> completed.md (archived 2026-10-05)
 - [x] **5b. #126 `onEditingChanged`** — 已完成。五個 backend 全數實作,AppKit/UIKit/Android **實測建... -> completed.md (archived 2026-10-05)
-- [x] **M1. #32 手勢 — 三份實作完成,拖曳已驅動驗證** — 新增三個協定(`DragGestures`/`MagnifyGestures`/`RotateGestures`,分開是因為 Android 沒有旋轉偵測器)、`onDragGesture`/`onMagnifyGesture`/`onRotateGesture` 三個 modifier,五個 backend 全部實作。**AppKit 的拖曳以真實 `CGEvent` 驅動並對著像素驗過**:面板在螢幕 (80,252)、送出 (150,290)→(230,320),回報 start (70,38)、location (150,68)、translation (80,30),三者一字不差。**縮放與旋轉編過但未驅動**——此處沒有任何合成器產得出觸控板手勢,需要有人在機器前用兩指做一次。順帶抓到的兩件事寫在程式碼裡:pan 辨識器的 slop 門檻會讓 `.began` 的座標偏晚(改用 `translation(in:)` 回推);以及 P65 自己的回報文字變長會推動置中的版面,讓 80 點的拖曳量成 100 點
-  - **2026-10-05 由 [~] 改為 [x]:** 當時未驅動的縮放與旋轉,已由 M9(2026-09-17)在 iOS 與 Android 驅動,AppKit 與 X11 以寫明的理由拒絕(見 completed.md 的 M9)。沒有剩下的部分。
+- [x] **M1. #32 手勢 — 三份實作完成,拖曳已驅動驗證** — 新增三個協定(`DragGestures`/`MagnifyGestures`/`Rotat... -> completed.md (archived 2026-10-18)
 - [x] **M2. #125 Table 的 `selection` 與 `sortOrder` — 兩項都已完成於五個 backend(2026-09-16)** —... -> completed.md (archived 2026-10-05)
 
 - [x] **M4. #121 在 iPhone 上已補上 — `UIResponder.keyCommands`(2026-09-16 完成並驅動驗證)** — UIK... -> completed.md (archived 2026-10-05)
@@ -1536,53 +735,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **M7. P4 與 P8 在 macOS 上一啟動就崩潰 — 都已修(2026-09-17)** -> completed.md (archived 2026-10-05)
 
 - [x] **M8. `.inspect` 的同一個缺陷 — UIKit 已修並驗證;WinUI 與 GTK 於 2026-09-17 由 Windows 修好並驗證**... -> completed.md (archived 2026-10-05)
-- [x] **M3b. #109 popover `arrowEdge` — 兩個 Windows backend 已完成並成對驗收(2026-09-16)** — 決定為 (1):加 `arrowEdge` 當**提示**、backend 可翻轉。落地形狀:獨立協定 `BackendFeatures.PopoverArrowEdges`(一個方法)加上 `.popover(isPresented:arrowEdge:onDismiss:content:)`;**不在 `presentPopover` 上加參數**,那會一次弄壞五個 conformance,而其中四個此處編不動(mistakes 第 10 條)。
-  - **2026-10-05 由 [~] 改為 [x]:** 上文已寫明 2026-09-17 五個 backend 全部 conform `PopoverArrowEdges` 並各自以成對動作檔驅動;兩個後續修正也已落地。沒有剩下的部分。
-  - **WinUI**(`Flyout.placement`,偏好存在 `Popover` 上以免被 `presentPopover` 的 `.auto` 蓋掉):同一顆按鈕,`.top` 面板在上、`.bottom` 在下,兩張圖含讀數。
-  - **GTK**(`GtkPopover.position`):`.top` 尖角**朝下**、`.bottom` 尖角**朝上**。**這一對比 WinUI 那對更強**——方向是 `GtkPopover` 自己畫在圖上的,不是從面板位置推論的。
-  - **丟棄過兩組不可證偽的安排**,理由寫在動作檔裡:第二顆按鈕四周都沒空間,`.bottom` 翻到上面、`.leading` 翻到右邊,每一組的兩張圖都相同。**一組不可能不同的對照,無論程式如何運作都證明不了任何事。**
-  - **`leading`/`trailing` 在兩邊都解析為 left/right**,因為 `GtkPositionType` 與 `FlyoutPlacementMode` 都不跟隨書寫方向;RTL 版面應當對調,這句話寫在兩個實作裡。
-  - ~~**AppKit / UIKit / Android 尚未實作**,那是 Mac 那邊的。~~ **2026-09-17 三個都完成並各自以成對
-    動作檔驅動過。** 五個 backend 現在都 conform `PopoverArrowEdges`;P50 的「arrow edge supported」
-    在三處都讀到 `yes`。
-    - **AppKit**:`NSPopover` 沒有可設定的邊屬性,因此偏好存在 `NSCustomPopover` 上、由
-      `presentPopover` 花掉。**第一版對應是反的**:檔案裡原有的註解說「`.maxY` 是下方」(從本 backend
-      的翻轉 view 推論而來),而擷圖說相反——`p50-macos-final-20260917-155815.png` 讀數寫 `top` 而面板
-      在**下方**、`-155948.png` 寫 `bottom` 而面板在**上方**。`NSPopover` 是在 AppKit 自己 y 向上的
-      螢幕座標裡讀 `preferredEdge` 的。修正後:`-160136.png`(top,面板在上、讀數看得見)、
-      `-160229.png`(bottom,面板在下)。
-    - **UIKit**:`permittedArrowDirections` 指的是**箭頭**在哪一側,與 `Edge` 相反,因此
-      `.top -> .down`、`.bottom -> .up`。**而驅動時發現 iPhone 上的 popover 根本不是 popover**:
-      compact 寬度下 UIKit 會把它改成 sheet,除非 delegate 拒絕,而 `CustomPopover` 沒有拒絕
-      ——`p50-ios-final-20260917-161038.png` 是一塊從畫面頂端整片蓋下、沒有錨定的面板,於是 P50 自己
-      「每塊面板都必須落在開啟它的那顆按鈕旁邊」根本無從成立。現已回傳 `.none`。修正後:
-      `-161314.png`(top,面板在上、箭頭朝下)、`-161400.png`(bottom,面板在下、箭頭朝上)。
-      **那份 `.bottom` 檔案原本預測「兩張會一樣」(下方只有 144 點、面板約 200 點),而執行推翻了它**
-      ——UIKit 會把 popover 縮到它擁有的空間,而不是拒絕那一側。
-    - **Android**:五個之中唯一「這件事是算術」的。`PopupWindow` 沒有位置屬性,因此
-      `createPopover` 改回傳 `CustomPopupWindow`(持有偏好的 Kotlin 子類別),`presentPopover` 算出
-      `showAsDropDown` 的位移。**上/下那一對在這台裝置上分辨不出東西,而這是量出來的**:錨點在 914 點
-      視窗的 y 755、下方約 140 點對上約 200 點的面板,`showAsDropDown` 會把放不下的 popup 移到上方
-      ——`-162100.png`(top)與 `-162204.png`(bottom)是同一塊面板在同一處,各自帶著不同的讀數。
-      把錨點捲高也辦不到:內容在 2400 像素中結束於 2391,一列 `scroll` 沒有改變任何 bounds。
-      **真的做得出差別的是 `.trailing`**:`-162438.png` 的面板明顯右移、與按鈕同高而非差一列。
-    - **兩個後續修正(同日,由「這三件需要修嗎?」問出來的):**
-      - **AppKit 的預設側邊改為下方。** 沒有給 `arrowEdge` 的 popover,原本在 AppKit 上開在錨點
-        **上方**(`p50-macos-final-20260917-195515.png`,讀數 `none (platform decides)`),而另外四個
-        backend 都是下方(`GtkPopover` 預設、`showAsDropDown`、`Flyout` 自動、UIKit 的 `[.up,.down]`)。
-        那行呼叫自落地以來一直帶著 `.maxY`,而它上面的註解寫著「那會放在按鈕下方」——意圖對、主張錯,
-        而且從來沒有人變動過它去檢查。改為 `.minY` 後:`-195726.png`,面板在下方。
-      - **UIKit 在「放不下」時對齊 Android 的做法。** 同一道算術,兩個平台原本答得不一樣:Android 會把
-        放不下的 popup **移到**另一側並保持完整,UIKit 則把 popover **縮**進去——而 P50 顯示了代價:
-        `-161400.png` 裡面板在按鈕下方,`press me (0)` 與 `close this panel` 被下緣切掉了。
-        `UIKitBackend+Popover.swift` 現在會對著 safe area 量出空間(加 13 點箭頭),被要求的那一側
-        容不下就改要求相反的一側。修正後:`-200019.png`(同一個 `bottom` 要求,面板在**上方**且完整)、
-        `-200123.png`(`top` 重跑,不變)。UIKit 自己的縮小仍是兩側都放不下時的底線。
-    - **順帶在 P50 上修掉一個 macOS 的排版缺口**(非 backend):視窗以內容的理想尺寸 780x825 開啟,
-      而第 2 區塊的三顆按鈕被畫成三像素高的長條。手動改成 780x1020 就正常、改成更寬的 1400x825 則否,
-      因此是高度;`defaultSize` 與 AppKit 儲存的視窗框都蓋不過那次「依理想尺寸重設大小」。P50 現在在
-      AppKit 上要求 `.frame(minHeight: 1000)`,而「理想高度比實際能繪製的高度少約 150 點」這件事本身
-      寫進了 todo.md。
+- [x] **M3b. #109 popover `arrowEdge` — 兩個 Windows backend 已完成並成對驗收(2026-09-16)** — 決定... -> completed.md (archived 2026-10-18)
 - [x] **5c. #122 focus / #123 accessibility:protocol 形狀草案已出** — `testapp/plan/plan-foc... -> completed.md (archived 2026-10-05)
 - [x] **5c-ANSWER(Windows 回覆,2026-09-10):同步的 `focus` 可以照用,形狀不必改。** -> completed.md (archived 2026-10-05)
 - [x] **#120-ANSWER(Windows 回覆,2026-09-10):兩個問題都答「可以走 (b)」。** -> completed.md (archived 2026-10-05)
@@ -1594,16 +747,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **7b. P34:兩位數的列在右側被切掉 — 已修** — 成因不在 stack,而在**量測與繪製走不同路徑**:AppKit 以 `NSString.bo... -> completed.md (archived 2026-10-05)
 - [x] **9. `DocumentGroup`** — 已完成並驅動 (P62)。`FileDocument`、每份文件一個視窗、`newDocument`/`ope... -> completed.md (archived 2026-10-05)
 - [x] **10. #28 動畫 / #32 手勢** — 見第 7 項;此處為重複條目,一併關閉。 -> completed.md (archived 2026-10-05)
-- [x] **11. #117 phase 3(依需求建列)— AppKit 已落地,靜止時的問題解決了** — 新增 `BackendFeatures.LazyListRows`(conformance 檢查,與 `ScrollingLists` 同樣可一次轉一個 backend)。**量到:10,000 列 423 MB → 104 MB**,而單列基準線是 102 MB —— 也就是「開在一萬列上的清單,成本等於開在空清單上」。400 列 104、2000 列 103,是**平的**而不只是比較小。關鍵一步是**先建一列來種下高度估計值**:少了它,表格以為清單很短、排出遠多於它會顯示的列,provider 被呼叫 500+ 次才顯示 12 列。**未解決且已量過的界限**:捲動時每造訪一列仍多約 30 KB 且不回收(104→225 MB / 600 段),heap 指出是 AppKit 抓著 view(`NSKeyValueDependency` 1,381→25,835),不是框架抓著節點。下一階段在 backend 側:列捲出視野時要釋放或重用它的 view。**UIKit 也已轉換**:10,000 列 449 MB → 170 MB,而 500 列同樣是 170 MB(平的)。**Android 也已轉換,並已在裝置上量過**:10,000 列 385 → **92 MB**,單列 91 MB(`dumpsys meminfo` 的 `TOTAL PSS`,同一支 APK、同一台模擬器),而 10,000 列時 provider 被呼叫不到 500 次。形狀上:`BaseAdapter` 本來就是「問第 N 列」的形狀,缺的是「帶參數且有回傳值」的 Java→Swift 路徑——用 `external fun` + `@JavaImplementation`(先例是 `MainRunLoopTickler.tickle`),並以一個 id 對應到 Swift 側的 provider,因為 JNI native method 沒有被捕捉的狀態。GTK/WinUI 尚未轉換
-  - **2026-10-05 由 [~] 改為 [x]:** 剩下的 `LazyListRowLifetimes`(AppKit / UIKit / Android)已由 M5 完成並驅動(見 completed.md);末尾「GTK/WinUI 尚未轉換」早已更正。2026-10-05 P57 在 macOS、iOS、Android 都重跑通過。
-  - **末尾那句「GTK/WinUI 尚未轉換」已經過期(2026-09-16 查證),與第 8 條是同一個錯。**
-    `Sources/WinUIBackend/WinUIBackend+LazyListRows.swift:81` 宣告
-    `extension WinUIBackend: BackendFeatures.LazyListRows`;
-    `Sources/GtkBackend/GtkBackend+LazyListRows.swift:4` 宣告
-    `extension GtkBackend: BackendFeatures.LazyListRowLifetimes`,而該協定 refine 了
-    `LazyListRows`(`Containers/LazyListRows.swift:5`),因此 **GTK 兩者都滿足,否則編不過**。
-    五個 backend 全部有 `LazyListRows`;真正的缺口只在 `LazyListRowLifetimes`,而且在
-    AppKit / UIKit / Android 那三個(見第 8 條與 M5)。
+- [x] **11. #117 phase 3(依需求建列)— AppKit 已落地,靜止時的問題解決了** — 新增 `BackendFeatures.LazyList... -> completed.md (archived 2026-10-18)
 - [x] **12. #113 n^1.5 版面成本 — 已跑,結論是「不是 n^1.5,它是線性的」** — P52 四條 arm、12→192 五個尺寸,每格成本是*... -> completed.md (archived 2026-10-05)
 - [x] **13. #120 Grid — 已完成:共用欄 + `gridCellColumns`** — 成因不是「需要新的 backend 能力」,而是**父層看不... -> completed.md (archived 2026-10-05)
 - [x] **14. #127 `GeometryProxy.frame(in:)` — 已完成(GTK/WinUI 待對方編一次)** — Windows 答覆後路線確... -> completed.md (archived 2026-10-05)
@@ -2017,9 +1161,7 @@ last two do not have a known size yet.
   Run with the default showtime: one `--no-showtime` run closed P80 after five
   of the seven rows.
   **2026-10-07 兩者皆完成。** Win32 與 xdotool 的 `hover` 都已實作並以 P80 驅動，六個游標與對照列皆正確。
-- [x] **WinUI:`frameClockToken?.dispose()` 真的取消訂閱了嗎(由背景段落拆出,2026-10-05)。** 設計上對,但從沒量過:P64 繞過 `AnimationDriver`。實驗很便宜:start → stop → 再 start,量第二段速率——仍約 141 Hz 表示取消有效,約 283 Hz 表示第一次訂閱洩漏、每次動畫再洩漏一次。原文在 completed.md「減少不必要的重繪」一節。Windows 那台機器上做。
-  **DONE 2026-10-07 (Windows):** `P64-WinUI.exe --debug --restart` (start, stop, start; no input needed): pass 1 78 ticks / 1.79 s = 42.9 Hz, pass 2 88 / 2.05 s = 42.4 Hz, **0 of 87 sub-frame gaps in pass 2 -> UNSUBSCRIBE OK.** A leaked first subscription would put a second tick inside each frame. The rate itself was 42 Hz, not the ~141 Hz above -- this run was over a Chrome Remote Desktop session, presumably why; the gap count, not the rate, is the verdict (P64 says both rates are weak).
-  **2026-10-07 完成(Windows):** P64 `--restart`:第二段 87 個間隔中 0 個落在同一幀內 -> 取消訂閱有效。速率 42 Hz(經 Chrome 遠端桌面執行),判定依據是間隔而非速率。
+- [x] **WinUI:`frameClockToken?.dispose()` 真的取消訂閱了嗎(由背景段落拆出,2026-10-05)。** 設計上對,但從沒量過:... -> completed.md (archived 2026-10-18)
 - [x] **T4. #121 step 2 — 與 Windows 撞了同一個功能,採用他們的設計** — 合併時才發現兩邊都實作了 `.keyboardShortcut(_:modifiers:)`:**檔案不同,所以 git 沒報衝突,是編譯器報的**(`invalid redeclaration`)。他們走 **environment**(`environment(\.keyboardShortcut, …)`),而且**已在 GTK 與 WinUI 兩個 backend 上驗過**;我走的是「在 `ResolvedMenu.Item.button` 上加第三個 associated value」,只在 AppKit 驗過。**留他們的**——一個功能兩套機制比其中任何一套都糟,而他們那套已經有兩個 backend 在讀。我的 `ResolvedMenu`/`MenuItem`/`Menu.resolve` 改動與那個 modifier 全部還原,AppKit 與 Android 改讀 `environment.keyboardShortcut`。**AppKit 以 actionfile 重新驗過**(`actions/mac/P71-shortcuts.actions`,選單全程關著):`plain 1、shifted 1、disabled 0`。Android **已驗證(2026-09-23)**,三項斷言全中、含那個已停用的項目:Ctrl-S 觸發 PLAIN、Ctrl-Shift-E 觸發 SHIFTED、Ctrl-D 在已停用項目上什麼也沒觸發。**是 Ctrl 不是 Command**,而那正是 `EventModifiers.command` 那條慣例從驅動端看過去的樣子。**但它驅動不了**——`AndroidSynthesiser` 經由 `Activity.dispatchKeyEvent` 投遞,那抵達得了 view 階層(P72 的 `.onKeyPress` 就是這樣被驅動的),而 app 選單快捷鍵住在 `View.OnUnhandledKeyEventListener`,由 `ViewRootImpl` 在任何 app 投遞得到的層級**之上**執行。成對的證據才是這項發現:動作檔把 21 個動作全部重放完成而計數器停在 0/0/0,同一個 Ctrl-S 改用 `adb shell input keycombination -t 120 113 47` 就觸發了。與觸控側的 `PopupMenu` 限制同族。**[x] 2026-09-25 已解決:動作檔現在驅動得了它。** 見下方。原文保留:**繞過去的辦法試過了,被拒絕。** `Instrumentation.sendKeySync` 是公開 API、經由 `InputManager` 注入,會像鍵盤一樣從 `ViewRootImpl` 進入;而 `InputDispatcher` 的權限檢查對「uid 持有聚焦視窗」的注入者是豁免的,一次重放正是如此。建好、接在 activity 路徑之前、實際執行:**七次全數被拒**,`SecurityException: Injecting input events requires the caller ... INJECT_EVENTS permission`。那個權限在豁免被觸及之前就檢查了——因此這個限制是「一個應用程式持有不了的權限」,不是「少想到一個辦法」。那段程式碼已移除(一條在每個受支援組態下都被拒的路徑,只會在每一列按鍵上輸出日誌);移除後已重驗 P72 的按鍵列,結果不變。**解法(2026-09-25)**:要找到的是**兩**件事,而第二件才是關鍵。(1) 那些快捷鍵住在 decor view 的 `OnUnhandledKeyEventListener` 上,而 `ViewRootImpl` 在任何 app 投遞得到的層級之上執行它。(2) **一個按鍵事件跟著焦點鏈走**——`ViewGroup.dispatchKeyEvent` 只派給 `mFocused` 或自己,否則直接回傳 false;它**不會**走訪子節點。P71 沒有聚焦任何東西,所以 decor 的 `mFocused` 是 null,它底下沒有任何 view 看到過那個按鍵。第二件是靠「對 `ShortcutHostLayout` 加儀器、而它在 21 個重放動作之間一行都沒印」量出來的——在那之前我改了兩次都是猜的。現在 `ShortcutHostLayout` 就是視窗的 content view:它在 `super.dispatchKeyEvent` 拒絕之後查同一張表(與「unhandled」是同一個時刻,只是低一層),並以 `FOCUS_AFTER_DESCENDANTS` 取得焦點,因此只在沒有別的東西要焦點時才持有它。**結果**:`PLAIN 1、SHIFTED 1、DISABLED 0`。**兩項回歸都查過**:不會觸發兩次(本檔跑完 PLAIN=1 後,再送一次系統層級 Ctrl-S 變成 2、不是 3);焦點仍然正常(同版本的 P70 回報 `focused field: name`、`focus changes heard: 1`,文字欄位贏過根節點)。P72 的按鍵列不變。**UIKit 是缺口**,並在原地寫明理由:`UIAction` 收 closure 帶不了按鍵,`UIKeyCommand` 帶得了按鍵卻收 selector、經 responder chain 派送。**測試 app 是新的 P71**,它斷言計數器而非選單外觀——每個 backend 都畫得出「⌘S」,而那樣的截圖與能用的一模一樣。
   - **2026-10-05 由 [~] 改為 [x]:** 上文已寫明 2026-09-25 解決:`ShortcutHostLayout` 成為 content view,動作檔驅動得了 Android 的選單快捷鍵;AppKit 與 Android 都讀 `environment.keyboardShortcut`。沒有剩下的部分。
 - [x] **4. #121 鍵盤快捷鍵 — 五個 backend 全數完成(2026-09-16 傍晚由原始碼查得)** — UIKit 那一格已由 Mac 補上(`U... -> completed.md (archived 2026-10-05)
