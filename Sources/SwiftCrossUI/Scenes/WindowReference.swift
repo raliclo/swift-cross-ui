@@ -426,6 +426,38 @@ final class WindowReference<SceneType: WindowingScene> {
             )
         }
 
+        // **A window that has to grow grows to the content's ideal height, not
+        // its minimum.** The minimum is measured at a zero proposal, where every
+        // wrapping Text is one line, so a window opened shorter than its content
+        // grew to exactly that and drew each caption as one line and an ellipsis
+        // -- P44 and P51 on AppKit and GTK alike (2026-10-18). Asked at the width
+        // it will have and no height, the content says how tall it is with its
+        // text wrapped. A window AT its minimum counts too, as a restored frame
+        // often is (P44 reopened at exactly 798). Capped at twice the requested
+        // height, so content that is
+        // unbounded at a nil height (a stack of lists) does not open a window
+        // taller than any screen.
+        //
+        // **必須長大的視窗長到內容的理想高度，而不是最小高度。** 最小高度是在零提議下量的，那時每個會換行的 Text
+        // 都只有一行，所以開得比內容矮的視窗剛好長到那裡，每段說明都畫成一行加刪節號——P44 與 P51,AppKit 與 GTK
+        // 皆然(2026-10-18)。以它將有的寬度、不給高度去問，內容會回答文字換行後有多高。上限為要求高度的兩倍，免得
+        // 在 nil 高度下沒有邊界的內容(一疊清單)開出比任何螢幕都高的視窗。
+        var grownHeight = minimumWindowSize.height
+        if !windowSizeIsFinal, minimumWindowSize.height >= Double(proposedWindowSize.y) {
+            let width = max(minimumWindowSize.width, Double(proposedWindowSize.x))
+            let ideal = viewGraph.computeLayout(
+                with: newScene.map { SettingsHost(content: $0.content()) },
+                proposedSize: ProposedViewSize(width, nil),
+                environment: environment.with(\.allowLayoutCaching, true)
+            ).size.height
+            if ideal.isFinite {
+                grownHeight = max(
+                    minimumWindowSize.height,
+                    min(ideal, 2 * Double(proposedWindowSize.y))
+                )
+            }
+        }
+
         let clampedWindowSize = ViewSize(
             min(
                 maximumWindowSize?.width ?? .infinity,
@@ -433,7 +465,7 @@ final class WindowReference<SceneType: WindowingScene> {
             ),
             min(
                 maximumWindowSize?.height ?? .infinity,
-                max(minimumWindowSize.height, Double(proposedWindowSize.y))
+                max(grownHeight, Double(proposedWindowSize.y))
             )
         )
 
