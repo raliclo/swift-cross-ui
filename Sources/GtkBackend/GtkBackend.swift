@@ -314,6 +314,9 @@ public final class GtkBackend:
     /// 使用 internal 而非 `private`，因為實作位於 `GtkBackend+Toolbar.swift`；Swift 的 `private`
     /// 是以檔案為範圍的，另一個檔案中的 extension 看不見它。
     var toolbarButtons: [ObjectIdentifier: [Gtk.Button]] = [:]
+    /// The titlebar height `createWindow` added to each window's default size.
+    /// `createWindow` 為每個視窗的預設尺寸加上的標題列高度。
+    var titlebarAllowances: [ObjectIdentifier: Int] = [:]
 
     /// The alert currently on screen for a window, keyed by window identity, and
     /// the alerts waiting behind it. SwiftUI shows one alert at a time per
@@ -1487,6 +1490,7 @@ public final class GtkBackend:
             // 從不 present 的視窗子節點中找出 **GTK 自己的** header bar,並在 present 之前回報 39
             // ——那正是 #79 選項 (c) 所要求的:**量出來的**裝飾,而不是一個被寫死的常數。
             let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration) ?? 0
+            titlebarAllowances[ObjectIdentifier(window)] = titlebarAllowance
             window.defaultSize = Size(
                 width: defaultSize.x,
                 height: defaultSize.y + titlebarAllowance

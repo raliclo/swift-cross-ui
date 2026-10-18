@@ -1,4 +1,5 @@
 import CGtk
+import DebugFeatures
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
@@ -91,8 +92,34 @@ extension GtkBackend {
         // a table that has not been written yet is a race with no error attached.
         // 在裝上 bar 之前就先存起來，而不是之後：裝設 titlebar 可能會 realise 該 widget 並發出訊號，
         // 而一個對「尚未寫入的表」觸發的 handler，是一場不會伴隨任何錯誤的競態。
+        let isFirstToolbar = toolbarButtons[key] == nil
         toolbarButtons[key] = buttons
         window.setHeaderBar(leading: leading, trailing: trailing)
+        if isFirstToolbar {
+            growForToolbarHeader(window)
+        }
+    }
+
+    /// Adds what the header bar takes beyond the titlebar allowance already in
+    /// the window's default size, so `.defaultSize` stays the content's size
+    /// as on AppKit. P53 asked for 720x520: AppKit drew 520 of content under
+    /// its toolbar, GTK gave the 57 px header bar out of those 520 and laid the
+    /// content out in 463 (2026-10-18). Only before the window is mapped:
+    /// after that the default size is no longer applied (see
+    /// `reportContentSizeShortfall`), and a window the user has sized is theirs.
+    /// 補上 header bar 超出「視窗預設尺寸中已含的標題列預留量」的部分，讓 `.defaultSize` 與 AppKit 一樣是內容的
+    /// 尺寸。P53 要求 720x520:AppKit 在工具列之下畫了 520 的內容,GTK 卻從那 520 中撥出 57 px 給 header bar,
+    /// 內容只排在 463 裡(2026-10-18)。只在視窗 map 之前做：之後預設尺寸不再被套用(見
+    /// `reportContentSizeShortfall`),而使用者調整過的視窗是使用者的。
+    private func growForToolbarHeader(_ window: Window) {
+        guard gtk_widget_get_mapped(window.widgetPointer) == 0,
+            let header = window.titlebarNaturalHeight
+        else { return }
+        let grow = header - (titlebarAllowances[ObjectIdentifier(window)] ?? 0)
+        guard grow > 0 else { return }
+        let size = window.defaultSize
+        window.defaultSize = Size(width: size.width, height: size.height + grow)
+        DebugFeatures.log("toolbar header: \(header) px, window grown by \(grow)")
     }
 
     /// One `GtkButton`, iconed where the symbol table has a name the running
