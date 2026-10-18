@@ -162,9 +162,14 @@ public struct _BuiltinDatePickerImplementation: ElementaryView {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // The style this view was made with, not the environment's: a style that
+        // is not built in (`.wheel`, `.clock`, `.rows`) resolves to `.automatic`
+        // there, so their native pickers came out as `.automatic` (P41, 2026-10-18).
+        // 用建立這個 view 時的樣式，而非環境中的：非內建樣式(`.wheel`、`.clock`、`.rows`)在環境中解析為 `.automatic`,
+        // 所以它們的原生選擇器畫成了 `.automatic`(P41,2026-10-18)。
         backend.updateDatePicker(
             widget,
-            environment: environment,
+            environment: environment.with(\.backendDatePickerStyle, style),
             date: selection,
             range: range,
             components: components,

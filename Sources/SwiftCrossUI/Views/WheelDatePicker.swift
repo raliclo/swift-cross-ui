@@ -87,7 +87,7 @@ public struct _SwiftWheelDatePicker: View {
     /// The fields a region writes, in its order. Pure, so the order is tested
     /// without a backend.
     /// 地區書寫的欄位，依它的順序。純函式，因此不需要 backend 就能測試順序。
-    static func fieldOrder(pattern: String, fields: [Character: String]) -> [String] {
+    nonisolated static func fieldOrder(pattern: String, fields: [Character: String]) -> [String] {
         var order: [String] = []
         var quoted = false
         for character in pattern {

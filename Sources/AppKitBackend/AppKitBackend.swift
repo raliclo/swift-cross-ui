@@ -35,6 +35,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
         .automatic, .graphical, .compact,
     ]
+    /// NSDatePicker's `.clockAndCalendar` draws a clock face for a time, so `.clock` is the native picker here.
+    /// NSDatePicker 的 `.clockAndCalendar` 為時間畫鐘面，所以 `.clock` 在這裡就是原生選擇器。
+    public let nativeTimePresentation: TimePickerPresentation? = .clock
     public let supportedPickerStyles: [BackendPickerStyle] = [
         .menu,
         .segmented,

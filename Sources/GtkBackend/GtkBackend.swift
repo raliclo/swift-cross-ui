@@ -234,6 +234,9 @@ public final class GtkBackend:
             .wheel,
         ]
     #endif
+    /// A time row of spin buttons for every style, so `.rows` is the native picker here.
+    /// 每種樣式都是一列 spin button 的時間列，所以 `.rows` 在這裡就是原生選擇器。
+    public let nativeTimePresentation: TimePickerPresentation? = .rows
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
     // a picker with no style of its own.
