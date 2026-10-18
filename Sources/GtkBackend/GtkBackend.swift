@@ -4196,7 +4196,7 @@ public final class GtkBackend:
             ellipsize = .none
         }
 
-        let pango = Pango(for: widget)
+        let pango = widget is Gtk.Label ? Pango(likeLabel: widget) : Pango(for: widget)
 
         // A width that cannot hold one character holds one clipped line, as
         // NSTextField measures it (measured: width 0 or 1 gives one 16 pt line).
