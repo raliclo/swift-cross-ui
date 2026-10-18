@@ -1,3 +1,5 @@
+import Foundation
+
 /// The four built-in date picker styles.
 ///
 /// One file rather than four, unlike `PickerStyle`'s, because each is three
@@ -74,22 +76,49 @@ extension DatePickerStyle where Self == CompactDatePickerStyle {
 
 /// A set of scrollable inputs that can be used to select a date.
 ///
-/// Supported by UIKitBackend and WinUIBackend. Not by GtkBackend, which has no
-/// wheel widget of any kind, nor by AppKitBackend or AndroidBackend.
+/// Supported by every backend. UIKitBackend, WinUIBackend and AndroidBackend
+/// (where its API level has the spinner) draw their own wheel; AppKitBackend
+/// and GtkBackend, which have no wheel control, draw ``_SwiftWheelDatePicker``,
+/// built from SwiftCrossUI views. Available on macOS, unlike SwiftUI's, for that
+/// reason: the project's rule is that a feature works on every shipped backend
+/// (P90 said "unavailable on macOS" until 2026-10-18).
+///
+/// 每個 backend 都支援。UIKitBackend、WinUIBackend 與 AndroidBackend(API 層級有 spinner 時)畫自己的滾輪;沒有滾輪控制項的
+/// AppKitBackend 與 GtkBackend 畫 ``_SwiftWheelDatePicker``,以 SwiftCrossUI 的 view 組成。因此與 SwiftUI 不同，在 macOS 上
+/// 也可用：本專案的規則是功能在每個已發布的 backend 上都要能用(P90 直到 2026-10-18 都顯示「macOS 上不可用」)。
 @available(iOS 13.4, macCatalyst 13.4, *)
-@available(macOS, unavailable)
-public struct WheelDatePickerStyle: DatePickerStyle, _BuiltinDatePickerStyle {
+public struct WheelDatePickerStyle: DatePickerStyle {
     public nonisolated init() {}
 
-    public func _asBackendDatePickerStyle<Backend: BaseAppBackend>(backend: Backend)
-        -> BackendDatePickerStyle
-    {
-        .wheel
+    public func makeView(
+        selection: Binding<Date>,
+        range: ClosedRange<Date>,
+        components: DatePickerComponents,
+        environment: EnvironmentValues
+    ) -> _WheelDatePickerImplementation {
+        // No backend on macOS has a native date wheel, and the backend style
+        // `.wheel` is unavailable there.
+        // macOS 上沒有任何 backend 有原生的日期滾輪，而 backend 樣式 `.wheel` 在那裡不可用。
+        #if os(macOS)
+            let nativeWheel = false
+        #else
+            let datePickers = environment.backend as? any BackendFeatures.DatePickers
+            let nativeWheel = datePickers?.supportedDatePickerStyles.contains(.wheel) ?? false
+        #endif
+        return _WheelDatePickerImplementation(
+            selection: selection,
+            range: range,
+            components: components,
+            nativeWheel: nativeWheel
+        )
+    }
+
+    public func isSupported<Backend: BaseAppBackend>(backend: Backend) -> Bool {
+        true
     }
 }
 
 @available(iOS 13.4, macCatalyst 13.4, *)
-@available(macOS, unavailable)
 extension DatePickerStyle where Self == WheelDatePickerStyle {
     /// A set of scrollable inputs that can be used to select a date.
     public static nonisolated var wheel: Self { Self() }

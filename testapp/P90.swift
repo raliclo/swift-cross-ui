@@ -66,16 +66,14 @@ struct P90View: View {
                 }
             }
 
-            #if os(macOS)
-                Text("The wheel style is unavailable on macOS")
-            #else
-                DatePicker("", selection: $date, displayedComponents: .date)
-                    .datePickerStyle(.wheel)
-                DatePicker("", selection: $time, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel)
-                DatePicker("", selection: $both, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.wheel)
-            #endif
+            // On macOS too since 2026-10-18: AppKit and GTK draw the wheel in Swift.
+            // 自 2026-10-18 起 macOS 上也有:AppKit 與 GTK 以 Swift 畫滾輪。
+            DatePicker("", selection: $date, displayedComponents: .date)
+                .datePickerStyle(.wheel)
+            DatePicker("", selection: $time, displayedComponents: .hourAndMinute)
+                .datePickerStyle(.wheel)
+            DatePicker("", selection: $both, displayedComponents: [.date, .hourAndMinute])
+                .datePickerStyle(.wheel)
         }
         .environment(\.locale, Locale(identifier: region))
         .padding(8)
