@@ -119,16 +119,29 @@ struct StrictFrameView<Child: View>: TypeSafeView {
         self.alignment = alignment
     }
 
+    typealias Children = AnimatedLayoutChildren<Child>
+
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
-    ) -> TupleViewChildren1<Child> {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+    ) -> Children {
+        Children(body.view0, backend: backend, snapshots: snapshots, environment: environment)
+    }
+
+    /// This frame with its width and height as they are to be laid out now:
+    /// tweening when they change under an animation (see LayoutAnimation.swift).
+    /// 此 frame,寬高為現在要排版的值：在動畫中改變時會補間(見 LayoutAnimation.swift)。
+    @MainActor
+    private func animated(children: Children, environment: EnvironmentValues) -> Self {
+        var frame = self
+        frame.width = children.animated(width, slot: 0, environment: environment)
+        frame.height = children.animated(height, slot: 1, environment: environment)
+        return frame
     }
 
     func asWidget<Backend: BaseAppBackend>(
-        _ children: TupleViewChildren1<Child>,
+        _ children: Children,
         backend: Backend
     ) -> Backend.Widget {
         let container = backend.createContainer()
@@ -138,13 +151,14 @@ struct StrictFrameView<Child: View>: TypeSafeView {
 
     func computeLayout<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        let width = width
-        let height = height
+        let frame = animated(children: children, environment: environment)
+        let width = frame.width
+        let height = frame.height
 
         let childResult = children.child0.computeLayout(
             with: body.view0,
@@ -169,7 +183,7 @@ struct StrictFrameView<Child: View>: TypeSafeView {
 
     func commit<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
         layout: ViewLayoutResult,
         environment: EnvironmentValues,
         backend: Backend
@@ -183,6 +197,7 @@ struct StrictFrameView<Child: View>: TypeSafeView {
         )
         backend.setSize(of: widget, to: frameSize.vector)
         backend.setPosition(ofChildAt: 0, in: widget, to: childPosition)
+        LayoutAnimationDiagnostics.record(environment, "frame", size: frameSize)
     }
 }
 
@@ -220,16 +235,33 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
         self.alignment = alignment
     }
 
+    typealias Children = AnimatedLayoutChildren<Child>
+
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
-    ) -> TupleViewChildren1<Child> {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+    ) -> Children {
+        Children(body.view0, backend: backend, snapshots: snapshots, environment: environment)
+    }
+
+    /// This frame with its bounds as they are to be laid out now: tweening when
+    /// they change under an animation (see LayoutAnimation.swift).
+    /// 此 frame,邊界為現在要排版的值：在動畫中改變時會補間(見 LayoutAnimation.swift)。
+    @MainActor
+    private func animated(children: Children, environment: EnvironmentValues) -> Self {
+        var frame = self
+        frame.minWidth = children.animated(minWidth, slot: 0, environment: environment)
+        frame.idealWidth = children.animated(idealWidth, slot: 1, environment: environment)
+        frame.maxWidth = children.animated(maxWidth, slot: 2, environment: environment)
+        frame.minHeight = children.animated(minHeight, slot: 3, environment: environment)
+        frame.idealHeight = children.animated(idealHeight, slot: 4, environment: environment)
+        frame.maxHeight = children.animated(maxHeight, slot: 5, environment: environment)
+        return frame
     }
 
     func asWidget<Backend: BaseAppBackend>(
-        _ children: TupleViewChildren1<Child>,
+        _ children: Children,
         backend: Backend
     ) -> Backend.Widget {
         let container = backend.createContainer()
@@ -262,10 +294,20 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
 
     func computeLayout<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
         backend: Backend
+    ) -> ViewLayoutResult {
+        animated(children: children, environment: environment)
+            .layoutFrame(children: children, proposedSize: proposedSize, environment: environment)
+    }
+
+    @MainActor
+    private func layoutFrame(
+        children: Children,
+        proposedSize: ProposedViewSize,
+        environment: EnvironmentValues
     ) -> ViewLayoutResult {
         var proposedFrameSize = proposedSize
 
@@ -309,7 +351,20 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
 
     func commit<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
+        layout: ViewLayoutResult,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) {
+        animated(children: children, environment: environment).commitFrame(
+            widget, children: children, layout: layout, environment: environment, backend: backend
+        )
+    }
+
+    @MainActor
+    private func commitFrame<Backend: BaseAppBackend>(
+        _ widget: Backend.Widget,
+        children: Children,
         layout: ViewLayoutResult,
         environment: EnvironmentValues,
         backend: Backend
@@ -353,5 +408,6 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
         )
         backend.setSize(of: widget, to: frameSize.vector)
         backend.setPosition(ofChildAt: 0, in: widget, to: childPosition)
+        LayoutAnimationDiagnostics.record(environment, "frame", size: frameSize)
     }
 }

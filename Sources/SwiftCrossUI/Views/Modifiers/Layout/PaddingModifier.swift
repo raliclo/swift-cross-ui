@@ -113,16 +113,36 @@ struct PaddingModifierView<Child: View>: TypeSafeView {
     /// The insets for each edge.
     var insets: EdgeInsets.Internal
 
+    typealias Children = AnimatedLayoutChildren<Child>
+
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
-    ) -> TupleViewChildren1<Child> {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+    ) -> Children {
+        Children(body.view0, backend: backend, snapshots: snapshots, environment: environment)
+    }
+
+    /// The insets to lay out now: each edge tweens when it changes under an
+    /// animation (see LayoutAnimation.swift).
+    /// 現在要排版的 inset:每一邊在動畫中改變時會補間(見 LayoutAnimation.swift)。
+    @MainActor
+    private func animatedInsets<Backend: BaseAppBackend>(
+        children: Children,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) -> EdgeInsets {
+        let insets = EdgeInsets(insets, defaultAmount: Double(backend.defaultPaddingAmount))
+        return EdgeInsets(
+            top: children.animated(insets.top, slot: 0, environment: environment) ?? 0,
+            bottom: children.animated(insets.bottom, slot: 1, environment: environment) ?? 0,
+            leading: children.animated(insets.leading, slot: 2, environment: environment) ?? 0,
+            trailing: children.animated(insets.trailing, slot: 3, environment: environment) ?? 0
+        )
     }
 
     func asWidget<Backend: BaseAppBackend>(
-        _ children: TupleViewChildren1<Child>,
+        _ children: Children,
         backend: Backend
     ) -> Backend.Widget {
         let container = backend.createContainer()
@@ -132,14 +152,14 @@ struct PaddingModifierView<Child: View>: TypeSafeView {
 
     func computeLayout<Backend: BaseAppBackend>(
         _ container: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
         // This first block of calculations is somewhat repeated in `commit`,
         // make sure to update things in both places.
-        let insets = EdgeInsets(insets, defaultAmount: Double(backend.defaultPaddingAmount))
+        let insets = animatedInsets(children: children, environment: environment, backend: backend)
         let horizontalPadding = insets.leading + insets.trailing
         let verticalPadding = insets.top + insets.bottom
 
@@ -169,7 +189,7 @@ struct PaddingModifierView<Child: View>: TypeSafeView {
 
     func commit<Backend: BaseAppBackend>(
         _ container: Backend.Widget,
-        children: TupleViewChildren1<Child>,
+        children: Children,
         layout: ViewLayoutResult,
         environment: EnvironmentValues,
         backend: Backend
@@ -178,8 +198,9 @@ struct PaddingModifierView<Child: View>: TypeSafeView {
 
         let size = layout.size
         backend.setSize(of: container, to: size.vector)
+        LayoutAnimationDiagnostics.record(environment, "padding", size: size)
 
-        let insets = EdgeInsets(insets, defaultAmount: Double(backend.defaultPaddingAmount))
+        let insets = animatedInsets(children: children, environment: environment, backend: backend)
         // Rounded HERE and only here, through the same `Position.vector` every
         // other backend hand-off uses, so a fractional inset does not invent a
         // second rounding rule.

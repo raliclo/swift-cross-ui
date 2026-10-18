@@ -263,17 +263,65 @@ extension StyledShape {
         // 一律走接收樣式的那個呼叫，即使是平面色。尚未加入的 backend 會取得預設實作，而它會直接
         // 解回兩色的方法，因此平面色路徑毫無改變；若讓平面填充改走第二條程式碼路徑，那才是最可能
         // 弄壞它們的做法。
-        backend.renderPath(
-            backendPath,
-            container: widget,
-            strokeStyle: strokeShapeStyle?._resolve(in: environment)
-                ?? strokeStyleOverride
-                ?? .color((strokeColor ?? .clear).resolve(in: environment)),
-            fillStyle: fillShapeStyle?._resolve(in: environment)
-                ?? fillStyleOverride
-                ?? .color((fillColor ?? .clear).resolve(in: environment)),
-            overrideStrokeStyle: strokeStyle,
-            environment: environment
-        )
+        //
+        // A flat colour tweens when it changes under an animation, redrawn on
+        // each frame with no re-layout (see LayoutAnimation.swift); a gradient or
+        // a style override is drawn as it is.
+        // 平面色在動畫中改變時會補間，每一幀重畫、不重新排版(見 LayoutAnimation.swift);漸層或樣式覆寫照原樣畫出。
+        let transaction = EffectTransaction.current(in: environment)
+        func flat(
+            _ color: Color?,
+            _ tween: ParameterTween<Color>?
+        ) -> (ParameterTween<Color>, Color) {
+            let tween = tween ?? ParameterTween<Color>()
+            let resolved = Color((color ?? .clear).resolve(in: environment))
+            return (tween, tween.resolve(resolved, transaction: transaction))
+        }
+        let strokeIsFlat = strokeShapeStyle == nil && strokeStyleOverride == nil
+        let fillIsFlat = fillShapeStyle == nil && fillStyleOverride == nil
+        var strokeFlat: Color?
+        var fillFlat: Color?
+        if strokeIsFlat {
+            let (tween, color) = flat(strokeColor, storage.stroke)
+            storage.stroke = tween
+            strokeFlat = color
+        }
+        if fillIsFlat {
+            let (tween, color) = flat(fillColor, storage.fill)
+            storage.fill = tween
+            fillFlat = color
+        }
+        let strokeShapeStyle = strokeShapeStyle
+        let strokeStyleOverride = strokeStyleOverride
+        let fillShapeStyle = fillShapeStyle
+        let fillStyleOverride = fillStyleOverride
+        let strokeStyle = strokeStyle
+        let draw = { (stroke: Color?, fill: Color?) in
+            backend.renderPath(
+                backendPath,
+                container: widget,
+                strokeStyle: strokeShapeStyle?._resolve(in: environment)
+                    ?? strokeStyleOverride
+                    ?? .color((stroke ?? .clear).resolve(in: environment)),
+                fillStyle: fillShapeStyle?._resolve(in: environment)
+                    ?? fillStyleOverride
+                    ?? .color((fill ?? .clear).resolve(in: environment)),
+                overrideStrokeStyle: strokeStyle,
+                environment: environment
+            )
+        }
+        let redraw: () -> Void = { [weak storage] in
+            guard let storage else { return }
+            draw(storage.stroke?.drawn, storage.fill?.drawn)
+            if let fill = storage.fill?.drawn {
+                LayoutAnimationDiagnostics.record(environment, "fill", color: fill)
+            }
+        }
+        storage.stroke?.onFrame = redraw
+        storage.fill?.onFrame = redraw
+        draw(strokeFlat, fillFlat)
+        if let fillFlat {
+            LayoutAnimationDiagnostics.record(environment, "fill", color: fillFlat)
+        }
     }
 }

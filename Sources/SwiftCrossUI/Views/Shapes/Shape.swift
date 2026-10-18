@@ -120,13 +120,35 @@ extension Shape {
         )
 
         backend.setSize(of: widget, to: layout.size.vector)
+        // The fill tweens when it changes under an animation, redrawn on each
+        // frame with no re-layout (see LayoutAnimation.swift).
+        // 填色在動畫中改變時會補間，每一幀重畫、不重新排版(見 LayoutAnimation.swift)。
+        let strokeColor = Color.clear.resolve(in: environment)
+        let fill = storage.fill ?? ParameterTween<Color>()
+        storage.fill = fill
+        fill.onFrame = { [weak fill] in
+            guard let drawn = fill?.drawn else { return }
+            backend.renderPath(
+                backendPath,
+                container: widget,
+                strokeColor: strokeColor,
+                fillColor: drawn.resolve(in: environment),
+                overrideStrokeStyle: nil
+            )
+            LayoutAnimationDiagnostics.record(environment, "fill", color: drawn)
+        }
+        let fillColor = fill.resolve(
+            Color(environment.suggestedForegroundColor.resolve(in: environment)),
+            transaction: EffectTransaction.current(in: environment)
+        )
         backend.renderPath(
             backendPath,
             container: widget,
-            strokeColor: Color.clear.resolve(in: environment),
-            fillColor: environment.suggestedForegroundColor.resolve(in: environment),
+            strokeColor: strokeColor,
+            fillColor: fillColor.resolve(in: environment),
             overrideStrokeStyle: nil
         )
+        LayoutAnimationDiagnostics.record(environment, "fill", color: fillColor)
     }
 }
 
@@ -135,4 +157,8 @@ final class ShapeStorage: ViewGraphNodeChildren {
     let erasedNodes: [ErasedViewGraphNode] = []
     var backendPath: Any!
     var oldPath: Path?
+    /// The drawn flat fill and stroke colours; made at the first commit, on the main actor.
+    /// 畫出的平面填色與筆畫色;在第一次 commit 時(於 main actor 上)建立。
+    var fill: ParameterTween<Color>?
+    var stroke: ParameterTween<Color>?
 }
