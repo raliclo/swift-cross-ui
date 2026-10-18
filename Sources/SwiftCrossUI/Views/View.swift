@@ -210,6 +210,20 @@ extension View {
     ///
     /// Recorded in testapp/plan/explicit-return-body.md.
     ///
+    /// **The test is on `body`'s type, not on the children's (2026-10-18).**
+    /// A modifier built on `View` -- `.onAppear`, whose own `body` is a
+    /// `TupleView1` -- hands back `TupleViewChildren` too, so asking the
+    /// children took `return VStack { ... }.onAppear { ... }` for builder output,
+    /// wrapped the modifier in a `VStack` and never called its `asWidget`: the
+    /// view drew and the action never ran (P104's first runs, and a DummyBackend
+    /// test in BodyReturnTests). Only a `TupleViewN` body means the builder ran.
+    ///
+    /// **判斷的是 `body` 的型別，而不是 children 的(2026-10-18)。** 以 `View` 寫成的 modifier——`.onAppear`,
+    /// 它自己的 `body` 是 `TupleView1`——交回的也是 `TupleViewChildren`,所以問 children 會把
+    /// `return VStack { ... }.onAppear { ... }` 當成 builder 的產物，把 modifier 包進 `VStack`,永遠不呼叫它的
+    /// `asWidget`:view 畫出來了，動作卻從未執行(P104 最初幾次執行，以及 BodyReturnTests 中的 DummyBackend 測試)。
+    /// 只有 `TupleViewN` 的 body 才代表 builder 執行過。
+    ///
     /// **`EmptyViewChildren` 被歸在這項判斷的另一側，而那是刻意的。** ``Text`` 是一個
     /// ``ElementaryView``，其 `Content` 為 `EmptyView`，因此一個回傳 `Text` 的 `body` 產生的正是
     /// `EmptyViewChildren`——與一個真正空白的 builder body 所產生的相同。把它們當成 builder 產生的，
@@ -230,7 +244,7 @@ extension View {
     /// 「will not function correctly with non-TupleView content」，那是唯一的痕跡，而它並沒有提到
     /// 有一個 view 消失了。記於 testapp/plan/explicit-return-body.md。
     func bodyIsBuilderProduced(_ children: any ViewGraphNodeChildren) -> Bool {
-        children is TupleViewChildren
+        Content.self is any TupleView.Type
     }
 
     public func defaultAsWidget<Backend: BaseAppBackend>(
