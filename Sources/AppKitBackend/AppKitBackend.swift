@@ -780,7 +780,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     func setSize(of widget: Widget, to proposedSize: ProposedViewSize) {
         var foundConstraint = false
         for constraint in widget.constraints {
-            if constraint.firstAnchor === widget.widthAnchor {
+            if isSizeConstraint(constraint, of: widget, .width) {
                 if let proposedWidth = proposedSize.width {
                     constraint.constant = CGFloat(proposedWidth)
                     constraint.isActive = true
@@ -798,7 +798,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
         foundConstraint = false
         for constraint in widget.constraints {
-            if constraint.firstAnchor === widget.heightAnchor {
+            if isSizeConstraint(constraint, of: widget, .height) {
                 if let proposedHeight = proposedSize.height {
                     constraint.constant = CGFloat(proposedHeight)
                     constraint.isActive = true
@@ -813,6 +813,39 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         if !foundConstraint, let proposedHeight = proposedSize.height {
             widget.heightAnchor.constraint(equalToConstant: proposedHeight).isActive = true
         }
+    }
+
+    /// Whether `constraint` is one `setSize` made: `widget.<attribute> == constant`,
+    /// a plain `NSLayoutConstraint` with no second item.
+    ///
+    /// Matching the first anchor alone took AppKit's own constraints too. Once a
+    /// layout pass has run, an NSScrollView holds autoresizing constraints for its
+    /// clip view, and the search took one of those for the scroll view's width and
+    /// wrote the size into it: P8's vertical ScrollViews came out 520 wide and 0
+    /// high and drew nothing. A GeometryReader is what made it happen, because its
+    /// `originInWindow` runs `layoutSubtreeIfNeeded` before those scroll views were
+    /// first sized, so the clip view's constraints already existed; any
+    /// GeometryReader in a window blanked every vertical ScrollView in it
+    /// (2026-10-18).
+    ///
+    /// `constraint` 是否為 `setSize` 自己建立的那一條:`widget.<attribute> == 常數`,一條沒有第二個
+    /// item 的一般 `NSLayoutConstraint`。
+    ///
+    /// 只比對第一個 anchor,會連 AppKit 自己的 constraint 也一併取走。排版跑過一次之後,NSScrollView 會持有
+    /// 其 clip view 的 autoresizing constraint,而搜尋把其中一條當成捲動視圖的寬度、把尺寸寫了進去:P8 的
+    /// 垂直 ScrollView 變成 520 寬、0 高，什麼也沒畫。促成此事的是 GeometryReader:它的 `originInWindow`
+    /// 在那些捲動視圖第一次被設定尺寸之前就執行了 `layoutSubtreeIfNeeded`,所以 clip view 的 constraint
+    /// 已經存在;視窗裡只要有任何 GeometryReader,其中每一個垂直 ScrollView 都是空白(2026-10-18)。
+    private func isSizeConstraint(
+        _ constraint: NSLayoutConstraint,
+        of widget: NSView,
+        _ attribute: NSLayoutConstraint.Attribute
+    ) -> Bool {
+        type(of: constraint) == NSLayoutConstraint.self
+            && constraint.firstItem === widget
+            && constraint.firstAttribute == attribute
+            && constraint.secondItem == nil
+            && constraint.relation == .equal
     }
 
     public func createTooltipContainer(wrapping child: NSView) -> NSView {

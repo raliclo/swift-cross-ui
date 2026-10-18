@@ -107,6 +107,9 @@ struct P8RootView: View {
         VStack(spacing: 10) {
             Text("P8: scroll views")
                 .font(.system(size: 20))
+            // Which backend drew this window, so a screenshot says what it is a screenshot of.
+            // 畫出這個視窗的 backend,讓截圖自己說明它拍的是哪一個。
+            Text("backend -> \(String(describing: DefaultBackend.self))")
             Text(outerScrollNote)
 
             // #417: the child fills the ScrollView, so its corners are the
@@ -171,5 +174,8 @@ struct P8RootView: View {
             }
         }
         .padding(12)
+        .onAppear {
+            P8Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+        }
     }
 }
