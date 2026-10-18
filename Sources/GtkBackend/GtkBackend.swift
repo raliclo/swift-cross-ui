@@ -1239,8 +1239,13 @@ public final class GtkBackend:
             // 必須在任何視窗能收到觸控之前:裝置在手勢仍指著它時被移除,會讓 GTK 崩潰。詳見宣告處。
             scui_retain_removed_devices()
 
-            callback()
-
+            // Before the app's first view, not after: Button measures its padding
+            // once, from a probe button, and caches it (measureBorderedButtonPadding),
+            // so rules loaded after `callback()` never reached a button's size --
+            // platformMetricsCSS drew P52's buttons as tall as before (2026-10-18).
+            // 在 app 的第一個 view 之前、而不是之後:Button 只用探針按鈕量一次內距並快取
+            // (measureBorderedButtonPadding),所以 `callback()` 之後才載入的規則永遠影響不到按鈕的尺寸——
+            // platformMetricsCSS 讓 P52 的按鈕畫得和之前一樣高(2026-10-18)。
             let provider = CSSProvider()
             provider.loadCss(
                 from: """
@@ -1277,17 +1282,55 @@ public final class GtkBackend:
                     spinbutton:disabled {
                         opacity: 0.5;
                     }
-                    """
+                    """ + Self.platformMetricsCSS
             )
 
             // Keep a reference around so that the provider doesn't get removed as
             // soon as we exit this scope.
             self.globalCSSProvider = provider
 
+            callback()
+
             #if !os(macOS)
                 Self.mainRunLoopTicklingLoop()
             #endif
         }
+    }
+
+    /// Control metrics close to AppKit's on macOS, where the two backends are
+    /// compared side by side and the user asked GTK to follow macOS (P52, P91,
+    /// 2026-10-18). Adwaita's button is about 34 px tall with 17 px of side
+    /// padding and its entry 34 px; AppKit's regular push button and text field
+    /// are 22. So P52's grid of 48 one-letter buttons overflowed its column on
+    /// GTK, and P91's buttons and field stood half as tall again. Elsewhere GTK
+    /// keeps its own theme's metrics, which is what its desktops expect.
+    /// macOS 上接近 AppKit 的控制項尺寸：兩個 backend 在那裡並排比較，使用者要求 GTK 跟隨 macOS(P52、P91,
+    /// 2026-10-18)。Adwaita 的按鈕約 34 px 高、左右內距 17 px,輸入框 34 px;AppKit 的一般按鈕與文字欄是 22。
+    /// 所以 P52 由 48 個單字母按鈕組成的格子在 GTK 上溢出了它的欄，P91 的按鈕與欄位高出一半。其他平台上 GTK 保留它
+    /// 自己主題的尺寸，那是它的桌面所預期的。
+    static var platformMetricsCSS: String {
+        #if os(macOS)
+            """
+
+            button {
+                min-height: 20px;
+                min-width: 16px;
+                padding: 1px 10px;
+            }
+
+            button.image-button {
+                padding: 1px 4px;
+            }
+
+            entry {
+                min-height: 20px;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+            """
+        #else
+            ""
+        #endif
     }
 
     private static func mainRunLoopTicklingLoop(nextDelayMilliseconds: Int? = nil) {
