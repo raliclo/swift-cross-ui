@@ -113,9 +113,9 @@ place".
 文件，描述的是一個會先 `cd` 進 `testapp/output` 的流程——同一種慣例，只是起始目錄不同。找錯目錄
 會看到一個空目錄，而那會被讀成「這支 app 什麼都沒記錄」，而不是「你站錯地方了」。
 
-## Eight apps that should never get a file here, and why that is a finding
+## Apps with no controls: what a file here may claim
 
-Checked 2026-09-04. Re-derive with:
+Checked 2026-09-04, revised 2026-10-20. Re-derive the counts with:
 
 ```zsh
 for p in P25 P27 P37 P38 P39 P40 P42 P43; do
@@ -126,47 +126,56 @@ done
 ```
 
 All eight have **zero interactive controls**. A click row aimed at one of them
-lands on a gradient or a label, changes nothing, and **still reports success** --
-so a file for any of them would pass by doing nothing, which is worse than no
-file. Five of them (P27, P37, P38, P39, P40) have no diagnostics either, so even
-a `sleep`-only file could produce no readable evidence: it would take a
-screenshot, and `screenshot.zsh` already does that without a replay in the way.
+lands on a gradient or a label, changes nothing, and **still reports success**.
+So a file for one of them must not click anything.
 
-The other three each have a specific reason no synthesised input can drive them,
-and each reason is already recorded elsewhere:
+Until 2026-10-19 this section said none of the eight should get a file. Six now
+have one -- P25, P37, P39, P40, P42 and P43, added in 1d47d395 -- in the form
+`testapp/plan/action-files-win-todo89.md` recommends: `sleep` rows only, and a
+header that states what the capture or the app's own read-out must show, how it
+was run, and the verdict on each backend. That form drives nothing. Its value is
+that the pass condition is written next to the app, where a later capture can be
+checked against it. A `sleep`-only file that states no claim is still worse than
+none: `screenshot.zsh` already takes the picture.
 
-| App | Logs | Why no file |
+Each of those files also says what it does not reach:
+
+| App | File | Not tested |
 |---|---|---|
-| `P25` | hover enter/leave | It is the drag-and-drop app. `SendInput` cannot originate an OLE drag, so the drop it exists to test is unreachable — see the P25 row in `matrix_coverage/coverage-matrix.csv2` |
-| `P42` | scale factor changes | The event under test is a display-scale change. No synthesised input produces one; a human must alter Settings — task #80 |
-| `P43` | `.onAppear` only | Gradient fills in shapes. The claim is visual and lives in a capture; nothing to drive |
+| `P25` | `P25-drop-zones-at-rest.actions` | A drop. `SendInput` cannot originate an OLE drag; a drop needs a drag from Explorer |
+| `P37` | `P37-floating-level.actions` | Staying in front. That needs a second window taking focus, and `prepareForReplay` pins the window `HWND_TOPMOST`, the very property under test |
+| `P42` | `P42-scale-factor-at-launch.actions` | A scale change while running. No synthesised input produces one; a person must change Settings -- task #80 |
 
-**So the Windows gap is smaller than a count of missing files suggests.** Of the
-apps with no file, these eight are deliberate, and four more (P1, P5, P18, P31)
-are blocked on the synthesiser being unable to address a modal dialog —
-`bugs/Gtk4-bugs.md` section 6. Read a missing file as a question, not as a
-backlog item.
+P27 and P38 have no file. P27 has a `WebView` that a `scroll` row can move, so it
+is the next one to write (todo #89).
 
-## 八支永遠不該有動作檔的 app，以及為何那是一項發現
+The four dialog apps (P1, P5, P18, P31) were once listed here as blocked, because
+the synthesiser could not address a modal dialog (`bugs/Gtk4-bugs.md` section 6).
+It can since 2026-09-04; the OK row in `P31-tab-and-escape.actions` depends on it.
+Read a missing file as a question, not as a backlog item.
 
-2026-09-04 查證。重新產生的方式見上方英文段落中的指令。
+## 沒有控制項的 app:這裡的檔案可以主張什麼
 
-這八支**沒有任何可互動的控制項**。指向它們的點擊列會落在漸層或標籤上、什麼都不會改變，
-**而且仍然回報成功**——因此為它們寫的檔案會「靠什麼都不做而通過」，那比沒有檔案更糟。其中五支
-（P27、P37、P38、P39、P40）連診斷都沒有，所以即使是只有 `sleep` 的檔案也產生不了可讀的證據：
-它只會擷一張圖，而 `screenshot.zsh` 本來就能做到，不需要一次重放擋在中間。
+2026-09-04 查證,2026-10-20 修訂。重新計數的指令見上方英文段落。
 
-另外三支各有一個「合成輸入無法驅動」的具體理由，且每個理由都已記錄於他處：
+這八支**沒有任何可互動的控制項**。指向它們的點擊列會落在漸層或標籤上、什麼都不會改變,
+**而且仍然回報成功**。所以替它們寫的檔案不可以點擊任何東西。
 
-| App | 記錄什麼 | 為何不寫檔 |
-|---|---|---|
-| `P25` | hover 進出 | 它是拖放 app。`SendInput` 無法發起 OLE 拖放，因此它存在所要測試的那個「放下」根本觸及不到 |
-| `P42` | scale factor 變更 | 受測事件是顯示縮放的改變。合成輸入產生不了它，必須由人修改設定——任務 #80 |
-| `P43` | 僅 `.onAppear` | 形狀內的漸層填充。該主張是視覺性的、存在於擷圖中，沒有可驅動的東西 |
+到 2026-10-19 為止，本節寫的是這八支都不該有檔案。現在其中六支有了——P25、P37、P39、P40、P42、P43,
+由 1d47d395 加入——採用 `testapp/plan/action-files-win-todo89.md` 建議的形式：只有 `sleep` 列，檔頭寫明
+擷圖或 app 自己讀出的內容必須呈現什麼、如何執行、以及每個 backend 的判定。這種形式什麼都不驅動;
+它的價值在於通過條件就寫在 app 旁邊，日後的擷圖可以拿來對照。沒有寫出任何主張的 `sleep` 檔仍然比
+沒有檔案更糟:`screenshot.zsh` 本來就會擷圖。
 
-**因此 Windows 的缺口比「缺幾個檔案」這個數字所暗示的要小。** 在沒有檔案的 app 之中，這八支是
-刻意的，另有四支（P1、P5、P18、P31）卡在「合成器無法定址 modal 對話框」——見
-`bugs/Gtk4-bugs.md` 第 6 節。**請把「缺少檔案」讀成一個問題，而不是一項待辦。**
+這些檔案也各自寫明沒測到什麼(見上方英文表格):P25 沒測真正的放下，需要從檔案總管拖曳;P37 沒測
+「保持在最前」,而且 `prepareForReplay` 會把視窗釘為 `HWND_TOPMOST`,正是受測的那項性質;P42 沒測
+執行中的縮放改變，必須由人修改設定(任務 #80)。
+
+P27 與 P38 沒有檔案。P27 有一個 `scroll` 列能捲動的 `WebView`,所以它是下一個要寫的(todo #89)。
+
+四支對話框 app(P1、P5、P18、P31)曾被列為受阻，因為合成器無法定址 modal 對話框(`bugs/Gtk4-bugs.md`
+第 6 節)。自 2026-09-04 起可以了;`P31-tab-and-escape.actions` 的 OK 列就依賴這一點。
+**請把「缺少檔案」讀成一個問題，而不是一項待辦。**
 
 ## Two things every file here has to get right
 
