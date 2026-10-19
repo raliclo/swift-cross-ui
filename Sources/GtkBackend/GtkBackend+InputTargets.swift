@@ -133,7 +133,7 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
             func sizeRing(attempt: Int) {
                 let width = gtk_widget_get_width(target.widgetPointer)
                 let height = gtk_widget_get_height(target.widgetPointer)
-                if (width == 0 || height == 0) && attempt < 20 {
+                if (width == 0 || height == 0) && attempt < 100 {
                     // Run on the main thread, where this handler already is.
                     // 在主執行緒上執行，這個 handler 本來就在那裡。
                     nonisolated(unsafe) let retry = { sizeRing(attempt: attempt + 1) }
@@ -549,5 +549,12 @@ final class GtkFeatureTarget: Fixed {
     init(_ child: Widget) {
         super.init()
         put(child, x: 0, y: 0)
+        // A wrapper the size of its content does not clip it: GtkFixed's own
+        // default overflow is hidden, and an .onKeyPress wrapper around a
+        // .focusable() view cut its focus ring off at the view's edge (P91).
+        // Clipping, where a view asks for it, is gtk_clip_fixed's job.
+        // 與內容同大小的包裝不裁切它:GtkFixed 自己的預設 overflow 是 hidden,包在 .focusable() view 外面的 .onKeyPress
+        // 包裝因此把焦點環在 view 的邊緣切掉(P91)。view 要求裁切時，那是 gtk_clip_fixed 的工作。
+        gtk_widget_set_overflow(widgetPointer, GTK_OVERFLOW_VISIBLE)
     }
 }
