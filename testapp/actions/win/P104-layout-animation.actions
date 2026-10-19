@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P104-layout-animation on Windows, both backends (TEST_BACKEND=WinUI / gtk4): animated frame, padding, Color and Shape fill.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: values pass on both (err 0.00 / 1.00-1.24 pt); WITH body evaluations 2 where 1 is expected, on every backend -- open, framework side.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P104-layout-animation(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,7000000,P104 measures itself; wait for its last log line,windows

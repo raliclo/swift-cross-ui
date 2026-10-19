@@ -165,7 +165,11 @@ struct P92App: App {
                 P92View()
             }
         }
-        .defaultSize(width: 460, height: 620)
+        // 640, not 460: the menu bar is the app's own on Windows and Linux, and its eight
+        // menus need about 530 DIPs; at 460 WinUI cut Help in half and Custom was not
+        // shown at all (2026-10-19). / 640 而非 460:在 Windows 與 Linux 上選單列屬於 app 本身，八個
+        // 選單約需 530 DIP;460 時 WinUI 把 Help 截掉一半,Custom 完全看不到(2026-10-19)。
+        .defaultSize(width: 640, height: 620)
         .commands { P92Model.commands }
         .enableMenu(P92Model.menuEnabled)
     }

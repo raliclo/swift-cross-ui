@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P107-motion-path on Windows, both backends (TEST_BACKEND=WinUI / gtk4): motionPath on a 588.5 pt track.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: WinUI pass (progress vs clock 8.2 ms). GTK FAILS progress vs clock: 145.4 ms against 33 ms; points and angle exact -- open.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P107-motion-path(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,11000000,P107 measures itself; wait for its last log line,windows

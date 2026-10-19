@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P101-scroll on Windows, both backends (TEST_BACKEND=WinUI / gtk4): scrollTransition, onScrollVisibilityChange, onScrollGeometryChange.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: GTK pass. WinUI: TO10 and CENTER3 pass; START was taken before the rows were laid out (0 rows) -- start latency.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P101-scroll(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,7000000,P101 measures itself; wait for its last log line,windows

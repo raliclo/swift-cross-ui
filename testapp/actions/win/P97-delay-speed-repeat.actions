@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P97-delay-speed-repeat on Windows, both backends (TEST_BACKEND=WinUI / gtk4): delay, speed, repeatCount, repeatForever on eight bars.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: durations, turns and jumps right on both; starts 0.39 s (WinUI) and 0.36-0.53 s (GTK) late. Start latency: animations begin at the first frame tick, which on Windows and Linux comes 0.15-0.45 s after onAppear (AppKit: within the tolerance), so absolute times read late while intervals are right -- open.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P97-delay-speed-repeat(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,6000000,P97 measures itself; wait for its last log line,windows

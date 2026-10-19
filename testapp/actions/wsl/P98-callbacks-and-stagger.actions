@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P98-callbacks-and-stagger on WSL GtkBackend: onStart, onRepeat, onUpdate, completion and stagger.
+# Read the app's own log; pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1, d3d12/NVIDIA: intervals right; START 0.40, DONE 2.79. Start latency: animations begin at the first frame tick, which on Windows and Linux comes 0.15-0.45 s after onAppear (AppKit: within the tolerance), so absolute times read late while intervals are right -- open.
+# P98-callbacks-and-stagger(WSL):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,5000000,P98 measures itself; wait for its last log line,gtk

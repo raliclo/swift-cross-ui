@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P105-transitions on Windows, both backends (TEST_BACKEND=WinUI / gtk4): insert and remove transitions on if, if/else, ForEach.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: pass on both: err 0.00, onDisappear 1.03 / 0.83 s, JUMP running frames 0.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P105-transitions(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,13000000,P105 measures itself; wait for its last log line,windows

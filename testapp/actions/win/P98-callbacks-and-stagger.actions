@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P98-callbacks-and-stagger on Windows, both backends (TEST_BACKEND=WinUI / gtk4): onStart, onRepeat, onUpdate, completion and stagger.
+# Read the app's own log (pNN-*.log in SCUI_DEBUG_EVENTS_DIR); pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1: intervals right on both (REPEAT 0.80 apart, stagger order 2 3 4 5 1 6 0 7 / pairs 0.1 s apart); START 0.48 WinUI, 0.44 GTK. Start latency: animations begin at the first frame tick, which on Windows and Linux comes 0.15-0.45 s after onAppear (AppKit: within the tolerance), so absolute times read late while intervals are right -- open.
+# Run each exe once before measuring: a freshly built exe's first launch stalled ~3 s on Windows GTK.
+# P98-callbacks-and-stagger(Windows):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,5000000,P98 measures itself; wait for its last log line,windows

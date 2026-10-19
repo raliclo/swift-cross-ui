@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P101-scroll on WSL GtkBackend: scrollTransition, onScrollVisibilityChange, onScrollGeometryChange.
+# Read the app's own log; pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1, d3d12/NVIDIA: pass: START, TO10, CENTER3 err 0.000.
+# P101-scroll(WSL):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,7000000,P101 measures itself; wait for its last log line,gtk

@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P105-transitions on WSL GtkBackend: insert and remove transitions on if, if/else, ForEach.
+# Read the app's own log; pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1, d3d12/NVIDIA: pass: err 0.00, onDisappear 1.01 / 0.82 / 0.81 s.
+# P105-transitions(WSL):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,13000000,P105 measures itself; wait for its last log line,gtk

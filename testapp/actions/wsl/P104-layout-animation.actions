@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P104-layout-animation on WSL GtkBackend: animated frame, padding, Color and Shape fill.
+# Read the app's own log; pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1, d3d12/NVIDIA: values pass; WITH body evaluations 2 where 1 is expected -- open.
+# P104-layout-animation(WSL):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,7000000,P104 measures itself; wait for its last log line,gtk

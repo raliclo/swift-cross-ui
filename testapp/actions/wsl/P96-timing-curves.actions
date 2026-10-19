@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P96-timing-curves on WSL GtkBackend: GSAP eases as timing curves, tiles and four driven tweens.
+# Read the app's own log; pass values are in the app's header.
+# 2026-10-19, Swift 6.4.1, d3d12/NVIDIA: pass: errors 0, back.out 1.0998 final 1.0000, bounce 1.0000, steps 5, bouncy 1.0460.
+# P96-timing-curves(WSL):app 自行量測並寫 log;只需等待。判定見上方英文。
+sleep,,,,,,10000000,P96 measures itself; wait for its last log line,gtk
