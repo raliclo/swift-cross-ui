@@ -143,13 +143,29 @@ struct P104RootView: View {
         .onAppear {
             P104Log.write("backend \(String(describing: DefaultBackend.self))")
             P104Log.write("RENDER COMPLETE -- P104 ready")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.stepsAfter) {
                 MainActor.assumeIsolated { runSteps() }
             }
         }
     }
 
     var uptime: Double { ProcessInfo.processInfo.systemUptime }
+
+    /// Seconds from the first appearance to the steps: 0.6, or `--steps-after N`.
+    /// On iOS the action-file run attaches XCUITest about 2 s after launch, and
+    /// its accessibility snapshot holds the main thread for most of a second;
+    /// `--steps-after 6` starts the steps after it.
+    /// 從首次出現到開始步驟的秒數:0.6,或 `--steps-after N`。iOS 上動作檔執行會在啟動約 2 秒後附加
+    /// XCUITest,它擷取無障礙樹時會佔住主執行緒將近一秒;`--steps-after 6` 讓步驟在那之後才開始。
+    static var stepsAfter: Double {
+        let arguments = CommandLine.arguments
+        if let at = arguments.firstIndex(of: "--steps-after"), at + 1 < arguments.count,
+            let seconds = Double(arguments[at + 1])
+        {
+            return seconds
+        }
+        return 0.6
+    }
 
     static func last(_ key: String) -> [Double]? {
         LayoutAnimationDiagnostics.samples[key]?.last?.values
@@ -256,6 +272,12 @@ struct P104RootView: View {
                                 err, samples.count, t0 - started, Self.format(samples.last?.values)
                             )
                         )
+                        // Over the limit, every sample (seconds since the step: height), to tell
+                        // a tween gone wrong from frames that did not arrive.
+                        // 超過門檻時列出每個樣本(距步驟開始的秒數:高度),分辨是補間錯了還是幀沒有來。
+                        if err > 3 {
+                            P104Log.write("VALUE samples " + samples.map { String(format: "%.3f:%.1f", $0.time - started, $0.values[1]) }.joined(separator: " "))
+                        }
                     } else {
                         record("VALUE DONE no samples")
                     }

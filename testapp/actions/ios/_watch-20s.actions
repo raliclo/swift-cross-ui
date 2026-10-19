@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# For apps that run their own steps and log them (P96-P104): presses nothing and waits 20 s,
+# so the app's stdout is kept -- test_ios.zsh keeps it only on the action-file path.
+# 給自己執行步驟並記錄的 app(P96-P104):什麼都不按，等 20 秒，讓 app 的 stdout 被保留——test_ios.zsh
+# 只在動作檔路徑上保留它。
+sleep,,,,,,20000000,the app runs its own steps,ios
