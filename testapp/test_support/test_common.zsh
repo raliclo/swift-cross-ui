@@ -1035,6 +1035,73 @@ run_build() {
     rm -f -- "${build_log:?}"
 }
 
+# The GPU a Windows GtkBackend run draws on. GTK renders through OpenGL, and
+# Windows picks an OpenGL process's adapter only from a per-executable policy in
+# HKCU\Software\Microsoft\DirectX\UserGpuPreferences, read when the process
+# starts (see GtkBackend+GraphicsAdapters.swift). With no value a laptop puts it
+# on the power-saving iGPU. Measured 2026-10-19, P66 launched directly, three
+# runs each, interleaved: AMD Radeon iGPU 12/13/16 animation samples, RTX 4060
+# 20/19/21. So `-render hw` (the default, as under WSLg) writes
+# GpuPreference=2 for this run's exe and puts back whatever was there after the
+# app is closed; `TEST_GPU=default` leaves the policy alone. WinUI is not
+# touched: it selects its adapter through DXGI (-GPU).
+# Windows 上 GtkBackend 執行時所用的 GPU。GTK 經由 OpenGL 繪製，而 Windows 只依
+# HKCU\Software\Microsoft\DirectX\UserGpuPreferences 中「每個執行檔」的政策、在行程啟動時選擇 OpenGL 介面卡
+# (見 GtkBackend+GraphicsAdapters.swift)。沒有設定時，筆電會把它放在省電的內顯上。2026-10-19 實測，直接啟動
+# P66、交錯各三次:AMD Radeon 內顯 12/13/16 個動畫樣本,RTX 4060 為 20/19/21。因此 `-render hw`(預設，與 WSLg
+# 相同)會為本次執行的 exe 寫入 GpuPreference=2，並在 app 關閉後放回原本的值;`TEST_GPU=default` 則不動該政策。
+# WinUI 不受影響：它經由 DXGI 選擇介面卡(-GPU)。
+gpu_preference_key='HKCU\Software\Microsoft\DirectX\UserGpuPreferences'
+gpu_preference_exe=''
+gpu_preference_saved=''
+
+gpu_preference_prefer_discrete() {
+    local exe_path="$1"
+    gpu_preference_exe=''
+    case "$exe_path" in
+        *-gtk4.exe) ;;
+        *) return 0 ;;
+    esac
+    if [ "${TEST_GPU:-}" = "default" ] || [ "${TEST_RENDER_MODE:-hw}" != "hw" ]; then
+        return 0
+    fi
+    local win_path
+    win_path="$(cygpath -w "$exe_path")"
+    # The current value, if any, to put back afterwards.
+    # 目前的值(若有)，之後要放回去。
+    gpu_preference_saved="$(MSYS2_ARG_CONV_EXCL='*' reg.exe query "$gpu_preference_key" \
+        /v "$win_path" 2>/dev/null | awk '/REG_SZ/ { sub(/.*REG_SZ[ \t]+/, ""); print }' || true)"
+    # `|| true`: no value yet makes reg.exe fail, and under `set -e` with
+    # pipefail that stopped the whole run right after "==> Running".
+    # `|| true`:尚無此值時 reg.exe 會失敗，在 `set -e` 加 pipefail 之下整個執行就停在 "==> Running" 之後。
+    # A run stopped before its restore leaves our own value behind; that is
+    # not a preference to put back. / 中途被停掉的執行會留下我們自己的值，那不是要放回去的偏好。
+    if [ "$gpu_preference_saved" = "GpuPreference=2;" ]; then
+        gpu_preference_saved=''
+    fi
+    if MSYS2_ARG_CONV_EXCL='*' reg.exe add "$gpu_preference_key" /v "$win_path" \
+        /t REG_SZ /d 'GpuPreference=2;' /f >/dev/null 2>&1; then
+        gpu_preference_exe="$win_path"
+        printf '==> GPU: high performance for %s (was %s)\n' "${exe_path:t}" \
+            "${gpu_preference_saved:-unset}"
+    else
+        printf '!! GPU: could not write the preference for %s; it runs on the default GPU\n' \
+            "${exe_path:t}" >&2
+    fi
+}
+
+gpu_preference_restore() {
+    [ -n "$gpu_preference_exe" ] || return 0
+    if [ -n "$gpu_preference_saved" ]; then
+        MSYS2_ARG_CONV_EXCL='*' reg.exe add "$gpu_preference_key" /v "$gpu_preference_exe" \
+            /t REG_SZ /d "$gpu_preference_saved" /f >/dev/null 2>&1
+    else
+        MSYS2_ARG_CONV_EXCL='*' reg.exe delete "$gpu_preference_key" /v "$gpu_preference_exe" \
+            /f >/dev/null 2>&1
+    fi
+    gpu_preference_exe=''
+}
+
 run_windows() {
     local out="$script_dir/output"
     local label="${app:l}-windows"
@@ -1204,6 +1271,7 @@ run_windows() {
     fi
     win_exe="${candidates[1]}"
     printf '==> Running %s\n' "$win_exe"
+    gpu_preference_prefer_discrete "$out/$win_exe"
 
     # Mixed Windows form for SCUI_DEBUG_EVENTS_DIR, for the same reason
     # `-actionfile` gets `cygpath -m` a few lines above: this is a native
@@ -1236,6 +1304,7 @@ run_windows() {
     else
         printf '==> WARNING: %s may still be running; check with tasklist\n' "$win_exe"
     fi
+    gpu_preference_restore
 
     # The action file turns Narrator off with its last rows; this only checks
     # that it did. Narrator runs with uiAccess, so taskkill gets "Access is

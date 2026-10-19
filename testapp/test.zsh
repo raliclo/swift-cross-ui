@@ -54,6 +54,9 @@ Examples:
 Single-test scripts live in testapp/test_support/test_Pn.zsh.
 
 -render hw|sw selects GtkBackend rendering under WSLg. The default is hw.
+On Windows, hw also makes a -gtk4 exe prefer the discrete GPU for the run
+(HKCU UserGpuPreferences, restored when the app closes); TEST_GPU=default
+keeps the system default. 在 Windows 上 hw 也會讓 -gtk4 exe 在執行期間優先用獨顯。
 It has no effect on WinUI, AppKit, UIKit, or Android backends.
 EOF_USAGE
 }
