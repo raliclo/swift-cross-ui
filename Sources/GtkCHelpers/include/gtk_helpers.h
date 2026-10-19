@@ -116,6 +116,42 @@ void gtk_passthrough_drawing_area_set_overflowing_draw_func(
     GDestroyNotify destroy
 );
 
+// How a shape's fill or stroke is painted, for gtk_passthrough_drawing_area_set_shape.
+// kind 0 is the flat `rgba`; 1 a linear gradient from (geometry[0], geometry[1]) to
+// (geometry[2], geometry[3]); 2 a radial gradient centred at (geometry[0], geometry[1])
+// from radius geometry[2] to geometry[3]. Gradient points are unit points of the
+// path's bounds, radii units of its shorter side. `stops` holds `stop_count` groups
+// of offset, red, green, blue, opacity. A path with no area paints `rgba`.
+// 形狀的填色或線條如何上色，供 gtk_passthrough_drawing_area_set_shape 使用。kind 0 是平面色 `rgba`;1 是從
+// (geometry[0], geometry[1]) 到 (geometry[2], geometry[3]) 的線性漸層;2 是以 (geometry[0], geometry[1]) 為中心、
+// 半徑從 geometry[2] 到 geometry[3] 的放射漸層。漸層的點是路徑外框的單位座標，半徑以較短邊為單位。`stops` 有
+// `stop_count` 組 offset、紅、綠、藍、不透明度。沒有面積的路徑畫 `rgba`。
+typedef struct {
+    int kind;
+    double rgba[4];
+    double geometry[4];
+    int stop_count;
+    const double *stops;
+} ScuiShapePaint;
+
+// Whether gtk_passthrough_drawing_area_set_shape is available: GskPath needs GTK 4.14.
+// gtk_passthrough_drawing_area_set_shape 是否可用:GskPath 需要 GTK 4.14。
+gboolean gtk_passthrough_drawing_area_supports_shapes(void);
+
+// Draws a path as GSK fill and stroke nodes rather than through cairo. `verbs` are
+// 0 move to, 1 line to, 2 cubic to and 3 close, taking 2, 2, 6 and 0 of `coords`.
+// The drawing is clipped `overflow` points past the widget on every side, as the
+// overflowing draw function is. See gtk_passthrough_drawing_area.c.
+// 以 GSK 的填色與線條節點畫出路徑，而不是經由 cairo。`verbs` 為 0 move to、1 line to、2 cubic to、3 close,
+// 各取 `coords` 的 2、2、6、0 個值。繪製在每一邊超出 widget `overflow` 點處裁切，與可溢出的繪製函式相同。
+// 見 gtk_passthrough_drawing_area.c。
+void gtk_passthrough_drawing_area_set_shape(
+    GtkWidget *widget, const unsigned char *verbs, int verb_count, const double *coords,
+    int coord_count, gboolean even_odd, double line_width, int cap, int join,
+    double miter_limit, const ScuiShapePaint *fill, const ScuiShapePaint *stroke,
+    double overflow
+);
+
 // A GtkFixed that clips its children to its own size request rather than letting
 // them draw past it. This is the #389 clip: a plain GtkFixed measures to the
 // bounding box of its children, so a child larger than the frame makes the

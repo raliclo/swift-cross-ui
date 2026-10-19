@@ -256,3 +256,23 @@ AppKitSynthesiser did not reach a gesture recognizer there (the sheet's Button
 did), which leaves "the cell did nothing" ambiguous between the tool and the
 component. A real click on the same cell logged `ROW 便利商店 emoji ⛽` and
 closed the sheet: the component works; the synthesiser does not reach it.
+
+## `png_diff.swift` — 同一個視窗的兩張擷圖相差多少
+
+```sh
+swiftc -O -o /tmp/png_diff testapp/test_support/measure/png_diff.swift
+/tmp/png_diff a.png b.png [容許值，預設 8]
+```
+
+印出最大通道差超過容許值的像素數、任一處的最大差值，以及相異像素的外框。寫來比較 GtkBackend 以 cairo 與以
+GSK 節點畫出的形狀(2026-10-19):同一支 app 以 `SCUI_GTK_CAIRO_PATHS=1` 與未設定各跑一次、各用 `window_shots`
+拍一張。P27、P40 完全相同;P43(漸層填色與漸層線條)最大差 7、P89(14 x 14 的圓配 2 點線寬)最大差 2,都在 8 以內，
+是邊緣反鋸齒的差別。P95 有 57794 個像素超過，外框是 0,0 到 1039,55:那是標題列，一次截圖時視窗有焦點、一次沒有;
+內容區相同。
+
+It prints how many pixels differ by more than the tolerance in their largest
+channel, the largest difference anywhere and the box around the differing
+pixels. Written to compare GtkBackend's shapes drawn through cairo and as GSK
+nodes (2026-10-19): run the app once with `SCUI_GTK_CAIRO_PATHS=1` and once
+without, take each with `window_shots`, and compare. A difference confined to
+the title bar is window focus, not drawing.

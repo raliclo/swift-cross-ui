@@ -2,6 +2,7 @@
 // in a header of its own.
 // 宣告位於 gtk_helpers.h；不另立標頭檔的理由記於該處。
 #include "gtk_helpers.h"
+#include <string.h>
 
 #define GTK_TYPE_PASSTHROUGH_DRAWING_AREA (gtk_passthrough_drawing_area_get_type())
 
@@ -25,11 +26,25 @@ typedef struct _GtkPassthroughDrawingArea {
     gpointer draw_data;
     GDestroyNotify draw_destroy;
     double overflow;
+#if GTK_CHECK_VERSION(4, 14, 0)
+    // The shape set by gtk_passthrough_drawing_area_set_shape, drawn as GSK nodes
+    // when there is no draw function. / gtk_passthrough_drawing_area_set_shape 設定的形狀，沒有繪製函式時以 GSK 節點畫出。
+    GskPath *shape_path;
+    GskFillRule shape_rule;
+    GskStroke *shape_stroke;
+    ScuiShapePaint shape_fill;
+    ScuiShapePaint shape_line;
+#endif
 } GtkPassthroughDrawingArea;
 
 typedef struct _GtkPassthroughDrawingAreaClass {
     GtkDrawingAreaClass parent_class;
 } GtkPassthroughDrawingAreaClass;
+
+#if GTK_CHECK_VERSION(4, 14, 0)
+static void scui_shape_snapshot(GtkPassthroughDrawingArea *self, GtkSnapshot *snapshot, graphene_rect_t *area);
+static void scui_shape_clear(GtkPassthroughDrawingArea *self);
+#endif
 
 G_DEFINE_TYPE(
     GtkPassthroughDrawingArea, gtk_passthrough_drawing_area, GTK_TYPE_DRAWING_AREA
@@ -127,13 +142,20 @@ static gboolean gtk_passthrough_drawing_area_contains(
 // 仍是 widget 的角。沒有設定時,GtkDrawingArea 的 snapshot 照舊執行。
 static void gtk_passthrough_drawing_area_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
     GtkPassthroughDrawingArea *self = (GtkPassthroughDrawingArea *)widget;
+    int width = gtk_widget_get_width(widget);
+    int height = gtk_widget_get_height(widget);
+    float overflow = (float)self->overflow;
+#if GTK_CHECK_VERSION(4, 14, 0)
+    if (self->draw == NULL && self->shape_path != NULL) {
+        graphene_rect_t area = GRAPHENE_RECT_INIT(-overflow, -overflow, width + 2 * overflow, height + 2 * overflow);
+        scui_shape_snapshot(self, snapshot, &area);
+        return;
+    }
+#endif
     if (self->draw == NULL) {
         GTK_WIDGET_CLASS(gtk_passthrough_drawing_area_parent_class)->snapshot(widget, snapshot);
         return;
     }
-    int width = gtk_widget_get_width(widget);
-    int height = gtk_widget_get_height(widget);
-    float overflow = (float)self->overflow;
     cairo_t *cairo = gtk_snapshot_append_cairo(
         snapshot,
         &GRAPHENE_RECT_INIT(-overflow, -overflow, width + 2 * overflow, height + 2 * overflow)
@@ -147,6 +169,9 @@ static void gtk_passthrough_drawing_area_finalize(GObject *object) {
     if (self->draw_destroy != NULL) {
         self->draw_destroy(self->draw_data);
     }
+#if GTK_CHECK_VERSION(4, 14, 0)
+    scui_shape_clear(self);
+#endif
     G_OBJECT_CLASS(gtk_passthrough_drawing_area_parent_class)->finalize(object);
 }
 
@@ -164,6 +189,9 @@ void gtk_passthrough_drawing_area_set_overflowing_draw_func(
     if (self->draw_destroy != NULL) {
         self->draw_destroy(self->draw_data);
     }
+#if GTK_CHECK_VERSION(4, 14, 0)
+    g_clear_pointer(&self->shape_path, gsk_path_unref);
+#endif
     self->draw = draw;
     self->draw_data = data;
     self->draw_destroy = destroy;
@@ -176,6 +204,206 @@ void gtk_passthrough_drawing_area_set_opaque(GtkWidget *widget, gboolean opaque)
         return;
     }
     ((GtkPassthroughDrawingArea *)widget)->opaque = opaque;
+}
+
+gboolean gtk_passthrough_drawing_area_supports_shapes(void) {
+#if GTK_CHECK_VERSION(4, 14, 0)
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
+
+#if GTK_CHECK_VERSION(4, 14, 0)
+
+static void scui_shape_paint_copy(ScuiShapePaint *to, const ScuiShapePaint *from) {
+    *to = *from;
+    to->stops = NULL;
+    if (from->stop_count > 0 && from->stops != NULL) {
+        double *stops = g_new(double, from->stop_count * 5);
+        memcpy(stops, from->stops, sizeof(double) * from->stop_count * 5);
+        to->stops = stops;
+    } else {
+        to->stop_count = 0;
+    }
+}
+
+static void scui_shape_clear(GtkPassthroughDrawingArea *self) {
+    g_clear_pointer(&self->shape_path, gsk_path_unref);
+    g_clear_pointer(&self->shape_stroke, gsk_stroke_free);
+    g_free((gpointer)self->shape_fill.stops);
+    g_free((gpointer)self->shape_line.stops);
+    self->shape_fill.stops = NULL;
+    self->shape_line.stops = NULL;
+}
+
+static GdkRGBA scui_rgba(const double *rgba) {
+    return (GdkRGBA){(float)rgba[0], (float)rgba[1], (float)rgba[2], (float)rgba[3]};
+}
+
+// Whether a paint puts anything on screen: a gradient always may, a colour only
+// when it is not transparent. / 這個上色是否會畫出東西：漸層一律可能，顏色只有在不透明度大於零時。
+static gboolean scui_paint_visible(const ScuiShapePaint *paint) {
+    return paint->kind != 0 || paint->rgba[3] > 0;
+}
+
+// The gradient for `paint` over `area`, with the unit geometry mapped onto the path's
+// bounds `box` as the cairo version maps it. Returns FALSE where it paints the flat
+// colour instead: a path with no area, or a radial gradient with no radius.
+// 在 `area` 上畫出 `paint` 的漸層，單位座標對應到路徑外框 `box`,與 cairo 版本的對應方式相同。改畫平面色時回傳
+// FALSE:沒有面積的路徑，或半徑為零的放射漸層。
+static gboolean scui_append_gradient(
+    GtkSnapshot *snapshot, const ScuiShapePaint *paint, const graphene_rect_t *box,
+    const graphene_rect_t *area
+) {
+    if (paint->kind == 0 || box->size.width <= 0 || box->size.height <= 0 || paint->stop_count == 0) {
+        return FALSE;
+    }
+    GskColorStop *stops = g_new(GskColorStop, paint->stop_count);
+    float last = 0;
+    for (int i = 0; i < paint->stop_count; i++) {
+        const double *stop = paint->stops + i * 5;
+        // GSK wants offsets in order within 0...1; cairo takes them as given and
+        // clamps the same way. / GSK 要求 offset 依序且落在 0...1;cairo 照收並以同樣方式夾住。
+        float offset = (float)CLAMP(stop[0], 0.0, 1.0);
+        if (offset < last) {
+            offset = last;
+        }
+        last = offset;
+        stops[i].offset = offset;
+        stops[i].color = scui_rgba(stop + 1);
+    }
+    gboolean drawn = TRUE;
+    float x = box->origin.x, y = box->origin.y, w = box->size.width, h = box->size.height;
+    if (paint->kind == 1) {
+        graphene_point_t start = GRAPHENE_POINT_INIT(
+            x + (float)paint->geometry[0] * w, y + (float)paint->geometry[1] * h
+        );
+        graphene_point_t end = GRAPHENE_POINT_INIT(
+            x + (float)paint->geometry[2] * w, y + (float)paint->geometry[3] * h
+        );
+        gtk_snapshot_append_linear_gradient(snapshot, area, &start, &end, stops, paint->stop_count);
+    } else {
+        float scale = MIN(w, h);
+        float inner = (float)paint->geometry[2] * scale;
+        float outer = (float)paint->geometry[3] * scale;
+        if (outer <= 0 || inner >= outer) {
+            drawn = FALSE;
+        } else {
+            graphene_point_t centre = GRAPHENE_POINT_INIT(
+                x + (float)paint->geometry[0] * w, y + (float)paint->geometry[1] * h
+            );
+            // GSK's radial gradient runs from `start` to `end` as fractions of its
+            // radius; cairo's from the inner circle to the outer one.
+            // GSK 的放射漸層以半徑的比例從 `start` 走到 `end`;cairo 的是從內圓走到外圓。
+            gtk_snapshot_append_radial_gradient(
+                snapshot, area, &centre, outer, outer, inner / outer, 1, stops, paint->stop_count
+            );
+        }
+    }
+    g_free(stops);
+    return drawn;
+}
+
+// The shape's nodes: the fill, then the stroke over it, as cairo painted them.
+// 形狀的節點：先填色，線條在其上，與 cairo 的畫法相同。
+static void scui_shape_snapshot(GtkPassthroughDrawingArea *self, GtkSnapshot *snapshot, graphene_rect_t *area) {
+    graphene_rect_t box;
+    if (!gsk_path_get_bounds(self->shape_path, &box)) {
+        graphene_rect_init(&box, 0, 0, 0, 0);
+    }
+    gtk_snapshot_push_clip(snapshot, area);
+    if (scui_paint_visible(&self->shape_fill)) {
+        if (self->shape_fill.kind == 0) {
+            GdkRGBA colour = scui_rgba(self->shape_fill.rgba);
+            gtk_snapshot_append_fill(snapshot, self->shape_path, self->shape_rule, &colour);
+        } else {
+            gtk_snapshot_push_fill(snapshot, self->shape_path, self->shape_rule);
+            if (!scui_append_gradient(snapshot, &self->shape_fill, &box, area)) {
+                GdkRGBA colour = scui_rgba(self->shape_fill.rgba);
+                gtk_snapshot_append_color(snapshot, &colour, area);
+            }
+            gtk_snapshot_pop(snapshot);
+        }
+    }
+    if (scui_paint_visible(&self->shape_line) && self->shape_stroke != NULL) {
+        if (self->shape_line.kind == 0) {
+            GdkRGBA colour = scui_rgba(self->shape_line.rgba);
+            gtk_snapshot_append_stroke(snapshot, self->shape_path, self->shape_stroke, &colour);
+        } else {
+            gtk_snapshot_push_stroke(snapshot, self->shape_path, self->shape_stroke);
+            if (!scui_append_gradient(snapshot, &self->shape_line, &box, area)) {
+                GdkRGBA colour = scui_rgba(self->shape_line.rgba);
+                gtk_snapshot_append_color(snapshot, &colour, area);
+            }
+            gtk_snapshot_pop(snapshot);
+        }
+    }
+    gtk_snapshot_pop(snapshot);
+}
+
+#endif
+
+void gtk_passthrough_drawing_area_set_shape(
+    GtkWidget *widget, const unsigned char *verbs, int verb_count, const double *coords,
+    int coord_count, gboolean even_odd, double line_width, int cap, int join,
+    double miter_limit, const ScuiShapePaint *fill, const ScuiShapePaint *stroke,
+    double overflow
+) {
+#if GTK_CHECK_VERSION(4, 14, 0)
+    if (widget == NULL || !GTK_IS_PASSTHROUGH_DRAWING_AREA(widget)) {
+        return;
+    }
+    GtkPassthroughDrawingArea *self = (GtkPassthroughDrawingArea *)widget;
+    if (self->draw_destroy != NULL) {
+        self->draw_destroy(self->draw_data);
+    }
+    self->draw = NULL;
+    self->draw_data = NULL;
+    self->draw_destroy = NULL;
+    scui_shape_clear(self);
+
+    // The path is built once here; every snapshot after it appends the same one.
+    // 路徑只在這裡建一次;之後每次 snapshot 都附加同一條。
+    GskPathBuilder *builder = gsk_path_builder_new();
+    int at = 0;
+    for (int i = 0; i < verb_count; i++) {
+        int need = verbs[i] == 2 ? 6 : (verbs[i] == 3 ? 0 : 2);
+        if (at + need > coord_count) {
+            break;
+        }
+        const double *c = coords + at;
+        switch (verbs[i]) {
+            case 0: gsk_path_builder_move_to(builder, (float)c[0], (float)c[1]); break;
+            case 1: gsk_path_builder_line_to(builder, (float)c[0], (float)c[1]); break;
+            case 2:
+                gsk_path_builder_cubic_to(
+                    builder, (float)c[0], (float)c[1], (float)c[2], (float)c[3], (float)c[4], (float)c[5]
+                );
+                break;
+            default: gsk_path_builder_close(builder); break;
+        }
+        at += need;
+    }
+    self->shape_path = gsk_path_builder_free_to_path(builder);
+    self->shape_rule = even_odd ? GSK_FILL_RULE_EVEN_ODD : GSK_FILL_RULE_WINDING;
+
+    if (line_width > 0) {
+        GskStroke *line = gsk_stroke_new((float)line_width);
+        gsk_stroke_set_line_cap(line, cap == 1 ? GSK_LINE_CAP_ROUND : (cap == 2 ? GSK_LINE_CAP_SQUARE : GSK_LINE_CAP_BUTT));
+        gsk_stroke_set_line_join(line, join == 1 ? GSK_LINE_JOIN_ROUND : (join == 2 ? GSK_LINE_JOIN_BEVEL : GSK_LINE_JOIN_MITER));
+        gsk_stroke_set_miter_limit(line, (float)miter_limit);
+        self->shape_stroke = line;
+    }
+    scui_shape_paint_copy(&self->shape_fill, fill);
+    scui_shape_paint_copy(&self->shape_line, stroke);
+    self->overflow = overflow;
+    gtk_widget_queue_draw(widget);
+#else
+    (void)widget; (void)verbs; (void)verb_count; (void)coords; (void)coord_count;
+    (void)even_odd; (void)line_width; (void)cap; (void)join; (void)miter_limit;
+    (void)fill; (void)stroke; (void)overflow;
+#endif
 }
 
 static void gtk_passthrough_drawing_area_class_init(

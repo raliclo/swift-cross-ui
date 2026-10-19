@@ -5492,6 +5492,10 @@ public final class GtkBackend:
         DrawingArea(gtk_passthrough_drawing_area_new())
     }
 
+    static let drawsShapesWithGsk =
+        gtk_passthrough_drawing_area_supports_shapes() != 0
+        && ProcessInfo.processInfo.environment["SCUI_GTK_CAIRO_PATHS"] != "1"
+
     public func createPath() -> Path {
         Path()
     }
@@ -5587,6 +5591,24 @@ public final class GtkBackend:
             var reach = outline.width / 2
             if case .miter(let limit) = outline.join { reach *= max(limit, 1) }
             overflow = min(reach.rounded(.up) + 1, 256)
+        }
+        // GSK nodes where GTK has GskPath (GtkBackend+ShapePath.swift), unless
+        // SCUI_GTK_CAIRO_PATHS=1 asks for the cairo draw function below, for
+        // comparing the two. / GTK 有 GskPath 時用 GSK 節點(GtkBackend+ShapePath.swift);SCUI_GTK_CAIRO_PATHS=1
+        // 時改用下方的 cairo 繪製函式，用來比較兩者。
+        if Self.drawsShapesWithGsk, let source = path.path {
+            setShape(
+                source,
+                on: drawingArea.widgetPointer,
+                strokeStyle: overrideStrokeStyle ?? source.strokeStyle,
+                strokeFill: fillStyleForStroke,
+                strokeColor: strokeColor,
+                fill: fillStyle,
+                fillColor: fillColor,
+                overflow: overflow,
+                environment: environment
+            )
+            return
         }
         final class DrawBox {
             let draw: (OpaquePointer) -> Void
