@@ -4289,7 +4289,22 @@ public final class GtkBackend:
 
         textView.selectable = environment.isTextSelectionEnabled
         textView.css.clear()
-        textView.css.set(properties: cssProperties(for: environment))
+        // A gradient is painted by the label's container with the glyphs as
+        // its mask (gtk_text_paint.c), so the glyphs are drawn opaque. Below
+        // GTK 4.14 there are no gradient nodes and the text takes the
+        // gradient's middle colour, which `Text` sets as the foreground colour.
+        // 漸層由 label 的容器以字形為遮罩畫出(gtk_text_paint.c),所以字形以不透明色繪製。GTK 4.14 以下沒有漸層節點，文字
+        // 取漸層的中間色——`Text` 已把它設為前景色。
+        var textEnvironment = environment
+        if let gradient = environment.textGradient, gtk_passthrough_drawing_area_supports_shapes() != 0 {
+            withShapePaint(gradient, flattenedTo: gradient.flattened(in: environment), environment: environment) {
+                scui_widget_set_text_paint(textView.widgetPointer, $0)
+            }
+            textEnvironment = environment.with(\.foregroundColor, .black)
+        } else {
+            scui_widget_set_text_paint(textView.widgetPointer, nil)
+        }
+        textView.css.set(properties: cssProperties(for: textEnvironment))
     }
 
     public func size(

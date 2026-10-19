@@ -83,7 +83,9 @@ static void scui_clip_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
         gtk_snapshot_push_clip(snapshot, &bounds);
     }
 
-    GTK_WIDGET_CLASS(scui_clip_fixed_parent_class)->snapshot(widget, snapshot);
+    if (!scui_snapshot_children_painting_text(widget, snapshot)) {
+        GTK_WIDGET_CLASS(scui_clip_fixed_parent_class)->snapshot(widget, snapshot);
+    }
     gtk_snapshot_pop(snapshot);
 }
 

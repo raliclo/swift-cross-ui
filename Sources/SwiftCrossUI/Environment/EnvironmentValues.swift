@@ -507,6 +507,23 @@ extension EnvironmentValues {
     /// should be used.
     @Entry public var foregroundColor: Color?
 
+    /// A style that is not a flat colour (a gradient), set by
+    /// ``View/foregroundStyle(_:)-generic``. Text and shapes without a fill
+    /// are painted with it instead of ``foregroundColor``; `nil` means the
+    /// foreground colour.
+    /// 由 ``View/foregroundStyle(_:)-generic`` 設定、不是平面色的樣式(漸層)。文字與沒有填色的形狀以它取代
+    /// ``foregroundColor`` 來上色;`nil` 表示用前景色。
+    @Entry public var foregroundShapeStyle: (any ShapeStyle)?
+
+    /// The gradient a text view is painted with, handed to a backend's
+    /// `updateTextView`: its points are unit points of the text view's bounds
+    /// and its radii units of the shorter side, as for a shape. `nil` paints the
+    /// text in ``foregroundColor``. Set by `Text` from
+    /// ``foregroundShapeStyle``, and each frame while it tweens.
+    /// 交給 backend `updateTextView` 的文字漸層：點是文字 view 外框的單位座標，半徑以較短邊為單位，與形狀相同。
+    /// `nil` 時文字以 ``foregroundColor`` 上色。由 `Text` 依 ``foregroundShapeStyle`` 設定，補間時每一幀設定。
+    @Entry public var textGradient: ResolvedFillStyle?
+
     /// Called when a text field gets submitted (usually due to the user
     /// pressing Enter/Return).
     @Entry public var onSubmit: (@MainActor @Sendable () -> Void)?

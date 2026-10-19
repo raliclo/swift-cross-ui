@@ -14,6 +14,14 @@ import Foundation
 // `update…GradientWidget` with a gradient in between. Colours are resolved
 // before they tween, so a system colour has components to move between.
 //
+// **Gradient fills.** A shape's fill and stroke, and a `Text`'s foreground, are a
+// ``FillDrawing``: a flat colour or a linear or radial gradient. They tween the
+// same way, whichever they change between: colour to colour, gradient to gradient
+// (stops, points, radii), and colour to gradient as the gradient with every stop
+// in that colour. Each frame a shape hands the backend the fill in between through
+// `renderPath` (on GtkBackend that sets new GSK nodes), and a `Text` through
+// `updateTextView` with ``EnvironmentValues/textGradient``.
+//
 // **Gradients with different stops.** With the same number of stops each stop
 // moves to its partner (colour and location). Otherwise both gradients are
 // sampled at the union of their locations and each sample moves from one
@@ -27,6 +35,11 @@ import Foundation
 // **每一幀怎麼畫。** 每個 view 保存它所畫內容的 ``ParameterTween``,每一幀經由它本來就會做的呼叫把中間值交給
 // backend:`Text` 以環境中的顏色呼叫 `updateTextView`(顏色不改變文字尺寸，所以不排版),漸層以中間的漸層呼叫
 // `update…GradientWidget`。顏色在補間前先 resolve,讓系統色有分量可以在其間移動。
+//
+// **漸層填色。** 形狀的填色與筆畫，以及 `Text` 的前景，都是 ``FillDrawing``:平面色，或線性、放射漸層。不論在哪兩者
+// 之間改變，補間方式都相同：顏色到顏色、漸層到漸層(色標、點、半徑),顏色到漸層則視為每個色標都是該顏色的那個漸層。
+// 每一幀形狀經由 `renderPath` 把中間的填色交給 backend(在 GtkBackend 上即設定新的 GSK 節點),`Text` 則經由帶
+// ``EnvironmentValues/textGradient`` 的 `updateTextView`。
 //
 // **色標數不同的漸層。** 色標數相同時，每個色標移向它的配對(顏色與位置)。否則兩個漸層都在雙方位置的聯集上取樣，
 // 每個樣本從一個顏色移到另一個，所以兩端畫出的漸層恰好就是給定的漸層。
@@ -157,6 +170,151 @@ struct GradientDrawing: Equatable, Sendable, AnimatableValue {
     @MainActor func diagnosticValues(in environment: EnvironmentValues) -> [Double] {
         gradient.diagnosticValues(in: environment) + points.flatMap { [$0.x, $0.y] } + scalars
     }
+
+    /// The same geometry and stop locations with every stop in `color`: what
+    /// a flat colour is when it tweens to or from this gradient.
+    /// 同樣的幾何與色標位置、每個色標都是 `color`:平面色補間到此漸層或從此漸層補間時，就是這個樣子。
+    func filled(with color: Color) -> GradientDrawing {
+        var drawing = self
+        drawing.gradient.stops = gradient.stops.map { Gradient.Stop(color: color, location: $0.location) }
+        return drawing
+    }
+}
+
+/// What a shape's fill or stroke, or a text's foreground, is painted with, as a
+/// value a tween can move: a flat colour, or a linear or radial gradient whose
+/// points are unit points of the painted box (``ResolvedFillStyle``'s geometry).
+/// Colours are resolved.
+/// 形狀的填色或筆畫、或文字的前景以什麼上色，作為補間可以移動的值：平面色，或點為上色框單位座標的線性、放射漸層
+/// (即 ``ResolvedFillStyle`` 的幾何)。顏色已 resolve。
+enum FillDrawing: Equatable, Sendable, AnimatableValue {
+    case color(Color)
+    /// Points: start, end. / 點：起點、終點。
+    case linear(GradientDrawing)
+    /// Points: centre; scalars: start and end radius. / 點：中心;純量：起始與終止半徑。
+    case radial(GradientDrawing)
+
+    @MainActor
+    init(_ style: ResolvedFillStyle, in environment: EnvironmentValues) {
+        switch style {
+            case .color(let resolved):
+                self = .color(Color(resolved))
+            case .linearGradient(let gradient, let start, let end):
+                self = .linear(
+                    GradientDrawing(gradient: gradient.resolved(in: environment), points: [start, end], scalars: [])
+                )
+            case .radialGradient(let gradient, let center, let startRadius, let endRadius):
+                self = .radial(
+                    GradientDrawing(
+                        gradient: gradient.resolved(in: environment), points: [center],
+                        scalars: [startRadius, endRadius]
+                    )
+                )
+        }
+    }
+
+    /// For a backend. / 給 backend 用。
+    @MainActor
+    func style(in environment: EnvironmentValues) -> ResolvedFillStyle {
+        switch self {
+            case .color(let color):
+                return .color(color.resolve(in: environment))
+            case .linear(let drawing):
+                return .linearGradient(drawing.gradient, startPoint: drawing.points[0], endPoint: drawing.points[1])
+            case .radial(let drawing):
+                return .radialGradient(
+                    drawing.gradient, center: drawing.points[0], startRadius: drawing.scalars[0],
+                    endRadius: drawing.scalars[1]
+                )
+        }
+    }
+
+    var isGradient: Bool {
+        if case .color = self { return false }
+        return true
+    }
+
+    private var gradientDrawing: GradientDrawing? {
+        switch self {
+            case .color: nil
+            case .linear(let drawing), .radial(let drawing): drawing
+        }
+    }
+
+    /// The same kind as `self` with `drawing` in it. / 與 `self` 同一種、裝著 `drawing`。
+    private func withDrawing(_ drawing: GradientDrawing) -> FillDrawing {
+        switch self {
+            case .radial: .radial(drawing)
+            default: .linear(drawing)
+        }
+    }
+
+    /// Colour to colour and gradient to gradient move part by part; a colour
+    /// and a gradient move as the gradient with every stop in that colour; a
+    /// linear and a radial gradient move their colours and take the target's
+    /// geometry. The ends are the values given.
+    /// 顏色到顏色、漸層到漸層逐項移動;顏色與漸層之間，視為每個色標都是該顏色的那個漸層;線性與放射漸層之間移動顏色、
+    /// 幾何採用目標的。兩端就是給定的值。
+    static func interpolated(from a: FillDrawing, to b: FillDrawing, progress: Double) -> FillDrawing {
+        if progress <= 0 { return a }
+        if progress >= 1 { return b }
+        switch (a, b) {
+            case (.color(let x), .color(let y)):
+                return .color(Color.interpolated(from: x, to: y, progress: progress))
+            case (.color(let x), _):
+                let target = b.gradientDrawing!
+                return b.withDrawing(
+                    GradientDrawing.interpolated(from: target.filled(with: x), to: target, progress: progress)
+                )
+            case (_, .color(let y)):
+                let start = a.gradientDrawing!
+                return a.withDrawing(
+                    GradientDrawing.interpolated(from: start, to: start.filled(with: y), progress: progress)
+                )
+            default:
+                return b.withDrawing(
+                    GradientDrawing.interpolated(
+                        from: a.gradientDrawing!, to: b.gradientDrawing!, progress: progress
+                    )
+                )
+        }
+    }
+
+    /// Colour components, or the gradient's values (GradientDrawing), for
+    /// ``LayoutAnimationDiagnostics``. / 顏色分量，或漸層的值(GradientDrawing),供 ``LayoutAnimationDiagnostics`` 使用。
+    @MainActor
+    func diagnosticValues(in environment: EnvironmentValues) -> [Double] {
+        switch self {
+            case .color(let color):
+                let c = color.resolve(in: environment)
+                return [Double(c.red), Double(c.green), Double(c.blue), Double(c.opacity)]
+            case .linear(let drawing), .radial(let drawing):
+                return drawing.diagnosticValues(in: environment)
+        }
+    }
+
+    /// Records `self` under `kind` (a colour) or `kind-gradient`.
+    /// 以 `kind`(顏色)或 `kind-gradient` 記錄 `self`。
+    @MainActor
+    func record(_ environment: EnvironmentValues, _ kind: String) {
+        if case .color(let color) = self {
+            LayoutAnimationDiagnostics.record(environment, kind, color: color)
+        } else {
+            LayoutAnimationDiagnostics.record(environment, "\(kind)-gradient", values: diagnosticValues(in: environment))
+        }
+    }
+
+    /// The foreground text and unfilled shapes are painted with in
+    /// `environment`: ``EnvironmentValues/foregroundShapeStyle``, else the
+    /// foreground colour.
+    /// 在 `environment` 中文字與沒有填色的形狀所用的前景:``EnvironmentValues/foregroundShapeStyle``,否則是前景色。
+    @MainActor
+    static func foreground(in environment: EnvironmentValues) -> FillDrawing {
+        if let style = environment.foregroundShapeStyle {
+            return FillDrawing(style._resolve(in: environment), in: environment)
+        }
+        return .color(Color(environment.suggestedForegroundColor.resolve(in: environment)))
+    }
 }
 
 extension LinearGradient {
@@ -270,27 +428,48 @@ extension AngularGradient {
         }
     }
 }
-/// A `Text`'s drawn colour. / `Text` 畫出的顏色。
+/// A `Text`'s drawn foreground: a colour or a gradient.
+/// `Text` 畫出的前景：顏色或漸層。
 final class TextColorStorage: ViewGraphNodeChildren {
     let widgets: [AnyWidget] = []
     let erasedNodes: [ErasedViewGraphNode] = []
     /// Made on first use, on the main actor. / 第一次使用時(於 main actor 上)建立。
-    var color: ParameterTween<Color>?
+    var fill: ParameterTween<FillDrawing>?
 
-    /// `environment` with the foreground colour to draw now: on its way from
-    /// the drawn colour when it changed under an animation. An unset colour
-    /// stays unset unless a tween is moving it, so the backend keeps its own
-    /// default (a dynamic system colour) at rest.
-    /// 帶著現在要畫的前景色的 `environment`:若它在動畫中改變，則正從畫出的顏色走向它。未設定的顏色維持未設定，除非
-    /// 補間正在移動它，讓 backend 在靜止時保有它自己的預設色(動態系統色)。
+    /// `environment` with the foreground to draw now: on its way from the
+    /// drawn one when it changed under an animation. An unset colour stays
+    /// unset unless a tween is moving it, so the backend keeps its own default
+    /// (a dynamic system colour) at rest.
+    /// 帶著現在要畫的前景的 `environment`:若它在動畫中改變，則正從畫出的前景走向它。未設定的顏色維持未設定，除非補間
+    /// 正在移動它，讓 backend 在靜止時保有它自己的預設色(動態系統色)。
     @MainActor
     func environment(for environment: EnvironmentValues) -> EnvironmentValues {
-        let tween = color ?? ParameterTween<Color>()
-        color = tween
-        let target = Color(environment.suggestedForegroundColor.resolve(in: environment))
-        let shown = tween.resolve(target, transaction: EffectTransaction.current(in: environment))
-        guard environment.foregroundColor != nil || tween.isAnimating else { return environment }
-        return environment.with(\.foregroundColor, shown)
+        let tween = fill ?? ParameterTween<FillDrawing>()
+        fill = tween
+        let shown = tween.resolve(
+            FillDrawing.foreground(in: environment),
+            transaction: EffectTransaction.current(in: environment)
+        )
+        let isSet = environment.foregroundColor != nil || environment.foregroundShapeStyle != nil
+        guard isSet || tween.isAnimating else { return environment.with(\.textGradient, nil) }
+        return Self.environment(environment, drawing: shown)
+    }
+
+    /// `environment` drawing `fill`: a colour as the foreground colour, a
+    /// gradient as ``EnvironmentValues/textGradient`` (with its middle colour as
+    /// the foreground colour).
+    /// 以 `fill` 繪製的 `environment`:顏色作為前景色，漸層作為 ``EnvironmentValues/textGradient``(其中間色作為前景色)。
+    @MainActor
+    static func environment(_ environment: EnvironmentValues, drawing fill: FillDrawing) -> EnvironmentValues {
+        switch fill {
+            case .color(let color):
+                return environment.with(\.foregroundColor, color).with(\.textGradient, nil)
+            case .linear, .radial:
+                let style = fill.style(in: environment)
+                return environment
+                    .with(\.foregroundColor, Color(style.flattened(in: environment)))
+                    .with(\.textGradient, style)
+        }
     }
 }
 
@@ -329,17 +508,15 @@ extension Text {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        if let storage = children as? TextColorStorage, let tween = storage.color {
+        if let storage = children as? TextColorStorage, let tween = storage.fill {
             let content = environment.applyingTextTransforms(to: string)
             tween.onFrame = { [weak tween] in
                 guard let drawn = tween?.drawn else { return }
-                let frameEnvironment = environment.with(\.foregroundColor, drawn)
+                let frameEnvironment = TextColorStorage.environment(environment, drawing: drawn)
                 backend.updateTextView(widget, content: content, environment: frameEnvironment)
-                LayoutAnimationDiagnostics.record(environment, "text", color: drawn)
+                drawn.record(environment, "text")
             }
-            if let drawn = tween.drawn {
-                LayoutAnimationDiagnostics.record(environment, "text", color: drawn)
-            }
+            tween.drawn?.record(environment, "text")
         }
         commit(widget, layout: layout, environment: environment, backend: backend)
     }
@@ -351,5 +528,22 @@ extension View {
     /// 設定此 view 中文字的顏色——SwiftUI 以顏色呼叫的 `foregroundStyle(_:)`,與 ``foregroundColor(_:)`` 相同。
     public func foregroundStyle(_ color: Color) -> some View {
         foregroundColor(color)
+    }
+
+    /// Paints the text and the unfilled shapes in this view with `style` --
+    /// SwiftUI's `foregroundStyle(_:)`, here with a `LinearGradient` or a
+    /// `RadialGradient` (a `Color` takes the overload above). A gradient spans
+    /// each text view's bounds, as it spans a shape's. It tweens like a colour
+    /// under `withAnimation` and `.animation(_:value:)`.
+    /// 以 `style` 為此 view 中的文字與沒有填色的形狀上色——SwiftUI 的 `foregroundStyle(_:)`,這裡用 `LinearGradient`
+    /// 或 `RadialGradient`(`Color` 走上面的多載)。漸層橫跨每個文字 view 的外框，與它橫跨形狀的方式相同。在 `withAnimation`
+    /// 與 `.animation(_:value:)` 之下它與顏色一樣會補間。
+    public func foregroundStyle<S: ShapeStyle>(_ style: S) -> some View {
+        EnvironmentModifier(self) { environment in
+            if let color = style as? Color {
+                return environment.with(\.foregroundColor, color).with(\.foregroundShapeStyle, nil)
+            }
+            return environment.with(\.foregroundShapeStyle, style)
+        }
     }
 }

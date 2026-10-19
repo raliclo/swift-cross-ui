@@ -152,6 +152,21 @@ void gtk_passthrough_drawing_area_set_shape(
     double overflow
 );
 
+// Paints a text widget (a GtkLabel) with `paint` (kind 1 or 2, as above, mapped onto
+// the widget's bounds); NULL or kind 0 draws it as GtkLabel does. Drawn by the
+// container it is in when that container snapshots its children (see
+// scui_snapshot_children_painting_text and gtk_text_paint.c). Needs GTK 4.14.
+// 以 `paint`(kind 1 或 2,同上，對應到 widget 的外框)為文字 widget(GtkLabel)上色;NULL 或 kind 0 時照 GtkLabel 原樣
+// 繪製。由它所在的容器在 snapshot 子元件時畫出(見 scui_snapshot_children_painting_text 與 gtk_text_paint.c)。需要 GTK 4.14。
+void scui_widget_set_text_paint(GtkWidget *widget, const ScuiShapePaint *paint);
+
+// Snapshots `widget`'s children, each with a text paint as the alpha mask of its
+// gradient. Returns FALSE, having drawn nothing, when no child has one, so the
+// caller snapshots them as before.
+// snapshot `widget` 的子元件，帶文字上色的子元件作為其漸層的 alpha 遮罩。沒有任何子元件帶文字上色時回傳 FALSE、
+// 什麼都不畫，由呼叫端照舊 snapshot。
+gboolean scui_snapshot_children_painting_text(GtkWidget *widget, GtkSnapshot *snapshot);
+
 // A GtkFixed that clips its children to its own size request rather than letting
 // them draw past it. This is the #389 clip: a plain GtkFixed measures to the
 // bounding box of its children, so a child larger than the frame makes the

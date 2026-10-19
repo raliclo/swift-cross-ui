@@ -59,10 +59,16 @@ extension UIKitBackend {
         // 一致。2026-09-30 以 P21 實測：停用的 Toggle 與 ToggleSwitch 的標籤在 macOS 上是灰的，在 iOS
         // 上卻在調暗的開關旁維持全黑，因為這條路徑用的是 `.label`、沒有查看 `isEnabled`。只改這裡而不改
         // `attributedString`，因為按鈕也共用它，並且自行以 alpha 調暗。
+        // A gradient paints through the glyphs, so they are drawn opaque
+        // (TextView.draw). / 漸層透過字形上色，所以字形以不透明色繪製(TextView.draw)。
+        let gradient = environment.textGradient
+        wrapper.child.gradientEnvironment = environment
+        wrapper.child.textGradient = gradient
+        let textEnvironment = gradient == nil ? environment : environment.with(\.foregroundColor, .black)
         wrapper.child.attributedText = UIKitBackend.attributedString(
             text: content,
-            environment: environment,
-            defaultForegroundColor: UIKitBackend.resolvedForegroundColor(environment)
+            environment: textEnvironment,
+            defaultForegroundColor: UIKitBackend.resolvedForegroundColor(textEnvironment)
         )
         wrapper.child.isSelectable = environment.isTextSelectionEnabled
     }
@@ -222,10 +228,33 @@ extension UIKitBackend {
             }
         }
 
+        /// The gradient the text is painted with (`EnvironmentValues.textGradient`);
+        /// nil draws it in its own colour.
+        /// 文字所用的漸層(`EnvironmentValues.textGradient`);nil 時以文字自己的顏色繪製。
+        var textGradient: ResolvedFillStyle? {
+            didSet { setNeedsDisplay() }
+        }
+        var gradientEnvironment: EnvironmentValues?
+
+        /// With a gradient, the glyphs (drawn opaque) are the mask the gradient
+        /// is painted through: drawn into a transparency layer, then the
+        /// gradient over them with `sourceIn`, as AppKitBackend's text field does.
+        /// 有漸層時，字形(以不透明色繪製)就是漸層透過的遮罩：先畫進透明圖層，再以 `sourceIn` 在其上畫漸層，與 AppKitBackend 的文字欄位相同。
         public override func draw(_ rect: CGRect) {
             let range = layoutManager.glyphRange(for: textContainer)
+            guard let textGradient, let gradientEnvironment, let context = UIGraphicsGetCurrentContext() else {
+                layoutManager.drawBackground(forGlyphRange: range, at: bounds.origin)
+                layoutManager.drawGlyphs(forGlyphRange: range, at: bounds.origin)
+                return
+            }
             layoutManager.drawBackground(forGlyphRange: range, at: bounds.origin)
+            context.saveGState()
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
             layoutManager.drawGlyphs(forGlyphRange: range, at: bounds.origin)
+            context.setBlendMode(.sourceIn)
+            drawResolvedFill(textGradient, in: bounds, environment: gradientEnvironment, context: context)
+            context.endTransparencyLayer()
+            context.restoreGState()
         }
 
         @objc private func didLongPress(_ gesture: UILongPressGestureRecognizer) {

@@ -91,6 +91,24 @@ extension AppKitBackend.NSBezierPathView {
         environment: EnvironmentValues,
         context: CGContext
     ) {
+        drawResolvedFill(style, in: box, flipped: false, environment: environment, context: context)
+    }
+}
+
+/// Paints `style` across `box`: unit points map onto the box, y downwards in
+/// unit space whether or not the context is `flipped`; radii are units of the
+/// shorter side. Shared by shapes and gradient text.
+/// 把 `style` 畫滿 `box`:單位座標對應到方框，不論 context 是否 `flipped`,單位空間中 y 一律向下;半徑以較短邊為單位。
+/// 形狀與漸層文字共用。
+@MainActor
+func drawResolvedFill(
+    _ style: ResolvedFillStyle,
+    in box: NSRect,
+    flipped: Bool,
+    environment: EnvironmentValues,
+    context: CGContext
+) {
+    do {
         // A zero-extent path leaves a gradient nowhere to run. Core Graphics
         // would take the degenerate call and draw nothing, so the shape would
         // vanish; the flat colour keeps it visible. GtkBackend guards the same
@@ -106,7 +124,9 @@ extension AppKitBackend.NSBezierPathView {
         func point(_ unit: UnitPoint) -> CGPoint {
             CGPoint(
                 x: box.minX + CGFloat(unit.x) * box.width,
-                y: box.maxY - CGFloat(unit.y) * box.height
+                y: flipped
+                    ? box.minY + CGFloat(unit.y) * box.height
+                    : box.maxY - CGFloat(unit.y) * box.height
             )
         }
 

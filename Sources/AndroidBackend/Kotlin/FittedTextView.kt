@@ -2,6 +2,10 @@ package dev.swiftcrossui.androidbackend
 
 import android.os.Build
 import android.app.Activity
+import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.RadialGradient
+import android.graphics.Shader
 import android.text.TextUtils
 import android.widget.TextView
 
@@ -63,5 +67,79 @@ class FittedTextView(activity: Activity) : TextView(activity) {
             widest = maxOf(widest, current.getLineMax(line))
         }
         return Math.ceil(widest.toDouble()).toInt() + compoundPaddingLeft + compoundPaddingRight
+    }
+
+    // The gradient the text is painted with (`EnvironmentValues.textGradient`),
+    // as a shader on the text paint over the view's bounds: points are unit
+    // points of the bounds, radii units of the shorter side, as PathView's.
+    // 文字所用的漸層(`EnvironmentValues.textGradient`),作為文字 paint 上覆蓋 view 外框的 shader:點是外框的單位座標，
+    // 半徑以較短邊為單位，與 PathView 相同。
+    private var hasGradient = false
+    private var gradientRadial = false
+    private var gradientGeometry = FloatArray(6)
+    private val gradientColors = mutableListOf<Int>()
+    private val gradientPositions = mutableListOf<Float>()
+
+    fun clearGradient() {
+        if (!hasGradient) return
+        hasGradient = false
+        paint.shader = null
+        invalidate()
+    }
+
+    fun setGradient(
+        radial: Boolean,
+        ax: Float,
+        ay: Float,
+        bx: Float,
+        by: Float,
+        startRadius: Float,
+        endRadius: Float,
+    ) {
+        hasGradient = true
+        gradientRadial = radial
+        gradientGeometry = floatArrayOf(ax, ay, bx, by, startRadius, endRadius)
+        gradientColors.clear()
+        gradientPositions.clear()
+        invalidate()
+    }
+
+    fun addGradientStop(color: Int, position: Float) {
+        gradientColors.add(color)
+        gradientPositions.add(position)
+        invalidate()
+    }
+
+    private fun gradientShader(): Shader? {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (!hasGradient || w <= 0f || h <= 0f || gradientColors.isEmpty()) {
+            return null
+        }
+        val colors =
+            if (gradientColors.size == 1) intArrayOf(gradientColors[0], gradientColors[0])
+            else gradientColors.toIntArray()
+        val positions =
+            if (gradientPositions.size == 1) floatArrayOf(0f, 1f) else gradientPositions.toFloatArray()
+        val g = gradientGeometry
+        if (!gradientRadial) {
+            return LinearGradient(g[0] * w, g[1] * h, g[2] * w, g[3] * h, colors, positions, Shader.TileMode.CLAMP)
+        }
+        val scale = Math.min(w, h)
+        val outer = g[5] * scale
+        if (outer <= 0f) {
+            return null
+        }
+        val inner = g[4] * scale
+        val remapped =
+            FloatArray(positions.size) { ((inner + positions[it] * (outer - inner)) / outer).coerceIn(0f, 1f) }
+        return RadialGradient(g[0] * w, g[1] * h, outer, colors, remapped, Shader.TileMode.CLAMP)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        // Set on every draw, because the shader is built from the view's size.
+        // 每次繪製都設定，因為 shader 由 view 的尺寸建構。
+        paint.shader = gradientShader()
+        super.onDraw(canvas)
     }
 }

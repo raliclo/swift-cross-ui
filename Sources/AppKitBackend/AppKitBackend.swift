@@ -944,7 +944,15 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         environment: EnvironmentValues
     ) {
         let field = textView as! NSTextField
-        field.attributedStringValue = Self.attributedString(for: content, in: environment)
+        // A gradient paints through the glyphs, so they are drawn opaque
+        // (NSCustomTextField.draw). / 漸層透過字形上色，所以字形以不透明色繪製(NSCustomTextField.draw)。
+        let gradient = environment.textGradient
+        if let custom = field as? NSCustomTextField {
+            custom.gradientEnvironment = environment
+            custom.textGradient = gradient
+        }
+        let textEnvironment = gradient == nil ? environment : environment.with(\.foregroundColor, .black)
+        field.attributedStringValue = Self.attributedString(for: content, in: textEnvironment)
         if field.isSelectable && !environment.isTextSelectionEnabled {
             field.abortEditing()
         }
@@ -3022,5 +3030,35 @@ public final class NSCustomTextField: NSTextField {
 
     override public func accessibilityValue() -> String? {
         accessibilityValueOverride ?? super.accessibilityValue()
+    }
+
+    /// The gradient the text is painted with (`EnvironmentValues.textGradient`);
+    /// nil draws it in its own colour.
+    /// 文字所用的漸層(`EnvironmentValues.textGradient`);nil 時以文字自己的顏色繪製。
+    var textGradient: ResolvedFillStyle? {
+        didSet { needsDisplay = true }
+    }
+    var gradientEnvironment: EnvironmentValues?
+
+    /// With a gradient, the text (drawn opaque) is the mask the gradient is
+    /// painted through: drawn into a transparency layer, then the gradient
+    /// over it with `sourceIn`, which keeps the gradient where the glyphs are.
+    /// 有漸層時，文字(以不透明色繪製)就是漸層透過的遮罩：先畫進一個透明圖層，再以 `sourceIn` 在其上畫漸層，只留下字形所在處的漸層。
+    override public func draw(_ dirtyRect: NSRect) {
+        guard let textGradient, let gradientEnvironment,
+            let context = NSGraphicsContext.current?.cgContext
+        else {
+            super.draw(dirtyRect)
+            return
+        }
+        context.saveGState()
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        super.draw(dirtyRect)
+        context.setBlendMode(.sourceIn)
+        drawResolvedFill(
+            textGradient, in: bounds, flipped: isFlipped, environment: gradientEnvironment, context: context
+        )
+        context.endTransparencyLayer()
+        context.restoreGState()
     }
 }

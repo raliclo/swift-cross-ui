@@ -1574,6 +1574,12 @@ public final class WinUIBackend:
         block.text = content
         block.isTextSelectionEnabled = environment.isTextSelectionEnabled
         environment.apply(to: block)
+        // A gradient as the text's brush: XAML maps a brush's points onto the
+        // element's bounds, as `EnvironmentValues.textGradient` means them.
+        // 漸層作為文字的 brush:XAML 把 brush 的點對應到元素的外框，正是 `EnvironmentValues.textGradient` 的意思。
+        if let gradient = environment.textGradient {
+            block.foreground = WinUIBackend.brush(for: gradient, in: environment)
+        }
     }
 
     public func createSimpleButton() -> Widget {

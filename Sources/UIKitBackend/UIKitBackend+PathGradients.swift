@@ -97,6 +97,22 @@ extension PathWidget {
         environment: EnvironmentValues,
         context: CGContext
     ) {
+        drawResolvedFill(style, in: box, environment: environment, context: context)
+    }
+}
+
+/// Paints `style` across `box` in UIKit's y-down coordinates: unit points map
+/// onto the box, radii are units of the shorter side. Shared by paths and
+/// gradient text (TextView).
+/// 在 UIKit 的 y 向下座標中把 `style` 畫滿 `box`:單位座標對應到方框，半徑以較短邊為單位。路徑與漸層文字(TextView)共用。
+@MainActor
+func drawResolvedFill(
+    _ style: ResolvedFillStyle,
+    in box: CGRect,
+    environment: EnvironmentValues,
+    context: CGContext
+) {
+    do {
         // A zero-extent path leaves a gradient nowhere to run, and Core
         // Graphics would take the degenerate call and draw nothing -- the shape
         // would vanish. The flat colour keeps it visible, as in GtkBackend.

@@ -1228,13 +1228,20 @@ public final class AndroidBackend: BaseAppBackend {
                 environment.suggestedForegroundColor.opacity(0.3)
             )
         }
+        // A gradient is a shader on the text paint (FittedTextView), which
+        // multiplies by the text colour's alpha, so the colour is opaque.
+        // 漸層是文字 paint 上的 shader(FittedTextView),會乘上文字顏色的 alpha,所以顏色是不透明的。
+        let gradient = environment.textGradient
+        if gradient != nil {
+            environment = environment.with(\.foregroundColor, .black)
+        }
         // Same text in the same style: nothing to send. setText relays the
         // text out and requests a layout even for an identical string, and
         // about half of P66's calls were identical (2026-10-04); the check is
         // on the Swift side so that it costs no JNI -- see LastSet.
         // 同樣樣式的同樣文字：不必送出。即使字串相同,setText 也會重新排版文字並要求一次排版，而 P66 的呼叫
         // 約有一半是相同的(2026-10-04);比較放在 Swift 這一側，因此不花任何 JNI——見 LastSet。
-        let memo = "\(textStyleKey(for: environment))\u{1}\(content)"
+        let memo = "\(textStyleKey(for: environment))\u{1}\(content)\u{1}\(String(describing: gradient))"
         if Self.textContents.value(for: textView) == memo { return }
         Self.textContents.set(memo, for: textView)
         let widget = textView
@@ -1242,6 +1249,36 @@ public final class AndroidBackend: BaseAppBackend {
         let content = JavaString(content, environment: Self.env)
         textView.setText(content.as(CharSequence.self))
         getTextStyle(from: environment).apply(to: textView)
+        if let fitted = widget.as(FittedTextView.self) {
+            applyTextGradient(gradient, to: fitted, environment: environment)
+        }
+    }
+
+    /// Sets `gradient` on the text view's paint, or clears it.
+    /// 把 `gradient` 設到文字 view 的 paint 上，或清除它。
+    private func applyTextGradient(
+        _ gradient: ResolvedFillStyle?,
+        to view: FittedTextView,
+        environment: EnvironmentValues
+    ) {
+        let stops: [SwiftCrossUI.Gradient.Stop]
+        switch gradient {
+            case .linearGradient(let linear, let start, let end):
+                view.setGradient(false, Float(start.x), Float(start.y), Float(end.x), Float(end.y), 0, 0)
+                stops = linear.stops
+            case .radialGradient(let radial, let center, let startRadius, let endRadius):
+                view.setGradient(
+                    true, Float(center.x), Float(center.y), Float(center.x), Float(center.y),
+                    Float(startRadius), Float(endRadius)
+                )
+                stops = radial.stops
+            case .color, nil:
+                view.clearGradient()
+                return
+        }
+        for stop in stops {
+            view.addGradientStop(stop.color.resolve(in: environment).asColorInt(), Float(stop.location))
+        }
     }
 
     public func size(

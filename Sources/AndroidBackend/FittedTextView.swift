@@ -15,4 +15,21 @@ class FittedTextView: AndroidKit.TextView {
 
     @JavaMethod
     func widestLineWidth() -> Int32
+
+    @JavaMethod
+    func clearGradient()
+
+    @JavaMethod
+    func setGradient(
+        _ radial: Bool,
+        _ ax: Float,
+        _ ay: Float,
+        _ bx: Float,
+        _ by: Float,
+        _ startRadius: Float,
+        _ endRadius: Float
+    )
+
+    @JavaMethod
+    func addGradientStop(_ color: Int32, _ position: Float)
 }

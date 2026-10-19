@@ -120,35 +120,36 @@ extension Shape {
         )
 
         backend.setSize(of: widget, to: layout.size.vector)
-        // The fill tweens when it changes under an animation, redrawn on each
-        // frame with no re-layout (see LayoutAnimation.swift).
-        // 填色在動畫中改變時會補間，每一幀重畫、不重新排版(見 LayoutAnimation.swift)。
-        let strokeColor = Color.clear.resolve(in: environment)
-        let fill = storage.fill ?? ParameterTween<Color>()
+        // Filled with the foreground: the foreground colour, or the gradient
+        // `.foregroundStyle(_:)` gave. It tweens when it changes under an
+        // animation, redrawn on each frame with no re-layout (FillDrawing in
+        // StyleAnimation.swift).
+        // 以前景填色：前景色，或 `.foregroundStyle(_:)` 給的漸層。它在動畫中改變時會補間，每一幀重畫、不重新排版
+        // (StyleAnimation.swift 的 FillDrawing)。
+        let stroke = ResolvedFillStyle.color(Color.clear.resolve(in: environment))
+        let fill = storage.fill ?? ParameterTween<FillDrawing>()
         storage.fill = fill
-        fill.onFrame = { [weak fill] in
-            guard let drawn = fill?.drawn else { return }
+        let draw = { (drawn: FillDrawing) in
             backend.renderPath(
                 backendPath,
                 container: widget,
-                strokeColor: strokeColor,
-                fillColor: drawn.resolve(in: environment),
-                overrideStrokeStyle: nil
+                strokeStyle: stroke,
+                fillStyle: drawn.style(in: environment),
+                overrideStrokeStyle: nil,
+                environment: environment
             )
-            LayoutAnimationDiagnostics.record(environment, "fill", color: drawn)
+            drawn.record(environment, "fill")
         }
-        let fillColor = fill.resolve(
-            Color(environment.suggestedForegroundColor.resolve(in: environment)),
-            transaction: EffectTransaction.current(in: environment)
+        fill.onFrame = { [weak fill] in
+            guard let drawn = fill?.drawn else { return }
+            draw(drawn)
+        }
+        draw(
+            fill.resolve(
+                FillDrawing.foreground(in: environment),
+                transaction: EffectTransaction.current(in: environment)
+            )
         )
-        backend.renderPath(
-            backendPath,
-            container: widget,
-            strokeColor: strokeColor,
-            fillColor: fillColor.resolve(in: environment),
-            overrideStrokeStyle: nil
-        )
-        LayoutAnimationDiagnostics.record(environment, "fill", color: fillColor)
     }
 }
 
@@ -157,8 +158,9 @@ final class ShapeStorage: ViewGraphNodeChildren {
     let erasedNodes: [ErasedViewGraphNode] = []
     var backendPath: Any!
     var oldPath: Path?
-    /// The drawn flat fill and stroke colours; made at the first commit, on the main actor.
-    /// 畫出的平面填色與筆畫色;在第一次 commit 時(於 main actor 上)建立。
-    var fill: ParameterTween<Color>?
-    var stroke: ParameterTween<Color>?
+    /// The drawn fill and stroke (colours or gradients); made at the first
+    /// commit, on the main actor.
+    /// 畫出的填色與筆畫(顏色或漸層);在第一次 commit 時(於 main actor 上)建立。
+    var fill: ParameterTween<FillDrawing>?
+    var stroke: ParameterTween<FillDrawing>?
 }

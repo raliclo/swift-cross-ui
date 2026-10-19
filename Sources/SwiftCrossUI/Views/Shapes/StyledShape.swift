@@ -264,64 +264,47 @@ extension StyledShape {
         // 解回兩色的方法，因此平面色路徑毫無改變；若讓平面填充改走第二條程式碼路徑，那才是最可能
         // 弄壞它們的做法。
         //
-        // A flat colour tweens when it changes under an animation, redrawn on
-        // each frame with no re-layout (see LayoutAnimation.swift); a gradient or
-        // a style override is drawn as it is.
-        // 平面色在動畫中改變時會補間，每一幀重畫、不重新排版(見 LayoutAnimation.swift);漸層或樣式覆寫照原樣畫出。
+        // A fill or stroke tweens when it changes under an animation -- flat
+        // colours, gradients, and one to the other (FillDrawing in
+        // StyleAnimation.swift) -- redrawn on each frame with no re-layout.
+        // 填色或筆畫在動畫中改變時會補間——平面色、漸層，以及兩者之間(StyleAnimation.swift 的 FillDrawing)——每一幀重畫、
+        // 不重新排版。
         let transaction = EffectTransaction.current(in: environment)
-        func flat(
-            _ color: Color?,
-            _ tween: ParameterTween<Color>?
-        ) -> (ParameterTween<Color>, Color) {
-            let tween = tween ?? ParameterTween<Color>()
-            let resolved = Color((color ?? .clear).resolve(in: environment))
-            return (tween, tween.resolve(resolved, transaction: transaction))
+        func target(_ style: (any ShapeStyle)?, _ override: ResolvedFillStyle?, _ color: Color?) -> FillDrawing {
+            FillDrawing(
+                style?._resolve(in: environment) ?? override ?? .color((color ?? .clear).resolve(in: environment)),
+                in: environment
+            )
         }
-        let strokeIsFlat = strokeShapeStyle == nil && strokeStyleOverride == nil
-        let fillIsFlat = fillShapeStyle == nil && fillStyleOverride == nil
-        var strokeFlat: Color?
-        var fillFlat: Color?
-        if strokeIsFlat {
-            let (tween, color) = flat(strokeColor, storage.stroke)
-            storage.stroke = tween
-            strokeFlat = color
-        }
-        if fillIsFlat {
-            let (tween, color) = flat(fillColor, storage.fill)
-            storage.fill = tween
-            fillFlat = color
-        }
-        let strokeShapeStyle = strokeShapeStyle
-        let strokeStyleOverride = strokeStyleOverride
-        let fillShapeStyle = fillShapeStyle
-        let fillStyleOverride = fillStyleOverride
+        let strokeTween = storage.stroke ?? ParameterTween<FillDrawing>()
+        let fillTween = storage.fill ?? ParameterTween<FillDrawing>()
+        storage.stroke = strokeTween
+        storage.fill = fillTween
+        let strokeShown = strokeTween.resolve(
+            target(strokeShapeStyle, strokeStyleOverride, strokeColor), transaction: transaction
+        )
+        let fillShown = fillTween.resolve(target(fillShapeStyle, fillStyleOverride, fillColor), transaction: transaction)
         let strokeStyle = strokeStyle
-        let draw = { (stroke: Color?, fill: Color?) in
+        let draw = { (stroke: FillDrawing, fill: FillDrawing) in
             backend.renderPath(
                 backendPath,
                 container: widget,
-                strokeStyle: strokeShapeStyle?._resolve(in: environment)
-                    ?? strokeStyleOverride
-                    ?? .color((stroke ?? .clear).resolve(in: environment)),
-                fillStyle: fillShapeStyle?._resolve(in: environment)
-                    ?? fillStyleOverride
-                    ?? .color((fill ?? .clear).resolve(in: environment)),
+                strokeStyle: stroke.style(in: environment),
+                fillStyle: fill.style(in: environment),
                 overrideStrokeStyle: strokeStyle,
                 environment: environment
             )
-        }
-        let redraw: () -> Void = { [weak storage] in
-            guard let storage else { return }
-            draw(storage.stroke?.drawn, storage.fill?.drawn)
-            if let fill = storage.fill?.drawn {
-                LayoutAnimationDiagnostics.record(environment, "fill", color: fill)
+            fill.record(environment, "fill")
+            if stroke.isGradient {
+                stroke.record(environment, "stroke")
             }
         }
-        storage.stroke?.onFrame = redraw
-        storage.fill?.onFrame = redraw
-        draw(strokeFlat, fillFlat)
-        if let fillFlat {
-            LayoutAnimationDiagnostics.record(environment, "fill", color: fillFlat)
+        let redraw: () -> Void = { [weak storage] in
+            guard let storage, let stroke = storage.stroke?.drawn, let fill = storage.fill?.drawn else { return }
+            draw(stroke, fill)
         }
+        strokeTween.onFrame = redraw
+        fillTween.onFrame = redraw
+        draw(strokeShown, fillShown)
     }
 }

@@ -252,7 +252,8 @@ static gboolean scui_paint_visible(const ScuiShapePaint *paint) {
 // colour instead: a path with no area, or a radial gradient with no radius.
 // 在 `area` 上畫出 `paint` 的漸層，單位座標對應到路徑外框 `box`,與 cairo 版本的對應方式相同。改畫平面色時回傳
 // FALSE:沒有面積的路徑，或半徑為零的放射漸層。
-static gboolean scui_append_gradient(
+// Shared with gtk_text_paint.c. / 與 gtk_text_paint.c 共用。
+gboolean scui_append_gradient(
     GtkSnapshot *snapshot, const ScuiShapePaint *paint, const graphene_rect_t *box,
     const graphene_rect_t *area
 ) {

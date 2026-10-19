@@ -165,7 +165,9 @@ static int scui_push_adjustments(GtkSnapshot *snapshot, const GtkPassthroughFixe
 
 static void scui_snapshot_adjusted(GtkWidget *widget, GtkSnapshot *snapshot) {
     int pushes = scui_push_adjustments(snapshot, (GtkPassthroughFixed *)widget);
-    GTK_WIDGET_CLASS(gtk_passthrough_fixed_parent_class)->snapshot(widget, snapshot);
+    if (!scui_snapshot_children_painting_text(widget, snapshot)) {
+        GTK_WIDGET_CLASS(gtk_passthrough_fixed_parent_class)->snapshot(widget, snapshot);
+    }
     for (int i = 0; i < pushes; i++) {
         gtk_snapshot_pop(snapshot);
     }
@@ -274,7 +276,9 @@ static void scui_snapshot_grey(GtkWidget *widget, GtkSnapshot *snapshot, float a
 static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
     GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
     if (!self->has_effect) {
-        GTK_WIDGET_CLASS(gtk_passthrough_fixed_parent_class)->snapshot(widget, snapshot);
+        if (!scui_snapshot_children_painting_text(widget, snapshot)) {
+            GTK_WIDGET_CLASS(gtk_passthrough_fixed_parent_class)->snapshot(widget, snapshot);
+        }
         return;
     }
 
