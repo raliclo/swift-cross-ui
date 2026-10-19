@@ -214,6 +214,11 @@ public final class NSCustomButton: NSView {
     var accessibilityHintOverride: String? {
         didSet { refreshAccessibilityLabel() }
     }
+    /// `.accessibilityIdentifier`, on the inner button with the others.
+    /// `.accessibilityIdentifier`,與其他屬性一起設在內層按鈕上。
+    var accessibilityIdentifierOverride: String? {
+        didSet { refreshAccessibilityLabel() }
+    }
     var accessibilityValueOverride: String? {
         didSet { refreshAccessibilityLabel() }
     }
@@ -231,6 +236,7 @@ public final class NSCustomButton: NSView {
         button.setAccessibilityLabel(accessibilityLabelOverride ?? firstTextFieldValue(in: self))
         button.setAccessibilityHelp(accessibilityHintOverride)
         button.setAccessibilityValue(accessibilityValueOverride)
+        button.setAccessibilityIdentifier(accessibilityIdentifierOverride)
         // Expose ONLY the inner button, so the name is announced once.
         //
         // **`setAccessibilityElement(false)` does not remove a view from the

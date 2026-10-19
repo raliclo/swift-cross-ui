@@ -1252,7 +1252,13 @@ public final class GtkBackend:
             let provider = CSSProvider()
             provider.loadCss(
                 from: """
-                    list {
+                    /* A List draws no background of its own, as AppKit's
+                       NSTableView with a clear background: a GtkListView
+                       (node listview) otherwise paints the theme's view colour
+                       over whatever sits behind it (P3's black columns).
+                       List 不畫自己的背景，如同背景透明的 AppKit NSTableView;否則 GtkListView(節點 listview)
+                       會把主題的 view 顏色蓋在後面的東西上(P3 的黑色欄位)。 */
+                    list, listview {
                         background: none;
                     }
 

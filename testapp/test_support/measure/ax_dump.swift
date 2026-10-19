@@ -45,6 +45,13 @@ func walk(_ e: AXUIElement, _ d: Int) {
     // 「那些元素不見了」。
     if d > 10 || n > 120 { return }
     let role = str(e, kAXRoleAttribute as String)
+    // Any element carrying an identifier (`.accessibilityIdentifier`), whatever
+    // its role, so a text field or slider shows up as well as a button.
+    // 任何帶有識別碼(`.accessibilityIdentifier`)的元素，不論角色為何，因此文字欄位與滑桿也會和按鈕一樣列出。
+    let identifier = str(e, kAXIdentifierAttribute as String)
+    if !identifier.isEmpty {
+        print("  identifier='\(identifier)' role=\(role)")
+    }
     if role == kAXButtonRole as String {
         n += 1
         print(

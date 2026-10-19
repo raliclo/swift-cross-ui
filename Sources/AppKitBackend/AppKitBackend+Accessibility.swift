@@ -144,10 +144,43 @@ extension AppKitBackend: BackendFeatures.Accessibility {
         widget.setAccessibilityChildren(hidden ? [] : nil)
     }
 
-    /// On the widget, where XCUITest's `identifier` query looks.
-    /// 設在 widget 上,XCUITest 的 `identifier` 查詢就是在那裡找。
+    /// On the widget and on the element the accessibility tree actually lists
+    /// for it.
+    ///
+    /// The widget alone was not enough: `ax_dump` on P32 listed no identifier
+    /// at all (2026-10-19), because a ``Button`` is an `NSCustomButton` whose
+    /// tree shows only the `NSButton` inside it, and a field or slider arrives
+    /// inside a container the tree does not list. So the identifier also goes
+    /// on the button, or on the one accessibility element under the widget.
+    ///
+    /// 設在 widget 上，也設在無障礙樹實際為它列出的那個元素上。
+    ///
+    /// 只設在 widget 上不夠:2026-10-19 對 P32 跑 `ax_dump`,一個識別碼都沒列出——``Button`` 是一個
+    /// `NSCustomButton`,樹上只列出它裡面的 `NSButton`;文字欄位與滑桿則包在一個樹上不列出的容器裡。
+    /// 因此識別碼也設到那顆按鈕上，或 widget 底下唯一的那個無障礙元素上。
     public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
         widget.setAccessibilityIdentifier(identifier)
+        if let button = widget as? NSCustomButton {
+            button.accessibilityIdentifierOverride = identifier
+        } else if !widget.isAccessibilityElement(), let element = soleAccessibilityElement(under: widget) {
+            element.setAccessibilityIdentifier(identifier)
+        }
+    }
+
+    /// The one accessibility element under `view`, or nil when there are none
+    /// or several -- with several there is no telling which was meant.
+    /// `view` 底下唯一的無障礙元素；沒有或有多個時為 nil——有多個時無從判斷指的是哪一個。
+    private func soleAccessibilityElement(under view: NSView) -> NSView? {
+        var found: NSView?
+        for subview in view.subviews {
+            let candidate =
+                subview.isAccessibilityElement() || subview is NSControl
+                ? subview : soleAccessibilityElement(under: subview)
+            guard let candidate else { continue }
+            if found != nil { return nil }
+            found = candidate
+        }
+        return found
     }
 
 }
