@@ -1,4 +1,5 @@
 import Foundation
+import GtkCHelpers
 
 @_spi(Backends) import SwiftCrossUI
 
@@ -80,7 +81,10 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
         #else
             // Linux: the cards /sys/class/drm lists, the boot GPU first (`drmCards`).
             // Linux:/sys/class/drm 列出的顯示卡，開機用的那張排第一(`drmCards`)。
-            return Self.drmCards().map(\.adapter)
+            // Under WSL there are none, and the GPUs come from DXCore instead.
+            // WSL 下一張都沒有，改由 DXCore 提供 GPU。
+            let cards = Self.drmCards()
+            return cards.isEmpty ? Self.dxcoreAdapters() : cards.map(\.adapter)
         #endif
     }
 
@@ -169,6 +173,15 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 setenv("LIBGL_ALWAYS_SOFTWARE", "1", 1)
                 return .applied
             }
+            // Under WSL the GPUs come from DXCore, and Mesa's d3d12 driver takes
+            // the one to use by name, read at GL initialisation like the above.
+            // WSL 下 GPU 來自 DXCore,Mesa 的 d3d12 驅動以名稱選擇要用的那張，與上方相同於 GL 初始化時讀取。
+            if Self.drmCards().isEmpty,
+                Self.dxcoreAdapters().contains(where: { $0.name == adapter.name })
+            {
+                setenv("MESA_D3D12_DEFAULT_ADAPTER_NAME", adapter.name, 1)
+                return .applied
+            }
             guard let card = Self.drmCards().first(where: { $0.adapter.name == adapter.name }) else {
                 return .unavailable(reason: "\"\(adapter.name)\" is no longer listed under /sys/class/drm")
             }
@@ -189,6 +202,28 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
     }
 
     #if !os(Windows) && !os(macOS)
+        /// The GPUs DXCore lists, for WSL, which has no /sys/class/drm: its GPUs
+        /// reach Linux through /dev/dxg and Mesa's d3d12 driver draws on them
+        /// (gtk_dxcore.c). Empty outside WSL. P68 read "adapters: 0" under WSL
+        /// until this, on a machine with two (2026-10-19).
+        /// DXCore 所列的 GPU,給沒有 /sys/class/drm 的 WSL 用：它的 GPU 經 /dev/dxg 進入 Linux,
+        /// 由 Mesa 的 d3d12 驅動繪製(gtk_dxcore.c)。WSL 以外為空。在此之前,P68 在有兩張卡的機器上
+        /// 於 WSL 讀到 "adapters: 0"(2026-10-19)。
+        static func dxcoreAdapters() -> [GraphicsAdapter] {
+            var entries = [scui_dxcore_adapter](repeating: scui_dxcore_adapter(), count: 8)
+            let count = Int(scui_dxcore_adapters(&entries, Int32(entries.count)))
+            return entries.prefix(count).map { entry in
+                let name = withUnsafeBytes(of: entry.name) { raw in
+                    String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+                }
+                return GraphicsAdapter(
+                    name: name,
+                    isRemovable: false,
+                    isLowPower: entry.integrated != 0
+                )
+            }
+        }
+
         /// One GPU as /sys/class/drm describes it.
         struct DRMCard {
             var adapter: GraphicsAdapter
@@ -222,6 +257,16 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                     ?? ((try? FileManager.default.destinationOfSymbolicLink(atPath: device))
                         .map { ($0 as NSString).lastPathComponent } ?? name)
                 let pciID = field("PCI_ID") ?? ""
+                // Not GPUs: vgem and vkms are virtual memory and modesetting devices
+                // that draw nothing, on the faux bus in newer kernels. WSL lists vgem as
+                // "faux_driver vgem", and it hid the two real GPUs DXCore has (P68 read
+                // "adapters: 1  faux_driver vgem (vgem)", 2026-10-19).
+                // 不是 GPU:vgem 與 vkms 是不繪圖的虛擬記憶體與 modesetting 裝置，在較新的核心掛在 faux bus 上。
+                // WSL 把 vgem 列為 "faux_driver vgem",於是蓋掉了 DXCore 那兩張真正的 GPU(2026-10-19)。
+                let virtualDevices: Set<String> = ["vgem", "vkms", "faux_driver"]
+                if virtualDevices.contains(driver) || virtualDevices.contains(busID) {
+                    continue
+                }
                 let isBootVGA = read("\(device)/boot_vga") == "1"
                 let removable = read("\(device)/removable") == "removable"
                 let card = DRMCard(

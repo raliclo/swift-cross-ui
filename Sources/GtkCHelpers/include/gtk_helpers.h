@@ -458,6 +458,17 @@ gboolean scui_primary_button_warps_slider(void);
 // (見 gtk_dispatch_main_queue.c)。Linux 與 Windows;其他平台回傳 FALSE,無法監看時亦然。
 gboolean scui_watch_dispatch_main_queue(void);
 
+// One GPU DXCore lists under WSL (gtk_dxcore.c). / WSL 下 DXCore 所列的一張 GPU(gtk_dxcore.c)。
+typedef struct {
+    char name[128];
+    int integrated;
+} scui_dxcore_adapter;
+
+// Fills up to capacity entries with the D3D12-capable adapters DXCore lists and
+// returns how many; 0 outside WSL, where there is no libdxcore.so.
+// 填入 DXCore 所列、支援 D3D12 的介面卡(最多 capacity 個)並回傳個數;WSL 以外沒有 libdxcore.so,回傳 0。
+int scui_dxcore_adapters(scui_dxcore_adapter *out, int capacity);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
