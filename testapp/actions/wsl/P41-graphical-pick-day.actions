@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on WSL GtkBackend: click the 13th in the .graphical calendar, as actions/win/P41-graphical-pick-day-gtk4.actions does.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11), client coordinates (origin left empty): day 13 at (551, 247).
+# P41 takes several seconds to put up its window under WSLg (AT-SPI found no application at 7 s, did at 15 s), hence the settle.
+# ASSERTION IN THE LOG: p41-debug-events.log must gain `.graphical -> 2025-08-13` (the bound day is 24).
+# 2026-10-19: pass three times running (.graphical -> 2025-08-13), the replay's measured client origin equal to the window's real one each time. Three earlier runs, while the machine was heavily loaded, missed the day with no error; the window had not moved after mapping, so that cause is not known.
+# P41(WSL):點 .graphical 月曆的 13 日;log 必須多出 `.graphical -> 2025-08-13`。座標以 AT-SPI 於 WSLg 量測。
+sleep,,,,,,6000000,let the window settle,gtk
+click,551,247,,left,,,the 13th in the .graphical calendar,gtk
+sleep,,,,,,1500000,let the binding change reach the log,gtk
