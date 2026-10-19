@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P110 on macOS (AppKit): gradients that tween -- Text .foregroundStyle(gradient), shape gradient fills and strokes
+# The app runs its own steps and logs them; this file presses nothing and keeps the app open while they run.
+# Pass: the criteria in testapp/P110.swift's header, read from the app's log (the [P110] lines).
+# P110 在 macOS (AppKit) 上:會補間的漸層——Text 的 .foregroundStyle(漸層)、形狀的漸層填色與筆畫。app 自己執行並記錄步驟;本檔什麼都不按，只讓 app 在步驟執行期間保持開啟。
+# 通過條件見 testapp/P110.swift 的檔頭，從 app 的 log([P110] 行)讀取。
+sleep,,,,,,8000000,let P110 run its steps,macos

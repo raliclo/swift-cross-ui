@@ -4,4 +4,4 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the criteria in testapp/P105.swift's header, read from the app's log (the [P105] lines).
 # P105 在 macOS (GtkBackend) 上:插入與移除的轉場、if/else 與 ForEach。app 自己執行並記錄步驟;本檔什麼都不按，只讓 app 在步驟執行期間保持開啟。
 # 通過條件見 testapp/P105.swift 的檔頭，從 app 的 log([P105] 行)讀取。
-sleep,,,,,,14000000,let P105 run its steps,macos
+sleep,,,,,,26000000,let P105 run its steps,macos

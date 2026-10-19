@@ -5,4 +5,4 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: the criteria in testapp/P105.swift's header, read from output/p105-ios-stdout.log.
 # P105 在 iOS 上:插入與移除的轉場、if/else 與 ForEach。app 自己執行並記錄步驟;本檔什麼都不按，所以 test_ios.zsh 不經 XCUITest runner 執行它
 # (runner 附加時會拖慢 app),並在所有 sleep 的總時間內保留 stdout。通過條件見 testapp/P105.swift 的檔頭。
-sleep,,,,,,14000000,let P105 run its steps,ios
+sleep,,,,,,30000000,let P105 run its steps,ios
