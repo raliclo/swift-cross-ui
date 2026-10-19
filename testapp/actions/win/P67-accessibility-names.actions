@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P67 on Windows: four button shapes. Their accessible NAMES are read from outside with a
+# UIA dump (testapp/test_support/measure/measure_win.zsh P67), not from this capture.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass here: the four buttons and the expected-names line are drawn.
+# WinUI: pass. GTK: pass (GTK on Windows has no UIA, see #123).
+# P67(Windows):四種按鈕。無障礙名稱要以 UIA 從外部讀取，不是看這張截圖。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 兩者皆畫出。
+sleep,,,,,,2000000,let P67 draw and read itself out,windows

@@ -143,4 +143,4 @@ rsync -a \
 find '$wsl_project_root/testapp' -type f -name '*.zsh' -exec chmod +x {} +
 "
 
-printf 'Synced *.swift, testapp/**/*.zsh and install_tool_wsl.sh to %s\n' "$wsl_project_root"
+printf 'Synced *.swift, *.c, *.h, *.modulemap, testapp/**/*.zsh, actions and install_tool_wsl.sh to %s\n' "$wsl_project_root"

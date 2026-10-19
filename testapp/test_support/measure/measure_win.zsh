@@ -44,7 +44,7 @@ fi
 taskkill -f -im "${exe:t}" >/dev/null 2>&1 || true
 ( cd "${exe:h}" && "./${exe:t}" >/dev/null 2>&1 & )
 sleep "${MEASURE_WAIT:-6}"
-"$tool" "${MEASURE_TITLE:-$app}" | grep -v -E "pane '|Non Client|title bar|'System'|Minimize|Maximize|size=0x0|menu bar ''"
+"$tool" "${MEASURE_TITLE:-$app}" | grep -a -v -E "pane '|Non Client|title bar|'System'|Minimize|Maximize|size=0x0|menu bar ''"
 rc=${pipestatus[1]}
 if [ "${MEASURE_KEEP:-0}" != 1 ]; then
     taskkill -f -im "${exe:t}" >/dev/null 2>&1 || true

@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P39 on Windows: visual effects, every cell against the control (none) cell.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: each cell differs from the control as its label says.
+# GTK: pass. WinUI: pass after 2026-10-19's contrast fix -- before it, contrast 0.3 was
+# nearly the control, (11,160,215) -> (16,147,200); after, (93,137,154), the formula's value.
+# Not yet checked here: the angular gradient's start angle differs between the two backends.
+# P39(Windows):視覺效果，每一格對照 none 那格。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 GTK 通過;WinUI 在 contrast 修正後通過。
+sleep,,,,,,3000000,let P39 draw and read itself out,windows

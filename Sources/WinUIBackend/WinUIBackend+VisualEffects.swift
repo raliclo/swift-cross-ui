@@ -349,14 +349,36 @@ private struct Win2DEffectGraph {
         }
 
         if effect.contrast != 1 {
+            // SwiftUI's contrast is linear about mid grey, c' = (c - 0.5) * k + 0.5,
+            // done here as a colour matrix like brightness above. Win2D's
+            // ContrastEffect was used until 2026-10-19 with `k - 1`; Direct2D's
+            // contrast is its own curve, and P39's contrast 0.3 cell came out
+            // nearly the control: (11, 160, 215) -> (16, 147, 200), where the
+            // formula gives (93, 137, 154) and GtkBackend draws it washed out.
+            // SwiftUI 的 contrast 以中灰為中心呈線性,c' = (c - 0.5) * k + 0.5,此處與上面的 brightness 一樣用
+            // 顏色矩陣實作。2026-10-19 之前用的是 Win2D 的 ContrastEffect 並傳入 `k - 1`;Direct2D 的 contrast
+            // 是它自己的曲線,P39 的 contrast 0.3 那格幾乎等於對照格:(11, 160, 215) -> (16, 147, 200),公式給的
+            // 是 (93, 137, 154),GtkBackend 畫出來也是褪色的。
+            let k = FLOAT(max(effect.contrast, 0))
+            let offset = FLOAT(0.5) * (1 - k)
             let contrast = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.ContrastEffect",
-                iid: .contrastEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIContrastEffect.self
+                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
+                iid: .colorMatrixEffect,
+                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
             )
-            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_Contrast(
+            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
                 contrast.pointer,
-                FLOAT(min(max(effect.contrast - 1, -1), 1))
+                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
+                    M11: k, M12: 0, M13: 0, M14: 0,
+                    M21: 0, M22: k, M23: 0, M24: 0,
+                    M31: 0, M32: 0, M33: k, M34: 0,
+                    M41: 0, M42: 0, M43: 0, M44: 1,
+                    M51: offset, M52: offset, M53: offset, M54: 0
+                )
+            ))
+            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
+                contrast.pointer,
+                1
             ))
             try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_Source(
                 contrast.pointer,

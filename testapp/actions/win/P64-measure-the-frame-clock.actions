@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P64 on Windows: the frame clock's rate.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: PASS 1 with a rate near the display's refresh. This panel is 144 Hz.
+# WinUI: 131.1 Hz, median gap 7.3 ms. GTK: 67.9 Hz, median 13.9 ms (it was TICKS 1 on 2026-09-10).
+# P64(Windows):frame clock 速率。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 面板 144 Hz;WinUI 131.1 Hz,GTK 67.9 Hz(2026-09-10 時只有 1 次)。
+sleep,,,,,,4000000,let P64 draw and read itself out,windows

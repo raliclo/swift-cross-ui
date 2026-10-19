@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P68 on Windows: the graphics adapters and the -GPU request.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: both GPUs listed, the request line reads (not given, so 1).
+# WinUI: AMD Radeon(TM) Graphics, NVIDIA GeForce RTX 4060 Laptop GPU. GTK: the same, AMD marked [low power].
+# P68(Windows):顯示卡清單。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 兩者都列出 AMD 與 NVIDIA 兩張。
+sleep,,,,,,2000000,let P68 draw and read itself out,windows

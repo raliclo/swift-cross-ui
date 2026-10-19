@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P73 on Windows: a publish landing while the view graph is built must not crash.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: 'report: done -- published while the graph may still be building', 'running: no', alive.
+# WinUI: pass. GTK: pass.
+# P73(Windows):建置期間發布不可當掉。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 兩者皆通過。
+sleep,,,,,,2000000,let P73 draw and read itself out,windows
