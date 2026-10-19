@@ -807,6 +807,7 @@ public final class WinUIBackend:
 
     public func setChild(ofWindow window: Window, to widget: Widget) {
         window.setChild(widget)
+        WinUIParentLinks.recordWindowRoot(widget)
         try! widget.updateLayout()
         widget.actualThemeChanged.addHandler { _, _ in
             Task { @MainActor in
@@ -1206,6 +1207,7 @@ public final class WinUIBackend:
     public func insert(_ child: Widget, into container: Widget, at index: Int) {
         let container = container as! Canvas
         container.children.insertAt(UInt32(index), child)
+        WinUIParentLinks.record(child: child, in: container)
     }
 
     public func swap(childAt firstIndex: Int, withChildAt secondIndex: Int, in container: Widget) {
@@ -1468,6 +1470,12 @@ public final class WinUIBackend:
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
         widget.width = Double(size.x)
         widget.height = Double(size.y)
+        // A Path's margin is the stroke outset `renderPath` adds; zero means
+        // "this is the frame size", which `renderPath` grows from.
+        // Path 的 margin 是 `renderPath` 加上的描邊外擴；歸零代表「這是 frame 尺寸」,`renderPath` 由此擴大。
+        if widget is WinUI.Path {
+            widget.margin = Thickness(left: 0, top: 0, right: 0, bottom: 0)
+        }
     }
 
     public func createTooltipContainer(wrapping child: Widget) -> Widget {
@@ -3105,6 +3113,35 @@ public final class WinUIBackend:
         }
 
         winUiPath.data = path.group
+
+        // Room for the stroke outside the frame. A stroke is centred on the
+        // path, so half of it -- more at a miter -- lies outside the shape's
+        // frame, and XAML lays a layout clip on an element whose content wants
+        // more room than its Width/Height: P43's 14-wide gradient ring on a
+        // 120x120 Circle was cut flat on all four sides (2026-10-19) where
+        // SwiftUI and GtkBackend draw the whole ring. So the element grows by
+        // `outset` on every side, a negative margin of the same keeps its slot
+        // in the Canvas at the frame, and the geometry moves by `outset` to sit
+        // where it did. Leaving Width/Height unset instead drew no shape at all
+        // in P43, fills included. `setSize` zeroes the margin, which is how the
+        // frame size is told apart from a size already grown here -- an
+        // animation redraws through this method with no `setSize` between.
+        // 為 frame 外的描邊留出空間。描邊以路徑為中心，一半(在斜接處更多)落在形狀的 frame 之外，而當元素
+        // 的內容需要的空間大於其 Width/Height 時,XAML 會套用 layout clip:P43 中 120x120 Circle 上 14 寬
+        // 的漸層圓環四邊都被切平(2026-10-19),而 SwiftUI 與 GtkBackend 都畫出完整圓環。因此元素四邊各擴大
+        // `outset`,以相同的負 margin 讓它在 Canvas 中的位置仍是 frame,幾何再平移 `outset` 回到原處。
+        // 改成不設 Width/Height 時,P43 一個形狀都沒畫出來，填色也一樣。`setSize` 會把 margin 歸零，
+        // 藉此分辨「frame 尺寸」與「已在此擴大過的尺寸」——動畫逐幀經由本方法重畫，中間不經過 `setSize`。
+        let outset = strokeStyle.width.rounded(.up)
+        let previous = -winUiPath.margin.left
+        if !winUiPath.width.isNaN, !winUiPath.height.isNaN {
+            winUiPath.width = max(winUiPath.width - 2 * previous, 0) + 2 * outset
+            winUiPath.height = max(winUiPath.height - 2 * previous, 0) + 2 * outset
+        }
+        winUiPath.margin = Thickness(left: -outset, top: -outset, right: -outset, bottom: -outset)
+        let shift = MatrixTransform()
+        shift.matrix = Matrix(m11: 1, m12: 0, m21: 0, m22: 1, offsetX: outset, offsetY: outset)
+        path.group.transform = shift
     }
 
     public func createDatePicker() -> Widget {

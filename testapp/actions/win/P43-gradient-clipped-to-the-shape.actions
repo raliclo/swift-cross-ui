@@ -4,5 +4,6 @@ action,x,y,origin,button,key,micros,note,platform
 # Pass: round gradient circle, flat control, gradient rectangle, a whole gradient ring.
 # GTK: pass. WinUI: FAILS on the ring -- the gradient stroke is cut flat on all four sides
 # by the frame, where SwiftUI and GTK draw the half of the stroke that lies outside it (open).
+# FIXED later the same day (Swift 6.4.1): renderPath grows the Path by the stroke width on every side with a matching negative margin, so XAML no longer lays a layout clip on it. The whole ring is drawn; the other three shapes are unchanged. 同日稍後修正：圓環完整畫出。
 # P43(Windows):漸層裁切到形狀。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 GTK 通過;WinUI 圓環的漸層描邊四邊被框切平(未修)。
 sleep,,,,,,3000000,let P43 draw and read itself out,windows

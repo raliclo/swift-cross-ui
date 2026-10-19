@@ -388,16 +388,218 @@ private struct Win2DEffectGraph {
         }
 
         if effect.grayscale != 0 {
-            let grayscale = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.GrayscaleEffect",
-                iid: .grayscaleEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGrayscaleEffect.self
+            // AppKit's grey, which the user chose for P39 on 2026-10-16 and
+            // which GtkBackend, UIKitBackend and AndroidBackend draw:
+            // CIColorMonochrome tinted with 0.5 grey, in linear light. Win2D's
+            // GrayscaleEffect was used until 2026-10-19; it is the sRGB-luma
+            // grey (the same as saturation 0, lighter than AppKit's) and has no
+            // amount, so grayscale(0.5) drew fully grey.
+            //
+            //   decode   sRGB to linear, (v + 0.055) / 1.055 then the power 2.4
+            //   L        linear luminance with CIColorMonochrome's weights
+            //   overlay  2cL below L = 0.5, 1 - 2(1 - L)(1 - c) above, with the
+            //            tint c = 0.5 grey in linear light. That is
+            //            2c * L + (1 - 2c) * max(0, 2L - 1): a weighted sum
+            //            whose weights add to 1, so ArithmeticComposite, which
+            //            works on premultiplied colour, keeps alpha as it was.
+            //   amount   below 1, the grey and the decoded original are mixed
+            //            in linear light, as Core Image does
+            //   encode   1.055 v^(1/2.4) - 0.055
+            //
+            // decode and encode drop sRGB's short linear segment near black,
+            // as GtkBackend's curves do: at most 3 of 255 levels, below 15.
+            //
+            // AppKit 的灰，使用者於 2026-10-16 為 P39 選定，GtkBackend、UIKitBackend 與 AndroidBackend
+            // 也都這樣畫：以 0.5 灰上色的 CIColorMonochrome，在線性光中進行。2026-10-19 之前用的是
+            // Win2D 的 GrayscaleEffect——那是 sRGB 亮度的灰(與 saturation 0 相同，比 AppKit 的亮)，
+            // 而且沒有強度，所以 grayscale(0.5) 畫成全灰。
+            //
+            //   decode   sRGB 轉線性:(v + 0.055) / 1.055，再取 2.4 次方
+            //   L        線性亮度，權重同 CIColorMonochrome
+            //   overlay  L < 0.5 時為 2cL，以上為 1 - 2(1 - L)(1 - c)，上色值 c 為線性光中的 0.5 灰。
+            //            也就是 2c * L + (1 - 2c) * max(0, 2L - 1):權重和為 1 的加權和，因此在預乘
+            //            色彩上運算的 ArithmeticComposite 會讓 alpha 維持原值。
+            //   amount   小於 1 時，灰圖與解碼後的原圖在線性光中混合，與 Core Image 相同
+            //   encode   1.055 v^(1/2.4) - 0.055
+            //
+            // decode 與 encode 都略去 sRGB 在黑色附近那一小段線性區，與 GtkBackend 的曲線相同：
+            // 255 階中最多 3 階，且只在 15 以下。
+            typealias Source = UnsafeMutablePointer<
+                __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
+            >?
+            let tint = FLOAT(0.214_041) // ((0.5 + 0.055) / 1.055)^2.4
+
+            func colorMatrix(
+                _ matrix: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4,
+                clamp: Bool,
+                from source: Source
+            ) throws -> Source {
+                let effect = try Win2DGpuEffect(
+                    "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
+                    iid: .colorMatrixEffect,
+                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+                )
+                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
+                    effect.pointer, matrix
+                ))
+                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
+                    effect.pointer, clamp ? 1 : 0
+                ))
+                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_Source(
+                    effect.pointer, source
+                ))
+                try append(effect.object)
+                return currentSource
+            }
+
+            func weightedSum(
+                _ first: Source, _ firstAmount: FLOAT,
+                _ second: Source, _ secondAmount: FLOAT
+            ) throws -> Source {
+                let effect = try Win2DGpuEffect(
+                    "Microsoft.Graphics.Canvas.Effects.ArithmeticCompositeEffect",
+                    iid: .arithmeticCompositeEffect,
+                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIArithmeticCompositeEffect.self
+                )
+                let vtable = effect.pointer.pointee.lpVtbl.pointee
+                try CHECKED(vtable.put_MultiplyAmount(effect.pointer, 0))
+                try CHECKED(vtable.put_Source1Amount(effect.pointer, firstAmount))
+                try CHECKED(vtable.put_Source2Amount(effect.pointer, secondAmount))
+                try CHECKED(vtable.put_Offset(effect.pointer, 0))
+                try CHECKED(vtable.put_ClampOutput(effect.pointer, 1))
+                try CHECKED(vtable.put_Source1(effect.pointer, first))
+                try CHECKED(vtable.put_Source2(effect.pointer, second))
+                try append(effect.object)
+                return currentSource
+            }
+
+            // A fresh copy of everything upstream of the grey: the source and
+            // the adjustments before it. Composition takes only a TREE --
+            // reusing one decoded node for two branches failed with
+            // "Non-tree shaped effect graph" (2026-10-19) -- so each branch
+            // gets its own, built by the same code with grey and hue left out.
+            // 灰色上游一切的全新副本：來源與它之前的調整。Composition 只接受**樹**——讓兩個分支共用同一個
+            // 解碼節點時失敗,"Non-tree shaped effect graph"(2026-10-19)——因此每個分支各有一份，以同一段
+            // 程式、去掉灰階與色相建成。
+            func freshPrefix() throws -> Source {
+                var prefix = effect
+                prefix.grayscale = 0
+                prefix.hueRotation = .zero
+                if prefix.needsOnlyOpacity {
+                    let parameter = WinAppSDK.CompositionEffectSourceParameter("source")
+                    guard let wrapper =
+                        __ABI_Windows_Graphics_Effects.IGraphicsEffectSourceWrapper(parameter)
+                    else {
+                        throw WinUIVisualEffectError.emptyEffectGraph
+                    }
+                    objects.append(wrapper)
+                    var pointer: Source = nil
+                    try wrapper.toABI { pointer = $0 }
+                    return pointer
+                }
+                let graph = try Win2DEffectGraph(effect: prefix)
+                objects.append(contentsOf: graph.effectObjects)
+                guard let last = graph.effectObjects.last as? WindowsFoundation.IInspectable else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                let source: __ABI_Windows_Graphics_Effects.IGraphicsEffectSource =
+                    try last.QueryInterface()
+                let pointer: UnsafeMutablePointer<__x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource> = RawPointer(source)
+                return pointer
+            }
+
+            func decode(from source: Source) throws -> Source {
+                let shift = try Win2DGpuEffect(
+                    "Microsoft.Graphics.Canvas.Effects.LinearTransferEffect",
+                    iid: .linearTransferEffect,
+                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CILinearTransferEffect.self
+                )
+                let shiftTable = shift.pointer.pointee.lpVtbl.pointee
+                let slope = FLOAT(1 / 1.055)
+                let intercept = FLOAT(0.055 / 1.055)
+                try CHECKED(shiftTable.put_RedSlope(shift.pointer, slope))
+                try CHECKED(shiftTable.put_GreenSlope(shift.pointer, slope))
+                try CHECKED(shiftTable.put_BlueSlope(shift.pointer, slope))
+                try CHECKED(shiftTable.put_RedOffset(shift.pointer, intercept))
+                try CHECKED(shiftTable.put_GreenOffset(shift.pointer, intercept))
+                try CHECKED(shiftTable.put_BlueOffset(shift.pointer, intercept))
+                try CHECKED(shiftTable.put_AlphaDisable(shift.pointer, 1))
+                try CHECKED(shiftTable.put_Source(shift.pointer, source))
+                try append(shift.object)
+
+                let power = try Win2DGpuEffect(
+                    "Microsoft.Graphics.Canvas.Effects.GammaTransferEffect",
+                    iid: .gammaTransferEffect,
+                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGammaTransferEffect.self
+                )
+                let powerTable = power.pointer.pointee.lpVtbl.pointee
+                try CHECKED(powerTable.put_RedExponent(power.pointer, 2.4))
+                try CHECKED(powerTable.put_GreenExponent(power.pointer, 2.4))
+                try CHECKED(powerTable.put_BlueExponent(power.pointer, 2.4))
+                try CHECKED(powerTable.put_AlphaDisable(power.pointer, 1))
+                try CHECKED(powerTable.put_Source(power.pointer, currentSource))
+                try append(power.object)
+                return currentSource
+            }
+
+            // Linear luminance in every channel, CIColorMonochrome's weights.
+            // 每個通道都是線性亮度，權重同 CIColorMonochrome。
+            func luminance(from source: Source) throws -> Source {
+                try colorMatrix(
+                    __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
+                        M11: 0.2125, M12: 0.2125, M13: 0.2125, M14: 0,
+                        M21: 0.7154, M22: 0.7154, M23: 0.7154, M24: 0,
+                        M31: 0.0721, M32: 0.0721, M33: 0.0721, M34: 0,
+                        M41: 0, M42: 0, M43: 0, M44: 1,
+                        M51: 0, M52: 0, M53: 0, M54: 0
+                    ),
+                    clamp: false,
+                    from: source
+                )
+            }
+
+            // L, and max(0, 2L - 1) from a second copy of L.
+            // L,以及由第二份 L 算出的 max(0, 2L - 1)。
+            let lower = try luminance(from: decode(from: currentSource))
+            let upper = try colorMatrix(
+                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
+                    M11: 2, M12: 0, M13: 0, M14: 0,
+                    M21: 0, M22: 2, M23: 0, M24: 0,
+                    M31: 0, M32: 0, M33: 2, M34: 0,
+                    M41: 0, M42: 0, M43: 0, M44: 1,
+                    M51: -1, M52: -1, M53: -1, M54: 0
+                ),
+                clamp: true,
+                from: luminance(from: decode(from: freshPrefix()))
             )
-            try CHECKED(grayscale.pointer.pointee.lpVtbl.pointee.put_Source(
-                grayscale.pointer,
-                currentSource
-            ))
-            try append(grayscale.object)
+            var grey = try weightedSum(lower, 2 * tint, upper, 1 - 2 * tint)
+
+            let amount = FLOAT(min(max(effect.grayscale, 0), 1))
+            if amount < 1 {
+                grey = try weightedSum(grey, amount, decode(from: freshPrefix()), 1 - amount)
+            }
+
+            // encode
+            let encode = try Win2DGpuEffect(
+                "Microsoft.Graphics.Canvas.Effects.GammaTransferEffect",
+                iid: .gammaTransferEffect,
+                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGammaTransferEffect.self
+            )
+            let encodeTable = encode.pointer.pointee.lpVtbl.pointee
+            let inverseGamma = FLOAT(1 / 2.4)
+            try CHECKED(encodeTable.put_RedAmplitude(encode.pointer, 1.055))
+            try CHECKED(encodeTable.put_GreenAmplitude(encode.pointer, 1.055))
+            try CHECKED(encodeTable.put_BlueAmplitude(encode.pointer, 1.055))
+            try CHECKED(encodeTable.put_RedExponent(encode.pointer, inverseGamma))
+            try CHECKED(encodeTable.put_GreenExponent(encode.pointer, inverseGamma))
+            try CHECKED(encodeTable.put_BlueExponent(encode.pointer, inverseGamma))
+            try CHECKED(encodeTable.put_RedOffset(encode.pointer, -0.055))
+            try CHECKED(encodeTable.put_GreenOffset(encode.pointer, -0.055))
+            try CHECKED(encodeTable.put_BlueOffset(encode.pointer, -0.055))
+            try CHECKED(encodeTable.put_AlphaDisable(encode.pointer, 1))
+            try CHECKED(encodeTable.put_ClampOutput(encode.pointer, 1))
+            try CHECKED(encodeTable.put_Source(encode.pointer, grey))
+            try append(encode.object)
         }
 
         if effect.hueRotation != .zero {
@@ -466,6 +668,27 @@ private extension WindowsFoundation.IID {
         Data2: 0x0638,
         Data3: 0x53f8,
         Data4: (0xb0, 0xb3, 0x5b, 0x0b, 0x32, 0x0a, 0x9a, 0xd2)
+    )
+    // From Win2D 1.4.0's include/x64/Microsoft.Graphics.Canvas.h (MIDL_INTERFACE),
+    // where the grayscale IID above also stands.
+    // 取自 Win2D 1.4.0 的 include/x64/Microsoft.Graphics.Canvas.h(MIDL_INTERFACE),上面的灰階 IID 也在那裡。
+    static let linearTransferEffect = WindowsFoundation.IID(
+        Data1: 0x43d27ad0,
+        Data2: 0x8937,
+        Data3: 0x5fdb,
+        Data4: (0x87, 0x6a, 0x4e, 0x91, 0xcb, 0x47, 0x54, 0x0c)
+    )
+    static let gammaTransferEffect = WindowsFoundation.IID(
+        Data1: 0xb4576b6b,
+        Data2: 0x6c3e,
+        Data3: 0x534a,
+        Data4: (0x85, 0x76, 0xd4, 0x6d, 0xf4, 0xfc, 0xe9, 0x3d)
+    )
+    static let arithmeticCompositeEffect = WindowsFoundation.IID(
+        Data1: 0xbeeb682b,
+        Data2: 0xd64c,
+        Data3: 0x5c8b,
+        Data4: (0xa1, 0xfb, 0x33, 0x21, 0x62, 0xed, 0x09, 0x9c)
     )
     static let hueRotationEffect = WindowsFoundation.IID(
         Data1: 0xc172ebf2,
@@ -660,6 +883,9 @@ private let win2DManifest = """
     name="SwiftCrossUI.WinUI.VisualEffects"/>
   <file name="Microsoft.Graphics.Canvas.dll">
     <winrt:activatableClass
+      name="Microsoft.Graphics.Canvas.Effects.ArithmeticCompositeEffect"
+      threadingModel="both"/>
+    <winrt:activatableClass
       name="Microsoft.Graphics.Canvas.Effects.BrightnessEffect"
       threadingModel="both"/>
     <winrt:activatableClass
@@ -672,10 +898,16 @@ private let win2DManifest = """
       name="Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect"
       threadingModel="both"/>
     <winrt:activatableClass
+      name="Microsoft.Graphics.Canvas.Effects.GammaTransferEffect"
+      threadingModel="both"/>
+    <winrt:activatableClass
       name="Microsoft.Graphics.Canvas.Effects.GrayscaleEffect"
       threadingModel="both"/>
     <winrt:activatableClass
       name="Microsoft.Graphics.Canvas.Effects.HueRotationEffect"
+      threadingModel="both"/>
+    <winrt:activatableClass
+      name="Microsoft.Graphics.Canvas.Effects.LinearTransferEffect"
       threadingModel="both"/>
     <winrt:activatableClass
       name="Microsoft.Graphics.Canvas.Effects.SaturationEffect"
