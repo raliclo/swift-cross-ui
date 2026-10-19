@@ -194,6 +194,11 @@ extension ForEach: TypeSafeView, View where Child: View {
             )
         }
 
+        // Under an animation, inserted children run their `.transition` and
+        // removed ones depart with it (Transition.swift).
+        // 在動畫中，插入的子元件執行它們的 `.transition`,移除的則帶著它離場(Transition.swift)。
+        let transaction =
+            children.hasCommitted ? TransitionLookup.animatedTransaction(in: environment) : nil
         var oldIdentifiers = children.identifiers
         let newIdentifiers = elements.map { $0[keyPath: idKeyPath] }
 
@@ -258,6 +263,9 @@ extension ForEach: TypeSafeView, View where Child: View {
                         environment: environment
                     )
                     insertChild(node.widget.into(), atIndex: index)
+                    if let transaction {
+                        TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                    }
 
                     // `offset` tracks how many elements have been inserted, which we
                     // use to adjust old indices. All nodes before the one we just
@@ -281,7 +289,19 @@ extension ForEach: TypeSafeView, View where Child: View {
             let removalCount = oldNodes.count - oldNodesReused
             if removalCount > 0 {
                 for i in (0..<removalCount).reversed() {
-                    removeChild(atIndex: children.nodes.count + i)
+                    // The unused node at this index: the reused ones fill the
+                    // front of `oldNodes`. / 此索引上未被使用的節點:被重用的節點佔滿 `oldNodes` 的前段。
+                    let index = children.nodes.count + i
+                    if transaction != nil,
+                        let departure = children.departing.depart(
+                            ErasedViewGraphNode(wrapping: oldNodes[oldNodesReused + i]),
+                            environment: environment
+                        )
+                    {
+                        children.queuedChanges.append(.depart(departure, index))
+                    } else {
+                        removeChild(atIndex: index)
+                    }
                 }
             }
 
@@ -438,6 +458,11 @@ extension ForEach: TypeSafeView, View where Child: View {
 
         let nodeCount = children.nodes.count
         let remainingElementCount = elements.count - nodeCount
+        // Under an animation, inserted children run their `.transition` and
+        // removed ones depart with it (Transition.swift).
+        // 在動畫中，插入的子元件執行它們的 `.transition`,移除的則帶著它離場(Transition.swift)。
+        let transaction =
+            children.hasCommitted ? TransitionLookup.animatedTransaction(in: environment) : nil
         if remainingElementCount > 0 {
             let startIndex = elements.index(elementsStartIndex, offsetBy: nodeCount)
             for i in 0..<remainingElementCount {
@@ -448,6 +473,9 @@ extension ForEach: TypeSafeView, View where Child: View {
                     environment: environment
                 )
                 insertChild(node.widget.into(), atIndex: children.nodes.count)
+                if let transaction {
+                    TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                }
                 children.nodes.append(node)
                 let layoutableChild = LayoutSystem.LayoutableChild(node) { child(element) }
                 layoutableChildren.append(layoutableChild)
@@ -455,7 +483,17 @@ extension ForEach: TypeSafeView, View where Child: View {
         } else if remainingElementCount < 0 {
             let unusedCount = -remainingElementCount
             for i in 0..<unusedCount {
-                removeChild(atIndex: nodeCount - i - 1)
+                let index = nodeCount - i - 1
+                if transaction != nil,
+                    let departure = children.departing.depart(
+                        ErasedViewGraphNode(wrapping: children.nodes[index]),
+                        environment: environment
+                    )
+                {
+                    children.queuedChanges.append(.depart(departure, index))
+                } else {
+                    removeChild(atIndex: index)
+                }
             }
             children.nodes.removeLast(unusedCount)
         }
@@ -481,6 +519,10 @@ extension ForEach: TypeSafeView, View where Child: View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
+        // Departures go in front of the ones already committed, in container
+        // order; the layout queued them from the highest index down.
+        // 離場依容器順序放在已 commit 的離場之前;排版是從最高索引往下排入佇列的。
+        var departures: [DepartingViews.Departure] = []
         for change in children.queuedChanges {
             switch change {
                 case .insertChild(let child, let index):
@@ -489,9 +531,21 @@ extension ForEach: TypeSafeView, View where Child: View {
                     backend.remove(childAt: index, from: widget)
                 case .swapChildren(let firstIndex, let secondIndex):
                     backend.swap(childAt: firstIndex, withChildAt: secondIndex, in: widget)
+                case .depart(let departure, let index):
+                    if departure.isFinished {
+                        backend.remove(childAt: index, from: widget)
+                    } else {
+                        departures.insert(departure, at: 0)
+                    }
             }
         }
         children.queuedChanges = []
+        children.departing.commit(departures)
+        children.departing.liveCount = children.nodes.count
+        children.departing.removeChild = { index in
+            backend.remove(childAt: index, from: widget)
+        }
+        children.hasCommitted = true
 
         // The commit half of the overlap branch in `computeLayout`. Both are
         // needed: computing an overlap layout and then committing a stack one
@@ -642,6 +696,11 @@ class ForEachViewChildren<
         case insertChild(AnyWidget, Int)
         case removeChild(Int)
         case swapChildren(Int, Int)
+        /// A removed child that departs with its transition: it stays in the
+        /// container after the live children, or is removed at the commit if
+        /// the transition has already ended.
+        /// 帶著轉場離場的被移除子元件：留在容器中存活子元件之後;若轉場在 commit 時已結束則移除。
+        case depart(DepartingViews.Departure, Int)
 
         var description: String {
             switch self {
@@ -651,12 +710,22 @@ class ForEachViewChildren<
                     "Remove widget at \(index)"
                 case .swapChildren(let firstIndex, let secondIndex):
                     "Swap widgets at \(firstIndex) and \(secondIndex)"
+                case .depart(_, let index):
+                    "Keep departing widget at \(index)"
             }
         }
     }
 
     /// Only used by ``ForEach/deprecatedUpdate(_:children:proposedSize:environment:backend:)``.
     var isFirstUpdate = true
+
+    /// Children removed under an animation, kept after the live children
+    /// until their removal transitions end (Transition.swift).
+    /// 在動畫中被移除的子元件，放在存活子元件之後，直到移除轉場結束(Transition.swift)。
+    lazy var departing = DepartingViews()
+    /// Children created before the first commit appear, they are not inserted.
+    /// 第一次 commit 之前建立的子元件是出現，而不是插入。
+    var hasCommitted = false
 
     /// A cache of the view's children, used when the ForEach's element
     /// identifiers haven't changed since the previous layout computation.

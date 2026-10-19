@@ -97,7 +97,7 @@ extension EitherView: TypeSafeView {
                             backend: backend,
                             environment: environment
                         )
-                        children.node = .a(nodeA)
+                        children.switchNode(to: .a(nodeA), environment: environment)
                         result = nodeA.computeLayout(
                             with: a,
                             proposedSize: proposedSize,
@@ -120,7 +120,7 @@ extension EitherView: TypeSafeView {
                             backend: backend,
                             environment: environment
                         )
-                        children.node = .b(nodeB)
+                        children.switchNode(to: .b(nodeB), environment: environment)
                         result = nodeB.computeLayout(
                             with: b,
                             proposedSize: proposedSize,
@@ -142,15 +142,25 @@ extension EitherView: TypeSafeView {
         backend: Backend
     ) {
         if children.hasSwitchedCase {
-            backend.removeAllChildren(of: widget)
-            backend.insert(children.node.widget.into(), into: widget, at: 0)
-            backend.setPosition(ofChildAt: 0, in: widget, to: .zero)
+            // The child switched away from stays drawn while it departs; the
+            // new one is inserted in front of it (Transition.swift).
+            // 被切換掉的子元件在離場期間繼續畫出;新的插在它前面(Transition.swift)。
+            let newChild: Backend.Widget = children.node.widget.into()
+            children.departing.commitSwitch(
+                container: widget,
+                backend: backend,
+                hadChild: children.hasCommitted,
+                departure: children.pendingDeparture,
+                newChild: newChild
+            )
+            children.pendingDeparture = nil
             children.hasSwitchedCase = false
         }
 
         _ = children.node.erasedNode.commit()
 
-        backend.setSize(of: widget, to: layout.size.vector)
+        backend.setSize(of: widget, to: children.departing.containerSize(layout.size.vector))
+        children.hasCommitted = true
     }
 }
 
@@ -188,6 +198,29 @@ class EitherViewChildren<A: View, B: View>: ViewGraphNodeChildren {
     /// Tracks whether the view has switched cases since the last non-dryrun update.
     /// Initially `true`.
     var hasSwitchedCase = true
+    /// Children removed under an animation, drawn until their removal
+    /// transitions end (Transition.swift).
+    /// 在動畫中被移除、畫到移除轉場結束為止的子元件(Transition.swift)。
+    lazy var departing = DepartingViews()
+    /// The departure of the child switched away from since the last commit.
+    /// 自上次 commit 以來被切換掉之子元件的離場。
+    var pendingDeparture: DepartingViews.Departure?
+    /// A switch before the first commit is the first appearance, not an insertion.
+    /// 第一次 commit 之前的切換是首次出現，而不是插入。
+    var hasCommitted = false
+
+    /// Replaces the node with `new`. Under an animation the old child departs
+    /// with its `.transition` and the new one is inserted with its own.
+    /// 以 `new` 取代節點。在動畫中，舊的子元件以它的 `.transition` 離場，新的以它自己的轉場插入。
+    func switchNode(to new: EitherNode, environment: EnvironmentValues) {
+        if hasCommitted, pendingDeparture == nil {
+            pendingDeparture = departing.depart(node.erasedNode, environment: environment)
+        }
+        node = new
+        if hasCommitted, let transaction = TransitionLookup.animatedTransaction(in: environment) {
+            TransitionLookup.controller(in: new.erasedNode)?.pendingInsertion = transaction
+        }
+    }
 
     var widgets: [AnyWidget] {
         return [node.widget]

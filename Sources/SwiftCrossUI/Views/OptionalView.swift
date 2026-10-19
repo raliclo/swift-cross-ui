@@ -70,6 +70,13 @@ extension OptionalView: TypeSafeView {
                     environment: environment
                 )
                 children.node = node
+                // Inserted under an animation: the child's `.transition` runs.
+                // 在動畫中插入：子元件的 `.transition` 會執行。
+                if children.hasCommitted,
+                    let transaction = TransitionLookup.animatedTransaction(in: environment)
+                {
+                    TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                }
                 result = node.computeLayout(
                     with: view,
                     proposedSize: proposedSize,
@@ -79,6 +86,14 @@ extension OptionalView: TypeSafeView {
             }
         } else {
             hasToggled = children.node != nil
+            // Under an animation a child with a `.transition` departs instead
+            // of going at once. / 在動畫中，帶 `.transition` 的子元件會離場，而不是立刻消失。
+            if let node = children.node, children.hasCommitted, children.pendingDeparture == nil {
+                children.pendingDeparture = children.departing.depart(
+                    ErasedViewGraphNode(wrapping: node),
+                    environment: environment
+                )
+            }
             children.node = nil
             result = ViewLayoutResult(
                 size: .zero,
@@ -99,17 +114,26 @@ extension OptionalView: TypeSafeView {
         backend: Backend
     ) {
         if children.hasToggled {
-            backend.removeAllChildren(of: widget)
-            if let node = children.node {
-                backend.insert(node.widget.into(), into: widget, at: 0)
-                backend.setPosition(ofChildAt: 0, in: widget, to: .zero)
-            }
+            // The removed child stays drawn while it departs; the new one is
+            // inserted in front of it (Transition.swift).
+            // 被移除的子元件在離場期間繼續畫出;新的子元件插在它前面(Transition.swift)。
+            let newChild: Backend.Widget? = children.node?.widget.into()
+            children.departing.commitSwitch(
+                container: widget,
+                backend: backend,
+                hadChild: children.committedHasChild,
+                departure: children.pendingDeparture,
+                newChild: newChild
+            )
+            children.pendingDeparture = nil
+            children.committedHasChild = newChild != nil
             children.hasToggled = false
         }
 
         _ = children.node?.commit()
 
-        backend.setSize(of: widget, to: layout.size.vector)
+        backend.setSize(of: widget, to: children.departing.containerSize(layout.size.vector))
+        children.hasCommitted = true
     }
 }
 
@@ -121,6 +145,19 @@ class OptionalViewChildren<V: View>: ViewGraphNodeChildren {
     /// Whether the view has toggled since the last non-dryrun update. `true`
     /// if the first view update hasn't occurred yet.
     var hasToggled = true
+    /// Children removed under an animation, drawn until their removal
+    /// transitions end (Transition.swift).
+    /// 在動畫中被移除、畫到移除轉場結束為止的子元件(Transition.swift)。
+    lazy var departing = DepartingViews()
+    /// The departure of the child removed since the last commit.
+    /// 自上次 commit 以來被移除之子元件的離場。
+    var pendingDeparture: DepartingViews.Departure?
+    /// Whether the last commit left a live child in the container.
+    /// 上次 commit 是否在容器中留下了存活的子元件。
+    var committedHasChild = false
+    /// A child appearing before the first commit is the first appearance, not an insertion.
+    /// 在第一次 commit 之前出現的子元件是首次出現，而不是插入。
+    var hasCommitted = false
 
     var widgets: [AnyWidget] {
         return [node?.widget].compactMap { $0 }
