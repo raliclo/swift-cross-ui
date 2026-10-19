@@ -220,6 +220,19 @@ extension UIKitBackend {
             isSelectable
         }
 
+        // The copy menu's long press begins only on selectable text. Otherwise
+        // it fails, and a long press on an ancestor (onLongPressGesture,
+        // onTapAndLongPressGesture) is recognised instead: being the deeper
+        // recogniser, this one would win the hold every time (P103's emoji).
+        // 複製選單的長按只在可選取的文字上開始。否則它會失敗，改由祖先上的長按(onLongPressGesture、
+        // onTapAndLongPressGesture)辨識成立：身為較深層的辨識器，它原本每次都會搶走這次按住(P103 的 emoji)。
+        public override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            if gestureRecognizer is UILongPressGestureRecognizer, gestureRecognizer.view === self {
+                return isSelectable && !text.isEmpty
+            }
+            return super.gestureRecognizerShouldBegin(gestureRecognizer)
+        }
+
         public override func layoutSubviews() {
             super.layoutSubviews()
             if textContainer.size != bounds.size {

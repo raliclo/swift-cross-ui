@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P103 on iOS: a tap toggles, a long press opens the picker and does NOT toggle.
+# Positions from the iPhone simulator on 2026-10-19 (1179x2556 px at 3x, client points): the rows' emoji at
+# x 43, y 340 (停車場) / 384 (便利商店) / 428 (加油站); the SOLO emoji at 90, 527.
+# Pass (stdout, output/p103-ios-stdout.log): "ROW 停車場 off", then "SOLO on"; NO "ROW 便利商店 off" for the long
+# press, and the final screenshot shows the picker sheet for 便利商店.
+# P103 在 iOS 上：點一下切換，長按叫出選擇器且**不**切換。座標取自 iPhone 模擬器(3 倍，client 點)。通過條件見上方英文。
+sleep,,,,,,2000000,let P103 lay out,ios
+click,43,340,client,left,,,tap 停車場's emoji: it goes off,ios
+sleep,,,,,,800000,,ios
+click,90,527,client,left,,,tap the SOLO emoji: it goes on,ios
+sleep,,,,,,800000,,ios
+longpress,43,384,client,left,,900000,hold 便利商店's emoji: the picker opens and the row stays on,ios
+sleep,,,,,,1500000,let the sheet present,ios

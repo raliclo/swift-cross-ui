@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P103 on Android: a tap toggles, a long press opens the picker and does NOT toggle.
+# Positions from swift-cross-ui-tablet36 on 2026-10-19 (2560x1600 px at density 320, so dp = px / 2; window origin, 36 dp below the screen's top):
+# the rows' emoji at x 42, y 267 (停車場) / 312 (便利商店); the SOLO emoji at 86, 457.
+# Pass (logcat): "ROW 停車場 off", then "SOLO on", then "ROW 便利商店 picker" with NO "ROW 便利商店 off"; the final
+# screenshot shows the picker sheet for 便利商店.
+# P103 在 Android 上：點一下切換，長按叫出選擇器且**不**切換。座標取自 swift-cross-ui-tablet36(density 320,dp = px / 2)。通過條件見上方英文。
+sleep,,,,,,2000000,let P103 lay out,android
+click,42,267,,left,,,tap 停車場's emoji: it goes off,android
+sleep,,,,,,800000,,android
+click,86,457,,left,,,tap the SOLO emoji: it goes on,android
+sleep,,,,,,800000,,android
+longpress,42,312,,,,900000,hold 便利商店's emoji: the picker opens and the row stays on,android
+sleep,,,,,,1500000,let the sheet present,android
