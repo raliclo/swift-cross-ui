@@ -25,6 +25,11 @@ class GradientWidget(activity: Activity) : View(activity) {
             rewind()
             addRect(0f, 0f, width, height, Path.Direction.CW)
         }
+        // A new shader redraws the view, whether or not its size changed: a
+        // tweened gradient keeps its size, and AppKit's gradient view, which
+        // redrew only on a size change, stayed drawn as before (P109).
+        // 新的 shader 會重畫 view,不論尺寸是否改變：補間中的漸層尺寸不變，而只在尺寸改變時重畫的 AppKit 漸層 view 曾維持舊的畫面(P109)。
+        invalidate()
     }
 
     // Only call this method AFTER set, to ensure the shader is set.

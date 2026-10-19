@@ -240,6 +240,14 @@ public enum LayoutAnimationDiagnostics {
         )
     }
 
+    /// Any list of values, for kinds that are neither a size nor one colour
+    /// (a gradient's locations and colour components).
+    /// 任意的數值清單，供既不是尺寸也不是單一顏色的種類使用(漸層的位置與顏色分量)。
+    static func record(_ environment: EnvironmentValues, _ kind: String, values: [Double]) {
+        guard let label = environment.effectDiagnosticsLabel else { return }
+        append("\(label)/\(kind)", values)
+    }
+
     private static func append(_ key: String, _ values: [Double]) {
         let time = ProcessInfo.processInfo.systemUptime
         if let last = samples[key]?.last, last.values == values {

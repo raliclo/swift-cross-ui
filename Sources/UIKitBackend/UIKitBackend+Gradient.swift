@@ -52,7 +52,13 @@ extension UIKitBackend {
 }
 
 final class LinearGradientView: BaseViewWidget {
-    var gradient: LinearGradient?
+    /// A new gradient redraws the view: the size alone did not, so a gradient
+    /// changed at the same size (P109's tween, measured on AppKit's copy of
+    /// this view) stayed drawn as before.
+    /// 新的漸層會重畫 view:只靠尺寸並不會，所以在同樣尺寸下改變的漸層(P109 的補間，在 AppKit 的同款 view 上量到)仍維持舊的畫面。
+    var gradient: LinearGradient? {
+        didSet { setNeedsDisplay() }
+    }
     var lastEnvironment: EnvironmentValues?
 
     override func draw(_ dirtyRect: CGRect) {
@@ -109,7 +115,13 @@ final class LinearGradientView: BaseViewWidget {
 }
 
 final class RadialGradientView: BaseViewWidget {
-    var gradient: RadialGradient?
+    /// A new gradient redraws the view: the size alone did not, so a gradient
+    /// changed at the same size (P109's tween, measured on AppKit's copy of
+    /// this view) stayed drawn as before.
+    /// 新的漸層會重畫 view:只靠尺寸並不會，所以在同樣尺寸下改變的漸層(P109 的補間，在 AppKit 的同款 view 上量到)仍維持舊的畫面。
+    var gradient: RadialGradient? {
+        didSet { setNeedsDisplay() }
+    }
     var lastEnvironment: EnvironmentValues?
 
     override func draw(_ rect: CGRect) {

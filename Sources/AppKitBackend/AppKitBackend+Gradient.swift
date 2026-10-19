@@ -54,7 +54,12 @@ extension AppKitBackend {
 }
 
 final class LinearGradientView: NSView {
-    var gradient: LinearGradient?
+    /// A new gradient redraws the view: the size alone did not, so a gradient
+    /// changed at the same size (P109's tween) stayed drawn as before.
+    /// 新的漸層會重畫 view:只靠尺寸並不會，所以在同樣尺寸下改變的漸層(P109 的補間)仍維持舊的畫面。
+    var gradient: LinearGradient? {
+        didSet { needsDisplay = true }
+    }
     var lastEnvironment: EnvironmentValues?
 
     override var isFlipped: Bool { true }
@@ -103,7 +108,12 @@ final class LinearGradientView: NSView {
 }
 
 final class RadialGradientView: NSView {
-    var gradient: RadialGradient?
+    /// A new gradient redraws the view: the size alone did not, so a gradient
+    /// changed at the same size (P109's tween) stayed drawn as before.
+    /// 新的漸層會重畫 view:只靠尺寸並不會，所以在同樣尺寸下改變的漸層(P109 的補間)仍維持舊的畫面。
+    var gradient: RadialGradient? {
+        didSet { needsDisplay = true }
+    }
     var lastEnvironment: EnvironmentValues?
 
     override func draw(_ dirtyRect: NSRect) {
