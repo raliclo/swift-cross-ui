@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on Windows, WinUIBackend: .focusable() on plain colour panels -- the same
+# steps as actions/mac/P91-focusable.actions, re-measured for WinUI.
+# Measured 2026-10-19 with testapp/test_support/measure/measure_win.zsh, in DIPs
+# (display at 125%; Win32Synthesiser scales DIPs to pixels). Window 434 x 558 DIPs.
+# The panels are not UIA elements, so their row comes from the neighbours:
+# "focus changes heard" ends at y 154 and the legend starts at y 240, which
+# holds 70-high panels with the 8-DIP spacing; they start at the title's x 37.5,
+# 110 wide, 14 apart -> A (92,197), B (216,197), off (340,197). Buttons: focus A
+# (71,350), focus B (146,350), focus none (231,350), focus off (74,387).
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", and the focus on A with its ring drawn.
+# c is typed after pressing B, d after Tab from A, e after the "focus B" button.
+# Replay with --showtime 14: the steps take about 11 s and a shorter show closes the app mid-file (rc=6). Passed 2026-10-19 on WinUI, Swift 6.4.1: all of the above, focus changes heard 10. 重放需 --showtime 14(約 11 秒);2026-10-19 於 WinUI 通過。
+# P91(Windows,WinUIBackend):普通色塊上的 .focusable(),步驟與 actions/mac/P91-focusable.actions 相同，座標為
+# WinUI 重新量測。2026-10-19 以 measure_win.zsh 量測，單位 DIP(顯示 125%;Win32Synthesiser 會把 DIP 換成像素)。
+# 色塊不是 UIA 元素，所以由相鄰元素推算其所在列；座標見上方英文。結束時應為:A heard: ab、B heard: cde、
+# off heard: 空白、refusal check: refused (correct),焦點在 A 且畫出外框。
+sleep,,,,,,1500000,let the window settle,windows
+click,231,350,frame,left,,,focus none first,windows
+sleep,,,,,,300000,,windows
+click,92,197,frame,left,,,press panel A -- focused: a,windows
+sleep,,,,,,500000,,windows
+key,,,,,a,,,windows
+key,,,,,b,,A heard: ab,windows
+sleep,,,,,,300000,,windows
+click,216,197,frame,left,,,press panel B -- focused: b,windows
+sleep,,,,,,500000,,windows
+key,,,,,c,,B heard: c,windows
+sleep,,,,,,300000,,windows
+click,71,350,frame,left,,,the focus A button -- from code,windows
+sleep,,,,,,500000,,windows
+key,,,,,tab,,Tab from A must reach B,windows
+sleep,,,,,,500000,,windows
+key,,,,,d,,B heard: cd,windows
+sleep,,,,,,300000,,windows
+click,231,350,frame,left,,,focus none,windows
+sleep,,,,,,500000,,windows
+key,,,,,y,,no panel is focused -- nobody may hear this,windows
+sleep,,,,,,300000,,windows
+click,146,350,frame,left,,,the focus B button,windows
+sleep,,,,,,500000,,windows
+key,,,,,e,,B heard: cde,windows
+sleep,,,,,,300000,,windows
+click,74,387,frame,left,,,focus off -- must be refused,windows
+sleep,,,,,,700000,,windows
+key,,,,,z,,the off panel must not hear this,windows
+sleep,,,,,,300000,,windows
+click,340,197,frame,left,,,press the off panel itself -- still no focus,windows
+sleep,,,,,,500000,,windows
+key,,,,,z,,,windows
+sleep,,,,,,300000,,windows
+click,71,350,frame,left,,,end on A so the focus ring is in the capture,windows
+sleep,,,,,,3000000,let the capture land,windows

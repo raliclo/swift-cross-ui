@@ -80,6 +80,12 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         //
         // AppKit 拒絕的是完全相同的情形,而且它寫明了:它的 `responder(in:)` 會退回該 widget,
         // 而「把那層 wrapper 交給 `makeFirstResponder`」正是它的註解所警告的事。
+        if let target = Self.focusableTarget(in: widget) {
+            // A `.focusable(false)` or disabled target is refused, as a
+            // disabled control is above. / `.focusable(false)` 或停用的 target 會被拒絕，與上面停用的控制項相同。
+            guard target.focusableWanted else { return false }
+            return (try? target.focus(.programmatic)) ?? false
+        }
         guard let target = Self.focusableControl(in: widget) else { return false }
         return (try? target.focus(.programmatic)) ?? false
     }
@@ -101,6 +107,25 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     ///
     /// 找不到時回傳 `nil`,而**不是**退回那個 widget。一個內部沒有任何可聚焦物的 wrapper,
     /// 並沒有接受焦點;而說出這件事,正是本協定回傳那個 `Bool` 的全部價值。
+    /// The `.focusable` target at or inside `element`, searched before any
+    /// control: such a target is a `Canvas`, not a `Control`, so the search
+    /// below would never find it and `.focused` could not move the focus to it.
+    /// 位於 `element` 本身或其內部的 `.focusable` target,在任何控制項之前先找：這種 target 是 `Canvas`
+    /// 而不是 `Control`,下方的搜尋永遠找不到它,`.focused` 也就無法把焦點移過去。
+    static func focusableTarget(in element: FrameworkElement) -> WinUIFeatureTarget? {
+        if let target = element as? WinUIFeatureTarget, target.isFocusableTarget {
+            return target
+        }
+        let count = VisualTreeHelper.getChildrenCount(element)
+        for index in 0..<count {
+            guard
+                let child = VisualTreeHelper.getChild(element, index) as? FrameworkElement
+            else { continue }
+            if let found = focusableTarget(in: child) { return found }
+        }
+        return nil
+    }
+
     private static func focusableControl(in element: FrameworkElement) -> Control? {
         if let control = element as? Control, control.isEnabled, control.isTabStop {
             return control

@@ -147,12 +147,27 @@ extension WinUIBackend: BackendFeatures.KeyEvents {
         target.loaded.addHandler { [weak target] _, _ in
             DispatchQueue.main.async { [weak target] in
                 guard let target, target.keyEventsEnabled else { return }
+                // Around a `.focusable()` view the keys are that view's, and this
+                // target is neither focused nor a Tab stop -- GtkBackend does the
+                // same (holdsFocusableTarget). Measured 2026-10-19 on P91: with
+                // both targets taking the focus on a press, "focus changes heard"
+                // reached 20 after two presses, B heard nothing, and the app stopped
+                // answering on the next button.
+                // 包著 `.focusable()` 的 view 時，按鍵屬於那個 view,本 target 既不取得焦點也不是 Tab 停駐點——
+                // GtkBackend 也是這樣(holdsFocusableTarget)。2026-10-19 於 P91 實測：兩個 target 都在按下時搶焦點，
+                // 按兩下後「focus changes heard」到了 20,B 什麼都沒聽到，接著 app 在下一個按鈕停止回應。
+                if Self.focusableTarget(in: target) != nil {
+                    target.isTabStop = false
+                    return
+                }
                 _ = try? target.focus(.programmatic)
             }
         }
         target.pointerPressed.addHandler { [weak target] _, _ in
             DispatchQueue.main.async { [weak target] in
-                guard let target, target.keyEventsEnabled else { return }
+                guard let target, target.keyEventsEnabled,
+                    Self.focusableTarget(in: target) == nil
+                else { return }
                 _ = try? target.focus(.pointer)
             }
         }
@@ -505,6 +520,110 @@ extension WinUIBackend: BackendFeatures.WidgetSnapshots {
     }
 }
 
+// MARK: Focusable targets
+
+extension WinUIBackend: BackendFeatures.FocusableTargets {
+    /// A feature target made a tab stop, which is all a `Canvas` needs to hold
+    /// the keyboard focus -- it accepts focus unconditionally (instrumented
+    /// 2026-09-16, see WinUIBackend+Focus.swift). A press focuses it on the next
+    /// main-queue turn, as the key-event target does, because the window's root
+    /// `ScrollViewer` focuses itself in its own PointerPressed after ours.
+    ///
+    /// **Tab is the target's** (BackendFeatures.FocusableTargets): `.onKeyPress`
+    /// outside it cannot decline a key, so the target moves the focus itself
+    /// with `FocusManager.tryMoveFocus` and marks Tab handled before the key
+    /// handler hears it. Only when the window's root is known: the call needs a
+    /// search root on desktop WinUI, and the binding wraps it in `try!`.
+    ///
+    /// A `Canvas` draws no focus visual, so a 3-px `Border` above the child,
+    /// sized with the target and transparent to the pointer, shows while the
+    /// target itself (not a child) holds the focus -- GtkBackend draws the same
+    /// ring with an outline.
+    ///
+    /// 一個設成 tab stop 的 feature target——這就是 `Canvas` 持有鍵盤焦點所需的全部，它會無條件接受焦點
+    /// (2026-09-16 加儀器量到，見 WinUIBackend+Focus.swift)。按下時在主佇列的下一輪取得焦點，與按鍵 target
+    /// 相同，因為視窗根部的 `ScrollViewer` 會在我們之後、在它自己的 PointerPressed 中取得焦點。
+    ///
+    /// **Tab 歸 target**(BackendFeatures.FocusableTargets):外層的 `.onKeyPress` 無法拒收按鍵，所以 target
+    /// 自己以 `FocusManager.tryMoveFocus` 移動焦點，並在按鍵處理器聽到之前把 Tab 標為已處理。只在知道視窗根
+    /// 時才這樣做：桌面版 WinUI 的這個呼叫需要 search root,而綁定把它包在 `try!` 裡。
+    ///
+    /// `Canvas` 不畫焦點外框，所以在子 view 上方疊一個 3 px 的 `Border`,大小隨 target、不攔截指標，只在
+    /// target 本身(而非子 view)持有焦點時顯示——GtkBackend 以 outline 畫出同樣的框。
+    public func createFocusableTarget(wrapping child: Widget) -> Widget {
+        let target = featureTarget(wrapping: child)
+        target.isFocusableTarget = true
+        target.focusableWanted = true
+        target.isTabStop = true
+
+        let ring = WinUI.Border()
+        ring.borderThickness = Thickness(left: 3, top: 3, right: 3, bottom: 3)
+        ring.borderBrush = Self.focusRingBrush()
+        ring.isHitTestVisible = false
+        ring.visibility = .collapsed
+        insert(ring, into: target, at: 1)
+        target.focusRing = ring
+        target.sizeChanged.addHandler { [weak target] _, _ in
+            guard let target, let ring = target.focusRing else { return }
+            ring.width = target.actualWidth
+            ring.height = target.actualHeight
+        }
+        target.gotFocus.addHandler { [weak target] _, args in
+            guard let target, (args?.originalSource as AnyObject?) === target else { return }
+            target.focusRing?.visibility = .visible
+        }
+        target.lostFocus.addHandler { [weak target] _, args in
+            guard let target, (args?.originalSource as AnyObject?) === target else { return }
+            target.focusRing?.visibility = .collapsed
+        }
+        target.pointerPressed.addHandler { [weak target] _, _ in
+            DispatchQueue.main.async { [weak target] in
+                guard let target, target.focusableWanted else { return }
+                _ = try? target.focus(.pointer)
+            }
+        }
+        target.keyDown.addHandler { [weak target] _, args in
+            guard let target, let args, args.key == .tab,
+                (args.originalSource as AnyObject?) === target,
+                let root = target.xamlRoot?.content
+            else { return }
+            let options = FindNextElementOptions()
+            options.searchRoot = root
+            let backward = Self.currentModifiers().contains(.shift)
+            _ = FocusManager.tryMoveFocus(backward ? .previous : .next, options)
+            args.handled = true
+        }
+        return target
+    }
+
+    public func updateFocusableTarget(
+        _ target: Widget,
+        environment: EnvironmentValues,
+        isFocusable: Bool
+    ) {
+        let target = target as! WinUIFeatureTarget
+        let wanted = isFocusable && environment.isEnabled
+        if !wanted {
+            unfocus(target)
+        }
+        target.focusableWanted = wanted
+        target.isTabStop = wanted
+    }
+
+    /// Fluent's focus stroke from the app's theme resources; Windows blue when
+    /// the resource cannot be read. Fluent 的焦點描邊色，取自 app 的主題資源；讀不到時用 Windows 藍。
+    static func focusRingBrush() -> WinUI.Brush {
+        if let brush = WinUI.Application.current?.resources
+            .lookup("FocusStrokeColorOuterBrush") as? WinUI.Brush
+        {
+            return brush
+        }
+        let brush = SolidColorBrush()
+        brush.color = UWP.Color(a: 255, r: 0x00, g: 0x67, b: 0xC0)
+        return brush
+    }
+}
+
 /// The wrapper every target above uses.
 /// 上方每個 target 所用的包裝。
 final class WinUIFeatureTarget: WinUI.Canvas {
@@ -518,4 +637,10 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var onScrollChange: ((ScrollGestureValue) -> Void)?
     var onScrollEnd: ((ScrollGestureValue) -> Void)?
     var onPointerHover: ((PointerHoverPhase) -> Void)?
+    /// Set by `createFocusableTarget`: whether this target is one, whether it
+    /// may hold the focus now, and the ring drawn while it does.
+    /// 由 `createFocusableTarget` 設定：本 target 是否為可聚焦 target、此刻能否持有焦點，以及持有時畫出的外框。
+    var isFocusableTarget = false
+    var focusableWanted = false
+    var focusRing: WinUI.Border?
 }
