@@ -451,6 +451,13 @@ char *scui_drop_value_string(const GValue *value);
 // so Swift cannot call it. GDK on macOS answers 0 by default.
 gboolean scui_primary_button_warps_slider(void);
 
+// Drains the main dispatch queue whenever libdispatch signals that it has work,
+// instead of only when the run-loop tickler polls (see gtk_dispatch_main_queue.c).
+// Linux and Windows; FALSE elsewhere, and FALSE if the handle could not be watched.
+// 每當 libdispatch 發出「有工作」的訊號就排空主 dispatch 佇列，而不只在 run-loop tickler 輪詢時
+// (見 gtk_dispatch_main_queue.c)。Linux 與 Windows;其他平台回傳 FALSE,無法監看時亦然。
+gboolean scui_watch_dispatch_main_queue(void);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

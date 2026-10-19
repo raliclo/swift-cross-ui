@@ -1296,6 +1296,10 @@ public final class GtkBackend:
 
             #if !os(macOS)
                 Self.mainRunLoopTicklingLoop()
+                // The tickler serves RunLoop timers; the main dispatch queue is
+                // drained the moment it has work (gtk_dispatch_main_queue.c, P66).
+                // tickler 服務 RunLoop 的計時器；主 dispatch 佇列則一有工作就排空(gtk_dispatch_main_queue.c,P66)。
+                _ = scui_watch_dispatch_main_queue()
             #endif
         }
     }

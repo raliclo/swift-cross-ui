@@ -3,6 +3,7 @@ import Foundation
 import WinAppSDK
 import WinSDK
 import WinUI
+import WinUIInterop
 
 extension WinUIApplication {
     /// Starts the application on a SINGLE-threaded apartment, which WebView2
@@ -94,14 +95,32 @@ extension WinUIApplication {
 /// MainRunLoopTickler.swift`)的副本,原版為 `internal`,此處無法取用。**刻意保持行為完全一致**——
 /// ``WinUIApplication/runSingleThreaded()`` 的目的是只改變 apartment、其他什麼都不動,因此 run loop
 /// 何時被服務的任何差異,都會在每一次與舊路徑的比較中成為第二個變數。
+///
+/// **No longer identical, since 2026-10-19.** Upstream re-arms its timer on
+/// every window message, which postpones it for as long as messages keep
+/// coming, and raises every wait to 50 ms; `DispatchQueue.main` then stalled
+/// for the whole of an animation (P66). See `scheduleDelayedWork(after:)` and `watchMainQueue()`.
+/// `SCUI_WINUI_MTA=1` still runs upstream's copy, bug included.
+///
+/// **自 2026-10-19 起不再完全一致。** 上游在每一則視窗訊息上重設計時器——只要訊息不斷就一直被往後推——
+/// 並把每次等待墊到 50 ms;於是整段動畫期間 `DispatchQueue.main` 都停住(P66)。見
+/// `scheduleDelayedWork(after:)` 與 `watchMainQueue()`。`SCUI_WINUI_MTA=1` 仍跑上游的版本，連同這個問題。
 final class WinUIRunLoopTickler {
     private var timerID: UINT_PTR = 0
+    /// When the armed timer fires, or nil when none is armed.
+    /// 已設定的計時器何時觸發;沒有設定時為 nil。
+    private var timerDeadline: TimeInterval?
+    private var uiQueue: WinAppSDK.DispatcherQueue?
+    private var mainQueueWait: HANDLE?
 
     private var readyToProcessMessages = false
     private var doWorkRecursionGuard = false
 
     fileprivate static let minIdleDelay: TimeInterval = 0.05
     fileprivate static let maxIdleDelay: TimeInterval = 1
+    /// The shortest wait for a real run-loop date. Win32 timers round it up to
+    /// USER_TIMER_MINIMUM (10 ms) anyway. / 等待真正 run-loop 日期的最短時間;Win32 計時器反正會進位到 10 ms。
+    fileprivate static let shortestDelay: TimeInterval = 0.001
     private static let doWorkMessage = UINT(WM_USER + 0xbc0)
 
     /// The delay between the next run-loop service and the one after it. It
@@ -126,6 +145,8 @@ final class WinUIRunLoopTickler {
         hook = SetWindowsHookExW(
             WH_CALLWNDPROCRET, winUIRunLoopTicklerWindowHook, nil, GetCurrentThreadId()
         )
+        uiQueue = WinAppSDK.DispatcherQueue.getForCurrentThread()
+        watchMainQueue()
         scheduleImmediateWork()
     }
 
@@ -134,9 +155,27 @@ final class WinUIRunLoopTickler {
         if delay >= nextIdleDelay {
             cappedDelay = nextIdleDelay
             nextIdleDelay = min(nextIdleDelay + Self.minIdleDelay, Self.maxIdleDelay)
+        } else if delay == 0 {
+            cappedDelay = Self.minIdleDelay
         } else {
-            cappedDelay = max(delay, Self.minIdleDelay)
+            cappedDelay = max(delay, Self.shortestDelay)
         }
+
+        // A timer that will fire sooner stays as it is. `SetTimer` with the
+        // same ID re-arms it from NOW, and every window message on this thread
+        // asks for work, so while messages kept coming -- a frame clock at 131
+        // Hz -- the timer was pushed back on each one and fired only once they
+        // stopped: P66 sampled `withAnimation` twice in 0.66 s (0, then 200)
+        // where AppKit samples 31 times (2026-10-19).
+        // 會更早觸發的計時器維持原樣。`SetTimer` 用同一個 ID 會**從現在起**重新計時，而本執行緒的每一則
+        // 視窗訊息都會要求工作，因此只要訊息不斷——131 Hz 的 frame clock——計時器就在每一則訊息上被往後推，
+        // 直到訊息停止才觸發:P66 在 0.66 秒內只取樣到 `withAnimation` 兩次(0,然後 200),而 AppKit
+        // 取樣 31 次(2026-10-19)。
+        let deadline = ProcessInfo.processInfo.systemUptime + cappedDelay
+        if let armed = timerDeadline, armed <= deadline {
+            return
+        }
+        timerDeadline = deadline
         let delayMilliseconds = UInt32(cappedDelay * 1000)
         timerID = SetTimer(nil, timerID, delayMilliseconds, winUIRunLoopTicklerTimerProc)
     }
@@ -157,18 +196,67 @@ final class WinUIRunLoopTickler {
     fileprivate func shutdown() {
         UnhookWindowsHookEx(hook)
         KillTimer(nil, timerID)
+        if let mainQueueWait { UnregisterWait(mainQueueWait) }
+    }
+
+    /// Waits, once, for libdispatch to say the main queue has work, then
+    /// services the run loop on the UI thread and waits again.
+    ///
+    /// The timers alone could not keep up: a `DispatchQueue.main.asyncAfter`
+    /// is libdispatch's timer, not a RunLoop timer, so `limitDate` never
+    /// reports it and the tickler only found it on its 50 ms idle poll, which
+    /// WM_TIMER stretched to about 120 ms while frames were drawn -- P66 read 5
+    /// samples of a 0.5 s animation with both timer fixes in (2026-10-19).
+    /// libdispatch sets this event the moment the main queue has work, which is
+    /// what Foundation's own RunLoop waits on.
+    ///
+    /// 等待一次 libdispatch 告知主佇列有工作，然後在 UI 執行緒上服務 run loop，再重新等待。
+    ///
+    /// 光靠計時器跟不上:`DispatchQueue.main.asyncAfter` 是 libdispatch 的計時器，不是 RunLoop 的計時器，
+    /// 所以 `limitDate` 從不回報它,tickler 只能在 50 ms 的閒置輪詢中發現它，而繪製影格期間 WM_TIMER 把那拉長到
+    /// 約 120 ms——兩項計時器修正都已加入時,P66 對 0.5 秒的動畫只讀到 5 個樣本(2026-10-19)。主佇列一有工作
+    /// libdispatch 就設定這個事件,Foundation 自己的 RunLoop 等的正是它。
+    fileprivate func watchMainQueue() {
+        if let mainQueueWait {
+            UnregisterWait(mainQueueWait)
+            self.mainQueueWait = nil
+        }
+        guard let handle = _dispatch_get_main_queue_handle_4CF() else { return }
+        var wait: HANDLE?
+        if RegisterWaitForSingleObject(
+            &wait, handle, winUIMainQueueSignalled, nil, INFINITE, ULONG(WT_EXECUTEONLYONCE)
+        ) {
+            mainQueueWait = wait
+        }
+    }
+
+    /// On a thread-pool thread: hand the work to the UI thread.
+    /// 在執行緒池的執行緒上：把工作交給 UI 執行緒。
+    fileprivate func mainQueueSignalled() {
+        _ = try? uiQueue?.tryEnqueue(.normal) {
+            _dispatch_main_queue_callback_4CF(nil)
+            WinUIRunLoopTickler.instance.doWork()
+            WinUIRunLoopTickler.instance.watchMainQueue()
+        }
     }
 
     fileprivate func doWork() {
+        timerDeadline = nil
         guard doWorkRecursionGuard == false else { return }
         doWorkRecursionGuard = true
         defer { doWorkRecursionGuard = false }
 
         let nextDate = RunLoop.main.limitDate(forMode: .default)
-        // nil and distantFuture both mean "try again promptly".
-        // nil 與 distantFuture 都代表「盡快再試一次」。
-        let nextDelay = nextDate == .distantFuture ? 0 : nextDate?.timeIntervalSinceNow ?? 0
-        scheduleDelayedWork(after: nextDelay)
+        // nil and distantFuture both mean "try again promptly", which is the
+        // idle poll. A real date -- an `asyncAfter`, a Timer -- is kept as it
+        // is, never shorter than `shortestDelay`; it used to be raised to 50 ms.
+        // nil 與 distantFuture 都代表「盡快再試一次」，也就是閒置輪詢。真正的日期——`asyncAfter`、Timer——
+        // 照原值排程，不短於 `shortestDelay`;過去會被墊到 50 ms。
+        if let nextDate, nextDate != .distantFuture {
+            scheduleDelayedWork(after: max(nextDate.timeIntervalSinceNow, Self.shortestDelay))
+        } else {
+            scheduleDelayedWork(after: 0)
+        }
     }
 }
 
@@ -197,4 +285,8 @@ private let winUIRunLoopTicklerWindowHook: HOOKPROC = {
 
 private let winUIRunLoopTicklerTimerProc: TIMERPROC = { (_: HWND?, _: UINT, _: UINT_PTR, _: DWORD) in
     WinUIRunLoopTickler.instance.doWork()
+}
+
+private let winUIMainQueueSignalled: WAITORTIMERCALLBACK = { _, _ in
+    WinUIRunLoopTickler.instance.mainQueueSignalled()
 }
