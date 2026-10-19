@@ -26,7 +26,8 @@ public struct EmojiPicker: View {
     private var keyword: String
     private var choices: [String]
     private var names: [String: String]
-    private var columns: Int
+    private var columns: Int?
+    @Environment(\.self) private var environment
     private var onChoose: (String) -> Void
 
     @State private var filter = ""
@@ -36,28 +37,32 @@ public struct EmojiPicker: View {
     ///   - keyword: Choices whose names match it come first, highlighted.
     ///   - choices: The emoji offered, in order.
     ///   - names: Search names per emoji, space-separated.
-    ///   - columns: Cells per row.
+    ///   - columns: Cells per row; nil gives six on a phone and eight elsewhere.
     ///   - onChoose: Called after `selection` is set, for example to dismiss.
     public init(
         selection: Binding<String>,
         keyword: String,
         choices: [String] = EmojiCatalog.defaultChoices,
         names: [String: String] = EmojiCatalog.defaultNames,
-        columns: Int = 8,
+        columns: Int? = nil,
         onChoose: @escaping (String) -> Void = { _ in }
     ) {
         self._selection = selection
         self.keyword = keyword
         self.choices = choices
         self.names = names
-        self.columns = max(1, columns)
+        self.columns = columns.map { max(1, $0) }
         self.onChoose = onChoose
     }
 
     private var rows: [[EmojiChoice]] {
         let shown = EmojiCatalog.choices(choices, keyword: keyword, filter: filter, names: names)
-        return stride(from: 0, to: shown.count, by: columns).map {
-            Array(shown[$0..<min($0 + columns, shown.count)])
+        // Eight 44-point cells and their gaps are 394 points, wider than a phone
+        // (393 on an iPhone 16, less any padding), so a phone gets six: 294.
+        // 八格 44 點加上間距是 394 點，比手機寬(iPhone 16 為 393,還要扣掉 padding),所以手機用六格:294。
+        let perRow = columns ?? (environment.deviceClass == .phone ? 6 : 8)
+        return stride(from: 0, to: shown.count, by: perRow).map {
+            Array(shown[$0..<min($0 + perRow, shown.count)])
         }
     }
 

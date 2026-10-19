@@ -28,14 +28,6 @@ public struct EmojiToggleButton: View {
     private var onPickerPresented: () -> Void
 
     @State private var isPickerPresented = false
-    @Environment(\.self) private var environment
-
-    // Eight 44-point cells and their gaps are 394 points, wider than a phone
-    // (393 on an iPhone 16 less the sheet's padding), so a phone gets six: 294.
-    // 八格 44 點加上間距是 394 點，比手機寬(iPhone 16 為 393,還要扣掉 sheet 的 padding),所以手機用六格:294。
-    private var pickerColumns: Int {
-        environment.deviceClass == .phone ? 6 : 8
-    }
 
     /// - Parameters:
     ///   - emoji: The emoji shown; the picker changes it.
@@ -93,7 +85,7 @@ public struct EmojiToggleButton: View {
                         Spacer()
                         Button("✕") { isPickerPresented = false }
                     }
-                    EmojiPicker(selection: $emoji, keyword: keyword, choices: choices, columns: pickerColumns) { _ in
+                    EmojiPicker(selection: $emoji, keyword: keyword, choices: choices) { _ in
                         isPickerPresented = false
                     }
                 }

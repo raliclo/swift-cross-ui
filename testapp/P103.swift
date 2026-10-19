@@ -93,6 +93,7 @@ struct P103App: App {
 }
 
 struct P103RootView: View {
+    @Environment(\.self) var environment
     @State var items = [
         EmojiKeywordItem(keyword: "停車場", emoji: "🅿", color: "#1e88e5"),
         EmojiKeywordItem(keyword: "便利商店", emoji: "🏪", color: "#43a047"),
@@ -169,7 +170,9 @@ struct P103RootView: View {
             ) { emoji in
                 log("PICKER chose \(emoji)")
             }
-            .frame(width: 420)
+            // 420 wide on a desktop or tablet; a phone takes the picker's own six-column width, as 420 is wider than its screen.
+            // 桌面或平板上寬 420;手機用選擇器自己的六欄寬度，因為 420 比它的螢幕還寬。
+            .frame(width: environment.deviceClass == .phone ? nil : 420)
         }
         .padding(16)
         // Top-aligned, so a row added or the list closed does not move everything else: the action files use fixed points.
