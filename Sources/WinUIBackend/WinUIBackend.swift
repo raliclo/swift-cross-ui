@@ -1540,8 +1540,19 @@ public final class WinUIBackend:
         try! textBlock.measure(allocation)
 
         let computedSize = textBlock.desiredSize
+        // The width is rounded up and given one DIP more. WinUI rounds layout to
+        // physical pixels, so at 125% a TextBlock arranged at the width it
+        // measured can come out a fraction of a DIP narrower, and with
+        // `.characterEllipsis` that trims the last word: P47's "unknown" drew
+        // as "unkno...", P102's "EDITOR (long press, then drag)" lost "drag)".
+        // Rounding up alone did not cure either; one DIP more cured both
+        // (2026-10-19).
+        // 寬度無條件進位後再多給一個 DIP。WinUI 會把版面捨入到實體像素，所以在 125% 下，以量到的寬度
+        // 排版的 TextBlock 可能窄了零點幾個 DIP，而在 `.characterEllipsis` 之下那就會截掉最後一個字：
+        // P47 的 "unknown" 畫成 "unkno…",P102 的 "EDITOR (long press, then drag)" 掉了 "drag)"。
+        // 只進位兩者都沒好，多給一個 DIP 兩者都好了(2026-10-19)。
         return SIMD2(
-            Int(computedSize.width),
+            Int(computedSize.width.rounded(.up)) + 1,
             Int(computedSize.height)
         )
     }
