@@ -61,6 +61,16 @@ class SwiftAccessibilityDelegate : View.AccessibilityDelegate() {
 
     fun clearStateDescriptionText() { stateDescription = null }
 
+    // The identifier `.accessibilityIdentifier(_:)` sets, as the node's view id resource
+    // name: the `resource-id` uiautomator and Espresso find a node by. Not spoken.
+    // `.accessibilityIdentifier(_:)` 設定的識別碼，作為節點的 view id resource name:uiautomator 與 Espresso
+    // 用來找節點的 `resource-id`。不會被唸出。
+    private var viewIdResource: String? = null
+
+    fun setViewIdResourceText(value: String) { viewIdResource = value }
+
+    fun clearViewIdResourceText() { viewIdResource = null }
+
     override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
         super.onInitializeAccessibilityNodeInfo(host, info)
         // Written only when non-null. Assigning null unconditionally would clear whatever the
@@ -70,5 +80,6 @@ class SwiftAccessibilityDelegate : View.AccessibilityDelegate() {
         // 變成「這個節點沒有提示」——而那是兩個不同的答案。
         hint?.let { info.hintText = it }
         stateDescription?.let { info.stateDescription = it }
+        viewIdResource?.let { info.viewIdResourceName = it }
     }
 }

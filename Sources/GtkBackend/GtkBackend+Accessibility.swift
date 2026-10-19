@@ -81,6 +81,24 @@ extension GtkBackend: BackendFeatures.Accessibility {
         setHiddenState(of: accessible(widget), to: hidden)
     }
 
+    /// GtkAccessible has no identifier property. GTK's AT-SPI bridge reports a
+    /// widget's buildable id as AccessibleId, and GtkBuilder keeps that id as the
+    /// "gtk-builder-id" object data, so the identifier goes there; it is also the
+    /// widget's name, which GTK Inspector shows and CSS can select.
+    /// GtkAccessible 沒有識別碼屬性。GTK 的 AT-SPI 橋接把 widget 的 buildable id 回報為 AccessibleId,而 GtkBuilder
+    /// 把那個 id 存成 "gtk-builder-id" 物件資料，所以識別碼放在那裡;它也是 widget 的名稱,GTK Inspector 會顯示，CSS
+    /// 也能選取。
+    public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
+        let object = UnsafeMutableRawPointer(widget.widgetPointer).assumingMemoryBound(to: CGtk.GObject.self)
+        if let identifier {
+            g_object_set_data_full(object, "gtk-builder-id", strdup(identifier), { free($0) })
+            gtk_widget_set_name(widget.widgetPointer, identifier)
+        } else {
+            g_object_set_data(object, "gtk-builder-id", nil)
+            gtk_widget_set_name(widget.widgetPointer, nil)
+        }
+    }
+
     private func setHiddenState(of target: OpaquePointer, to hidden: Bool) {
         var state = GTK_ACCESSIBLE_STATE_HIDDEN
         var value = GValue()

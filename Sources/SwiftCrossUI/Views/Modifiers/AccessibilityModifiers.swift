@@ -43,21 +43,32 @@ extension View {
     public func accessibilityHidden(_ hidden: Bool = true) -> some View {
         AccessibilityModifier(body: TupleView1(self), attribute: .hidden(hidden))
     }
+
+    /// Names this view for UI tests and automation, not for people: XCUITest's
+    /// `identifier`, UI Automation's AutomationId, Android's resource id. A
+    /// screen reader does not read it, so it can stay the same across languages
+    /// while the label is translated.
+    ///
+    /// 為 UI 測試與自動化(而非為人)命名這個 view:XCUITest 的 `identifier`、UI Automation 的 AutomationId、
+    /// Android 的 resource id。螢幕閱讀器不會讀它，所以標籤翻譯時它可以維持不變。
+    public func accessibilityIdentifier(_ identifier: String?) -> some View {
+        AccessibilityModifier(body: TupleView1(self), attribute: .identifier(identifier))
+    }
 }
 
 /// Which accessibility property one ``AccessibilityModifier`` carries.
 ///
-/// **One modifier type with four cases, rather than four modifier types.** The
-/// four differ only in which setter they call, and four near-identical structs
-/// would be four places for the passthrough to drift apart. The enum is also
+/// **One modifier type with five cases, rather than five modifier types.** The
+/// five differ only in which setter they call, and five near-identical structs
+/// would be five places for the passthrough to drift apart. The enum is also
 /// what keeps `nil` meaningful: a case that is absent from a chain is never
 /// written at all, so `.accessibilityLabel("Close")` alone cannot clear a hint
 /// set further in.
 ///
 /// 一個 ``AccessibilityModifier`` 帶的是哪一個無障礙屬性。
 ///
-/// **一個 modifier 型別配四個 case,而不是四個 modifier 型別。** 這四者只差在呼叫哪一個 setter,
-/// 而四個近乎相同的 struct 就是四個「直通邏輯可能各自漂移」的地方。這個 enum 也是「`nil` 仍然有
+/// **一個 modifier 型別配五個 case,而不是五個 modifier 型別。** 這五者只差在呼叫哪一個 setter,
+/// 而五個近乎相同的 struct 就是五個「直通邏輯可能各自漂移」的地方。這個 enum 也是「`nil` 仍然有
 /// 意義」的關鍵:一個沒有出現在鏈上的 case 從頭到尾都不會被寫入,因此單獨的
 /// `.accessibilityLabel("Close")` 不可能清掉更內層設定的提示。
 enum AccessibilityAttribute {
@@ -65,6 +76,7 @@ enum AccessibilityAttribute {
     case hint(String?)
     case value(String?)
     case hidden(Bool)
+    case identifier(String?)
 }
 
 /// Applies one accessibility property to its child's own widget.
@@ -172,6 +184,8 @@ struct AccessibilityModifier<Content: View>: TypeSafeView {
                     backend.setAccessibilityValue(ofWidget: widget, to: value)
                 case .hidden(let hidden):
                     backend.setAccessibilityHidden(ofWidget: widget, to: hidden)
+                case .identifier(let identifier):
+                    backend.setAccessibilityIdentifier(ofWidget: widget, to: identifier)
             }
         }
         apply(accessible)

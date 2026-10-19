@@ -1,6 +1,7 @@
 import CGtk
 import Foundation
 import Gtk
+import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
 // Five optional features GTK did not declare until 2026-10-06 -- `Cursors`,
@@ -111,20 +112,64 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
         gtk_widget_set_focus_on_click(target.widgetPointer, 1)
 
         // The focus ring, which GTK's themes draw for their own controls only.
-        // Inside the bounds: the wrappers around this widget are its own size and
-        // clip what lies outside, so an outline at +1px and a box-shadow both drew
-        // nothing (2026-10-13). An outline is painted over the content.
-        // 焦點環;GTK 的主題只替自己的控制項畫。畫在 bounds 之內:包在這個 widget 外面的容器與它同樣大小，
-        // 會裁掉外面的東西，所以 +1px 的 outline 與 box-shadow 都畫不出來(2026-10-13)。outline 畫在內容之上。
+        // Outside the bounds, as AppKit's ring and SwiftUI's on macOS are (P91).
+        // A CSS outline drawn past a widget's bounds did not show at all (inside
+        // them, at -3px, it did), so the ring is a passthrough drawing area over
+        // the content, the target's size, drawing 3.5 points past it through the
+        // overflowing draw function that lets a stroke leave a shape's frame. It
+        // takes no clicks and adds no size.
+        // 焦點環;GTK 的主題只替自己的控制項畫。畫在 bounds 之外，與 AppKit 及 macOS 上 SwiftUI 的焦點環相同(P91)。
+        // 畫到 widget 範圍外的 CSS outline 完全不顯示(在範圍內、-3px 時會顯示),所以焦點環是內容上方一個與目標同大小的
+        // passthrough drawing area,經由讓線條能離開形狀框的可溢出繪製函式畫到框外 3.5 點。它不接點擊，也不增加尺寸。
+        let ringArea = Gtk.DrawingArea(gtk_passthrough_drawing_area_new())
+        gtk_widget_set_visible(ringArea.widgetPointer, 0)
+        target.put(ringArea, x: 0, y: 0)
         let ring = EventControllerFocus()
-        ring.enter = { [weak target] _ in
-            target?.css.set(properties: [
-                CSSProperty(key: "outline", value: "3px solid #3584e4"),
-                CSSProperty(key: "outline-offset", value: "-3px"),
-            ])
+        ring.enter = { [weak target, weak ringArea] _ in
+            guard let target, let ringArea else { return }
+            // The target's size, once it has one: focus given at launch arrives
+            // before the window is laid out, when the target is still 0 x 0.
+            // 目標有尺寸之後才取用：啟動時給的焦點會在視窗排版前到達，那時目標仍是 0 x 0。
+            func sizeRing(attempt: Int) {
+                let width = gtk_widget_get_width(target.widgetPointer)
+                let height = gtk_widget_get_height(target.widgetPointer)
+                if (width == 0 || height == 0) && attempt < 20 {
+                    // Run on the main thread, where this handler already is.
+                    // 在主執行緒上執行，這個 handler 本來就在那裡。
+                    nonisolated(unsafe) let retry = { sizeRing(attempt: attempt + 1) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        retry()
+                    }
+                    return
+                }
+                gtk_widget_set_size_request(ringArea.widgetPointer, width, height)
+            }
+            sizeRing(attempt: 0)
+            gtk_passthrough_drawing_area_set_overflowing_draw_func(
+                ringArea.widgetPointer,
+                6,
+                { _, cairo, width, height, _ in
+                    guard let cairo else { return }
+                    let inset = -2.0, radius = 5.0
+                    let x0 = inset, y0 = inset
+                    let x1 = Double(width) - inset, y1 = Double(height) - inset
+                    cairo_new_sub_path(cairo)
+                    cairo_arc(cairo, x1 - radius, y0 + radius, radius, -.pi / 2, 0)
+                    cairo_arc(cairo, x1 - radius, y1 - radius, radius, 0, .pi / 2)
+                    cairo_arc(cairo, x0 + radius, y1 - radius, radius, .pi / 2, .pi)
+                    cairo_arc(cairo, x0 + radius, y0 + radius, radius, .pi, 3 * .pi / 2)
+                    cairo_close_path(cairo)
+                    cairo_set_source_rgba(cairo, 53 / 255, 132 / 255, 228 / 255, 0.6)
+                    cairo_set_line_width(cairo, 3)
+                    cairo_stroke(cairo)
+                },
+                nil,
+                nil
+            )
+            gtk_widget_set_visible(ringArea.widgetPointer, 1)
         }
-        ring.leave = { [weak target] _ in
-            target?.css.set(properties: [CSSProperty(key: "outline", value: "none")])
+        ring.leave = { [weak ringArea] _ in
+            if let ringArea { gtk_widget_set_visible(ringArea.widgetPointer, 0) }
         }
         target.addEventController(ring)
 

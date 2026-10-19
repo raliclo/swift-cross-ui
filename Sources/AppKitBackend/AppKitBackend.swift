@@ -517,8 +517,15 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
         // This doesn't strictly affect the root environment, but it does require us
         // to re-compute the app's layout, and this is how backends should trigger top
-        // level updates.
-        DistributedNotificationCenter.default.addObserver(
+        // level updates. AppKit posts it to the app's own notification center: an
+        // app launched with a mouse attached starts out reporting the overlay style
+        // and switches to legacy a moment later, and a distributed observer never
+        // heard it, so layouts kept a scroll bar width of 0 and P8's strip had its
+        // labels under the 15 point scroller (2026-10-19).
+        // 這並不直接影響根環境，但需要重新計算 app 的版面，而這就是 backend 觸發頂層更新的方式。AppKit 把它發在 app
+        // 自己的 notification center:接上滑鼠時啟動的 app 一開始回報 overlay 樣式，稍後才改成 legacy,而 distributed
+        // observer 從來收不到，所以版面一直用寬度 0 的捲軸,P8 那條水平內容的標籤因此在 15 點的捲軸底下(2026-10-19)。
+        NotificationCenter.default.addObserver(
             forName: NSScroller.preferredScrollerStyleDidChangeNotification,
             object: nil,
             queue: OperationQueue.main

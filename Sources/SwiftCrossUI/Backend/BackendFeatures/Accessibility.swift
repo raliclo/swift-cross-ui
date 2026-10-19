@@ -89,5 +89,16 @@ extension BackendFeatures {
         /// 它**不會**在視覺上隱藏該 widget。螢幕閱讀器使用者與視覺使用者在此看到不同的東西,而那是
         /// 刻意的;一個兩者都做的 modifier,將無從表達「看得見,但已經被講過了」。
         func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool)
+
+        /// Sets the identifier automation finds this widget by; `nil` removes it.
+        /// Not spoken. Each platform has one: NSAccessibility and UIAccessibility
+        /// `accessibilityIdentifier`, UI Automation's AutomationId, Android's view
+        /// id resource name, and GTK's buildable id, which its AT-SPI bridge
+        /// reports as AccessibleId.
+        ///
+        /// 設定自動化用來找到這個 widget 的識別碼;`nil` 會移除它。不會被唸出。每個平台都有一個:NSAccessibility 與
+        /// UIAccessibility 的 `accessibilityIdentifier`、UI Automation 的 AutomationId、Android 的 view id resource
+        /// name,以及 GTK 的 buildable id(它的 AT-SPI 橋接以 AccessibleId 回報)。
+        func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?)
     }
 }

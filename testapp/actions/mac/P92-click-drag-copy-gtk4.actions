@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on GtkBackend on macOS (TEST_BACKEND=gtk4): what a click in the text field does, then text
+# selected by dragging and copied. The field starts as "hello", focused with its text selected.
+# CLICK: a click right of the text, then X typed: "X" if a click selects everything, "helloX" if it
+# places the caret. Command-Z puts "hello" back.
+# DRAG: pressed at the start of "hello" (frame x 86 -- GTK insets the text 4 points more than AppKit)
+# and moved right 5 points at a time to x 121 past its end, then let go. Command-C copies, the right
+# arrow moves the caret to the end, Command-V pastes: "hellohello".
+# Expected "field" lines in p92-commands.log, in order: helloX | hello | hellohello.
+# macOS 上 GtkBackend 的 P92:點擊文字欄位的行為，以及拖曳選取再複製。GTK 的文字內距比 AppKit 多 4 點，所以從 x 86 按下。
+# p92-commands.log 的 field 各行應依序為 helloX、hello、hellohello。
+sleep,,,,,,1500000,let the window settle,macos
+click,250,167,frame,left,,,CLICK: right of the text in the field,macos
+sleep,,,,,,400000,,macos
+key,,,,,x,,type x,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,,macos
+key,,,,,z,,undo the x,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+mousedown,86,167,frame,left,,,DRAG: press at the start of hello,macos
+sleep,,,,,,100000,,macos
+move,91,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,96,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,101,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,106,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,111,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,116,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+move,121,167,frame,,,,drag right,macos
+sleep,,,,,,30000,,macos
+mouseup,121,167,frame,left,,,let go past the end: hello selected,macos
+sleep,,,,,,300000,,macos
+keydown,,,,,command,,,macos
+key,,,,,c,,copy hello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,300000,,macos
+key,,,,,rightArrow,,caret to the end,macos
+sleep,,,,,,300000,,macos
+keydown,,,,,command,,,macos
+key,,,,,v,,paste -- hellohello,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,800000,,macos

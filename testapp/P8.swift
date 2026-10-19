@@ -152,7 +152,14 @@ struct P8RootView: View {
                                         }
                                     }
                                 }
-                                .frame(height: 48)
+                                // At least 48, and taller by the scroll bar where it takes
+                                // room: AppKit's legacy scroller (System Settings, show
+                                // scroll bars always) is 15 points, and a fixed 48 left the
+                                // labels 33 with their lower half under it; GTK's overlay
+                                // scroll bar takes none.
+                                // 至少 48,捲軸佔空間時再加上捲軸的高度:AppKit 的傳統捲軸(系統設定中永遠顯示捲軸)是 15 點，
+                                // 固定 48 時標籤只剩 33 點，下半部被它蓋住;GTK 浮在上面的捲軸不佔空間。
+                                .frame(minHeight: 48)
                                 .overlay(alignment: .topLeading) {
                                     GeometryReader { proxy in
                                         P8Probe(role: .innerStrip, size: proxy.size)

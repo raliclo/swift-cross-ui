@@ -199,7 +199,11 @@ extension AppKitBackend {
 
     public func createTextEditor() -> Widget {
         let textEditor = NSObservableTextView()
-        textEditor.drawsBackground = false
+        // The text background SwiftUI's macOS TextEditor draws, so the editor's
+        // area shows; GTK's text view draws its own the same way (P29).
+        // SwiftUI 在 macOS 上的 TextEditor 會畫出文字底色，讓編輯區看得出範圍;GTK 的 text view 也一樣畫自己的底色(P29)。
+        textEditor.drawsBackground = true
+        textEditor.backgroundColor = .textBackgroundColor
         textEditor.delegate = textEditor
         textEditor.allowsUndo = true
         textEditor.isRichText = false
@@ -223,6 +227,10 @@ extension AppKitBackend {
         }
         textEditor.appearance = environment.colorScheme.nsAppearance
         textEditor.isEditable = environment.isEnabled
+        // A disabled editor's text is dimmed, as GTK's and SwiftUI's are; without
+        // it P29's disabled editor read exactly like an enabled one.
+        // 停用的編輯器文字會變暗，與 GTK 及 SwiftUI 相同;少了它,P29 停用的編輯器看起來和啟用時一模一樣。
+        textEditor.textColor = environment.isEnabled ? .textColor : .disabledControlTextColor
 
         if #available(macOS 14, *) {
             textEditor.contentType =

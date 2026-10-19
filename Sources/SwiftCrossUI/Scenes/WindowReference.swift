@@ -618,8 +618,17 @@ final class WindowReference<SceneType: WindowingScene> {
         viewGraph.commit()
 
         if isFirstUpdate {
-            backend.show(window: window)
+            // Cleared before showing, not after. Showing can resize the window
+            // synchronously -- AppKit constrains a frame larger than the screen
+            // inside makeKeyAndOrderFront -- and the resize handler updates again;
+            // with the flag still set that update showed the window again, and P103
+            // recursed through windowWillResize until it ran out of memory, its
+            // window never on screen (2026-10-19).
+            // 在顯示之前清除，而不是之後。顯示可能同步調整視窗尺寸——AppKit 會在 makeKeyAndOrderFront 裡把比螢幕大的
+            // frame 縮進螢幕——而 resize handler 會再更新一次;旗標還沒清掉時，那次更新又顯示視窗一次,P103 因此在
+            // windowWillResize 裡一路遞迴到記憶體耗盡，視窗從未出現在螢幕上(2026-10-19)。
             isFirstUpdate = false
+            backend.show(window: window)
         }
 
         // Apply after the first show, not before it. GTK's platform handle does

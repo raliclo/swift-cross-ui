@@ -272,14 +272,21 @@ struct P96App: App {
                 P96RootView()
             }
         }
-        .defaultSize(width: 440, height: 900)
+        .defaultSize(width: 800, height: 820)
     }
 }
 
 struct P96RootView: View {
-    /// Four fit a 402 pt phone screen with the padding; six did not.
-    /// 四欄在加上留白後放得進 402 pt 寬的手機螢幕;六欄放不下。
-    static let columns = 4
+    /// Eight a row on the desktop, where the window is 800 wide on every backend
+    /// (8 tiles of 90 with 4 between, 16 of padding each side, and the scroll
+    /// bar); four on a phone, which is what fits a 402 pt screen.
+    /// 桌面上每列八格，各 backend 的視窗都是 800 寬(8 格各 90、間距 4、兩側各 16 的留白，加上捲軸);手機上四格，
+    /// 那是 402 pt 寬的螢幕放得下的數量。
+    #if os(iOS) || os(Android)
+        static let columns = 4
+    #else
+        static let columns = 8
+    #endif
     @State var running = false
 
     var rows: [[P96Tile]] {

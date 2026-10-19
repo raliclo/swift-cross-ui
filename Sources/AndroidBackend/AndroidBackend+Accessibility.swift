@@ -26,6 +26,12 @@ class SwiftAccessibilityDelegate: JavaObject {
 
     @JavaMethod
     func clearStateDescriptionText()
+
+    @JavaMethod
+    func setViewIdResourceText(_ value: String)
+
+    @JavaMethod
+    func clearViewIdResourceText()
 }
 
 extension AndroidBackend: BackendFeatures.Accessibility {
@@ -148,6 +154,18 @@ extension AndroidBackend: BackendFeatures.Accessibility {
                 ? Self.importantForAccessibilityNoHideDescendants
                 : Self.importantForAccessibilityAuto
         )
+    }
+
+    /// Through the delegate, as the hint is: the view id resource name lives on
+    /// the AccessibilityNodeInfo, and only a delegate writes it.
+    /// 與提示相同，經由 delegate:view id resource name 在 AccessibilityNodeInfo 上，只有 delegate 能寫入。
+    public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
+        let delegate = delegate(for: widget)
+        if let identifier {
+            delegate.setViewIdResourceText(identifier)
+        } else {
+            delegate.clearViewIdResourceText()
+        }
     }
 
     /// `View.IMPORTANT_FOR_ACCESSIBILITY_AUTO`.

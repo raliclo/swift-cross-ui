@@ -1310,11 +1310,16 @@ public final class GtkBackend:
     /// padding and its entry 34 px; AppKit's regular push button and text field
     /// are 22. So P52's grid of 48 one-letter buttons overflowed its column on
     /// GTK, and P91's buttons and field stood half as tall again. Elsewhere GTK
-    /// keeps its own theme's metrics, which is what its desktops expect.
+    /// keeps its own theme's metrics, which is what its desktops expect. A
+    /// horizontal scale drops Adwaita's 12 px side padding, so its trough spans the
+    /// slider's frame as NSSlider's does, and its knob drops the negative side
+    /// margins that let it stand past the trough, so at either end it stays inside
+    /// the frame as NSSlider's knob does (P32, P99).
     /// macOS 上接近 AppKit 的控制項尺寸：兩個 backend 在那裡並排比較，使用者要求 GTK 跟隨 macOS(P52、P91,
     /// 2026-10-18)。Adwaita 的按鈕約 34 px 高、左右內距 17 px,輸入框 34 px;AppKit 的一般按鈕與文字欄是 22。
     /// 所以 P52 由 48 個單字母按鈕組成的格子在 GTK 上溢出了它的欄，P91 的按鈕與欄位高出一半。其他平台上 GTK 保留它
-    /// 自己主題的尺寸，那是它的桌面所預期的。
+    /// 自己主題的尺寸，那是它的桌面所預期的。水平 scale 拿掉 Adwaita 左右 12 px 的內距，讓軌道與 NSSlider 一樣撐滿滑桿的框;
+    /// 滑塊也拿掉讓它凸出軌道的左右負 margin,所以在兩端時與 NSSlider 的滑塊一樣留在框內(P32、P99)。
     static var platformMetricsCSS: String {
         #if os(macOS)
             """
@@ -1333,6 +1338,16 @@ public final class GtkBackend:
                 min-height: 20px;
                 padding-top: 0;
                 padding-bottom: 0;
+            }
+
+            scale.horizontal {
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            scale.horizontal > trough > slider {
+                margin-left: 0;
+                margin-right: 0;
             }
             """
         #else
@@ -3934,7 +3949,54 @@ public final class GtkBackend:
         widget.setSizeRequest(width: -1, height: -1)
         let (width, height) = widget.getNaturalSize()
         widget.setSizeRequest(width: currentSize.width, height: currentSize.height)
+        if let dropDown = widget as? DropDown {
+            return SIMD2(width + dropDownWidestExtra(dropDown), height)
+        }
         return SIMD2(width, height)
+    }
+
+    /// How much wider a menu picker is with its widest option than with the selected
+    /// one. GtkDropDown measures only the selected item, so a picker showing "S" was
+    /// 52 points wide beside an option 350 points long (P17); SwiftUI's menu picker,
+    /// and AppKit's NSPopUpButton, take the widest option, so the width does not jump
+    /// with the selection. Measured with the font of the dropdown's own label, where
+    /// the picker's CSS puts it.
+    /// menu picker 用最寬選項時比用目前選項時寬多少。GtkDropDown 只量選中的那一項，所以顯示「S」的 picker 只有
+    /// 52 點寬，旁邊的選項卻有 350 點長(P17);SwiftUI 的 menu picker 與 AppKit 的 NSPopUpButton 都取最寬的選項，
+    /// 寬度不會隨選取跳動。以 dropdown 自己那個 label 的字型量測，picker 的 CSS 就套在那裡。
+    private func dropDownWidestExtra(_ dropDown: DropDown) -> Int {
+        guard let model = dropDown.model else { return 0 }
+        func label(in widget: UnsafeMutablePointer<GtkWidget>) -> UnsafeMutablePointer<GtkWidget>? {
+            let instance = UnsafeMutableRawPointer(widget).assumingMemoryBound(to: GTypeInstance.self)
+            if g_type_check_instance_is_a(instance, gtk_label_get_type()) != 0 {
+                return widget
+            }
+            var child = gtk_widget_get_first_child(widget)
+            while let current = child {
+                if let found = label(in: current) { return found }
+                child = gtk_widget_get_next_sibling(current)
+            }
+            return nil
+        }
+        let measuring = label(in: dropDown.widgetPointer) ?? dropDown.widgetPointer
+        func textWidth(_ text: String) -> Int {
+            guard let layout = gtk_widget_create_pango_layout(measuring, text) else { return 0 }
+            var width: Int32 = 0
+            var height: Int32 = 0
+            pango_layout_get_pixel_size(layout, &width, &height)
+            g_object_unref(UnsafeMutableRawPointer(layout))
+            return Int(width)
+        }
+        var widest = 0
+        var selected = 0
+        var index: guint = 0
+        while let item = gtk_string_list_get_string(model, index) {
+            let width = textWidth(String(cString: item))
+            widest = max(widest, width)
+            if Int(index) == dropDown.selected { selected = width }
+            index += 1
+        }
+        return max(0, widest - selected)
     }
 
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
@@ -4286,7 +4348,42 @@ public final class GtkBackend:
         // 此處不再處理行數限制；`Text` 會為所有 backend 依字型行高統一套用。原本在此的做法是透過
         // 一個從未 root 的 label 量測合成字串，因此無論被要求何種字型，上限都以 GTK 的預設字級算出。
         // 詳見 Text.computeLayout 中的說明。
+        if let label = widget as? CustomLabel {
+            if let inked = inkBox(of: text, in: label, proposedWidth: proposedWidth) {
+                gtk_label_set_xalign(label.opaquePointer, 0)
+                return inked
+            }
+            gtk_label_set_xalign(label.opaquePointer, 0.5)
+        }
         return SIMD2(width, height)
+    }
+
+    /// The size of a single line whose drawing runs past its logical box, sized
+    /// to what is drawn, with the label set to draw it from its leading edge.
+    /// Pango on macOS reports Apple Color Emoji 20 points wide at 20 points while
+    /// drawing it 26 wide and starting at the top of a 27-high line, so an emoji
+    /// overflowed its label 6 to the right and sat 1 high: P103's circles had
+    /// their emoji 2.5 points right of centre and 1.5 up, where AppKit, whose
+    /// CoreText advance is 25, centres it. Sized as 2 x + width and 2 y + height
+    /// of the ink box, the drawing is centred in the label, and the label is
+    /// placed like any other.
+    /// 單行文字畫出的範圍超出它的邏輯框時，改以畫出的範圍決定尺寸，並讓 label 從前緣開始畫。macOS 上的 Pango 在 20 點時
+    /// 把 Apple Color Emoji 回報為 20 點寬，畫出來卻有 26 寬，且從 27 高的行的頂端開始，所以 emoji 往右溢出它的 label 6 點、
+    /// 位置偏高 1 點:P103 圓圈裡的 emoji 偏右 2.5 點、偏上 1.5 點;AppKit 的 CoreText 字寬是 25,會把它置中。以 ink 框的
+    /// 2 x + 寬與 2 y + 高決定尺寸，畫出的內容就在 label 中置中,label 本身則照常排版。
+    private func inkBox(of text: String, in label: CustomLabel, proposedWidth: Int?) -> SIMD2<Int>? {
+        guard !text.isEmpty, !text.contains("\n"),
+            let layout = gtk_widget_create_pango_layout(label.widgetPointer, text)
+        else { return nil }
+        defer { g_object_unref(UnsafeMutableRawPointer(layout)) }
+        var ink = PangoRectangle()
+        var logical = PangoRectangle()
+        pango_layout_get_pixel_extents(layout, &ink, &logical)
+        let inkWidth = Int(2 * ink.x + ink.width)
+        guard ink.x >= 0, ink.y >= 0, ink.x + ink.width > logical.width + 1,
+            proposedWidth.map({ $0 >= inkWidth }) ?? true
+        else { return nil }
+        return SIMD2(inkWidth, Int(2 * ink.y + ink.height))
     }
 
     public func createImageView() -> Widget {

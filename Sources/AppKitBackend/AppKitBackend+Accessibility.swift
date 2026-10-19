@@ -144,4 +144,10 @@ extension AppKitBackend: BackendFeatures.Accessibility {
         widget.setAccessibilityChildren(hidden ? [] : nil)
     }
 
+    /// On the widget, where XCUITest's `identifier` query looks.
+    /// 設在 widget 上,XCUITest 的 `identifier` 查詢就是在那裡找。
+    public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
+        widget.setAccessibilityIdentifier(identifier)
+    }
+
 }

@@ -90,6 +90,13 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     public func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool) {
         scuiSetAccessibilityView(ofSubtree: widget, hidden: hidden)
     }
+
+    /// UI Automation's AutomationId, which Accessibility Insights and WinAppDriver
+    /// find elements by. An empty string is UI Automation's "none".
+    /// UI Automation 的 AutomationId,Accessibility Insights 與 WinAppDriver 以它找到元素。空字串在 UI Automation 裡代表「沒有」。
+    public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
+        AutomationProperties.setAutomationId(widget, identifier ?? "")
+    }
 }
 
 /// `raw` on `element` and everything under it, or the default back. Internal

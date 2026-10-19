@@ -64,11 +64,16 @@ struct P32RootView: View {
             Button("Labelled button") {
                 P32Diagnostics.write("labelled button clicked")
             }
+            .accessibilityIdentifier("p32.labelled")
             Button("") {
                 P32Diagnostics.write("empty-label button clicked")
             }
-            .help("Icon-only equivalent with tooltip but no accessibility API")
+            .help("Icon-only button: its spoken name comes from accessibilityLabel")
+            .accessibilityLabel("Delete")
+            .accessibilityHint("Removes the selected item")
+            .accessibilityIdentifier("p32.icon")
             TextField("Placeholder text", text: $text)
+                .accessibilityIdentifier("p32.field")
             Toggle("Toggle label", isOn: $toggle)
             // The toggle's own state, in words.
             //
@@ -88,12 +93,15 @@ struct P32RootView: View {
             Text("toggle state: \(toggle ? "ON" : "OFF")")
             Slider(value: $slider, in: 0...1)
                 .frame(width: 260)
+                .accessibilityValue("\(Int((slider * 100).rounded())) percent")
+                .accessibilityIdentifier("p32.slider")
             ProgressView(Text("Progress label"), value: slider)
             Rectangle()
                 .fill(Color(red: 0.20, green: 0.55, blue: 0.85))
                 .frame(width: 120, height: 70)
+                .accessibilityHidden(true)
 
-            Text("Missing APIs: accessibilityLabel, accessibilityHint, accessibilityValue, accessibilityHidden, accessibilityIdentifier")
+            Text("In use: accessibilityLabel and accessibilityHint on the empty button, accessibilityValue on the slider, accessibilityHidden on the rectangle, accessibilityIdentifier p32.* on each control")
                 .font(.system(size: 13))
         }
         .padding(18)

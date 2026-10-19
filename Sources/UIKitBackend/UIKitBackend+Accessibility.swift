@@ -55,6 +55,14 @@ extension UIKitBackend: BackendFeatures.Accessibility {
         widget.view.accessibilityElementsHidden = hidden
     }
 
+    /// On the wrapper and on the control inside it, as the label is, so a query
+    /// finds whichever element XCUITest reports.
+    /// 與標籤相同，同時設在外層與其中的控制項上，讓查詢不論 XCUITest 回報哪一個元素都找得到。
+    public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
+        widget.view.accessibilityIdentifier = identifier
+        namedChild(of: widget.view)?.accessibilityIdentifier = identifier
+    }
+
     /// The one subview that carries a spoken name, or `nil`.
     ///
     /// `nil` when there are none and when there are several, for the reason the

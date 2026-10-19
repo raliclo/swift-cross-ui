@@ -337,6 +337,11 @@ struct P17Measured<Content: View>: View {
                     // 159 x 22、169 x 22 與 159 x 66,而動作檔的座標錯過了每一顆位置改變過的按鈕。
                     // overlay 不貢獻任何尺寸,而那正是這支 app 當初以 overlay 寫成的原因。
                     Text("\(label): \(Int(proxy.size.width)) x \(Int(proxy.size.height))")
+                        // Black on the white: a Text's default colour is the
+                        // primary label colour, white in dark mode, which drew
+                        // the readout as a blank white box on AppKit.
+                        // 白底黑字:Text 的預設顏色是主要標籤色，深色模式下是白色，AppKit 上因此把讀數畫成一個空白的白框。
+                        .foregroundColor(.black)
                         .background(Color.white)
                 }
             }

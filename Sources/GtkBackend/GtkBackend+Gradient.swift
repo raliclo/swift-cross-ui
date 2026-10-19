@@ -124,10 +124,12 @@ extension GtkBackend {
         // 與 Windows -gtk4 上使 app 中止。
 
         // CSS measures the angle clockwise from twelve o'clock; SwiftUI measures
-        // it from three o'clock, so the start is a quarter turn earlier here.
-        // CSS 的角度自十二點鐘方向順時針起算；SwiftUI 自三點鐘方向起算，因此此處的起點要早四分之
-        // 一圈。
-        let fromDegrees = gradient.startAngle.degrees - 90
+        // it clockwise from three o'clock, which is CSS's 90 degrees, so the start
+        // is a quarter turn later here. With -90 the gradient began at nine
+        // o'clock and P27's angular samples were AppKit's turned half way round.
+        // CSS 的角度自十二點鐘方向順時針起算;SwiftUI 自三點鐘方向順時針起算，那是 CSS 的 90 度，因此此處的起點要
+        // 晚四分之一圈。寫成 -90 時漸層從九點鐘開始,P27 的角度漸層因此是 AppKit 的轉了半圈。
+        let fromDegrees = gradient.startAngle.degrees + 90
 
         // A `nil` end angle means a full turn (the documented default). With an
         // end angle the stops occupy only that sweep, so they are rescaled into

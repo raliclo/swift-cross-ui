@@ -57,6 +57,13 @@ public struct EmojiToggleButton: View {
         let border = isOn ? EmojiKeywordPalette.highlightBorder : Color(hex: "#cccccc")!
         Text(EmojiCatalog.displayed(emoji))
             .font(.system(size: (size * 0.53).rounded()))
+            // Centred within its own box as well as in the circle: a backend may
+            // give the label more width than the glyph, and a leading-aligned
+            // emoji then sat 3 points left of the centre on AppKit and 2.5 right on
+            // GTK (P103).
+            // 除了在圓圈中置中，也在自己的框裡置中:backend 可能給 label 比字形更寬的寬度，靠前對齊的 emoji 因此在 AppKit 上
+            // 偏左 3 點、在 GTK 上偏右 2.5 點(P103)。
+            .multilineTextAlignment(.center)
             .foregroundColor(.black)
             .frame(width: size, height: size)
             .background(Circle().fill(fill))
