@@ -24,6 +24,16 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// raises them -- which is why the earlier mouse-only action files could
     /// not have driven any of this.
     ///
+    /// **"A mouse never raises them" is wrong (2026-10-19).** A mouse drag sent as
+    /// SendInput moves raises ManipulationDelta like a finger: P108's card was
+    /// thrown with the mouse, translation 2.5 ... 47.2 over ten moves. What raised
+    /// nothing was Win32Synthesiser moving with `SetCursorPos` while the button
+    /// was down, which places the cursor without any pointer input. It now moves
+    /// with SendInput while a button is held.
+    /// **「滑鼠永遠不會觸發」是錯的(2026-10-19)。** 以 SendInput 移動送出的滑鼠拖曳會像手指一樣觸發
+    /// ManipulationDelta:P108 的卡片用滑鼠拋出,十次移動 translation 由 2.5 到 47.2。什麼都沒觸發的,是
+    /// Win32Synthesiser 在按住時用 `SetCursorPos` 移動——那只擺放游標，不產生任何指標輸入。現在按住時改用 SendInput。
+    ///
     /// WinUI 的 manipulation 事件，它一次回報全部三者。
     ///
     /// **三種手勢共用一條事件流，這與其他每一處都不同。** 一個設定了 `manipulationMode` 的

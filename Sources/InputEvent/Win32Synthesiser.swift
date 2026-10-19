@@ -510,6 +510,10 @@
         /// `P11Diagnostics.didAnnounceRender`。重放在單一執行緒上進行，此旗標的存在只是為了避免主控台
         /// 被隱藏兩次；此處競態的代價，不過是對一個已經隱藏的視窗再呼叫一次 `ShowWindow`。
         nonisolated(unsafe) private static var didHideConsole = false
+        /// Buttons pressed by `mousedown` and not yet released: while one is, a
+        /// `move` is SendInput, so the toolkit sees a drag (see `move(to:in:)`).
+        /// `mousedown` 按下、尚未放開的按鍵數：只要有一個,`move` 就走 SendInput,toolkit 才看得到拖曳。
+        nonisolated(unsafe) private static var heldButtons = 0
 
         private func hideOwnConsoleOnce() {
             guard !Self.didHideConsole else { return }
@@ -861,10 +865,12 @@
                 case .mouseDown(let button, let point):
                     if let point { try move(to: point, in: geometry) }
                     try send(mouseFlags: Self.downFlag(for: button))
+                    Self.heldButtons += 1
 
                 case .mouseUp(let button, let point):
                     if let point { try move(to: point, in: geometry) }
                     try send(mouseFlags: Self.upFlag(for: button))
+                    Self.heldButtons = max(Self.heldButtons - 1, 0)
 
                 case .keyDown(let key):
                     try send(key: key, up: false)
@@ -1612,6 +1618,22 @@
 
         private func move(to point: Point, in geometry: WindowGeometry) throws {
             let position = try geometry.screenPosition(of: point)
+
+            // With a button held, a move must be input, not a cursor jump.
+            // `SetCursorPos` only places the cursor; WinUI follows a captured
+            // pointer through the pointer updates that SendInput raises, so a
+            // drag written as mousedown, moves, mouseup pressed the card and
+            // never dragged it: P108's throw logged no DRAG at all on WinUI
+            // (2026-10-19). The same reason the hover rows use stepped SendInput.
+            // 按住按鍵時，移動必須是輸入，而不是把游標跳過去。`SetCursorPos` 只是擺放游標;WinUI 追蹤被 capture 的
+            // 指標，靠的是 SendInput 產生的 pointer 更新，所以寫成 mousedown、移動、mouseup 的拖曳按下了卡片卻從沒
+            // 拖動它:P108 的拋擲在 WinUI 上連一行 DRAG 都沒有(2026-10-19)。hover 列改用分段 SendInput 也是同一個原因。
+            if Self.heldButtons > 0 {
+                sendAbsoluteMouseMove(to: position)
+                reportMouseMove(point: point, screen: position)
+                try assertPointIsOurs(point: point, screen: position)
+                return
+            }
 
             // `SetCursorPos` takes a physical screen coordinate, so multiple
             // monitors need no arithmetic here. Worth stating, because what this
