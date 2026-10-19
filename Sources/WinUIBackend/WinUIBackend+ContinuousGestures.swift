@@ -93,6 +93,10 @@ extension WinUIBackend: BackendFeatures.DragGestures,
                 )
             )
         }
+        target.onMouseDrag = { start, location, ended in
+            let value = DragGestureValue(startLocation: start, location: location)
+            if ended { onEnd(value) } else { onChange(value) }
+        }
     }
 
     public func createMagnifyGestureTarget(wrapping child: Widget) -> Widget {
@@ -181,6 +185,9 @@ final class ManipulationTarget: WinUI.Grid {
     var onDelta: Handler?
     var onCompleted: Handler?
     private var startLocation: SIMD2<Double> = .zero
+    /// A mouse drag's start, location and whether it ended (drag targets only).
+    /// 滑鼠拖曳的起點、位置與是否結束(僅拖曳目標)。
+    var onMouseDrag: ((SIMD2<Double>, SIMD2<Double>, Bool) -> Void)?
 
     init(child: WinUI.UIElement, mode: ManipulationModes) {
         super.init()
@@ -188,22 +195,119 @@ final class ManipulationTarget: WinUI.Grid {
         manipulationMode = mode
 
         _ = manipulationStarted.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
+            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
             self.startLocation = SIMD2(Double(args.position.x), Double(args.position.y))
         }
         _ = manipulationDelta.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
+            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
             self.onDelta?(args.cumulative, self.startLocation)
         }
         _ = manipulationCompleted.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
+            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
             self.onCompleted?(args.cumulative, self.startLocation)
+        }
+        // A mouse drag goes through pointer events instead. A mouse does raise
+        // manipulations when the input is real (SendInput), but WinUI delivers
+        // them late and in batches, every 47-78 ms: P108's throw read a release
+        // velocity of 0 pt/s on most runs, because SwiftCrossUI measures it over
+        // the last 0.1 s of points as they arrive and none had arrived
+        // (2026-10-19). Pointer events arrive with each move. Touch and pen keep
+        // the manipulation path, and a mouse is not reported through both.
+        // 滑鼠拖曳改走 pointer 事件。真正的滑鼠輸入(SendInput)確實會觸發 manipulation,但 WinUI 會延遲並成批送出，
+        // 每 47 到 78 ms 一次:P108 的拋擲多數時候讀到放開速度 0 pt/s,因為 SwiftCrossUI 以實際到達的最後 0.1 秒的點
+        // 計算速度，而那段時間沒有點到達(2026-10-19)。pointer 事件每次移動都會到。觸控與觸控筆仍走 manipulation,
+        // 滑鼠不會兩條路都回報。
+        _ = pointerPressed.addHandler { [weak self] _, args in
+            self?.mousePressed(args)
+        }
+        _ = pointerMoved.addHandler { [weak self] _, args in
+            self?.mouseMoved(args)
+        }
+        _ = pointerReleased.addHandler { [weak self] _, args in
+            self?.mouseReleased(args)
+        }
+        _ = pointerCaptureLost.addHandler { [weak self] _, _ in
+            self?.mouseCaptureLost()
+        }
+    }
+
+    /// The mouse drag in progress: where it started (in this target and against
+    /// the window's content) and where it is. A press and release without
+    /// movement is a click, not a drag, and reports nothing.
+    /// 進行中的滑鼠拖曳：起點(相對於本目標與相對於視窗內容)與目前位置。沒有移動的按下與放開是點擊，不是拖曳，不回報。
+    private struct MouseDrag {
+        var start: SIMD2<Double>
+        var rootStart: SIMD2<Double>
+        var location: SIMD2<Double>
+        var moved = false
+    }
+
+    private var mouseDrag: MouseDrag?
+
+    /// Whether a mouse manipulation is left to the pointer path.
+    /// 滑鼠的 manipulation 是否交給 pointer 路徑處理。
+    private func isMouseHandledElsewhere(_ device: WinAppSDK.PointerDeviceType) -> Bool {
+        device == .mouse && onMouseDrag != nil
+    }
+
+    private func point(_ args: PointerRoutedEventArgs?, against element: WinUI.UIElement?) -> SIMD2<Double>? {
+        guard let args, args.pointer.pointerDeviceType == .mouse,
+            let point = try? args.getCurrentPoint(element)
+        else { return nil }
+        return SIMD2(Double(point.position.x), Double(point.position.y))
+    }
+
+    private func mousePressed(_ args: PointerRoutedEventArgs?) {
+        guard onMouseDrag != nil, let args,
+            let position = point(args, against: self), let root = point(args, against: nil),
+            (try? args.getCurrentPoint(self))?.properties.isLeftButtonPressed == true
+        else { return }
+        mouseDrag = MouseDrag(start: position, rootStart: root, location: position)
+        _ = try? capturePointer(args.pointer)
+        args.handled = true
+    }
+
+    // Moved against the window's content, which stays put while the target
+    // may move with what it drags.
+    // 以視窗內容為參考計算移動——拖曳目標可能隨著被拖的東西移動，視窗內容則不動。
+    private func mouseMoved(_ args: PointerRoutedEventArgs?) {
+        guard var drag = mouseDrag, let args, let root = point(args, against: nil) else { return }
+        drag.location = drag.start + root - drag.rootStart
+        drag.moved = drag.moved || drag.location != drag.start
+        mouseDrag = drag
+        if drag.moved {
+            onMouseDrag?(drag.start, drag.location, false)
+        }
+        args.handled = true
+    }
+
+    private func mouseReleased(_ args: PointerRoutedEventArgs?) {
+        guard var drag = mouseDrag else { return }
+        mouseDrag = nil
+        if let args, let root = point(args, against: nil) {
+            drag.location = drag.start + root - drag.rootStart
+            drag.moved = drag.moved || drag.location != drag.start
+            try? releasePointerCapture(args.pointer)
+            args.handled = true
+        }
+        if drag.moved {
+            onMouseDrag?(drag.start, drag.location, true)
+        }
+    }
+
+    private func mouseCaptureLost() {
+        guard let drag = mouseDrag else { return }
+        mouseDrag = nil
+        if drag.moved {
+            onMouseDrag?(drag.start, drag.location, true)
         }
     }
 
     func clearHandlers() {
         onDelta = nil
         onCompleted = nil
+        onMouseDrag = nil
+        mouseDrag = nil
     }
 }
 
