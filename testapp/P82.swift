@@ -12,7 +12,7 @@ import SwiftCrossUI
 // Written 2026-10-07. Until then the role reached every backend and none used
 // it: on GtkBackend "button, destructive" drew like any other button. The user
 // chose each platform's own destructive style -- the system red label on AppKit
-// and UIKit, the theme's colorError on Android, GTK's destructive-action class,
+// and UIKit, the theme's colorError on Android, on GTK the theme's destructive text colour on the ordinary bezel (as AppKit; not the red-filled destructive-action class),
 // the critical system colour on WinUI.
 //
 // Pass: the three "destructive" buttons are in the platform's warning colour,

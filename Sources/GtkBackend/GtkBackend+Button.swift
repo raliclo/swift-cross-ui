@@ -110,41 +110,28 @@ extension GtkBackend {
         button.clicked = { _ in action() }
         button.buttonStyle = environment.resolvedButtonStyle.kind
         button.sensitive = environment.isEnabled
-        // GTK's own class for a destructive action, as `updateSimpleButton`
-        // does for a Menu: the theme's warning style -- red on Adwaita -- not a
-        // colour of ours. Removed as well as added, since the widget is reused.
-        // Until 2026-10-07 only the Menu path read the role, so
-        // `Button("Delete", role: .destructive)` drew like any other button.
-        // GTK 自有的破壞性動作類別，與 `updateSimpleButton` 對 Menu 的做法相同：用主題的警示樣式(Adwaita 上是紅色),
-        // 而不是我們的顏色。有加也有移除，因為 widget 會被重複使用。2026-10-07 之前只有 Menu 路徑讀取 role,
-        // 因此 `Button("Delete", role: .destructive)` 畫得與其他按鈕無異。
-        // A colour the application set wins, as on AppKit: the class fills the
-        // button red, and P82's "blue set" drew blue on red (2026-10-16).
-        // 應用程式設定的顏色優先，與 AppKit 相同：該類別會把按鈕填成紅色,P82 的「blue set」成了紅底藍字(2026-10-16)。
-        if environment.buttonRole == .destructive, environment.foregroundColor == nil {
-            gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
-        } else {
-            gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
-        }
+        // No `destructive-action` class here: it fills the whole button red with
+        // white text, where AppKit keeps the ordinary bezel and draws only the
+        // label red. The red reaches the label through
+        // `destructiveButtonLabelColor`, so a disabled one dims and an app's
+        // colour wins, as on AppKit (P82).
+        // 此處不加 `destructive-action` 類別：它會把整顆按鈕填成紅底白字，而 AppKit 保留一般外框、只把標籤畫成紅色。
+        // 紅色經由 `destructiveButtonLabelColor` 送到標籤，因此停用時會變淡、app 指定的顏色優先，與 AppKit 相同(P82)。
         button.loadCSS(environment: environment)
     }
 
-    /// For a borderless or plain destructive button only: the colour the theme
-    /// gives a `.flat.destructive-action` button's text, read from an unshown
-    /// probe button so it follows the theme and its variant rather than a
-    /// value of ours. A bordered one returns nil: the class paints it, red
-    /// with white text, and the label inherits that. Without this a borderless
-    /// one drew grey (P82 on GtkBackend, found by the Mac session on
-    /// 2026-10-07) -- the core gives a desktop borderless label a dimmed
-    /// suggested colour, which outranks the colour inherited from the class.
-    /// 僅限無框或 plain 的危險按鈕：主題賦予 `.flat.destructive-action` 按鈕文字的顏色，從一顆不顯示的探針按鈕讀取，
-    /// 因此跟隨主題及其變體，而非我們自己的值。bordered 的回傳 nil:class 會把它畫成紅底白字，標籤會繼承。少了這個，
-    /// 無框的會是灰字(P82,GtkBackend,Mac session 於 2026-10-07 發現)——core 給桌面無框標籤一個淡化的建議色，
-    /// 位階高於從 class 繼承來的顏色。
+    /// The colour the theme gives a `.flat.destructive-action` button's text,
+    /// for every button style, read from an unshown probe button so it follows
+    /// the theme and its variant rather than a value of ours. A destructive
+    /// button keeps the ordinary bezel and only its label turns red, as AppKit
+    /// draws it; a disabled one dims that red the way the core dims any
+    /// coloured label (`suggestedForegroundColor.opacity(0.3)`).
+    /// 對每一種按鈕樣式，回傳主題賦予 `.flat.destructive-action` 按鈕文字的顏色，從一顆不顯示的探針按鈕讀取，
+    /// 因此跟隨主題及其變體，而非我們自己的值。危險按鈕保留一般外框，只有標籤變紅，與 AppKit 相同;
+    /// 停用時，core 會像對任何有顏色的標籤一樣把這個紅色變淡(`suggestedForegroundColor.opacity(0.3)`)。
     public func destructiveButtonLabelColor(
         in environment: EnvironmentValues
     ) -> SwiftCrossUI.Color? {
-        guard environment.resolvedButtonStyle.kind != .bordered else { return nil }
         let probe = Gtk.Button()
         gtk_widget_add_css_class(probe.widgetPointer, "flat")
         gtk_widget_add_css_class(probe.widgetPointer, "destructive-action")
@@ -254,18 +241,11 @@ fileprivate final class GtkCustomButton: Gtk.Button {
         // 之前兩者每次更新都互相取代，所以 `.inspect { button.css.set(...) }` 輸給下一次 `updateButton`——
         // AdvancedCustomizationExample 的紅色 `+` 在 GtkBackend 上一直是灰的。下方的 `reloadCSS` 兩者都寫。
         let backgroundColor = GtkBackend.controlBackgroundColor(for: environment)
-        // No background of ours on a destructive button: this provider outranks
-        // the theme, so a background here would silently beat the
-        // `destructive-action` class `updateButton` adds -- the trap
-        // `cssProperties(deferToThemeStyleClass:)` documents for the Menu button.
-        // A destructive button with a colour of the app's gets no class (see
-        // `updateButton`), so it keeps the ordinary background.
-        // 帶有 app 指定顏色的危險按鈕不加該類別(見 `updateButton`),因此保留一般背景。
-        // 破壞性按鈕上不寫我們自己的背景：本 provider 位階高於主題，在此寫背景會靜默壓過 `updateButton`
-        // 加上的 `destructive-action` 類別——即 `cssProperties(deferToThemeStyleClass:)` 為 Menu 按鈕記載的陷阱。
-        let backgroundRule =
-            environment.buttonRole == .destructive && environment.foregroundColor == nil
-            ? "" : "background: \(CSSProperty.rgba(backgroundColor));"
+        // Every button, destructive or not, gets the ordinary background: a
+        // destructive one is marked by its label's colour alone, as AppKit
+        // draws it (see `destructiveButtonLabelColor`).
+        // 每顆按鈕，無論是否為危險按鈕，都用一般背景：危險按鈕只以標籤顏色標示，與 AppKit 相同(見 `destructiveButtonLabelColor`)。
+        let backgroundRule = "background: \(CSSProperty.rgba(backgroundColor));"
         baseCSS = """
                 button.customButton {
                     min-width: 0px;
