@@ -214,6 +214,16 @@ final class LongPressTextBox: TextBox {
             requested.isBackward
             ? TextDragSelection(anchor: end, extent: start)
             : TextDragSelection(anchor: start, extent: end)
-        MainActor.assumeIsolated { longPressSelection?(reported, phase) }
+        // The handler is taken out of `self` first. Passing the closure
+        // `{ longPressSelection?(...) }` sent `self` -- a TextBox, not Sendable --
+        // into assumeIsolated, which Swift 6.4 refuses ("sending 'self' risks
+        // causing data races"); this file was written on the Mac, which cannot
+        // compile WinUIBackend, and first built on Windows on 2026-10-19. Every
+        // event that reaches here is raised on the UI thread.
+        // 先把 handler 從 `self` 取出。原本的閉包 `{ longPressSelection?(...) }` 把 `self`(TextBox,非 Sendable)
+        // 送進 assumeIsolated,Swift 6.4 拒絕(「sending 'self' risks causing data races」);本檔是在編不到
+        // WinUIBackend 的 Mac 上寫的，2026-10-19 才第一次在 Windows 上建置。抵達此處的每個事件都在 UI 執行緒上引發。
+        nonisolated(unsafe) let handler = longPressSelection
+        MainActor.assumeIsolated { handler?(reported, phase) }
     }
 }
