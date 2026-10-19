@@ -21,6 +21,40 @@ public protocol AnimatableValue {
     /// `start` and `1` is `end`.
     /// 從 `start` 到 `end` 之間、進度為 `progress` 的那個值；`0` 為 `start`，`1` 為 `end`。
     static func interpolated(from start: Self, to end: Self, progress: Double) -> Self
+
+    /// The value that is no velocity, for keyframe velocities (a velocity is
+    /// a value of the type, measured from this one); nil when the type has
+    /// none, and then velocities given for it are not used. Defaulted to nil.
+    /// 代表「沒有速度」的值，供關鍵影格的速度使用(速度是此型別的一個值，從這個值量起);型別沒有時為 nil,此時為它給的
+    /// 速度不會被使用。預設為 nil。
+    static var animatableZero: Self? { get }
+}
+
+extension AnimatableValue {
+    public static var animatableZero: Self? { nil }
+
+    /// `velocity` (measured from ``animatableZero``) times `factor`, as a
+    /// velocity: built from interpolation alone, which is exact for the types
+    /// here because each interpolates linearly, beyond 0...1 too.
+    /// `velocity`(從 ``animatableZero`` 量起)乘以 `factor`,仍是速度：只用插值構成，對此處的型別是精確的，因為它們都
+    /// 線性插值，在 0...1 之外也是。
+    static func scaled(_ velocity: Self, by factor: Double, zero: Self) -> Self {
+        interpolated(from: zero, to: velocity, progress: factor)
+    }
+
+    /// `value` moved by `velocity` (a displacement measured from `zero`).
+    /// `value` 加上 `velocity`(從 `zero` 量起的位移)。
+    static func adding(_ velocity: Self, to value: Self, zero: Self) -> Self {
+        let middle = interpolated(from: value, to: velocity, progress: 0.5)
+        return interpolated(from: zero, to: middle, progress: 2)
+    }
+
+    /// `end - start` as a displacement measured from `zero`.
+    /// `end - start`,作為從 `zero` 量起的位移。
+    static func difference(from start: Self, to end: Self, zero: Self) -> Self {
+        let middle = interpolated(from: end, to: zero, progress: 0.5)
+        return interpolated(from: start, to: middle, progress: 2)
+    }
 }
 
 extension Double: AnimatableValue {
@@ -28,12 +62,16 @@ extension Double: AnimatableValue {
     {
         start + (end - start) * progress
     }
+
+    public static var animatableZero: Double? { 0 }
 }
 
 extension Float: AnimatableValue {
     public static func interpolated(from start: Float, to end: Float, progress: Double) -> Float {
         start + (end - start) * Float(progress)
     }
+
+    public static var animatableZero: Float? { 0 }
 }
 
 extension Int: AnimatableValue {
@@ -60,6 +98,8 @@ extension SIMD2: AnimatableValue where Scalar: BinaryFloatingPoint {
     ) -> SIMD2<Scalar> {
         start + (end - start) * Scalar(progress)
     }
+
+    public static var animatableZero: SIMD2<Scalar>? { .zero }
 }
 
 extension Color: AnimatableValue {

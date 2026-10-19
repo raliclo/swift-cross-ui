@@ -15,17 +15,22 @@ import Foundation
 //
 // - `LinearKeyframe`: from the value the previous keyframe left to its own, on a
 //   `UnitCurve`.
-// - `SpringKeyframe`: towards its value as a spring released from rest; the
+// - `SpringKeyframe`: towards its value as a spring, starting with its
+//   `startVelocity`, or the velocity the previous keyframe ended with; the
 //   segment ends after `duration` (the spring's response when nil) wherever the
-//   spring is, and the next keyframe starts from there.
-// - `CubicKeyframe`: a Catmull-Rom spline through the keyframe values, timed by
-//   the keyframe times (Barry and Goldman's construction, which needs only
-//   interpolation, so it works for any ``AnimatableValue``).
-// - `MoveKeyframe`: jumps to its value.
+//   spring is, and the next keyframe starts from there with its velocity.
+// - `CubicKeyframe`: a cubic Hermite curve whose end velocities are the given
+//   `startVelocity` / `endVelocity`, or else continue the neighbours: a
+//   Catmull-Rom spline through neighbouring cubic keyframes (timed by the
+//   keyframe times, as Barry and Goldman's construction times it), the velocity
+//   of a neighbouring keyframe of another kind, half the segment's average at
+//   the ends of the track.
+// - `MoveKeyframe`: jumps to its value and stops the motion (velocity zero).
 //
-// The velocity parameters SwiftUI accepts (`startVelocity`, `endVelocity`) are
-// accepted for source compatibility and not used: a segment starts at rest, as an
-// animation replaced in flight does here (see `Animation.spring(blendDuration:)`).
+// Velocities are values of the track's type, per second, measured from
+// `AnimatableValue.animatableZero` (0 for `Double` and `Float`, `.zero` for
+// `SIMD2`). A type without a zero ignores them and uses the Catmull-Rom spline
+// through its neighbours and springs from rest.
 //
 // **Phases.** The animator draws its content in one phase at a time and moves to
 // the next when the previous phase's animation has ended. The change is drawn
@@ -36,11 +41,13 @@ import Foundation
 // 關鍵影格與階段，以 SwiftUI 的名稱。**關鍵影格。** 每條軌道讓值的一個屬性(key path)依序經過它的關鍵影格;軌道
 // 並行，提早結束的軌道停在它最後的值。某一時刻的值是時間的純函數(``KeyframeTimeline``),所以 animator 只負責把
 // frame clock 餵給它：每一幀求出 timeline 的值、交給內容 closure,以它重新求值 body——SwiftUI 也是這樣做的。
-// `LinearKeyframe` 以 `UnitCurve` 從前一個關鍵影格留下的值走到自己的值;`SpringKeyframe` 像從靜止放開的彈簧般
-// 朝它的值移動，區段在 `duration`(nil 時為彈簧的 response)後結束，不論彈簧在哪裡，下一個關鍵影格從那裡開始;
-// `CubicKeyframe` 是通過各關鍵影格值、以關鍵影格時間為參數的 Catmull-Rom 樣條(Barry 與 Goldman 的構造只需要
-// 插值，所以適用任何 ``AnimatableValue``);`MoveKeyframe` 直接跳到它的值。SwiftUI 接受的速度參數為了原始碼
-// 相容而接受，但不使用：區段從靜止開始。
+// `LinearKeyframe` 以 `UnitCurve` 從前一個關鍵影格留下的值走到自己的值;`SpringKeyframe` 像彈簧般朝它的值移動，起始
+// 速度為它的 `startVelocity` 或前一個關鍵影格結束時的速度，區段在 `duration`(nil 時為彈簧的 response)後結束，不論彈簧
+// 在哪裡，下一個關鍵影格帶著它的速度從那裡開始;`CubicKeyframe` 是三次 Hermite 曲線，兩端速度為給定的 `startVelocity` /
+// `endVelocity`,否則延續鄰居：相鄰三次關鍵影格之間為 Catmull-Rom 樣條(以關鍵影格時間計時，與 Barry 與 Goldman 的構造
+// 相同),與其他種類的關鍵影格相鄰處為它的速度，軌道兩端為區段平均速度的一半;`MoveKeyframe` 直接跳到它的值並停止運動
+// (速度為零)。速度是軌道型別的值，以每秒計，從 `AnimatableValue.animatableZero` 量起(`Double` 與 `Float` 為 0,
+// `SIMD2` 為 `.zero`)。沒有零值的型別忽略速度，使用通過鄰居的 Catmull-Rom 樣條，彈簧從靜止開始。
 //
 // **階段。** animator 一次以一個階段畫出內容，前一個階段的動畫結束後移到下一個。改變在
 // `.animation(animation(phase), value: phase)` 之下畫出，所以內容的效果 modifier、frame、padding 與顏色會走直接
@@ -83,6 +90,17 @@ public struct UnitCurve: TimingCurve {
         self.progress(at: progress)
     }
 
+    /// The curve's slope at `fraction` (progress per unit of fraction), by a
+    /// difference over 1e-5, one-sided at the ends.
+    /// 曲線在 `fraction` 處的斜率(每單位 fraction 的進度),以 1e-5 的差分求得，兩端用單邊差分。
+    func slope(at fraction: Double) -> Double {
+        let h = 1e-5
+        let t = min(max(fraction, 0), 1)
+        let low = max(t - h, 0)
+        let high = min(t + h, 1)
+        return (progress(at: high) - progress(at: low)) / (high - low)
+    }
+
     public func progress(at fraction: Double) -> Double {
         let t = min(max(fraction, 0), 1)
         switch kind {
@@ -120,8 +138,8 @@ extension Spring {
 public struct _KeyframeSegment<Value: AnimatableValue> {
     enum Kind {
         case linear(UnitCurve)
-        case spring(Spring)
-        case cubic
+        case spring(Spring, startVelocity: Value?)
+        case cubic(startVelocity: Value?, endVelocity: Value?)
         case move
     }
 
@@ -147,9 +165,11 @@ public struct LinearKeyframe<Value: AnimatableValue>: KeyframeTrackContent {
     }
 }
 
-/// Moves towards `to` as `spring`, released from rest, for `duration` seconds
-/// (the spring's response when nil). `startVelocity` is not used.
-/// 以從靜止放開的 `spring` 朝 `to` 移動 `duration` 秒(nil 時為彈簧的 response)。不使用 `startVelocity`。
+/// Moves towards `to` as `spring` for `duration` seconds (the spring's response
+/// when nil), starting with `startVelocity` (per second), or when nil with the
+/// velocity the previous keyframe ended with (none at the start of the track).
+/// 以 `spring` 朝 `to` 移動 `duration` 秒(nil 時為彈簧的 response),起始速度為 `startVelocity`(每秒);nil 時為前一個
+/// 關鍵影格結束時的速度(軌道開頭則為零)。
 public struct SpringKeyframe<Value: AnimatableValue>: KeyframeTrackContent {
     public var _segments: [_KeyframeSegment<Value>]
 
@@ -160,19 +180,32 @@ public struct SpringKeyframe<Value: AnimatableValue>: KeyframeTrackContent {
         startVelocity: Value? = nil
     ) {
         _segments = [
-            _KeyframeSegment(target: to, duration: max(duration ?? spring.response, 0), kind: .spring(spring))
+            _KeyframeSegment(
+                target: to, duration: max(duration ?? spring.response, 0),
+                kind: .spring(spring, startVelocity: startVelocity)
+            )
         ]
     }
 }
 
-/// Moves to `to` in `duration` seconds on a Catmull-Rom spline through the
-/// neighbouring keyframes. The velocities are not used.
-/// 在 `duration` 秒內，沿通過相鄰關鍵影格的 Catmull-Rom 樣條移到 `to`。不使用速度參數。
+/// Moves to `to` in `duration` seconds on a cubic curve. Its velocity at each
+/// end (per second) is the one given; when nil, next to another cubic keyframe
+/// it is a Catmull-Rom spline's through the neighbouring values, next to
+/// another kind of keyframe it is that keyframe's velocity there, and at the
+/// start or end of the track half the segment's average.
+/// 在 `duration` 秒內沿三次曲線移到 `to`。兩端的速度(每秒)為給定的值;nil 時，與另一個三次關鍵影格相鄰處為通過相鄰
+/// 值的 Catmull-Rom 樣條的速度，與其他種類的關鍵影格相鄰處為那個關鍵影格在該處的速度，軌道開頭或結尾則為區段平均速度的
+/// 一半。
 public struct CubicKeyframe<Value: AnimatableValue>: KeyframeTrackContent {
     public var _segments: [_KeyframeSegment<Value>]
 
     public init(_ to: Value, duration: Double, startVelocity: Value? = nil, endVelocity: Value? = nil) {
-        _segments = [_KeyframeSegment(target: to, duration: max(duration, 0), kind: .cubic)]
+        _segments = [
+            _KeyframeSegment(
+                target: to, duration: max(duration, 0),
+                kind: .cubic(startVelocity: startVelocity, endVelocity: endVelocity)
+            )
+        ]
     }
 }
 
@@ -276,35 +309,165 @@ public struct KeyframeTrack<Root, Value: AnimatableValue>: Keyframes {
 }
 
 /// One track's keyframes laid out in time, from a start value.
-/// 一條軌道的關鍵影格在時間上的排列，從一個起始值開始。
+///
+/// Velocities are values of the track's type measured from
+/// `Value.animatableZero`, per second. A type without one (the Barry-Goldman
+/// spline then, and springs from rest) still animates; the arithmetic on
+/// velocities is built from interpolation, so it needs no more of the type.
+///
+/// 一條軌道的關鍵影格在時間上的排列，從一個起始值開始。速度是軌道型別的值，從 `Value.animatableZero` 量起，以每秒計。
+/// 沒有它的型別(此時用 Barry-Goldman 樣條，彈簧從靜止開始)仍會動畫;速度的運算以插值構成，所以對型別沒有更多要求。
 struct KeyframeCurve<Value: AnimatableValue> {
     struct Placed {
         var segment: _KeyframeSegment<Value>
         var startTime: Double
         var startValue: Value
         var endValue: Value
+        /// A spring's start velocity. / 彈簧的起始速度。
+        var startVelocity: Value?
+        /// The velocity at the end, which a following keyframe may take up.
+        /// 結束時的速度，後面的關鍵影格可能接續它。
+        var endVelocity: Value?
+        /// A cubic's velocities at its two ends. / 三次關鍵影格兩端的速度。
+        var tangents: (start: Value, end: Value)?
     }
 
     let start: Value
     private(set) var placed: [Placed] = []
     private(set) var duration = 0.0
+    private let zero: Value?
 
     init(start: Value, segments: [_KeyframeSegment<Value>]) {
         self.start = start
+        zero = Value.animatableZero
         var time = 0.0
         var value = start
         // Each segment starts where the previous one ended -- a spring cut
-        // short starts the next keyframe from where it got to.
-        // 每個區段從前一個結束之處開始——提早切斷的彈簧，下一個關鍵影格從它到達之處開始。
-        for segment in segments {
+        // short starts the next keyframe from where it got to, and with the
+        // velocity it had there.
+        // 每個區段從前一個結束之處開始——提早切斷的彈簧，下一個關鍵影格從它到達之處、以它在那裡的速度開始。
+        for (index, segment) in segments.enumerated() {
             var entry = Placed(segment: segment, startTime: time, startValue: value, endValue: segment.target)
+            if let zero, segment.duration > 0 {
+                switch segment.kind {
+                    case .spring(_, let given):
+                        entry.startVelocity = given ?? placed.last?.endVelocity ?? zero
+                    case .cubic(let givenStart, let givenEnd):
+                        entry.tangents = (
+                            start: givenStart ?? startTangent(of: entry, zero: zero),
+                            end: givenEnd ?? endTangent(of: entry, next: segments.dropFirst(index + 1).first, zero: zero)
+                        )
+                    case .linear, .move:
+                        break
+                }
+            }
             placed.append(entry)
             entry.endValue = self.value(ofSegment: placed.count - 1, at: segment.duration)
+            if let zero {
+                entry.endVelocity = endVelocity(of: entry, zero: zero)
+            }
             placed[placed.count - 1] = entry
             time += segment.duration
             value = entry.endValue
         }
         duration = time
+    }
+
+    /// Half the segment's average velocity: a cubic's at an end with no
+    /// neighbour, which is what a Catmull-Rom spline gets from a neighbour equal
+    /// to that end.
+    /// 區段平均速度的一半：沒有鄰居的那一端的三次曲線速度，即 Catmull-Rom 樣條在鄰居等於該端點時得到的值。
+    private func halfAverage(_ entry: Placed, zero: Value) -> Value {
+        Value.scaled(
+            Value.difference(from: entry.startValue, to: entry.segment.target, zero: zero),
+            by: 0.5 / entry.segment.duration,
+            zero: zero
+        )
+    }
+
+    /// The Catmull-Rom velocity at `p1` (time `t1`) between `p0` and `p2`,
+    /// weighted by the times as Barry and Goldman's construction weights it.
+    /// `p0` 與 `p2` 之間、在 `p1`(時間 `t1`)的 Catmull-Rom 速度，以時間加權，與 Barry 與 Goldman 的構造相同。
+    private func catmullRom(
+        _ p0: Value, _ t0: Double, _ p1: Value, _ t1: Double, _ p2: Value, _ t2: Double, zero: Value
+    ) -> Value {
+        let before = Value.scaled(
+            Value.difference(from: p0, to: p1, zero: zero), by: (t2 - t1) / ((t1 - t0) * (t2 - t0)), zero: zero
+        )
+        let after = Value.scaled(
+            Value.difference(from: p1, to: p2, zero: zero), by: (t1 - t0) / ((t2 - t1) * (t2 - t0)), zero: zero
+        )
+        return Value.adding(after, to: before, zero: zero)
+    }
+
+    /// A cubic's start velocity when none is given: a cubic before it hands
+    /// over its end velocity, another kind of keyframe its velocity at the
+    /// end; at the start of the track, or after a move, half the average.
+    /// 沒有給定時三次曲線的起始速度：前面的三次曲線交出它的結束速度，其他種類的關鍵影格交出它結束時的速度;軌道開頭或
+    /// move 之後，為平均速度的一半。
+    private func startTangent(of entry: Placed, zero: Value) -> Value {
+        guard let previous = placed.last, previous.segment.duration > 0 else {
+            return halfAverage(entry, zero: zero)
+        }
+        return previous.tangents?.end ?? previous.endVelocity ?? halfAverage(entry, zero: zero)
+    }
+
+    /// A cubic's end velocity when none is given, from the keyframe after it:
+    /// a cubic's given start velocity or else the Catmull-Rom velocity through
+    /// its target, a linear keyframe's start velocity, a spring's given start
+    /// velocity; otherwise half the average.
+    /// 沒有給定時三次曲線的結束速度，取自其後的關鍵影格：三次曲線給定的起始速度，否則為通過其目標的 Catmull-Rom 速度;
+    /// 線性關鍵影格的起始速度;彈簧給定的起始速度;其他情況為平均速度的一半。
+    private func endTangent(of entry: Placed, next: _KeyframeSegment<Value>?, zero: Value) -> Value {
+        guard let next, next.duration > 0 else { return halfAverage(entry, zero: zero) }
+        let end = entry.startTime + entry.segment.duration
+        switch next.kind {
+            case .cubic(let nextStart, _):
+                return nextStart
+                    ?? catmullRom(
+                        entry.startValue, entry.startTime, entry.segment.target, end, next.target,
+                        end + next.duration, zero: zero
+                    )
+            case .linear(let curve):
+                return Value.scaled(
+                    Value.difference(from: entry.segment.target, to: next.target, zero: zero),
+                    by: curve.slope(at: 0) / next.duration,
+                    zero: zero
+                )
+            case .spring(_, let nextStart?):
+                return nextStart
+            case .spring, .move:
+                return halfAverage(entry, zero: zero)
+        }
+    }
+
+    /// The velocity `entry` ends with. / `entry` 結束時的速度。
+    private func endVelocity(of entry: Placed, zero: Value) -> Value {
+        let segment = entry.segment
+        guard segment.duration > 0 else { return zero }
+        switch segment.kind {
+            case .move:
+                return zero
+            case .linear(let curve):
+                return Value.scaled(
+                    Value.difference(from: entry.startValue, to: segment.target, zero: zero),
+                    by: curve.slope(at: 1) / segment.duration,
+                    zero: zero
+                )
+            case .spring(let spring, _):
+                let t = segment.duration
+                let fromTarget = Value.scaled(
+                    Value.difference(from: segment.target, to: entry.startValue, zero: zero),
+                    by: spring.remainingRate(at: t),
+                    zero: zero
+                )
+                let fromStart = Value.scaled(
+                    entry.startVelocity ?? zero, by: spring.velocityPerUnitVelocity(at: t), zero: zero
+                )
+                return Value.adding(fromStart, to: fromTarget, zero: zero)
+            case .cubic:
+                return entry.tangents?.end ?? zero
+        }
     }
 
     /// The value `time` seconds into the track; held at the end after it.
@@ -343,23 +506,46 @@ struct KeyframeCurve<Value: AnimatableValue> {
                 return Value.interpolated(
                     from: entry.startValue, to: segment.target, progress: curve.progress(at: fraction)
                 )
-            case .spring(let spring):
-                return Value.interpolated(
-                    from: entry.startValue,
-                    to: segment.target,
-                    progress: 1 - spring.remaining(at: min(max(local, 0), segment.duration))
+            case .spring(let spring, _):
+                let t = min(max(local, 0), segment.duration)
+                let released = Value.interpolated(
+                    from: entry.startValue, to: segment.target, progress: 1 - spring.remaining(at: t)
+                )
+                guard let zero, let velocity = entry.startVelocity else { return released }
+                return Value.adding(
+                    Value.scaled(velocity, by: spring.displacementPerUnitVelocity(at: t), zero: zero),
+                    to: released,
+                    zero: zero
                 )
             case .cubic:
+                if let zero, let tangents = entry.tangents {
+                    return hermiteValue(entry, tangents: tangents, fraction: fraction, zero: zero)
+                }
                 return cubicValue(ofSegment: index, at: local)
         }
     }
 
+    /// The cubic Hermite curve from the segment's start to its target with
+    /// these end velocities. / 從區段起點到目標、帶這兩端速度的三次 Hermite 曲線。
+    private func hermiteValue(
+        _ entry: Placed, tangents: (start: Value, end: Value), fraction s: Double, zero: Value
+    ) -> Value {
+        let d = entry.segment.duration
+        let h01 = -2 * s * s * s + 3 * s * s
+        let h10 = s * s * s - 2 * s * s + s
+        let h11 = s * s * s - s * s
+        let between = Value.interpolated(from: entry.startValue, to: entry.segment.target, progress: h01)
+        let pushed = Value.adding(Value.scaled(tangents.start, by: d * h10, zero: zero), to: between, zero: zero)
+        return Value.adding(Value.scaled(tangents.end, by: d * h11, zero: zero), to: pushed, zero: zero)
+    }
+
     /// Barry and Goldman's pyramid for a Catmull-Rom spline through the values
     /// before, at the ends of and after this segment, with the keyframe times as
-    /// knots. A missing neighbour is the segment's own end, so the curve starts
-    /// or ends without overshoot.
-    /// Barry 與 Goldman 的金字塔：通過此區段之前、兩端與之後的值的 Catmull-Rom 樣條，以關鍵影格時間為節點。
-    /// 缺少的鄰居以區段自己的端點代替，讓曲線在開頭或結尾不會衝過頭。
+    /// knots, for a type with no zero to measure velocities from. A missing
+    /// neighbour is the segment's own end, so the curve starts or ends without
+    /// overshoot.
+    /// Barry 與 Goldman 的金字塔：通過此區段之前、兩端與之後的值的 Catmull-Rom 樣條，以關鍵影格時間為節點，供沒有可量
+    /// 速度之零值的型別使用。缺少的鄰居以區段自己的端點代替，讓曲線在開頭或結尾不會衝過頭。
     private func cubicValue(ofSegment index: Int, at local: Double) -> Value {
         let entry = placed[index]
         let t1 = entry.startTime

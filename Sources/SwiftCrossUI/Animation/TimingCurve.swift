@@ -292,7 +292,52 @@ public struct Spring: TimingCurve {
         )
     }
 
-    private var omega: Double { 2 * .pi / response }
+    var omega: Double { 2 * .pi / response }
+
+    /// Where a spring at its target and given a velocity of 1 is `time`
+    /// seconds later: the displacement a start velocity adds, per unit of it.
+    /// 一個位於目標、獲得速度 1 的彈簧在 `time` 秒後的位置：起始速度每單位所增加的位移。
+    func displacementPerUnitVelocity(at time: Double) -> Double {
+        let zeta = dampingFraction
+        let w = omega
+        if zeta < 1 {
+            let wd = w * (1 - zeta * zeta).squareRoot()
+            return exp(-zeta * w * time) * sin(wd * time) / wd
+        } else if zeta == 1 {
+            return time * exp(-w * time)
+        } else {
+            let root = (zeta * zeta - 1).squareRoot()
+            let r1 = -w * (zeta - root)
+            let r2 = -w * (zeta + root)
+            return (exp(r1 * time) - exp(r2 * time)) / (r1 - r2)
+        }
+    }
+
+    /// The rate of ``displacementPerUnitVelocity(at:)``: that spring's
+    /// velocity at `time`.
+    /// ``displacementPerUnitVelocity(at:)`` 的變化率：那個彈簧在 `time` 時的速度。
+    func velocityPerUnitVelocity(at time: Double) -> Double {
+        let zeta = dampingFraction
+        let w = omega
+        if zeta < 1 {
+            let wd = w * (1 - zeta * zeta).squareRoot()
+            return exp(-zeta * w * time) * (cos(wd * time) - zeta * w / wd * sin(wd * time))
+        } else if zeta == 1 {
+            return exp(-w * time) * (1 - w * time)
+        } else {
+            let root = (zeta * zeta - 1).squareRoot()
+            let r1 = -w * (zeta - root)
+            let r2 = -w * (zeta + root)
+            return (r1 * exp(r1 * time) - r2 * exp(r2 * time)) / (r1 - r2)
+        }
+    }
+
+    /// The rate of ``remaining(at:)``: `-omega^2` times
+    /// ``displacementPerUnitVelocity(at:)``, as both solve the same equation.
+    /// ``remaining(at:)`` 的變化率:`-omega^2` 乘以 ``displacementPerUnitVelocity(at:)``,因為兩者解的是同一個方程式。
+    func remainingRate(at time: Double) -> Double {
+        -omega * omega * displacementPerUnitVelocity(at: time)
+    }
 
     /// The distance still to go at `time` seconds, starting from 1.
     /// 在第 `time` 秒時還剩下的距離，起點為 1。
