@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P110 on iOS: gradients that tween -- Text .foregroundStyle(gradient), shape gradient fills and strokes
+# The app runs its own steps and logs them; this file presses nothing, so test_ios.zsh runs it without the
+# XCUITest runner (which stalls the app while attached) and keeps its stdout for the sum of the sleeps.
+# Pass: the criteria in testapp/P110.swift's header, read from output/p110-ios-stdout.log.
+# P110 在 iOS 上:會補間的漸層——Text 的 .foregroundStyle(漸層)、形狀的漸層填色與筆畫。app 自己執行並記錄步驟;本檔什麼都不按，所以 test_ios.zsh 不經 XCUITest runner 執行它
+# (runner 附加時會拖慢 app),並在所有 sleep 的總時間內保留 stdout。通過條件見 testapp/P110.swift 的檔頭。
+sleep,,,,,,8000000,let P110 run its steps,ios

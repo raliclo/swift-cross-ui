@@ -18,7 +18,7 @@
 //           Linear(0, 0.5 s), shown for 3.2 s. Pass: 3 wraps, err as above.
 //   PHASE   phaseAnimator([0, 1, 2], trigger:) offset x = phase * 80, each step
 //           .linear(duration: 0.5). Pass: phases 1, 2, 0 in that order, steps
-//           0.48-0.6 s apart; at every 8 ms sample the drawn x within one
+//           0.48-0.6 s apart; each drawn x, at the first 8 ms sample showing it, within one
 //           frame (17 ms at the step's speed, 160 or 320 pt/s) of the line
 //           through the step's first moved sample -- the timer samples a value
 //           the frame clock writes, so a frame of skew is the resolution.
@@ -353,7 +353,19 @@ struct P106RootView: View {
                     let rate = (step.to - step.from) / 0.5
                     guard let moved = window.first(where: { abs($0.values[0] - step.from) > 0.01 }) else { continue }
                     let t0 = moved.time - (moved.values[0] - step.from) / rate
+                    // Each drawn value is checked at the first sample that shows
+                    // it: that sample is at most one 8 ms sampling interval after
+                    // the frame that wrote it, whereas a later sample of the same
+                    // value is as far behind as the gap to the next frame -- 33 ms
+                    // when an emulator drops one, which measured the frame cadence
+                    // and not the curve (Android, 18-33 ms, 2026-10-19).
+                    // 每個畫出的值都在「第一個顯示它的樣本」上檢查：那個樣本距離寫入它的畫格最多一個 8 ms 取樣間隔;
+                    // 同一個值較晚的樣本則落後到下一個畫格為止——模擬器掉一格時是 33 ms,量到的是畫格節奏而不是曲線
+                    // (Android,18-33 ms,2026-10-19)。
+                    var previous: Double?
                     for sample in window where sample.time >= moved.time {
+                        defer { previous = sample.values[0] }
+                        if let previous, previous == sample.values[0] { continue }
                         let progress = min(1, (sample.time - t0) / 0.5)
                         let expected = step.from + (step.to - step.from) * progress
                         err = max(err, abs(sample.values[0] - expected))

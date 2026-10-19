@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P111 on Android: keyframe velocities (SpringKeyframe startVelocity, CubicKeyframe start and end velocities, velocity carried across keyframes)
+# The app runs its own steps and logs them; this file presses nothing and keeps the app open while they run.
+# Pass: the criteria in testapp/P111.swift's header, read from logcat (the [P111] lines).
+# P111 在 Android 上:關鍵影格的速度(SpringKeyframe 的 startVelocity、CubicKeyframe 的起止速度、跨關鍵影格延續的速度)。app 自己執行並記錄步驟;本檔什麼都不按，只讓 app 在步驟執行期間保持開啟。
+# 通過條件見 testapp/P111.swift 的檔頭，從 logcat 的 [P111] 行讀取。
+sleep,,,,,,5000000,let P111 run its steps,android
