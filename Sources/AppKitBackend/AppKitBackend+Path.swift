@@ -84,7 +84,20 @@ extension AppKitBackend {
     }
 
     public func createPathWidget() -> NSView {
-        NSBezierPathView()
+        let view = NSBezierPathView()
+        // A stroke is centred on the path, so half of it lies outside a shape
+        // that fills its frame: a 14 pt ring in a 120 pt frame reaches 7 pt
+        // past each side. SwiftUI draws all of it, and so does GtkBackend
+        // (gtk_passthrough_drawing_area.c overflows its allocation). An NSView
+        // clips its drawing to its bounds by default on a current SDK, which
+        // cut P43's ring flat on four sides; not clipping lets `draw(_:)`
+        // reach past them. Clipping a view asks for is its container's.
+        // 描邊以路徑為中心，所以填滿 frame 的形狀有一半的描邊在 frame 之外:120 pt frame 中 14 pt 的環在每一邊
+        // 都超出 7 pt。SwiftUI 會畫出全部,GtkBackend 也是(gtk_passthrough_drawing_area.c 會溢出它的配置)。
+        // 在目前的 SDK 上 NSView 預設把繪製裁到自己的 bounds,P43 的環因此四邊被削平；不裁切讓 `draw(_:)` 能畫到
+        // bounds 之外。view 要求的裁切由它的容器負責。
+        view.clipsToBounds = false
+        return view
     }
 
     public func createPath() -> Path {
