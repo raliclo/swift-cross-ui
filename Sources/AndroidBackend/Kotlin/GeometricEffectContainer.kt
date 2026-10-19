@@ -3,6 +3,7 @@ package dev.swiftcrossui.androidbackend
 import android.app.Activity
 import android.graphics.Matrix
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 
@@ -30,6 +31,23 @@ class GeometricEffectContainer(activity: Activity) : FrameLayout(activity) {
     }
 
     private val matrix = Matrix()
+
+    // True while a CustomContainer parent hands over a touch it has mapped
+    // through this container's animation matrix (CustomContainer's
+    // claimTransformed). With a matrix set and such a parent, a touch arriving
+    // the usual way was hit-tested against the place the content has left, and
+    // is refused so the parent carries on to whatever is drawn there.
+    // CustomContainer 父容器交出一個已經以本容器 animation matrix 換算過的觸控時為 true(CustomContainer 的
+    // claimTransformed)。設有矩陣且父容器是這種容器時，以一般方式到達的觸控是以內容已經離開的位置判定的，
+    // 因此拒收，讓父容器繼續交給那裡畫著的東西。
+    var touchFromParent = false
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (animationMatrix != null && parent is CustomContainer && !touchFromParent) {
+            return false
+        }
+        return super.dispatchTouchEvent(ev)
+    }
 
     override fun generateDefaultLayoutParams() =
         FrameLayout.LayoutParams(

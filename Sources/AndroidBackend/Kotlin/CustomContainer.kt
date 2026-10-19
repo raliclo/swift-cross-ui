@@ -1,6 +1,7 @@
 package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
+import android.graphics.Matrix
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -153,6 +154,69 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
     // 只把觸控交給邊界包含該點的子元件，所以排到父容器邊緣之外的 view 看得到卻點不到:P41 的第二欄起點在視窗預設寬度之外,
     // 在 Android 上收不到點擊,UIKitBackend 的收得到(2026-10-10)。沒有子元件以一般方式接下 ACTION_DOWN 時，就把它交給
     // 該點落在其外的每個子容器(最上層的先);那個容器對自己的子元件做同樣的事，接下的那個取得這次手勢的其餘事件。
+    // A child drawn through an animation matrix -- a GeometricEffectContainer
+    // carrying .offset, .scaleEffect, .rotationEffect or a transition -- is
+    // touched where it is drawn. Android hit-tests a child by its layout bounds
+    // and getMatrix(), and the animation matrix is in neither, so a card thrown
+    // 300 points along took touches at the place it had left and none where it
+    // was (P108 on the tablet AVD, 2026-10-19). On ACTION_DOWN the point is
+    // mapped through each such child's inverse matrix, topmost first, and a
+    // child drawn under it gets the touch in its own coordinates. The mapping
+    // is kept for the rest of the gesture: a dragged view moves under the
+    // finger, and remapping through its new matrix would make every drag
+    // distance zero.
+    // 經由 animation matrix 畫出的子元件——帶著 .offset、.scaleEffect、.rotationEffect 或轉場的
+    // GeometricEffectContainer——畫在哪裡就在哪裡被觸碰。Android 以子元件的版面邊界與 getMatrix() 判定觸控，
+    // 而 animation matrix 不在兩者之中，所以一張被拋到 300 點外的卡片，在它離開的地方收得到觸控，在它所在之處
+    // 卻收不到(P108,平板 AVD,2026-10-19)。ACTION_DOWN 時，把觸控點經由每個這種子元件的反矩陣換算(最上層的先),
+    // 點落在其畫出範圍內的子元件以它自己的座標接下觸控。這次手勢的其餘事件沿用同一個換算：被拖曳的 view 會在手指下
+    // 移動，若改用它新的矩陣換算，每一段拖曳距離都會是零。
+    private var transformedTarget: GeometricEffectContainer? = null
+    private val transformedMapping = Matrix()
+
+    private fun forwardTransformed(child: GeometricEffectContainer, ev: MotionEvent): Boolean {
+        val copy = MotionEvent.obtain(ev)
+        copy.transform(transformedMapping)
+        child.touchFromParent = true
+        val handled = child.dispatchTouchEvent(copy)
+        child.touchFromParent = false
+        copy.recycle()
+        return handled
+    }
+
+    // Stops at the first child, from the top, that holds the point: a child
+    // without an animation matrix there leaves the touch to the usual dispatch.
+    // 從最上層往下，停在第一個包含該點的子元件：那裡若是沒有 animation matrix 的子元件，就交回一般的分派。
+    private fun claimTransformed(ev: MotionEvent): Boolean {
+        val point = FloatArray(2)
+        val inverse = Matrix()
+        for (i in childCount - 1 downTo 0) {
+            val child = getChildAt(i)
+            if (child.visibility != View.VISIBLE) continue
+            val x = ev.x + scrollX - child.x
+            val y = ev.y + scrollY - child.y
+            val transformed = child as? GeometricEffectContainer
+            val drawn = transformed?.animationMatrix
+            if (transformed == null || drawn == null) {
+                if (x >= 0 && y >= 0 && x < child.width && y < child.height) return false
+                continue
+            }
+            if (!drawn.invert(inverse)) continue
+            point[0] = x
+            point[1] = y
+            inverse.mapPoints(point)
+            if (point[0] < 0 || point[1] < 0 || point[0] >= child.width || point[1] >= child.height) continue
+            transformedMapping.setTranslate(scrollX - child.x, scrollY - child.y)
+            transformedMapping.postConcat(inverse)
+            if (forwardTransformed(transformed, ev)) {
+                transformedTarget = transformed
+                return true
+            }
+            return false
+        }
+        return false
+    }
+
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (HitTesting.isDisabled(this)) {
             return false
@@ -160,6 +224,19 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         val action = ev.actionMasked
         if (action == MotionEvent.ACTION_DOWN) {
             overflowTarget = null
+        }
+        if (action == MotionEvent.ACTION_DOWN) {
+            transformedTarget = null
+        }
+        transformedTarget?.let { target ->
+            val handled = forwardTransformed(target, ev)
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                transformedTarget = null
+            }
+            return handled
+        }
+        if (action == MotionEvent.ACTION_DOWN && claimTransformed(ev)) {
+            return true
         }
         overflowTarget?.let { target ->
             val handled = forward(target, ev)

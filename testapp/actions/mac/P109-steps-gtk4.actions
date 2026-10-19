@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P109 on macOS (GtkBackend): Text colour and gradients tweening
+# The app runs its own steps and logs them; this file presses nothing and keeps the app open while they run.
+# Pass: the criteria in testapp/P109.swift's header, read from the app's log (the [P109] lines).
+# P109 在 macOS (GtkBackend) 上:Text 顏色與漸層的補間。app 自己執行並記錄步驟;本檔什麼都不按，只讓 app 在步驟執行期間保持開啟。
+# 通過條件見 testapp/P109.swift 的檔頭，從 app 的 log([P109] 行)讀取。
+sleep,,,,,,8000000,let P109 run its steps,gtk

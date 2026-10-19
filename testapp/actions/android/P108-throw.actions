@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P108 on Android: a real throw of the card into its bound and a held drag back, after the app's own FREE and BOUND steps (about 10 s).
+# Positions from the swift-cross-ui-tablet36 AVD on 2026-10-19 (2560x1600 px at density 320, 2x): the 40x40 dp
+# card starts at x 20-60, y 138-178 and may move along x up to 300 dp.
+# THROW: 20 dp per move with 16 ms sleeps (about 1200 dp/s), let go while moving: hard enough to end on the bound
+# whatever the received speed, so the card's place after it is known. Pass (logcat [P108] lines): the DRAG release
+# velocity equal to the speed over the last 0.1 s of the points as received, the coast frames on the closed form
+# within 0.01 pt, and the end on the bound at 300.00.
+# HOLD: the card pressed where the throw left it (x 320-360, centre 340 -- not its layout place), dragged 30 dp
+# left and held 0.4 s before letting go. Pass: a DRAG release about 30 dp back with velocity 0 and HOLD, no coast.
+# P108 在 Android 上：真正把卡片拋到邊界，再按住拖回來，在 app 自己的 FREE 與 BOUND 之後(約 10 秒)。通過條件見上方英文說明。
+sleep,,,,,,11000000,let P108 run FREE and BOUND,android
+mousedown,40,158,,left,,,THROW: press on the card,android
+sleep,,,,,,100000,,android
+move,60,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,80,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,100,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,120,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,140,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,160,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,180,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,200,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,220,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+move,240,158,,,,,drag right,android
+sleep,,,,,,16000,,android
+mouseup,240,158,,left,,,let go while moving,android
+sleep,,,,,,3000000,let the coast end on the bound,android
+mousedown,340,158,,left,,,"HOLD: press on the card where the throw left it (on the bound, centre x 340)",android
+sleep,,,,,,100000,,android
+move,335,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+move,330,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+move,325,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+move,320,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+move,315,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+move,310,158,,,,,drag left,android
+sleep,,,,,,50000,,android
+sleep,,,,,,400000,hold still,android
+mouseup,310,158,,left,,,let go,android
+sleep,,,,,,1500000,,android
