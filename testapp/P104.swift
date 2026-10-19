@@ -10,7 +10,12 @@
 //          100 -> 300, the padding 0 -> 200 (padded width 40 -> 240), a Color
 //          view and a Circle fill blue -> red. At p >= 0.5 (onUpdate), each is
 //          compared with start + (end - start) * p. Pass: MID err <= 1 (size)
-//          and <= 3 (colour), DONE at the end values, body evaluations 1.
+//          and <= 3 (colour), DONE at the end values, body evaluations 2: one for
+//          `wide = true` and one for the MID line, which `record` writes into the
+//          `status` state. The animation itself adds none. Every backend reads 2
+//          (iOS, Android, WinUI, Windows and WSL GTK, 2026-10-19); this said 1 until
+//          then, which counted the animation and forgot the readout.
+//          body evaluations 2:一次來自 `wide = true`,一次來自 MID 那一行(`record` 寫進 `status`);動畫本身不增加。
 //   VALUE  tall = true, no withAnimation, under .animation(.linear(duration: 1),
 //          value: tall): a frame height 30 -> 120. Every sample against the
 //          line through the first one. Pass: err <= 3, frames >= 20, DONE 120.
