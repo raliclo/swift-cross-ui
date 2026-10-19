@@ -145,7 +145,7 @@ extension EitherView: TypeSafeView {
             // The child switched away from stays drawn while it departs; the
             // new one is inserted in front of it (Transition.swift).
             // 被切換掉的子元件在離場期間繼續畫出;新的插在它前面(Transition.swift)。
-            let newChild: Backend.Widget = children.node.widget.into()
+            let newChild: Backend.Widget = TransitionLookup.outerWidget(of: children.node.erasedNode).into()
             children.departing.commitSwitch(
                 container: widget,
                 backend: backend,
@@ -210,15 +210,17 @@ class EitherViewChildren<A: View, B: View>: ViewGraphNodeChildren {
     var hasCommitted = false
 
     /// Replaces the node with `new`. Under an animation the old child departs
-    /// with its `.transition` and the new one is inserted with its own.
-    /// 以 `new` 取代節點。在動畫中，舊的子元件以它的 `.transition` 離場，新的以它自己的轉場插入。
+    /// with its `.transition` and the new one is inserted with its own (or the
+    /// default fade, for either).
+    /// 以 `new` 取代節點。在動畫中，舊的子元件以它的 `.transition` 離場，新的以它自己的轉場插入(沒有的話都是預設的
+    /// 淡入淡出)。
     func switchNode(to new: EitherNode, environment: EnvironmentValues) {
         if hasCommitted, pendingDeparture == nil {
             pendingDeparture = departing.depart(node.erasedNode, environment: environment)
         }
         node = new
         if hasCommitted, let transaction = TransitionLookup.animatedTransaction(in: environment) {
-            TransitionLookup.controller(in: new.erasedNode)?.pendingInsertion = transaction
+            TransitionLookup.prepareInsertion(of: new.erasedNode, transaction: transaction)
         }
     }
 

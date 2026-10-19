@@ -64,6 +64,14 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     /// The environment most recently provided by this node's parent.
     private var parentEnvironment: EnvironmentValues
 
+    /// The fade a container gives the view when it inserts or removes it under
+    /// an animation without a `.transition` (Transition.swift).
+    /// 容器在動畫中插入或移除此 view、而它沒有 `.transition` 時給它的淡入淡出(Transition.swift)。
+    var defaultTransition: DefaultTransitionSlot?
+    /// Where the parent's layout last placed the widget in its container.
+    /// 父層排版上次把 widget 放在其容器中的位置。
+    var committedPosition: SIMD2<Int>?
+
     /// The dynamic property updater for this view.
     private var dynamicPropertyUpdater: DynamicPropertyUpdater<NodeView>
 
@@ -431,6 +439,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             backend: backend
         )
         resultCache = [:]
+        defaultTransition?.commit(size: currentLayout.size.vector, environment: parentEnvironment)
 
         backend.showUpdate(of: widget)
 

@@ -70,12 +70,12 @@ extension OptionalView: TypeSafeView {
                     environment: environment
                 )
                 children.node = node
-                // Inserted under an animation: the child's `.transition` runs.
-                // 在動畫中插入：子元件的 `.transition` 會執行。
+                // Inserted under an animation: the child's `.transition` runs,
+                // or the default fade. / 在動畫中插入：子元件的 `.transition` 會執行，或是預設的淡入。
                 if children.hasCommitted,
                     let transaction = TransitionLookup.animatedTransaction(in: environment)
                 {
-                    TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                    TransitionLookup.prepareInsertion(of: node, transaction: transaction)
                 }
                 result = node.computeLayout(
                     with: view,
@@ -86,8 +86,9 @@ extension OptionalView: TypeSafeView {
             }
         } else {
             hasToggled = children.node != nil
-            // Under an animation a child with a `.transition` departs instead
-            // of going at once. / 在動畫中，帶 `.transition` 的子元件會離場，而不是立刻消失。
+            // Under an animation the child departs with its `.transition` (or
+            // the default fade) instead of going at once.
+            // 在動畫中，子元件帶著它的 `.transition`(或預設的淡出)離場，而不是立刻消失。
             if let node = children.node, children.hasCommitted, children.pendingDeparture == nil {
                 children.pendingDeparture = children.departing.depart(
                     ErasedViewGraphNode(wrapping: node),
@@ -117,7 +118,7 @@ extension OptionalView: TypeSafeView {
             // The removed child stays drawn while it departs; the new one is
             // inserted in front of it (Transition.swift).
             // 被移除的子元件在離場期間繼續畫出;新的子元件插在它前面(Transition.swift)。
-            let newChild: Backend.Widget? = children.node?.widget.into()
+            let newChild: Backend.Widget? = children.node.map { TransitionLookup.outerWidget(of: $0) }?.into()
             children.departing.commitSwitch(
                 container: widget,
                 backend: backend,

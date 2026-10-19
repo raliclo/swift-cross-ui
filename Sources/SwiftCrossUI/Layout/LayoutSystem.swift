@@ -57,6 +57,11 @@ public enum LayoutSystem {
             ) -> ViewLayoutResult
         private var _commit: @MainActor () -> ViewLayoutResult
         var tag: String?
+        /// Told where the layout placed the child in its container, when it
+        /// is a view graph node (for a default fade that wraps it later,
+        /// Transition.swift).
+        /// 當子元件是 view graph node 時，被告知排版把它放在容器中的哪裡(供之後包住它的預設淡出使用,Transition.swift)。
+        var onPosition: (@MainActor (SIMD2<Int>) -> Void)?
 
         public init(
             computeLayout: @escaping @MainActor (ProposedViewSize, EnvironmentValues)
@@ -85,6 +90,9 @@ public enum LayoutSystem {
                     node.commit()
                 }
             )
+            onPosition = { position in
+                ((node.node as AnyObject) as? any DefaultTransitionNode)?.committedPosition = position
+            }
         }
 
         @MainActor
@@ -427,6 +435,7 @@ public enum LayoutSystem {
             }
 
             backend.setPosition(ofChildAt: index, in: container, to: position.vector)
+            children[index].onPosition?(position.vector)
 
             position[component: orientation] += child.size[component: orientation] + Double(spacing)
         }
@@ -826,6 +835,7 @@ public enum LayoutSystem {
             let position = alignment.position(ofChild: child.size.vector, in: size.vector)
 
             backend.setPosition(ofChildAt: index, in: container, to: position)
+            children[index].onPosition?(position)
         }
     }
 }
@@ -1151,11 +1161,9 @@ extension LayoutSystem {
             let cross = plan.laneOffsets[lane] + crossOffset
             let along = lines.offsets[line] + (lines.sizes[line] - childAlongExtent) / 2
 
-            backend.setPosition(
-                ofChildAt: index,
-                in: container,
-                to: plan.axis == .vertical ? SIMD2(cross, along) : SIMD2(along, cross)
-            )
+            let position = plan.axis == .vertical ? SIMD2(cross, along) : SIMD2(along, cross)
+            backend.setPosition(ofChildAt: index, in: container, to: position)
+            children[index].onPosition?(position)
         }
 
         backend.setSize(of: container, to: layout.size.vector)

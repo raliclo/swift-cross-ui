@@ -5,7 +5,7 @@
 // the frame clock (no body evaluation); a removed view stays drawn until its
 // removal ends.
 //
-// The app runs five steps by itself and logs each. Values are what the
+// The app runs six steps by itself and logs each. Values are what the
 // transitions drew (TransitionDiagnostics), compared in the same frame with
 // AnyTransition.effects(for:size:progress:) at the animation's progress p.
 //   INSERT  withAnimation(.linear(duration: 1)) { shown = true }: seven views
@@ -26,11 +26,27 @@
 //           row 2 removed, then row 9 inserted. Pass: MID err <= 0.5 pt for
 //           the leaving and the arriving row; the leaving row's onDisappear
 //           0.75-1.2 s after the change.
+//   DEFAULT views with no `.transition` fade, SwiftUI's default (`.opacity`).
+//           IF: withAnimation(.linear(duration: 1)) inserts, then removes, a
+//           60x30 view in an `if`; MID at p >= 0.5 the opacity set on the
+//           widget against p (insert) or 1 - p (remove). Pass: opacity err <=
+//           0.01, the frame drawn on a widget, DONE at opacity 1 (insert), and
+//           onDisappear 0.95-1.4 s after the removal. ELSE: an if/else of two
+//           views under withAnimation(.linear(duration: 0.8)); MID the leaving
+//           view against 1 - p and the arriving one against p, err <= 0.01.
+//           EACH: a ForEach under .animation(.linear(duration: 0.8), value:)
+//           loses row 2, then gains row 9; the frame nearest the middle against
+//           its own progress and the clock. Pass: opacity err <= 0.01, the
+//           frame's progress within 0.05 of the clock, drawn on a widget.
+//           NOANIM: the `if` view inserted with no animation. Pass: no frames
+//           (it appears at once). IDENTITY: a view with `.transition(.identity)`
+//           inserted and removed under withAnimation. Pass: every frame at
+//           opacity 1, translation 0.
 //   JUMP    shown = true with no animation. Pass: no transition frame runs.
 //
 // P105:插入與移除轉場——`if`、`if`/`else` 與 `ForEach` 在 `withAnimation` 或 `.animation(_:value:)` 之下
 // 插入或移除的 view 上的 `.transition(...)`。每一幀由 frame clock 設到 view 的效果容器上(不求值 body);被移除
-// 的 view 會一直畫到移除結束。app 自己執行五個步驟並記錄;數值是轉場畫出的東西(TransitionDiagnostics),
+// 的 view 會一直畫到移除結束;沒有 `.transition` 的 view 淡入淡出(SwiftUI 的預設)。app 自己執行六個步驟並記錄;數值是轉場畫出的東西(TransitionDiagnostics),
 // 在同一幀與動畫進度 p 時的 AnyTransition.effects(for:size:progress:) 比較。通過條件見上方英文說明。
 
 import DefaultBackend
@@ -72,7 +88,7 @@ struct P105App: App {
                 P105RootView()
             }
         }
-        .defaultSize(width: 480, height: 700)
+        .defaultSize(width: 480, height: 920)
     }
 }
 
@@ -146,6 +162,10 @@ struct P105RootView: View {
     @State var useB = false
     @State var rows = [P105Row(id: 1), P105Row(id: 2), P105Row(id: 3), P105Row(id: 4)]
     @State var status = "steps: running"
+    @State var defShown = false
+    @State var defB = false
+    @State var defRows = [P105Row(id: 1), P105Row(id: 2), P105Row(id: 3)]
+    @State var idShown = false
 
     static let colors: [Color] = [
         Color(red: 0.9, green: 0.2, blue: 0.2), Color(red: 0.2, green: 0.6, blue: 0.2),
@@ -196,13 +216,55 @@ struct P105RootView: View {
             .animation(.linear(duration: 0.8), value: rows)
             .frame(height: 140, alignment: .top)
 
+            Text("no .transition (default fade): if, if/else, ForEach; .identity").font(.system(size: 12))
+            HStack(alignment: .top, spacing: 6) {
+                ZStack {
+                    if defShown {
+                        Color(red: 0.8, green: 0.3, blue: 0.3)
+                            .frame(width: 60, height: 30)
+                            .onDisappear {
+                                P105Disappear.times["def-if"] = ProcessInfo.processInfo.systemUptime
+                            }
+                    }
+                }
+                .frame(width: 60, height: 30)
+                ._effectDiagnosticsLabel("def-if")
+                ZStack {
+                    if defB {
+                        Color(red: 0.2, green: 0.4, blue: 0.9).frame(width: 60, height: 30)
+                    } else {
+                        Color(red: 0.9, green: 0.6, blue: 0.1).frame(width: 60, height: 30)
+                    }
+                }
+                .frame(width: 60, height: 30)
+                ._effectDiagnosticsLabel("def-else")
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(defRows) { row in
+                        Color(red: 0.3, green: 0.6, blue: row.id == 2 ? 0.9 : 0.3).frame(width: 60, height: 16)
+                    }
+                }
+                .animation(.linear(duration: 0.8), value: defRows)
+                .frame(width: 60, height: 70, alignment: .top)
+                ._effectDiagnosticsLabel("def-each")
+                ZStack {
+                    if idShown {
+                        Color(red: 0.5, green: 0.5, blue: 0.5)
+                            .frame(width: 60, height: 30)
+                            .transition(.identity)
+                    }
+                }
+                .frame(width: 60, height: 30)
+                ._effectDiagnosticsLabel("def-identity")
+            }
+            .frame(height: 70, alignment: .top)
+
             HStack(spacing: 6) {
                 Button("Shown") { withAnimation { shown.toggle() } }
                 Button("A/B") { withAnimation { useB.toggle() } }
             }
             Text(status)
                 .font(.system(size: 11))
-                .frame(width: 440, height: 230, alignment: .topLeading)
+                .frame(width: 440, height: 330, alignment: .topLeading)
         }
         .padding(16)
         .onAppear {
@@ -394,6 +456,164 @@ struct P105RootView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         MainActor.assumeIsolated {
                             record("EACH INSERT \(rowError("row9", phase: .insertion))")
+                            next(defaults)
+                        }
+                    }
+                }
+            }
+        }
+
+        /// The last frame of `label` in `phase`. / `label` 在 `phase` 中的最後一幀。
+        func last(_ label: String, _ phase: AnyTransition.Phase) -> TransitionDiagnostics.Sample? {
+            TransitionDiagnostics.samples[label]?.last { $0.phase == phase }
+        }
+
+        /// The default fade's frame against `p`: opacity err, and whether it
+        /// was set on a widget. / 預設淡入淡出的一幀對照 `p`:不透明度誤差，以及它是否設到了 widget 上。
+        func fadeError(_ label: String, _ phase: AnyTransition.Phase, p: Double) -> String {
+            guard let sample = last(label, phase) else { return "\(label) no frames" }
+            let expected = phase == .insertion ? p : 1 - p
+            return String(
+                format: "%@ opacity %.3f err=%.3f, drawn %@",
+                label, sample.effects.visual.opacity, abs(sample.effects.visual.opacity - expected),
+                sample.isDrawn ? "yes" : "no"
+            )
+        }
+
+        /// The default fade's frame nearest the middle of an 0.8 s tween: its
+        /// opacity against its own progress, and that progress against the clock.
+        /// 0.8 秒補間中最接近中點的預設淡入淡出幀：不透明度對照它自己的進度，進度再對照時鐘。
+        func eachFade(_ phase: AnyTransition.Phase) -> String {
+            let samples = (TransitionDiagnostics.samples["def-each"] ?? []).filter { $0.phase == phase }
+            guard let first = samples.first,
+                let mid = samples.filter(\.isRunning).min(by: {
+                    abs($0.time - first.time - 0.4) < abs($1.time - first.time - 0.4)
+                })
+            else { return "def-each no frames" }
+            let p = phase == .insertion ? mid.presence : 1 - mid.presence
+            let expected = phase == .insertion ? p : 1 - p
+            let clockP = min(1, (mid.time - first.time) / 0.8)
+            return String(
+                format: "p=%.3f (clock %.3f) opacity %.3f err=%.3f, drawn %@, frames %ld",
+                p, clockP, mid.effects.visual.opacity, abs(mid.effects.visual.opacity - expected),
+                mid.isDrawn ? "yes" : "no", samples.count
+            )
+        }
+
+        func defaults() {
+            TransitionDiagnostics.clear()
+            let probe = P105Probe()
+            probe.started = uptime
+            let insertion = Animation.linear(duration: 1).onUpdate { p in
+                guard !probe.midLogged, p >= 0.5 else { return }
+                probe.midLogged = true
+                record("DEFAULT IF INSERT MID p=\(String(format: "%.3f", p)) \(fadeError("def-if", .insertion, p: p))")
+            }
+            withAnimation(insertion) {
+                defShown = true
+            } completion: {
+                record(
+                    "DEFAULT IF INSERT DONE at \(String(format: "%.2f", uptime - probe.started)) s; \(fadeError("def-if", .insertion, p: 1)); frames \(TransitionDiagnostics.samples["def-if"]?.count ?? 0)"
+                )
+                next(defaultRemove)
+            }
+        }
+
+        func defaultRemove() {
+            P105Disappear.times = [:]
+            TransitionDiagnostics.clear()
+            let probe = P105Probe()
+            probe.started = uptime
+            let removal = Animation.linear(duration: 1).onUpdate { p in
+                guard !probe.midLogged, p >= 0.5 else { return }
+                probe.midLogged = true
+                record("DEFAULT IF REMOVE MID p=\(String(format: "%.3f", p)) \(fadeError("def-if", .removal, p: p))")
+            }
+            withAnimation(removal) {
+                defShown = false
+            } completion: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    MainActor.assumeIsolated {
+                        record(
+                            "DEFAULT IF REMOVE DONE; \(fadeError("def-if", .removal, p: 1)); onDisappear \(disappearances(["def-if"], since: probe.started))"
+                        )
+                        next(defaultElse)
+                    }
+                }
+            }
+        }
+
+        func defaultElse() {
+            TransitionDiagnostics.clear()
+            let probe = P105Probe()
+            let animation = Animation.linear(duration: 0.8).onUpdate { p in
+                guard !probe.midLogged, p >= 0.5 else { return }
+                probe.midLogged = true
+                record(
+                    "DEFAULT ELSE MID p=\(String(format: "%.3f", p)) leaving \(fadeError("def-else", .removal, p: p)); arriving \(fadeError("def-else", .insertion, p: p))"
+                )
+            }
+            withAnimation(animation) {
+                defB = true
+            } completion: {
+                next(defaultEach)
+            }
+        }
+
+        func defaultEach() {
+            TransitionDiagnostics.clear()
+            defRows.remove(at: 1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                MainActor.assumeIsolated {
+                    record("DEFAULT EACH REMOVE row2 \(eachFade(.removal))")
+                    TransitionDiagnostics.clear()
+                    defRows.insert(P105Row(id: 9), at: 1)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        MainActor.assumeIsolated {
+                            record("DEFAULT EACH INSERT row9 \(eachFade(.insertion))")
+                            next(defaultNoAnimation)
+                        }
+                    }
+                }
+            }
+        }
+
+        func defaultNoAnimation() {
+            TransitionDiagnostics.clear()
+            defShown = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                MainActor.assumeIsolated {
+                    defShown = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        MainActor.assumeIsolated {
+                            record(
+                                "DEFAULT NOANIM frames \(TransitionDiagnostics.samples["def-if"]?.count ?? 0) (insert and remove with no animation)"
+                            )
+                            next(defaultIdentity)
+                        }
+                    }
+                }
+            }
+        }
+
+        func defaultIdentity() {
+            TransitionDiagnostics.clear()
+            withAnimation(.linear(duration: 0.6)) {
+                idShown = true
+            } completion: {
+                withAnimation(.linear(duration: 0.6)) {
+                    idShown = false
+                } completion: {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        MainActor.assumeIsolated {
+                            let samples = TransitionDiagnostics.samples["def-identity"] ?? []
+                            let opacity = samples.map { abs($0.effects.visual.opacity - 1) }.max() ?? .infinity
+                            let moved = samples.map {
+                                max(abs($0.effects.geometric.translation.x), abs($0.effects.geometric.translation.y))
+                            }.max() ?? .infinity
+                            record(
+                                "DEFAULT IDENTITY frames \(samples.count) (insert \(samples.filter { $0.phase == .insertion }.count), remove \(samples.filter { $0.phase == .removal }.count)); opacity err=\(String(format: "%.3f", opacity)), translation \(String(format: "%.2f", moved)) pt"
+                            )
                             next(jump)
                         }
                     }

@@ -262,10 +262,12 @@ extension ForEach: TypeSafeView, View where Child: View {
                         backend: backend,
                         environment: environment
                     )
-                    insertChild(node.widget.into(), atIndex: index)
+                    // Its transition first: the default fade wraps the widget
+                    // before it goes in. / 先準備轉場：預設的淡入會在 widget 放進去之前把它包起來。
                     if let transaction {
-                        TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                        TransitionLookup.prepareInsertion(of: node, transaction: transaction)
                     }
+                    insertChild(TransitionLookup.outerWidget(of: node).into(), atIndex: index)
 
                     // `offset` tracks how many elements have been inserted, which we
                     // use to adjust old indices. All nodes before the one we just
@@ -472,10 +474,10 @@ extension ForEach: TypeSafeView, View where Child: View {
                     backend: backend,
                     environment: environment
                 )
-                insertChild(node.widget.into(), atIndex: children.nodes.count)
                 if let transaction {
-                    TransitionLookup.controller(in: node)?.pendingInsertion = transaction
+                    TransitionLookup.prepareInsertion(of: node, transaction: transaction)
                 }
+                insertChild(TransitionLookup.outerWidget(of: node).into(), atIndex: children.nodes.count)
                 children.nodes.append(node)
                 let layoutableChild = LayoutSystem.LayoutableChild(node) { child(element) }
                 layoutableChildren.append(layoutableChild)
@@ -535,6 +537,7 @@ extension ForEach: TypeSafeView, View where Child: View {
                     if departure.isFinished {
                         backend.remove(childAt: index, from: widget)
                     } else {
+                        departure.installWrapper(at: index, in: widget, backend: backend)
                         departures.insert(departure, at: 0)
                     }
             }

@@ -21,8 +21,17 @@ import Foundation
 // **Which transition applies.** The container looks for a `.transition` from the
 // root of the inserted or removed view down through views with a single child,
 // so `Text("a").transition(.slide).padding()` uses `.slide`. Without one the view
-// is inserted and removed at once -- SwiftUI fades it (`.opacity` is its default);
-// here that needs the `.transition(.opacity)` written out.
+// fades (`.opacity`, SwiftUI's default) under the same conditions; without an
+// animation it is inserted and removed at once, and `.transition(.identity)` opts
+// out. A view with a `matchedGeometryEffect` does not fade when it is removed, or
+// when it is inserted with an id another view has held: it flies instead.
+//
+// **The default fade.** The view has no transition containers of its own, so the
+// container wraps its widget in a visual-effect container (``DefaultTransitionSlot``):
+// an inserted view before its widget enters the container, a removed one at the
+// container's commit, which takes the widget out and puts the wrapper in its place,
+// at the position the layout last gave it. The wrapper stays for the view's life
+// and takes its size at each commit of the view.
 //
 // 插入與移除的轉場:`.transition(.opacity)`、`.scale`、`.slide`、`.move(edge:)`、`.offset`、
 // `.push(from:)`、`.asymmetric`、`.combined(with:)` 與 `.identity`,SwiftUI 的名稱與語意。`if`、`if`/`else`
@@ -36,8 +45,13 @@ import Foundation
 // 飛過去),它則以最後的 frame 畫在上面。
 //
 // **套用哪一個轉場。** 容器從被插入或移除的 view 的根往下，沿著只有一個子節點的 view 尋找 `.transition`,所以
-// `Text("a").transition(.slide).padding()` 用的是 `.slide`。沒有的話，view 立刻插入與移除——SwiftUI 會淡入淡出
-// (它的預設是 `.opacity`);這裡要明寫 `.transition(.opacity)`。
+// `Text("a").transition(.slide).padding()` 用的是 `.slide`。沒有的話，view 在同樣的條件下淡入淡出(`.opacity`,
+// SwiftUI 的預設);沒有動畫時立刻插入與移除,`.transition(.identity)` 則可退出。帶 `matchedGeometryEffect` 的 view
+// 被移除時、或以另一個 view 持有過的 id 插入時不淡入淡出，而是飛過去。
+//
+// **預設的淡入淡出。** view 自己沒有轉場容器，所以由容器把它的 widget 包進一個視覺效果容器
+// (``DefaultTransitionSlot``):插入的 view 在其 widget 進入容器之前;移除的 view 在容器 commit 時——把 widget 取出、
+// 在原處(排版上次給它的位置)放上包裝容器。包裝容器在 view 的一生中都留著，並在 view 每次 commit 時取得它的尺寸。
 
 /// How a view is drawn as it is inserted or removed -- SwiftUI's `AnyTransition`.
 ///
@@ -370,6 +384,15 @@ final class TransitionController {
         }
     }
 
+    /// Takes `size` as the committed size without drawing, for a default
+    /// transition whose container is put in place by the container's commit
+    /// after the removal has started.
+    /// 把 `size` 當作已 commit 的尺寸而不繪製，供預設轉場使用：它的容器在移除開始之後，才由容器的 commit 放上。
+    func adopt(size: SIMD2<Double>) {
+        self.size = size
+        hasCommitted = true
+    }
+
     /// Starts the removal from what is drawn; `finished` runs when it ends.
     /// Returns false when there is nothing to animate (no animation), in which
     /// case `finished` is not called and the container removes the view now.
@@ -445,7 +468,7 @@ final class TransitionController {
         }
     }
 
-    private func draw() {
+    func draw() {
         var effects = effects
         // A zero scale is a singular transform, which GTK cannot invert to pick
         // the widget; a ten-thousandth draws the same nothing.
@@ -455,13 +478,16 @@ final class TransitionController {
             Self.awayFromZero(effects.geometric.scale.y)
         )
         let transform = effects.geometric.resolved(in: size)
-        if transform != lastGeometric {
+        // Remembered only once set on a widget, so a container that arrives
+        // later still gets the frame drawn now.
+        // 只有真的設到 widget 上才記下，讓之後才到的容器仍會拿到現在這一幀。
+        if transform != lastGeometric, let drawGeometric {
             lastGeometric = transform
-            drawGeometric?(transform)
+            drawGeometric(transform)
         }
-        if effects.visual != lastVisual {
+        if effects.visual != lastVisual, let drawVisual {
             lastVisual = effects.visual
-            drawVisual?(effects.visual)
+            drawVisual(effects.visual)
         }
         if let diagnosticsLabel {
             TransitionDiagnostics.record(
@@ -469,7 +495,8 @@ final class TransitionController {
                 phase: phase,
                 state: state,
                 presence: presence,
-                effects: effects
+                effects: effects,
+                isDrawn: drawVisual != nil || drawGeometric != nil
             )
         }
     }
@@ -632,6 +659,151 @@ enum TransitionLookup {
         else { return nil }
         return transaction
     }
+
+    /// Sets up the transition of a view a container inserts under
+    /// `transaction`, before its widget enters the container: its own
+    /// `.transition`, or else the default fade.
+    /// 為容器在 `transaction` 之下插入的 view 準備轉場，在它的 widget 進入容器之前：它自己的 `.transition`,否則是
+    /// 預設的淡入。
+    static func prepareInsertion(of node: ErasedViewGraphNode, transaction: EffectTransaction) {
+        if let controller = controller(in: node) {
+            controller.pendingInsertion = transaction
+            return
+        }
+        guard let host = defaultTransitionHost(for: node, inserting: true),
+            host.installDefaultTransitionWrapper() != nil
+        else { return }
+        host.defaultTransition?.controller.pendingInsertion = transaction
+    }
+
+    static func prepareInsertion<V: View>(of node: AnyViewGraphNode<V>, transaction: EffectTransaction) {
+        prepareInsertion(of: ErasedViewGraphNode(wrapping: node), transaction: transaction)
+    }
+
+    /// The node that takes the default fade, or nil when the view does not fade:
+    /// a view with a `matchedGeometryEffect` flies instead when it is removed,
+    /// or inserted with an id another view has held.
+    /// 接受預設淡入淡出的節點;view 不淡入淡出時為 nil:帶 `matchedGeometryEffect` 的 view 被移除時、或以另一個
+    /// view 持有過的 id 插入時，改為飛過去。
+    static func defaultTransitionHost(
+        for node: ErasedViewGraphNode,
+        inserting: Bool
+    ) -> (any DefaultTransitionNode)? {
+        if let key = matchedKey(in: node) {
+            guard inserting, MatchedGeometryRegistry.shared.existing(key) == nil else { return nil }
+        }
+        return node.node as? any DefaultTransitionNode
+    }
+
+    /// The `matchedGeometryEffect` id at the root of `node`, down through
+    /// nodes with a single child. / `node` 的根(沿著只有一個子節點的節點往下)上的 `matchedGeometryEffect` id。
+    static func matchedKey(in node: ErasedViewGraphNode) -> MatchedGeometryKey? {
+        var children = node.transform(with: Children())
+        for _ in 0..<64 {
+            if let host = children as? any MatchedGeometryHosting {
+                return host.matchedKey
+            }
+            let nodes = children.erasedNodes
+            guard nodes.count == 1 else { return nil }
+            children = nodes[0].transform(with: Children())
+        }
+        return nil
+    }
+
+    /// The widget a container holds for `node`: the default fade's wrapper when
+    /// it has one, else the node's own widget.
+    /// 容器為 `node` 持有的 widget:有預設淡入淡出的包裝容器時是它，否則是節點自己的 widget。
+    static func outerWidget(of node: ErasedViewGraphNode) -> AnyWidget {
+        (node.node as? any DefaultTransitionNode)?.defaultTransition?.wrapper ?? node.getWidget()
+    }
+
+    static func outerWidget<V: View>(of node: AnyViewGraphNode<V>) -> AnyWidget {
+        ((node.node as AnyObject) as? any DefaultTransitionNode)?.defaultTransition?.wrapper ?? node.widget
+    }
+}
+
+/// The fade a view gets when a container inserts or removes it under an
+/// animation and it has no `.transition` -- SwiftUI's default, `.opacity`: a
+/// visual-effect container around the view's widget and the controller that
+/// sets it each frame.
+/// 容器在動畫中插入或移除一個沒有 `.transition` 的 view 時，它得到的淡入淡出——SwiftUI 的預設 `.opacity`:包在 view 的
+/// widget 外的視覺效果容器，以及每一幀設定它的 controller。
+@MainActor
+final class DefaultTransitionSlot {
+    let controller = TransitionController()
+    /// The visual-effect container; nil until installed.
+    /// 視覺效果容器;放上之前為 nil。
+    private(set) var wrapper: AnyWidget?
+    private var setWrapperSize: ((SIMD2<Int>) -> Void)?
+
+    init() {
+        controller.transition = .opacity
+    }
+
+    var isInstalled: Bool { wrapper != nil }
+
+    /// Wraps `widget`, which must have no parent, in a visual-effect container;
+    /// nil on a backend without one, or when already installed.
+    /// 把沒有父層的 `widget` 包進一個視覺效果容器;backend 沒有這種容器、或已經放上時回傳 nil。
+    func install<Backend: BaseAppBackend>(
+        around widget: Backend.Widget,
+        backend: Backend
+    ) -> Backend.Widget? {
+        guard wrapper == nil, let wrapped = VisualEffectWidgets.wrap(widget, backend: backend) else {
+            return nil
+        }
+        wrapper = AnyWidget(wrapped)
+        setWrapperSize = { size in backend.setSize(of: wrapped, to: size) }
+        controller.drawVisual = VisualEffectWidgets.setter(for: wrapped, backend: backend)
+        return wrapped
+    }
+
+    /// Called on every commit of the view: the wrapper takes its size, and the
+    /// transition starts (on the first) or draws.
+    /// view 每次 commit 時呼叫：包裝容器取得它的尺寸，轉場開始(第一次)或繪製。
+    func commit(size: SIMD2<Int>, environment: EnvironmentValues) {
+        guard isInstalled else { return }
+        setWrapperSize?(size)
+        controller.diagnosticsLabel = environment.effectDiagnosticsLabel
+        controller.commit(size: SIMD2(Double(size.x), Double(size.y)))
+    }
+
+    /// The wrapper was put in place by the container's commit during a
+    /// removal: it takes the size and the frame the removal is at.
+    /// 包裝容器在移除期間由容器的 commit 放上：取得尺寸，以及移除進行到的那一幀。
+    func placed(size: SIMD2<Int>) {
+        setWrapperSize?(size)
+        controller.draw()
+    }
+}
+
+/// A view graph node that can take the default fade.
+/// 可以接受預設淡入淡出的 view graph node。
+@MainActor
+protocol DefaultTransitionNode: AnyObject {
+    var defaultTransition: DefaultTransitionSlot? { get set }
+    /// Where the parent's layout last placed the node's widget (or wrapper).
+    /// 父層排版上次放置節點 widget(或包裝容器)的位置。
+    var committedPosition: SIMD2<Int>? { get set }
+    /// Wraps the node's widget, which must have no parent, in its slot's
+    /// container (made if needed); nil when that cannot be done.
+    /// 把沒有父層的節點 widget 包進它的 slot 的容器(需要時建立);做不到時回傳 nil。
+    func installDefaultTransitionWrapper() -> AnyWidget?
+}
+
+extension ViewGraphNode: DefaultTransitionNode {
+    func installDefaultTransitionWrapper() -> AnyWidget? {
+        let slot = defaultTransition ?? DefaultTransitionSlot()
+        defaultTransition = slot
+        return slot.install(around: widget, backend: backend).map { AnyWidget($0) }
+    }
+}
+
+/// Children that carry a `matchedGeometryEffect` id, found by ``TransitionLookup``.
+/// 帶著 `matchedGeometryEffect` id 的 children,由 ``TransitionLookup`` 找到。
+@MainActor
+protocol MatchedGeometryHosting: AnyObject {
+    var matchedKey: MatchedGeometryKey { get }
 }
 
 /// Views a container removed under an animation, kept in the container after
@@ -654,11 +826,38 @@ final class DepartingViews {
         let node: AnyObject
         let size: SIMD2<Int>
         var isFinished = false
+        /// The node whose default fade needs its wrapper put in place at the
+        /// container's commit; nil once done or when none is needed.
+        /// 預設淡出需要在容器 commit 時放上包裝容器的節點;完成後或不需要時為 nil。
+        var wrapsAtCommit: (any DefaultTransitionNode)?
 
         init(widget: AnyWidget, node: AnyObject, size: SIMD2<Int>) {
             self.widget = widget
             self.node = node
             self.size = size
+        }
+
+        /// Puts the default fade's wrapper where the departing widget is, at
+        /// `index` in `container`: the widget comes out, goes into the wrapper,
+        /// and the wrapper goes in at the same index and position.
+        /// 把預設淡出的包裝容器放到離場 widget 所在之處，即 `container` 中的 `index`:widget 取出、放進包裝容器，
+        /// 包裝容器放回同一個索引與位置。
+        @MainActor func installWrapper<Backend: BaseAppBackend>(
+            at index: Int,
+            in container: Backend.Widget,
+            backend: Backend
+        ) {
+            guard let host = wrapsAtCommit else { return }
+            wrapsAtCommit = nil
+            backend.remove(childAt: index, from: container)
+            guard let wrapper = host.installDefaultTransitionWrapper() else {
+                backend.insert(widget.into(), into: container, at: index)
+                backend.setPosition(ofChildAt: index, in: container, to: host.committedPosition ?? .zero)
+                return
+            }
+            backend.insert(wrapper.into(), into: container, at: index)
+            backend.setPosition(ofChildAt: index, in: container, to: host.committedPosition ?? .zero)
+            host.defaultTransition?.placed(size: size)
         }
     }
 
@@ -677,20 +876,40 @@ final class DepartingViews {
     var isEmpty: Bool { committed.isEmpty }
 
     /// Starts `node`'s removal transition when the update runs under an
-    /// animation and the view has one; nil when it should go at once.
-    /// 當更新帶動畫且 view 有轉場時，啟動 `node` 的移除轉場;應立刻移除時回傳 nil。
+    /// animation: its own `.transition`, or else the default fade. Nil when it
+    /// should go at once (no animation, or a matched view).
+    /// 當更新帶動畫時，啟動 `node` 的移除轉場：它自己的 `.transition`,否則是預設的淡出。應立刻移除時(沒有動畫，或是
+    /// 對齊的 view)回傳 nil。
     func depart(
         _ node: ErasedViewGraphNode,
         environment: EnvironmentValues
     ) -> Departure? {
-        guard let transaction = TransitionLookup.animatedTransaction(in: environment),
-            let controller = TransitionLookup.controller(in: node)
-        else { return nil }
+        guard let transaction = TransitionLookup.animatedTransaction(in: environment) else { return nil }
+        let size = TransitionLookup.committedSize(of: node)
+        let controller: TransitionController
+        var wrapsAtCommit: (any DefaultTransitionNode)?
+        if let own = TransitionLookup.controller(in: node) {
+            controller = own
+        } else if let host = TransitionLookup.defaultTransitionHost(for: node, inserting: false) {
+            let slot = host.defaultTransition ?? DefaultTransitionSlot()
+            host.defaultTransition = slot
+            if !slot.isInstalled {
+                // Its wrapper goes in at the container's commit.
+                // 它的包裝容器在容器 commit 時放上。
+                slot.controller.adopt(size: SIMD2(Double(size.x), Double(size.y)))
+                slot.controller.diagnosticsLabel = environment.effectDiagnosticsLabel
+                wrapsAtCommit = host
+            }
+            controller = slot.controller
+        } else {
+            return nil
+        }
         let departure = Departure(
             widget: node.getWidget(),
             node: node.node,
-            size: TransitionLookup.committedSize(of: node)
+            size: size
         )
+        departure.wrapsAtCommit = wrapsAtCommit
         let started = controller.remove(transaction: transaction) { [weak self, weak departure] in
             guard let departure else { return }
             departure.isFinished = true
@@ -724,6 +943,9 @@ final class DepartingViews {
         let previousStays = departure.map { !$0.isFinished } ?? false
         if hadChild && !previousStays {
             backend.remove(childAt: 0, from: container)
+        }
+        if previousStays, let departure {
+            departure.installWrapper(at: 0, in: container, backend: backend)
         }
         if let newChild {
             backend.insert(newChild, into: container, at: 0)
@@ -768,6 +990,10 @@ public enum TransitionDiagnostics {
         public var presence: Double
         public var effects: AnyTransition.Effects
         public var isRunning: Bool
+        /// Whether the effects were set on a widget (false while a default
+        /// fade's container is not in place yet).
+        /// 效果是否設到了 widget 上(預設淡入淡出的容器尚未放上時為 false)。
+        public var isDrawn: Bool
     }
 
     public private(set) static var samples: [String: [Sample]] = [:]
@@ -777,7 +1003,8 @@ public enum TransitionDiagnostics {
         phase: AnyTransition.Phase,
         state: TransitionController.State,
         presence: Double,
-        effects: AnyTransition.Effects
+        effects: AnyTransition.Effects,
+        isDrawn: Bool
     ) {
         samples[label, default: []].append(
             Sample(
@@ -785,7 +1012,8 @@ public enum TransitionDiagnostics {
                 phase: phase,
                 presence: presence,
                 effects: effects,
-                isRunning: state == .inserting || state == .removing
+                isRunning: state == .inserting || state == .removing,
+                isDrawn: isDrawn
             )
         )
     }

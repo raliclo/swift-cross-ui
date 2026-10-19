@@ -438,18 +438,24 @@ public enum MatchedGeometryDiagnostics {
     }
 }
 
-final class MatchedGeometryChildren<Content: View>: ViewGraphNodeChildren {
+final class MatchedGeometryChildren<Content: View>: ViewGraphNodeChildren, MatchedGeometryHosting {
     let children: TupleViewChildren1<Content>
     let node = FlipNode()
+    /// The id the view was made with, until its first commit sets the node's.
+    /// view 建立時的 id,直到第一次 commit 設定節點的 id 為止。
+    private let initialKey: MatchedGeometryKey
     /// The geometric-effect container between the outer container and the
     /// child; nil on a backend without geometric effects.
     /// 外層容器與子元件之間的幾何效果容器;沒有幾何效果的 backend 上為 nil。
     var effect: AnyWidget?
     var retryScheduled = false
 
-    init(_ children: TupleViewChildren1<Content>) {
+    init(_ children: TupleViewChildren1<Content>, key: MatchedGeometryKey) {
         self.children = children
+        initialKey = key
     }
+
+    var matchedKey: MatchedGeometryKey { node.key ?? initialKey }
 
     var widgets: [AnyWidget] { children.widgets }
     var erasedNodes: [ErasedViewGraphNode] { children.erasedNodes }
@@ -473,7 +479,8 @@ struct MatchedGeometryEffectModifier<Content: View>: TypeSafeView {
                 backend: backend,
                 snapshots: snapshots,
                 environment: environment
-            )
+            ),
+            key: key
         )
     }
 
