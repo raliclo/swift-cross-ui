@@ -1166,6 +1166,14 @@
             for _ in 0..<8 {
                 guard let popup = GetWindow(current, UINT(GW_ENABLEDPOPUP)),
                       popup != current,
+                      // A WinUI menu or flyout (PopupWindowSiteBridge) is not a modal:
+                      // its owner stays enabled and taking it as the target re-measured
+                      // every click against whichever popup window was listed first --
+                      // P92's Edit items landed far from the menu (2026-10-19). Such
+                      // a popup is clicked in the main window's coordinates instead.
+                      // WinUI 的選單或 flyout(PopupWindowSiteBridge)不是模態視窗：把它當目標時，每次點擊都依「最先列出的那個
+                      // 彈出視窗」重新量測,P92 的 Edit 項目落在離選單很遠的地方(2026-10-19)。改以主視窗座標點擊它。
+                      className(of: popup) != "Microsoft.UI.Content.PopupWindowSiteBridge",
                       IsWindowVisible(popup),
                       // A dialog is SMALLER than what it covers. Added 2026-09-05,
                       // after Direct Composition became GtkBackend's default: GTK then
