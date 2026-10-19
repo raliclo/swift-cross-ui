@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on WSL GtkBackend: two scroll views and one ScrollViewReader; "left to L30" scrolls ONLY
+# the left column. The steps of actions/win/P58-left-to-L30.actions.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# Buttons: left to L30 (68, 113), right to R45 (183, 113), both home (299, 113).
+# Pass: L30 is scrolled into view in the left column (at its bottom: scrollTo without an anchor scrolls just far enough), while the right column still starts at R0. 2026-10-19: pass.
+# P58(WSL):按 left to L30 只捲動左欄，右欄不動。
+sleep,,,,,,1500000,let P58 render,gtk
+click,68,113,,left,,,left to L30,gtk
+sleep,,,,,,3000000,hold for the capture,gtk

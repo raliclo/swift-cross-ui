@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P5 on WSL GtkBackend: three alerts requested in one update form a queue, each shown after the
+# previous is dismissed (#675). The steps of actions/win/P5-stacked-alerts.actions.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# "Show A+B+C at once" (306, 244). Each alert is dismissed with Return on its default OK button,
+# so no position inside a dialog is needed.
+# expect: log-contains requesting A, B and C together
+# Pass: p5-debug-events.log gains Alert A, B and C dismissed in that order; no alert remains.
+# P5(WSL):一次要求三個警示，依序以 Return 關閉;通過條件見上方英文。
+sleep,,,,,,1500000,let the window settle,gtk
+click,306,244,,left,,,Show A+B+C at once,gtk
+sleep,,,,,,2000000,let Alert A map,gtk
+key,,,,,return,,OK on Alert A -- Alert B must appear,gtk
+sleep,,,,,,1800000,,gtk
+key,,,,,return,,OK on Alert B -- Alert C must appear,gtk
+sleep,,,,,,1800000,,gtk
+key,,,,,return,,OK on Alert C -- no alert remains,gtk
+sleep,,,,,,2000000,hold for the capture,gtk

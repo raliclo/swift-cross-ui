@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on WSL GtkBackend: "right to R45" scrolls ONLY the right column.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# Buttons: left to L30 (68, 113), right to R45 (183, 113), both home (299, 113).
+# Pass: R45 is scrolled into view in the right column (scrollTo without an anchor scrolls just far enough), while the left column still starts at L0. 2026-10-19: pass.
+# P58(WSL):按 right to R45 只捲動右欄，左欄不動。
+sleep,,,,,,1500000,let P58 render,gtk
+click,183,113,,left,,,right to R45,gtk
+sleep,,,,,,3000000,hold for the capture,gtk
