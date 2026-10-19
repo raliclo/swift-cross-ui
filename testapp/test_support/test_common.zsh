@@ -1282,16 +1282,33 @@ run_windows() {
 # xclock 來自 x11-apps,install_tool_wsl.zsh 本來就會安裝。刻意讓它一直執行;`winmin --clear` 會連同
 # 其他視窗一起把它最小化。
 wslg_keeper() {
-    local winmin="$script_dir/helper/bin/winmin.exe" title="" tries=0
-    MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- bash -lc \
-        'pgrep -x xclock >/dev/null || { setsid xclock -geometry 80x80+0+0 >/dev/null 2>&1 & sleep 2; }' \
-        >/dev/null 2>&1 || true
+    local winmin="$script_dir/helper/bin/winmin.exe" title="" tries=0 attempt
     [ -x "$winmin" ] || return 0
-    while [ "$tries" -lt 20 ]; do
-        title="$("$winmin" --list 2>/dev/null | grep -a 'xclock (Ubuntu)' | head -1 || true)"
-        [ -n "$title" ] && break
-        sleep 0.5
-        tries=$(( tries + 1 ))
+    # Two attempts. The first keeps a running xclock; the second replaces it.
+    # Measured 2026-10-19: after the laptop slept and woke, the 2026-10-14
+    # xclock was still running but had no window on the Windows side, so a
+    # check that only asked "is xclock running?" kept it and then waited for a
+    # title that never came. A keeper with no window keeps nothing alive.
+    # 兩次嘗試。第一次保留正在執行的 xclock;第二次換掉它。2026-10-19 實測：筆電睡眠並喚醒後,2026-10-14 的
+    # xclock 仍在執行，卻在 Windows 端沒有視窗，所以只問「xclock 在不在」的檢查保留了它，然後一直等一個不會
+    # 出現的標題。沒有視窗的 keeper 什麼都撐不住。
+    for attempt in keep replace; do
+        if [ "$attempt" = replace ]; then
+            MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- bash -lc \
+                'pkill -x xclock; setsid xclock -geometry 80x80+0+0 >/dev/null 2>&1 & sleep 2' \
+                >/dev/null 2>&1 || true
+        else
+            MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- bash -lc \
+                'pgrep -x xclock >/dev/null || { setsid xclock -geometry 80x80+0+0 >/dev/null 2>&1 & sleep 2; }' \
+                >/dev/null 2>&1 || true
+        fi
+        tries=0
+        while [ "$tries" -lt 20 ]; do
+            title="$("$winmin" --list 2>/dev/null | grep -a 'xclock (Ubuntu)' | head -1 || true)"
+            [ -n "$title" ] && break 2
+            sleep 0.5
+            tries=$(( tries + 1 ))
+        done
     done
     if [ -z "$title" ]; then
         printf '!! WSLg keeper window did not appear; copy mode cannot be checked before the run\n' >&2
