@@ -27,6 +27,7 @@ showtime_seconds=30
 do_build=1
 action_file=""
 dump_tree=0
+keep_stdout=0
 app_args=()
 
 usage() {
@@ -42,6 +43,9 @@ Options:
   --no-showtime              Return immediately after launch.
   --device <name|UDID>       Simulator device; default: $device_name.
   --actionfile <path>        Replay CSV through XCUITest after launch.
+  --stdout                   Keep the app's stdout in output/<pn>-ios-stdout.log
+                             without the XCUITest runner (for apps that run
+                             their own steps; the runner's attach stalls them).
   --dump-tree                Print the accessibility tree (the only external
                              view of it on iOS) before the replay.
   --debug                    Pass --debug to the Pn app.
@@ -138,6 +142,7 @@ while [ "$#" -gt 0 ]; do
         # 視角——macOS 有 ax_dump、Android 有 uiautomator dump,而「app 自己描述自己」不是同一種
         # 證據。預設關閉:那份輸出很長。
         --dump-tree) dump_tree=1; shift ;;
+        --stdout) keep_stdout=1; shift ;;
         --debug) app_args+=(--debug); shift ;;
         --)
             shift
@@ -381,6 +386,51 @@ capture() {
 # 動作檔中的 `# fresh-install` 會先解除安裝 app,連同它的 scene session 一併丟棄。iPadOS 會重新打開
 # app 上次執行時開著的每一個視窗，所以開了第二個視窗的檔案，下次執行時一啟動就有兩個視窗，而恢復它們
 # 讓模擬器的渲染伺服器崩潰(iPad 上的 P5,2026-10-02)。採 opt-in,因為 P0 與 P59 要斷言前一次執行存下的東西。
+# `# app-args: ...` in an action file adds those arguments to the app's launch, so
+# a file can carry what its app needs: a self-running app takes `--steps-after 6`
+# to start its steps after the runner has attached.
+# 動作檔中的 `# app-args: ...` 把那些參數加到 app 的啟動參數上，讓檔案自己帶著 app 需要的東西：自行執行步驟的 app
+# 以 `--steps-after 6` 讓步驟在 runner 附加之後才開始。
+if [ -n "$action_file" ]; then
+    for line in "${(@f)$(grep '^# app-args:' "$action_file")}"; do
+        [ -n "$line" ] && app_args+=(${=${line#\# app-args:}})
+    done
+fi
+
+# An action file that presses nothing -- only `sleep` rows, for an app that runs its
+# own steps -- runs without the XCUITest runner, as --stdout does, for the sum of its
+# sleeps. The runner would add nothing to such a file and takes from the app: with it
+# attached, P105's removal drew 36-41 frames for a 1 s animation and ended 1.5-1.6 s
+# after the change, against 61 frames and 1.03 s without it (2026-10-19). Rows are
+# read through csv2, never split on commas.
+# 一個動作都不按的動作檔——只有 `sleep` 列，給自己執行步驟的 app——不經 XCUITest runner 執行，與 --stdout 相同，
+# 執行時間是它所有 sleep 的總和。runner 對這種檔案毫無貢獻，卻會拖慢 app:runner 附加時,P105 的移除在 1 秒的動畫裡
+# 只畫了 36-41 幀，在改變後 1.5-1.6 秒才結束;沒有 runner 時是 61 幀、1.03 秒(2026-10-19)。各列經由 csv2 讀取，
+# 從不以逗號切割。
+if [ -n "$action_file" ]; then
+    action_rows=("${(@f)$(grep -v '^#' "$action_file" | csv2 -si --headers 1 -r --json 2>/dev/null \
+        | jq -r 'select(.fields) | "\(.fields.action) \(.fields.micros)"' 2>/dev/null)}")
+    sleep_only=1
+    row_count=0
+    sleep_micros=0
+    for row in "${action_rows[@]}"; do
+        [ -n "$row" ] || continue
+        row_count=$((row_count + 1))
+        if [ "${row%% *}" = sleep ]; then
+            sleep_micros=$((sleep_micros + ${${row#* }:-0}))
+        else
+            sleep_only=0
+        fi
+    done
+    if [ "$sleep_only" -eq 1 ] && [ "$row_count" -gt 0 ]; then
+        showtime_seconds=$(((sleep_micros + 999999) / 1000000))
+        printf '==> %s presses nothing: running it without the XCUITest runner, stdout kept, for %ss\n' \
+            "${action_file:t}" "$showtime_seconds"
+        keep_stdout=1
+        action_file=""
+    fi
+fi
+
 if [ -n "$action_file" ] && grep -q '^# fresh-install' "$action_file"; then
     printf '==> Uninstalling %s first (# fresh-install)\n' "$bundle_id"
     xcrun simctl uninstall "$device_name" "$bundle_id" 2>/dev/null || true
@@ -393,7 +443,23 @@ if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
 fi
 printf '==> Installing %s as %s\n' "$target" "$bundle_id"
 xcrun simctl install "$device_name" "$bundle_dir"
-if [ -z "$action_file" ]; then
+if [ -z "$action_file" ] && [ "$keep_stdout" -eq 1 ]; then
+    # The app's stdout kept without the XCUITest runner, for apps that run their own
+    # steps: the runner attaches about 2 s after launch and its accessibility
+    # snapshot holds the app's main thread for most of a second (P104, P105,
+    # 2026-10-19), which an animation measured at that moment reads as lost frames.
+    # Through a pty, as on the action-file path below, and for the same reason.
+    # 不經 XCUITest runner 保留 app 的 stdout,給自己執行步驟的 app 用:runner 在啟動約 2 秒後附加，它擷取無障礙樹時
+    # 會佔住 app 的主執行緒將近一秒(P104、P105,2026-10-19),當下量測的動畫會把它讀成掉幀。經由 pty,與下方動作檔
+    # 路徑相同，理由也相同。
+    app_stdout="$output_dir/${target:l}-ios-stdout.log"
+    rm -f "$app_stdout"
+    printf '==> Launching %s, stdout in %s\n' "$bundle_id" "${app_stdout:t}"
+    xcrun simctl launch --console-pty --terminate-running-process \
+        "$device_name" "$bundle_id" "${app_args[@]}" > "$app_stdout" 2>&1 < /dev/null &
+    sleep 1
+    capture "${target:l}-ios-1s"
+elif [ -z "$action_file" ]; then
     printf '==> Launching %s\n' "$bundle_id"
     xcrun simctl launch "$device_name" "$bundle_id" "${app_args[@]}"
     sleep 1

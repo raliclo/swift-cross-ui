@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P108 on iOS: a real throw of the card into its bound and a held drag back, after the app's own FREE and BOUND steps.
+# app-args: --steps-after 6
+# The steps start 6 s after launch (the runner attaches at about 2 s and stalls the main thread) and take about
+# 10 s. Positions from the iPhone simulator on 2026-10-19 (1179x2556 px at 3x, client points): the track is
+# x 16-356, y 173-213; the 40x40 card starts at x 16-56 and may move along x up to 300 pt.
+# THROW: press the card at (36, 193) and drag 150 pt right at 2000 pt/s, letting go while moving (the runner's
+# `velocity` key). XCUITest does not release at the speed asked for (200 asked gave 64 pt/s, 800 gave 237-280),
+# so the throw is hard enough to end on the bound whatever the speed, and the card's place after it is known.
+# Pass (stdout): the DRAG release velocity equal to the speed over the last 0.1 s of the points as received,
+# the coast frames on the closed form within 0.01 pt, and the end on the bound at 300.00.
+# HOLD: the card pressed where the throw left it (x 316-356, centre 336 -- not its layout place), dragged
+# 60 pt left at 100 pt/s and held 0.5 s before letting go. Pass: a DRAG release about 60 pt back with
+# velocity 0 and HOLD, no coast.
+# P108 在 iOS 上：真正把卡片拋到邊界，再按住拖回來，在 app 自己的 FREE 與 BOUND 之後。步驟在啟動 6 秒後開始
+# (runner 約在 2 秒附加並卡住主執行緒),約需 10 秒。XCUITest 放手時的速度不等於指定值，所以拋得夠用力，
+# 讓卡片一定停在邊界，之後的位置是已知的。通過條件見上方英文說明。
+sleep,,,,,,15000000,let P108 run FREE and BOUND,ios
+mousedown,36,193,client,left,,,THROW: press on the card,ios
+mouseup,186,193,client,left,velocity 2000,,drag 150 pt right at 2000 pt/s and let go while moving,ios
+sleep,,,,,,3000000,let the coast end on the bound,ios
+mousedown,336,193,client,left,,,"HOLD: press on the card where the throw left it (on the bound, centre x 336)",ios
+mouseup,276,193,client,left,velocity 100 hold 0.5,,"drag 60 pt left at 100 pt/s, hold 0.5 s, let go",ios
+sleep,,,,,,1500000,,ios

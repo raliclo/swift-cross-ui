@@ -97,6 +97,23 @@ struct P108Coast {
 }
 
 struct P108RootView: View {
+    /// Seconds from the first appearance to the steps: 0.6, or `--steps-after N`.
+    /// On iOS an action-file run attaches XCUITest about 2 s after launch, and its
+    /// accessibility snapshot holds the main thread for most of a second; the iOS
+    /// action file passes `--steps-after 6` (its `# app-args:` line) so the steps
+    /// start after it.
+    /// 從首次出現到開始步驟的秒數:0.6,或 `--steps-after N`。iOS 上動作檔執行會在啟動約 2 秒後附加 XCUITest,
+    /// 它擷取無障礙樹時會佔住主執行緒將近一秒;iOS 動作檔以 `--steps-after 6`(它的 `# app-args:` 那一行)讓步驟在那之後才開始。
+    static var stepsAfter: Double {
+        let arguments = CommandLine.arguments
+        if let at = arguments.firstIndex(of: "--steps-after"), at + 1 < arguments.count,
+            let seconds = Double(arguments[at + 1])
+        {
+            return seconds
+        }
+        return 0.6
+    }
+
     @State var offset = SIMD2<Double>(0, 0)
     @State var status = "steps: running"
 
@@ -124,7 +141,7 @@ struct P108RootView: View {
         .onAppear {
             P108Log.write("backend \(String(describing: DefaultBackend.self))")
             P108Log.write("RENDER COMPLETE -- P108 ready")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.stepsAfter) {
                 MainActor.assumeIsolated { runSteps() }
             }
         }

@@ -391,7 +391,24 @@ final class ActionFileUITests: XCTestCase {
                     dragStart = target
                 case "mouseup":
                     let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                    if let start = dragStart, action.microseconds > 0 {
+                    if let start = dragStart, action.key.hasPrefix("velocity ") {
+                        // A throw: `velocity N` in the key column drags at N points a
+                        // second and lets go while moving, so the release carries that
+                        // speed (P108's inertia); `velocity N hold S` holds S seconds at
+                        // the end first, so the release carries none.
+                        // 拋出:key 欄的 `velocity N` 以每秒 N 點拖曳並在移動中放手，讓放手時帶著那個速度(P108 的慣性);
+                        // `velocity N hold S` 先在終點停 S 秒，讓放手時不帶速度。
+                        let words = action.key.split(separator: " ")
+                        let speed = words.count > 1 ? Double(words[1]) ?? 300 : 300
+                        let hold = words.count > 3 && words[2] == "hold" ? Double(words[3]) ?? 0 : 0
+                        start.press(
+                            forDuration: 0.05,
+                            thenDragTo: target,
+                            withVelocity: XCUIGestureVelocity(rawValue: CGFloat(speed)),
+                            thenHoldForDuration: hold
+                        )
+                        dragStart = nil
+                    } else if let start = dragStart, action.microseconds > 0 {
                         // A `micros` on the mouseup row is how long to hold before
                         // moving, and the drag goes slowly. iPadOS starts a window
                         // move or resize only from a held press; a 0.1 s press
