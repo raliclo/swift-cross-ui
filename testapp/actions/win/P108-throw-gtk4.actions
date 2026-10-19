@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P108 on Windows GtkBackend (TEST_BACKEND=gtk4): a held drag, then a throw, after the app's own FREE and BOUND.
+# The GTK window is not scaled (scale 1.0): the card is 40x40 at frame x 34-74, y 153-193 px (capture of 2026-10-19).
+# HOLD comes FIRST, from where STEPS DONE leaves the card (offset 0): press its centre, drag 20, hold 0.3 s, release in
+# place. Pass: a DRAG release 20 on with velocity 0 and HOLD, no coast. The card is then at offset 20, a known place.
+# THROW from there: 5 per move with 16 ms sleeps, released in place. Pass: release velocity within 1 pt/s of the speed
+# over the last 0.1 s of the points as received; coast on the closed form within 0.01 pt; end = release + v*0.4995.
+# The macOS file throws first and holds where the throw stopped; that place varies with the throw, and the hold missed
+# the card on both Windows backends (2026-10-19), hence this order. Mouseups go in place: with a position, the
+# synthesiser's move and checks delayed the release past the 0.1 s the velocity is measured over.
+# 2026-10-19 Windows GTK: HOLD passes (20.00, velocity 0); the THROW drags the card to 70.00 but reads 0 pt/s -- the points arrive about 78 ms apart, and the 0.1 s velocity window holds none. Open.
+# P108(Windows):先「停住」再「拋擲」,讓兩次按下都落在已知位置的卡片上;通過條件見上方英文。
+sleep,,,,,,17000000,FREE and BOUND run first,windows
+mousedown,54,173,frame,left,,,HOLD: press the card at offset 0,windows
+sleep,,,,,,100000,,windows
+move,64,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,74,173,frame,,,,,windows
+sleep,,,,,,300000,hold still,windows
+mouseup,,,,left,,,release in place with no speed -- no coast; the card is at offset 20,windows
+sleep,,,,,,1500000,,windows
+mousedown,74,173,frame,left,,,THROW: press the card at offset 20,windows
+sleep,,,,,,100000,,windows
+move,79,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,84,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,89,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,94,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,99,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,104,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,109,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,114,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,119,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,124,173,frame,,,,,windows
+sleep,,,,,,16000,,windows
+mouseup,,,,left,,,let go in place -- the card coasts,windows
+sleep,,,,,,5000000,the coast,windows

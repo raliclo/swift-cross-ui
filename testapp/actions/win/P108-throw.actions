@@ -1,26 +1,26 @@
 action,x,y,origin,button,key,micros,note,platform
-# P108 on Windows: a real throw of the card and a held drag, after the app's own FREE and BOUND steps (about 10 s),
-# the steps of actions/mac/P108-throw.actions. The card is 40x40 at frame x 21-61, y 130-170 DIPs (display at 125%),
-# measured on the WinUI capture of 2026-10-19; it may move along x up to 300.
-# THROW: 5 DIPs per move with 16 ms sleeps, let go while moving. Pass (p108-inertia.log): DRAG release velocity within
-# 1 pt/s of the speed over the last 0.1 s of the points as received; coast on the closed form within 0.01 pt; end =
-# release + v*0.4995 (clamped to 0...300) within 0.01 pt.
-# HOLD: pressed where the throw left the card (x 117, from the DRAG predicted end), dragged 20 and held 0.3 s.
-# Pass: a DRAG release 20 further on with velocity 0 and HOLD, no coast.
-# Both mouseups are sent where the pointer already is (no x, y): with a position, the synthesiser's move, check and report delayed the release past the 0.1 s the velocity is measured over, and the throw read 0 pt/s.
-# 2026-10-19 WinUI: pass -- release 50.40 at 51.6 pt/s (51.6 over the last 0.1 s), coast on the closed form to 76.18; HOLD released at 96.18, velocity 0, no coast.
-# P108(Windows):先等 app 自己的 FREE 與 BOUND,再真正拋出卡片一次、拖曳後停住一次。通過條件見上方英文。
+# P108 on Windows WinUIBackend: a held drag, then a throw, after the app's own FREE and BOUND.
+# The card is 40x40 at frame x 21-61, y 130-170 DIPs (display at 125%), measured on the WinUI capture of 2026-10-19.
+# HOLD comes FIRST, from where STEPS DONE leaves the card (offset 0): press its centre, drag 20, hold 0.3 s, release in
+# place. Pass: a DRAG release 20 on with velocity 0 and HOLD, no coast. The card is then at offset 20, a known place.
+# THROW from there: 5 per move with 16 ms sleeps, released in place. Pass: release velocity within 1 pt/s of the speed
+# over the last 0.1 s of the points as received; coast on the closed form within 0.01 pt; end = release + v*0.4995.
+# The macOS file throws first and holds where the throw stopped; that place varies with the throw, and the hold missed
+# the card on both Windows backends (2026-10-19), hence this order. Mouseups go in place: with a position, the
+# synthesiser's move and checks delayed the release past the 0.1 s the velocity is measured over.
+# 2026-10-19 WinUI: pass -- HOLD released at 20.00 with velocity 0, no coast; THROW released at 70.40 at 51.1 pt/s (51.1 over the last 0.1 s), coast on the closed form to 95.91.
+# P108(Windows):先「停住」再「拋擲」,讓兩次按下都落在已知位置的卡片上;通過條件見上方英文。
 sleep,,,,,,11000000,FREE and BOUND run first,windows
-mousedown,41,150,frame,left,,,THROW: press the card,windows
+mousedown,41,150,frame,left,,,HOLD: press the card at offset 0,windows
 sleep,,,,,,100000,,windows
-move,46,150,frame,,,,,windows
-sleep,,,,,,16000,,windows
 move,51,150,frame,,,,,windows
 sleep,,,,,,16000,,windows
-move,56,150,frame,,,,,windows
-sleep,,,,,,16000,,windows
 move,61,150,frame,,,,,windows
-sleep,,,,,,16000,,windows
+sleep,,,,,,300000,hold still,windows
+mouseup,,,,left,,,release in place with no speed -- no coast; the card is at offset 20,windows
+sleep,,,,,,1500000,,windows
+mousedown,61,150,frame,left,,,THROW: press the card at offset 20,windows
+sleep,,,,,,100000,,windows
 move,66,150,frame,,,,,windows
 sleep,,,,,,16000,,windows
 move,71,150,frame,,,,,windows
@@ -33,13 +33,13 @@ move,86,150,frame,,,,,windows
 sleep,,,,,,16000,,windows
 move,91,150,frame,,,,,windows
 sleep,,,,,,16000,,windows
-mouseup,,,,left,,,let go where the pointer is -- no move first; the card coasts,windows
-sleep,,,,,,5000000,the coast,windows
-mousedown,117,150,frame,left,,,HOLD: press where the card stopped,windows
-sleep,,,,,,100000,,windows
-move,127,150,frame,,,,,windows
+move,96,150,frame,,,,,windows
 sleep,,,,,,16000,,windows
-move,137,150,frame,,,,,windows
-sleep,,,,,,300000,hold still,windows
-mouseup,,,,left,,,release in place with no speed -- no coast,windows
-sleep,,,,,,1500000,let the last line be written,windows
+move,101,150,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,106,150,frame,,,,,windows
+sleep,,,,,,16000,,windows
+move,111,150,frame,,,,,windows
+sleep,,,,,,16000,,windows
+mouseup,,,,left,,,let go in place -- the card coasts,windows
+sleep,,,,,,5000000,the coast,windows
