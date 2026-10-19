@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P9 on WSL GtkBackend: #504 (a field keeps its height through an update) then #295 (text clipped
+# to its width), the steps of actions/win/P9-force-update-and-width.actions.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11), window 640x520: Force update (122, 238),
+# Zero width (296, 358). Pass: updates 2 with the fields the same height as Reference, and the
+# long line clipped inside the blue band at zero width.
+# Client coordinates (origin left empty): with origin=frame the clicks landed (38, 59) off, GTK's own title bar and shadow.
+# P9(WSL):先 #504 再 #295;座標以 AT-SPI 於 WSLg 量測。通過條件見上方英文。
+sleep,,,,,,1200000,let the window settle,gtk
+click,122,238,,left,,,Force update -- updates becomes 1,gtk
+sleep,,,,,,800000,,gtk
+click,122,238,,left,,,again -- updates becomes 2; the layout does not move,gtk
+sleep,,,,,,800000,,gtk
+click,296,358,,left,,,Zero width -- the hardest case for #295,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

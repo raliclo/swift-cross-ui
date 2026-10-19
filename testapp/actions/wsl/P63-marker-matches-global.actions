@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P63 on WSL GtkBackend: GeometryProxy.frame(in:) local, global and named; nothing pressed.
+# Pass: global x/y equal the black marker's position in the window; named is the padding.
+# 2026-10-19 under WSLg (AT-SPI): local 0,0; global 86,295; named 24,46.
+# P63(WSL):不按任何東西;global 必須等於黑色標記在視窗中的位置。
+sleep,,,,,,2500000,let P63 lay out and read itself out,gtk

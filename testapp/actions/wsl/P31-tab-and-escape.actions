@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P31 on WSL GtkBackend: keyboard focus moves with Tab, and Escape does not close an alert,
+# the steps of actions/win/P31-tab-and-escape.actions.
+# Measured 2026-10-19 with AT-SPI under WSLg (x11), window 780x560: field (390, 258), Button 0
+# (63, 304), "Open alert for Escape test" (120, 350). The alert is closed with Return on its
+# default button rather than a click measured on it.
+# expect: log-contains alert opened
+# Client coordinates (origin left empty): with origin=frame the clicks landed (38, 59) off, GTK's own title bar and shadow.
+# Pass: Button 0 becomes Button 1 after Tab and Space; the alert is still up after Escape;
+# "alert OK" in p31-debug-events.log after Return.
+# P31(WSL):Tab 移動焦點、Escape 不關閉警示;座標以 AT-SPI 於 WSLg 量測，警示以 Return 按預設按鈕關閉。
+sleep,,,,,,1200000,let the window settle and take focus,gtk
+click,390,258,,left,,,put the caret in the text field,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,tab,,Tab out of the field -- focus must reach the button row,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,space,,Space activates whatever has focus; Button 0 must become Button 1,gtk
+sleep,,,,,,700000,,gtk
+click,120,350,,left,,,Open alert for Escape test,gtk
+sleep,,,,,,1200000,let the alert appear,gtk
+key,,,,,escape,,Escape must NOT dismiss it,gtk
+sleep,,,,,,1200000,the alert must still stand here,gtk
+key,,,,,return,,Return presses the default button -- alert OK,gtk
+sleep,,,,,,1500000,hold for the capture,gtk
