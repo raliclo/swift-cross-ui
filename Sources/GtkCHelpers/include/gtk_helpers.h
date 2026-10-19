@@ -313,6 +313,28 @@ char *scui_window_scale_diagnostics(GtkWidget *window);
 // 也就是它在 sRGB 的值。GTK 不為像素標記色彩空間;GtkBackend 為視窗標記。
 void *scui_window_native_macos(GtkWidget *window);
 
+// Keeps GDK's CVDisplayLink running while `keep` is 1 and lets GDK stop it
+// again at 0, on macOS; returns 1 if that is in effect, 0 elsewhere or if GDK's
+// imports could not be replaced. Implemented in gtk_display_link_macos.c.
+//
+// GDK 4.24 on macOS stops its display link after every presented frame and
+// starts it again from the next paint, and a CVDisplayLink started less than
+// about 10 ms before a refresh calls back one refresh later. Measured
+// 2026-10-19 with P96 and testapp/test_support/measure/gtk_frame_trace.c: one
+// CVDisplayLinkStart per frame, every start made 0-10 ms before the next
+// callback slot waited a further 16.7 ms, so a frame whose tick and paint took
+// more than about 6 ms ran at 30 fps, and P96 ticked 33-58 fps with the main
+// thread mostly idle. GtkBackend turns this on while its frame clock runs.
+//
+// 在 macOS 上:`keep` 為 1 時讓 GDK 的 CVDisplayLink 持續運轉，為 0 時讓 GDK 能再次停掉它;此設定生效時
+// 回傳 1,其他平台或 GDK 的引用無法替換時回傳 0。實作位於 gtk_display_link_macos.c。macOS 上的 GDK 4.24
+// 在每一幀呈現之後停掉它的 display link,並在下一次繪製時再啟動;而在更新前不到約 10 毫秒才啟動的
+// CVDisplayLink,會晚一個更新週期才 callback。2026-10-19 以 P96 與
+// testapp/test_support/measure/gtk_frame_trace.c 實測：每幀一次 CVDisplayLinkStart,凡是在下一個
+// callback 時槽前 0-10 毫秒才啟動的，都多等了 16.7 毫秒，因此 tick 加繪製超過約 6 毫秒的幀只有 30 fps,
+// 而 P96 在 main thread 多半閒置的情況下只有 33-58 fps。GtkBackend 在它的 frame clock 運轉期間開啟此設定。
+int scui_macos_display_link_keep_running(int keep);
+
 // Takes one extra reference on every device the default seat removes, and
 // never gives it back.
 //

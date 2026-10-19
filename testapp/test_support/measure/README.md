@@ -276,3 +276,33 @@ pixels. Written to compare GtkBackend's shapes drawn through cairo and as GSK
 nodes (2026-10-19): run the app once with `SCUI_GTK_CAIRO_PATHS=1` and once
 without, take each with `window_shots`, and compare. A difference confined to
 the title bar is window focus, not drawing.
+## `gtk_frame_trace.c` + `gtk_frame_trace.py` — macOS 上的 GTK 何時畫下一幀
+
+```sh
+cc -dynamiclib -O2 -o /tmp/gtk_frame_trace.dylib testapp/test_support/measure/gtk_frame_trace.c \
+   -framework CoreVideo -L/opt/homebrew/lib -lgtk-4 -lgobject-2.0
+GTK_FRAME_TRACE=/tmp/p96.trace DYLD_INSERT_LIBRARIES=/tmp/gtk_frame_trace.dylib \
+   SCUI_DEBUG_EVENTS_DIR=/tmp/p96 testapp/output/P96-gtk4      # 約 13 秒後結束它
+python3 -I testapp/test_support/measure/gtk_frame_trace.py /tmp/p96.trace 5.3 8.3
+```
+
+以 `DYLD_INSERT_LIBRARIES` 注入，不修改 app 也不修改 GTK:記錄 GDK 的每一次 `CVDisplayLinkStart`/`Stop`、每一次
+CVDisplayLink callback、每一個 frame clock tick 與 after-paint,全部用同一個時鐘(mach_absolute_time 的微秒)。
+`.py` 印出一段時間內的 tick 速率、以更新週期為單位的 tick 間隔、每幀工作量(tick 到 after-paint),以及每次
+`CVDisplayLinkStart` 在下一個 callback 時槽之前多久發出、第一次 callback 落在哪一個時槽。
+
+2026-10-19 用它找出 P96 在 GTK(macOS)上只有 33-58 fps 的原因:GDK 4.24 每畫完一幀就停掉 display link、下一次
+繪製再啟動(P96 一次執行中 498 個 tick、498 次 start、497 次 stop),而在時槽前不到約 10 毫秒才啟動的 link 一律晚一個更新週期
+(0-10 毫秒:0 次準時、147 次晚一週期;12-18 毫秒:95 次準時、2 次晚)。每幀工作只有 3-4 毫秒。GtkBackend 修正後
+(`scui_macos_display_link_keep_running`)同一工具量到 0 次 start、每個間隔都是 1 個更新週期。
+
+It is injected with `DYLD_INSERT_LIBRARIES` and changes neither the app nor
+GTK. It logs every `CVDisplayLinkStart`/`Stop` GDK makes, every CVDisplayLink
+callback, and every frame-clock tick and after-paint, all on one clock. The
+`.py` prints the tick rate over a window, the tick intervals in refresh
+intervals, the work per frame (tick to after-paint), and for each start how
+long before the next callback slot it was made and which slot its first
+callback came at. It found why P96 ticked 33-58 fps on GTK on macOS
+(2026-10-19): GDK stops its display link after every frame, and a link started
+less than about 10 ms before a slot calls back one refresh late; the frames
+themselves took 3-4 ms.

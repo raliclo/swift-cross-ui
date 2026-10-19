@@ -1,6 +1,7 @@
 import CGtk
 import Foundation
 import Gtk
+import GtkCHelpers
 import SwiftCrossUI
 
 extension GtkBackend: BackendFeatures.FrameClocks {
@@ -113,6 +114,22 @@ extension GtkBackend: BackendFeatures.FrameClocks {
             gdk_frame_clock_begin_updating(clock)
             frameClockUpdatingOn = clock
         }
+        // **On macOS, GDK's display link keeps running until the stop.**
+        //
+        // GDK stops its CVDisplayLink after each presented frame and starts it
+        // again from the next paint; a link started less than about 10 ms
+        // before a refresh calls back one refresh later, so every frame whose
+        // tick and paint took more than about 6 ms waited two refreshes, and
+        // P96 ticked 33-58 fps with an idle main thread (gtk_frame_trace in
+        // testapp/test_support/measure). With the link running the next
+        // callback is the next refresh. No effect on other platforms.
+        //
+        // **macOS 上,GDK 的 display link 持續運轉到 stop 為止。** GDK 在每一幀呈現之後停掉它的
+        // CVDisplayLink,並在下一次繪製時再啟動;在更新前不到約 10 毫秒才啟動的 link 會晚一個更新週期才
+        // callback,因此 tick 加繪製超過約 6 毫秒的每一幀都等了兩個更新週期，而 P96 在 main thread 閒置的
+        // 情況下只有 33-58 fps(testapp/test_support/measure 的 gtk_frame_trace)。link 持續運轉時，下一次
+        // callback 就是下一次更新。其他平台不受影響。
+        _ = scui_macos_display_link_keep_running(1)
         // A fallback until the first tick; see scheduleFallbackTick.
         // 第一個 tick 之前的備援;見 scheduleFallbackTick。
         Self.frameClockHasTicked = false
@@ -130,6 +147,8 @@ extension GtkBackend: BackendFeatures.FrameClocks {
             gdk_frame_clock_end_updating(clock)
         }
         frameClockUpdatingOn = nil
+        // GDK may stop its display link again. / GDK 可以再次停掉它的 display link。
+        _ = scui_macos_display_link_keep_running(0)
         if let id = frameClockID, let widget = frameClockAttachedTo {
             gtk_widget_remove_tick_callback(widget, id)
         }
