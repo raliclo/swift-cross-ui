@@ -4305,6 +4305,7 @@ public final class GtkBackend:
             scui_widget_set_text_paint(textView.widgetPointer, nil)
         }
         textView.css.set(properties: cssProperties(for: textEnvironment))
+        scaleColourEmoji(in: textView, text: content, size: environment.resolvedFont.pointSize)
     }
 
     public func size(
@@ -4348,12 +4349,26 @@ public final class GtkBackend:
                 return SIMD2(max(proposedWidth, 0), oneCharacter.height)
             }
         }
-        let (width, height) = pango.getTextSize(
+        let (width, measuredHeight) = pango.getTextSize(
             text,
             ellipsize: proposedHeight == nil ? .none : ellipsize,
             proposedWidth: proposedWidth.map(Double.init),
             proposedHeight: proposedHeight.map(Double.init)
         )
+        // Whole lines of one line's height, as AppKit sets them; see
+        // ``wholeLineHeight(of:in:measuredHeight:ellipsize:proposedWidth:proposedHeight:)``.
+        // 以單行高度計的整行，與 AppKit 排行相同；見 ``wholeLineHeight``。
+        let height =
+            (widget as? CustomLabel).map {
+                wholeLineHeight(
+                    of: text,
+                    in: $0,
+                    measuredHeight: measuredHeight,
+                    ellipsize: proposedHeight == nil ? .none : ellipsize,
+                    proposedWidth: proposedWidth,
+                    proposedHeight: proposedHeight
+                )
+            } ?? measuredHeight
 
         // No line-limit handling here any more; `Text` applies it, for every
         // backend, from the font's line height. What used to be here measured a
@@ -4388,9 +4403,16 @@ public final class GtkBackend:
     /// 2 x + 寬與 2 y + 高決定尺寸，畫出的內容就在 label 中置中,label 本身則照常排版。
     private func inkBox(of text: String, in label: CustomLabel, proposedWidth: Int?) -> SIMD2<Int>? {
         guard !text.isEmpty, !text.contains("\n"),
-            let layout = gtk_widget_create_pango_layout(label.widgetPointer, text)
+            let template = gtk_label_get_layout(label.opaquePointer),
+            let layout = pango_layout_copy(template)
         else { return nil }
         defer { g_object_unref(UnsafeMutableRawPointer(layout)) }
+        // A copy of the label's own layout, so that the emoji scale on its
+        // attributes (scaleColourEmoji) is measured too.
+        // label 自己 layout 的複本，因此它屬性上的 emoji 縮放(scaleColourEmoji)也一併量到。
+        pango_layout_set_text(layout, text, Int32(text.utf8.count))
+        pango_layout_set_width(layout, -1)
+        pango_layout_set_height(layout, -1)
         var ink = PangoRectangle()
         var logical = PangoRectangle()
         pango_layout_get_pixel_extents(layout, &ink, &logical)
@@ -4399,6 +4421,44 @@ public final class GtkBackend:
             proposedWidth.map({ $0 >= inkWidth }) ?? true
         else { return nil }
         return SIMD2(inkWidth, Int(2 * ink.y + ink.height))
+    }
+
+    /// The height of a wrapped paragraph when each line takes the height of its
+    /// first line, rounded up to whole points, as AppKit sets
+    /// lines. Pango sets a wrapped paragraph's lines at fractional heights, so
+    /// three lines of the 13 pt system font measured 46 while one measured 16.
+    /// `Text` takes a height that fills its proposal as clamped and keeps the
+    /// whole lines of the one-line height that fit, so a paragraph proposed its
+    /// own 46 kept 2 of its 3 lines and drew the second with an ellipsis (P17's
+    /// "idealWidth 160 + fixedSize(h:)", where AppKit draws 3 lines in 48).
+    /// 換行段落中每一行都取第一行的高度、無條件進位到整點時的總高度，與 AppKit 排行的方式相同。Pango 以小數高度
+    /// 排列換行段落的各行，13 pt 系統字型三行量得 46,單獨一行卻是 16。`Text` 把填滿提議的高度視為被壓住的高度，只保留
+    /// 放得下的整行(以單行高度計),所以一段被提議自己的 46 的文字只留下 3 行中的 2 行，第二行以刪節號結束(P17 的
+    /// 「idealWidth 160 + fixedSize(h:)」;AppKit 以 48 畫出 3 行)。
+    private func wholeLineHeight(
+        of text: String,
+        in label: CustomLabel,
+        measuredHeight: Int,
+        ellipsize: EllipsizeMode,
+        proposedWidth: Int?,
+        proposedHeight: Int?
+    ) -> Int {
+        guard !text.isEmpty, let template = gtk_label_get_layout(label.opaquePointer),
+            let layout = pango_layout_copy(template)
+        else { return measuredHeight }
+        defer { g_object_unref(UnsafeMutableRawPointer(layout)) }
+        pango_layout_set_text(layout, text, Int32(text.utf8.count))
+        pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR)
+        pango_layout_set_ellipsize(layout, ellipsize.toGtk())
+        pango_layout_set_width(layout, proposedWidth.map { Int32($0) * PANGO_SCALE } ?? -1)
+        pango_layout_set_height(layout, proposedHeight.map { Int32($0) * PANGO_SCALE } ?? -1)
+        let lines = Int(pango_layout_get_line_count(layout))
+        guard lines >= 2 else { return measuredHeight }
+
+        var oneLine = PangoRectangle()
+        pango_layout_line_get_extents(pango_layout_get_line_readonly(layout, 0), nil, &oneLine)
+        let lineHeight = Int((Double(oneLine.height) / Double(PANGO_SCALE)).rounded(.up))
+        return max(measuredHeight, lines * lineHeight)
     }
 
     public func createImageView() -> Widget {
@@ -5004,6 +5064,7 @@ public final class GtkBackend:
     public func createPopoverMenu() -> PopoverMenu {
         let menu = Gtk.PopoverMenu()
         menu.hasArrow = false
+        GtkMenuKeyboardStart.attach(to: menu)
         return menu
     }
 
@@ -5076,7 +5137,12 @@ public final class GtkBackend:
         relativeTo widget: Widget,
         closeHandler handleClose: @escaping () -> Void
     ) {
+        // Keys start where an NSMenu's do; see GtkMenuKeyboardStart.
+        // 按鍵從 NSMenu 開始的地方開始；見 GtkMenuKeyboardStart。
+        let keyboardStart = GtkMenuKeyboardStart.of(menu)
+        keyboardStart?.willOpen()
         menu.popUpAtWidget(widget, relativePosition: position)
+        keyboardStart?.didOpen()
         menu.onHide = {
             handleClose()
         }

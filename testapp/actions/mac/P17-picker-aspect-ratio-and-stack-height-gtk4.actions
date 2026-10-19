@@ -4,14 +4,15 @@ action,x,y,origin,button,key,micros,note,platform
 # The AppKit file's Less height / More height clicks (y 736) landed in the coloured stack on GTK's taller layout; the buttons are at frame y 796-829 (gtk4-aim-20261016.csv2). The picker row, picker and Shorter/Taller had landed and are re-centred.
 # Derived, not measured: Shorter/Taller move by 5 pt per press and More height by up to 20 pt after Less height, so those rows aim where the button sits in every case (y 548 and y 802) rather than at the capture centre.
 # After this file: presses: SML--++<> and stack: 145 x 140 again after one Less and one More.
+# Re-measured 2026-10-19 (window_shots of the launch, 900x860 frame): the subject sentence is three lines (150 x 48) as on AppKit, so Shortest/Medium/Longest sit at frame y 318-342 and the picker at 288-312; Shorter/Taller (548-572) and Less/More height (798-822) are still hit by the rows below.
 # macOS 上 GtkBackend 的 P17:Less/More height 依 GTK 擷圖重新量測；按鈕會隨高度移動的列取各狀態共同可命中的 y。
-click,298,313,frame,left,,,Shortest (re-centred; was y 330 at the button edge) -- picker: W x H must change or must not,macos
+click,298,330,frame,left,,,Shortest -- picker: W x H must change or must not,macos
 sleep,,,,,,800000,,macos
-click,392,313,frame,left,,,Medium (re-centred),macos
+click,392,330,frame,left,,,Medium,macos
 sleep,,,,,,800000,,macos
-click,484,313,frame,left,,,Longest (re-centred) -- the widest selection,macos
+click,484,330,frame,left,,,Longest -- the widest selection,macos
 sleep,,,,,,800000,,macos
-click,500,273,frame,left,,,open the picker itself (was 440;305 -- the picker is at y 256-289; aimed right of the picker: label drawn over it),macos
+click,500,300,frame,left,,,open the picker itself (the picker is at y 288-312; aimed right of the readout drawn over it),macos
 sleep,,,,,,1200000,,macos
 key,,,,,escape,,and close it without choosing,macos
 sleep,,,,,,800000,,macos
