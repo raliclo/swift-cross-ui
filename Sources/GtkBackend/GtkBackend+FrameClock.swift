@@ -1,4 +1,5 @@
 import CGtk
+import Foundation
 import Gtk
 import SwiftCrossUI
 
@@ -57,6 +58,7 @@ extension GtkBackend: BackendFeatures.FrameClocks {
                 // 所要的那個單調秒數。
                 let microseconds = clock.map { gdk_frame_clock_get_frame_time($0) } ?? 0
                 MainActor.assumeIsolated {
+                    GtkBackend.frameClockHasTicked = true
                     GtkBackend.currentFrameClockHandler?(Double(microseconds) / 1_000_000)
                 }
                 // G_SOURCE_CONTINUE
@@ -111,6 +113,11 @@ extension GtkBackend: BackendFeatures.FrameClocks {
             gdk_frame_clock_begin_updating(clock)
             frameClockUpdatingOn = clock
         }
+        // A fallback until the first tick; see scheduleFallbackTick.
+        // 第一個 tick 之前的備援;見 scheduleFallbackTick。
+        Self.frameClockHasTicked = false
+        Self.fallbackGeneration += 1
+        Self.scheduleFallbackTick(generation: Self.fallbackGeneration, after: 0.05)
     }
 
     public func stopFrameClock() {
@@ -129,10 +136,48 @@ extension GtkBackend: BackendFeatures.FrameClocks {
         frameClockID = nil
         frameClockAttachedTo = nil
         Self.currentFrameClockHandler = nil
+        Self.fallbackGeneration += 1
     }
 
     /// The widget the clock hangs on: the first window there is.
     /// 時鐘所掛的那個 widget:現有的第一個視窗。
+    /// Whether the GTK clock has ticked since the last start.
+    /// 自上次啟動以來 GTK 的時鐘是否已經 tick 過。
+    @MainActor private static var frameClockHasTicked = false
+    /// Bumped by every start and stop, so a stale fallback tick stops itself.
+    /// 每次啟動與停止都會遞增，讓過時的備援 tick 自行停止。
+    @MainActor private static var fallbackGeneration = 0
+
+    /// Ticks from the main queue at 60 Hz until the GTK clock delivers its
+    /// first tick after a start.
+    ///
+    /// On macOS (GDK 4.22) a clock started again after `end_updating`, with
+    /// nothing on screen invalidated, gave its first tick 1.5 s, 3.4 s and
+    /// about 4.2 s late (P108's second fling); without the `end_updating` it
+    /// came 2 ms after the start, and neither `request_phase(UPDATE)`,
+    /// `queue_draw`, `queue_allocate` nor deferring the `end` changed it. Once
+    /// the first fallback frame has moved something the clock runs again, and
+    /// the fallback stops at its first tick. The time is
+    /// `g_get_monotonic_time`, the clock GDK's frame times are taken from.
+    ///
+    /// 從 main queue 以 60 Hz tick,直到 GTK 的時鐘在啟動後交出它的第一個 tick。macOS(GDK 4.22)上，在
+    /// `end_updating` 之後再次啟動、而畫面上沒有東西失效的時鐘，第一個 tick 晚了 1.5 秒、3.4 秒與約 4.2 秒
+    /// (P108 的第二次 fling);不呼叫 `end_updating` 時它在啟動後 2 毫秒到來，而 `request_phase(UPDATE)`、
+    /// `queue_draw`、`queue_allocate` 與延後 `end` 都沒有改變它。第一個備援幀移動了東西之後時鐘就會再跑起來，
+    /// 備援在它的第一個 tick 時停止。時間取 `g_get_monotonic_time`,也就是 GDK 的幀時間所根據的時鐘。
+    @MainActor
+    private static func scheduleFallbackTick(generation: Int, after delay: Double) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            MainActor.assumeIsolated {
+                guard generation == fallbackGeneration, !frameClockHasTicked,
+                    let handler = currentFrameClockHandler
+                else { return }
+                handler(Double(g_get_monotonic_time()) / 1_000_000)
+                scheduleFallbackTick(generation: generation, after: 1.0 / 60)
+            }
+        }
+    }
+
     private var frameClockWidget: UnsafeMutablePointer<GtkWidget>? {
         (windows.first ?? precreatedWindow)?.widgetPointer
     }

@@ -239,8 +239,37 @@ final class AppKitHitTestingContainer: NSView {
         // No superview means no conversion to make, and `point` is already in
         // the only space there is.
         // 沒有 superview 就沒有轉換可做，此時 `point` 已位於唯一存在的那個座標系。
-        let localPoint = superview.map { convert(point, from: $0) } ?? point
+        var localPoint = superview.map { convert(point, from: $0) } ?? point
+        // Through this container's geometric effect: the layer transform moves
+        // what is drawn and `convert` reads only the frame, so the point is
+        // taken back through the inverse to where the content lies (the effect
+        // is top-left origin, y down).
+        // 經過此容器的幾何效果:layer 的變換移動畫出的東西，而 `convert` 只讀 frame,所以把點經由反矩陣帶回內容
+        // 所在之處(效果以左上角為原點、y 向下)。
+        if let effect = geometricEffect, effect != .identity, let inverse = effect.inverted() {
+            let down = isFlipped ? localPoint.y : bounds.height - localPoint.y
+            let m = inverse.linearTransform
+            let t = inverse.translation
+            let x = m.x * Double(localPoint.x) + m.y * Double(down) + t.x
+            let y = m.z * Double(localPoint.x) + m.w * Double(down) + t.y
+            localPoint = NSPoint(x: x, y: isFlipped ? y : Double(bounds.height) - y)
+        }
         guard bounds.contains(localPoint) else {
+            // A child drawn moved by its own geometric effect can lie outside
+            // this container: it is asked too, and answers only for its drawn
+            // rectangle. Measured with P108: a card coasted 126 pt along, inside
+            // a 40 pt container, could only be picked up at its layout frame.
+            // 由自己的幾何效果移動後畫出的子元件，可能位於此容器之外：也詢問它，而它只對自己畫出的矩形回應。以 P108
+            // 量到：在 40 點容器中滑行 126 點的卡片，只能在它的版面 frame 上拿起。
+            for child in subviews.reversed() {
+                guard let moved = child as? AppKitHitTestingContainer,
+                    let effect = moved.geometricEffect, effect != .identity,
+                    !moved.isHidden, moved.alphaValue > 0,
+                    let candidate = moved.hitTest(localPoint),
+                    !AppKitHitTestingRegistry.isDisabled(candidate, through: self)
+                else { continue }
+                return candidate
+            }
             Self.report(
                 "outside the container: point \(Self.describe(point)) -> local "
                     + "\(Self.describe(localPoint)), bounds \(Self.describe(bounds))"

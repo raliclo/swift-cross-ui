@@ -1,3 +1,5 @@
+import Foundation
+
 extension View {
     /// Reports a one-finger drag, or a mouse press-and-move, over this view.
     ///
@@ -60,8 +62,14 @@ extension View {
     }
 }
 
+/// The children of a drag modifier, with the tracker that gives each value its velocity.
+/// 拖曳 modifier 的 children,帶著為每個值算出速度的追蹤器。
+final class DragGestureChildren<Content: View>: TupleViewChildren1<Content> {
+    var tracker = DragVelocityTracker()
+}
+
 struct OnDragGestureModifier<Content: View>: TypeSafeView {
-    typealias Children = TupleView1<Content>.Children
+    typealias Children = DragGestureChildren<Content>
 
     var body: TupleView1<Content>
     var onChange: (DragGestureValue) -> Void
@@ -72,7 +80,7 @@ struct OnDragGestureModifier<Content: View>: TypeSafeView {
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
     ) -> Children {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+        Children(body.view0, backend: backend, snapshots: snapshots, environment: environment)
     }
 
     @CastBackend<BackendFeatures.DragGestures>(returnsWidget: true)
@@ -107,11 +115,21 @@ struct OnDragGestureModifier<Content: View>: TypeSafeView {
     ) {
         let size = children.child0.commit().size
         backend.setSize(of: widget, to: size.vector)
+        // Each value gets its velocity from the times the points arrived.
+        // 每個值的速度由各點抵達的時間算出。
+        let onChange = onChange
+        let onEnd = onEnd
         backend.updateDragGestureTarget(
             widget,
             environment: environment,
-            onChange: onChange,
-            onEnd: onEnd
+            onChange: { [weak children] value in
+                guard let children else { return onChange(value) }
+                onChange(children.tracker.changed(value, at: ProcessInfo.processInfo.systemUptime))
+            },
+            onEnd: { [weak children] value in
+                guard let children else { return onEnd(value) }
+                onEnd(children.tracker.ended(value, at: ProcessInfo.processInfo.systemUptime))
+            }
         )
     }
 }

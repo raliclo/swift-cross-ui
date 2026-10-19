@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P108 on GtkBackend (macOS): a real throw of the card and a held drag, after the app's own FREE and BOUND steps (about 10 s).
+# Positions from the GTK window on 2026-10-19, the same as AppKit (880x1096 px = 440x548 pt at 2x; origin=frame, 28 pt title bar):
+# the card is 40x40 at frame x 20-60, y 128-168, and may move along x up to 300 pt.
+# THROW: 5 pt per move with 16 ms sleeps, let go while moving (the synthesiser delivered the points 19-25 ms apart on
+# 2026-10-19, not 16). Pass (p108-inertia.log): the DRAG release velocity within 1 pt/s of the speed over the last 0.1 s of
+# the points as received, the coast frames on the closed form within 0.01 pt, and the end equal to release + v*0.4995
+# (clamped to 0...300) within 0.01 pt.
+# HOLD: the card pressed where the throw left it (about 130 pt along, not at its layout frame), dragged 20 pt and held 0.3 s.
+# Pass: a DRAG release 20 pt further on with velocity 0 and HOLD, no coast.
+# P108 在 AppKit 上：真正拋出卡片一次，再拖曳後停住一次，在 app 自己的 FREE 與 BOUND 之後(約 10 秒)。通過條件見上方英文說明。
+sleep,,,,,,11000000,let P108 run FREE and BOUND,macos
+mousedown,40,148,frame,left,,,THROW: press on the card,macos
+sleep,,,,,,100000,,macos
+move,45,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,50,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,55,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,60,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,65,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,70,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,75,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,80,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,85,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,90,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+mouseup,90,148,frame,left,,,let go while moving,macos
+sleep,,,,,,5000000,let the coast end,macos
+mousedown,200,148,frame,left,,,HOLD: press on the card where the throw left it (GTK delivered the points faster and the card coasts further),macos
+sleep,,,,,,100000,,macos
+move,210,148,frame,,,,drag right,macos
+sleep,,,,,,16000,,macos
+move,220,148,frame,,,,drag right,macos
+sleep,,,,,,300000,hold still,macos
+mouseup,220,148,frame,left,,,let go after standing still,macos
+sleep,,,,,,1000000,,macos

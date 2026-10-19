@@ -1,15 +1,18 @@
 /// What a drag reports.
 ///
-/// **Three points and no velocity.** SwiftUI's value also carries
-/// `predictedEndTranslation`, which every platform computes differently from a
-/// velocity none of them expose the same way; a field that means something
-/// slightly different on each of five backends is worse than one that is absent.
+/// **Velocity from SwiftCrossUI, not from the backends.** A backend reports the
+/// points; ``velocity`` (and from it ``predictedEndTranslation`` and
+/// ``predictedEndLocation``, SwiftUI's fields) is computed in SwiftCrossUI from
+/// the times the points arrived (``DragVelocityTracker``), one definition on all
+/// five backends rather than each platform's own estimate, which they expose in
+/// different ways or not at all.
 ///
 /// 一次拖曳所回報的東西。
 ///
-/// **三個點，沒有速度。** SwiftUI 的值還帶著 `predictedEndTranslation`，而那是每個平台各自從「它們
-/// 揭露方式都不同的速度」算出來的;一個「在五個 backend 上各自略有不同意義」的欄位，比一個不存在的
-/// 欄位更糟。
+/// **速度來自 SwiftCrossUI,不是來自 backend。** backend 回報各點;``velocity``(以及由它算出的
+/// ``predictedEndTranslation`` 與 ``predictedEndLocation``,SwiftUI 的欄位)由 SwiftCrossUI 依各點抵達的時間算出
+/// (``DragVelocityTracker``),五個 backend 上同一個定義，而不是各平台自己的估計——它們揭露的方式各不相同，或根本
+/// 不揭露。
 public struct DragGestureValue: Equatable, Sendable {
     /// Where the drag began, in the gesture target's own coordinates.
     /// 拖曳開始之處，以手勢目標自身的座標表示。
@@ -19,11 +22,30 @@ public struct DragGestureValue: Equatable, Sendable {
     /// 指標現在的位置，同一套座標。
     public var location: SIMD2<Double>
 
+    /// Points per second over the last tenth of a second; zero when the
+    /// pointer stood still that long. Set by SwiftCrossUI, not by the backend.
+    /// 最後十分之一秒內每秒移動的點數;指標靜止那麼久時為零。由 SwiftCrossUI 設定，不是由 backend。
+    public var velocity: SIMD2<Double> = .zero
+
     /// `location - startLocation`, which is the number nearly every caller
     /// actually wants.
     /// 即 `location - startLocation`——那才是幾乎每個呼叫端真正想要的數字。
     public var translation: SIMD2<Double> {
         location - startLocation
+    }
+
+    /// Where the translation would end if the drag stopped now and coasted at
+    /// UIScrollView's normal deceleration (``Inertia/normalDecelerationRate``):
+    /// `translation + velocity * τ`, τ = 0.4995 s.
+    /// 若拖曳此刻停止、以 UIScrollView 的一般減速滑行(``Inertia/normalDecelerationRate``),位移會停在哪裡:
+    /// `translation + velocity * τ`,τ = 0.4995 秒。
+    public var predictedEndTranslation: SIMD2<Double> {
+        translation + velocity * Inertia.timeConstant(Inertia.normalDecelerationRate)
+    }
+
+    /// `startLocation + predictedEndTranslation`.
+    public var predictedEndLocation: SIMD2<Double> {
+        startLocation + predictedEndTranslation
     }
 
     public init(startLocation: SIMD2<Double>, location: SIMD2<Double>) {
