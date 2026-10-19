@@ -2032,3 +2032,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-19,ios,uikit,P111,ok,ok,window,default,actions/ios/P111-steps.actions (new): TIMELINE value err 8.55e-15 pt; DRAW DONE err 0.0000 pt over 285 checks
 2026-10-19,ios,uikit,P103,ok,ok,window,default,"EmojiPicker chooses its own columns (6 on a phone, 8 elsewhere): the inline picker and the long-press sheet are 6 wide; tap/long-press file still passes. The PIN line running past the right edge is actualView laying the app out at its .defaultSize 480x960, not a defect"
 2026-10-19,mac,appkit,P103,ok,ok,window,default,"After EmojiPicker's default columns moved into the picker: both mac action files give the same lines as before, 8 columns"
+2026-10-19,ios,uikit,P43,ok,ok,window,default,"Gradient stroke ring is round: the gradients now draw in a sublayer sized to the stroked path, not in draw(_:), which a view clips to its bounds; it was cut flat on top, bottom and left. Fills unchanged; P110 still passes"
+2026-10-19,android,android,P43,ok,n/a,screen,default,"Gradient stroke ring already round, fills clipped to their shapes; nothing to change"

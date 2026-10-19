@@ -21,7 +21,7 @@ import UIKit
 /// is an ellipse from one point to another, with no start radius, so a
 /// `radialGradient(startRadius:endRadius:)` cannot be stated. So the flat case
 /// keeps the shape layer, unchanged and as cheap as it was, and the gradient
-/// case draws in `draw(_:)` with `CGGradient`, which takes both radii.
+/// case draws with `CGGradient`, which takes both radii, in a layer of its own (`PathWidget.updateGradientLayer`).
 ///
 /// 把漸層畫進形狀裡，而不是把它壓成單一顏色。
 ///
@@ -35,7 +35,7 @@ import UIKit
 /// **`CAShapeLayer` 無法繪製漸層**，而且沒有可設定的屬性：`fillColor` 是一個 `CGColor`。「以形狀
 /// 遮蔽 `CAGradientLayer`」是常見的變通做法，但它表達不了這項功能——它的 `.radial` 型別是一個從某點
 /// 到另一點的橢圓，沒有起始半徑，因此 `radialGradient(startRadius:endRadius:)` 無從表述。所以平面色
-/// 的情況維持使用 shape layer、原封不動且維持原有成本，而漸層的情況則在 `draw(_:)` 中以 `CGGradient`
+/// 的情況維持使用 shape layer、原封不動且維持原有成本，而漸層的情況則在自己的圖層(`PathWidget.updateGradientLayer`)中以 `CGGradient`
 /// 繪製——它接受兩個半徑。
 extension UIKitBackend {
     public func renderPath(
@@ -72,16 +72,14 @@ extension UIKitBackend {
         widget.shapeLayer.isHidden = hasGradient
         widget.isOpaque = false
         widget.backgroundColor = .clear
-        if hasGradient {
-            widget.setNeedsDisplay()
-        }
+        widget.updateGradientLayer()
     }
 }
 
 extension ResolvedFillStyle {
     /// `nil` for a flat colour, so the view can test one optional instead of
-    /// switching on the enum in `draw(_:)`.
-    /// 平面顏色時為 `nil`，使該 view 在 `draw(_:)` 中只需檢查一個 optional，而不必對 enum 做 switch。
+    /// switching on the enum when it draws.
+    /// 平面顏色時為 `nil`，使該 view 繪製時只需檢查一個 optional，而不必對 enum 做 switch。
     var asGradient: ResolvedFillStyle? {
         if case .color = self { return nil }
         return self

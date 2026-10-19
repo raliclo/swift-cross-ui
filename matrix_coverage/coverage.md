@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2032**
+**Runs recorded / 已記錄的執行筆數: 2034**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android  | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------|--------------------------|--------------|
@@ -79,7 +79,7 @@ zsh matrix_coverage/coverage.zsh
 | P40           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |
 | P41           | pass 2026-09-17              | pass 2026-10-07                | pass 2026-10-19          | pass 2026-10-10              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |
 | P42           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-09-30              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |
-| P43           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-10-19              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-19          |              |
+| P43           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
 | P44           | pass 2026-09-08              | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |
 | P45           | -                            | -                              | -                        | pass 2026-09-28              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |
 | P46           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-10        | pass 2026-10-13     | pass 2026-10-16          |              |

@@ -3,6 +3,9 @@ import UIKit
 
 final class PathWidget: BaseViewWidget {
     let shapeLayer = CAShapeLayer()
+    /// Draws a gradient fill or stroke; shown only while one is set.
+    /// 繪製漸層填色或描邊；只在設定了漸層時顯示。
+    let gradientLayer = PathGradientLayer()
 
     /// Set only when the style is not a flat colour; see
     /// `UIKitBackend+PathGradients.swift`.
@@ -15,17 +18,71 @@ final class PathWidget: BaseViewWidget {
         super.init()
 
         layer.addSublayer(shapeLayer)
+        gradientLayer.owner = self
+        gradientLayer.isHidden = true
+        layer.addSublayer(gradientLayer)
     }
 
-    override func draw(_ rect: CGRect) {
-        super.draw(rect)
+    // The display scale is known once the view is in a window; the layer is
+    // redrawn at it.
+    // 進入視窗後才知道顯示倍率；圖層依它重繪。
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        updateGradientLayer()
+    }
 
+    /// Sizes the gradient layer to the path's extents -- stroked, when the
+    /// stroke is a gradient -- and redraws it.
+    ///
+    /// A layer of its own rather than `draw(_:)`, because a view draws only
+    /// inside its bounds: half of a stroke centred on a shape that fills its
+    /// frame lies outside, and a gradient ring was cut flat on four sides
+    /// (P43). The flat colour's `CAShapeLayer` was never clipped, and neither
+    /// is this layer.
+    ///
+    /// 把漸層圖層的大小設為路徑的範圍(描邊是漸層時為描邊後的範圍)並重繪。
+    ///
+    /// 用一個自己的圖層而不是 `draw(_:)`,因為 view 只畫在自己的 bounds 之內：填滿外框的形狀，其置中的描邊
+    /// 有一半落在外面，漸層圓環因此四邊都被切平(P43)。平面色的 `CAShapeLayer` 從未被裁切，這個圖層也不會。
+    func updateGradientLayer() {
+        let hasGradient = fillGradient != nil || strokeGradient != nil
+        gradientLayer.isHidden = !hasGradient
+        guard hasGradient, let path = shapeLayer.path else { return }
+
+        var box = path.boundingBoxOfPath
+        if strokeGradient != nil {
+            let stroked = path.copy(
+                strokingWithWidth: shapeLayer.lineWidth,
+                lineCap: shapeLayer.lineCap == .round
+                    ? .round : shapeLayer.lineCap == .square ? .square : .butt,
+                lineJoin: shapeLayer.lineJoin == .round
+                    ? .round : shapeLayer.lineJoin == .bevel ? .bevel : .miter,
+                miterLimit: shapeLayer.miterLimit
+            )
+            box = box.union(stroked.boundingBoxOfPath)
+        }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // One point of margin for the antialiased edge.
+        // 留一點邊距給反鋸齒的邊緣。
+        gradientLayer.frame = box.insetBy(dx: -1, dy: -1).integral
+        gradientLayer.contentsScale = traitCollection.displayScale
+        CATransaction.commit()
+        gradientLayer.setNeedsDisplay()
+    }
+
+    /// The gradients, in this view's coordinates translated to the gradient
+    /// layer's origin.
+    /// 漸層，以本 view 的座標繪製，平移到漸層圖層的原點。
+    func drawGradients(in context: CGContext, layerOrigin: CGPoint) {
         guard
             fillGradient != nil || strokeGradient != nil,
             let environment,
-            let path = shapeLayer.path,
-            let context = UIGraphicsGetCurrentContext()
+            let path = shapeLayer.path
         else { return }
+
+        context.translateBy(x: -layerOrigin.x, y: -layerOrigin.y)
 
         // The path's own extents, not the view's. A gradient's unit points are
         // in the shape's space, which is what lets it be clipped to a circle
@@ -65,6 +122,24 @@ final class PathWidget: BaseViewWidget {
             context.clip()
             drawGradient(strokeGradient, in: box, environment: environment, context: context)
             context.restoreGState()
+        }
+    }
+}
+
+/// The layer `PathWidget` draws its gradients into.
+/// `PathWidget` 繪製漸層所用的圖層。
+final class PathGradientLayer: CALayer {
+    weak var owner: PathWidget?
+
+    // Core Animation draws a layer on the main thread (this one does not set
+    // drawsAsynchronously), where the owning view lives.
+    // Core Animation 在主執行緒上繪製圖層(這個圖層沒有設定 drawsAsynchronously),也就是擁有它的 view 所在之處。
+    override func draw(in ctx: CGContext) {
+        nonisolated(unsafe) let context = ctx
+        nonisolated(unsafe) let owner = owner
+        let origin = frame.origin
+        MainActor.assumeIsolated {
+            owner?.drawGradients(in: context, layerOrigin: origin)
         }
     }
 }
