@@ -1393,10 +1393,42 @@ wslg_keeper() {
     printf '==> WSLg keeper window: up, not in copy mode\n'
 }
 
+# Give the systemd user session the display variables, so xdg-desktop-portal-gtk can show a dialog.
+#
+# MEASURED 2026-10-20. Stock WSLg has no xdg-desktop-portal, but this distro gained one on
+# 2026-09-17 (xdg-desktop-portal 1.21.1, -gtk 1.15.3). systemd starts it with no DISPLAY and no
+# WAYLAND_DISPLAY, and GtkFileDialog prefers the portal whenever one answers: P62's save went to
+# it, the journal read "Failed to open X11 display", no dialog reached the screen, and the
+# Return meant for the dialog went to P62 instead -- the window stayed "Untitled" with no error
+# anywhere in the test's own output. After `dbus-update-activation-environment --systemd DISPLAY
+# WAYLAND_DISPLAY` and a restart of portal-gtk, the same action file saved Untitled.txt.
+# The import does not survive a WSL restart, so it is repeated before every WSLg run; with the
+# variables already present it does nothing. No `$` in the command: it crosses wsl.exe, which eats it.
+#
+# 讓 systemd 使用者工作階段取得顯示變數，好讓 xdg-desktop-portal-gtk 能顯示對話框。
+#
+# 2026-10-20 實測。原版 WSLg 沒有 xdg-desktop-portal,但這個發行版在 2026-09-17 裝上了一個
+# (xdg-desktop-portal 1.21.1、-gtk 1.15.3)。systemd 啟動它時沒有 DISPLAY 也沒有 WAYLAND_DISPLAY,而只要
+# portal 有回應,GtkFileDialog 就會交給它:P62 的存檔走到 portal,journal 寫著「Failed to open X11 display」,
+# 沒有任何對話框出現在螢幕上，原本要給對話框的 Return 落到 P62 身上——視窗標題停在「Untitled」,而測試自己的
+# 輸出裡沒有任何錯誤。執行 `dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY` 並重啟
+# portal-gtk 之後，同一份 action 檔存下了 Untitled.txt。這個匯入在 WSL 重啟後不會保留，所以每次 WSLg 測試前
+# 都重做一次；變數已在時它什麼都不做。指令裡沒有 `$`:它要穿過 wsl.exe,而 wsl.exe 會吃掉它。
+wslg_portal_display() {
+    local said
+    said="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- bash -lc \
+        'systemctl --user show-environment 2>/dev/null | grep -q ^WAYLAND_DISPLAY= && exit 0; dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY >/dev/null 2>&1; systemctl --user try-restart xdg-desktop-portal-gtk.service >/dev/null 2>&1; printf imported' \
+        2>/dev/null || true)"
+    if [ "$said" = imported ]; then
+        printf '==> WSLg portal: display variables given to the systemd user session; portal-gtk restarted\n'
+    fi
+}
+
 run_wsl() {
     local label="${app:l}-wslg"
 
     wslg_keeper
+    wslg_portal_display
     wsl_renderer_preflight
 
     if [ "$do_build" -eq 1 ]; then

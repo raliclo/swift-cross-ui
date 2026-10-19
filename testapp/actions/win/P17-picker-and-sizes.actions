@@ -60,13 +60,21 @@ action,x,y,origin,button,key,micros,note,platform
 # 各自的按鈕內，但都不在中心：最後一個距離一顆 32 px 高按鈕的上緣只有 2 px。它們被移到量測出的
 # 中心，好讓幾個像素的漂移不再構成代價。
 # 量測自一張 928x898 的視窗截圖，顯示縮放 100%。
-click,323,320,frame,left,,,"Shortest" -- Selected becomes S,windows
+#
+# RE-AIMED 2026-10-20 from p17-windows-final-20261020-065315.png (928x975), a run in which no
+# click landed ("presses: (none)"): GtkBackend's wholeLineHeight change made every text row
+# taller and moved these buttons down 69 to 79 px. The box walk above was not repeated; these
+# are button centres read off that capture: Shortest (330,389), Longest (509,389),
+# Shorter (357,635), More height (483,901).
+# 2026-10-20 依 p17-windows-final-20261020-065315.png(928x975)重新瞄準；那次沒有任何點擊命中:GtkBackend 的
+# wholeLineHeight 變更讓每一行文字變高，把這些按鈕往下推了 69 至 79 px。上方的邊框走訪沒有重做，這些是從該截圖讀出的按鈕中心。
+click,330,389,frame,left,,,"Shortest" -- Selected becomes S,windows
 sleep,,,,,,900000,,windows
-click,502,320,frame,left,,,"Longest" -- the widest option,windows
+click,509,389,frame,left,,,"Longest" -- the widest option,windows
 sleep,,,,,,900000,,windows
-click,357,556,frame,left,,,"Shorter (120)" -- #266a step down,windows
+click,357,635,frame,left,,,"Shorter (120)" -- #266a step down,windows
 sleep,,,,,,700000,,windows
-click,357,556,frame,left,,,"Shorter" again,windows
+click,357,635,frame,left,,,"Shorter" again,windows
 sleep,,,,,,700000,,windows
-click,483,842,frame,left,,,"More height" -- #266b step up,windows
+click,483,901,frame,left,,,"More height" -- #266b step up,windows
 sleep,,,,,,1500000,hold for the capture,windows

@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P62 on WSL GtkBackend: type A into an untitled document, save it, and accept Untitled.txt with
+# Return, the steps of actions/mac/P62-save-untitled-gtk4.actions.
+# Measured 2026-10-20 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# Label centres: type A (57, 199), save (309, 199); clear is (383, 199), so save is aimed at its own centre.
+# Pass: the window is titled Untitled.txt after Return.
+# P62(WSL):在未命名文件輸入 A、存檔，以 Return 接受 Untitled.txt;之後視窗標題必須是 Untitled.txt。
+sleep,,,,,,2500000,let the document window lay out,gtk
+click,57,199,,left,,,type A -- the document reads A,gtk
+sleep,,,,,,400000,,gtk
+click,309,199,,left,,,"save -- untitled, so the save dialog opens with Untitled.txt",gtk
+sleep,,,,,,3000000,let the save dialog appear,gtk
+key,,,,,return,,"Return -- saves; the window must then be titled Untitled.txt",gtk
+sleep,,,,,,3000000,hold for the capture,gtk

@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17 on WSL GtkBackend: change the Picker selection and step the two layout edge cases, the
+# steps of actions/win/P17-picker-and-sizes.actions (its header explains what each step shows).
+# Measured 2026-10-20 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# Shortest (298, 317), Longest (488, 317), Shorter (120) (326, 557), More height (466, 817).
+# Pass: Selected reads L, the #266a button reads a lower height after two steps down, the #266b
+# button a higher one, and the three coloured bands end the same width.
+# P17(WSL):改變 Picker 選取並逐步調整兩個版面邊界情況;通過條件見上方英文。
+sleep,,,,,,2000000,let P17 lay out,gtk
+click,298,317,,left,,,"Shortest -- Selected becomes S",gtk
+sleep,,,,,,900000,,gtk
+click,488,317,,left,,,"Longest -- the widest option",gtk
+sleep,,,,,,900000,,gtk
+click,326,557,,left,,,"Shorter (120) -- #266a step down",gtk
+sleep,,,,,,700000,,gtk
+click,326,557,,left,,,Shorter again,gtk
+sleep,,,,,,700000,,gtk
+click,466,817,,left,,,"More height -- #266b step up",gtk
+sleep,,,,,,1500000,hold for the capture,gtk

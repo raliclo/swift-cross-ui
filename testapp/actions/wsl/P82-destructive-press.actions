@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P82 on WSL GtkBackend: hover, hold and release the destructive buttons, the steps of
+# actions/win/P82-destructive-press.actions. A destructive Button is a red label on the ordinary
+# bezel (2865c7d6); the label must stay red hovered, held and released.
+# Measured 2026-10-20 with AT-SPI under WSLg (x11); client coordinates, origin left empty.
+# Label centres: bordered (111, 180), borderless (99, 215), disabled (109, 250).
+# Pass: the last click is on the DISABLED one and must not fire, so the capture reads
+# "pressed: destructive, borderless".
+# P82(WSL):滑過、按住、放開危險按鈕，紅字不可消失;最後點停用的那顆不可觸發。
+sleep,,,,,,2000000,let P82 lay out,gtk
+hover,111,180,,,,,"destructive, bordered -- hovered; the label stays red",gtk
+sleep,,,,,,500000,,gtk
+mousedown,111,180,,left,,,"hold destructive, bordered down; the label stays red",gtk
+sleep,,,,,,1000000,held,gtk
+mouseup,111,180,,left,,,"release; pressed: destructive, bordered",gtk
+sleep,,,,,,500000,,gtk
+click,99,215,,left,,,"destructive, borderless -- the label changes to it",gtk
+sleep,,,,,,500000,,gtk
+click,109,250,,left,,,"destructive, disabled -- must NOT fire",gtk
+sleep,,,,,,3000000,hold for the capture,gtk

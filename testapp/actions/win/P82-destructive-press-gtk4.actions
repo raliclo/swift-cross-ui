@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P82 on Windows, GtkBackend: hover, hold and release the destructive buttons, the steps of
+# actions/win/P82-destructive-press.actions (WinUI). GtkBackend draws a destructive Button as a red
+# label on the ordinary bezel (2865c7d6); the label must stay red hovered, held and released.
+# The last click is on the DISABLED one: it must not fire, so the final capture must read
+# "pressed: destructive, borderless".
+# Measured 2026-10-19 on a frame capture (window 508x528, scale 1.0, origin=frame): GTK's buttons
+# are taller than WinUI's, and the WinUI positions put the borderless click in the gap between
+# two buttons. Centres: bordered (117, 240), borderless (103, 276), disabled (114, 312).
+# P82(Windows,GtkBackend):對危險按鈕滑過、按住、放開，紅字標籤不可消失;最後點停用的那顆不可觸發，
+# 截圖須顯示 "pressed: destructive, borderless"。座標取自 frame 截圖(2026-10-19)。
+sleep,,,,,,1500000,let P82 lay out,windows
+hover,117,240,frame,,,,"destructive, bordered -- hovered; the label stays red",windows
+sleep,,,,,,500000,let the hover visual settle,windows
+mousedown,117,240,frame,left,,,"hold 'destructive, bordered' down; the label stays red over the pressed chrome",windows
+sleep,,,,,,1000000,held,windows
+mouseup,117,240,frame,left,,,"release; the label must read 'pressed: destructive, bordered'",windows
+sleep,,,,,,500000,let the label update,windows
+click,103,276,frame,left,,,"press 'destructive, borderless'; the label must change to it",windows
+sleep,,,,,,500000,let the label update,windows
+click,114,312,frame,left,,,"press 'destructive, disabled'; must NOT fire -- the label stays 'destructive, borderless'",windows
+sleep,,,,,,4000000,hold for the capture,windows

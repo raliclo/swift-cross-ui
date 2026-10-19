@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P62 on Windows, GtkBackend: type A into an untitled document, save it, and accept Untitled.txt
+# with Return; the steps of actions/mac/P62-save-untitled-gtk4.actions.
+# Measured 2026-10-20 from p62-windows-final-20261020-065920.png (928x518, scale 1.0, origin=frame):
+# buttons at y 237-269; type A 32-98, save 272-330, clear 340-402. save is aimed at its own centre.
+# Pass: "save -> true" in the run log and the window titled Untitled.txt.
+# P62(Windows,GtkBackend):在未命名文件輸入 A、存檔，以 Return 接受 Untitled.txt;之後視窗標題必須是 Untitled.txt。
+sleep,,,,,,1500000,let the document window lay out,windows
+click,65,253,frame,left,,,type A -- the document reads A,windows
+sleep,,,,,,400000,,windows
+click,301,253,frame,left,,,"save -- untitled, so the save dialog opens with Untitled.txt",windows
+sleep,,,,,,3000000,let the save dialog appear,windows
+key,,,,,return,,"Return -- saves; the window must then be titled Untitled.txt",windows
+sleep,,,,,,4000000,hold for the capture,windows

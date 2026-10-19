@@ -3135,6 +3135,13 @@ public final class GtkBackend:
     /// XSettings manager、沒有 libadwaita，且 `XDG_CURRENT_DESKTOP` 為空。無論這段程式碼多正確，
     /// app 在那裡看起來都會像壞掉。驗證需要一個真正的 GNOME 桌面，或針對 Windows 分支做一次
     /// Windows 主題切換。
+    ///
+    /// 2026-10-20: the "no xdg-desktop-portal" above was true of stock WSLg when
+    /// measured; this distro has had xdg-desktop-portal and -gtk since
+    /// 2026-09-17, whose Settings interface carries the color scheme. Whether
+    /// that makes this verifiable under WSLg has not been measured.
+    /// 2026-10-20:上方「沒有 xdg-desktop-portal」在量測時對原版 WSLg 成立；此發行版自 2026-09-17 起裝有
+    /// xdg-desktop-portal 與 -gtk,其 Settings 介面帶有配色。這是否讓本處在 WSLg 下變得可驗證，尚未量測。
     /// Carries a weak ``GtkBackend`` and an `HKEY` across a thread boundary.
     ///
     /// `@unchecked Sendable` for the reason spelled out at its use site: this
@@ -5369,6 +5376,17 @@ public final class GtkBackend:
         // arrives and the app gets the file, but the window stays on screen.
         // A stock GTK4 app using GtkFileDialog closes correctly in the same
         // session, which is what identified the API rather than our use of it.
+        //
+        // 2026-10-20: "no xdg-desktop-portal" describes stock WSLg. With one
+        // installed (this distro has had it since 2026-09-17), GtkFileDialog hands
+        // the dialog to xdg-desktop-portal-gtk, and systemd starts that without
+        // DISPLAY or WAYLAND_DISPLAY: no dialog reaches the screen and the request
+        // never completes. That is the session's environment, not this call, and
+        // testapp's test_common.zsh `wslg_portal_display` repairs it before a run.
+        // 2026-10-20:「沒有 xdg-desktop-portal」說的是原版 WSLg。裝了 portal 之後(此發行版自 2026-09-17 起),
+        // GtkFileDialog 會把對話框交給 xdg-desktop-portal-gtk,而 systemd 啟動它時沒有 DISPLAY 也沒有 WAYLAND_DISPLAY:
+        // 對話框到不了螢幕，請求也永遠不會完成。那是工作階段的環境，不是這個呼叫的問題;testapp 的 test_common.zsh
+        // `wslg_portal_display` 會在測試前修好它。
         let dialog = gtk_file_dialog_new()
         gtk_file_dialog_set_title(dialog, fileDialogOptions.title)
         gtk_file_dialog_set_accept_label(dialog, fileDialogOptions.defaultButtonLabel)

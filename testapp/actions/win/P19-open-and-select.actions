@@ -92,15 +92,28 @@ action,x,y,origin,button,key,micros,note,platform
 #   Text item, not clickable  295
 #   Toggle item            337
 #   Second button item     367
-click,96,225,frame,left,,,open the menu,windows
+#
+# RE-AIMED 2026-10-20. The rows above are kept as they were measured, and two things have
+# since made them wrong. GtkBackend's wholeLineHeight change moved "Open the menu" down to
+# (96, 244) and the popover with it, now at frame (35, 261), 183x151. And the synthesiser
+# now drives an open popover as the target window (the 2026-09-10 change in
+# Win32Synthesiser.swift), so a frame-relative item row was measured from the popover's
+# corner: (127, 284) became screen (226, 609), on the desktop, and the replay stopped.
+# The items are now origin=popover, the frame rows above minus the popover's origin:
+# Button item (92, 23), Toggle item (92, 95), Second button item (92, 125).
+# 2026-10-20 重新瞄準。上方各列保留原量測值，之後有兩件事讓它們失準:GtkBackend 的 wholeLineHeight
+# 變更把「Open the menu」移到 (96, 244),popover 也跟著下移，現在位於 frame (35, 261)、183x151;而
+# synthesiser 現在把開著的 popover 當成目標視窗，所以 frame 座標的選單列被從 popover 的角落起算，點到桌面上，
+# 重放隨即停止。選單列改為 origin=popover:Button item (92, 23)、Toggle item (92, 95)、Second button item (92, 125)。
+click,96,244,frame,left,,,open the menu,windows
 sleep,,,,,,1200000,let the popover appear,windows
-click,127,265,frame,left,,,press Button item,windows
+click,92,23,popover,left,,,press Button item,windows
 sleep,,,,,,1000000,let last action update,windows
-click,96,225,frame,left,,,reopen -- activating an item closed it,windows
+click,96,244,frame,left,,,reopen -- activating an item closed it,windows
 sleep,,,,,,1200000,,windows
-click,127,337,frame,left,,,press Toggle item -- see the note above,windows
+click,92,95,popover,left,,,press Toggle item -- see the note above,windows
 sleep,,,,,,1000000,,windows
-click,96,225,frame,left,,,reopen,windows
+click,96,244,frame,left,,,reopen,windows
 sleep,,,,,,1200000,,windows
-click,127,367,frame,left,,,press Second button item,windows
+click,92,125,popover,left,,,press Second button item,windows
 sleep,,,,,,2000000,hold for the capture,windows
