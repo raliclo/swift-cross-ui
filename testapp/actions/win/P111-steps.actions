@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P111 on Windows (TEST_BACKEND=WinUI or gtk4): keyframe velocities; TIMELINE and DRAW, logged in p111-keyframe-velocity.log.
+# 2026-10-19, Swift 6.4.1: pass on both -- TIMELINE value err 8.55e-15 pt, slope err 0.0079 pt/s; DRAW err 0.0000 over 119 (WinUI) / 169 (GTK) checks.
+# P111(Windows):app 自行量測，只需等待。
+sleep,,,,,,6000000,P111 measures itself; wait for STEPS DONE,windows

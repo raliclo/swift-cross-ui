@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P103 on WSL GtkBackend: the steps of actions/win/P103-tap-long-press.actions. Client coordinates (origin empty),
+# 2026-10-19: AT-SPI lists the row names and SOLO but not the emoji circles, so the emoji sit where the Windows GTK
+# layout puts them against those: row emoji at x 42 (停車場 y 206, 便利商店 y 250), SOLO emoji (80, 408).
+# Pass (p103-emoji.log): ROW 停車場 off, then SOLO on; ROW 便利商店 picker and NO ROW 便利商店 off for the long press.
+# P103(WSL):點停車場→off,點 SOLO→on,長按便利商店→開 picker 且不得記為點擊。
+sleep,,,,,,4000000,let P103 lay out -- at 2 s the first tap was lost under WSLg,gtk
+click,42,206,,left,,,停車場: a tap switches it off,gtk
+sleep,,,,,,800000,,gtk
+click,80,408,,left,,,SOLO: a tap switches it on,gtk
+sleep,,,,,,800000,,gtk
+mousedown,42,250,,left,,,便利商店: press,gtk
+sleep,,,,,,900000,held 0.9 s -- past the 0.5 s long-press delay; the picker opens,gtk
+mouseup,,,,left,,,let go in place -- no toggle may be logged,gtk
+sleep,,,,,,1500000,leave the picker open for the final capture,gtk

@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P110 on Windows (TEST_BACKEND=WinUI or gtk4): gradients that tween; the app runs WITH, VALUE, JUMP, FINAL and logs p110-gradient-tween.log.
+# 2026-10-19, Swift 6.4.1: WITH, VALUE and FINAL colour 0.0 and other 0.000 on WinUI and Windows GTK; JUMP reads samples tg 1, tc 0, lin 1, rad 0, str 1, fg 1 -- tc and rad start flat (blue, green) and log those colours, err 0.
+# P110(Windows):app 自行量測，只需等待。
+sleep,,,,,,9000000,P110 measures itself; wait for STEPS DONE,windows

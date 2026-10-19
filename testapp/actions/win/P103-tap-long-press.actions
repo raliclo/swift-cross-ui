@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P103 on Windows, WinUIBackend: the steps of actions/mac/P103-tap-long-press.actions -- a tap and a long press on
+# EmojiToggleButton rows, and a tap on the SOLO toggle. Measured 2026-10-19 with UIA, frame DIPs at 125%: row emoji
+# at x 50, 停車場 y 233, 便利商店 y 277; SOLO emoji (86, 430).
+# Pass (p103-emoji.log): ROW 停車場 off, then SOLO on; ROW 便利商店 picker and NO ROW 便利商店 off for the long press.
+# P103(Windows,WinUI):點停車場→off,點 SOLO→on,長按便利商店→開 picker 且不得記為點擊。
+sleep,,,,,,1500000,let P103 lay out,windows
+click,50,233,frame,left,,,停車場: a tap switches it off,windows
+sleep,,,,,,800000,,windows
+click,86,430,frame,left,,,SOLO: a tap switches it on,windows
+sleep,,,,,,800000,,windows
+mousedown,50,277,frame,left,,,便利商店: press,windows
+sleep,,,,,,900000,held 0.9 s -- past the 0.5 s long-press delay; the picker opens,windows
+mouseup,,,,left,,,let go in place -- no toggle may be logged,windows
+sleep,,,,,,1500000,leave the picker open for the final capture,windows

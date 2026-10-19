@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P110 on WSL GtkBackend: gradients that tween; the app runs WITH, VALUE, JUMP, FINAL and logs p110-gradient-tween.log.
+# 2026-10-19, Swift 6.4.1: as on Windows -- all err 0; JUMP tc 0, rad 0 samples (flat starts, logged as colours).
+# P110(WSL):app 自行量測，只需等待。
+sleep,,,,,,9000000,P110 measures itself; wait for STEPS DONE,gtk
