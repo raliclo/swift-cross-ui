@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P102 on Windows, WinUIBackend: longPressTextSelection() in a TextField and a TextEditor, and not in a
+# plain TextField -- the same steps as actions/mac/P102-long-press-drag.actions, re-measured for WinUI.
+# Positions from measure_win.zsh and the capture on 2026-10-19, in DIPs (display at 125%; origin=frame).
+# Window 454x558. FIELD text at y 189 ('quick' at x 76), EDITOR lines at y 253/270/288, CONTROL at y 406.
+# Pass (p102-select.log): FIELD began with an empty range then ended forward and non-empty; EDITOR ended
+# backward; no line at all for the CONTROL press or for the quick FIELD drag at the end (held 0.1 s).
+# P102(Windows,WinUIBackend):長按後拖曳，步驟同 actions/mac/P102-long-press-drag.actions,座標為 WinUI 重新量測
+# (2026-10-19,DIP)。通過條件:FIELD 先以空範圍 began、再以非空的正向範圍 ended;EDITOR ended 為 backward;
+# CONTROL 的長按與最後那次快速拖曳都不能有任何一行。
+sleep,,,,,,1500000,let P102 lay out,windows
+mousedown,76,189,frame,left,,,FIELD: press on 'quick',windows
+sleep,,,,,,800000,hold past the 0.5 s long-press delay,windows
+move,120,189,frame,,,,drag right,windows
+sleep,,,,,,100000,,windows
+move,170,189,frame,,,,drag right,windows
+sleep,,,,,,100000,,windows
+move,220,189,frame,,,,drag right,windows
+sleep,,,,,,150000,,windows
+mouseup,220,189,frame,left,,,let go -- the selection stays,windows
+sleep,,,,,,1000000,,windows
+mousedown,120,288,frame,left,,,EDITOR: press on the third line,windows
+sleep,,,,,,800000,hold,windows
+move,95,278,frame,,,,drag up and left,windows
+sleep,,,,,,100000,,windows
+move,70,266,frame,,,,drag up and left,windows
+sleep,,,,,,100000,,windows
+move,45,253,frame,,,,onto the first line,windows
+sleep,,,,,,150000,,windows
+mouseup,45,253,frame,left,,,let go -- backward selection stays,windows
+sleep,,,,,,1000000,,windows
+mousedown,60,406,frame,left,,,CONTROL: a long press with no modifier,windows
+sleep,,,,,,800000,hold,windows
+move,150,406,frame,,,,drag,windows
+sleep,,,,,,150000,,windows
+mouseup,150,406,frame,left,,,let go -- nothing may be logged,windows
+sleep,,,,,,1000000,,windows
+mousedown,40,189,frame,left,,,FIELD: a quick drag,windows
+sleep,,,,,,100000,held only 0.1 s,windows
+move,150,189,frame,,,,drag right -- the toolkit's drag-select,windows
+sleep,,,,,,150000,,windows
+mouseup,150,189,frame,left,,,let go -- nothing may be logged,windows
+sleep,,,,,,1500000,let the last settled line be written,windows
