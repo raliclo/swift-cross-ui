@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2026**
+**Runs recorded / 已記錄的執行筆數: 2030**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android  | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------|--------------------------|--------------|
@@ -144,7 +144,7 @@ zsh matrix_coverage/coverage.zsh
 | P105          | capture log 2026-10-19       | capture log 2026-10-19         | capture log 2026-10-19   | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
 | P106          | capture log 2026-10-19       | capture log 2026-10-19         | capture log 2026-10-19   | pass 2026-10-19              | pass 2/2 2026-10-19    | fail 1/2 2026-10-19 | pass 2026-10-19          |              |
 | P107          | capture log 2026-10-19       | capture log 2026-10-19         | capture log 2026-10-19   | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
-| P108          | -                            | -                              | capture log 2026-10-19   | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
+| P108          | partial 2026-10-19           | pass 2026-10-19                | capture log 2026-10-19   | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
 | P109          | capture log 2026-10-19       | capture log 2026-10-19         | capture log 2026-10-19   | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
 | P110          | -                            | -                              | -                        | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
 | P111          | -                            | -                              | -                        | pass 2026-10-19              | pass 2026-10-19        | pass 2026-10-19     | pass 2026-10-19          |              |
