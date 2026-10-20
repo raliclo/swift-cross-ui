@@ -336,18 +336,18 @@ public final class WinUIBackend:
                     brush.gradientStops.append(stop)
                 }
                 return brush
-            case .angularGradient:
-                // NOT DONE on WinUI (queue.md): XAML has no conic brush and swift-winui
-                // projects no ImageBrush, so a shape or text cannot take the conic
-                // gradient that AngularGradientCanvas draws for the view. Until it is
-                // built on Windows this paints the midpoint colour and logs a notice --
-                // a known gap, not a supported state.
-                // WinUI 上尚未完成(queue.md):XAML 沒有 conic brush,swift-winui 也沒有投影 ImageBrush,因此形狀與文字無法用
-                // AngularGradientCanvas 為 view 畫的那種錐形漸層。在 Windows 上做好之前，這裡畫中間色並記錄 notice——這是已知缺口，不是支援的狀態。
-                logger.notice(
-                    "WinUIBackend does not draw an AngularGradient shape style yet; painting its midpoint colour"
-                )
-                return WinUI.SolidColorBrush(style.flattened(in: environment).uwpColor)
+            case .angularGradient(let gradient, let centre, let startAngle, let endAngle):
+                // Rasterised into a composition surface: XAML has no conic brush.
+                // See ConicGradientBrush. Until the painted size is known (a text
+                // block's first update) a square stands in, redrawn on SizeChanged.
+                // 點陣化進 composition surface:XAML 沒有錐形 brush。見 ConicGradientBrush。塗繪尺寸未知時(文字區塊的
+                // 第一次更新)以正方形代替，於 SizeChanged 時重畫。
+                let stops = ResolvedFillStyle.angularTurnStops(
+                    gradient, startAngle: startAngle, endAngle: endAngle
+                ).map { (location: $0.location, colour: $0.color.resolve(in: environment)) }
+                let painted = size.flatMap { $0.x > 0 && $0.y > 0 ? $0 : nil } ?? SIMD2(64, 64)
+                return ConicGradientBrush(
+                    stops: stops, center: centre, startAngle: startAngle, size: painted)
         }
     }
 
@@ -1646,7 +1646,7 @@ public final class WinUIBackend:
             // 放射半徑以點為單位，需要區塊的尺寸，而第一次更新時還沒有：每當尺寸改變，就以最新的漸層重做 brush。
             // 每個區塊只掛一個 handler。
             let key = ObjectIdentifier(block)
-            if case .radialGradient = gradient {
+            if gradient.needsPaintedSize {
                 Self.radialTextGradients[key] = (gradient, environment)
                 if Self.radialTextGradientBlocks.insert(key).inserted {
                     block.sizeChanged.addHandler { [weak block] _, _ in

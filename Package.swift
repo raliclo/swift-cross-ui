@@ -606,6 +606,10 @@ let package = Package(
                 .linkedLibrary("d2d1", .when(platforms: [.windows])),
                 .linkedLibrary("dwrite", .when(platforms: [.windows])),
                 .linkedLibrary("windowscodecs", .when(platforms: [.windows])),
+                // D3D11 and DXGI for the composition graphics device (composition_surface.cpp).
+                // 供 composition graphics device(composition_surface.cpp)使用的 D3D11 與 DXGI。
+                .linkedLibrary("d3d11", .when(platforms: [.windows])),
+                .linkedLibrary("dxgi", .when(platforms: [.windows])),
             ]
         ),
         .target(name: "DummyBackend", dependencies: ["SwiftCrossUI"]),

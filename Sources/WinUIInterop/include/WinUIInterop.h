@@ -91,6 +91,14 @@ int scui_svg_text_mask(const uint16_t *text, int textLength, const uint16_t *fam
                        double fontSize, int bold, int italic, int anchor, double a, double b,
                        double c, double d, double tx, double ty, double strokeWidth, int width,
                        int height, uint8_t *out);
+
+// A Microsoft.UI.Composition graphics device for `compositor` (its IUnknown), made
+// from a Direct2D device and cached; AddRef'd, NULL on failure. See composition_surface.cpp.
+// 以 Direct2D device 為 `compositor`(其 IUnknown)建立並快取的 composition graphics device;已 AddRef,失敗時為 NULL。
+void *scui_composition_graphics_device(void *compositor);
+// Draws width*height premultiplied BGRA pixels into a CompositionDrawingSurface
+// (its IUnknown); 1 on success. / 把 width*height 個預乘 BGRA 像素畫進 CompositionDrawingSurface;成功時為 1。
+int scui_drawing_surface_fill(void *surface, int width, int height, const uint8_t *bgra);
 #ifdef __cplusplus
 }
 #endif
