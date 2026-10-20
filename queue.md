@@ -281,7 +281,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 - [x] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`, -> completed.md (archived 2026-10-18)
 - [x] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`, -> completed.md (archived 2026-10-18)
-- [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
+- [x] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),
   fullscreen not detected (`:726`). GTK: button label colour from the environment
@@ -322,6 +322,10 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     returned it to 536x659.
   WinUI 項目：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)、全螢幕偵測已驅動驗證;**縮放變更未驅動**
   (這台只有一台 96 DPI 的螢幕),因此本項維持未勾。
+  **Scale change DRIVEN 2026-10-20 (Windows), item closed.** The display scale was changed live with
+  SPI_SETLOGICALDPIOVERRIDE (125% -> 150% -> 125%, restored) while P42 --debug ran: WinUI and Windows GTK
+  both logged scale factor 1.25 -> 1.5 -> 1.25 (changes 2-4, after a 1.0 before the window existed).
+  **縮放變更已於 2026-10-20 驅動驗證，本項結案。**以 SPI_SETLOGICALDPIOVERRIDE 即時改縮放(125%→150%→125%,已還原):WinUI 與 Windows GTK 都記到 1.25→1.5→1.25。
 - [x] **`Button(_:role: .destructive)` changes nothing on any backend** (found -> completed.md (archived 2026-10-18)
 ## 2026-10-12 API gaps P31 still names: `.focusable` and `CommandGroup`
 
