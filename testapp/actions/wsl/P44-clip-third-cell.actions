@@ -1,0 +1,86 @@
+action,x,y,origin,button,key,micros,note,platform
+# P44 on WSL GtkBackend: ported 2026-10-20 from actions/win/P44-clip-third-cell.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P44(WSL):由 actions/win/P44-clip-third-cell.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P44 on Windows, GtkBackend: does `clipped()` actually clip, and does turning
+# it on at runtime change what is already on screen?
+#
+# expect: log-contains third cell clipped: true
+#
+# THAT MARKER IS READ BY sweep_drive.zsh, which searches this run's own log
+# output for that exact text after the replay finishes. It is the line
+# `P44Diagnostics.write` emits on the press, and nothing else in the app emits
+# it, so finding it means the button's action ran.
+#
+# Without it, driving this file on 2026-09-07 reported `ok / ok / window`, and
+# only reading the capture and the log by hand showed the press had done
+# anything at all:
+#
+#     cell 3 spill, y=620    before x=14..29   after NONE
+#     p44-debug-events.log   third cell clipped: true
+#
+# `replay=ok` means the replay ran to completion and every click landed on this
+# app's window. It does not mean a click reached the control it names -- a file
+# whose clicks ALL missed reports exactly the same three words. The marker is
+# what turns "it ran" into "it worked".
+#
+# 上方那個標記由 sweep_drive.zsh 讀取：重放結束後，它會在本次執行自身的 log 輸出中尋找該段文字。
+# 那正是 `P44Diagnostics.write` 在按下時所寫出的那一行，而 app 中沒有別的東西會寫出它，因此找到
+# 它就代表該按鈕的動作確實執行了。
+#
+# 少了它，2026-09-07 驅動本檔的回報是 `ok / ok / window`，而唯有以人工讀取擷圖與日誌，才看得出
+# 那一按究竟有沒有造成任何改變（如上）。
+#
+# `replay=ok` 的意思是「重放跑完了，而且每一次點擊都落在本 app 的視窗上」。它**不**代表某次點擊
+# 抵達了它所指名的控制項——一個「每一次點擊都沒中」的檔案，回報的會是一模一樣的三個字。這個標記
+# 的作用，就是把「它跑了」變成「它生效了」。
+#
+# P44 draws three cells. The frame is 120x60 and the orange child is 200x100, so
+# a cell that does NOT clip spills past the frame and a cell that does is cut to
+# it. Cell 1 spills by design, cell 2 carries `clipped()` and is cut, and cell 3
+# starts unclipped so that one press can be watched changing it.
+#
+# THREE THINGS CHANGE ON THAT ONE PRESS, which is why this app is worth driving
+# rather than merely launching:
+#
+#   1. the status line goes from `third cell: no clipped()` to `clipped()`
+#   2. cell 3 loses its spill -- the blue marker at the left edge disappears
+#   3. p44-debug-events.log gains a line
+#
+# So the run is judged from the capture AND from the log, and the two have to
+# agree. A capture alone would not distinguish "the click missed" from "clipped()
+# is a no-op", and those need different fixes.
+#
+# P44 於 Windows、GtkBackend：`clipped()` 真的會裁切嗎？在執行期把它打開，會改變畫面上已經存在
+# 的東西嗎？
+#
+# P44 畫三個 cell。frame 是 120x60、橘色子元件是 200x100，因此**不**裁切的 cell 會溢出 frame，
+# 而有裁切的會被切齊。cell 1 依設計溢出，cell 2 帶有 `clipped()` 因而被切，cell 3 起始為未裁切，
+# 好讓一次按壓就能被觀察到改變它。
+#
+# **那一次按壓會同時改變三件事**，這正是本 app 值得被驅動而不只是被啟動的理由：狀態列從
+# `third cell: no clipped()` 變為 `clipped()`；cell 3 失去溢出——左緣的藍色標記消失；
+# p44-debug-events.log 增加一行。
+#
+# 因此本次執行同時由擷圖與日誌判定，而兩者必須一致。單靠擷圖無法區分「點擊沒中」與
+# 「`clipped()` 是個 no-op」，而那兩者要修的東西不同。
+#
+# Measured on a 448x775 window capture at 100% display scale.
+#
+# Measured 2026-09-07 from gtk4-P44-20260907-204929.png. The button box was found
+# by walking out from the click point to the dark border, not read by eye:
+#
+#     x=31..160  y=173..204   Clip the third cell   130x32   centre 95,188
+#
+# The spill marker to watch is cell 3's blue column at x=14..29, y=620, which is
+# present before the press. Cell 1 keeps its spill throughout -- if BOTH cells
+# lose it, something clipped everything and that is a different defect from the
+# one under test.
+#
+# 量測自一張 448x775 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 量測自 gtk4-P44-20260907-204929.png。上方的按鈕邊界是從點擊位置往外走到深色邊框
+# 求得，而非以肉眼判讀。要觀察的溢出標記是 cell 3 位於 x=14..29、y=620 的藍色直條，它在按壓前
+# 存在。cell 1 全程保有其溢出——若**兩個** cell 都失去溢出，那代表有東西把全部都裁切了，而那是
+# 與受測項目不同的另一個缺陷。
+click,88,159,,left,,,Clip the third cell -- status line and cell 3 must both change,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

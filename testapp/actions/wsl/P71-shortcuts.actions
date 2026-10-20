@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P71 on WSL GtkBackend: ported 2026-10-20 from actions/win/P71-shortcuts.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P71(WSL):由 actions/win/P71-shortcuts.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P71 on Windows: menu keyboard shortcuts fire with the menu CLOSED, and a
+# disabled item's shortcut does not. Written 2026-10-08. On Windows the app's
+# Cmd shortcuts are Ctrl, so each chord is keydown control / key / keyup.
+# The first click is on the title text (139,156), not a control, only to give
+# the window focus; UIA centre minus the window origin, WinUIBackend, 536x439.
+# Pass: "Plain ... fired: 1", "Shifted ... fired: 1", "Disabled ... fired: 0".
+# P71(Windows):選單**關閉**時快捷鍵照樣觸發，而停用項目的快捷鍵不觸發。2026-10-08 撰寫。Windows 上 app 的
+# Cmd 快捷鍵是 Ctrl,所以每組都是 keydown control／key／keyup。第一下點在標題文字 (139,156) 上，不是控制項，
+# 只為取得焦點;UIA 中心減去視窗原點,WinUIBackend,536x439。通過:Plain fired: 1、Shifted fired: 1、Disabled fired: 0。
+sleep,,,,,,1500000,let P71 lay out,gtk
+click,99,128,,left,,,give the window focus,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,s,,Ctrl+S -- Plain must fire once,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+keydown,,,,,shift,,,gtk
+key,,,,,e,,Ctrl+Shift+E -- Shifted must fire once,gtk
+keyup,,,,,shift,,,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,d,,Ctrl+D -- the item is disabled; Disabled must stay at 0,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,20000000,hold 20s so the final capture lands while the window is up,gtk

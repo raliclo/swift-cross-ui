@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P69 on WSL GtkBackend: walk keyboard focus through the labelled controls. Not a port of actions/win/P69-narrator-walk.actions, whose Caps Lock chords are Narrator commands and mean nothing on Linux (a first port did exactly that, 2026-10-20). What a screen reader hears here is graded by test_support/measure/p69_atspi.zsh over the external AT-SPI bus; this file only drives focus so the capture shows the ring moving.
+# Positions from the AT-SPI dump under WSLg (x11), client coordinates: the presses line (54,128).
+# P69(WSL):以 Tab 依序移動焦點。不是 Windows 檔的移植——那份的 Caps Lock 組合鍵是 Narrator 指令，在 Linux 上沒有意義。螢幕閱讀器聽到的內容由 test_support/measure/p69_atspi.zsh 經外部 AT-SPI bus 判定。
+sleep,,,,,,1500000,let P69 lay out,gtk
+click,54,128,,left,,,click the presses line to give the window focus,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,tab,,Close,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,tab,,Delete,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,tab,,Volume,gtk
+sleep,,,,,,1500000,hold for the capture -- the focus ring is on Volume,gtk

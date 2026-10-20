@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P22 on WSL GtkBackend: ported 2026-10-20 from actions/win/P22-weights.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P22(WSL):由 actions/win/P22-weights.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P22 on Windows: scroll to the weight ladder at the bottom of the page.
+#
+# The ladder is the only part of this app that needs driving. Everything above
+# it is visible at the default window size; the nine weights are not, and a
+# capture that stops at "trailing" looks like a complete screenshot of a
+# complete app, which is how the ladder's absence would go unnoticed twice.
+#
+# What to look for: nine rows, each setting its own name in its own weight. Every
+# row must be at least as heavy as the one above and no two adjacent rows may be
+# identical. Until 2026-08-27 `semibold` and `bold` were pixel-identical here,
+# because GtkBackend mapped both onto CSS 700.
+#
+# P22 於 Windows：捲動至頁面底部的字重階梯。
+#
+# 本 app 只有這個階梯需要被驅動。其上的所有內容在預設視窗尺寸下都看得見，九種字重則否；而一張
+# 停在「trailing」的截圖，看起來就像是一個完整 app 的完整截圖——這正是「階梯不見了」會被連續
+# 忽略兩次的原因。
+#
+# 觀察重點：九列，每一列都以其自身的字重排出自己的名稱。每一列都必須至少與其上一列同重，且相鄰
+# 兩列不得完全相同。在 2026-08-27 之前，此處的 `semibold` 與 `bold` 是像素完全相同的，因為
+# GtkBackend 把兩者都對映到 CSS 700。
+#
+# Measured on a 788x729 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 760x700. The captures from the measurement date are
+# on disk and are 788x729, which is also today's size, so the window never
+# moved even though P22.swift has had two commits since -- neither of them
+# changed its size. Wrong in BOTH axes here, by 28 and 29, where P3, P7 and P9
+# were height-only. The coordinates below were not changed.
+#
+# 於 2026-09-06 由 760x700 更正。量測當天的擷圖仍在磁碟上，尺寸為 788x729，也是今天的尺寸；
+# 因此即使 P22.swift 自那時起有兩筆 commit，視窗仍未改變——那兩筆都沒有改動它的尺寸。此處
+# **兩個軸都錯**，分別差 28 與 29，而 P3、P7、P9 只錯在高度。下方座標未更動。
+# 量測自一張 760x700 的視窗截圖，顯示縮放 100%。
+move,380,350,,,,,over the scrolling content,gtk
+sleep,,,,,,400000,,gtk
+scroll,0,10,,,,,ten notches down -- the ladder is the last section,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

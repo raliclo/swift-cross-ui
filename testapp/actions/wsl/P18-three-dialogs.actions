@@ -1,0 +1,123 @@
+action,x,y,origin,button,key,micros,note,platform
+# P18 on WSL GtkBackend: ported 2026-10-20 from actions/win/P18-three-dialogs.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P18(WSL):由 actions/win/P18-three-dialogs.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P18 on Windows/GtkBackend: do the three file dialogs open, and does closing
+# one send a result back to the application?
+#
+# expect: log-contains open: cancelled
+#
+# EVIDENCE FOR THAT MARKER: the repo-root copy of p18-debug-events.log, written
+# by the hand run of 2026-09-03 22:33 from that directory, reads
+# `open: cancelled`, `folder: cancelled`, `save: cancelled` at 22:33:10, 22:33:15
+# and 22:33:19 -- three seconds apart, matching this file's three 3.0 s sleeps.
+# P18's startup lines are `backend GtkBackend.Type` and `RENDER COMPLETE`, both
+# from .onAppear, so a `cancelled` line cannot come from launching the app.
+#
+# READ THIS BEFORE FILING ANYTHING AGAINST P18. The marker is expected to report
+# UNMET on the sweep as it stands, and that is a fact about the DESKTOP, not
+# about the dialogs. testapp/output/p18-debug-events.log holds nine driven runs
+# and not one `cancelled` line, and the matching run log
+# /tmp/sweep_drive-gtk4/P18-three-dialogs.log contains ZERO
+# `target window changed` lines -- so no picker was ever opened, and the three
+# Escapes had nothing to cancel. In the same sweep session P31's click inside
+# its alert landed on a `Windows.UI.Core.CoreWindow`. Both are the foreground
+# problem sweep_drive.zsh documents at `clear_desktop`. The first thing to check
+# on an UNMET here is that count of `target window changed`, not P18.swift.
+#
+# 該標記的證據：repo 根目錄那份 p18-debug-events.log 留有 2026-09-03 22:33 的手動執行，內容為
+# 22:33:10 `open: cancelled`、22:33:15 `folder: cancelled`、22:33:19 `save: cancelled`——彼此相隔
+# 三秒，恰與本檔的三個 3.0 秒 sleep 相符。P18 的啟動行是 `backend GtkBackend.Type` 與
+# `RENDER COMPLETE`，兩者皆出自 .onAppear，因此 `cancelled` 行不可能只是啟動所致。
+#
+# **在為 P18 立任何案之前先讀這段。** 依目前的 sweep，此標記預期會回報 UNMET，而那是關於**桌面**
+# 的事實，不是關於這些對話框的。testapp/output/p18-debug-events.log 有九次驅動執行，卻沒有任何一行
+# `cancelled`；對應的執行 log /tmp/sweep_drive-gtk4/P18-three-dialogs.log 中，
+# `target window changed` 的行數為**零**——代表根本沒有任何 picker 被開啟，那三次 Escape 也就無物
+# 可取消。同一輪 sweep 中，P31 在其警示框內的點擊落到了 `Windows.UI.Core.CoreWindow` 上。兩者都是
+# sweep_drive.zsh 在 `clear_desktop` 處所記載的前景問題。看到 UNMET 時該先查的是那個
+# `target window changed` 的計數，而不是 P18.swift。
+#
+# Until 2026-08-28 no file dialog had been clicked on any platform -- the
+# coverage matrix carried P18 as built-but-never-run for GTK/Linux,
+# GTK/Windows and WinUI alike. This file is what changed that, so the three
+# `-> cancelled` lines it produces are the whole point rather than a detail.
+#
+# Escape rather than clicking Cancel, and the reason CHANGED on 2026-09-04.
+#
+# What this said, and why it is no longer true: "The dialog is a native Windows
+# picker in its own top-level window, so it is not addressable from the `frame`
+# origin, which is relative to P18's window." That was the state of the
+# synthesiser, not a property of the dialog. `frame` now means "relative to the
+# window being driven", and the driven window follows an owned dialog -- so a
+# coordinate inside one of these pickers IS addressable today. The second half
+# stands: the position is not fixed between runs, and Escape needs no
+# coordinate at all, which is why this file keeps using it.
+#
+# MEASURED 2026-09-04, running this file unchanged: all three dialogs open, all
+# three Escapes land, the log gains three `cancelled` lines, and the replay logs
+# FIVE "target window changed" lines as it follows into and back out of each
+# picker. The dialogs report client=(60,83) against frame=(52,52) -- decorated,
+# unlike P18's own window, which reports client == frame because GTK draws it
+# with client-side decorations.
+#
+# The risk this file was held back for is also gone, and it was real: until that
+# day `prepareForReplay` pinned P18's window HWND_TOPMOST and a picker opened
+# afterwards was not pinned, so the app covered its own dialog. See
+# bugs/Gtk4-bugs.md section 6.
+#
+# Reading the result: P18 renders `open -> `, `folder -> ` and `save -> ` from
+# its own bindings, and each starts at "nothing yet". All three reading
+# "cancelled" means every dialog both opened AND returned. A dialog that never
+# opened leaves "nothing yet", and one that opened but never returned leaves
+# the app hung, so the three states are distinguishable without interpreting a
+# picture.
+#
+# NOT covered here: the Open/Select/Save path. Confirming a real selection
+# would mean choosing a path on this machine, and for the save dialog writing
+# to it, which a test that runs unattended should not do. `set_initial_name` is
+# therefore still only observed through the dialog appearing with its name
+# prefilled, not through a completed save.
+#
+# P18 於 Windows/GtkBackend：三個檔案對話框打得開嗎？關閉其中一個時，結果會回到應用程式嗎？
+#
+# 直到 2026-08-28 為止，沒有任何平台上的檔案對話框被點過——覆蓋矩陣上 P18 在 GTK/Linux、
+# GTK/Windows 與 WinUI 三者皆為「編得出來但從未執行」。本檔正是改變這件事的東西，因此它產生的
+# 三行 `-> cancelled` 就是重點本身，而非附帶細節。
+#
+# 使用 Escape 而非點擊 Cancel，而**理由在 2026-09-04 改變了**。
+#
+# 原本的說法，以及它為何不再成立：「該對話框是 Windows 原生選擇器、位於它自己的 top-level 視窗中，
+# 因此無法以 `frame` 原點定位（`frame` 是相對於 P18 的視窗）。」那描述的是**合成器當時的狀態**，
+# 不是該對話框的性質。`frame` 現在的意思是「相對於當下被驅動的那個視窗」，而被驅動的視窗會追隨
+# 一個被擁有的對話框——因此**今天，這些選擇器內部的座標是定位得到的**。後半段依然成立：它的位置
+# 在各次執行之間並不固定，而 Escape 根本不需要座標，這正是本檔繼續使用它的原因。
+#
+# **2026-09-04 實測**，以本檔原樣執行：三個對話框全部開啟、三次 Escape 全部送達、log 得到三行
+# `cancelled`，而重放記錄了**五次**「target window changed」——它進入每個選擇器又退出來。
+# 這些對話框回報 client=(60,83) 對 frame=(52,52)，即**有裝飾**；而 P18 自身的視窗回報
+# client == frame，因為 GTK 以 client-side decoration 繪製它。
+#
+# 本檔當初被壓著不動的那項風險也消失了，而它是真的：在那天之前，`prepareForReplay` 會把 P18 的
+# 視窗釘為 HWND_TOPMOST，而其後才開啟的選擇器不會被釘，於是 app 蓋住了自己的對話框。
+# 見 bugs/Gtk4-bugs.md 第 6 節。
+#
+# 如何判讀結果：P18 以自己的 binding 繪製 `open -> `、`folder -> ` 與 `save -> `，三者初始皆為
+# 「nothing yet」。三行全部讀到「cancelled」，即代表每一個對話框都「打開了」而且「有回傳」。從未
+# 打開者會停在「nothing yet」，打開了卻不回傳者會讓 app 卡住，因此這三種狀態無須判讀畫面即可區分。
+#
+# 本檔未涵蓋：Open/Select/Save 那條路徑。要確認一次真實的選取，就得在這台機器上挑一個路徑，而
+# 存檔對話框還得往該路徑寫入——那不是一個無人看管的測試該做的事。因此 `set_initial_name` 目前
+# 仍只透過「對話框開啟時檔名已預先填好」被觀察到，而非透過一次完成的存檔。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,gtk
+click,72,193,,left,,,"""Open a file""",gtk
+sleep,,,,,,3000000,let the native dialog appear,gtk
+key,,,,,escape,,cancel it without coordinates,gtk
+sleep,,,,,,1500000,,gtk
+click,88,261,,left,,,"""Choose a folder""",gtk
+sleep,,,,,,3000000,,gtk
+key,,,,,escape,,,gtk
+sleep,,,,,,1500000,,gtk
+click,123,329,,left,,,"""Choose a save destination"" -- the only path using set_initial_name",gtk
+sleep,,,,,,3000000,,gtk
+key,,,,,escape,,,gtk
+sleep,,,,,,3000000,hold for the capture: all three lines must read cancelled,gtk

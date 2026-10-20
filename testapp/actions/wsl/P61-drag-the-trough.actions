@@ -1,0 +1,108 @@
+action,x,y,origin,button,key,micros,note,platform
+# P61 on WSL GtkBackend: ported 2026-10-20 from actions/win/P61-drag-the-trough.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P61(WSL):由 actions/win/P61-drag-the-trough.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P61 on Windows: does `Slider.onEditingChanged` fire, and does it fire ONLY for
+# a real edit?
+#
+# WRITTEN TO SETTLE TWO ASSUMPTIONS THE MAC SIDE NAMED RATHER THAN LEFT FOR THE
+# COMPILER. GtkBackend's implementation carries a header saying it was written
+# on a Mac and never run (`GtkBackend.swift`, above the `GestureClick` in
+# `updateSlider`), and lists exactly what needed checking:
+#
+#   1. that a `GestureClick` added to a `Scale` receives the press at all --
+#      `GtkScale` handles its own dragging and a bubble-phase gesture may never
+#      see it, which is why `.capture` is set
+#   2. that `pressed`/`released` fire for a drag starting on the TROUGH rather
+#      than on the handle, since that is also an edit
+#
+# Naming them is what made this file cheap to write. An implementation that
+# arrives with "please verify" and no list costs a reader the whole search.
+#
+# THE FIRST ASSERTION IS FREE: the app builds and reaches RENDER COMPLETE. The
+# GTK code compiled, which is already more than "written on a Mac" guaranteed.
+#
+# WHY x=280 AND NOT THE MIDDLE. Measured off a window capture at 2026-09-10
+# 12:49 -- the track runs x=43..353 at y=226 and the handle sits at x=197 for
+# the initial 0.50. 280 is well clear of the handle, so this is assumption 2's
+# case and not the easy one. Pressing the handle would test something GTK was
+# always going to get right.
+#
+# THE SECOND HALF IS THE CONTROL, and it is the half a drag cannot supply.
+# "move it from code (+0.1)" changes the value with nobody editing anything. A
+# backend that fired `onEditingChanged` from its VALUE handler would look
+# perfectly correct for the drag above and wrong here -- began and ended must
+# BOTH stay where the drag left them. Without this row a broken implementation
+# passes.
+#
+# ONE FILE, BOTH WINDOWS BACKENDS, and deliberately not two. Measured
+# 2026-09-10: the WinUI window puts the track at frame y=229 with the handle at
+# x=178, within 3px of GTK's y=226 / x=197, so x=280 is clear of the handle on
+# both. A second copy would only be able to disagree with this one.
+#
+# What each backend is being asked, though, is NOT the same:
+#   GtkBackend   -- do pressed/released reach a `GestureClick` on a `GtkScale`
+#                   at all (answer: pressed yes, released never; the edit ends
+#                   on `end`)
+#   WinUIBackend -- does `Slider.pointerCaptureLost` fire at the end of a drag.
+#                   It was chosen over `pointerReleased` because a release
+#                   OUTSIDE the control still ends the edit
+# The control row at the bottom is the same question for both.
+#
+# HOW TO RUN THE WINUI ONE. Not through run.zsh: that script looks for
+# `Pn-gtk4.exe` first and only NAMES the WinUI build in its error. Run
+# `output/P61-WinUI.exe --debug -actionfile ...` directly. Going through run.zsh
+# silently launches the GTK build, and the log then says `backend GtkBackend`
+# while you believe you are testing WinUI.
+#
+# **一個檔案、兩個 Windows backend,而且是刻意不分成兩份。** 2026-09-10 實測:WinUI 視窗的軌道
+# 位於 frame y=229、把手在 x=178,與 GTK 的 y=226／x=197 相差在 3px 之內,因此 x=280 在兩者
+# 上都遠離把手。**多一份副本,唯一能做到的事就是與這一份互相矛盾。**
+#
+# 不過對兩個 backend 所問的**並不是同一個問題**:GtkBackend 問的是「`GtkScale` 上的
+# `GestureClick` 究竟收不收得到 pressed／released」(答案:pressed 收得到,released 永遠不來;
+# 編輯結束於 `end`);WinUIBackend 問的是「`Slider.pointerCaptureLost` 會不會在一次拖曳結束時
+# 觸發」——它之所以雀屏中選而非 `pointerReleased`,是因為在控制項**之外**放開同樣結束了那次編輯。
+# 最下方那一列對照,對兩者問的則是同一個問題。
+#
+# **WinUI 版怎麼跑。** 不要經由 run.zsh:該腳本會**先**找 `Pn-gtk4.exe`,而 WinUI 的建置只會
+# 出現在它的錯誤訊息裡、不會被啟動。請直接執行 `output/P61-WinUI.exe --debug -actionfile ...`。
+# 經由 run.zsh 會靜默地啟動 GTK 版,而 log 隨後寫著 `backend GtkBackend`——當你以為自己正在
+# 測 WinUI 的時候。
+#
+# expect: log-contains editing began
+#
+# P61 於 Windows:`Slider.onEditingChanged` 會不會觸發,而且**只**在真正的編輯時觸發?
+#
+# **本檔是為了了結 Mac 端明白指名、而非留給編譯器去找的兩項假設。** GtkBackend 的實作帶著一段標頭,
+# 說明它寫於 Mac 且從未執行過(`GtkBackend.swift`,`updateSlider` 中 `GestureClick` 的上方),
+# 並列出了究竟該查什麼:(1) 加在 `Scale` 上的 `GestureClick` 究竟收不收得到那次按下——`GtkScale`
+# 自行處理拖曳,而 bubble 階段的 gesture 可能永遠看不到它,這正是設定 `.capture` 的原因;
+# (2) 對「起始於**軌道**而非把手」的拖曳,`pressed`／`released` 是否也會觸發——那同樣是一次編輯。
+#
+# **把它們指名出來,正是讓本檔寫起來便宜的原因。** 一份寫著「請驗證」卻不附清單的實作,
+# 會讓讀者付出整趟搜尋的代價。
+#
+# **第一項斷言是免費的**:app 建置得起來並抵達 RENDER COMPLETE。GTK 那段程式碼編譯通過,
+# 而這已經比「寫於 Mac」所能保證的更多。
+#
+# **為何取 x=280 而非正中央。** 量自 2026-09-10 12:49 的一張視窗擷圖——軌道於 y=226 橫跨
+# x=43..353,而把手因初始值 0.50 位於 x=197。280 遠離把手,因此這是**假設 2 的情況**,不是那個
+# 簡單的情況。按在把手上,測到的會是 GTK 本來就一定做得對的事。
+#
+# **後半是對照組,而那正是一次拖曳無法提供的那一半。**「move it from code (+0.1)」會在沒有任何人
+# 編輯的情況下改變數值。一個從**數值**處理常式觸發 `onEditingChanged` 的 backend,在上方那次拖曳中
+# 看起來完全正確,卻會在此處出錯——began 與 ended **兩者都必須**停在拖曳結束時的數字。
+# **少了這一列,一個壞掉的實作會通過。**
+sleep,,,,,,1200000,let the window settle and take the topmost pin,gtk
+move,260,189,,,,,onto the TROUGH -- x=280 is clear of the handle at x=197,gtk
+sleep,,,,,,250000,let the pointer arrive,gtk
+mousedown,260,189,,left,,,press and HOLD. LOWERCASE: the file verbs are not the InputAction case names (ActionFile.swift:171). This is where `editing began` must appear,gtk
+sleep,,,,,,400000,"hold, so a began that arrives late still arrives before the release",gtk
+move,300,189,,,,,"drag right while held -- produces several values, all inside ONE edit",gtk
+sleep,,,,,,400000,let the value changes flow,gtk
+mouseup,300,189,,left,,,release; `editing ended` must appear here and began must still be 1,gtk
+sleep,,,,,,800000,let the log catch up,gtk
+move,119,231,,,,,"onto ""move it from code (+0.1)"" -- the control",gtk
+sleep,,,,,,250000,let the pointer arrive,gtk
+click,119,231,,left,,,changes the value from code. began and ended must NOT move: this is the row that catches an implementation firing onEditingChanged from its value handler,gtk
+sleep,,,,,,1500000,let any wrong extra line be written before the log is read,gtk

@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on WSL GtkBackend: ported 2026-10-20 from actions/win/P72-context-menu.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name. Estimated rather than read, to be checked against the capture: 260,250 .
+# P72(WSL):由 actions/win/P72-context-menu.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P72 on Windows: the mesh view's context menu, "Reset the camera".
+# Written 2026-10-08 from the macOS file of the same name, re-measured (window
+# 536x819, WinUIBackend, 100% scale; mesh centre (268,283), see
+# P72-stop-and-check.csv). The camera is moved first: Reset sets dist back to
+# 3.40, its launch value, so without a move the capture could not show it did
+# anything.
+# Pass: the capture reads "scrolls: 1 ... dist 3.40", and the log has CONTEXT MENU.
+# P72(Windows):mesh view 的右鍵選單 "Reset the camera"。2026-10-08 依 macOS 同名檔重新量測。先移動相機:Reset
+# 會把 dist 設回 3.40,也就是啟動時的值，不先移動的話截圖看不出它做了什麼。通過：截圖為 scrolls 1、dist 3.40,
+# log 有 CONTEXT MENU。
+sleep,,,,,,1500000,let P72 lay out,gtk
+click,224,490,,left,,,stop the clock first so the readout is stable,gtk
+sleep,,,,,,500000,,gtk
+move,260,250,,,,,onto the mesh view,gtk
+sleep,,,,,,300000,,gtk
+scroll,0,5,,,,,five notches: the camera comes closer and dist drops below 3.40,gtk
+sleep,,,,,,800000,,gtk
+click,260,250,,right,,,secondary click on the mesh view -- the context menu must open,gtk
+sleep,,,,,,1200000,let the menu open,gtk
+key,,,,,downArrow,,highlight the first item,gtk
+sleep,,,,,,300000,,gtk
+key,,,,,return,,activate 'Reset the camera' -- dist must read 3.40 again with scrolls 1,gtk
+sleep,,,,,,20000000,hold 20s so the final capture lands while the window is up,gtk

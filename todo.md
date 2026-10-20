@@ -1060,6 +1060,20 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
+- [ ] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
+  actions/wsl/P74-choose-in-every-style.actions: the click on the drop-down lands (the button
+  draws pressed) but downArrow, downArrow, return leave "menu -> Apple" where the file expects
+  Cherry. Every other style in the same run changed (segmented Three, radioGroup Blue, wheel Thu,
+  the disabled group refused). The capture cannot show the popup -- WindowsGraphicsCapture takes
+  the toplevel only, and on WSLg the popup is a window of its own -- so whether it opened at all
+  is not yet known. Next: AT-SPI dump with the popup open, then the same file on Windows GTK.
+  WSL 上 menu 樣式的 Picker 不吃方向鍵。點擊有落在下拉鈕上，但 downArrow×2、return 之後仍是 Apple(預期 Cherry);
+  同一次執行中其他樣式都變了。擷取拍不到彈出視窗，所以它是否真的開了還不知道。下一步：彈出時做 AT-SPI 傾印，再在 Windows GTK 上跑同一份檔。
+- [ ] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
+  one weight and medium to black another -- the installed face has Regular and Bold only. Part of
+  making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing
+  anything. / WSL 上九種字重只畫出兩種(已安裝字型只有 Regular 與 Bold);屬於「讓 WSL/Windows 的 GTK 外觀與 Mac 一致」。
+
 - **An app asking for a 900x600 window gets 900x561 of content on GTK, and
   900x600 on WinUI.** Measured 2026-09-01 with P16 on WSLg.
 

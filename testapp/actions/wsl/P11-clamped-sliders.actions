@@ -1,0 +1,88 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11 on WSL GtkBackend: ported 2026-10-20 from actions/win/P11-clamped-sliders.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P11(WSL):由 actions/win/P11-clamped-sliders.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P11 on Windows, GtkBackend: do two mutually clamped sliders stop each other,
+# and does each clamp cost a write? That is #82.
+#
+# The app shows `minimum 0 / maximum 100   writes: min 0, max 0`. The two
+# buttons move the sliders programmatically -- that is what they exist for, and
+# it is more reliable than synthesising a drag, because a drag that lands a few
+# pixels short still looks like a drag that worked.
+#
+# WHAT THE FINAL CAPTURE MUST SHOW: `minimum 20 / maximum 80`. The app starts
+# at `minimum 0 / maximum 100`, so those two numbers moving is what proves the
+# presses landed. Measured 2026-09-08 -- that is exactly what the run produced.
+#
+# THE WRITE COUNTERS STAY AT ZERO, and an earlier version of this file claimed
+# they must not. That claim was written before the file had ever run and was
+# simply wrong: `writes: min 0, max 0` in the same capture that shows 20 and 80.
+# So the buttons move the bounds without going through whatever path the
+# counters count -- most likely they count CLAMP writes, which only happen when
+# the two sliders actually collide, and "Separate them" ends with them apart.
+#
+# Whether zero is correct there or is #82 itself is NOT settled, and this file
+# does not assert either way. Do not read `writes: 0, 0` as a pass or a failure
+# until someone reads P11.swift and says what those counters count.
+#
+# P11 於 Windows、GtkBackend：兩個互相箝制的滑桿會彼此擋住嗎？每一次箝制會不會計入一次寫入？
+# 這就是 #82。
+#
+# 該 app 顯示 `minimum 0 / maximum 100   writes: min 0, max 0`。這兩顆按鈕以程式方式移動滑桿——
+# 它們的存在正是為此，而且比合成拖曳更可靠：一次「差幾個像素」的拖曳，看起來仍然像一次成功的拖曳。
+#
+# **最後那張擷圖必須顯示 `minimum 20 / maximum 80`。** 該 app 起始於 `minimum 0 / maximum 100`，
+# 因此這兩個數字改變，就是「按壓確實落下」的證明。2026-09-08 實測：執行結果正是如此。
+#
+# **寫入計數維持為零，而本檔案先前的版本聲稱它們不該為零。** 那個聲稱是在本檔案從未執行過之前寫下
+# 的，而它就是錯的：同一張顯示 20 與 80 的擷圖裡，`writes: min 0, max 0`。所以這兩顆按鈕移動了邊界，
+# 卻沒有經過那些計數所計算的路徑——最可能的解釋是它們計算的是**箝制**寫入，而箝制只在兩個滑桿真正
+# 相撞時才發生，而「Separate them」結束時它們是分開的。
+#
+# 零在那裡究竟是正確行為、還是 #82 本身，**尚未確定**，而本檔案不對任何一邊做出斷言。在有人讀過
+# P11.swift 並說明那些計數究竟在計什麼之前，不要把 `writes: 0, 0` 讀成通過，也不要讀成失敗。
+#
+# NO `# expect:` MARKER, and the reason is the point of the mechanism.
+# p11-debug-events.log contains only `RENDER COMPLETE -- P11 ready for #82,
+# #485, and #473 checks`, written at startup. It is present whether or not a
+# single click lands, so asserting it would manufacture a pass. An expectation
+# has to be text that would be ABSENT if every click missed, and P11 writes no
+# such line. This file is judged from the capture until P11.swift logs the
+# clamp itself.
+#
+# **本檔案沒有 `# expect:` 標記**，而理由正是該機制的重點所在。p11-debug-events.log 裡只有啟動時
+# 寫下的 `RENDER COMPLETE -- P11 ready for #82, #485, and #473 checks`。無論任何一次點擊是否命中，
+# 它都會存在，因此對它做斷言等於製造一個假通過。一項預期必須是「若所有點擊都落空就會**不存在**」的
+# 文字，而 P11 並未寫出這樣的一行。在 P11.swift 自己記錄下箝制之前，本檔案由擷圖判定。
+#
+# #485 (scrollbar direction) and #473 (compact DatePicker sizing) are NOT
+# covered here. `scroll` carries no coordinates -- it scrolls wherever the
+# pointer happens to be -- so without a log line naming the row that ended up on
+# top, a scroll step would add an action nobody can check. The DatePicker
+# steppers are the same: pressing `+` changes a number in the capture, but the
+# hour and minute groups measure 110x32 as a unit and the individual + and -
+# were not resolved separately, so a press could land on either.
+#
+# 此處**未**涵蓋 #485（捲軸方向）與 #473（compact DatePicker 尺寸）。`scroll` 不帶座標——它在游標
+# 當下所在之處捲動——因此在沒有一行日誌指出最後停在哪一列的情況下，加入捲動步驟等於加入一個沒有人
+# 能查證的動作。DatePicker 的加減鈕同理：按下 `+` 會改變擷圖裡的一個數字，但時與分的群組整體量得
+# 110x32，其中個別的 + 與 - 並未被分別解析出來，因此一次按壓可能落在任何一邊。
+#
+# Measured on a 788x649 window capture at 100% display scale.
+#
+# Measured 2026-09-07 from gtk4-P11-20260907-204947.png. Every box was found by
+# walking out from the click point to the dark border, not read by eye:
+#
+#     x= 45..161  y=322..353   Reset counters   117x32   centre 103,337
+#     x=174..289  y=322..353   Separate them    116x32   centre 231,337
+#     x=302..406  y=322..353   Collide them     105x32   centre 354,337
+#
+# 量測自一張 788x649 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 量測自 gtk4-P11-20260907-204947.png。上方每一個邊界都是從點擊位置往外走到深色邊框
+# 求得，而非以肉眼判讀。
+click,96,303,,left,,,Reset counters -- establish the min 0 max 0 baseline,gtk
+sleep,,,,,,800000,,gtk
+click,372,303,,left,,,Collide them -- the sliders must stop against each other (#82),gtk
+sleep,,,,,,900000,,gtk
+click,238,303,,left,,,Separate them -- the bounds must end at 20 and 80,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on WSL GtkBackend: ported 2026-10-20 from actions/win/P50-arrow-edge-bottom-gtk4.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P50(WSL):由 actions/win/P50-arrow-edge-bottom-gtk4.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P50 on Windows, GtkBackend: the .bottom half of the #109 pair, alone.
+#
+# **A one-preference file exists because of HOW a GTK popover is captured, not
+# because of anything the popover does.** It is its own top-level window and
+# shares the main window's title, so `screenshot.zsh -w P50` picks between the
+# two and usually picks the main one. Three attempts with the two-preference
+# file produced three captures of the main window carrying the readout and no
+# panel, and a desktop capture loses the popover to light dismiss.
+#
+# The one capture that DID land on the popover came during the FIRST hold of a
+# run. So this file makes `.bottom` the first hold: cycle twice with no pause
+# for a picture, then open once and stay open.
+#
+# WHAT THE CAPTURE MUST SHOW: the panel with its beak pointing UP. A GtkPopover
+# draws the beak itself, so the direction is stated in the picture rather than
+# inferred from where the panel sits -- which is why this is worth chasing at
+# all. The .top twin (beak pointing DOWN) is
+# p50gtk-edge-top-20260916-203851.png.
+#
+# P50 於 Windows、GtkBackend:#109 那一對中的 `.bottom` 單獨一份。
+#
+# **會有這個「只設一種偏好」的檔案,原因在於 GTK popover **怎麼被擷取**,而不在於 popover 本身
+# 做了什麼。** 它是自己的 top-level 視窗,而且與主視窗**共用標題**,因此 `screenshot.zsh -w P50`
+# 會在兩者之間挑,而且通常挑到主視窗。用那個「兩種偏好」的檔案試了三次,得到三張「有讀數、沒有面板」
+# 的主視窗擷圖;而桌面擷取則會讓 popover 因失去焦點而關閉。
+#
+# 唯一**真的**拍到 popover 的那一次,發生在某次執行的**第一個 hold**。因此本檔把 `.bottom` 變成
+# 第一個 hold:連續循環兩次、中間不停下來拍照,然後開啟一次並保持開啟。
+#
+# **擷圖必須顯示什麼:面板,而且它的尖角朝上。** `GtkPopover` 會自己畫出那個尖角,因此**方向是被
+# 畫出來的、而不是從面板位置推論出來的**——那正是這件事值得追的理由。`.top` 那一張(尖角朝下)是
+# `p50gtk-edge-top-20260916-203851.png`。
+#
+# Coordinates measured off p50gtk-layout-20260916-203746.png, frame origin.
+# 座標量自 p50gtk-layout-20260916-203746.png,採 frame origin。
+sleep,,,,,,3000000,let the window settle and take the foreground,gtk
+click,177,682,,left,,,cycle 1: none -> top,gtk
+sleep,,,,,,350000,,gtk
+click,177,682,,left,,,cycle 2: top -> BOTTOM,gtk
+sleep,,,,,,600000,observe the readout say bottom,gtk
+click,227,638,,left,,,open PANEL ALPHA with arrowEdge .bottom,gtk
+sleep,,,,,,6000000,HOLD: the capture is taken during this,gtk

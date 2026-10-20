@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70 on WSL GtkBackend: ported 2026-10-20 from actions/win/P70-focus-gtk4.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P70(WSL):由 actions/win/P70-focus-gtk4.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P70 on Win-gtk4: does focus move, report, and refuse? (#122)
+#
+# The WinUI half is P70-focus.actions. Two files because the two backends lay the
+# same view out at different sizes -- this window captures 588x628, WinUI's is
+# 562x604 -- so one set of coordinates cannot serve both.
+#
+# Coordinates measured off screen-20260916-113536.png. Frame origin, because
+# that capture includes the title bar.
+#
+# It drives all four protocol methods and one refusal; see P70-focus.actions for
+# what each step is asserting and why the field clicks come first.
+#
+# P70 於 Win-gtk4:焦點會移動、會回報、會拒絕嗎?(#122)
+#
+# WinUI 那一半是 P70-focus.actions。之所以兩個檔案,是因為兩個 backend 把同一個 view 排成不同尺寸
+# ——這個視窗擷取為 588x628、WinUI 的是 562x604——因此一組座標無法同時服務兩者。
+#
+# 座標量自 screen-20260916-113536.png。採 frame origin,因為該擷圖含標題列。
+#
+# 它驅動協定的全部四個方法與一次拒絕;每一步在斷言什麼、以及欄位點擊為何排在最前面,見 P70-focus.actions。
+sleep,,,,,,2500000,let the window settle and take the foreground,gtk
+click,280,219,,left,,,click the email field -- the app did not ask for this,gtk
+sleep,,,,,,800000,observe focused field = email and the counter increase,gtk
+click,280,175,,left,,,and back to name,gtk
+sleep,,,,,,800000,observe focused field = name and the counter increase again,gtk
+click,75,263,,left,,,"focus name, this time programmatically",gtk
+sleep,,,,,,800000,observe focus(_:) moved it,gtk
+click,192,263,,left,,,focus email programmatically,gtk
+sleep,,,,,,800000,observe focus(_:) moved it again,gtk
+click,307,263,,left,,,clear focus -- unfocus(_:),gtk
+sleep,,,,,,800000,observe focused field returns to none,gtk
+click,95,377,,left,,,ask both for focus -- the disabled button must be refused,gtk
+sleep,,,,,,1200000,let the refusal be reported,gtk

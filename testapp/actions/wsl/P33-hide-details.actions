@@ -1,0 +1,228 @@
+action,x,y,origin,button,key,micros,note,platform
+# P33 on WSL GtkBackend: ported 2026-10-20 from actions/win/P33-hide-details.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P33(WSL):由 actions/win/P33-hide-details.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P33 on Windows, GtkBackend: press the DisclosureGroup-approximation button and
+# show that the conditional content collapses.
+#
+# expect: log-contains details expanded=false
+#
+# EVIDENCE FOR THAT MARKER: p33-debug-events.log holds it twice, from two runs
+# of this file in different working directories -- the repo-root copy at
+# 2026-09-03 16:14:49 and testapp/p33-debug-events.log at 2026-09-05 13:11:40,
+# each two to four seconds after that run's `RENDER COMPLETE`.
+# testapp/output/p33-debug-events.log, from a launch with no action file, has
+# three lines and stops at `RENDER COMPLETE`, which is what the header below
+# means by "the log held the same three lines before and after the click".
+#
+# `false` AND NOT JUST THE PREFIX, because the value is the result: the button
+# writes the NEW state, P33 starts expanded, and `details expanded=true` would
+# mean it was pressed twice or started collapsed. Asserting the whole line keeps
+# the marker saying what happened rather than that something happened.
+#
+# 該標記的證據：p33-debug-events.log 中有它兩次，來自本檔在不同工作目錄下的兩次執行——repo 根目錄
+# 那份為 2026-09-03 16:14:49，testapp/p33-debug-events.log 為 2026-09-05 13:11:40，兩者都在該次
+# `RENDER COMPLETE` 之後二至四秒。而來自一次沒有動作檔之啟動的
+# testapp/output/p33-debug-events.log 共三行、止於 `RENDER COMPLETE`——那正是下方標頭所說的
+# 「點擊前後 log 都是同樣那三行」。
+#
+# 為何連 `false` 一起斷言而不只取前綴：數值本身就是結果。該按鈕寫出的是**新**狀態，而 P33 以展開
+# 起始，因此 `details expanded=true` 會代表它被按了兩次、或起始就是收合的。斷言整行，能讓這個標記
+# 說的是「發生了什麼」，而不只是「有事情發生」。
+#
+# THE EVIDENCE IS THE LOG AND THE CAPTURE TOGETHER. Since 2026-09-04 the button
+# calls P33Diagnostics.write("details expanded=\(expanded)"), so a click leaves a
+# fourth line in the log naming the NEW value.
+#
+# What this header said until 2026-09-04, kept rather than deleted because it is
+# what shaped every other choice below: "THE EVIDENCE HERE IS THE CAPTURE, NOT A
+# LOG LINE, and that is weaker than every other file in this directory ... No
+# button in P33 writes anything. Do not read a matching log as confirmation that
+# the click landed; it says only that the app started." That was true when
+# written -- the only write calls were in .onAppear, so the log held the same
+# three lines before and after the click, and the two cases were literally
+# indistinguishable. The fix was two lines in P33.swift, not a rewrite of this
+# file: the coordinate, the one-click design and the reasons for both are
+# unchanged.
+#
+# WHY THIS BUTTON. It is the one control whose result cannot be produced by any
+# other control on the window. Pressing it does two things at once: its own
+# label flips "Hide details" -> "Show details", and the line "Details are plain
+# conditional content, not a DisclosureGroup." disappears. Neither stepper
+# button can do either. The
+# two stepper buttons were the alternative and were rejected: "-" and "+" only
+# move "value 0" to "value -1" or "value 1", a one-glyph difference in a
+# 848x649 frame, which is a thin thing to hang a whole file on when there is no
+# log to back it up.
+#
+# COORDINATES RE-VERIFIED 2026-09-04, after P33's text changed. Two Text views
+# above the button were rewritten that day, because the list of "missing" names
+# they printed had become false -- seven of the nine were implemented. Rewriting
+# text above a control is the classic way to invalidate a measured coordinate:
+# if a line's wrapping changes, everything below it moves, the click lands on
+# empty space, and the run still reports a pass because a click that hits
+# nothing raises nothing.
+#
+# It did NOT move here, and the reason is worth stating so nobody assumes the
+# next edit is equally safe: the replacement is the same NUMBER OF LINES as what
+# it replaced -- two single-line Texts before, two single-line Texts after -- and
+# the VStack is .leading, so a different string LENGTH moves nothing.
+#
+# That was checked by running this file against the rebuilt binary and finding
+# `details expanded=false` in p33-debug-events.log, not by looking at a capture
+# and judging the button unmoved. Do the same after any edit to P33.swift.
+#
+# 座標於 2026-09-04 重新驗證，時間在 P33 的文字改動之後。當天按鈕上方有兩個 Text 被改寫，因為它們
+# 所印出的「缺失名稱」清單已經是假的——九個之中有七個已被實作。改寫控制項上方的文字，正是使「已量測
+# 座標」失效的典型方式：只要某一行的換行方式改變，其下的一切都會位移，點擊便落在空白處，而該次執行
+# 仍會回報通過，因為一次沒有命中任何東西的點擊不會引發任何東西。
+#
+# 此處**並未**位移，而其理由值得寫明，以免有人以為下一次編輯同樣安全：替換後的內容與被替換者
+# **行數相同**——之前是兩個單行 Text，之後也是兩個單行 Text——而該 VStack 為 .leading，因此
+# 字串**長度**的差異不會移動任何東西。
+#
+# 這一點是以「對重建後的 binary 執行本檔案，並在 p33-debug-events.log 中找到
+# `details expanded=false`」來確認的，而不是靠看擷圖判斷按鈕沒動。日後對 P33.swift 做任何編輯後，
+# 請同樣照做。
+#
+# ONE click, and the layout is the reason it must stay one. The whole content
+# block is centred vertically, so losing one line does not merely pull the rows
+# below it upwards -- MEASURED, comparing the before and after captures, every
+# row in the window moved DOWN by 15 px, including the button that was just
+# pressed: it sits at y 404..436 before the click and y 419..451 after. A second
+# row written against this capture would address a layout that no longer exists,
+# and would be wrong in the direction nobody expects. That is the trap recorded
+# across the iOS files (P8, P11, P12, P13), which costs a whole run to spot
+# because the stale click still lands on something.
+#
+# RE-VERIFIED 2026-09-09, second P33 text edit, and NOTHING MOVED. The replay
+# reported the frame as 848x649 -- byte for byte what is recorded below -- and
+# the log gained `details expanded=false`. Coordinates unchanged.
+#
+# WHY IT DID NOT MOVE, and this is worth knowing because the obvious reasoning
+# gives the wrong answer. The edit SHORTENED the longest string in the app, from
+# 95 characters to 41. On 2026-09-04 shortening the longest string is exactly
+# what narrowed P34's window and moved a button 66px sideways. Here the frame did
+# not change by a single pixel, so 848 is NOT set by the widest Text -- something
+# else fixes it, and this file's coordinates are more robust than the 2026-09-04
+# lesson would suggest. Do not generalise either way from one app: MEASURE the
+# frame from the replay's own `<w>x<h>@x,y` line, which costs nothing and is
+# printed on every run.
+#
+# THE LOG LINE FROM .onAppear CHANGED IN THE SAME EDIT, and it is not the line
+# this file asserts on. It read `still missing Label(systemImage:) ColorPicker
+# -- the other seven are implemented, see P46` and now reads
+# `P33 approximations rendered`. Both of the names in the old one EXIST -- that
+# is what the edit fixed. Checked before changing it that nothing in the tree
+# greps for the old text (control: `details expanded=`, which IS referenced,
+# here and in plan/action-file-expectations.md). If a future run of this file
+# reports UNMET, the marker is `details expanded=`, not anything above.
+#
+# 2026-09-09 重新驗證(P33 第二次文字編輯),**沒有任何東西位移**。replay 回報外框為 848x649
+# ——與下方記錄的完全一致——而 log 多出了 `details expanded=false`。座標不變。
+#
+# **為何沒有位移**,值得記下來,因為直觀的推理會給出錯的答案。這次編輯**縮短了 app 中最長的字串**,
+# 從 95 個字元縮到 41 個。而 2026-09-04 縮短最長字串,正是讓 P34 視窗變窄、按鈕橫向移動 66px 的原因。
+# 這裡外框卻一個像素都沒變,所以 848 **不是**由最寬的 Text 決定的——是別的東西固定了它,而本檔的座標
+# 比 2026-09-04 那個教訓所暗示的更耐得住。**不要從單一支 app 往任一方向推廣**:直接從 replay 自己印出
+# 的 `<w>x<h>@x,y` 那一行去**量**,它不花任何成本,而且每次執行都會印。
+#
+# **.onAppear 的那行 log 在同一次編輯中變了**,而它不是本檔所斷言的那一行。它原本是
+# `still missing Label(systemImage:) ColorPicker -- the other seven are implemented, see P46`,
+# 現在是 `P33 approximations rendered`。舊那行裡的兩個名稱**都是存在的**——那正是這次編輯所修正的。
+# 改動前已確認樹中沒有任何東西 grep 舊文字(對照組:`details expanded=` 確實被引用,於本檔與
+# plan/action-file-expectations.md)。若日後本檔回報 UNMET,標記是 `details expanded=`,
+# 不是上面任何一句。
+#
+# Coordinates read off a wincap capture of the frame at 848x649, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# button spans x 34..133, y 404..436; (83, 420) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P33
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. P33's own
+# --debug flag is a SEPARATE gate, controlling whether the app writes its log at
+# all -- including the click line this file now depends on. Without it the log
+# file is never created and nothing says why.
+#
+# p33-debug-events.log lands in the CURRENT DIRECTORY, not testapp/output/ --
+# P33 builds its path from currentDirectoryPath and run.zsh launches by absolute
+# path without cd'ing. MEASURED 2026-09-04 after this file replayed, and this is
+# the whole file. RE-MEASURED 2026-09-09; the previous transcript, kept struck
+# through below it, quoted a line the app STOPPED WRITING ON 2026-09-04 and a
+# render marker it stopped writing on 2026-09-09:
+#     P33 ... backend GtkBackend
+#     P33 ... P33 approximations rendered
+#     P33 ... RENDER COMPLETE -- P33 approximations ready
+#     P33 ... details expanded=false
+# ~~P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link~~
+# ~~P33 ... RENDER COMPLETE -- P33 ready for missing-view checks~~
+# A sample transcript is a claim like any other and it had gone stale twice
+# over. It is only quoted here, never asserted on -- the assertion is the
+# `# expect:` marker at the top, `details expanded=false`, which is unchanged
+# and was re-verified in the same run.
+# READ THAT LAST LINE CAREFULLY: false, not true. `expanded` starts TRUE, which
+# is why the button's first label is "Hide details", so one click takes it to
+# false. A file that predicted "expanded=true" would have been wrong while
+# looking right, and that is the whole reason the app names the VALUE rather
+# than announcing that a button was pressed.
+# The capture carries the other half: the button must then read "Show details"
+# and the "Details are plain conditional content" line must be gone.
+#
+# P33 於 Windows、GtkBackend：按下 DisclosureGroup 近似做法的按鈕，證明條件內容確實收合。
+#
+# **證據是 log 與擷圖兩者合起來。** 自 2026-09-04 起，該按鈕會呼叫
+# P33Diagnostics.write("details expanded=\(expanded)")，因此一次點擊會在 log 留下第四行，
+# 並指出**新的值**。
+#
+# 本標頭在 2026-09-04 之前的說法，保留而不刪除，因為它形塑了以下每一項選擇：「本檔的證據是擷圖，
+# 而非 log 行，這比本目錄中其他每一份檔案都要弱……P33 沒有任何按鈕會寫入任何東西。切勿把
+# 『log 內容相符』當成點擊命中的佐證；它只說明 app 有啟動。」那在當時是**正確的**——write 只在
+# .onAppear 中被呼叫，因此點擊前後 log 都是同樣三行，兩種情況根本無從分辨。修法是 P33.swift 裡
+# 的兩行，而非重寫本檔：座標、只點一次的設計，以及兩者的理由都未改變。
+#
+# **為何選這顆。** 它是視窗上唯一一個「結果無法由其他控制項produce」的控制項。按下它會同時做兩件
+# 事：自身標籤由「Hide details」翻成「Show details」，而「Details are plain conditional
+# content, not a DisclosureGroup.」那一行會消失。兩顆
+# stepper 按鈕都做不到其中任一件。stepper 是被考慮過並被否決的替代方案：「-」與「+」只會把
+# 「value 0」變成「value -1」或「value 1」，在 848x649 的畫面裡只差一個字元；在沒有 log 撐腰的
+# 情況下，用它撐起一整份檔案太單薄。
+#
+# **只有一次點擊**，而版面正是它必須維持一次的原因。整個內容區塊是垂直置中的，因此少掉一行並非
+# 只是把其下的列往上拉——**實測**比對前後兩張擷圖，視窗中的每一列都往**下**移了 15 px，包括剛被
+# 按下的那顆按鈕本身：點擊前位於 y 404..436，點擊後位於 y 419..451。依此擷圖所寫的第二列，將指
+# 向一個已不存在的版面，而且錯的方向是沒人會預期的那一邊。這正是 iOS 多份檔案（P8、P11、P12、
+# P13）中記錄的陷阱，它要花掉一整輪執行才會被發現，因為那個過期的點擊仍然會落在某個東西上。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、848x649 的 wincap frame 擷圖，origin=frame。
+# 按鈕橫跨 x 34..133、y 404..436，(83, 420) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P33
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P33 自身的 --debug 是
+# **另一道**開關，控制 app 是否寫出 log——包括本檔現在所倚賴的那一行點擊訊息。少了它 log 檔根本
+# 不會被建立，且沒有任何訊息說明原因。
+#
+# p33-debug-events.log 落在**目前的工作目錄**，而非 testapp/output/——P33 由
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。**2026-09-04 實測**，本檔
+# 重放後整個檔案就是這四行。**2026-09-09 重新量測**；先前那份逐字紀錄（劃線保留於其下）引用的是一行
+# app 早在 **2026-09-04** 就不再寫出的訊息，以及一個它在 **2026-09-09** 不再那樣說的 render marker：
+#     P33 ... backend GtkBackend
+#     P33 ... P33 approximations rendered
+#     P33 ... RENDER COMPLETE -- P33 approximations ready
+#     P33 ... details expanded=false
+# ~~P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link~~
+# ~~P33 ... RENDER COMPLETE -- P33 ready for missing-view checks~~
+# **一份範例逐字紀錄與其他任何東西一樣是一項主張**，而它已經過期了兩輪。它在此僅供**引用**，從不作為
+# 斷言——斷言是檔案開頭的 `# expect:` 標記 `details expanded=false`，該標記未變，並已在同一次執行中
+# 重新驗證。
+# **請看清最後那一行：是 false，不是 true。** `expanded` 起始為 **true**，這正是按鈕第一個標籤
+# 為「Hide details」的原因，因此一次點擊會把它帶到 false。若本檔預測「expanded=true」，那會是
+# 一個**看起來正確的錯誤**；而這就是 app 要指出「值」而非宣告「有按鈕被按下」的全部理由。
+# 擷圖承擔另一半：按鈕必須顯示為「Show details」，且「Details are plain conditional content」
+# 那一行必須已經消失。
+sleep,,,,,,900000,let the window settle and take focus,gtk
+click,74,385,,left,,,"centre of the ""Hide details"" button (x 34..133 y 404..436) -- label must become ""Show details"" and the details line must vanish (VERIFIED 2026-09-05 against the rebuilt binary, after P33's text changed: log line details expanded=false. That run is what proved the coordinate survived the edit; see this file's header for why it did)",gtk
+sleep,,,,,,1500000,hold for the capture and let the log catch up -- expect a fourth line reading details expanded=false,gtk

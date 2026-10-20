@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P3 on WSL GtkBackend: ported 2026-10-20 from actions/win/P3-sidebar-and-image.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P3(WSL):由 actions/win/P3-sidebar-and-image.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P3 on Windows, GtkBackend: change the image size, then move through the
+# three-column sidebar.
+#
+# #389 -- an oversized image not clipped to its frame -- is already answered by
+# the baseline capture: at launch the app reports `Image size: Large, scale:
+# 2.4x` and the picture stops exactly at the 220x140 black frame. So GtkBackend
+# clips now. This file changes the size to Small and back to Large, which is
+# the case where the fix could still be one-directional: a frame that grows
+# after shrinking has to re-clip.
+#
+# #160 -- the split view laid out wrongly until something updates -- is what
+# "Force state update" and the sidebar rows are for. The sidebar selection is
+# printed, so a click that lands is distinguishable from one that does not.
+#
+# P3 於 Windows、GtkBackend：改變圖片尺寸，然後在三欄式 sidebar 中移動。
+#
+# #389——超框圖片未被裁切至其 frame——基準截圖已給出答案：啟動時 app 回報
+# `Image size: Large, scale: 2.4x`，而圖片恰好止於 220x140 的黑色框線。因此 GtkBackend 現在會裁切。
+# 本檔把尺寸改為 Small 再改回 Large，這正是「修正仍可能只有單向有效」的情況：縮小後又放大的
+# frame 必須重新裁切。
+#
+# #160——分割視圖在有東西更新之前排版錯誤——就是「Force state update」與 sidebar 各列的用途。
+# sidebar 的選取會被印出，因此命中的點擊與落空的點擊可以分辨。
+#
+# Measured on a 988x629 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 988x638. The captures from the measurement date are
+# on disk and are 988x629, which is also today's size; P3.swift has had zero
+# commits since, so the window never moved. The same +9 error is in P7 and P9.
+# The coordinates below were not changed.
+#
+# 於 2026-09-06 由 988x638 更正。量測當天的擷圖仍在磁碟上，尺寸為 988x629，也是今天的尺寸；
+# P3.swift 自那時起有零筆 commit，因此視窗從未改變。P7 與 P9 帶有同樣的 +9 誤差。
+# 下方座標未更動。
+# 量測自一張 988x638 的視窗截圖，顯示縮放 100%。
+click,611,284,,left,,,Small -- the image must shrink inside the same frame,gtk
+sleep,,,,,,900000,,gtk
+click,788,284,,left,,,Large again -- the frame must re-clip (#389),gtk
+sleep,,,,,,900000,,gtk
+click,266,91,,left,,,Detail B in the middle column,gtk
+sleep,,,,,,800000,,gtk
+click,57,91,,left,,,Split layout in the sidebar,gtk
+sleep,,,,,,900000,,gtk
+click,110,571,,left,,,Force state update -- the snap #160 is about,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

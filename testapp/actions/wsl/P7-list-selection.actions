@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7 on WSL GtkBackend: ported 2026-10-20 from actions/win/P7-list-selection.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P7(WSL):由 actions/win/P7-list-selection.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P7 on Windows, GtkBackend: does a List report a selection the app asked for,
+# and does clicking a row change it?
+#
+# #476 is that the GTK List starts with the first item already selected even
+# though the binding is nil. The baseline capture settles that half without any
+# clicking: at launch this app reads `Selection: none` and `No sidebar
+# selection`. So the clicks below are about the other half -- whether selection
+# works at all once something asks for it.
+#
+# P7 於 Windows、GtkBackend：List 會回報 app 所要求的選取狀態嗎？點擊某一列會改變它嗎？
+#
+# #476 是「GTK 的 List 在 binding 為 nil 時，第一項就已被選取」。基準截圖無需任何點擊即可判定
+# 這一半：本 app 啟動時顯示 `Selection: none` 與 `No sidebar selection`。因此下方的點擊針對的是
+# 另一半——一旦有東西要求選取，選取功能究竟能不能運作。
+#
+# Measured on a 748x509 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06. This line read 748x518 and never matched anything. The
+# captures taken the day the coordinates were measured are still on disk --
+# P7-b2-win-20260827-090445.png and P7-run-win-20260827-094123.png -- and both
+# are 748x509, which is also what the window measures today. P7.swift has had
+# zero commits since, so the window never moved; only the number written here
+# was wrong, by exactly 9. P3 and P9 carried the same +9 error, which makes it a
+# transcription of something other than the capture, not a typo.
+#
+# The coordinates below were NOT changed: they were measured against the real
+# 748x509 window and still address it.
+#
+# Verify a capture's size with ffprobe, which this project already depends on
+# for every screenshot -- screenshot.zsh converts wincap's BMP to PNG with it:
+#   ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+#           -of csv=p=0 <capture.png>          ->  748,509
+#
+# 以 ffprobe 查驗某張擷圖的尺寸；本專案的每一張截圖本來就依賴它——screenshot.zsh 正是用它把
+# wincap 的 BMP 轉成 PNG。
+#
+# 於 2026-09-06 更正。此行原本寫 748x518，而那個數字與任何東西都對不上。座標量測當天所拍的擷圖
+# 仍在磁碟上——P7-b2-win-20260827-090445.png 與 P7-run-win-20260827-094123.png——兩張都是
+# 748x509，而那也正是今天量到的視窗尺寸。P7.swift 自那時起有零筆 commit，因此視窗從未改變；
+# 錯的只是寫在這裡的數字，恰好差 9。P3 與 P9 帶有同樣的 +9 誤差，這說明它是「對某個非該擷圖之
+# 物的抄寫」，而非打字錯誤。
+#
+# 下方的座標**未**更動：它們是對著真實的 748x509 視窗量的，至今仍指向它。
+# 量測自一張 748x518 的視窗截圖，顯示縮放 100%。
+click,325,398,,left,,,Select Cherry -- the app sets the binding itself,gtk
+sleep,,,,,,900000,,gtk
+click,53,197,,left,,,Apple in the plain List -- a click must override it,gtk
+sleep,,,,,,900000,,gtk
+click,307,239,,left,,,Banana in the split view's sidebar List,gtk
+sleep,,,,,,900000,,gtk
+click,494,398,,left,,,Add a fruit's worth of text -- grow the detail pane (#556),gtk
+sleep,,,,,,1500000,hold for the capture,gtk

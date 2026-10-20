@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P56 on WSL GtkBackend: ported 2026-10-20 from actions/win/P56-jump-to-row-59.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P56(WSL):由 actions/win/P56-jump-to-row-59.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P56 on Windows: ScrollViewReader.scrollTo must actually scroll.
+# Written 2026-10-08. (167,142) is the "Jump to 59" centre from UIA minus the
+# window origin, WinUIBackend, 100% scale, window 636x559.
+# Pass: "asked to scroll to: 59" and rows in the 50s visible where row 0 was;
+# the label changing while the list stays at row 0 is the failure P56 exists for.
+# P56(Windows):ScrollViewReader.scrollTo 必須真的捲動。2026-10-08 撰寫。(167,142) 是 "Jump to 59" 的 UIA
+# 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 636x559。通過:"asked to scroll to: 59",且原本 row 0 的位置
+# 看得到 50 幾的列；標籤變了、清單卻停在 row 0,正是 P56 要抓的失敗。
+sleep,,,,,,1500000,let P56 render,gtk
+click,182,113,,left,,,Jump to 59,gtk
+sleep,,,,,,20000000,hold 20s so the final capture lands while the window is up,gtk

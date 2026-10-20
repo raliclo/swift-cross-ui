@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P102 on WSL GtkBackend: ported 2026-10-20 from actions/win/P102-long-press-drag.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P102(WSL):由 actions/win/P102-long-press-drag.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P102 on Windows, WinUIBackend: longPressTextSelection() in a TextField and a TextEditor, and not in a
+# plain TextField -- the same steps as actions/mac/P102-long-press-drag.actions, re-measured for WinUI.
+# Positions from measure_win.zsh and the capture on 2026-10-19, in DIPs (display at 125%; origin=frame).
+# Window 454x558. FIELD text at y 189 ('quick' at x 76), EDITOR lines at y 253/270/288, CONTROL at y 406.
+# Pass (p102-select.log): FIELD began with an empty range then ended forward and non-empty; EDITOR ended
+# backward; no line at all for the CONTROL press or for the quick FIELD drag at the end (held 0.1 s).
+# P102(Windows,WinUIBackend):長按後拖曳，步驟同 actions/mac/P102-long-press-drag.actions,座標為 WinUI 重新量測
+# (2026-10-19,DIP)。通過條件:FIELD 先以空範圍 began、再以非空的正向範圍 ended;EDITOR ended 為 backward;
+# CONTROL 的長按與最後那次快速拖曳都不能有任何一行。
+sleep,,,,,,1500000,let P102 lay out,gtk
+mousedown,76,157,,left,,,FIELD: press on 'quick',gtk
+sleep,,,,,,800000,hold past the 0.5 s long-press delay,gtk
+move,120,157,,,,,drag right,gtk
+sleep,,,,,,100000,,gtk
+move,170,157,,,,,drag right,gtk
+sleep,,,,,,100000,,gtk
+move,220,157,,,,,drag right,gtk
+sleep,,,,,,150000,,gtk
+mouseup,220,157,,left,,,let go -- the selection stays,gtk
+sleep,,,,,,1000000,,gtk
+mousedown,120,266,,left,,,EDITOR: press on the third line,gtk
+sleep,,,,,,800000,hold,gtk
+move,95,256,,,,,drag up and left,gtk
+sleep,,,,,,100000,,gtk
+move,70,244,,,,,drag up and left,gtk
+sleep,,,,,,100000,,gtk
+move,45,231,,,,,onto the first line,gtk
+sleep,,,,,,150000,,gtk
+mouseup,45,231,,left,,,let go -- backward selection stays,gtk
+sleep,,,,,,1000000,,gtk
+mousedown,60,375,,left,,,CONTROL: a long press with no modifier,gtk
+sleep,,,,,,800000,hold,gtk
+move,150,375,,,,,drag,gtk
+sleep,,,,,,150000,,gtk
+mouseup,150,375,,left,,,let go -- nothing may be logged,gtk
+sleep,,,,,,1000000,,gtk
+mousedown,40,157,,left,,,FIELD: a quick drag,gtk
+sleep,,,,,,100000,held only 0.1 s,gtk
+move,150,157,,,,,drag right -- the toolkit's drag-select,gtk
+sleep,,,,,,150000,,gtk
+mouseup,150,157,,left,,,let go -- nothing may be logged,gtk
+sleep,,,,,,1500000,let the last settled line be written,gtk
