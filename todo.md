@@ -106,6 +106,19 @@ test 與結果。
   then Windows GTK4, with screenshot geometry measurements.
   依實際繪製尺寸重算投影；先 WSLg、再 Windows GTK4，量測靜態非正方形場景首次顯示及多次 resize
   後的截圖幾何，確認沒有拉伸變形。
+  **Status 2026-10-20:** fixed in code by f191f46c (projection from the drawable
+  size at every draw). **macOS GTK verified** with P95: three corner drags
+  (520x448 -> 820x528 -> 570x727 -> 970x727) logged 80 drawable sizes and the
+  circle's box stayed 1.000-1.002; grow mode on 2026-10-14 gave 1.000 eight times.
+  WSLg: the drawable follows (2026-10-19) but squareness is not measured on a
+  capture; Windows GTK4 not measured. Separate finding: a size set through the
+  accessibility API (System Events `set size`) changes the NSWindow but GTK does
+  not follow after the first one -- the area stays at the old size and the rest
+  of the window is unpainted; a drag does follow.
+  **狀態 2026-10-20:** f191f46c 已修(每次繪製依 drawable 尺寸重算投影)。**macOS GTK 已驗證**:P95 拖曳
+  視窗角三次，記到 80 個 drawable 尺寸，圓的外框比例維持 1.000-1.002。WSLg 的圓形比例未量;Windows GTK4 未量。
+  另一項發現：用輔助使用 API(System Events `set size`)設定大小，第一次之後 GTK 不再跟著改，區域停在舊尺寸、
+  其餘部分沒有繪製;拖曳則正常。
   **2026-10-14 (Windows): code fixed, NOT verified -- left open.** The view
   projection is no longer baked at commit time: GtkBackend hands the frame a
   function of the aspect ratio, and Mesh3DGLView calls it on every draw with
