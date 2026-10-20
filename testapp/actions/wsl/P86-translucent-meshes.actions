@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P86 on WSL GtkBackend: translucent meshes (Mesh3D.opacity); nothing to press, the capture is the result (pass lines in P86.swift's header).
+# P86(WSL):不需按任何東西，截圖就是結果。
+sleep,,,,,,6000000,hold for the capture,gtk

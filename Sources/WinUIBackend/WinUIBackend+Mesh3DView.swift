@@ -143,7 +143,7 @@ final class Mesh3DD3DView: WinUI.Canvas {
         )
         do {
             try panel.setSize(width: width, height: height)
-            try renderer.resize(to: pixels, panel: panel)
+            try renderer.resize(to: pixels, scale: scale, panel: panel)
             let viewProjection = Mesh3DMatrix4.viewProjection(
                 camera: scene.camera,
                 aspect: Float(pixels.x) / Float(pixels.y),
@@ -258,6 +258,7 @@ private let meshShaderSource = """
         float4x4 uNormal;
         float4 uLight;
         float4 uParams; // x: lit, y: point size in pixels, zw: viewport in pixels
+        float4 uExtra;  // x: opacity (Mesh3D.opacity)
     };
     struct VSIn { float3 position : POSITION; float3 normal : NORMAL; float3 colour : COLOR; };
     struct VSOut { float4 position : SV_Position; float3 normal : NORMAL; float3 colour : COLOR; };
@@ -278,11 +279,11 @@ private let meshShaderSource = """
         v.position = p[0].position + float4( extent.x,  extent.y, 0, 0); stream.Append(v);
     }
     float4 ps_main(VSOut input) : SV_Target {
-        if (uParams.x < 0.5) return float4(input.colour, 1.0);
+        if (uParams.x < 0.5) return float4(input.colour, uExtra.x);
         float3 n = normalize(input.normal);
         float3 l = normalize(-uLight.xyz);
         float lambert = max(dot(n, l), 0.0);
-        return float4(input.colour * (0.25 + 0.75 * lambert), 1.0);
+        return float4(input.colour * (0.25 + 0.75 * lambert), uExtra.x);
     }
     """
 
@@ -293,6 +294,7 @@ private struct MeshConstants {
     var normal: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
     var light: SIMD4<Float>
     var params: SIMD4<Float>
+    var extra: SIMD4<Float>
 }
 
 private func columns(_ elements: [Float]) -> (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>) {
@@ -330,6 +332,8 @@ final class D3D11MeshRenderer {
     private var rasterizer: UnsafeMutablePointer<ID3D11RasterizerState>?
     private var depthOn: UnsafeMutablePointer<ID3D11DepthStencilState>?
     private var depthOff: UnsafeMutablePointer<ID3D11DepthStencilState>?
+    private var depthTestOnly: UnsafeMutablePointer<ID3D11DepthStencilState>?
+    private var blendOver: UnsafeMutablePointer<ID3D11BlendState>?
 
     private var vertexBuffer: UnsafeMutablePointer<ID3D11Buffer>?
     private var indexBuffer: UnsafeMutablePointer<ID3D11Buffer>?
@@ -408,6 +412,8 @@ final class D3D11MeshRenderer {
         release(rasterizer)
         release(depthOn)
         release(depthOff)
+        release(depthTestOnly)
+        release(blendOver)
     }
 
     private static func adapterName(of device: UnsafeMutablePointer<ID3D11Device>) -> String {
@@ -556,6 +562,31 @@ final class D3D11MeshRenderer {
             "CreateDepthStencilState(off)",
             device.pointee.lpVtbl.pointee.CreateDepthStencilState(device, &depthDesc, &depthOff)
         )
+        // Depth-tested without writing depth: a translucent mesh (Mesh3D.opacity).
+        // 測試深度但不寫入：半透明 mesh 用(Mesh3D.opacity)。
+        depthDesc.DepthFunc = D3D11_COMPARISON_LESS
+        depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO
+        try D3D11_CHECK(
+            "CreateDepthStencilState(test only)",
+            device.pointee.lpVtbl.pointee.CreateDepthStencilState(device, &depthDesc, &depthTestOnly)
+        )
+
+        // Source-over for translucent meshes: colour by source alpha, and the alpha
+        // channel accumulated the same way.
+        // 半透明 mesh 的 source-over:顏色依來源 alpha 混合,alpha 通道以相同方式累積。
+        var blendDesc = D3D11_BLEND_DESC()
+        blendDesc.RenderTarget.0.BlendEnable = true
+        blendDesc.RenderTarget.0.SrcBlend = D3D11_BLEND_SRC_ALPHA
+        blendDesc.RenderTarget.0.DestBlend = D3D11_BLEND_INV_SRC_ALPHA
+        blendDesc.RenderTarget.0.BlendOp = D3D11_BLEND_OP_ADD
+        blendDesc.RenderTarget.0.SrcBlendAlpha = D3D11_BLEND_ONE
+        blendDesc.RenderTarget.0.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA
+        blendDesc.RenderTarget.0.BlendOpAlpha = D3D11_BLEND_OP_ADD
+        blendDesc.RenderTarget.0.RenderTargetWriteMask = UINT8(D3D11_COLOR_WRITE_ENABLE_ALL.rawValue)
+        try D3D11_CHECK(
+            "CreateBlendState",
+            device.pointee.lpVtbl.pointee.CreateBlendState(device, &blendDesc, &blendOver)
+        )
     }
 
     // MARK: Size
@@ -571,11 +602,25 @@ final class D3D11MeshRenderer {
 
     /// Recreates the swap chain and the depth buffer when the pixel size moved.
     /// 像素尺寸改變時，重建 swap chain 與深度緩衝區。
-    func resize(to pixels: SIMD2<Int>, panel: RawSwapChainPanel) throws {
-        guard pixels != size || d3d.swapChain == nil else { return }
+    func resize(to pixels: SIMD2<Int>, scale: Double, panel: RawSwapChainPanel) throws {
+        if pixels != size || d3d.swapChain == nil {
+            try recreateTargets(pixels, panel: panel)
+        }
+        if scale != scaleShown {
+            try d3d.setCompositionScale(scale)
+            scaleShown = scale
+        }
+    }
+
+    /// The display scale the swap chain was last told; 0 after it is recreated.
+    /// 上次告訴 swap chain 的顯示比例；重建後為 0。
+    private var scaleShown = 0.0
+
+    private func recreateTargets(_ pixels: SIMD2<Int>, panel: RawSwapChainPanel) throws {
         releaseTargets()
         try d3d.attachSwapChain(to: panel.native, width: UInt32(pixels.x), height: UInt32(pixels.y))
         size = pixels
+        scaleShown = 0
 
         guard let swapChain = d3d.swapChain else { return }
         var textureIID = D3D11IID.ID3D11Texture2D
@@ -695,7 +740,12 @@ final class D3D11MeshRenderer {
         context.pointee.lpVtbl.pointee.PSSetConstantBuffers(context, 0, 1, &constants)
 
         if vertexBuffer != nil {
-            for (draw, mesh) in zip(packed.draws, meshes) where draw.count > 0 {
+            // Opaque meshes first, in array order; then the translucent ones, in array
+            // order among themselves, so each blends over what is already drawn.
+            // 先畫不透明的 mesh(依陣列順序);再畫半透明的(彼此依陣列順序),讓每一個都與已畫好的東西混合。
+            let pairs = Array(zip(packed.draws, meshes))
+            let ordered = pairs.filter { $0.1.opacity >= 1 } + pairs.filter { $0.1.opacity < 1 }
+            for (draw, mesh) in ordered where draw.count > 0 {
                 let mvp = viewProjection * .model(mesh.transform)
                 let pointSize: Float
                 let lit: Bool
@@ -708,11 +758,22 @@ final class D3D11MeshRenderer {
                     mvp: columns(mvp.elements),
                     normal: columns(Mesh3DMatrix4.rotation(mesh.transform.rotation).elements),
                     light: SIMD4(light.x, light.y, light.z, 0),
-                    params: SIMD4(lit ? 1 : 0, pointSize, Float(size.x), Float(size.y))
+                    params: SIMD4(lit ? 1 : 0, pointSize, Float(size.x), Float(size.y)),
+                    extra: SIMD4(max(0, min(mesh.opacity, 1)), 0, 0, 0)
                 )
                 try writeConstants(&values)
+                // Below 1 a mesh is depth-tested but writes no depth, so what lies behind
+                // or inside it still shows (Mesh3D.opacity).
+                // 小於 1 時 mesh 做深度測試但不寫入深度，讓它後方或內部的東西仍看得見(Mesh3D.opacity)。
+                let translucent = mesh.opacity < 1
                 context.pointee.lpVtbl.pointee.OMSetDepthStencilState(
-                    context, mesh.depthTested ? depthOn : depthOff, 0
+                    context, mesh.depthTested ? (translucent ? depthTestOnly : depthOn) : depthOff, 0
+                )
+                // Translucent: source-over, and the alpha written so the swap chain keeps it.
+                // 半透明:source-over,並寫入 alpha 讓 swap chain 保留它。
+                var blendFactor: [Float] = [0, 0, 0, 0]
+                context.pointee.lpVtbl.pointee.OMSetBlendState(
+                    context, translucent ? blendOver : nil, &blendFactor, 0xffff_ffff
                 )
                 switch draw.mode {
                     case .triangles:
@@ -739,6 +800,8 @@ final class D3D11MeshRenderer {
                 }
             }
             context.pointee.lpVtbl.pointee.GSSetShader(context, nil, nil, 0)
+            var noFactor: [Float] = [0, 0, 0, 0]
+            context.pointee.lpVtbl.pointee.OMSetBlendState(context, nil, &noFactor, 0xffff_ffff)
         }
 
         let captured = capture ? try readBack(swapChain) : nil

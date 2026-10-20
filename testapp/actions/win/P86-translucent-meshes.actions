@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P86 on Windows (TEST_BACKEND=WinUI or gtk4): translucent meshes (Mesh3D.opacity); nothing to press, the capture is the result. Run with --showtime 8 or more.
+# 2026-10-20, Swift 6.4.1: WinUI and Windows GTK -- red square pure red with the grey veil around it, the blue square light blue through the veil, the yellow band showing behind it. WinUI had drawn the scene 1.25x too large and cut off at 125% until its swap chain got the inverse rasterisation scale (RawD3D11Device.setCompositionScale).
+# P86(Windows):不需按任何東西，截圖就是結果;2026-10-20 WinUI 與 Windows GTK 三項皆符合 P86.swift 標頭。
+sleep,,,,,,6000000,hold for the capture,windows

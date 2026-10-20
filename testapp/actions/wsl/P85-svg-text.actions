@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P85 on WSL GtkBackend: SVG <text> through Pango on Cairo; nothing to press, the capture is the result (pass lines in P85.swift's header).
+# P85(WSL):不需按任何東西，截圖就是結果。
+sleep,,,,,,6000000,hold for the capture,gtk

@@ -599,7 +599,14 @@ let package = Package(
         ),
         .target(
             name: "WinUIInterop",
-            dependencies: []
+            dependencies: [],
+            // Direct2D, DirectWrite and WIC for SVG text (svg_text_mask.cpp); all
+            // three ship with Windows. / 供 SVG 文字(svg_text_mask.cpp)使用的 Direct2D、DirectWrite 與 WIC,三者都隨 Windows 提供。
+            linkerSettings: [
+                .linkedLibrary("d2d1", .when(platforms: [.windows])),
+                .linkedLibrary("dwrite", .when(platforms: [.windows])),
+                .linkedLibrary("windowscodecs", .when(platforms: [.windows])),
+            ]
         ),
         .target(name: "DummyBackend", dependencies: ["SwiftCrossUI"]),
 

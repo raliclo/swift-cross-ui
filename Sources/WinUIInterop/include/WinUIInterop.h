@@ -79,4 +79,20 @@ void *_dispatch_get_main_queue_handle_4CF(void);
 // RunLoop 再也看不到訊號,P66 的 asyncAfter 鏈在第一次呼叫後就停了。
 void _dispatch_main_queue_callback_4CF(void *msg);
 
+// One SVG <text> run as coverage, width*height bytes into `out`, top row first;
+// 1 on success. `families` is comma-separated, the first the system has is used.
+// anchor: 0 start, 1 middle, 2 end. strokeWidth <= 0 fills. See svg_text_mask.cpp.
+// 一段 SVG <text> 的覆蓋率，寫入 `out` 共 width*height 個位元組、最上面一列在前；成功時回傳 1。
+#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+int scui_svg_text_mask(const uint16_t *text, int textLength, const uint16_t *families,
+                       double fontSize, int bold, int italic, int anchor, double a, double b,
+                       double c, double d, double tx, double ty, double strokeWidth, int width,
+                       int height, uint8_t *out);
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // _WIN32

@@ -402,6 +402,36 @@ public final class RawD3D11Device {
         self.height = height
     }
 
+    /// Shows a swap chain drawn in physical pixels at its size in DIPs: the panel
+    /// composes the buffer one pixel per DIP, so without the inverse of the
+    /// rasterisation scale a 125% display shows it 1.25 times too large, cut off
+    /// at the panel edge (Mesh3DView, P86, 2026-10-20).
+    /// 讓以實體像素繪製的 swap chain 以 DIP 尺寸顯示：面板以每 DIP 一像素合成緩衝區，因此沒有乘上光柵化
+    /// 比例的倒數時,125% 的螢幕會把它放大 1.25 倍、在面板邊緣被裁掉(Mesh3DView,P86,2026-10-20)。
+    func setCompositionScale(_ scale: Double) throws {
+        guard scale > 0, let swapChain else { return }
+        var swapChain2IID = D3D11IID.IDXGISwapChain2
+        var raw: UnsafeMutableRawPointer?
+        try D3D11_CHECK(
+            "IDXGISwapChain1::QueryInterface(IDXGISwapChain2)",
+            swapChain.pointee.lpVtbl.pointee.QueryInterface(swapChain, &swapChain2IID, &raw)
+        )
+        guard let raw else {
+            throw D3D11Error.failed("QueryInterface(IDXGISwapChain2) returned null", S_OK)
+        }
+        let swapChain2 = raw.assumingMemoryBound(to: IDXGISwapChain2.self)
+        defer { _ = swapChain2.pointee.lpVtbl.pointee.Release(swapChain2) }
+        var matrix = DXGI_MATRIX_3X2_F()
+        matrix._11 = Float(1 / scale)
+        matrix._22 = Float(1 / scale)
+        try D3D11_CHECK(
+            "IDXGISwapChain2::SetMatrixTransform",
+            withUnsafePointer(to: &matrix) { pointer in
+                swapChain2.pointee.lpVtbl.pointee.SetMatrixTransform(swapChain2, pointer)
+            }
+        )
+    }
+
     /// Spike-only helper: clears the current back buffer to a solid color and
     /// presents it, used to visually confirm the SwapChainPanel is actually
     /// composited by WinUI before wiring in real frame uploads.

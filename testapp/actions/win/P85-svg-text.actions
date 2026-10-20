@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P85 on Windows (TEST_BACKEND=WinUI or gtk4): SVG <text> by the platform's text engine; nothing to press, the capture is the result.
+# 2026-10-20, Swift 6.4.1, WinUI (DirectWrite + Direct2D, svg_text_mask.cpp): all nine lines as P85.swift's header says -- 2 centred and 3 ending on their blue lines, serif/mono/bold/italic distinct, a blue outline with no fill, red Chinese with no boxes (DirectWrite fallback), green tilted, grey at 40%, the orange box over 'der' with the text through it. "text renderer: yes".
+# P85(Windows):不需按任何東西，截圖就是結果;2026-10-20 WinUI 九行皆符合 P85.swift 標頭。
+sleep,,,,,,6000000,hold for the capture,windows

@@ -151,10 +151,11 @@ entry is closed.
     define. Gradients, clipPath, mask, patterns, markers, images and every SVG 1.1 filter
     primitive are drawn since 2026-10-10; P87 shows the common ones together.
     - [x] **Visible `<text>`: drawn by each platform's own text engine** -> completed.md (archived 2026-10-18)
-    - [ ] **WinUI: SVG text.** `BackendFeatures.SVGText` on WinUIBackend, e.g.
+    - [x] **WinUI: SVG text.** `BackendFeatures.SVGText` on WinUIBackend, e.g.
       Win2D `CanvasRenderTarget` + `CanvasTextLayout` drawn white on a
       transparent target and read back as alpha; then P85 on WinUI (and GTK on
       Windows/WSL, which already has the PangoCairo path but has not been run).
+      **DONE 2026-10-20** with DirectWrite + Direct2D rather than Win2D (WinUIInterop/svg_text_mask.cpp, WinUIBackend+SVGText.swift): P85 passes on WinUI, and on Windows GTK and WSL (their first runs).
     - [x] **Gradients: `linearGradient` and `radialGradient`** (2026-10-10), in -> completed.md (archived 2026-10-18)
     - [x] **`clip-path` and `mask`** (2026-10-10), in the core rasteriser: the -> completed.md (archived 2026-10-18)
     - [x] **`<pattern>` paint** (2026-10-10), in the core rasteriser: the tile -> completed.md (archived 2026-10-18)
@@ -173,10 +174,11 @@ entry is closed.
     stays pure red, a blue square behind one turns light blue, a yellow strip
     behind the veil still shows) passes on macOS, GTK on macOS, the iOS
     simulator and the Android emulator. Open:
-    - [ ] **WinUI: `Mesh3D.opacity`.** WinUIBackend+Mesh3DView ignores it and
+    - [x] **WinUI: `Mesh3D.opacity`.** WinUIBackend+Mesh3DView ignores it and
       draws translucent meshes opaque. Needs a blend state (src-alpha /
       one-minus-src-alpha), a depth state that tests without writing, the
       opacity in the pixel shader, and the two passes; then P86 on WinUI.
+      **DONE 2026-10-20**: all four, as listed; P86 passes on WinUI, Windows GTK and WSL. The same run found the D3D view drawn 1.25x too large and cut off at 125% -- the swap chain now gets the inverse rasterisation scale (`RawD3D11Device.setCompositionScale`).
 
 ## 2026-10-05 code review: gaps against the five-backend rule
 
@@ -333,11 +335,12 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
 下面兩項不存在。當時沒有動手寫，因為問題是「那行字還對不對」;使用者要求把它們排進來。每一項都是五個 backend 都要做的
 功能(CLAUDE.md),不是某個檔案裡的一行。
 
-- [ ] **`.focusable(_:)` on WinUI** -- the rest is DONE 2026-10-13: `BackendFeatures.FocusableTargets` on
+- [x] **`.focusable(_:)` on WinUI** -- the rest is DONE 2026-10-13: `BackendFeatures.FocusableTargets` on
   AppKitBackend, UIKitBackend, GtkBackend and AndroidBackend, test app P91 with action files for macOS (AppKit and
   gtk4), iOS, iPad and Android, all replayed. WinUIBackend has no conformance, so `.focusable` warns once and changes
   nothing there (a Control with IsTabStop is the place to start); GtkBackend's is untried on Windows and WSL. The
   user asked for the non-Windows backends first.
+  **WinUI DONE 2026-10-19** (3d3a3d70): `FocusableTargets` on WinUIBackend; P91 passes on Windows. Ticked 2026-10-20.
   Also changed with it: `.focused` acts on a disagreement only when the app asked for something new -- it used to
   take the focus back from a view the user had just pressed or tabbed to; a key target around a `.focusable()`
   view no longer takes the focus itself; a `key,tab` row on Android moves the focus as the view root does.
@@ -476,7 +479,7 @@ toolchain was installed (2026-10-05); it is done below.
   AVD.** That AVD's renderer string is three lines, not five, so the controls sit
   about 62 pt higher; "Stop" landed on Snapshot and the readout stayed at
   "frames at the stop: -1" with nothing failing. Re-measured: stop 190, check 193.
-- [ ] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side.
+- [x] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side. (Box ticked 2026-10-20: both conformances exist, as the DONE notes below say; the title had not been updated.)
   GTK DONE 2026-10-06: a GtkGLArea (`Gtk.Mesh3DGLView`) drawing with core GL 3.3
   through libepoxy (GtkCHelpers/gtk_mesh3d_gl.c, the NV12 renderer's footing),
   AndroidBackend's shaders and packing with 32-bit indices; snapshots read the
