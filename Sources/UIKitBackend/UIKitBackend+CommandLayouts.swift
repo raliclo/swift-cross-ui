@@ -316,6 +316,12 @@ import UIKit
             shown.menus = layout.menus.compactMap { menu in
                 var menu = menu
                 menu.sections = menu.sections.compactMap { section in
+                    // No Format menu on the phone either, as on the iPad and as SwiftUI's iPad
+                    // bar (user, 2026-10-20): the textFormatting group is dropped, and with it
+                    // the menu it was the only part of.
+                    // 手機上也沒有 Format 選單，與 iPad 及 SwiftUI 的 iPad 選單列相同(使用者,2026-10-20):丟掉 textFormatting
+                    // 群組，只由它組成的那個選單也就一併消失。
+                    if section.placement?.name == "textFormatting" { return nil }
                     var section = section
                     section.entries = section.entries.filter { entry in
                         if case .standard(let command) = entry {
