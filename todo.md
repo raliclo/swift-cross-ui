@@ -1503,7 +1503,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 
 ## Test infrastructure / 測試基礎設施
 
-- [ ] **A buttonless `move` is invisible to WinUI's pointer events.** (Windows) Win32Synthesiser
+- [x] **A buttonless `move` is invisible to WinUI's pointer events.** (Windows) Win32Synthesiser
   performs it with SetCursorPos, a cursor jump: WinUI raises PointerEntered once and no
   PointerMoved, so onContinuousHover (P88) and menu items (P92) did nothing until their files used
   `hover` rows (ten SendInput steps) -- 2026-10-20. Every actions/win file that hovers with `move`
@@ -1512,6 +1512,15 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   same switch on P92-edit-menu-gtk4 broke its menu, so the answer may differ per backend.
   沒按鍵的 `move` 對 WinUI 的指標事件不可見(SetCursorPos 是跳躍)。P88、P92 改用 `hover` 才通過。用 `move`
   懸停的 Windows 動作檔在 WinUI 上都值得懷疑。待決定：改合成器，或逐檔檢查；GTK 上同樣的改法反而壞了 P92。
+  **Done 2026-10-21 -- the synthesiser, WinUI windows only:** a buttonless `move` (and so every
+  `click` with a point, which moves first) is ten SendInput steps when the window under test is
+  `WinUIDesktopWin32WindowClass`, falling back to SetCursorPos if the cursor does not land; GTK keeps
+  SetCursorPos. Checked with the pre-`hover` P88 and P92 files (`move` rows only): hover reports
+  43 with last with cmd recorded, and p92-commands.log hellohello / hello / hellohello /
+  AFTER-undoRedo; twelve other WinUI files replayed as before (P79 P81 P60 P59 P6 P15-DARK P27 P38
+  P75 P74 P90 P49). Each click costs about 100 ms more, so a long file needs more showtime.
+  已完成(合成器，只限 WinUI 視窗):沒按鍵的 `move` 與帶座標的 `click` 改為 10 段 SendInput,游標沒到位才退回
+  SetCursorPos;GTK 不變。只用 `move` 的舊版 P88、P92 皆通過，其他十二個 WinUI 檔照常。
 
 - **`SetForegroundWindow` is now requested on the mouse path but never
   verified.** (Windows) In `Win32Synthesiser.prepareForReplay` the call was

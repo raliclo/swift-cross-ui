@@ -1652,6 +1652,39 @@
                 return
             }
 
+            // On WinUI a buttonless move is stepped SendInput too, as the
+            // `hover` action is. A SetCursorPos jump raises no PointerMoved
+            // there: P88's onContinuousHover target saw PointerEntered once
+            // and no move, and P92's Edit menu chose no item, until their files
+            // used `hover` (2026-10-20). Only for a WinUI window -- the same
+            // switch on Windows GTK broke P92's menu -- and only if the cursor
+            // lands; otherwise the SetCursorPos path below takes over with its
+            // own checks.
+            // WinUI 上沒按鍵的移動也用分段 SendInput,與 `hover` 動作相同。SetCursorPos 跳躍在那裡不會觸發
+            // PointerMoved:P88 的 onContinuousHover target 只收到一次 PointerEntered、沒有任何移動，P92 的 Edit
+            // 選單也選不到項目，直到它們的檔案改用 `hover`(2026-10-20)。只用於 WinUI 視窗——同樣的改法在 Windows GTK
+            // 上弄壞了 P92 的選單——而且只在游標確實到位時；否則交給下方附帶檢查的 SetCursorPos 路徑。
+            if let window = try? ownWindow(), className(of: window) == "WinUIDesktopWin32WindowClass" {
+                var from = POINT()
+                _ = GetCursorPos(&from)
+                for step in 1...10 {
+                    sendAbsoluteMouseMove(to: (
+                        x: Int(from.x) + (position.x - Int(from.x)) * step / 10,
+                        y: Int(from.y) + (position.y - Int(from.y)) * step / 10
+                    ))
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+                var landed = POINT()
+                if GetCursorPos(&landed),
+                    abs(Int(landed.x) - position.x) <= 1,
+                    abs(Int(landed.y) - position.y) <= 1
+                {
+                    reportMouseMove(point: point, screen: position)
+                    try assertPointIsOurs(point: point, screen: position)
+                    return
+                }
+            }
+
             // `SetCursorPos` takes a physical screen coordinate, so multiple
             // monitors need no arithmetic here. Worth stating, because what this
             // replaced did need it and got it wrong once: a `SendInput` with
