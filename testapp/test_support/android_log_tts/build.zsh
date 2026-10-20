@@ -27,7 +27,7 @@ mkdir -p "$out/classes" "$out/dex"
 
 javac --release 11 -classpath "$platform" -d "$out/classes" \
     "$here"/src/dev/swiftcrossui/logtts/*.java
-"$tools/d8" --lib "$platform" --output "$out/dex" "$out"/classes/dev/swiftcrossui/logtts/*.class
+"$tools/d8" --min-api 31 --lib "$platform" --output "$out/dex" "$out"/classes/dev/swiftcrossui/logtts/*.class
 "$tools/aapt2" compile --dir "$here/res" -o "$out/res.zip"
 "$tools/aapt2" link -I "$platform" --manifest "$here/AndroidManifest.xml" \
     -o "$out/unsigned.apk" "$out/res.zip"
