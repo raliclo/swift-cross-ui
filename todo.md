@@ -98,7 +98,7 @@ test 與結果。
   新版回報 false。
   P75(自己寫檔、只靠 observer)照常寫到。
 
-- [ ] **P2: GTK 3D projection uses stale allocation / GTK 3D 投影使用舊 allocation 尺寸.**
+- [x] **P2: GTK 3D projection uses stale allocation / GTK 3D 投影使用舊 allocation 尺寸.**
   `Sources/GtkBackend/GtkBackend+Mesh3DView.swift:75` reads allocation during
   layout commit, but the render path does not recompute projection from the
   actual drawable size. Recalculate at render/allocation time. Verify a static
@@ -172,6 +172,16 @@ test 與結果。
   高度的比例固定。`measure/colour_bbox.swift` 只能在 macOS 上用(CoreGraphics);把擷圖複製到 Mac,或在那邊用任何真正的
   影像讀取工具量。先取樣圓的顏色——見 measure/README.md。
 
+  **Verified 2026-10-21 on WSLg and Windows GTK -- closed.** P95 with SCUI_P95_GROW=1 (the content,
+  and so the window, alternates 360 and 720 wide every 3 s; on WSL pass it as TEST_APP_ENV, the only
+  variables the WSL launcher forwards): p95-mesh.log shows the drawable following, 360x300 <->
+  720x300, and the circle's box measured in every capture (scratchpad circle_ratio.py, which skips
+  the header's cyan swatch) was 216x216, ratio 1.000 -- five captures on Windows GTK, six on WSLg.
+  Separate, not part of this item: in both, once the window had grown to 748 px it was never
+  captured narrow again and every capture showed the mesh 360 wide -- either the window does not
+  shrink back with `.contentSize`, or the capture lags; see todo "P95 grow window".
+  **2026-10-21 已在 WSLg 與 Windows GTK 驗證——結案。**成長模式下 drawable 隨內容在 360 與 720 間切換，每張截圖的圓都是
+  216x216、比例 1.000。另一件事(不屬本項):視窗長到 748 後就沒再被拍到變窄，網格也一直是 360 寬，待查。
 - [x] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
   `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages
   and dispatches them without handling `WM_QUIT`. Preserve/repost the quit
@@ -1147,6 +1157,13 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 ---
 
 ## GtkBackend gaps / GtkBackend 的缺口
+
+- [ ] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
+  mesh drawable alternates 360x300 and 720x300 (its log), but after the window grew to 748 px no
+  capture showed it narrow again, and every capture showed the mesh 360 wide, centred. Either
+  `.windowResizability(.contentSize)` grows the window and never shrinks it, or the window capture
+  of a GL surface returns a stale frame. Capture the desktop instead of the window to tell.
+  P95 成長模式：視窗長到 748 後沒再被拍到變窄，網格一直是 360 寬。是視窗不縮回，還是擷取到舊畫面，待以桌面擷取分辨。
 
 - [ ] **Windows GTK stalls its main thread for about half a second at startup.** P97, 2026-10-21:
   every row reached 1 on time (linear 1.16 s, as on WinUI), so the clock ran from about 0.16 s,
