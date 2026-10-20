@@ -1063,6 +1063,12 @@ gave -38,-59 at one and 154,-6 at the other.
 Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.csv2 of that date).
 2026-10-20 由新的 actions/win 動作檔發現(結果列見 matrix_coverage/results.csv2 同日)。
 
+- [ ] **P101: START reads no rows on WinUI.** 2026-10-19 and again 2026-10-21: TO10 and CENTER3
+  measure 20 rows with error 0, but START, taken right after the list appears, sees 0 rows -- the
+  rows are not laid out yet when the first scroll-visibility pass runs. GTK and WSL see 20 at START.
+  Find which WinUI layout pass the scroll observers run in, or make START wait for the first layout.
+  P101:WinUI 上 START 量到 0 列(列還沒排版)。GTK 與 WSL 在 START 時都有 20 列。
+
 - [x] **zh_TW does not reach DatePicker / TimePicker.** P90: heading zh_TW, pickers still read
   August 24 2025 / 9 46 AM. Tried and reverted: `FrameworkElement.Language` set to `zh-TW` on the
   controls, both on the live controls and on fresh ones before they load (rebuilt on a locale
@@ -1141,6 +1147,14 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 ---
 
 ## GtkBackend gaps / GtkBackend 的缺口
+
+- [ ] **Windows GTK stalls its main thread for about half a second at startup.** P97, 2026-10-21:
+  every row reached 1 on time (linear 1.16 s, as on WinUI), so the clock ran from about 0.16 s,
+  but nothing was sampled or drawn before 0.53 s, and speed(2) logged a jump. The Windows action
+  files already warn that a fresh exe's first launch stalls about 3 s; this is a smaller stall on
+  every launch. WSL does not show it (start 0.16, no jumps). Profile the first frames (shader or
+  font cache?) before changing anything.
+  Windows GTK 啟動時主執行緒停頓約半秒:P97 各列準時抵達，但 0.53 秒前沒有取樣也沒有繪製,speed(2) 記到一次跳躍。WSL 沒有。
 
 - [x] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
   actions/wsl/P74-choose-in-every-style.actions: the click on the drop-down lands (the button
