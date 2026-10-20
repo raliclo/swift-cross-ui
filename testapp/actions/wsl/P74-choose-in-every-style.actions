@@ -5,6 +5,7 @@ action,x,y,origin,button,key,micros,note,platform
 # Written 2026-10-08. Positions are UIA centres minus the window's GetWindowRect
 # origin, WinUIBackend, 100% scale, window 536x799.
 # Pass: "menu -> Cherry", "segmented -> Three", "radioGroup -> Blue",
+# Re-aimed 2026-10-21 from a capture: since GtkBackend draws in Segoe UI under WSL (8f0fcad6) the rows below the segmented control sit about 16 px lower, so the measured y 299 and 452 hit Green and Wed; Blue (101,315), Thu (116,472), the disabled Green (114,595).
 # "wheel -> Thu" -- and still "radioGroup -> Blue" after the press on the
 # DISABLED group's Green, which must be refused.
 # P74's window was 520x620 until 2026-10-08; at that height only the disabled
@@ -27,9 +28,9 @@ key,,,,,return,,choose -- the label must read menu -> Cherry,gtk
 sleep,,,,,,800000,let the drop-down close,gtk
 click,247,186,,left,,,segmented: Three,gtk
 sleep,,,,,,500000,,gtk
-click,101,299,,left,,,radioGroup: Blue,gtk
+click,101,315,,left,,,radioGroup: Blue,gtk
 sleep,,,,,,500000,,gtk
-click,93,452,,left,,,wheel: Thu,gtk
+click,116,472,,left,,,wheel: Thu,gtk
 sleep,,,,,,500000,,gtk
-click,101,571,,left,,,the DISABLED group's Green -- must be refused: radioGroup must still read Blue,gtk
+click,114,595,,left,,,the DISABLED group's Green -- must be refused: radioGroup must still read Blue,gtk
 sleep,,,,,,20000000,hold 20s so the final capture lands while the window is up,gtk

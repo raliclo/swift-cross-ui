@@ -704,7 +704,18 @@ showtime() {
 # 仍以 rc 6 結束，多等的時間也會印出，絕不無聲。本機沒有紀錄(從 Windows 啟動的 WSL 執行把它留在 WSL 裡)就不等，與以前相同。
 wait_for_replay_end() {
     [ -n "${action_file:-}" ] || return 0
-    local log="$out/$actionfile_log"
+    # `out` is unset on the WSL path (set -u stopped every WSL run with
+    # "out: parameter not set", 2026-10-21). Run inside WSL, the launcher's log
+    # is in the WSL checkout's output folder; run from Windows, it is not on
+    # this machine, so there is no wait.
+    # WSL 路徑上沒有 `out`(set -u 讓每次 WSL 執行都以「out: parameter not set」中止,2026-10-21)。在 WSL 內執行時，
+    # 紀錄在 WSL checkout 的 output 資料夾;從 Windows 執行時它不在本機，所以不等。
+    local dir="${out:-}"
+    if [ -z "$dir" ] && [[ "$OSTYPE" == linux* ]] && [ -d "$HOME/proj/swift-cross-ui/testapp/output" ]; then
+        dir="$HOME/proj/swift-cross-ui/testapp/output"
+    fi
+    [ -n "$dir" ] || return 0
+    local log="$dir/$actionfile_log"
     [ -f "$log" ] || return 0
     local limit="${TEST_REPLAY_GRACE_SECONDS:-120}" waited=0
     while ! grep -aqE -- '-actionfile: (replayed|failed)' "$log" 2>/dev/null; do

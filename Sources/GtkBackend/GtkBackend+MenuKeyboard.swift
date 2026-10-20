@@ -43,6 +43,15 @@ final class GtkMenuKeyboardStart {
     /// The item GTK focused when the menu opened, drawn unselected until the
     /// first key. / 選單打開時 GTK 讓其取得焦點的項目，在第一個按鍵之前畫成未選取。
     private var waitingItem: UnsafeMutablePointer<GtkWidget>?
+    /// Which item the first Down selected, by position among the menu's items:
+    /// for Return when nothing else marks one. A position, not the widget --
+    /// under X11 on WSLg the menu rebuilt its items between the Down and the
+    /// Return, and a pointer kept from the Down named a freed object (its class
+    /// read <NULL-class>, P19, 2026-10-21).
+    /// 第一次 Down 選取的是哪一項，以它在選單項目中的位置記住，供沒有其他標示時的 Return 使用。記位置而不是 widget——WSLg
+    /// 的 X11 下，選單在 Down 與 Return 之間重建了它的項目，從 Down 留下的指標指向已釋放的物件(類別讀到 <NULL-class>,
+    /// P19,2026-10-21)。
+    private var keyboardIndex: Int?
 
     private init(menu: UnsafeMutablePointer<GtkWidget>) {
         self.menu = menu
@@ -79,6 +88,7 @@ final class GtkMenuKeyboardStart {
     /// focuses the first item. / 選單打開之前：其中任何地方都沒有焦點子元件，使 GTK 讓第一項取得焦點。
     func willOpen() {
         waitingItem = nil
+        keyboardIndex = nil
         clearFocusChildren(of: menu)
     }
 
@@ -94,19 +104,119 @@ final class GtkMenuKeyboardStart {
     }
 
     private func keyPressed(_ keyval: Int32) -> Bool {
+        // Return, Enter or space on a selected item activates it here rather
+        // than leaving it to GTK. Under X11 on WSLg GTK did nothing with it:
+        // the Down reached this controller and selected the first item, the
+        // Return reached it too and went on to GTK, and P19 logged no click --
+        // the menu stayed open, so the file's next "open the menu" closed it and
+        // every later key fell on the window (2026-10-21). On macOS and Windows
+        // GTK activated the item itself; one activation here is the same thing.
+        // 在選取的項目上按 Return、Enter 或空白鍵時，由這裡觸發它，而不交給 GTK。WSLg 的 X11 下 GTK 對它什麼都沒做:
+        // Down 到了這個控制器並選取第一項,Return 也到了、再交給 GTK,P19 卻沒有記到點擊——選單沒關，檔案的下一次
+        // 「打開選單」把它關掉，之後的每個鍵都落在視窗上(2026-10-21)。macOS 與 Windows 上 GTK 會自己觸發該項目；
+        // 在這裡觸發一次是同一件事。
+        if waitingItem == nil, Self.activates(keyval), let selected = activeItem(),
+            Self.activate(selected)
+        {
+            return true
+        }
         guard let item = waitingItem else { return false }
         waitingItem = nil
         guard !hasSelectedItem(menu) else { return false }
         switch keyval {
             case GDK_KEY_Down, GDK_KEY_KP_Down:
-                gtk_widget_set_state_flags(item, GTK_STATE_FLAG_SELECTED, 0)
-                gtk_widget_grab_focus(item)
+                // The first item as it is now, not the widget remembered at
+                // opening: the menu can rebuild its items in between, and under
+                // X11 on WSLg it did -- the remembered GtkModelButton was no
+                // longer in the menu (its position read -1, P19, 2026-10-21), so
+                // selecting and focusing it changed nothing on screen and Return
+                // then found nothing to choose.
+                // 用此刻的第一項，而不是打開時記下的 widget:選單可能在兩者之間重建項目，WSLg 的 X11 下確實如此——記下的
+                // GtkModelButton 已不在選單中(位置讀到 -1,P19,2026-10-21),選取並聚焦它在畫面上毫無作用，之後的 Return
+                // 也就找不到可選的項目。
+                let first = Self.modelButtons(in: menu).first ?? item
+                gtk_widget_set_state_flags(first, GTK_STATE_FLAG_SELECTED, 0)
+                keyboardIndex = 0
+                gtk_widget_grab_focus(first)
+                return true
+            case GDK_KEY_Up, GDK_KEY_KP_Up:
+                // The last item, chosen here for the same reason as Down's first:
+                // left to GTK, Up started from the stale focus and selected
+                // nothing under X11 on WSLg (P19, 2026-10-21). On macOS and
+                // Windows GTK wrapped to the last item, which this does too.
+                // 最後一項，理由與 Down 選第一項相同：交給 GTK 時，Up 從失效的焦點開始，WSLg 的 X11 下什麼都沒選到
+                // (P19,2026-10-21)。macOS 與 Windows 上 GTK 會繞到最後一項，這裡也是。
+                let items = Self.modelButtons(in: menu)
+                guard let last = items.last else { return false }
+                gtk_widget_set_state_flags(last, GTK_STATE_FLAG_SELECTED, 0)
+                keyboardIndex = items.count - 1
+                gtk_widget_grab_focus(last)
                 return true
             case GDK_KEY_Return, GDK_KEY_KP_Enter, GDK_KEY_ISO_Enter, GDK_KEY_space, GDK_KEY_KP_Space:
                 gtk_popover_popdown(UnsafeMutableRawPointer(menu).assumingMemoryBound(to: GtkPopover.self))
                 return true
             default:
                 return false
+        }
+    }
+
+    /// The item Return activates: the selected one, else the focused one in
+    /// the menu, else the one the first Down selected -- under X11 on WSLg the
+    /// selected flag was gone by the time Return arrived (2026-10-21).
+    /// Return 觸發的項目：選取的那一項，否則是選單中有焦點的那一項，否則是第一次 Down 選取的那一項——WSLg 的 X11 下，
+    /// Return 到達時選取標記已經不見了(2026-10-21)。
+    private func activeItem() -> UnsafeMutablePointer<GtkWidget>? {
+        if let selected = selectedItem(in: menu) { return selected }
+        if let root = gtk_widget_get_root(menu), let focus = gtk_root_get_focus(root),
+            gtk_widget_is_ancestor(focus, menu) != 0
+        {
+            return focus
+        }
+        return keyboardIndex.flatMap { index in
+            let items = Self.modelButtons(in: menu)
+            return index < items.count ? items[index] : nil
+        }
+    }
+
+    /// Runs an item the way a click does: through its action, as a
+    /// GtkModelButton is a GtkActionable bound to the menu's action. Under X11
+    /// on WSLg `gtk_widget_activate` on the selected GtkModelButton chose
+    /// nothing (P19, 2026-10-21); the action is what a click reaches.
+    /// 以點擊的方式執行一個項目：透過它的 action——GtkModelButton 是綁定在選單 action 上的 GtkActionable。WSLg 的
+    /// X11 下對選取的 GtkModelButton 呼叫 `gtk_widget_activate` 什麼都沒選到(P19,2026-10-21);點擊到達的是 action。
+    private static func activate(_ item: UnsafeMutablePointer<GtkWidget>) -> Bool {
+        let actionable = OpaquePointer(item)
+        if g_type_check_instance_is_a(
+            UnsafeMutableRawPointer(item).assumingMemoryBound(to: GTypeInstance.self),
+            gtk_actionable_get_type()
+        ) != 0, let name = gtk_actionable_get_action_name(actionable) {
+            return gtk_widget_activate_action_variant(
+                item, name, gtk_actionable_get_action_target_value(actionable)
+            ) != 0
+        }
+        return gtk_widget_activate(item) != 0
+    }
+
+    /// The menu's GtkModelButtons in tree order.
+    /// 選單中的 GtkModelButton,依樹的順序。
+    private static func modelButtons(in widget: UnsafeMutablePointer<GtkWidget>) -> [UnsafeMutablePointer<GtkWidget>] {
+        var found: [UnsafeMutablePointer<GtkWidget>] = []
+        var child = gtk_widget_get_first_child(widget)
+        while let current = child {
+            let instance = UnsafeMutableRawPointer(current).assumingMemoryBound(to: GTypeInstance.self)
+            if String(cString: g_type_name_from_instance(instance)) == "GtkModelButton" {
+                found.append(current)
+            }
+            found += modelButtons(in: current)
+            child = gtk_widget_get_next_sibling(current)
+        }
+        return found
+    }
+
+    private static func activates(_ keyval: Int32) -> Bool {
+        switch keyval {
+            case GDK_KEY_Return, GDK_KEY_KP_Enter, GDK_KEY_ISO_Enter, GDK_KEY_space, GDK_KEY_KP_Space: true
+            default: false
         }
     }
 
@@ -120,14 +230,18 @@ final class GtkMenuKeyboardStart {
     }
 
     private func hasSelectedItem(_ widget: UnsafeMutablePointer<GtkWidget>) -> Bool {
+        selectedItem(in: widget) != nil
+    }
+
+    private func selectedItem(in widget: UnsafeMutablePointer<GtkWidget>) -> UnsafeMutablePointer<GtkWidget>? {
         if gtk_widget_get_state_flags(widget).rawValue & GTK_STATE_FLAG_SELECTED.rawValue != 0 {
-            return true
+            return widget
         }
         var child = gtk_widget_get_first_child(widget)
         while let current = child {
-            if hasSelectedItem(current) { return true }
+            if let found = selectedItem(in: current) { return found }
             child = gtk_widget_get_next_sibling(current)
         }
-        return false
+        return nil
     }
 }

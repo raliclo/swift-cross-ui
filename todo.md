@@ -1142,7 +1142,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
-- [ ] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
+- [x] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
   actions/wsl/P74-choose-in-every-style.actions: the click on the drop-down lands (the button
   draws pressed) but downArrow, downArrow, return leave "menu -> Apple" where the file expects
   Cherry. Every other style in the same run changed (segmented Three, radioGroup Blue, wheel Thu,
@@ -1156,6 +1156,19 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   Button item, then Second button item, then nothing, as on macOS (queue item 24(a)). So it is not
   the DropDown alone: keys do not reach GTK popovers under X11 on WSLg.
   2026-10-21:WSL 上 P19 的 popover 選單也不吃鍵盤，而同樣步驟在 Windows GTK 上正確。問題不只在 DropDown,而是 WSLg 的 X11 下按鍵到不了 GTK popover。
+  **Done 2026-10-21.** The keys did reach the popover: GtkMenuKeyboardStart's controller logged
+  Down and Return. What failed was its use of the item remembered at opening -- the menu rebuilt
+  its GtkModelButtons between the opening and the first key, so the remembered one was no longer
+  in the menu (position -1; a pointer kept from it later read <NULL-class>), and selecting or
+  focusing it changed nothing; Up, left to GTK, started from the same stale focus. Down and Up now
+  select the menu's current first or last item, the position is kept, and Return activates the
+  selected (or focused, or remembered-by-position) item through its action. P19-keyboard on WSL:
+  button item, second button item, nothing -- three runs of three (the first run after a build
+  chose nothing; a slow first launch, not reproduced). Windows GTK unchanged. P74's misses were
+  stale positions: since Segoe UI (8f0fcad6) the rows below the segmented control sit 16 px lower;
+  re-aimed, P74 passes on WSL (Cherry, Three, Blue, Thu, the disabled group refused).
+  已完成：按鍵其實到得了 popover;失敗在於使用打開時記下的項目——選單在打開與第一個按鍵之間重建了項目。現在 Down/Up
+  當場取第一/最後一項並記住位置，Return 透過 action 觸發。P19 在 WSL 上三次皆正確;P74 的失誤是字型改變後座標過時，已重量。
 - [ ] **Super held during a hover is not reported on WSL.** P88 on WSLg 2026-10-20: pointer, drags
   and hover reports all counted, but "last with cmd" stayed never. The X server does carry it -- xev
   under the same xdotool keydown Super_L shows the next key with state 0x40 (Mod4) and Control with
