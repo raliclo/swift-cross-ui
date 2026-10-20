@@ -13,7 +13,7 @@ entry is closed.
 | 2 | `CommandGroup` on WinUI, and on GTK under Windows and WSL | Windows | WinUI DONE 2026-10-19: StandardCommands (WinUIBackend+StandardCommands.swift); Edit > Paste and Undo verified by hand on P92, all menus shown at 640 wide | LOW PRIORITY (user, 2026-10-19): an actions/win P92 file; synthetic input runs only the first menu item per launch (press and release 0.12 s apart), later presses close nothing and run nothing -- find why; then P92 on Windows GTK and WSL |
 | 3 | `.focusable(_:)` on WinUI; GtkBackend's on Windows and WSL untried | Windows | WinUI DONE 2026-10-19: FocusableTargets (a tab-stop Canvas with a ring), `actions/win/P91-focusable.actions` passes | GtkBackend on Windows and WSL: replay P91 there |
 | 4 | `onContinuousHover` and `taplabel` on WinUI, GTK under X11 and Windows; and the touch-hold hover of queue item 10 (2026-10-15) on WinUI, and on GTK with a real touch screen | Windows / WSL | waits for Windows (user) | run P88 and P10-taplabel there. WinUI: a touch PointerPressed has to wait for a hold timer before PointerMoved counts as hover -- not written yet, nothing here compiles WinUI. GTK: `GtkTouchHold` in `GtkBackend+PointerHover.swift` was measured on macOS with the mouse standing in (results.csv2 2026-10-15); a real GDK_TOUCH_* sequence needs a touch screen |
-| 5 | P89 on WinUI, and on GTK under Linux/WSL and Windows | Windows / WSL | open | run it |
+| 5 | P89 on WinUI, and on GTK under Linux/WSL and Windows | Windows / WSL | done 2026-10-20 on the Windows side (WinUI, GTK on Windows, WSL; results.csv2 rows of that day) | run it |
 | 6 | `Mesh3DViews` on WinUI | Windows | DONE 2026-10-07 (a94c68af; detail at "GTK and WinUI: no `Mesh3DViews`"), the row was stale -- found 2026-10-19 | only driven on WARP (no GPU in that session); P72/P76/P77 on the RTX 4060 not yet |
 | 7 | WinUI parity: date picker colour, font design, picker font, scale-change notice, fullscreen | Windows | four of five DONE 2026-10-07 (detail at "WinUI parity TODOs"); the row was stale -- found 2026-10-19 | the scale-change notice: P42 with the display scale changed in Settings while it runs (needs the user) |
 | 8 | #123 accessibility: WinUI's UIA tree, Narrator and Orca speech | Windows / WSL | open | -- |
@@ -166,7 +166,7 @@ entry is closed.
     - [x] **`<image>` of a file, and of an SVG** (2026-10-10). A document read -> completed.md (archived 2026-10-18)
     - [x] **Filters, the common subset** (2026-10-10), run on the element's -> completed.md (archived 2026-10-18)
     - [x] **The rest of the SVG 1.1 filter primitives** (2026-10-10): feMorphology, -> completed.md (archived 2026-10-18)
-  - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
+  - [x] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent
     meshes are drawn after every opaque one, in array order among themselves.
