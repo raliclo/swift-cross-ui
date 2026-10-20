@@ -1141,7 +1141,17 @@
                 },
                 LPARAM(Int(bitPattern: context))
             )
-            return collector.windows
+            // Never a `GdkWin32GL` surface: it is a GTK window's content layer,
+            // untitled and at (0, 0) of its own, never what a click aims at. A
+            // popover's stayed listed after the popover closed, the replay
+            // re-pinned to it, and every later frame coordinate converted
+            // against (0, 0): P19's second "open the menu" landed on the desktop
+            // icons (Windows GTK, 2026-10-21). innermostModal already skipped
+            // the main window's own one by size; this skips them everywhere.
+            // 永遠不選 `GdkWin32GL`:它是 GTK 視窗的內容層，沒有標題、原點在自己的 (0, 0),從來不是點擊的目標。popover
+            // 關閉後它的內容層仍被列出，重放改以它為準，之後每個 frame 座標都以 (0, 0) 換算:P19 第二次「打開選單」點到了
+            // 桌面圖示(Windows GTK,2026-10-21)。innermostModal 原本已依大小略過主視窗自己的那一層；這裡全面略過。
+            return collector.windows.filter { className(of: $0) != "GdkWin32GL" }
         }
 
         /// Follows the owned-dialog chain and returns the window input should go to.
@@ -1197,6 +1207,15 @@
                       // WinUI 的選單或 flyout(PopupWindowSiteBridge)不是模態視窗：把它當目標時，每次點擊都依「最先列出的那個
                       // 彈出視窗」重新量測,P92 的 Edit 項目落在離選單很遠的地方(2026-10-19)。改以主視窗座標點擊它。
                       className(of: popup) != "Microsoft.UI.Content.PopupWindowSiteBridge",
+                      // Nor a GTK content surface: after a popover closes, the main
+                      // window's enabled popup can be the popover's GdkWin32GL layer,
+                      // smaller than the window and so past the size test below; P92's
+                      // next click re-pinned to (0, 0) and hit the desktop (Windows
+                      // GTK, 2026-10-21). visibleWindows() skips them for the same reason.
+                      // 也不是 GTK 的內容層:popover 關閉後，主視窗的 enabled popup 可能是 popover 的 GdkWin32GL 層，比視窗小，
+                      // 因此能通過下方的大小檢查;P92 的下一次點擊因而改以 (0, 0) 為準、點到桌面(Windows GTK,2026-10-21)。
+                      // visibleWindows() 也因同樣理由略過它們。
+                      className(of: popup) != "GdkWin32GL",
                       IsWindowVisible(popup),
                       // A dialog is SMALLER than what it covers. Added 2026-09-05,
                       // after Direct Composition became GtkBackend's default: GTK then

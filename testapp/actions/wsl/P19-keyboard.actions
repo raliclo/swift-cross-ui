@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on WSL GtkBackend; Open the menu (86,203) client coordinates, as actions/wsl/P19-open-and-select.actions. The keyboard in a popover menu starts where an NSMenu's does (queue item 24(a), GtkMenuKeyboardStart, measured on macOS 2026-10-19): Down + Return chooses the first item, Up + Return the last, Return alone chooses nothing and closes the menu.
+# Pass: p19-debug-events.log has "clicked: button item" then "clicked: second button item" and nothing after; on screen last action is the second button item.
+# P19:popover 選單的鍵盤起點與 NSMenu 相同。通過：紀錄依序為 button item、second button item,之後沒有別的。
+sleep,,,,,,1500000,let P19 render,gtk
+click,86,203,,left,,,open the menu,gtk
+sleep,,,,,,800000,,gtk
+key,,,,,downArrow,,the first Down highlights the first item,gtk
+sleep,,,,,,300000,,gtk
+key,,,,,return,,choose it -- clicked: button item,gtk
+sleep,,,,,,800000,,gtk
+click,86,203,,left,,,open the menu again,gtk
+sleep,,,,,,800000,,gtk
+key,,,,,upArrow,,the first Up highlights the last item,gtk
+sleep,,,,,,300000,,gtk
+key,,,,,return,,choose it -- clicked: second button item,gtk
+sleep,,,,,,800000,,gtk
+click,86,203,,left,,,open the menu a third time,gtk
+sleep,,,,,,800000,,gtk
+key,,,,,return,,Return with nothing highlighted -- closes the menu and chooses nothing,gtk
+sleep,,,,,,1200000,hold for the capture,gtk

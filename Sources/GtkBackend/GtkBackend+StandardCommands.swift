@@ -36,7 +36,9 @@ extension GtkBackend: BackendFeatures.StandardCommands {
             UnsafeMutableRawPointer(window.widgetPointer).assumingMemoryBound(to: GtkWindow.self)
         }
         func send(_ action: String) {
-            guard let active, let focus = gtk_window_get_focus(pointer(active)) else { return }
+            // The menu bar keeps the focus after a click; see GtkContentFocus.
+            // 點過選單列後焦點留在選單列上；見 GtkContentFocus。
+            guard let active, let focus = GtkContentFocus.target(in: pointer(active)) else { return }
             // The `_variant` form: `gtk_widget_activate_action` is variadic and Swift cannot call it.
             // 用 `_variant` 版本:`gtk_widget_activate_action` 是可變參數函式，Swift 無法呼叫。
             _ = gtk_widget_activate_action_variant(focus, action, nil)
@@ -45,7 +47,7 @@ extension GtkBackend: BackendFeatures.StandardCommands {
             // A text field's history and a text editor's are the framework's (`TextUndoHistory`).
             // 文字欄位與文字編輯器的歷史都由框架保存(`TextUndoHistory`)。
             case .undo, .redo:
-                if let active, let focus = gtk_window_get_focus(pointer(active)),
+                if let active, let focus = GtkContentFocus.target(in: pointer(active)),
                    let history = TextUndoHistory.containing(focus)
                 {
                     if command == .undo { history.undo() } else { history.redo() }

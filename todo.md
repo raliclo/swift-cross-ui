@@ -1151,6 +1151,11 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   is not yet known. Next: AT-SPI dump with the popup open, then the same file on Windows GTK.
   WSL 上 menu 樣式的 Picker 不吃方向鍵。點擊有落在下拉鈕上，但 downArrow×2、return 之後仍是 Apple(預期 Cherry);
   同一次執行中其他樣式都變了。擷取拍不到彈出視窗，所以它是否真的開了還不知道。下一步：彈出時做 AT-SPI 傾印，再在 Windows GTK 上跑同一份檔。
+  **2026-10-21:** P19's popover menu takes no keys on WSL either -- actions/wsl/P19-keyboard.actions
+  (Down + Return, Up + Return, Return) chose nothing, while the same steps on Windows GTK chose
+  Button item, then Second button item, then nothing, as on macOS (queue item 24(a)). So it is not
+  the DropDown alone: keys do not reach GTK popovers under X11 on WSLg.
+  2026-10-21:WSL 上 P19 的 popover 選單也不吃鍵盤，而同樣步驟在 Windows GTK 上正確。問題不只在 DropDown,而是 WSLg 的 X11 下按鍵到不了 GTK popover。
 - [ ] **Super held during a hover is not reported on WSL.** P88 on WSLg 2026-10-20: pointer, drags
   and hover reports all counted, but "last with cmd" stayed never. The X server does carry it -- xev
   under the same xdotool keydown Super_L shows the next key with state 0x40 (Mod4) and Control with
@@ -1167,11 +1172,21 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   re-applies the date until it has. P90 on Windows GTK now reads 2025 / 8月 / 24 and 上午 in both
   wheels, and so does WSL (same day, after rebuilding there). / 已完成(Windows GTK 與 WSL):calendar 的 locale 沒有跟著 `\.locale`,只有日期的滾輪
   的 Contents 不帶 calendar 所以不會重建；重建後的滾輪還沒列高而停在 1925,現在會重試捲動。
-- [ ] **Redo in the Edit menu does nothing on Windows GTK.** P92 with SCUI_P92_MENU=1,
+- [x] **Redo in the Edit menu does nothing on Windows GTK.** P92 with SCUI_P92_MENU=1,
   actions/win/P92-edit-menu-gtk4.actions, 2026-10-20: Select All, Copy, Paste (field hellohello),
   Undo (field hello) and the app's AFTER-undoRedo all ran from the menu, but Redo left the field at
   hello -- p92-commands.log goes from "field hello" straight to "command AFTER-undoRedo".
   Windows GTK 的 Edit 選單「重做」沒有作用；同一次中全選、複製、貼上、復原與 app 自己的項目都有效。
+  **Done 2026-10-21 -- every standard Edit item, not only Redo.** A log in performStandardCommand
+  showed focus=GtkPopoverMenuBarItem for Select All, Copy, Paste, Undo and Redo: a click on the
+  menu bar moves the window's focus onto it and GTK leaves it there, so each command went to the
+  menu bar. The earlier "all but Redo worked" run was luck in which window the replay chose.
+  GtkContentFocus (GtkBackend+ContentFocus.swift) remembers each menu-bar window's last focus
+  outside the menu bar, weakly, and the commands go there. P92 replayed: hellohello / hello /
+  hellohello / AFTER-undoRedo; by the user's own clicks: Select All, Copy, Paste, Undo, Redo,
+  then Select All + Delete emptied the field.
+  已完成——不只重做，而是所有 Edit 標準項目。點選單列會把焦點移到選單列且不還回，指令都送到了選單列。GtkContentFocus
+  記住選單列以外的最後焦點，指令改送給它。重放與使用者手動點擊都驗證通過。
 - [x] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing

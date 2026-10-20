@@ -684,6 +684,43 @@ showtime() {
     printf '==> Showtime: keeping %s open for %ss after render\n' "$label" "$showtime_seconds"
     printf '    You can inspect or interact with the window now; final screenshot follows.\n'
     sleep "$showtime_seconds"
+    wait_for_replay_end
+}
+
+# Showtime is a fixed number of seconds, and a replay can need more: a WinUI
+# click became ~100 ms longer when buttonless moves became stepped SendInput
+# (2026-10-21), and P92's 66-row file, run with showtime = its sleeps + 3 s,
+# was closed before its last row -- rc 6, "did not replay to the end", for a
+# replay that was merely slow. So after showtime, while the app's own log has
+# neither `-actionfile: replayed` nor `-actionfile: failed`, keep the window up,
+# for at most TEST_REPLAY_GRACE_SECONDS (default 120) more. A replay that is
+# really stuck still ends in rc 6, after the grace, and the extra wait is
+# printed so it is never silent. No log on this machine (a WSL run launched
+# from Windows keeps it inside WSL) means no wait, as before.
+# showtime 是固定秒數，而重放可能需要更久:沒按鍵的移動改為分段 SendInput 後，WinUI 每次點擊多約 100 ms
+# (2026-10-21),P92 那份 66 列的檔以「sleep 總和 + 3 秒」的 showtime 執行，最後一列之前就被關掉——rc 6、「沒有
+# 重放到結尾」,其實只是慢。所以 showtime 之後，只要 app 自己的紀錄裡還沒有 `-actionfile: replayed` 或
+# `-actionfile: failed`,就讓視窗留著，最多再等 TEST_REPLAY_GRACE_SECONDS(預設 120)秒。真正卡住的重放在寬限期後
+# 仍以 rc 6 結束，多等的時間也會印出，絕不無聲。本機沒有紀錄(從 Windows 啟動的 WSL 執行把它留在 WSL 裡)就不等，與以前相同。
+wait_for_replay_end() {
+    [ -n "${action_file:-}" ] || return 0
+    local log="$out/$actionfile_log"
+    [ -f "$log" ] || return 0
+    local limit="${TEST_REPLAY_GRACE_SECONDS:-120}" waited=0
+    while ! grep -aqE -- '-actionfile: (replayed|failed)' "$log" 2>/dev/null; do
+        if [ "$waited" -ge "$limit" ]; then
+            printf '!! the replay was still running %ss after showtime; closing anyway\n' "$waited" >&2
+            return 0
+        fi
+        if [ "$waited" -eq 0 ]; then
+            printf '==> Replay not finished when showtime ended; waiting up to %ss more\n' "$limit"
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if [ "$waited" -gt 0 ]; then
+        printf '==> Replay finished %ss after showtime\n' "$waited"
+    fi
 }
 
 kill_existing() {

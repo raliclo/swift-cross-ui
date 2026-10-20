@@ -2926,6 +2926,11 @@ public final class GtkBackend:
         let showMenuBar = !submenus.isEmpty
         for window in windows {
             window.showMenuBar = showMenuBar
+            if showMenuBar {
+                GtkContentFocus.track(
+                    UnsafeMutableRawPointer(window.widgetPointer).assumingMemoryBound(to: GtkWindow.self)
+                )
+            }
         }
     }
 

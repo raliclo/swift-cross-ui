@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on Windows GtkBackend (TEST_BACKEND=gtk4); Open the menu (98,244) frame pixels from uia_rects under GTK_A11Y=accesskit, DIPs x 1.25. The keyboard in a popover menu starts where an NSMenu's does (queue item 24(a), GtkMenuKeyboardStart, measured on macOS 2026-10-19): Down + Return chooses the first item, Up + Return the last, Return alone chooses nothing and closes the menu.
+# Pass: p19-debug-events.log has "clicked: button item" then "clicked: second button item" and nothing after; on screen last action is the second button item.
+# P19:popover 選單的鍵盤起點與 NSMenu 相同。通過：紀錄依序為 button item、second button item,之後沒有別的。
+sleep,,,,,,1500000,let P19 render,windows
+click,98,244,frame,left,,,open the menu,windows
+sleep,,,,,,800000,,windows
+key,,,,,downArrow,,the first Down highlights the first item,windows
+sleep,,,,,,300000,,windows
+key,,,,,return,,choose it -- clicked: button item,windows
+sleep,,,,,,800000,,windows
+click,98,244,frame,left,,,open the menu again,windows
+sleep,,,,,,800000,,windows
+key,,,,,upArrow,,the first Up highlights the last item,windows
+sleep,,,,,,300000,,windows
+key,,,,,return,,choose it -- clicked: second button item,windows
+sleep,,,,,,800000,,windows
+click,98,244,frame,left,,,open the menu a third time,windows
+sleep,,,,,,800000,,windows
+key,,,,,return,,Return with nothing highlighted -- closes the menu and chooses nothing,windows
+sleep,,,,,,1200000,hold for the capture,windows
