@@ -248,6 +248,12 @@ import UIKit
                                 "-menu: \(pad)\(kind) '\(menu.title)' \(menu.identifier.rawValue)"
                             )
                         menu.children.forEach { describe($0, depth + 1) }
+                    } else if let command = element as? UIKeyCommand {
+                        // As refios.swift writes it, so the two dumps compare key for key.
+                        // 與 refios.swift 的寫法相同，兩份傾印才能逐個快捷鍵比對。
+                        lines.append(
+                            "-menu: \(pad)\(command.title)  [key \(command.input ?? "") mods \(command.modifierFlags.rawValue)]"
+                        )
                     } else {
                         lines.append("-menu: \(pad)\(element.title)")
                     }
