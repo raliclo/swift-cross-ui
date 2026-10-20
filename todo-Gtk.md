@@ -90,6 +90,16 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   `testapp/test_support/measure/p69_uia.zsh` grades it as `text_label` and
   `no_original_text`, the only two of its nine checks that GTK fails.
 
+  **2026-10-20: "Our side: nothing" was wrong, and so was "Where it lives".** The text runs
+  do not overwrite the label: AccessKit's Windows adapter names a Role::Label node from its
+  *value* (accesskit_windows 0.29 `name()` -> `label_comes_from_value`), and a GtkLabel's value
+  is its runs unless one is set explicitly (accesskit_consumer `write_value`). GTK maps
+  VALUE_TEXT to that value, so GtkBackend now also sets the label as VALUE_TEXT on a
+  `CustomLabel`, on Windows only. P69 with the AccessKit build: all nine checks pass in both
+  views, `text name='Half past twelve' class='GtkLabel'` (still a UIA Text control). What is
+  left to raise upstream, when approved, is whether an explicit label should win for a Label role.
+  **2026-10-20:「我們這邊不需要改」與「位置」都錯了。**AccessKit 的 Windows adapter 對 Role::Label 取「值」當名稱，而 GtkLabel 的值在沒有明確設定時就是文字 run;GTK 把 VALUE_TEXT 對應到值，因此 GtkBackend 在 Windows 上也把標籤設為 CustomLabel 的 VALUE_TEXT。P69 九項全過。上游要問的只剩「Label role 是否該優先採用明確的 label」。
+
   **在 `GtkLabel` 上設定的標籤到不了 Windows:AccessKit 以節點的文字為名。** 2026-09-19 以 P69 量到:WSLg 的
   AT-SPI 讀到 `label 'Half past twelve'`;Windows 的 AccessKit 建置經行程外 UIA 讀到的卻是
   `text name='12:30'`。同一次執行裡,description 與 value 都正確抵達(`fulldesc=`、`value=`),設了標籤的按鈕也

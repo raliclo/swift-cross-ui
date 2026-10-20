@@ -34,6 +34,29 @@ extension GtkBackend: BackendFeatures.Accessibility {
     /// 不應該把容器裡的控制項藏起來。
     public func setAccessibilityLabel(ofWidget widget: Widget, to label: String?) {
         updateStringProperty(of: widget, GTK_ACCESSIBLE_PROPERTY_LABEL, to: label)
+        #if os(Windows)
+            // **AccessKit names a label from its value, not its label.** Its
+            // Windows adapter takes UIA's Name from the value for Role::Label
+            // (accesskit_windows 0.29 `name()` -> `label_comes_from_value`), and a
+            // GtkLabel's value is the text GTK attaches as runs, so
+            // `.accessibilityLabel("Half past twelve")` on Text("12:30") read
+            // `name='12:30'` (P69, 2026-09-19, todo-Gtk.md). An explicit value wins
+            // over the runs (accesskit_consumer `write_value`), and GTK maps
+            // VALUE_TEXT to it, so the label is given as the value too. The node stays
+            // a UIA Text control, as it should; a different role, or a wrapper,
+            // would make it a Group. Windows only: AT-SPI reads the label already.
+            // Setting both a label and an accessibilityValue on one Text makes the
+            // later of the two the Name here.
+            // **AccessKit 以 label 節點的值命名，而不是它的 label。** 它的 Windows adapter 對 Role::Label 取值作為 UIA 的
+            // Name(accesskit_windows 0.29 的 `name()` -> `label_comes_from_value`),而 GtkLabel 的值就是 GTK 掛上的文字
+            // run,所以 Text("12:30") 上的 `.accessibilityLabel("Half past twelve")` 讀到 `name='12:30'`(P69,2026-09-19,
+            // todo-Gtk.md)。明確設定的值優先於 run(accesskit_consumer 的 `write_value`),而 GTK 把 VALUE_TEXT 對應到它，
+            // 因此也把標籤設為值。節點仍是 UIA 的 Text 控制項，本該如此；換 role 或包一層都會讓它變成 Group。僅限 Windows:
+            // AT-SPI 本來就讀得到標籤。同一個 Text 同時設標籤與 accessibilityValue 時，後設的那個成為此處的 Name。
+            if widget is CustomLabel {
+                updateStringProperty(of: widget, GTK_ACCESSIBLE_PROPERTY_VALUE_TEXT, to: label)
+            }
+        #endif
         guard gtk_accessible_get_accessible_role(accessible(widget)) == GTK_ACCESSIBLE_ROLE_BUTTON
         else { return }
         var child = gtk_widget_get_first_child(widget.widgetPointer)
