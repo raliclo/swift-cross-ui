@@ -224,6 +224,13 @@ void scui_clip_fixed_set_corner_radius(GtkWidget *widget, int radius);
 // 支援」的桌面 Linux 上亦然之前，請以 `xprop -root _NET_SUPPORTED` 重新確認。
 gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
 
+// Whether scui_window_set_topmost can work here: always on Windows and macOS; on X11 only
+// where the window manager lists _NET_WM_STATE_ABOVE in _NET_SUPPORTED (2026-10-20: WSLg's
+// still does not); never under Wayland. GtkBackend offers `.floating` only when this is TRUE.
+// scui_window_set_topmost 在此能否生效:Windows 與 macOS 一律可以;X11 只在視窗管理員於 _NET_SUPPORTED 列出
+// _NET_WM_STATE_ABOVE 時(2026-10-20:WSLg 的仍然沒有);Wayland 永遠不行。GtkBackend 只在此為 TRUE 時提供 `.floating`。
+gboolean scui_window_topmost_supported(void);
+
 // Asks Windows for a dark or light title bar. Returns whether the platform
 // could honour it.
 //

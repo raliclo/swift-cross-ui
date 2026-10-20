@@ -506,6 +506,9 @@ let package = Package(
                 // dwmapi，供 gtk_titlebar_theme.c 中的深色標題列使用。僅限 Windows，且在該處也不是
                 // 新的相依：它隨作業系統提供，任何具視窗的 app 都已透過 shell 載入它。
                 .linkedLibrary("dwmapi", .when(platforms: [.windows])),
+                // X11, for _NET_WM_STATE_ABOVE in gtk_window_level.c. Linux only; GTK 4 built
+                // with its X11 backend already loads it. / X11,供 gtk_window_level.c 的 _NET_WM_STATE_ABOVE 使用。僅限 Linux。
+                .linkedLibrary("X11", .when(platforms: [.linux])),
             ]
         ),
         // Synthesised input, driven from a CSV file. Depends on nothing in this

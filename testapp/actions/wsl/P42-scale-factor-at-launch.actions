@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P42 on WSL GtkBackend: ported 2026-10-20 from actions/win/P42-scale-factor-at-launch.actions, which only waits -- the app drives and measures itself, so nothing needs measuring here. The comment lines below are the Windows file's; the WSL result is in matrix_coverage/results.csv2.
+# P42(WSL):由 actions/win/P42-scale-factor-at-launch.actions 移植，只需等待;以下註解為 Windows 檔原文,WSL 結果記在 results.csv2。
+# P42 on Windows: the window scale factor at launch. A runtime change needs the display
+# scale changed in Settings while the app runs, which this file does not do.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass here: 'current' equals the display scale -- 1.25 on this machine.
+# WinUI: current 1.25, 1.0 -> 1.25 once at launch. GTK: current 1.25, the same.
+# P42(Windows):啟動時的縮放比例;執行中改變需在設定裡調整，本檔不做。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 兩者皆為 1.25。
+sleep,,,,,,2000000,let P42 draw and read itself out,gtk

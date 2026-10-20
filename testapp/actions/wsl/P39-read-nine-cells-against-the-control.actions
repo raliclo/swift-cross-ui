@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P39 on WSL GtkBackend: ported 2026-10-20 from actions/win/P39-read-nine-cells-against-the-control.actions, which only waits -- the app drives and measures itself, so nothing needs measuring here. The comment lines below are the Windows file's; the WSL result is in matrix_coverage/results.csv2.
+# P39(WSL):由 actions/win/P39-read-nine-cells-against-the-control.actions 移植，只需等待;以下註解為 Windows 檔原文,WSL 結果記在 results.csv2。
+# P39 on Windows: visual effects, every cell against the control (none) cell.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: each cell differs from the control as its label says.
+# GTK: pass. WinUI: pass after 2026-10-19's contrast fix -- before it, contrast 0.3 was
+# nearly the control, (11,160,215) -> (16,147,200); after, (93,137,154), the formula's value.
+# Not yet checked here: the angular gradient's start angle differs between the two backends.
+# Grayscale, later the same day (Swift 6.4.1): the AppKit grey in linear light replaced Win2D GrayscaleEffect (sRGB-luma, no amount). grayscale 1 within 2 levels of the formula over 10 points; grayscale 0.5 (a temporary edit of P39) within 2 too. 灰階同日改為 AppKit 的線性光灰，與公式相差 2 階以內。
+# P39(Windows):視覺效果，每一格對照 none 那格。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 GTK 通過;WinUI 在 contrast 修正後通過。
+sleep,,,,,,3000000,let P39 draw and read itself out,gtk

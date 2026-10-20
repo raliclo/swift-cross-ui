@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P66 on WSL GtkBackend: ported 2026-10-20 from actions/win/P66-animation-samples.actions, which only waits -- the app drives and measures itself, so nothing needs measuring here. The comment lines below are the Windows file's; the WSL result is in matrix_coverage/results.csv2.
+# P66(WSL):由 actions/win/P66-animation-samples.actions 移植，只需等待;以下註解為 Windows 檔原文,WSL 結果記在 results.csv2。
+# P66 on Windows: withAnimation produces intermediate values.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: SAMPLES in the tens over about 0.5 s, monotonic (macOS: 31-32 on AppKit, 26 on GTK).
+# RE-TEST: WinUI read SAMPLES 3 over 0.77 s and GTK SAMPLES 2 over 1.92 s, both monotonic, but
+# measured while three builds ran; not yet called a pass or a defect.
+# Re-measured idle the same day: still 2 on both, so a real defect. The main dispatch queue was drained only by a poll (WinUI's SetTimer re-armed on every message; GTK's 50 ms g_timeout). Fixed by watching libdispatch's main-queue handle: WinUI 26-27 samples idle (20 under a build), GTK 7 -- GTK's remaining gap is not yet explained. 閒置重測仍是 2,修正後 WinUI 26-27、GTK 7。
+# P66(Windows):withAnimation 的中間值。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 WinUI 3 個、GTK 2 個樣本，量測時有三個建置在跑，待重測。
+sleep,,,,,,4000000,let P66 draw and read itself out,gtk

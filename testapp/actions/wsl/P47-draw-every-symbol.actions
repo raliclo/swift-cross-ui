@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P47 on WSL GtkBackend: ported 2026-10-20 from actions/win/P47-draw-every-symbol.actions, which only waits -- the app drives and measures itself, so nothing needs measuring here. The comment lines below are the Windows file's; the WSL result is in matrix_coverage/results.csv2.
+# P47(WSL):由 actions/win/P47-draw-every-symbol.actions 移植，只需等待;以下註解為 Windows 檔原文,WSL 結果記在 results.csv2。
+# P47 on Windows: all 36 symbols, Label(systemImage:) and the unknown-name fallback.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: 36 glyphs, three labels with icons, 'definitely.not.a.symbol' drawn as text.
+# WinUI: pass (the last label 'unknown' is cut to 'unkno...', a text-measuring issue seen in
+# P37, P42 and P66 too). GTK: pass.
+# P47(Windows):36 個符號。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 兩者皆通過;WinUI 的 unknown 被截成 unkno…(文字量測問題)。
+sleep,,,,,,3000000,let P47 draw and read itself out,gtk

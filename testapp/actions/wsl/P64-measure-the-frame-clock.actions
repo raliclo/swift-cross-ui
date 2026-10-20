@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P64 on WSL GtkBackend: ported 2026-10-20 from actions/win/P64-measure-the-frame-clock.actions, which only waits -- the app drives and measures itself, so nothing needs measuring here. The comment lines below are the Windows file's; the WSL result is in matrix_coverage/results.csv2.
+# P64(WSL):由 actions/win/P64-measure-the-frame-clock.actions 移植，只需等待;以下註解為 Windows 檔原文,WSL 結果記在 results.csv2。
+# P64 on Windows: the frame clock's rate.
+# Nothing is pressed: the app reads itself out. Run on 2026-10-19 with Swift 6.4.0, display at 125%, both Windows backends (TEST_BACKEND=WinUI and TEST_BACKEND=gtk4); rc=0 and the replay line on all.
+# Pass: PASS 1 with a rate near the display's refresh. This panel is 144 Hz.
+# WinUI: 131.1 Hz, median gap 7.3 ms. GTK: 67.9 Hz, median 13.9 ms (it was TICKS 1 on 2026-09-10).
+# P64(Windows):frame clock 速率。不按任何東西:app 自己讀出結果。2026-10-19 以 Swift 6.4.0、顯示 125%,在兩個 Windows backend 上執行，皆 rc=0 且有重放行。 面板 144 Hz;WinUI 131.1 Hz,GTK 67.9 Hz(2026-09-10 時只有 1 次)。
+sleep,,,,,,4000000,let P64 draw and read itself out,gtk

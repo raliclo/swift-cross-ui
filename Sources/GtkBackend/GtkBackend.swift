@@ -2149,7 +2149,11 @@ public final class GtkBackend:
         #if os(Windows) || os(macOS)
             [.automatic, .normal, .floating]
         #else
-            [.automatic, .normal]
+            // `.floating` where the window manager implements it (X11 with
+            // _NET_WM_STATE_ABOVE); see scui_window_topmost_supported.
+            // 視窗管理員有實作時才提供 `.floating`(X11 且有 _NET_WM_STATE_ABOVE);見 scui_window_topmost_supported。
+            scui_window_topmost_supported() != 0
+                ? [.automatic, .normal, .floating] : [.automatic, .normal]
         #endif
     }
 
