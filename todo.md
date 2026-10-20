@@ -1091,10 +1091,13 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   sheet button lands in window B (Win32Synthesiser hitRoot), no sheet over B or A in a desktop
   capture during the hold. Same on Windows GTK. The WinUI desktop capture was mistimed; redo it.
   從視窗 B 要求的 sheet 沒出現(WinUI 與 Windows GTK 皆然)。WinUI 的桌面擷取時機不對，要重拍。
-- [ ] **Edit menu items chosen by mouse do nothing.** P92 with SCUI_P92_MENU=1 and
+- [x] **Edit menu items chosen by mouse do nothing.** P92 with SCUI_P92_MENU=1 and
   actions/win/P92-edit-menu.actions: 66 rows replayed, last command none, field still hello.
   Whether the menu opened at all is not in the final capture.
   以滑鼠選 Edit 選單項目沒有作用(P92);選單是否有打開，最終擷取看不出來。
+  **Closed 2026-10-20 -- the replay, not the backend:** same cause as P88, `move` rows are
+  SetCursorPos jumps. With `hover` rows p92-commands.log reads field hellohello, field hello, field
+  hellohello, command AFTER-undoRedo, and the screen field hellohello. / 已結案：與 P88 同因，改用 `hover` 後全部項目都有效。
 - [ ] **P60's settings window is not in evidence.** The main window loses the foreground after open
   settings on both backends, but test.zsh captures the main window only. Capture by title
   (`screenshot.zsh -w`) during the hold.
@@ -1464,6 +1467,16 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 ---
 
 ## Test infrastructure / 測試基礎設施
+
+- [ ] **A buttonless `move` is invisible to WinUI's pointer events.** (Windows) Win32Synthesiser
+  performs it with SetCursorPos, a cursor jump: WinUI raises PointerEntered once and no
+  PointerMoved, so onContinuousHover (P88) and menu items (P92) did nothing until their files used
+  `hover` rows (ten SendInput steps) -- 2026-10-20. Every actions/win file that hovers with `move`
+  is suspect on WinUI. Decide: make a buttonless `move` stepped SendInput too (one change, but it
+  moves the cursor through every point on the way), or audit the files. Note the GTK side: the
+  same switch on P92-edit-menu-gtk4 broke its menu, so the answer may differ per backend.
+  沒按鍵的 `move` 對 WinUI 的指標事件不可見(SetCursorPos 是跳躍)。P88、P92 改用 `hover` 才通過。用 `move`
+  懸停的 Windows 動作檔在 WinUI 上都值得懷疑。待決定：改合成器，或逐檔檢查；GTK 上同樣的改法反而壞了 P92。
 
 - **`SetForegroundWindow` is now requested on the mouse path but never
   verified.** (Windows) In `Win32Synthesiser.prepareForReplay` the call was
