@@ -120,11 +120,11 @@ void gtk_passthrough_drawing_area_set_overflowing_draw_func(
 // kind 0 is the flat `rgba`; 1 a linear gradient from (geometry[0], geometry[1]) to
 // (geometry[2], geometry[3]); 2 a radial gradient centred at (geometry[0], geometry[1])
 // from radius geometry[2] to geometry[3]. Gradient points are unit points of the
-// path's bounds, radii units of its shorter side. `stops` holds `stop_count` groups
+// path's bounds, radii points (as SwiftUI's RadialGradient). `stops` holds `stop_count` groups
 // of offset, red, green, blue, opacity. A path with no area paints `rgba`.
 // 形狀的填色或線條如何上色，供 gtk_passthrough_drawing_area_set_shape 使用。kind 0 是平面色 `rgba`;1 是從
 // (geometry[0], geometry[1]) 到 (geometry[2], geometry[3]) 的線性漸層;2 是以 (geometry[0], geometry[1]) 為中心、
-// 半徑從 geometry[2] 到 geometry[3] 的放射漸層。漸層的點是路徑外框的單位座標，半徑以較短邊為單位。`stops` 有
+// 半徑從 geometry[2] 到 geometry[3] 的放射漸層。漸層的點是路徑外框的單位座標，半徑以點為單位(同 SwiftUI)。`stops` 有
 // `stop_count` 組 offset、紅、綠、藍、不透明度。沒有面積的路徑畫 `rgba`。
 typedef struct {
     int kind;

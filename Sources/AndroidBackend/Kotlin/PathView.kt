@@ -133,11 +133,11 @@ class PathView(activity: Activity) : View(activity) {
             )
         }
 
-        // Scaled by the shorter side, so a circle stays a circle in a path that
-        // is not square. Same rule as GtkBackend and the two Apple backends.
-        // 以較短的一邊縮放，使圓形在非正方形的路徑中仍是圓形。與 GtkBackend 及兩個 Apple backend
-        // 的規則相同。
-        val scale = Math.min(bounds.width(), bounds.height())
+        // The radii are points, as in SwiftUI's RadialGradient, so dp to px here
+        // and nothing from the shape; same rule as GtkBackend and the Apple backends.
+        // 半徑以點為單位(同 SwiftUI 的 RadialGradient),此處只做 dp 到 px 的換算，不隨形狀縮放;與 GtkBackend 及兩個
+        // Apple backend 的規則相同。
+        val scale = resources.displayMetrics.density
         val outer = spec.endRadius * scale
         if (outer <= 0f) {
             return null

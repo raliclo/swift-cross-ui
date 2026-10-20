@@ -517,10 +517,10 @@ extension EnvironmentValues {
 
     /// The gradient a text view is painted with, handed to a backend's
     /// `updateTextView`: its points are unit points of the text view's bounds
-    /// and its radii units of the shorter side, as for a shape. `nil` paints the
+    /// and its radii points, as for a shape and as in SwiftUI. `nil` paints the
     /// text in ``foregroundColor``. Set by `Text` from
     /// ``foregroundShapeStyle``, and each frame while it tweens.
-    /// 交給 backend `updateTextView` 的文字漸層：點是文字 view 外框的單位座標，半徑以較短邊為單位，與形狀相同。
+    /// 交給 backend `updateTextView` 的文字漸層：點是文字 view 外框的單位座標，半徑以點為單位，與形狀及 SwiftUI 相同。
     /// `nil` 時文字以 ``foregroundColor`` 上色。由 `Text` 依 ``foregroundShapeStyle`` 設定，補間時每一幀設定。
     @Entry public var textGradient: ResolvedFillStyle?
 

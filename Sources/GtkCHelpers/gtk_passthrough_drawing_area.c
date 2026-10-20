@@ -285,9 +285,9 @@ gboolean scui_append_gradient(
         );
         gtk_snapshot_append_linear_gradient(snapshot, area, &start, &end, stops, paint->stop_count);
     } else {
-        float scale = MIN(w, h);
-        float inner = (float)paint->geometry[2] * scale;
-        float outer = (float)paint->geometry[3] * scale;
+        // Radii in points, as SwiftUI's RadialGradient; not scaled by the box.
+        float inner = (float)paint->geometry[2];
+        float outer = (float)paint->geometry[3];
         if (outer <= 0 || inner >= outer) {
             drawn = FALSE;
         } else {

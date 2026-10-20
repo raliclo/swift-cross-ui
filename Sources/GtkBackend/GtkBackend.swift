@@ -5967,17 +5967,16 @@ public final class GtkBackend:
             case .radialGradient(let gradient, let center, let startRadius, let endRadius):
                 let cx = box.x + center.x * box.width
                 let cy = box.y + center.y * box.height
-                // Radii are in the same unit space, scaled by the smaller side so
-                // a circle stays a circle in a non-square path.
-                // 半徑位於同一個單位空間，並以較短的一邊縮放，使圓形在非正方形的路徑中仍是圓形。
-                let scale = min(box.width, box.height)
+                // Radii are points, as in SwiftUI's `RadialGradient`: not scaled
+                // by the shape, so a circle stays a circle in any path.
+                // 半徑以點為單位，與 SwiftUI 的 `RadialGradient` 相同：不隨形狀縮放，圓形在任何路徑中都是圓形。
                 let pattern = cairo_pattern_create_radial(
                     cx,
                     cy,
-                    startRadius * scale,
+                    startRadius,
                     cx,
                     cy,
-                    endRadius * scale
+                    endRadius
                 )
                 addStops(pattern, gradient)
                 return pattern

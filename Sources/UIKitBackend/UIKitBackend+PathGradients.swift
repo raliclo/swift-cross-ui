@@ -100,9 +100,9 @@ extension PathWidget {
 }
 
 /// Paints `style` across `box` in UIKit's y-down coordinates: unit points map
-/// onto the box, radii are units of the shorter side. Shared by paths and
+/// onto the box, radii are points, as in SwiftUI's `RadialGradient`. Shared by paths and
 /// gradient text (TextView).
-/// 在 UIKit 的 y 向下座標中把 `style` 畫滿 `box`:單位座標對應到方框，半徑以較短邊為單位。路徑與漸層文字(TextView)共用。
+/// 在 UIKit 的 y 向下座標中把 `style` 畫滿 `box`:單位座標對應到方框，半徑以點為單位(同 SwiftUI)。路徑與漸層文字(TextView)共用。
 @MainActor
 func drawResolvedFill(
     _ style: ResolvedFillStyle,
@@ -152,17 +152,16 @@ func drawResolvedFill(
 
             case .radialGradient(let gradient, let center, let startRadius, let endRadius):
                 guard let cgGradient = gradient.cgGradient(in: environment) else { return }
-                // Scaled by the shorter side, so a circle stays a circle in a
-                // path that is not square. Same rule as GtkBackend.
-                // 以較短的一邊縮放，使圓形在非正方形的路徑中仍是圓形。與 GtkBackend 規則相同。
-                let scale = min(box.width, box.height)
+                // The radii are points, as in SwiftUI's
+                // `RadialGradient`, not scaled by the shape, and a circle in any path.
+                // 半徑以點為單位，與 SwiftUI 的 `RadialGradient` 相同，不隨形狀大小縮放;在非正方形的路徑中仍是圓形。
                 let middle = point(center)
                 context.drawRadialGradient(
                     cgGradient,
                     startCenter: middle,
-                    startRadius: CGFloat(startRadius) * scale,
+                    startRadius: CGFloat(startRadius),
                     endCenter: middle,
-                    endRadius: CGFloat(endRadius) * scale,
+                    endRadius: CGFloat(endRadius),
                     options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
                 )
         }

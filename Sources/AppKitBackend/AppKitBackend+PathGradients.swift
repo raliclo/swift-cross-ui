@@ -96,9 +96,9 @@ extension AppKitBackend.NSBezierPathView {
 }
 
 /// Paints `style` across `box`: unit points map onto the box, y downwards in
-/// unit space whether or not the context is `flipped`; radii are units of the
-/// shorter side. Shared by shapes and gradient text.
-/// 把 `style` 畫滿 `box`:單位座標對應到方框，不論 context 是否 `flipped`,單位空間中 y 一律向下;半徑以較短邊為單位。
+/// unit space whether or not the context is `flipped`; radii are points, as in
+/// SwiftUI's `RadialGradient`. Shared by shapes and gradient text.
+/// 把 `style` 畫滿 `box`:單位座標對應到方框，不論 context 是否 `flipped`,單位空間中 y 一律向下;半徑以點為單位(同 SwiftUI)。
 /// 形狀與漸層文字共用。
 @MainActor
 func drawResolvedFill(
@@ -153,17 +153,16 @@ func drawResolvedFill(
 
             case .radialGradient(let gradient, let center, let startRadius, let endRadius):
                 guard let cgGradient = gradient.cgGradient(in: environment) else { return }
-                // Scaled by the shorter side, so a circle stays a circle in a
-                // path that is not square. Same rule as GtkBackend.
-                // 以較短的一邊縮放，使圓形在非正方形的路徑中仍是圓形。與 GtkBackend 規則相同。
-                let scale = min(box.width, box.height)
+                // The radii are points, as in SwiftUI's
+                // `RadialGradient`, not scaled by the shape, and a circle in any path.
+                // 半徑以點為單位，與 SwiftUI 的 `RadialGradient` 相同，不隨形狀大小縮放;在非正方形的路徑中仍是圓形。
                 let middle = point(center)
                 context.drawRadialGradient(
                     cgGradient,
                     startCenter: middle,
-                    startRadius: CGFloat(startRadius) * scale,
+                    startRadius: CGFloat(startRadius),
                     endCenter: middle,
-                    endRadius: CGFloat(endRadius) * scale,
+                    endRadius: CGFloat(endRadius),
                     options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
                 )
         }

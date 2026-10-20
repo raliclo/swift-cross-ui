@@ -71,9 +71,9 @@ class FittedTextView(activity: Activity) : TextView(activity) {
 
     // The gradient the text is painted with (`EnvironmentValues.textGradient`),
     // as a shader on the text paint over the view's bounds: points are unit
-    // points of the bounds, radii units of the shorter side, as PathView's.
+    // points of the bounds, radii points (dp, as SwiftUI's RadialGradient), as PathView's.
     // 文字所用的漸層(`EnvironmentValues.textGradient`),作為文字 paint 上覆蓋 view 外框的 shader:點是外框的單位座標，
-    // 半徑以較短邊為單位，與 PathView 相同。
+    // 半徑以點(dp)為單位(同 SwiftUI 的 RadialGradient),與 PathView 相同。
     private var hasGradient = false
     private var gradientRadial = false
     private var gradientGeometry = FloatArray(6)
@@ -125,7 +125,7 @@ class FittedTextView(activity: Activity) : TextView(activity) {
         if (!gradientRadial) {
             return LinearGradient(g[0] * w, g[1] * h, g[2] * w, g[3] * h, colors, positions, Shader.TileMode.CLAMP)
         }
-        val scale = Math.min(w, h)
+        val scale = resources.displayMetrics.density // radii are points, as SwiftUI's
         val outer = g[5] * scale
         if (outer <= 0f) {
             return null

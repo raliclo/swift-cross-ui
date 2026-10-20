@@ -18,7 +18,7 @@
 //          lin Circle fill, linear [green, blue] top->bottom to [blue, red]
 //              leading->trailing;
 //          rad RoundedRectangle fill, flat green to radial [red, blue] centre
-//              (0.3, 0.3), radius 0 to 0.7 (of the shorter side);
+//              (0.3, 0.3), radius 0 to 56 pt (points, as SwiftUI);
 //          str Circle stroke 8 pt, linear [red, blue] top->bottom to [blue,
 //              red] leading->trailing;
 //          fg  unfilled Capsule under .foregroundStyle, linear [blue, red]
@@ -144,7 +144,7 @@ struct P110RootView: View {
                             base: on
                                 ? RadialGradient(
                                     colors: [p110Red, p110Blue], center: UnitPoint(x: 0.3, y: 0.3),
-                                    startRadius: 0, endRadius: 0.7
+                                    startRadius: 0, endRadius: 56
                                 )
                                 : p110Green
                         )
@@ -212,7 +212,7 @@ struct P110RootView: View {
             ("tg/text-gradient", stop(0, blue, red, p) + stop(1, green, blue, p) + points(p), 10),
             ("tc/text-gradient", stop(0, blue, red, p) + stop(1, blue, green, p) + [0, 0.5, 1, 0.5], 10),
             ("lin/fill-gradient", stop(0, green, blue, p) + stop(1, blue, red, p) + points(p), 10),
-            ("rad/fill-gradient", stop(0, green, red, p) + stop(1, green, blue, p) + [0.3, 0.3, 0, 0.7], 10),
+            ("rad/fill-gradient", stop(0, green, red, p) + stop(1, green, blue, p) + [0.3, 0.3, 0, 56], 10),
             ("str/stroke-gradient", stop(0, red, blue, p) + stop(1, blue, red, p) + points(p), 10),
             ("fg/fill-gradient", stop(0, blue, green, p) + stop(1, red, blue, p) + points(p), 10),
         ]
