@@ -247,11 +247,12 @@ public final class WinUIBackend:
     /// 與先前完全相同。
     static func brush(
         for style: ResolvedFillStyle,
-        in environment: EnvironmentValues
+        in environment: EnvironmentValues,
+        size: SIMD2<Double>? = nil
     ) -> WinUI.Brush {
-        func stops(_ gradient: SwiftCrossUI.Gradient) -> GradientStopCollection {
+        func stops(_ gradientStops: [SwiftCrossUI.Gradient.Stop]) -> GradientStopCollection {
             let collection = GradientStopCollection()
-            for stop in gradient.stops {
+            for stop in gradientStops {
                 let colour = stop.color.resolve(in: environment)
                 let winUIStop = GradientStop()
                 winUIStop.color = UWP.Color(
@@ -276,35 +277,28 @@ public final class WinUIBackend:
                     y: Float(start.y)
                 )
                 brush.endPoint = WindowsFoundation.Point(x: Float(end.x), y: Float(end.y))
-                brush.gradientStops = stops(gradient)
+                brush.gradientStops = stops(gradient.stops)
                 return brush
             case .radialGradient(let gradient, let centre, let startRadius, let endRadius):
-                // `startRadius` cannot be carried. XAML's RadialGradientBrush
-                // has a centre, a gradient origin and one radius pair -- there
-                // is no inner radius, so a gradient asked to begin part-way out
-                // starts at the centre here instead. Untested either way: P43
-                // exercises linear only.
+                // Radii are POINTS, as SwiftUI reads them for a shape style
+                // (c04e4814 for the other four backends). The brush maps
+                // relative to the bounds it paints, so a radius in points is the
+                // fraction `radius / size` on each axis -- a circle in any
+                // rectangle. `size` is the painted bounds; unknown (a text block
+                // not yet measured), half the box stands in until it is.
                 //
-                // Not silently dropped: a non-zero value says the caller wanted
-                // something this backend cannot draw, and drawing a plausible
-                // near-miss without saying so is the failure this project keeps
-                // finding. Reported once.
+                // An inner radius is carried by the stops, as Android and GSK do:
+                // `RadialGradient.adjustedStops` moves each location l to
+                // (inner + l * (outer - inner)) / outer, and the pad spread fills
+                // the inside with the first colour. This replaced a notice that
+                // said the inner radius could not be drawn.
                 //
-                // `startRadius` 無法被承載。XAML 的 RadialGradientBrush 只有中心、漸層原點與一組
-                // 半徑——沒有內半徑，因此一個被要求「從中途開始」的漸層，在此會改從中心開始。
-                // 兩種情況都尚未測試：P43 只涵蓋線性漸層。
-                //
-                // 但不是靜默丟棄：非零的值代表呼叫端要的東西是此 backend 畫不出來的，而畫出一個
-                // 看似接近卻不說明的結果，正是本專案一再發現的那種失敗。只回報一次。
-                if startRadius != 0 {
-                    logger.notice(
-                        """
-                        WinUIBackend cannot express a radial gradient's startRadius \
-                        (\(startRadius)); XAML has no inner radius, so the gradient \
-                        starts at the centre instead.
-                        """
-                    )
-                }
+                // 半徑是**點**,如 SwiftUI 對形狀樣式的解讀(其他四個 backend 見 c04e4814)。brush 以所塗繪的外框
+                // 做相對對應，所以以點為單位的半徑在每一軸上就是 `radius / size` 這個比例——在任何矩形裡都是圓。
+                // `size` 是塗繪的外框；未知時(文字區塊尚未量好)先以外框的一半代替，量好後再算一次。內半徑由停駐點
+                // 承載，與 Android、GSK 相同:`RadialGradient.adjustedStops` 把位置 l 移到
+                // (inner + l * (outer - inner)) / outer,pad 擴散以第一個顏色填滿內部。這取代了原本「畫不出內半徑」的 notice。
+                let outer = max(startRadius, endRadius)
                 let brush = RadialGradientBrush()
                 brush.center = WindowsFoundation.Point(
                     x: Float(centre.x),
@@ -315,8 +309,13 @@ public final class WinUIBackend:
                 // which, so do not copy one line's conversion onto another.
                 // 此處是 Double，而緊鄰上方的 Point 是 Float。投影出來的型別並不一致，而唯一會說出
                 // 哪個是哪個的只有編譯器，因此不要把某一行的轉換照抄到另一行。
-                brush.radiusX = endRadius
-                brush.radiusY = endRadius
+                if let size, size.x > 0, size.y > 0 {
+                    brush.radiusX = outer / size.x
+                    brush.radiusY = outer / size.y
+                } else {
+                    brush.radiusX = 0.5
+                    brush.radiusY = 0.5
+                }
                 brush.gradientOrigin = WindowsFoundation.Point(
                     x: Float(centre.x),
                     y: Float(centre.y)
@@ -329,7 +328,11 @@ public final class WinUIBackend:
                 // 用附加而非指派。`RadialGradientBrush.gradientStops` 是唯讀的，而
                 // `LinearGradientBrush` 的可指派——兩種 brush 在這一點上並不相同，這也是上方
                 // 線性分支寫法不同的原因。
-                for stop in stops(gradient) {
+                let remapped = RadialGradient(
+                    gradient: gradient, center: .center, startRadius: startRadius,
+                    endRadius: endRadius
+                ).adjustedStops
+                for stop in stops(remapped) {
                     brush.gradientStops.append(stop)
                 }
                 return brush
@@ -1606,6 +1609,12 @@ public final class WinUIBackend:
         )
     }
 
+    /// The radial text gradient each block was last given, for its size-change
+    /// handler; see `updateTextView`. 每個區塊最近一次拿到的放射文字漸層，供其尺寸變更 handler 使用。
+    nonisolated(unsafe) static var radialTextGradients: [ObjectIdentifier: (ResolvedFillStyle, EnvironmentValues)] = [:]
+    /// Blocks that already have that handler. 已經掛上該 handler 的區塊。
+    nonisolated(unsafe) static var radialTextGradientBlocks: Set<ObjectIdentifier> = []
+
     public func createTextView() -> Widget {
         let textBlock = TextBlock()
         textBlock.textWrapping = .wrap
@@ -1627,7 +1636,34 @@ public final class WinUIBackend:
         // element's bounds, as `EnvironmentValues.textGradient` means them.
         // 漸層作為文字的 brush:XAML 把 brush 的點對應到元素的外框，正是 `EnvironmentValues.textGradient` 的意思。
         if let gradient = environment.textGradient {
-            block.foreground = WinUIBackend.brush(for: gradient, in: environment)
+            block.foreground = WinUIBackend.brush(
+                for: gradient, in: environment,
+                size: SIMD2(block.actualWidth, block.actualHeight)
+            )
+            // A radial radius is in points, so it needs the block's size, which
+            // the first update does not have yet: the brush is made again whenever
+            // the size changes, from the latest gradient. One handler per block.
+            // 放射半徑以點為單位，需要區塊的尺寸，而第一次更新時還沒有：每當尺寸改變，就以最新的漸層重做 brush。
+            // 每個區塊只掛一個 handler。
+            let key = ObjectIdentifier(block)
+            if case .radialGradient = gradient {
+                Self.radialTextGradients[key] = (gradient, environment)
+                if Self.radialTextGradientBlocks.insert(key).inserted {
+                    block.sizeChanged.addHandler { [weak block] _, _ in
+                        MainActor.assumeIsolated {
+                            guard let block,
+                                let latest = WinUIBackend.radialTextGradients[ObjectIdentifier(block)]
+                            else { return }
+                            block.foreground = WinUIBackend.brush(
+                                for: latest.0, in: latest.1,
+                                size: SIMD2(block.actualWidth, block.actualHeight)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Self.radialTextGradients[key] = nil
+            }
         }
     }
 
@@ -3148,12 +3184,17 @@ public final class WinUIBackend:
         // 因此 2026-09-17 P50 popover 裡的 `press me` 對使用者的真實點擊毫無反應,而對同一顆按鈕做 UIA
         // Invoke 卻記下 `popover counter 1`——那塊面板帶著 `.border(accent, width: 2)`。SwiftUI 也不會對
         // 描邊內部的透明區域做點擊判定。
+        // The geometry's bounds: what a relative brush maps onto, and what a
+        // radial radius in points is a fraction of (see `brush(for:in:size:)`).
+        // 幾何的外框：相對 brush 所對應的範圍，也是以點為單位的放射半徑所換算的分母(見 `brush(for:in:size:)`)。
+        let geometryBounds = path.group.bounds
+        let paintedSize = SIMD2(Double(geometryBounds.width), Double(geometryBounds.height))
         if case .color(let colour) = fillStyle, colour.opacity == 0 {
             winUiPath.fill = nil
         } else {
-            winUiPath.fill = Self.brush(for: fillStyle, in: environment)
+            winUiPath.fill = Self.brush(for: fillStyle, in: environment, size: paintedSize)
         }
-        winUiPath.stroke = Self.brush(for: strokeFill, in: environment)
+        winUiPath.stroke = Self.brush(for: strokeFill, in: environment, size: paintedSize)
         winUiPath.strokeThickness = strokeStyle.width
 
         switch strokeStyle.cap {
