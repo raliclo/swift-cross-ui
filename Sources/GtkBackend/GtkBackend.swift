@@ -3804,6 +3804,9 @@ public final class GtkBackend:
     }
 
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
+        #if os(macOS)
+            installAppleEventURLHandler(action)
+        #endif
         gtkApp.onOpen = { urls in
             for url in urls {
                 action(url)
