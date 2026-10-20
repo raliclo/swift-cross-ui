@@ -143,6 +143,9 @@ class _App<AppRoot: App> {
 
             dynamicPropertyUpdater.update(app, with: environment, previousValue: nil)
 
+            // One update slot for the app struct: its properties all refresh the same scene
+            // graph (see observeAsUIUpdater). / app struct 共用一個更新名額：它的屬性重新整理的都是同一個 scene graph。
+            let updateSlot = DispatchSemaphore(value: 1)
             forEachField(of: app) { name, _, fieldValue in
                 // Ungated. This is a migration notice for code that compiles and
                 // then does nothing: an `App.state` that used to be observed no
@@ -173,7 +176,7 @@ class _App<AppRoot: App> {
                 }
 
                 let cancellable =
-                    value.didChange.observeAsUIUpdater(backend: backend) { [weak self] in
+                    value.didChange.observeAsUIUpdater(backend: backend, slot: updateSlot) { [weak self] in
                         self?.refreshSceneGraph()
                     }
                 cancellables.append(cancellable)

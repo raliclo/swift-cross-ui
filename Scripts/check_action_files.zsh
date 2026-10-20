@@ -103,7 +103,12 @@ for number, row in enumerate(rows[2:], start=3):
     #   沒有前綴——P91 的列在 P91 那一列裡寫 `focusable.csv`,指的是 P91-focusable。照原樣找不到的名稱，
     #             會再以 `<該列的 app>-<名稱>` 試一次。
     # 兩種方式都找不到的名稱仍會被回報，因此真正缺的檔案照樣讓守衛失敗。
-    for name in re.findall(r"[A-Za-z0-9*][A-Za-z0-9_.*-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
+    # `_` may start a name: row 1888 cites actions/ios/_watch-20s.actions, which
+    # exists, and a first character of [A-Za-z0-9*] read it as `watch-20s.actions`
+    # and reported it missing (2026-10-20).
+    # 名稱可以 `_` 開頭：第 1888 列引用存在的 actions/ios/_watch-20s.actions,而首字元限定 [A-Za-z0-9*]
+    # 時它被讀成 `watch-20s.actions` 並回報為缺少(2026-10-20)。
+    for name in re.findall(r"[A-Za-z0-9_*][A-Za-z0-9_.*-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
         if name.endswith(".csv"):
             name = name[:-4] + ".actions"
         if "*" in name:

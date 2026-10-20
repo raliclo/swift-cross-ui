@@ -124,6 +124,10 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
         backend.tag(widget: widget, as: tag)
 
         // Update the view and its children when state changes (children are always updated first).
+        // One update slot for the whole node: every property runs the same update, so
+        // writes to several of them in one frame merge into one (see observeAsUIUpdater).
+        // 整個節點共用一個更新名額：每個屬性執行的都是同一次更新，所以同一幀寫入其中好幾個時合併成一次(見 observeAsUIUpdater)。
+        let updateSlot = DispatchSemaphore(value: 1)
         forEachField(of: view) { name, _, fieldValue in
             // Ungated, for the same reason as the `App.state` notice in
             // `_App.swift`: a view whose `state` is no longer observed compiles
@@ -151,7 +155,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
                 return // i.e. continue
             }
 
-            let cancellable = value.didChange.observeAsUIUpdater(backend: backend) { [weak self] in
+            let cancellable = value.didChange.observeAsUIUpdater(backend: backend, slot: updateSlot) { [weak self] in
                 self?.bottomUpUpdate()
             }
             cancellables.append(cancellable)
