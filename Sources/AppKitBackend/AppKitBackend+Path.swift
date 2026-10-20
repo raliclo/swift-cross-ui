@@ -16,6 +16,42 @@ extension AppKitBackend {
         var strokeGradient: ResolvedFillStyle?
         var environment: EnvironmentValues?
 
+        /// A shape takes a click where it is drawn, as in SwiftUI: a stroke-only
+        /// shape on its stroke, anything else inside its path. NSView's own
+        /// answer is the whole frame, so a stroked outline over a row of controls
+        /// swallowed every click inside it -- P41's `.rows` minus and plus, under
+        /// the field's border overlay, never stepped on AppKit (2026-10-20).
+        /// 形狀在畫出來的地方接收點擊，與 SwiftUI 相同：只有描邊的形狀看描邊線，其他看路徑內部。NSView 自己的答案是整個
+        /// frame,所以蓋在一列控制項上的描邊外框會吞掉框內每一次點擊——P41 `.rows` 的減號與加號在欄位外框 overlay
+        /// 底下，在 AppKit 上從未調整過(2026-10-20)。
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let path, !isHidden, alphaValue > 0 else { return nil }
+            let local = superview.map { convert(point, from: $0) } ?? point
+            let filled = fillGradient != nil || fillColor.alphaComponent > 0
+            let stroked = strokeGradient != nil || (strokeColor.alphaComponent > 0 && path.lineWidth > 0)
+            if stroked {
+                let cap: CGLineCap =
+                    switch path.lineCapStyle {
+                        case .round: .round
+                        case .square: .square
+                        default: .butt
+                    }
+                let join: CGLineJoin =
+                    switch path.lineJoinStyle {
+                        case .round: .round
+                        case .bevel: .bevel
+                        default: .miter
+                    }
+                let outline = cgPath(of: path).copy(
+                    strokingWithWidth: max(path.lineWidth, 1), lineCap: cap,
+                    lineJoin: join, miterLimit: path.miterLimit
+                )
+                if outline.contains(local) { return self }
+                if !filled { return nil }
+            }
+            return path.contains(local) ? self : nil
+        }
+
         override func draw(_ dirtyRect: NSRect) {
             guard let path else { return }
 

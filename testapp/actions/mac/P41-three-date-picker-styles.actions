@@ -60,13 +60,17 @@ action,x,y,origin,button,key,micros,note,platform
 # y 260-268(上)與 269-278(下);那些列點在 258、258、267,三下都被算成「上」,欄位讀到 11/24/2025——多了三個月,
 # 而「上、上、下」應該是一個月。步進器步進的是被選取的欄位,也就是月份,所以「往前一天」從來不是它做的事。
 # graphical 那一個停在 17 日:點回 24 日會停在啟動日期,而落空也會是那樣。
-click,205,264,frame,left,,,.automatic stepper up -- the month field moves,macos
+# **Re-aimed 2026-10-20 from p41-macos-final-20261020-221616.png (1202 x 799, scale 1).** P41 is four rows of
+# three cells since 2026-10-18, so the 2026-09-28 points missed and one landed on the .wheel year. Stepper halves
+# at x 119 (.automatic) and 879 (.compact): up y 163-171, down 173-181; the 17th at (427,261).
+# **2026-10-20 依 p41-macos-final-20261020-221616.png 重新對準。**P41 自 2026-10-18 起是四列各三格,09-28 的點全部落空,一下打到 .wheel 的年份。
+click,119,167,frame,left,,,.automatic stepper up -- the month field moves,macos
 sleep,,,,,,700000,,macos
-click,205,264,frame,left,,,again,macos
+click,119,167,frame,left,,,again,macos
 sleep,,,,,,700000,,macos
-click,205,274,frame,left,,,"and down once -- net one month forward: .automatic must read 9/24/2025",macos
+click,119,177,frame,left,,,"and down once -- net one month forward: .automatic must read 9/24/2025",macos
 sleep,,,,,,900000,,macos
-click,198,395,frame,left,,,".compact stepper up -- its own label must move to 9/24/2025 and the others must not",macos
+click,879,167,frame,left,,,".compact stepper up -- its own label must move to 9/24/2025 and the others must not",macos
 sleep,,,,,,900000,,macos
-click,569,303,frame,left,,,".graphical -- the 17th: the calendar must highlight 17, and the other two must keep their own dates",macos
+click,427,261,frame,left,,,".graphical -- the 17th: the calendar must highlight 17, and the other two must keep their own dates",macos
 sleep,,,,,,1200000,,macos

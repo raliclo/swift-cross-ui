@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 through GtkBackend: the wheel and the clock drawn in SwiftCrossUI views, and GTK's own rows.
+#
+# The GtkBackend twin of P41-swift-wheel-rows-clock.actions. Here the wheel (_SwiftWheelDatePicker)
+# and the clock (_SwiftClockDatePicker) are SwiftCrossUI views and the rows are GTK spin buttons
+# (nativeTimePresentation = .rows). The readback under each cell is the binding; with --debug each
+# change is also a "<cell label> -> <value>" line in p41-debug-events.log. Start: 2025-08-24 09:46:40.
+#
+# origin=frame, window 1340 x 888 points, capture scale 1 (p41-macos-gtk4-final-20261020-221856.png).
+#
+# P41 經 GtkBackend:以 SwiftCrossUI view 畫的滾輪與時鐘，以及 GTK 自己的列。每格下方的回讀就是 binding。
+click,135,486,frame,left,,,".wheel: September below the band -> .wheel -> 2025-09-24",macos
+sleep,,,,,,700000,,macos
+click,198,510,frame,left,,,".wheel: the day two below -> .wheel -> 2025-09-26",macos
+sleep,,,,,,700000,,macos
+click,524,486,frame,left,,,".wheel time: minute 47 -> .wheel time -> 09:47",macos
+sleep,,,,,,700000,,macos
+click,563,486,frame,left,,,".wheel time: PM -> .wheel time -> 21:47",macos
+sleep,,,,,,700000,,macos
+move,488,462,frame,,,,".wheel time: pointer on the hour column",macos
+sleep,,,,,,300000,,macos
+scroll,0,1,,,,,"one notch: the hour column turns one row, 21 -> 22",macos
+sleep,,,,,,700000,,macos
+scroll,0,1,,,,,"another: 23",macos
+sleep,,,,,,700000,,macos
+scroll,0,1,,,,,"and a third: 12 PM, the column cycles inside PM as UIDatePicker's does -> .wheel time -> 12:47",macos
+sleep,,,,,,900000,,macos
+click,1003,486,frame,left,,,".wheel date+time: 2026 -> .wheel date+time -> 2026-08-24 09:46",macos
+sleep,,,,,,700000,,macos
+mousedown,104,644,frame,left,,,".clock (Swift): press near the minute hand, nearer its angle than the hour hand's",macos
+move,108,622,frame,,,,drag towards twelve,macos
+move,122,603,frame,,,,drag towards twelve,macos
+move,145,590,frame,,,,drag towards twelve,macos
+move,165,585,frame,,,,drag towards twelve,macos
+move,178,585,frame,,,,just past twelve,macos
+move,192,590,frame,,,,past twelve -- the last move is the drag's end,macos
+mouseup,192,590,frame,left,,,".clock: let go just past twelve -- the minute carries into the hour -> .clock -> 10:01",macos
+sleep,,,,,,900000,,macos
+click,172,679,frame,left,,,".clock: AM under the centre switches to PM -> .clock -> 22:01",macos
+sleep,,,,,,700000,,macos
+move,552,652,frame,,,,".clock seconds: pointer on the face",macos
+sleep,,,,,,300000,,macos
+scroll,0,2,,,,,"two notches step the minutes down two -> .clock seconds -> 09:44:40",macos
+sleep,,,,,,900000,,macos
+click,172,833,frame,left,,,".rows (GTK spin button): hour plus -> .rows -> 10:46",macos
+sleep,,,,,,700000,,macos
+click,754,833,frame,left,,,".rows seconds: second plus -> .rows seconds -> 09:46:41",macos
+sleep,,,,,,1200000,,macos

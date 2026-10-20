@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41: drive the pickers drawn in SwiftCrossUI views -- the wheel, the rows -- and AppKit's own clock.
+#
+# queue item 31 left "the Swift clock, rows and wheel are not driven by an action file". On AppKit
+# the wheel (_SwiftWheelDatePicker) and the rows (_SwiftRowsDatePicker) are SwiftCrossUI views and the
+# clock is NSDatePicker's own (nativeTimePresentation = .clock). GTK draws the other way round for the
+# clock and rows; P41-swift-wheel-rows-clock-gtk4.actions drives that one.
+#
+# Judged by the binding, not the picture: with --debug every change writes "<cell label> -> <value>"
+# to p41-debug-events.log, and each row below names the line it must produce. The start date is
+# 2025-08-24 09:46:40 (P41RootView.start, local time on this Mac).
+#
+# origin=frame, window 1202 x 799 points, capture scale 1 (p41-macos-final-20261020-221137.png).
+#
+# P41:驅動以 SwiftCrossUI view 畫的選擇器(滾輪、列)與 AppKit 自己的時鐘。以 binding 判定:--debug 下每次變更
+# 在 p41-debug-events.log 寫一行「<格位標題> -> <值>」,下面每一列都寫明它必須產生的那一行。
+click,73,444,frame,left,,,".wheel: September below the band -> .wheel -> 2025-09-24",macos
+sleep,,,,,,700000,,macos
+click,138,468,frame,left,,,".wheel: the day two below -> .wheel -> 2025-09-26",macos
+sleep,,,,,,700000,,macos
+click,467,444,frame,left,,,".wheel time: minute 47 -> .wheel time -> 09:47",macos
+sleep,,,,,,700000,,macos
+click,509,444,frame,left,,,".wheel time: PM -> .wheel time -> 21:47",macos
+sleep,,,,,,700000,,macos
+move,427,420,frame,,,,".wheel time: pointer on the hour column",macos
+sleep,,,,,,300000,,macos
+scroll,0,3,,,,,"three notches, three rows: 12 PM, the column cycles inside PM as UIDatePicker's does -> .wheel time -> 12:47",macos
+sleep,,,,,,900000,,macos
+click,946,444,frame,left,,,".wheel date+time: 2026 -> .wheel date+time -> 2026-08-24 09:46",macos
+sleep,,,,,,700000,,macos
+click,103,747,frame,left,,,".rows: hour plus -> .rows -> 10:46",macos
+sleep,,,,,,700000,,macos
+click,185,747,frame,left,,,".rows: minute minus -> .rows -> 10:45",macos
+sleep,,,,,,700000,,macos
+click,265,747,frame,left,,,".rows: AM/PM -> .rows -> 22:45",macos
+sleep,,,,,,700000,,macos
+click,697,747,frame,left,,,".rows seconds: second plus -> .rows seconds -> 09:46:41",macos
+sleep,,,,,,700000,,macos
+move,536,747,frame,,,,".rows seconds: pointer on the minute field",macos
+sleep,,,,,,300000,,macos
+scroll,0,2,,,,,"two notches step the minute field down two -> .rows seconds -> 09:44:41",macos
+sleep,,,,,,900000,,macos
+mousedown,52,587,frame,left,,,".clock (NSDatePicker): press on the minute hand",macos
+move,56,572,frame,,,,drag towards twelve,macos
+move,66,561,frame,,,,drag towards twelve,macos
+move,78,555,frame,,,,drag towards twelve,macos
+move,97,554,frame,,,,just past twelve,macos
+mouseup,97,554,frame,left,,,".clock: let go just past twelve -> .clock -> 10:00 (the minute hand carries into the hour; at x 91-93 it stopped on 09:59)",macos
+sleep,,,,,,1200000,,macos

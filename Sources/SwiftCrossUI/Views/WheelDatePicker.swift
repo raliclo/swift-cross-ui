@@ -282,6 +282,13 @@ struct _WheelColumn: View {
     @State var dragBase: Int?
 
     static let rowHeight = 24.0
+    /// Scroll travel per row: one wheel notch, 16 pt on GtkBackend (and WinUIBackend's
+    /// pointsPerScrollLine), where each notch is a gesture of its own. At the row height (24 pt)
+    /// a notch ended short of a row and its travel was dropped, so the wheel never
+    /// turned under a mouse wheel on GTK (P41, 2026-10-20). A drag still moves by rows.
+    /// 每列的捲動量：滾輪一格,GtkBackend 上是 16 pt(WinUIBackend 的 pointsPerScrollLine 也是),且在 GTK 上每格是獨立的一次手勢。用列高(24 pt)時一格到不了
+    /// 一列，其捲動量就被丟掉，所以在 GTK 上用滑鼠滾輪轉不動(P41,2026-10-20)。拖曳仍以列為單位。
+    static let scrollStep = 16.0
     static let neighbours = 2
 
     func index(_ offset: Int) -> Int? {
@@ -336,9 +343,9 @@ struct _WheelColumn: View {
         )
         .onScrollGesture(onChanged: { value in
             travel += value.delta.y
-            let steps = Int((travel / Self.rowHeight).rounded(.towardZero))
+            let steps = Int((travel / Self.scrollStep).rounded(.towardZero))
             if steps != 0 {
-                travel -= Double(steps) * Self.rowHeight
+                travel -= Double(steps) * Self.scrollStep
                 step(steps)
             }
         }, onEnded: { _ in travel = 0 })
