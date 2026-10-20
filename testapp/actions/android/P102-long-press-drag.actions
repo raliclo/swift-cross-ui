@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P102 on Android: long-press drag selection in text fields. Positions from swift-cross-ui-tablet36 on 2026-10-20 (dp = px / 2). The content is taller than the screen, so the replay measures the window origin at y -13, not 36: a point is the screen position in dp plus 13.
+# FIELD text at y 191 ("quick" at x 90), EDITOR first line y 249 and third line y 293, CONTROL y 397.
+# A hold is a sleep between mousedown and the moves: on Android mouseup takes no hold time and posts no move of its own (AndroidSynthesiser), so the drag is spelled out as moves.
+# Pass (logcat [P102] lines): FIELD began with an empty range and ended with a forward range; EDITOR ended "backward"; no CONTROL line; the quick drag logs nothing new.
+# P102 在 Android 上：文字欄位中的長按拖曳選取。座標取自 swift-cross-ui-tablet36(dp = px / 2)。按住是 mousedown 與移動之間的 sleep:Android 的 mouseup 不吃按住時間、也不自己移動，所以拖曳以 move 列寫出。通過條件見上方英文。
+sleep,,,,,,2000000,let P102 lay out,android
+mousedown,90,191,,left,,,FIELD: press on 'quick',android
+sleep,,,,,,800000,hold 0.8 s,android
+move,140,191,,,,,drag right,android
+move,200,191,,,,,,android
+move,250,191,,,,,,android
+mouseup,250,191,,left,,,release,android
+sleep,,,,,,1200000,,android
+mousedown,130,293,,left,,,EDITOR: press on the third line,android
+sleep,,,,,,800000,hold 0.8 s,android
+move,100,279,,,,,drag up and left,android
+move,70,264,,,,,,android
+move,50,249,,,,,onto the first line,android
+mouseup,50,249,,left,,,release,android
+sleep,,,,,,1200000,,android
+mousedown,60,397,,left,,,CONTROL: a long press,android
+sleep,,,,,,800000,hold 0.8 s,android
+move,100,397,,,,,drag,android
+move,140,397,,,,,,android
+mouseup,140,397,,left,,,release -- nothing may be logged,android
+sleep,,,,,,1200000,,android
+mousedown,40,191,,left,,,FIELD: a quick drag,android
+move,95,191,,,,,no hold,android
+move,150,191,,,,,,android
+mouseup,150,191,,left,,,release -- nothing may be logged,android
+sleep,,,,,,1500000,let the last settled line be written,android

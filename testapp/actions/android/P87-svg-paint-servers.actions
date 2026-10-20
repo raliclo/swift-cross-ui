@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P87 on Android: SVG paint servers and effects, drawn by the core rasteriser; nothing to press.
+# Pass: the nine numbered cells as P87.swift's header lists them, and no magenta box or magenta flag in the top-left corner.
+# Written 2026-10-20 on swift-cross-ui-tablet36; no coordinates, so it runs on any device.
+# P87 在 Android 上:SVG 塗料伺服器與效果，由核心點陣化器繪製，不需按任何東西。通過：九格如 P87.swift 檔頭所列，沒有洋紅色框或左上角的洋紅色旗標。
+sleep,,,,,,5000000,hold for the capture,android

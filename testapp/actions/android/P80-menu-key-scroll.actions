@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# P80 on Android: a key, a scroll gesture and a context menu, each read back on screen. (Cursors need a mouse pointer and are not driven here.)
+# Positions from swift-cross-ui-tablet36 on 2026-10-20 (dp = px / 2). The replay measures the window origin at y -31 for this app, so a point is the screen position in dp plus 31:
+# the scroll box at 244,419, the menu box at 280,286.
+# The menu is opened last and left open: it is a platform PopupMenu, which the replay cannot press into (FrontWindows.kt; the replay says so), as in P72-context-menu.
+# Choosing from it was checked by hand on 2026-10-20: adb shell input tap 316 694 on "Second" -> "menu picked: Second".
+# Pass: "last key: a" with 2 events; "scroll" shows a translation and "ended: 1"; the capture shows the popup with First and Second under the menu box.
+# P80 在 Android 上：按鍵、捲動手勢與內容選單，各自在畫面上讀回。座標取自 swift-cross-ui-tablet36(dp = px / 2);此 app 的視窗原點量得 y -31,座標是畫面 dp 加 31。選單最後打開並保持開啟：它是平台的 PopupMenu,重放按不進去(重放會明講),與 P72-context-menu 相同;從中選取已於 2026-10-20 以 adb 手動確認。
+sleep,,,,,,2000000,let P80 lay out,android
+key,,,,,a,,"a -- last key must read a, 2 events",android
+sleep,,,,,,600000,,android
+move,244,419,,,,,put the scroll over the scroll box,android
+scroll,0,2,,,,,scroll two notches,android
+sleep,,,,,,800000,,android
+longpress,280,286,,,,900000,long press the menu box: a popup with First and Second,android
+sleep,,,,,,1500000,let the popup open for the capture,android

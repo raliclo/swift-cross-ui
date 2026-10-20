@@ -39,7 +39,12 @@ struct P93App: App {
             }
         }
         .defaultSize(width: 420, height: 260)
-        .enableMenu(ProcessInfo.processInfo.environment["SCUI_P93_MENU"] == "1")
+        // From the environment, or from the arguments where a launch carries no environment
+        // (Android): `--p93-menu`, as P92 does. / 取自環境變數;啟動時帶不了環境變數的平台(Android)則取自參數:`--p93-menu`,與 P92 相同。
+        .enableMenu(
+            ProcessInfo.processInfo.environment["SCUI_P93_MENU"] == "1"
+                || CommandLine.arguments.contains("--p93-menu")
+        )
 
         WindowGroup("Beta", id: "beta") {
             Text("beta").padding(30)

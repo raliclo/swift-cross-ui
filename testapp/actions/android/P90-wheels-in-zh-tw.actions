@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P90 on Android: the wheel date pickers in zh_TW. The region button is pressed by its text, so no coordinates.
+# Pass: the title reads "P90: wheels in zh_TW"; the date wheel reads year | month | day (2025年 | 8月 | 24日), and the time wheels put 上午/下午 before the hours --
+# the same columns, order and text as UIKitBackend's capture for zh_TW. Written 2026-10-20 on swift-cross-ui-tablet36.
+# P90 在 Android 上:zh_TW 的滾輪日期選擇器。以文字按地區按鈕。通過：日期滾輪為 年 | 月 | 日,時間滾輪把上午／下午放在小時之前，與 UIKitBackend 的 zh_TW 擷圖相同。
+sleep,,,,,,2000000,let P90 lay out,android
+taplabel,,,,,zh_TW,,switch the three wheels to zh_TW,android
+sleep,,,,,,2000000,let the wheels rebuild,android

@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P77 on Android: one triangle mesh past 1,000,000 vertices, drawn with 32-bit indices; nothing to press.
+# Pass: the final capture shows one smooth red/green gradient filling the square, with no black hole and no streak, and logcat has no render warning (before 2026-10-05 AndroidBackend refused any scene past 32,767 vertices and the view stayed empty).
+# Written 2026-10-20 on swift-cross-ui-tablet36; no coordinates, so it runs on any device.
+# P77 在 Android 上：一個超過 1,000,000 頂點、以 32 位元索引繪製的三角形 mesh,不需按任何東西。通過：最終截圖是一片平滑的紅綠漸層，沒有黑洞、沒有斜紋,logcat 沒有 render 警告。
+sleep,,,,,,6000000,hold for the capture,android

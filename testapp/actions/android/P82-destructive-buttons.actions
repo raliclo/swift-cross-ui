@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P82 on Android: Button(role: .destructive) in the theme's colorError; nothing to press, the pass is read off the capture.
+# Pass: the three "destructive" buttons are in the theme's error colour and the disabled one is dimmed; "save" and "cancel" are not; "destructive, blue set" is blue.
+# Written 2026-10-20 on swift-cross-ui-tablet36; no coordinates, so it runs on any device.
+# P82 在 Android 上:destructive 按鈕使用主題的 colorError。不需按任何東西，看截圖：三顆 destructive 是錯誤色、停用的變淡;save、cancel 不是;blue set 是藍色。
+sleep,,,,,,4000000,hold for the capture,android

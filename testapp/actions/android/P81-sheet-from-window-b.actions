@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P81 on Android: a sheet asked for by the second window must appear over the second window. Buttons pressed by their text, so no coordinates.
+# Pass: the final capture is window B (its own activity) with "sheet from window B" over it; "sheet from window B" over window A is the defect.
+# Written 2026-10-20 on swift-cross-ui-tablet36.
+# P81 在 Android 上：第二個視窗要求的 sheet 必須出現在第二個視窗上。以文字按按鈕。通過：最終截圖是 window B,上面有「sheet from window B」。
+sleep,,,,,,2000000,let window A lay out,android
+taplabel,,,,,open second window,,window B opens in its own activity,android
+sleep,,,,,,2500000,let window B come to the front,android
+focus,,,,,,,send the rest to window B's own activity,android,P81 window B
+taplabel,,,,,sheet,,ask for a sheet from window B,android
+sleep,,,,,,2000000,let the sheet present,android

@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P83 on Android: select a row in each list, so the capture shows both styles with a selection.
+# Positions from swift-cross-ui-tablet36 on 2026-10-20 (2560x1600 px at density 320, so dp = px / 2; window origin 36 dp below the screen's top): left Drafts at 57,223, right Sent at 247,257.
+# Pass: the label reads "left: Drafts   right: Sent"; the right list keeps its sidebar look (tinted pane, rounded selection) and the left its plain rows with dividers.
+# P83 在 Android 上：兩個清單各選一列，讓截圖呈現兩種樣式的選取狀態。座標取自 swift-cross-ui-tablet36(dp = px / 2)。通過：標籤為「left: Drafts   right: Sent」,右側維持 sidebar 外觀。
+sleep,,,,,,2000000,let P83 lay out,android
+click,57,223,,left,,,left (default) list: Drafts,android
+sleep,,,,,,600000,,android
+click,247,257,,left,,,right (.sidebar) list: Sent,android
+sleep,,,,,,1500000,hold for the capture,android

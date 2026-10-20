@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P78 on Android: .onOpenURL for the launch intent and for one sent while the app runs (onNewIntent).
+# An action file has no action that opens a URL, so this only holds the window for the capture; the pass is
+# test_support/p78_send_urls_android.zsh: launch with scui-testapp://launch, then send scui-testapp://running -> logcat "received 1: launch", "received 2: running".
+# Launched this way the capture reads "received 0" by design. Written 2026-10-20 on swift-cross-ui-tablet36; no coordinates.
+# P78 在 Android 上:action 檔沒有開啟 URL 的動作，本檔只讓視窗停留以供截圖；通過條件由 test_support/p78_send_urls_android.zsh 驗證(received 2,先 launch 後 running)。以本檔啟動時截圖本來就是 received 0。
+sleep,,,,,,4000000,hold for the capture,android

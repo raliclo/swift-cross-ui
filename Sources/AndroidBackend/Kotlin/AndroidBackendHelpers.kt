@@ -185,7 +185,13 @@ class AndroidBackendHelpers {
         }
         val found = find(activity.window.decorView) ?: return IntArray(0)
         val origin = IntArray(2)
-        found.getLocationOnScreen(origin)
+        // In the window, not on the screen: a touch goes into the activity in window
+        // coordinates, and a later window in split screen starts at x 1290 px, so its
+        // screen position pressed outside it (P81, window B, 2026-10-20). The first
+        // window sits at the screen origin, where the two agree.
+        // 用視窗內座標而非螢幕座標：觸控以視窗座標送進 activity,而分割畫面中之後的視窗從 x 1290 px 開始，用螢幕位置會按到
+        // 視窗外(P81 的 window B,2026-10-20)。第一個視窗位於螢幕原點，兩者相同。
+        found.getLocationInWindow(origin)
         return intArrayOf(origin[0] + found.width / 2, origin[1] + found.height / 2)
     }
 
@@ -242,7 +248,7 @@ class AndroidBackendHelpers {
             val ordinal = seen[key] ?: 0
             seen[key] = ordinal + 1
             if (view.width > 0 && view.height > 0) {
-                view.getLocationOnScreen(origin)
+                view.getLocationInWindow(origin)
                 entries.add(AimEntry(view, key, ordinal, origin[0], origin[1]))
             }
             if (view is android.view.ViewGroup) {

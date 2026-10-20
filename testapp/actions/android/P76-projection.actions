@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P76 on Android: lines, points, unlit faces, an overlay and the orthographic/perspective switch in a Mesh3DView.
+# The button is pressed by its text, so no coordinates: it runs on any device. Checked 2026-10-20 on swift-cross-ui-tablet36.
+# Pass: before the press the label reads "Projection: orthographic" and the three white ticks at right are equal height;
+# after it the label reads "Projection: perspective" and the ticks differ. Items 1-4 and 6 of P76.swift's header hold in both captures.
+# P76 在 Android 上:Mesh3DView 的線、點、不打光、覆蓋層與正交／透視切換。以文字按按鈕，不需座標。通過：按之前標籤為 orthographic、右側三根白色刻度等高；按之後為 perspective、刻度不等高。
+sleep,,,,,,2500000,wait for the first frame,android
+taplabel,,,,,Projection: orthographic,,switch to perspective,android
+sleep,,,,,,1500000,let the new frame land,android

@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P93 on Android: two window groups and a single window in the standard menus (.enableMenu via --p93-menu, since an Android launch carries no environment).
+# The menu button is pressed by its text, so no coordinates. The menu is a platform PopupMenu, which the replay cannot press into (FrontWindows.kt), so the file opens it and stops.
+# Pass: at launch only the Alpha window is open; the capture shows the top-level menus with File and Window. File > New listing "New Alpha Window" and "New Beta Window", and Window listing Solo,
+# were checked by hand on swift-cross-ui-tablet36, 2026-10-20 (see results.csv2).
+# P93 在 Android 上：兩個 window group 與一個單一視窗在標準選單裡(以 --p93-menu 打開)。以文字按選單按鈕。選單是平台 PopupMenu,重放按不進去，所以本檔打開它就停。
+# launch-args: --debug --p93-menu
+sleep,,,,,,2500000,let P93 lay out,android
+taplabel,,,,,☰,,open the standard menus,android
+sleep,,,,,,1500000,let the popup open for the capture,android

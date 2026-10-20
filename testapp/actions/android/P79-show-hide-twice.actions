@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# P79 on Android: is an AndroidViewRepresentable dismantled when it leaves the view graph? Buttons pressed by their text, so no coordinates.
+# Pass: the final capture reads "made 2, dismantled 2" -- show, hide, show, hide, then refresh, since dismantling runs when the node is released.
+# Written 2026-10-20 on swift-cross-ui-tablet36.
+# P79 在 Android 上:AndroidViewRepresentable 離開 view graph 時有沒有被 dismantle。以文字按按鈕。通過：最終截圖為「made 2, dismantled 2」。
+sleep,,,,,,2000000,let P79 lay out,android
+taplabel,,,,,show,,the native TextView appears: made 1,android
+sleep,,,,,,800000,,android
+taplabel,,,,,hide,,it leaves: dismantled 1 once released,android
+sleep,,,,,,800000,,android
+taplabel,,,,,show,,made 2,android
+sleep,,,,,,800000,,android
+taplabel,,,,,hide,,dismantled 2 once released,android
+sleep,,,,,,1000000,,android
+taplabel,,,,,refresh,,re-read the counts,android
+sleep,,,,,,1500000,hold for the capture,android

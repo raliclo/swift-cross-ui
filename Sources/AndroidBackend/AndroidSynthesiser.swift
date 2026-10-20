@@ -124,6 +124,60 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 是否已看到 root 宿主不再移動;見 `currentWindowGeometry`。
     private var settled = false
 
+    /// The window a `focus` row named, by token; `nil` is the first window, where
+    /// every file starts. Since e71a8327 each later window is an activity of its
+    /// own, so a file that opens one has a second place to press -- and until
+    /// 2026-10-20 no way to get there: `focus` threw, and P81's `taplabel sheet`
+    /// pressed window A's button with window B in front.
+    /// `focus` 列所指名的視窗(以 token 記);`nil` 是第一個視窗，每個檔案都從那裡開始。自 e71a8327 起之後的每個視窗
+    /// 都是自己的 activity,所以開了第二個視窗的檔案有第二個地方可按——而 2026-10-20 之前沒有辦法過去:`focus`
+    /// 會 throw,P81 的 `taplabel sheet` 在 window B 位於前景時按到的是 window A 的按鈕。
+    private var focusedToken: String?
+
+    /// The focused window. Main thread only. / 目前聚焦的視窗。只能在主執行緒呼叫。
+    @MainActor private func targetWindow() -> AndroidBackend.Window? {
+        let token = focusedToken
+        return AndroidBackend.windows.first(where: { $0.window?.token == token })?.window
+    }
+
+    /// The focused window's activity. Main thread only. / 目前聚焦視窗的 activity。只能在主執行緒呼叫。
+    @MainActor private func targetActivity() -> Activity? {
+        guard let token = focusedToken else { return AndroidBackend.activity }
+        return AndroidBackendHelpers(environment: AndroidBackend.env).windowActivity(token)
+    }
+
+    /// Every later row goes to the open window with this exact title. A window
+    /// whose activity has not started yet is refused by name, as an unknown
+    /// title is, rather than pressed into the first window.
+    /// 之後的每一列都送到標題完全相同的已開啟視窗。activity 尚未啟動的視窗與未知標題一樣，會指名拒絕，
+    /// 而不是改按到第一個視窗。
+    func focusWindow(titled title: String) throws {
+        let found = Self.onMainThread { () -> (token: String?, error: String?) in
+            let open = AndroidBackend.windows.compactMap(\.window).filter { $0.isOpen || $0.token == nil }
+            guard let window = open.first(where: { $0.title == title }) else {
+                let titles = open.map { "'\($0.title)'" }.joined(separator: ", ")
+                return (nil, "no open window with that exact title; open titles are \(titles)")
+            }
+            if let token = window.token,
+                AndroidBackendHelpers(environment: AndroidBackend.env).windowActivity(token) == nil
+            {
+                return (nil, "the window is open but its activity has not started yet")
+            }
+            return (window.token, nil)
+        }
+        if let error = found.error {
+            throw SynthesiserError.unsupported("focus '\(title)': \(error)")
+        }
+        focusedToken = found.token
+        settled = false
+    }
+
+    /// Changes with `focus`, so the replay measures the new window's geometry.
+    /// 隨 `focus` 改變，讓重放重新量測新視窗的幾何。
+    func currentWindowIdentity() -> Int {
+        focusedToken.map { $0.hashValue | 1 } ?? 1
+    }
+
     /// Zero origin and the density as scale.
     ///
     /// An Android activity fills the screen and has no frame the app can be
@@ -151,8 +205,8 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         func read() -> [Int32] {
             Self.onMainThread { () -> [Int32] in
                 guard
-                    let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                    .window?.content
+                    let content = self.targetWindow()?
+                    .content
                 else { return [0, 0, 1] }
                 let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
                 let shift = helpers.rootScrollDisplacement(content)
@@ -204,18 +258,14 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     }
 
     func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
-        // `focus` first, and it throws here rather than doing nothing.
-        //
-        // **Android has one window**, so there is no second one to name, and the
-        // protocol's own default says so loudly. A silent no-op would leave
-        // every later coordinate resolving against the same window while the
-        // file claims to have switched -- the failure this verb was added to
+        // `focus` first. It switches every later row to the named window (see
+        // `focusedToken`), and throws when there is no such window: a silent no-op
+        // would leave every later coordinate resolving against the same window while
+        // the file claims to have switched -- the failure this verb was added to
         // remove.
-        // `focus` 先處理，而它在此處 throw、而不是什麼都不做。
-        //
-        // **Android 只有一個視窗**，因此沒有第二個可以指名，而本協定自己的預設實作會大聲說出這件事。
-        // 一個靜默的空操作，會讓其後每一個座標仍相對於同一個視窗解析，而那個檔案卻宣稱自己切換過了
-        // ——那正是這個動作被加進來所要消除的失敗。
+        // `focus` 先處理。它把之後每一列切到指名的視窗(見 `focusedToken`),沒有那個視窗時 throw:一個靜默的
+        // 空操作，會讓其後每一個座標仍相對於同一個視窗解析，而那個檔案卻宣稱自己切換過了——那正是這個動作被加進來
+        // 所要消除的失敗。
         if case .focus(let title) = action {
             try focusWindow(titled: title)
             return
@@ -392,8 +442,8 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let target = position
         let moved = Self.onMainThread { () -> [Int32] in
             guard
-                let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                .window?.content
+                let content = self.targetWindow()?
+                .content
             else { return [0, 0] }
             return AndroidBackendHelpers(environment: AndroidBackend.env)
                 .rootScrollReveal(content, Int32(target.x), Int32(target.y))
@@ -419,12 +469,11 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     private func reveal(label: String) throws -> (x: Double, y: Double) {
         let found = Self.onMainThread { () -> [Int32] in
             guard
-                let window = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
-                .window,
+                let window = self.targetWindow(),
                 let content = window.content
             else { return [] }
             let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
-            let centre = helpers.centreOfLabel(AndroidBackend.activity, label)
+            let centre = helpers.centreOfLabel(self.targetActivity(), label)
             guard centre.count == 2 else { return [] }
             let moved = helpers.rootScrollReveal(content, centre[0], centre[1])
             guard moved.count == 2 else { return centre }
@@ -481,7 +530,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let index = placeCount
         let record = aims[index]
         let answer = Self.onMainThread { () -> (described: String, resolved: [Int32]) in
-            guard let activity = AndroidBackend.activity else { return ("", []) }
+            guard let activity = self.targetActivity() else { return ("", []) }
             let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
             if let record { return ("", helpers.aimResolve(activity, record)) }
             let described = helpers.aimDescribe(activity, Int32(position.x), Int32(position.y))
@@ -631,7 +680,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         let name = Self.onMainThread { () -> String in
             guard
-                let activity = AndroidBackend.activity,
+                let activity = self.targetActivity(),
                 let decor = activity.getWindow()?.getDecorView(),
                 let motionClass = try? JavaClass<MotionEvent>(),
                 let deviceClass = try? JavaClass<InputDevice>(),
@@ -853,7 +902,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let metaState = heldModifiers
 
         let dispatched = Self.onMainThread {
-            guard let activity = AndroidBackend.activity else { return false }
+            guard let activity = self.targetActivity() else { return false }
             let event = AndroidKeyEvent(
                 now, // downTime
                 now, // eventTime
@@ -1204,7 +1253,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let source = sourceTouchscreen
 
         let dispatched = Self.onMainThread {
-            guard let activity = AndroidBackend.activity else { return false }
+            guard let activity = self.targetActivity() else { return false }
             let frontWindowHasFocus = !activity.hasWindowFocus()
 
             var properties: [MotionEvent.PointerProperties?] = []
@@ -1323,7 +1372,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let down = downTime ?? now
 
         let dispatched = Self.onMainThread {
-            guard let activity = AndroidBackend.activity else { return false }
+            guard let activity = self.targetActivity() else { return false }
 
             // A popup is a different window, and this dispatch cannot reach it.
             //
