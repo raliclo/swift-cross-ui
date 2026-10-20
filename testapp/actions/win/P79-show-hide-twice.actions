@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P79 on Windows (WinUI): show, hide, show, hide, refresh -- WinUIElementRepresentable's make and dismantle (P79 exercised only Android until 2026-10-20). Positions measured 2026-10-20 with test_support/measure/measure_win.zsh (DIPs at 125%): show/hide (103,214), refresh (171,214).
+# Pass: made 2, dismantled 2.
+# P79(Windows,WinUI):顯示、隱藏、顯示、隱藏、refresh。通過:made 2, dismantled 2。
+sleep,,,,,,1500000,let P79 lay out,windows
+click,103,214,frame,left,,,show,windows
+sleep,,,,,,600000,,windows
+click,103,214,frame,left,,,hide,windows
+sleep,,,,,,600000,,windows
+click,103,214,frame,left,,,show,windows
+sleep,,,,,,600000,,windows
+click,103,214,frame,left,,,hide,windows
+sleep,,,,,,800000,,windows
+click,171,214,frame,left,,,refresh -- must read made 2 and dismantled 2,windows
+sleep,,,,,,1500000,hold for the capture,windows

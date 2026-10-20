@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on Windows GtkBackend: the same steps. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): buttons y 254, append A 78, clear 259; open second window (111,296).
+# Pass: as the WinUI file.
+# P59(Windows GTK):步驟同上，通過條件同 WinUI 檔。
+sleep,,,,,,1500000,let P59 lay out,windows
+click,259,254,frame,left,,,clear,windows
+sleep,,,,,,400000,,windows
+click,78,254,frame,left,,,append A,windows
+sleep,,,,,,300000,,windows
+click,78,254,frame,left,,,again,windows
+sleep,,,,,,300000,,windows
+click,78,254,frame,left,,,and again,windows
+sleep,,,,,,500000,,windows
+click,111,296,frame,left,,,open the second window,windows
+sleep,,,,,,2000000,let the second window map,windows

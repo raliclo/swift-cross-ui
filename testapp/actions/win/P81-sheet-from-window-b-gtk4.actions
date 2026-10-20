@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P81 on Windows GtkBackend (TEST_BACKEND=gtk4): open window B, then ask for a sheet from it. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): window A open second window (163,163); window B has the same layout, sheet (116,206).
+# Pass: the sheet appears over window B and says sheet from window B.
+# P81(Windows GTK):開啟視窗 B,從 B 要一個 sheet。通過:sheet 出現在 B 上方並寫著 from window B。
+sleep,,,,,,2000000,let P81 lay out,windows,
+click,163,163,frame,left,,,open second window,windows,
+sleep,,,,,,3000000,let window B open,windows,
+focus,,,,,,,switch to window B,windows,P81 window B
+sleep,,,,,,600000,,windows,
+click,116,206,frame,left,,,sheet -- from window B,windows,
+sleep,,,,,,2500000,hold for the capture,windows,

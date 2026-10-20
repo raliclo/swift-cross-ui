@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27 on Windows (WinUI): wheel inside the WebView, as actions/mac/P27-scroll-the-webview.actions. Position measured 2026-10-20 with test_support/measure/measure_win.zsh: the web view spans y 516-676 DIPs, centre (387,596).
+# Pass: the page moves inside the view, and the title and the six gradients of P27 do not.
+# P27(Windows,WinUI):在 WebView 內捲動。通過：頁面在 view 內移動,P27 自己的標題與六個漸層不動。
+sleep,,,,,,3000000,let the page load,windows
+move,387,596,frame,,,,into the WebView,windows
+sleep,,,,,,500000,,windows
+scroll,0,4,,,,,the page moves inside the view,windows
+sleep,,,,,,1000000,,windows
+scroll,0,4,,,,,further -- the title and the gradients must not move,windows
+sleep,,,,,,1500000,hold for the capture,windows

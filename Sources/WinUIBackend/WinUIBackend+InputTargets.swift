@@ -1,3 +1,4 @@
+import DebugFeatures
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
@@ -352,9 +353,21 @@ extension WinUIBackend: BackendFeatures.PointerHover {
     public func createPointerHoverTarget(wrapping child: Widget) -> Widget {
         let target = featureTarget(wrapping: child)
         target.pointerMoved.addHandler { [weak target] _, args in
-            guard let target, let args, let action = target.onPointerHover,
-                let position = try? args.getCurrentPoint(target)?.position
-            else { return }
+            // Each way of reporting nothing says which one it was, under
+            // --debug: P88's first run on Windows (2026-10-20) moved over the
+            // panel and showed no report at all, with nothing to tell a move
+            // that never arrived from one that arrived and was dropped here.
+            // 每一種「什麼都不回報」的情況都在 --debug 下說明是哪一種:P88 第一次在 Windows 上跑
+            // (2026-10-20)指標移過面板卻沒有任何回報，而沒有東西能區分「移動根本沒到」與「到了卻在這裡被丟掉」。
+            guard let target, let args else { return }
+            guard let action = target.onPointerHover else {
+                DebugFeatures.log("WinUIBackend.PointerHover: a move arrived with no action set")
+                return
+            }
+            guard let position = try? args.getCurrentPoint(target)?.position else {
+                DebugFeatures.log("WinUIBackend.PointerHover: a move arrived without a position")
+                return
+            }
             action(
                 .active(
                     location: SIMD2(Double(position.x), Double(position.y)),

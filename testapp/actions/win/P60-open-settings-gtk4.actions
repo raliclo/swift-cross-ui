@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60 on Windows GtkBackend (TEST_BACKEND=gtk4): open the settings scene. Position measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): open settings (88,273).
+# Pass: a settings window opens, separate from the main window.
+# P60(Windows GTK):開啟設定 scene。通過：設定在獨立的視窗中開啟。
+sleep,,,,,,1500000,let P60 lay out,windows
+click,88,273,frame,left,,,open settings,windows
+sleep,,,,,,2500000,let the settings window open,windows

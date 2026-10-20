@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6-v2 on Windows GtkBackend (TEST_BACKEND=gtk4; P6-v2 is the GTK counterpart of P6): Sound, Frame drop, then the Speed and FPS drop-downs by keyboard, as actions/mac/P6-transport-toggles.actions. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): row y 278, Sound 89, Frame drop 181; drop-downs y 234, Speed 384, FPS 493.
+# Pass: the status reports Sound and Frame drop on, and the speed and rate changed from 1x and 30.
+# P6-v2(Windows GTK):Sound、Frame drop,再用鍵盤操作 Speed 與 FPS 下拉選單。通過條件見上方英文。
+sleep,,,,,,2000000,let P6-v2 lay out,windows
+click,89,278,frame,left,,,Sound,windows
+sleep,,,,,,800000,,windows
+click,181,278,frame,left,,,Frame drop,windows
+sleep,,,,,,800000,,windows
+click,384,234,frame,left,,,open the Speed drop-down,windows
+sleep,,,,,,1000000,,windows
+key,,,,,downArrow,,the next speed,windows
+key,,,,,return,,choose it,windows
+sleep,,,,,,1000000,,windows
+click,493,234,frame,left,,,open the FPS drop-down,windows
+sleep,,,,,,1000000,,windows
+key,,,,,downArrow,,the next rate,windows
+key,,,,,return,,choose it,windows
+sleep,,,,,,1500000,hold for the capture,windows

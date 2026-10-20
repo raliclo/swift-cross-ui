@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6 on Windows (WinUI): the steps of actions/mac/P6-transport-toggles.actions -- Sound, Frame drop, then the Speed and FPS pop-ups by keyboard. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh (DIPs at 125%): transport row y 750, Sound 798, Frame drop 879, Speed 384, FPS 502.
+# Pass: the status line reports Frame drop on, Sound the opposite of how it started (autoplay starts it on, so the click turns it off), and neither 1x nor 30 FPS any more.
+# P6(Windows,WinUI):步驟同 actions/mac 的同名檔；Sound、Frame drop,再用鍵盤操作 Speed 與 FPS 選單。通過條件見上方英文。
+sleep,,,,,,6000000,let P6 lay out -- after a 2 s wait every click seeked instead (2026-10-20: seeks at the x of each button on the slider; the transport row was not yet where it was measured); 6 s reaches the buttons,windows
+click,798,750,frame,left,,,Sound,windows
+sleep,,,,,,800000,,windows
+click,879,750,frame,left,,,Frame drop -- the status line must say Frame drop on,windows
+sleep,,,,,,800000,,windows
+click,384,749,frame,left,,,open the Speed pop-up,windows
+sleep,,,,,,1000000,,windows
+key,,,,,downArrow,,the next speed,windows
+key,,,,,return,,choose it -- the status line must stop saying 1x,windows
+sleep,,,,,,1000000,,windows
+click,502,749,frame,left,,,open the FPS pop-up,windows
+sleep,,,,,,1000000,,windows
+key,,,,,downArrow,,the next rate,windows
+key,,,,,return,,choose it -- the status line must stop saying 30 FPS,windows
+sleep,,,,,,1500000,hold for the capture,windows

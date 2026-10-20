@@ -2940,7 +2940,7 @@ public final class GtkBackend:
         )
     }
 
-    private static func runInMainThread(
+    static func runInMainThread(
         afterMilliseconds delay: Int,
         action: @escaping @MainActor () -> Void
     ) {
@@ -6368,12 +6368,22 @@ public final class GtkBackend:
         onChange: @escaping (Date) -> Void
     ) {
         let datePicker = datePicker as! DatePickerWidget
+        // The month names, field order and AM/PM come from the calendar's
+        // locale, and `environment.calendar` does not follow `\.locale`: P90 set
+        // zh_TW and the wheels still said August (WSL and Windows GTK,
+        // 2026-10-20). A changed locale makes the calendar differ, which
+        // `update` already answers by rebuilding the contents.
+        // 月份名稱、欄位順序與上午/下午取自 calendar 的 locale,而 `environment.calendar` 不會跟著
+        // `\.locale` 變:P90 設了 zh_TW,滾輪仍寫 August(WSL 與 Windows GTK,2026-10-20)。locale
+        // 改變會讓 calendar 不同,而 `update` 本來就會因此重建內容。
+        var displayCalendar = environment.calendar
+        displayCalendar.locale = environment.locale
         datePicker.update(
             date: date,
             range: range,
             style: environment.backendDatePickerStyle,
             components: components,
-            displayCalendar: environment.calendar,
+            displayCalendar: displayCalendar,
             timeZone: environment.timeZone,
             isEnabled: environment.isEnabled,
             onChange: onChange
@@ -7455,7 +7465,14 @@ final class DatePickerWidget: Box {
         return Contents(
             presentation: components.contains(.date) ? presentation : nil,
             time: time,
-            calendar: time == nil ? nil : calendar
+            // The wheel names its months from the calendar too, so it needs it as
+            // much as the time row does. It used to be left out, and P90's
+            // date-only wheel kept English months after zh_TW (Windows GTK,
+            // 2026-10-20) because a nil here never differs and never rebuilds.
+            // 滾輪的月份名稱同樣取自 calendar,所以它和時間列一樣需要它。以前沒有帶，P90 只有日期的
+            // 滾輪在 zh_TW 之後仍是英文月份(Windows GTK,2026-10-20):這裡的 nil 永遠不會不同，也就永遠不會重建。
+            calendar: time != nil || (components.contains(.date) && presentation == .wheel)
+                ? calendar : nil
         )
     }
 

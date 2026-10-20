@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Windows (WinUI): reveal p75-reveal.txt -- actions/mac/P75-reveal-a-file.actions. Position measured 2026-10-20 with test_support/measure/measure_win.zsh: Reveal a file (250,155) DIPs.
+# Pass: an Explorer window opens on the temporary folder with p75-reveal.txt selected, and the row under the button stops saying not pressed. Close that Explorer window afterwards.
+# P75(Windows,WinUI):顯示 p75-reveal.txt。通過：檔案總管開在暫存資料夾並選取該檔，按鈕下一列不再是 not pressed。之後請關閉該檔案總管視窗。
+sleep,,,,,,1500000,let P75 render,windows
+click,250,155,frame,left,,,Reveal a file,windows
+sleep,,,,,,3000000,let Explorer come forward,windows

@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P112 on Windows: RadialGradient radii in points; nothing to press. Pass: as the header of P112.swift -- every red disc 40 pt across and centred; test_support/test_P112.zsh.
+# P112(Windows):不需按任何東西。通過條件見 P112.swift 標頭。
+sleep,,,,,,5000000,hold for the capture,windows

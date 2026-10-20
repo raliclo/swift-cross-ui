@@ -1929,6 +1929,20 @@
             GetWindowThreadProcessId(target, &targetProcess)
             guard targetProcess != GetCurrentProcessId() else { return }
 
+            // A child window hosted inside one of ours is still ours to click, even
+            // when another process owns it: WebView2 under GtkBackend parents
+            // msedgewebview2.exe's Chrome_RenderWidgetHostHWND into our top-level
+            // window, and P27 on Windows GTK stopped here on 2026-10-20. The root
+            // ancestor decides; a separate browser window has its own root.
+            // 嵌在我們視窗內的子視窗即使屬於別的行程，也仍是要點的目標:GtkBackend 下的 WebView2 把
+            // msedgewebview2.exe 的 Chrome_RenderWidgetHostHWND 掛進我們的頂層視窗,P27 在 Windows GTK
+            // 上於 2026-10-20 就停在這裡。以根祖先視窗判定；獨立的瀏覽器視窗有它自己的根。
+            if let root = GetAncestor(target, UINT(GA_ROOT)) {
+                var rootProcess: DWORD = 0
+                GetWindowThreadProcessId(root, &rootProcess)
+                if rootProcess == GetCurrentProcessId() { return }
+            }
+
             throw SynthesiserError.unsupported(
                 "the point \(point.origin.rawValue)=(\(point.x), \(point.y)) -> screen "
                     + "(\(screen.x), \(screen.y)) is covered by another application: "
@@ -2151,6 +2165,27 @@
             }
             var input = INPUT()
             input.type = DWORD(INPUT_KEYBOARD)
+
+            // A Win key released with nothing pressed in between opens the Start
+            // menu, which takes the foreground from the app under test -- and on
+            // Windows `.command` IS the Win key, so P88's "hold Command" step would
+            // end on the Start menu. An unassigned virtual key (0xE8) tapped before
+            // the release counts as "something pressed" and nothing else sees it;
+            // AutoHotkey masks the same way.
+            // 在按下與放開之間沒有其他按鍵的 Win 鍵，放開時會打開開始功能表，搶走受測 app 的前景——而 Windows 上
+            // `.command` 就是 Win 鍵，因此 P88「按住 Command」的步驟會停在開始功能表上。在放開前輕按一個未指派的
+            // 虛擬鍵(0xE8)就算是「中間按過別的鍵」,而沒有任何東西會看到它;AutoHotkey 也以同樣方式遮罩。
+            if up, code == VK_LWIN || code == VK_RWIN {
+                let mask: WORD = 0xE8
+                for maskUp in [false, true] {
+                    var tap = INPUT()
+                    tap.type = DWORD(INPUT_KEYBOARD)
+                    tap.ki.wVk = mask
+                    tap.ki.dwFlags = maskUp ? DWORD(KEYEVENTF_KEYUP) : 0
+                    try dispatch(&tap)
+                }
+            }
+
             input.ki.wVk = WORD(code)
 
             // The scan code is filled in because a keyboard message should carry

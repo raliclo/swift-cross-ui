@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15-DARK on Windows (WinUI): press the button inside a window whose scheme is overridden to dark. Position measured 2026-10-20 with test_support/measure/measure_win.zsh: A button (287,167) DIPs.
+# Pass: the label reads A button (1) and Resolved still says dark.
+# P15-DARK(Windows,WinUI):在被覆寫為深色的視窗裡按下按鈕。通過：標籤變成 A button (1),Resolved 仍是 dark。
+sleep,,,,,,1500000,let P15-DARK lay out,windows
+click,287,167,frame,left,,,A button -- must read A button (1),windows
+sleep,,,,,,1500000,hold for the capture,windows

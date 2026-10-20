@@ -1058,6 +1058,40 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ---
 
+## WinUIBackend gaps / WinUIBackend 的缺口
+
+Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.csv2 of that date).
+2026-10-20 由新的 actions/win 動作檔發現(結果列見 matrix_coverage/results.csv2 同日)。
+
+- [ ] **zh_TW does not reach DatePicker / TimePicker.** P90: heading zh_TW, pickers still read
+  August 24 2025 / 9 46 AM. Tried and reverted: `FrameworkElement.Language` set to `zh-TW` on the
+  controls, both on the live controls and on fresh ones before they load (rebuilt on a locale
+  change) -- no visible change either way. WinUI's pickers appear to format from the app's
+  languages, not the element's. Next: `MonthFormat`/`DayFormat`/`YearFormat` patterns and
+  `ClockIdentifier`, or drawing the wheels ourselves as GtkBackend does.
+  zh_TW 傳不到 DatePicker/TimePicker。試過並已還原：在控制項上設 `FrameworkElement.Language`(已上畫面的、
+  以及載入前新建的都試過)皆無變化。下一步：格式字串與 ClockIdentifier,或像 GtkBackend 一樣自己畫滾輪。
+- [ ] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
+  yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
+  `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,
+  although the same Canvas-with-transparent-background shape works for `onHover`'s
+  PointerEntered. First run of this code on Windows (it was written on macOS 2026-10-10).
+  onContinuousHover 完全沒有回報。--debug 下 handler 的診斷什麼都沒記，所以 `PointerMoved` 根本沒到 hover target。
+- [ ] **A sheet asked for from window B does not appear.** P81: window B opens, the click on its
+  sheet button lands in window B (Win32Synthesiser hitRoot), no sheet over B or A in a desktop
+  capture during the hold. Same on Windows GTK. The WinUI desktop capture was mistimed; redo it.
+  從視窗 B 要求的 sheet 沒出現(WinUI 與 Windows GTK 皆然)。WinUI 的桌面擷取時機不對，要重拍。
+- [ ] **Edit menu items chosen by mouse do nothing.** P92 with SCUI_P92_MENU=1 and
+  actions/win/P92-edit-menu.actions: 66 rows replayed, last command none, field still hello.
+  Whether the menu opened at all is not in the final capture.
+  以滑鼠選 Edit 選單項目沒有作用(P92);選單是否有打開，最終擷取看不出來。
+- [ ] **P60's settings window is not in evidence.** The main window loses the foreground after open
+  settings on both backends, but test.zsh captures the main window only. Capture by title
+  (`screenshot.zsh -w`) during the hold.
+  P60 的設定視窗沒有證據：主視窗失去前景，但只擷取了主視窗。改以標題擷取。
+
+---
+
 ## GtkBackend gaps / GtkBackend 的缺口
 
 - [ ] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
@@ -1075,9 +1109,16 @@ gave -38,-59 at one and 154,-6 at the other.
   0x4 -- so the loss is between X and `gtk_event_controller_get_current_event_state` in
   GtkBackend+PointerHover.swift. / WSL 上懸停時按住 Super 不會回報。X 伺服器有帶 Mod4(xev 實測 state 0x40),
   所以遺失發生在 X 與 GtkBackend+PointerHover.swift 的 `gtk_event_controller_get_current_event_state` 之間。
-- [ ] **zh_TW wheels write months in English on GTK.** P90 on WSLg 2026-10-20: the order is right (year,
+- [x] **zh_TW wheels write months in English on GTK.** P90 on WSLg 2026-10-20: the order is right (year,
   month, day) but the month column reads August where zh_TW writes 8月. The wheel names its months from
   something other than the locale it was given. / GTK 的 zh_TW 滾輪月份是英文(August 而非 8月),順序正確。
+  **Done 2026-10-20 (Windows GTK):** two causes. `updateDatePicker` passed `environment.calendar`,
+  whose locale does not follow `\.locale`; it now sets it. And the date-only wheel's `Contents`
+  carried no calendar at all, so a locale change never differed and never rebuilt it -- it does
+  now. A rebuilt wheel then sat at 1925, because it had no row heights to scroll by; `DateWheel`
+  re-applies the date until it has. P90 on Windows GTK now reads 2025 / 8月 / 24 and 上午 in both
+  wheels. WSL not yet re-run. / 已完成(Windows GTK):calendar 的 locale 沒有跟著 `\.locale`,只有日期的滾輪
+  的 Contents 不帶 calendar 所以不會重建；重建後的滾輪還沒列高而停在 1925,現在會重試捲動。WSL 尚未重跑。
 - [x] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing

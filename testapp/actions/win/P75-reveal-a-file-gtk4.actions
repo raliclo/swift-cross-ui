@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Windows GtkBackend: the same press. Position measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): Reveal a file (263,168).
+# Pass: as the WinUI file.
+# P75(Windows GTK):同上。
+sleep,,,,,,1500000,let P75 render,windows
+click,263,168,frame,left,,,Reveal a file,windows
+sleep,,,,,,3000000,let Explorer come forward,windows

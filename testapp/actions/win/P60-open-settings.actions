@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60 on Windows (WinUI): open the settings scene -- the first step of actions/mac/P60-open-settings.actions. Position measured 2026-10-20 with test_support/measure/measure_win.zsh (DIPs at 125%): open settings (74,253).
+# Pass: a settings window opens, separate from the main window (P60: "settings opens in its own window").
+# P60(Windows,WinUI):開啟設定 scene。通過：設定在獨立的視窗中開啟。
+sleep,,,,,,1500000,let P60 lay out,windows
+click,74,253,frame,left,,,open settings,windows
+sleep,,,,,,2500000,let the settings window open,windows

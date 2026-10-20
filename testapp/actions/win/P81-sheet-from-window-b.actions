@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P81 on Windows (WinUI): open window B, then ask for a sheet from it. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh (DIPs at 125%): window A open second window (150,153); window B has the same layout, sheet (105,191). The focus row makes window B the frame of reference.
+# Pass: the sheet appears over window B and says sheet from window B -- over window A it is the defect P81 exists for.
+# P81(Windows,WinUI):開啟視窗 B,從 B 要一個 sheet。通過:sheet 出現在 B 上方並寫著 from window B。
+sleep,,,,,,2000000,let P81 lay out,windows,
+click,150,153,frame,left,,,open second window,windows,
+sleep,,,,,,3000000,let window B open,windows,
+focus,,,,,,,switch to window B,windows,P81 window B
+sleep,,,,,,600000,,windows,
+click,105,191,frame,left,,,sheet -- from window B,windows,
+sleep,,,,,,2500000,hold for the capture,windows,

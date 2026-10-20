@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on Windows (WinUI): clear, append A three times, then open the second window -- actions/mac/P59-two-windows-one-typed.actions. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh: buttons y 238, append A 66, clear 230; open second window (99,274) DIPs.
+# Pass: window A reads AAA in both rows; the second window has an empty scene draft and AAA as the app draft.
+# P59(Windows,WinUI):先 clear,再 append A 三次，然後開第二個視窗。通過：視窗 A 兩列都是 AAA;第二個視窗 scene 為空、app 為 AAA。
+sleep,,,,,,1500000,let P59 lay out,windows
+click,230,238,frame,left,,,clear -- both drafts persist between runs,windows
+sleep,,,,,,400000,,windows
+click,66,238,frame,left,,,append A,windows
+sleep,,,,,,300000,,windows
+click,66,238,frame,left,,,again,windows
+sleep,,,,,,300000,,windows
+click,66,238,frame,left,,,and again -- three appends into window A,windows
+sleep,,,,,,500000,,windows
+click,99,274,frame,left,,,open the second window,windows
+sleep,,,,,,2000000,let the second window map and read its own storage,windows

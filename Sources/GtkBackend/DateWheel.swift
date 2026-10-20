@@ -167,6 +167,42 @@ final class DateWheel: Box {
             in: monthColumn, scroller: monthScroller, of: calendar.monthSymbols.count
         )
         select(day - 1, in: dayColumn, scroller: dayScroller, of: dayCount)
+
+        // A wheel built while the app runs -- a locale change rebuilds it --
+        // has no row heights yet, so `select` chose the rows but could not
+        // scroll to them, and nothing lays out and applies again by itself: P90
+        // showed 1925 at the top of a fresh zh_TW wheel bound to 2025 (Windows
+        // GTK, 2026-10-20). Try again shortly, a bounded number of times, with
+        // the latest date rather than this one.
+        // 執行中建立的滾輪(locale 改變會重建它)還沒有列高，所以 `select` 選了列卻捲不過去，而之後也
+        // 不會自己再排版、再套用一次:P90 綁定 2025 的新 zh_TW 滾輪頂端停在 1925(Windows GTK,
+        // 2026-10-20)。稍後再試，次數有上限，而且用最新的日期而非這一次的。
+        latestDate = date
+        if hasRowHeights {
+            layoutRetries = 0
+        } else if layoutRetries < 20 {
+            layoutRetries += 1
+            // A wheel only ever runs on the main thread, as every GTK widget does.
+            // 滾輪和每個 GTK widget 一樣，只會在主執行緒上執行。
+            nonisolated(unsafe) let wheel = self
+            MainActor.assumeIsolated {
+                GtkBackend.runInMainThread(afterMilliseconds: 50) {
+                    guard let latestDate = wheel.latestDate else { return }
+                    wheel.apply(latestDate)
+                }
+            }
+        }
+    }
+
+    private var latestDate: Date?
+    private var layoutRetries = 0
+
+    private var hasRowHeights: Bool {
+        guard
+            let scroller = monthScroller,
+            let adjustment = gtk_scrolled_window_get_vadjustment(scroller.opaquePointer)
+        else { return false }
+        return gtk_adjustment_get_upper(adjustment) > 0
     }
 
     /// Selects a row and scrolls it to the middle of its column.

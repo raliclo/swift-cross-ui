@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P90 on Windows GtkBackend: zh_TW; GTK draws the wheels inline. Position measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): zh_TW (361,333).
+# Pass: the heading says zh_TW, and the date wheels read year, month, day.
+# P90(Windows GTK):選 zh_TW,GTK 的滾輪直接畫在視窗內。通過：標題為 zh_TW,日期滾輪為年、月、日。
+sleep,,,,,,1500000,let P90 lay out,windows
+click,361,333,frame,left,,,zh_TW,windows
+sleep,,,,,,2000000,hold for the capture,windows

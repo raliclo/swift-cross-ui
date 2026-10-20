@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38 on Windows (WinUI): wheel to the bottom of example.com, click its only link, then wheel inside the frame on the page it opens -- actions/mac/P38-scroll-the-web-view.actions. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh: the page spans x 38-798, y 240-660 DIPs; the link Learn more sits at y 895 in the unscrolled page, below the frame, and at (402,617) once the page is wheeled to its end (read from the capture of the first run).
+# The first version focused the page with a click at y 260 and pressed Tab, Return: Navigations stayed 2 on WinUI and on WSL, because the click sat on the frame edge and Tab never reached the page. Clicking the link itself has no such dependency.
+# Pass: Navigations reported goes from 2 (about:blank, example.com) to 3 with the IANA page in the frame, scrolled away from its top.
+# P38(Windows,WinUI):捲到 example.com 底部、點它唯一的連結，再於新頁面上捲動。舊版以點擊加 Tab、Return 失敗(Navigations 停在 2)。通過:Navigations reported 由 2 變 3,框內是捲動過的 IANA 頁面。
+sleep,,,,,,3000000,let example.com load,windows
+move,418,450,frame,,,,into the framed page,windows
+sleep,,,,,,500000,,windows
+scroll,0,15,,,,,to the end of the page -- Learn more comes into view,windows
+sleep,,,,,,1200000,,windows
+click,402,617,frame,left,,,Learn more -- Navigations reported must become 3,windows
+sleep,,,,,,4000000,let the navigation finish,windows
+move,418,450,frame,,,,into the framed page,windows
+sleep,,,,,,500000,,windows
+scroll,0,5,,,,,the new page moves,windows
+sleep,,,,,,1000000,,windows
+scroll,0,5,,,,,further,windows
+sleep,,,,,,1500000,hold for the capture,windows
