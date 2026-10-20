@@ -2,9 +2,9 @@ action,x,y,origin,button,key,micros,note,platform
 # P103 on AppKit, part 2: choose in the long-press picker, Add, delete, the 📍 pin, the inline picker and a typed value.
 # Positions from the AppKit window on 2026-10-17 (480x848 pt; origin=frame, 28 pt title bar): 便利商店's emoji 43,286;
 # in its sheet the filter field 184,351 (the sheet is key, so the replay measures from it); field 110,365, Add 236,365; 加油站's ✕ 258,330; pin 265,166;
-# inline picker's ⛽ cell 186,522 and its filter field 200,810. A CELL in the sheet is not clicked: this synthesiser's posted clicks do not
-# reach a gesture recognizer inside a sheet window (the ✕ Button there does work), while a real HID click on the ⛽ cell does --
-# measure/real_click.swift, 2026-10-17: ROW 便利商店 emoji ⛽. Pass (p103-emoji.log): ROW 便利商店 picker; ROW 便利商店 emoji gas;
+# inline picker's ⛽ cell 186,522 and its filter field 200,810; the sheet's ⛽ cell 133,62 from the sheet's frame (2026-10-20). Until 2026-10-20 a cell in
+# the sheet could not be clicked: the long press's mouseup went to the sheet it had opened, not to the main window, so its press
+# recogniser never ended (AppKitSynthesiser now releases where it pressed). Pass (p103-emoji.log): ROW 便利商店 picker; ROW 便利商店 emoji ⛽;
 # ROW added bank #8e24aa; ROW removed 加油站; PIN closed; PIN open; PICKER chose ⛽; PICKER chose bank (typed, no name matches).
 # P103 在 AppKit 上第二部分：在長按選擇器中選擇、新增、刪除、📍 釘選鈕、內嵌選擇器與輸入的值。通過條件見上方英文。
 sleep,,,,,,1500000,let P103 lay out,macos
@@ -12,9 +12,7 @@ mousedown,43,286,frame,left,,,便利商店: press,macos
 sleep,,,,,,900000,held 0.9 s -- the picker opens,macos
 mouseup,43,286,frame,left,,,let go,macos
 sleep,,,,,,1200000,,macos
-click,387,23,frame,left,,,the sheet's ✕ (the sheet is key and the replay measures from it). Twice: a click posted into a sheet just after it opens was lost in two runs,macos
-sleep,,,,,,500000,,macos
-click,387,23,frame,left,,,again -- if the sheet already closed this lands in the main window's title bar,macos
+click,133,62,frame,left,,,in the sheet: ⛽ (the sheet is key and the replay measures from it) -- chosen and the sheet closes,macos
 sleep,,,,,,1200000,,macos
 click,110,365,frame,left,,,the new keyword field,macos
 sleep,,,,,,300000,,macos

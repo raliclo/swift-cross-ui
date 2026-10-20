@@ -130,6 +130,17 @@
         /// mousedown / move / mouseup 之後仍顯示「drag: (none yet)」——而 P11 的滑桿照樣能動,
         /// 因為 NSSlider 跑的是它自己的追蹤迴圈。
         private var heldButton: MouseButton?
+        /// The window a `mousedown` went to, and the geometry its point was read in.
+        /// The release and the moves while held go there too, as a real button's do:
+        /// AppKit sends a mouse-up to the window that had the mouse-down. Re-aiming
+        /// them at whatever window is key now left a long press that opens a sheet
+        /// with its release in the sheet, its press recogniser never ended, and every
+        /// gesture recogniser in the sheet deaf after it (P103, 2026-10-20).
+        /// `mousedown` 送往的視窗，以及讀取其座標時的幾何。放開與按住期間的移動也送到那裡，與真實按鍵相同:AppKit 把
+        /// mouse-up 送給收到 mouse-down 的視窗。改送給此刻是 key 的視窗，會讓一個打開 sheet 的長按把放開送進 sheet,
+        /// 它的按壓辨識器從未結束，sheet 裡之後的每個手勢辨識器都收不到事件(P103,2026-10-20)。
+        private weak var pressedWindow: NSWindow?
+        private var pressedGeometry: WindowGeometry?
 
         public init() {}
 
@@ -655,8 +666,16 @@
                 // 這正是 `origin=popover` 在此處過去僅限 Windows 的原因:座標算得出來，而那次點擊接著被
                 // 投遞給了 popover **後方**的視窗——那會把它 light-dismiss 掉。從外部看，「一個被關掉的
                 // popover」與「一次沒打中的點擊」是同一張圖:兩種情況下它都不見了。
+                let followsPress: Bool
+                switch action {
+                    case .mouseUp, .move: followsPress = self.heldButton != nil && self.pressedWindow?.isVisible == true
+                    default: followsPress = false
+                }
+                let geometry = followsPress ? (self.pressedGeometry ?? geometry) : geometry
                 let window: NSWindow
-                if action.point?.origin == .popover {
+                if followsPress, let pressed = self.pressedWindow {
+                    window = pressed
+                } else if action.point?.origin == .popover {
                     guard let popover = Self.popoverWindow(ownedBy: mainWindow) else {
                         throw SynthesiserError.unsupported(
                             "origin=popover, but no popover is open on this window; \(Self.windowCensus())"
@@ -967,6 +986,8 @@
 
                     case .mouseDown(let button, let point):
                         self.heldButton = button
+                        self.pressedWindow = window
+                        self.pressedGeometry = geometry
                         try self.postMouse(
                             Self.downType(button),
                             button,
@@ -977,6 +998,10 @@
 
                     case .mouseUp(let button, let point):
                         self.heldButton = nil
+                        defer {
+                            self.pressedWindow = nil
+                            self.pressedGeometry = nil
+                        }
                         try self.postMouse(
                             Self.upType(button),
                             button,
