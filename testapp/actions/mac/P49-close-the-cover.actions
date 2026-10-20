@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49: close the full-screen cover from its own Close button, and count the dismissal.
+#
+# Close sets coverShown = false: the programmatic path. SwiftUI runs sheet(onDismiss:) -- and
+# fullScreenCover(onDismiss:), built on it -- however the presentation ended, so the main view must
+# read "cover opens: 1, dismissals: 1" afterwards and p49-debug-events.log must hold
+# "cover dismissed, dismissals=1". Until 2026-10-20 AppKit ran onDismiss only on Escape (todo.md, "Six
+# divergences", item 1), so this read dismissals: 0.
+#
+# The cover takes no Escape (interactiveDismissDisabled, as a SwiftUI cover takes no swipe), so the
+# user's path is tried on the comparison sheet: closed by its Close, then by Escape, each must add one
+# to "sheet dismissals" -- two in all, not three.
+#
+# origin=frame, window 780 x 648, scale 1 (p49-macos-final-20261020-225609.png for the cover).
+#
+# P49:用 cover 自己的 Close 關閉它，並計算關閉次數。Close 把 coverShown 設為 false,也就是程式關閉;SwiftUI 不論怎麼結束都執行
+# onDismiss,所以之後主畫面必須是「cover opens: 1, dismissals: 1」。2026-10-20 之前 AppKit 只在 Escape 時執行，這裡讀到 0。
+sleep,,,,,,1500000,let P49 render,macos
+click,80,298,frame,left,,,"Show the cover -- cover opens 0 -> 1",macos
+sleep,,,,,,1500000,let the cover animate in,macos
+# The replay re-pins to the cover once it opens: the cover is a sheet window whose frame starts at the content, 28 pt below the main window's title bar, so Close at (221,371) in the capture is (221,343) here. / cover 打開後重播改以它為準，它的 frame 從內容開始，所以截圖上的 (221,371) 在這裡是 (221,343)。
+click,221,343,frame,left,,,"the cover's Close -- coverShown = false; the main view must read cover opens: 1, dismissals: 1",macos
+sleep,,,,,,1500000,let it animate out,macos
+click,80,420,frame,left,,,"Show the sheet -- the comparison sheet, which counts its own dismissals",macos
+sleep,,,,,,1500000,let the sheet animate in,macos
+taplabel,,,,,Close,,"the sheet's Close -- sheetShown = false: sheet dismissals 0 -> 1",macos
+sleep,,,,,,1500000,let it animate out,macos
+click,80,420,frame,left,,,"Show the sheet again",macos
+sleep,,,,,,1500000,let the sheet animate in,macos
+key,,,,,escape,,"Escape closes it the user's way -- onDismiss once, not twice: sheet dismissals 1 -> 2",macos
+sleep,,,,,,1500000,"let it animate out; the main view must read cover opens: 1, dismissals: 1 and sheet dismissals: 2",macos

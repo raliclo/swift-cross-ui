@@ -2498,12 +2498,32 @@ public final class GtkBackend:
                         }
                         return nil
                     }
-                    guard let found = find(root) else { return }
+                    // The active toplevel, as AppKit's locator takes the key window: a
+                    // sheet or cover is a window of its own, and searching the first
+                    // window only failed `taplabel Close` on P49's cover (2026-10-20).
+                    // 作用中的頂層視窗，如同 AppKit 的定位器取 key window:sheet 或 cover 是自己的視窗，只搜第一個視窗會讓 P49
+                    // cover 上的 `taplabel Close` 失敗(2026-10-20)。
+                    var target = root
+                    if let list = gtk_window_list_toplevels() {
+                        var node: UnsafeMutablePointer<GList>? = list
+                        while let current = node {
+                            if let data = current.pointee.data {
+                                let candidate = data.assumingMemoryBound(to: GtkWindow.self)
+                                let widget = data.assumingMemoryBound(to: GtkWidget.self)
+                                if gtk_window_is_active(candidate) != 0, gtk_widget_get_mapped(widget) != 0 {
+                                    target = widget
+                                }
+                            }
+                            node = current.pointee.next
+                        }
+                        g_list_free(list)
+                    }
+                    guard let found = find(target) else { return }
                     var bounds = graphene_rect_t()
-                    guard gtk_widget_compute_bounds(found, root, &bounds) != 0 else { return }
+                    guard gtk_widget_compute_bounds(found, target, &bounds) != 0 else { return }
                     var offsetX = 0.0
                     var offsetY = 0.0
-                    gtk_native_get_surface_transform(OpaquePointer(root), &offsetX, &offsetY)
+                    gtk_native_get_surface_transform(OpaquePointer(target), &offsetX, &offsetY)
                     place = (
                         x: Double(bounds.origin.x + bounds.size.width / 2) + offsetX,
                         y: Double(bounds.origin.y + bounds.size.height / 2) + offsetY

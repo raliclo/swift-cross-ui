@@ -911,6 +911,11 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 Int32(0), // repeatCount
                 metaState
             )
+            // A focused sheet takes the key, as from a keyboard; Escape there cancels it.
+            // 有焦點的 sheet 接收按鍵，與實體鍵盤相同;在那裡按 Escape 會取消它。
+            if let frontWindows = try? JavaClass<FrontWindows>(), frontWindows.dispatchKey(event) {
+                return true
+            }
             let handled = activity.dispatchKeyEvent(event)
             // An unhandled key with Control held is offered as a shortcut, as the view
             // root does (`ViewRootImpl`, after the hierarchy turned the key down): that
@@ -1544,6 +1549,11 @@ extension JavaClass<FrontWindows> {
     /// 把以 activity 視窗座標表示的觸控交給有焦點的 sheet 或 popover;activity 自己的視窗有焦點時回傳 false。
     @JavaStaticMethod
     func dispatch(_ activity: Activity?, _ event: MotionEvent?) -> Bool
+
+    /// Delivers a key to the focused sheet or popover; false when the activity's own window has focus.
+    /// 把按鍵交給有焦點的 sheet 或 popover;activity 自己的視窗有焦點時回傳 false。
+    @JavaStaticMethod
+    fileprivate func dispatchKey(_ event: AndroidKeyEvent?) -> Bool
 }
 
 extension Activity {

@@ -1,6 +1,7 @@
 package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import java.lang.ref.WeakReference
@@ -65,6 +66,19 @@ object FrontWindows {
         )
         root.dispatchTouchEvent(copy)
         copy.recycle()
+        return true
+    }
+
+    /**
+     * Delivers a key to the focused front window, as a keyboard does: Escape
+     * or Back then reaches the sheet's dialog, which cancels it. Returns false
+     * when the activity's own window has focus. Without it every key went to
+     * the activity and Escape left P49's sheet open (2026-10-20).
+     */
+    @JvmStatic
+    fun dispatchKey(event: KeyEvent): Boolean {
+        val root = focused() ?: return false
+        root.dispatchKeyEvent(event)
         return true
     }
 }

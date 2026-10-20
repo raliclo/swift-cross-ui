@@ -183,9 +183,24 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
         super.onStop()
     }
 
-    override fun onCancel(dialog: DialogInterface) {
+    /// Set once the listener has run, so a dismissal is reported once.
+    /// 監聽器執行過後設定，讓一次關閉只回報一次。
+    private var dismissReported = false
+
+    // onDismiss, not onCancel: a cancel (back, a tap outside, a swipe) ends in
+    // onDismiss too, and so does dismiss() -- the programmatic path
+    // (`isPresented = false`), which onCancel never saw, so SwiftUI's
+    // `sheet(onDismiss:)` did not run for it (todo.md, "Six divergences",
+    // item 1; 2026-10-20). A configuration change dismisses the dialog to
+    // rebuild it; that is not the sheet ending.
+    // 用 onDismiss 而非 onCancel:取消(返回、點外面、滑掉)最後也會走到 onDismiss,dismiss()——程式關閉
+    // (`isPresented = false`)——也是;onCancel 從來看不到後者，所以 SwiftUI 的 `sheet(onDismiss:)` 沒有為它執行
+    // (todo.md「六項分歧」第 1 項;2026-10-20)。設定變更會為了重建而關閉 dialog,那不是 sheet 結束。
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        if (activity?.isChangingConfigurations == true || dismissReported) return
+        dismissReported = true
         onDismissListener?.call()
-        super.onCancel(dialog)
     }
 
     override fun onDestroyView() {

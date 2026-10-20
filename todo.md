@@ -2528,9 +2528,11 @@ they are grouped as one job rather than filed as six unrelated defects.
    is in both sets -- named flag *and* nested call -- so "flagless" is not the
    line that divides them; UIKit and Android simply have no nested sheets
    (`grep -rc nestedSheet Sources/UIKitBackend Sources/AndroidBackend` -> 0).
+   **Done on all five 2026-10-20.** GTK and WinUI in c1138e51 (2026-09-08); AppKit (`dismissSheet` runs the sheet's own onDismiss once after `endSheet`), UIKit (the flag removed; it runs once when the sheet is really being dismissed) and Android (`onDismiss` overridden instead of `onCancel`, configuration changes excluded) today. Measured with `*/P49-close-the-cover.actions` on AppKit, UIKit, Android and GTK (macOS): cover 1/1 and sheet dismissals 2 (Close once, Escape or a swipe once). Before: AppKit cover 0; UIKit cover 0 and sheet 1; Android no cover dismissal. Kept below as the record.
 2. **`.navigationTitle` renders nothing on UIKit and Android.** It writes the OS
    window title; those two have no visible one. An iOS app loses every screen
    title, silently. Verified working on Win-gtk4 (`gtk4-P50-20260908-082937.png`).
+   **Done:** 5798e1fa (2026-09-09) draws `.navigationTitle` on iOS and Android (the table above says done too). Kept below as the record.
 3. ~~**`@Environment(Model.self)` compiles but never redraws.**~~ **Fixed here,
    2026-09-08, run on Win-gtk4.** It was only a `DynamicProperty` -- it read, it
    did not observe -- so it rendered once with correct data and stayed stale
@@ -2648,9 +2650,11 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
    注意 WinUI 同時屬於兩個集合——既有具名旗標，也有巢狀呼叫——所以劃分兩者的界線並不是「有沒有
    旗標」；UIKit 與 Android 則單純沒有巢狀 sheet
    （`grep -rc nestedSheet Sources/UIKitBackend Sources/AndroidBackend` → 0）。
+   **2026-10-20 五個都完成。** GTK 與 WinUI 於 c1138e51(2026-09-08);AppKit(`dismissSheet` 在 `endSheet` 後執行該 sheet 自己的 onDismiss 一次)、UIKit(拿掉旗標，在 sheet 真的被關閉時執行一次)與 Android(改覆寫 `onDismiss`,排除設定變更)於本日。P49 的 `*/P49-close-the-cover.actions` 在四個 backend 上實測:cover 1/1、sheet 計數 2(Close 一次、Escape 或滑掉一次);修改前 AppKit cover 為 0,UIKit cover 0、sheet 1,Android cover 不計。以下保留為紀錄。
 2. **`.navigationTitle` 在 UIKit 與 Android 上什麼都不畫。** 它寫的是 OS 視窗標題，而那兩個平台
    沒有可見的標題列。一支 iOS app 會靜默地失去每一頁的標題。已在 Win-gtk4 上驗證可運作
    （`gtk4-P50-20260908-082937.png`）。
+   **已完成**:5798e1fa(2026-09-09)把 `.navigationTitle` 畫在 iOS 與 Android 上(上方表格亦記為 done)。以下保留為紀錄。
 3. ~~**`@Environment(Model.self)` 編得過但永遠不會重繪。**~~ **已於本側修正，2026-09-08，
    在 Win-gtk4 上實跑驗證。** 它原本只是 `DynamicProperty`——會讀，不會觀察——因此以正確資料畫
    一次之後就永久停滯。修法是讓它觀察：`Environment` 現在把值放在一個跨更新沿用的 class 中，

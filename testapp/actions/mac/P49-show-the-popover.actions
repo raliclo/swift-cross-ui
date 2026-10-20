@@ -20,5 +20,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 而且對任何「只問有沒有東西出現」的檢查而言仍然算是「成功了」。此處的按鈕刻意不置中,如此它的位置
 # 與 popover 的位置就是兩個不同的數字,而畫面也就讀得出來。
 sleep,,,,,,1500000,let P49 render,macos
-click,89,390,frame,left,,,"the ""Show the popover"" button -- the popover must appear below-left, pointing at it",macos
+# Re-aimed 2026-10-20 from p49-macos-final-20261020-225406.png (780 x 648, scale 1): the buttons sit 31 pt higher than on 09-28, and the old row missed. / 2026-10-20 重新對準：按鈕比 09-28 高 31 pt,舊座標落空。
+click,89,359,frame,left,,,"the ""Show the popover"" button -- the popover must appear below-left, pointing at it",macos
 sleep,,,,,,1500000,let the popover animate in,macos

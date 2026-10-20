@@ -183,6 +183,26 @@ class AndroidBackendHelpers {
             }
             return null
         }
+        // A sheet or popover in front is searched first: touches already reach it
+        // through FrontWindows, but this looked in the activity's own window only,
+        // so `taplabel Close` on P49's cover failed with "no shown view" (2026-10-20).
+        // Its point is given in the activity window's coordinates, which is what
+        // FrontWindows.dispatch takes and converts back.
+        // 先找前景的 sheet 或 popover:觸控本來就經 FrontWindows 送得到它，但這裡只找 activity 自己的視窗，所以 P49 cover 上的
+        // `taplabel Close` 以「no shown view」失敗(2026-10-20)。它的點以 activity 視窗座標給出，那正是 FrontWindows.dispatch
+        // 接受、並換算回去的座標。
+        val front = FrontWindows.focused()
+        val inFront = front?.let { find(it) }
+        if (inFront != null) {
+            val decorOrigin = IntArray(2)
+            val viewOrigin = IntArray(2)
+            activity.window.decorView.getLocationOnScreen(decorOrigin)
+            inFront.getLocationOnScreen(viewOrigin)
+            return intArrayOf(
+                viewOrigin[0] - decorOrigin[0] + inFront.width / 2,
+                viewOrigin[1] - decorOrigin[1] + inFront.height / 2,
+            )
+        }
         val found = find(activity.window.decorView) ?: return IntArray(0)
         val origin = IntArray(2)
         // In the window, not on the screen: a touch goes into the activity in window

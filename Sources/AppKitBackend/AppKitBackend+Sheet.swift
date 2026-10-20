@@ -85,21 +85,26 @@ extension AppKitBackend {
         parent.nestedSheet = sheet
     }
 
+    /// `onDismiss` runs here as well as on Escape, as in SwiftUI: a sheet
+    /// closed by `isPresented = false` notifies too. Until 2026-10-20 only the
+    /// nested children of a dismissed sheet were told, so a nested-sheet test
+    /// passed while the sheet actually dismissed stayed silent (todo.md, "Six
+    /// divergences", item 1). Each sheet now runs its own `onDismiss` once, after
+    /// it has left the screen; the recursion reaches the children.
+    /// `onDismiss` 在這裡與按 Escape 時都會執行，與 SwiftUI 相同：以 `isPresented = false` 關閉的 sheet 也會通知。
+    /// 2026-10-20 之前只有被關閉之 sheet 的巢狀子 sheet 會收到通知，所以巢狀測試會通過，而真正被關閉的那個 sheet
+    /// 什麼都沒說(todo.md「六項分歧」第 1 項)。現在每個 sheet 在離開畫面後執行自己的 `onDismiss` 一次;遞迴會走到子 sheet。
     public func dismissSheet(_ sheet: NSCustomSheet, window: Window, parentSheet: Sheet?) {
         let parent = parentSheet ?? window
 
         // Dismiss nested sheets first
         if let nestedSheet = sheet.nestedSheet {
             dismissSheet(nestedSheet, window: window, parentSheet: sheet)
-            // Although the current sheet has been dismissed programmatically,
-            // the nested sheets kind of haven't (at least, they weren't
-            // directly dismissed by SwiftCrossUI, so we must called onDismiss
-            // to let SwiftUI react to the dismissals of nested sheets).
-            nestedSheet.onDismiss?()
         }
 
         parent.endSheet(sheet)
         parent.nestedSheet = nil
+        sheet.notifyDismissedOnce()
     }
 }
 
@@ -110,10 +115,25 @@ public final class NSCustomSheet: NSCustomWindow, NSWindowDelegate {
 
     public var backgroundView: NSView?
 
+    /// Set once `onDismiss` has run, so Escape followed by a parent's
+    /// programmatic dismissal cannot run it twice.
+    /// `onDismiss` 執行過後設定，讓「先按 Escape、之後父 sheet 以程式關閉」不會執行它兩次。
+    private var hasNotifiedDismissal = false
+
+    func notifyDismissedOnce() {
+        guard !hasNotifiedDismissal else { return }
+        hasNotifiedDismissal = true
+        onDismiss?()
+    }
+
     @objc override public func cancelOperation(_ sender: Any?) {
         if !interactiveDismissDisabled {
-            sheetParent?.endSheet(self)
-            onDismiss?()
+            let parent = sheetParent
+            parent?.endSheet(self)
+            if let parent = parent as? NSCustomWindow, parent.nestedSheet === self {
+                parent.nestedSheet = nil
+            }
+            notifyDismissedOnce()
         }
     }
 }

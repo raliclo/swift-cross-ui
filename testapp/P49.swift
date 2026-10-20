@@ -52,6 +52,7 @@ struct P49RootView: View {
     @State var sheetShown = false
     @State var coverOpens = 0
     @State var coverDismissals = 0
+    @State var sheetDismissals = 0
     @State var popoverShown = false
     @State var popoverOpens = 0
     @State var detentSheetShown = false
@@ -67,7 +68,7 @@ struct P49RootView: View {
             // same on screen; only the count separates them.
             // 這些計數器讓「按了沒反應」變得可讀。一個從未出現的 cover 與一顆從未觸發的按鈕在畫面上
             // 完全相同,唯一能分辨它們的是計數。
-            Text("cover opens: \(coverOpens), dismissals: \(coverDismissals)")
+            Text("cover opens: \(coverOpens), dismissals: \(coverDismissals), sheet dismissals: \(sheetDismissals)")
             Text("popover opens: \(popoverOpens), popoverShown = \(popoverShown)")
             Text("coverShown = \(coverShown), sheetShown = \(sheetShown)")
 
@@ -141,7 +142,16 @@ struct P49RootView: View {
             .presentationCornerRadius(32)
             .presentationDragIndicatorVisibility(.visible)
         }
-        .sheet(isPresented: $sheetShown) {
+        .sheet(
+            isPresented: $sheetShown,
+            // Counted, so closing it from Close (programmatic) and by Escape (the
+            // user) can each be seen to run onDismiss exactly once (2026-10-20).
+            // 計數，讓用 Close(程式)與 Escape(使用者)關閉時，各自都看得出 onDismiss 剛好執行一次(2026-10-20)。
+            onDismiss: {
+                sheetDismissals += 1
+                P49Diagnostics.write("sheet dismissed, dismissals=\(sheetDismissals)")
+            }
+        ) {
             P49PresentedContent(
                 title: "SHEET",
                 detail: "This is the comparison. It is presented as the backend's own sheet.",

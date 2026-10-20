@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49: close the cover and the comparison sheet from their own Close buttons, then the sheet by Escape.
+#
+# Close sets coverShown / sheetShown = false: the programmatic path, where SwiftUI still runs
+# onDismiss. Until 2026-10-20 UIKit skipped it there behind a flag and Android ran it from onCancel
+# only (todo.md, "Six divergences", item 1). Escape is the user's path and must add one, not two.
+# The main view must end on "cover opens: 1, dismissals: 1" and "sheet dismissals: 2".
+# The mac twin is actions/mac/P49-close-the-cover.actions.
+#
+# P49:用 cover 與比較用 sheet 自己的 Close 關閉(程式關閉),再用 Escape 關 sheet(使用者關閉)。最後必須是 cover 1/1、sheet 計數 2。
+sleep,,,,,,2000000,let P49 render,android
+taplabel,,,,,Show the cover,,cover opens 0 -> 1,android
+sleep,,,,,,1500000,let the cover animate in,android
+taplabel,,,,,Close,,"the cover's Close -- coverShown = false: dismissals 0 -> 1",android
+sleep,,,,,,1500000,let it animate out,android
+taplabel,,,,,Show the sheet,,the comparison sheet,android
+sleep,,,,,,1500000,let the sheet animate in,android
+taplabel,,,,,Close,,"the sheet's Close -- sheetShown = false: sheet dismissals 0 -> 1",android
+sleep,,,,,,1500000,let it animate out,android
+taplabel,,,,,Show the sheet,,the sheet again,android
+sleep,,,,,,1500000,let the sheet animate in,android
+key,,,,,escape,,"Escape -- the user's path: sheet dismissals 1 -> 2, once",android
+sleep,,,,,,2000000,"let it animate out; the main view must read cover opens: 1, dismissals: 1 and sheet dismissals: 2",android
