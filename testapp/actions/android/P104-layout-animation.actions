@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P104 on Android: layout and drawn state driven by .animation(_:value:)
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P104.swift's header, read from logcat (the [P104] lines) and the final capture. Written 2026-10-20 on the
+# api36b AVD (phone); no coordinates, so it runs on any device.
+# P104 在 Android 上:由 .animation(_:value:) 驅動的版面與繪製狀態。app 自己執行步驟(或啟動時就呈現全部內容)並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P104.swift 的檔頭，從 logcat 與最終截圖讀取。
+sleep,,,,,,7000000,let P104 run,android

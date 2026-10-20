@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P112 on Android: RadialGradient radii in points and AngularGradient as a shape and text style
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P112.swift's header, read from logcat (the [P112] lines) and the final capture. Written 2026-10-20 on the
+# api36b AVD (phone); no coordinates, so it runs on any device.
+# P112 在 Android 上:以點為單位的 RadialGradient 半徑，以及作為形狀與文字樣式的 AngularGradient。app 自己執行步驟(或啟動時就呈現全部內容)並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P112.swift 的檔頭，從 logcat 與最終截圖讀取。
+sleep,,,,,,5000000,let P112 run,android

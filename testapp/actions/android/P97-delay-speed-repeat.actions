@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P97 on Android: delay, speed, repeatCount and repeatForever
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P97.swift's header, read from logcat (the [P97] lines) and the final capture. Written 2026-10-20 on the
+# api36b AVD (phone); no coordinates, so it runs on any device.
+# P97 在 Android 上:delay、speed、repeatCount 與 repeatForever。app 自己執行步驟(或啟動時就呈現全部內容)並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P97.swift 的檔頭，從 logcat 與最終截圖讀取。
+sleep,,,,,,6000000,let P97 run,android

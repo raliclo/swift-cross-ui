@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P85 on Android: SVG text drawn by the platform's text engine
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P85.swift's header, read from logcat (the [P85] lines) and the final capture. Written 2026-10-20 on the
+# api36b AVD (phone); no coordinates, so it runs on any device.
+# P85 在 Android 上:以平台文字引擎繪製的 SVG 文字。app 自己執行步驟(或啟動時就呈現全部內容)並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P85.swift 的檔頭，從 logcat 與最終截圖讀取。
+sleep,,,,,,6000000,let P85 run,android
