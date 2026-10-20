@@ -66,9 +66,10 @@ extension GtkBackend: BackendFeatures.FrameClocks {
         if let widget = frameClockWidget {
             attachFrameClock(to: widget)
         }
-        // A fallback until the first tick; see scheduleFallbackTick.
-        // 第一個 tick 之前的備援;見 scheduleFallbackTick。
-        Self.frameClockHasTicked = false
+        // A fallback while GTK is quiet; see scheduleFallbackTick.
+        // GTK 安靜時的備援;見 scheduleFallbackTick。
+        Self.lastGtkTick = 0
+        Self.lastDelivered = 0
         Self.fallbackGeneration += 1
         Self.scheduleFallbackTick(generation: Self.fallbackGeneration, after: 0.05)
     }
@@ -94,8 +95,8 @@ extension GtkBackend: BackendFeatures.FrameClocks {
                 // 所要的那個單調秒數。
                 let microseconds = clock.map { gdk_frame_clock_get_frame_time($0) } ?? 0
                 MainActor.assumeIsolated {
-                    GtkBackend.frameClockHasTicked = true
-                    GtkBackend.currentFrameClockHandler?(Double(microseconds) / 1_000_000)
+                    GtkBackend.lastGtkTick = Double(g_get_monotonic_time()) / 1_000_000
+                    GtkBackend.deliver(Double(microseconds) / 1_000_000)
                 }
                 // G_SOURCE_CONTINUE
                 return 1
@@ -191,9 +192,20 @@ extension GtkBackend: BackendFeatures.FrameClocks {
 
     /// The widget the clock hangs on: the first window there is.
     /// 時鐘所掛的那個 widget:現有的第一個視窗。
-    /// Whether the GTK clock has ticked since the last start.
-    /// 自上次啟動以來 GTK 的時鐘是否已經 tick 過。
-    @MainActor private static var frameClockHasTicked = false
+    /// When the GTK clock last ticked, in `g_get_monotonic_time` seconds; 0 since the last start.
+    /// GTK 的時鐘上次 tick 的時間(`g_get_monotonic_time` 秒);上次啟動以來為 0。
+    @MainActor private static var lastGtkTick = 0.0
+    /// The last timestamp given to the handler, so GTK's frame times and the
+    /// fallback's `g_get_monotonic_time` never step backwards when they alternate.
+    /// 上次交給 handler 的時間戳，讓 GTK 的幀時間與備援的 `g_get_monotonic_time` 交替時不會倒退。
+    @MainActor private static var lastDelivered = 0.0
+
+    @MainActor
+    private static func deliver(_ timestamp: Double) {
+        let time = max(timestamp, lastDelivered)
+        lastDelivered = time
+        currentFrameClockHandler?(time)
+    }
     /// Bumped by every start and stop, so a stale fallback tick stops itself.
     /// 每次啟動與停止都會遞增，讓過時的備援 tick 自行停止。
     @MainActor private static var fallbackGeneration = 0
@@ -219,12 +231,27 @@ extension GtkBackend: BackendFeatures.FrameClocks {
     /// (P108 的第二次 fling);不呼叫 `end_updating` 時它在啟動後 2 毫秒到來，而 `request_phase(UPDATE)`、
     /// `queue_draw`、`queue_allocate` 與延後 `end` 都沒有改變它。第一個備援幀移動了東西之後時鐘就會再跑起來，
     /// 備援在它的第一個 tick 時停止。時間取 `g_get_monotonic_time`,也就是 GDK 的幀時間所根據的時鐘。
+    ///
+    /// **A watchdog for as long as the clock runs, not only until the first tick.**
+    /// Measured 2026-10-20 on Windows GTK, launched directly: P96's driven
+    /// back.out stayed at 0.0023 and its repeatForever phase had 0 ticks for the
+    /// first second while the main queue ran (its 0.5 s and 1.0 s timers logged on
+    /// time). GTK gave the clock one tick and then nothing until the window was
+    /// on screen -- GDK holds the frame clock of a surface that is not mapped yet
+    /// -- and the fallback had stopped at that one tick. Now it delivers whenever
+    /// GTK has been quiet for 50 ms and keeps checking until the clock stops; while
+    /// GTK ticks it only reschedules itself.
+    /// **只要時鐘在跑就當看門狗，不是只到第一個 tick。** 2026-10-20 在 Windows GTK 直接啟動實測：主佇列照常
+    /// 運作(0.5 秒與 1.0 秒的計時器準時記錄),但第一秒裡 P96 的 driven back.out 停在 0.0023、repeatForever 的
+    /// phase 是 0 次 tick。GTK 給了時鐘一個 tick,之後到視窗顯示出來之前什麼都沒有——GDK 會凍結尚未 map 之 surface
+    /// 的 frame clock——而備援在那一個 tick 就停了。現在只要 GTK 安靜超過 50 毫秒就由它送出，並持續檢查到時鐘停止；
+    /// GTK 在 tick 時它只是重新排程自己。
     @MainActor
     private static func scheduleFallbackTick(generation: Int, after delay: Double) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             MainActor.assumeIsolated {
-                guard generation == fallbackGeneration, !frameClockHasTicked,
-                    let handler = currentFrameClockHandler
+                guard generation == fallbackGeneration,
+                    currentFrameClockHandler != nil
                 else { return }
                 // Attach to the window as soon as there is one; see startFrameClock.
                 // 一有視窗就掛上;見 startFrameClock。
@@ -233,7 +260,10 @@ extension GtkBackend: BackendFeatures.FrameClocks {
                 {
                     backend.attachFrameClock(to: widget)
                 }
-                handler(Double(g_get_monotonic_time()) / 1_000_000)
+                let now = Double(g_get_monotonic_time()) / 1_000_000
+                if now - lastGtkTick > 0.05 {
+                    deliver(now)
+                }
                 scheduleFallbackTick(generation: generation, after: 1.0 / 60)
             }
         }
