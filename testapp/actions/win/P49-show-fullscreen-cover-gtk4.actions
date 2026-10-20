@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on Windows GtkBackend (TEST_BACKEND=gtk4): present .fullScreenCover. Position measured 2026-10-21 with test_support/measure/uia_rects under GTK_A11Y=accesskit; Windows GTK is not scaled, so the UIA DIPs times 1.25: Show the cover (104,303).
+# Pass: the cover window fills the main window with FULL SCREEN COVER and a Close button (2026-10-21: it does); the comparison sheet is a small centred window.
+# P49(Windows GTK):顯示 .fullScreenCover。通過:cover 視窗填滿主視窗。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,104,303,frame,left,,,"Show the cover -- the window must fill with FULL SCREEN COVER and a Close button",windows
+sleep,,,,,,1500000,hold for the capture and let the presentation finish,windows

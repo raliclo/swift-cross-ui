@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P49 on Windows (WinUI): close the cover from its own Close, then the comparison sheet by its Close and by Escape -- actions/mac/P49-close-the-cover.actions. Positions measured 2026-10-21 with test_support/measure/uia_rects (DIPs at 125%), all in the main window: the cover and the sheet are Popups inside it. Show the cover (92,289), the cover's Close (262,398), Show the sheet (91,426), the sheet's Close (235,374).
+# Pass: the main view reads "cover opens: 1, dismissals: 1" (onDismiss on the programmatic path, 8a6f2aa8) and "sheet dismissals: 2" -- one for Close, one for Escape, not three.
+# P49(Windows,WinUI):以 cover 自己的 Close 關閉它，再以 Close 與 Escape 各關一次 sheet。通過:cover opens: 1, dismissals: 1,sheet dismissals: 2。
+sleep,,,,,,1500000,let P49 render,windows,
+click,92,289,frame,left,,,"Show the cover -- cover opens 0 -> 1",windows,
+sleep,,,,,,1500000,let the cover open,windows,
+click,262,398,frame,left,,,"the cover's Close -- dismissals 0 -> 1",windows,
+sleep,,,,,,1500000,let it close,windows,
+click,91,426,frame,left,,,Show the sheet,windows,
+sleep,,,,,,1500000,let the sheet open,windows,
+click,235,374,frame,left,,,"the sheet's Close -- sheet dismissals 0 -> 1",windows,
+sleep,,,,,,1500000,let it close,windows,
+click,91,426,frame,left,,,Show the sheet again,windows,
+sleep,,,,,,1500000,let the sheet open,windows,
+key,,,,,escape,,"Escape -- sheet dismissals 1 -> 2",windows,
+sleep,,,,,,1500000,"let it close; the main view must read cover opens: 1, dismissals: 1 and sheet dismissals: 2",windows,

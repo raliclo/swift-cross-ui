@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P49 on Windows GtkBackend (TEST_BACKEND=gtk4): close the cover from its own Close, then the comparison sheet by its Close and by Escape. Positions measured 2026-10-21 with test_support/measure/uia_rects under GTK_A11Y=accesskit, UIA DIPs times 1.25. The cover and the sheet are windows of their own titled P49-gtk4.exe, so focus rows make each the frame of reference rather than leaving the choice to the replay (it once picked a GdkWin32GL child at 0,0, P92): main window Show the cover (104,303), Show the sheet (104,454); the cover's Close (238,348) in the cover; the sheet's Close (54,110) in the sheet.
+# Pass: the main view reads "cover opens: 1, dismissals: 1" and "sheet dismissals: 2".
+# P49(Windows GTK):同 WinUI 版；cover 與 sheet 是獨立視窗，以 focus 列切換基準。通過:cover opens: 1, dismissals: 1,sheet dismissals: 2。
+sleep,,,,,,1500000,let P49 render,windows,
+click,104,303,frame,left,,,"Show the cover -- cover opens 0 -> 1",windows,
+sleep,,,,,,1500000,let the cover open,windows,
+focus,,,,,,,the cover,windows,P49-gtk4.exe
+click,238,348,frame,left,,,"the cover's Close -- dismissals 0 -> 1",windows,
+sleep,,,,,,1500000,let it close,windows,
+focus,,,,,,,back to the main window,windows,P49 presentations
+click,104,454,frame,left,,,Show the sheet,windows,
+sleep,,,,,,1500000,let the sheet open,windows,
+focus,,,,,,,the sheet,windows,P49-gtk4.exe
+click,54,110,frame,left,,,"the sheet's Close -- sheet dismissals 0 -> 1",windows,
+sleep,,,,,,1500000,let it close,windows,
+focus,,,,,,,back to the main window,windows,P49 presentations
+click,104,454,frame,left,,,Show the sheet again,windows,
+sleep,,,,,,1500000,let the sheet open,windows,
+focus,,,,,,,the sheet,windows,P49-gtk4.exe
+key,,,,,escape,,"Escape -- sheet dismissals 1 -> 2",windows,
+sleep,,,,,,1500000,"let it close; the main view must read cover opens: 1, dismissals: 1 and sheet dismissals: 2",windows,
