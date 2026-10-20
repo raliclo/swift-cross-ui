@@ -93,11 +93,12 @@ entry is closed.
   overrides were not called by Auto Layout). P89 (new): five offset views
   in one overlay, the one appearing after two seconds at the corner before
   and on the line after; macOS only.
-  - [ ] **P89 on the other backends.** Run 2026-10-10 on this Mac: UIKit (iPhone
+  - [x] **P89 on the other backends.** Run 2026-10-10 on this Mac: UIKit (iPhone
     and iPad Pro 11-inch simulators), Android (emulator) and GTK (macOS, `TEST_BACKEND=gtk4`) all keep the
     effect on the late view -- A, B, C, D and the circle start on the red line in
     the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
     such machine here).
+    **DONE 2026-10-20 on the Windows side**: WinUI, GTK on Windows and WSL all pass (sleep-only `P89-offset-in-overlay.actions` in actions/win and actions/wsl).
   - [ ] **Waits for the Windows side (user, 2026-10-13), with onContinuousHover there.** 等 Windows 端。
     **`taplabel` on WinUI, and on GTK under X11 and Windows.** Works on
     AppKitBackend and on GtkBackend on macOS (2026-10-10, `actions/mac/P10-taplabel.actions`:

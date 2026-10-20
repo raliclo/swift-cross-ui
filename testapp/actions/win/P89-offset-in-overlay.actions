@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P89 on Windows (TEST_BACKEND=WinUI or gtk4): .offset on text in an overlay, static, changed after 2 s and appearing after 2 s; nothing to press. The capture (after 2 s) is the result: all five start on the red line.
+# P89(Windows):不需按任何東西；兩秒後的截圖中五樣都要從紅線開始。
+sleep,,,,,,6000000,hold past the 2 s change for the capture,windows
