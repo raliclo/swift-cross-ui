@@ -361,7 +361,7 @@ P31 的「Missing APIs」那一行原本列了六項。2026-10-12 對照 `Source
   到得了它。`grep -rn "func focusable" Sources/SwiftCrossUI` 找不到任何東西。五個 backend 都要：GtkBackend、
   WinUIBackend、AppKitBackend、UIKitBackend、AndroidBackend,並要有一支測試 app 用 Tab 走到一個普通 view 再對它
   打字(目前驅動焦點的是 P70)。
-- [ ] **`CommandGroup`, as SwiftUI has it -- decided by the user on 2026-10-13, in progress.**
+- [x] **`CommandGroup`, as SwiftUI has it -- decided by the user on 2026-10-13, in progress.** (g) DONE 2026-10-20 on the Windows side: WinUI, Windows GTK and WSL match the SwiftUI reference in all five P92 modes, read back with `SCUI_DEBUG_MENU_DUMP=1`; WinUI's missing New Window fixed in `_App` (menus applied again once window openers exist).
   The decisions, in the user's words where quoted:
   1. Shape: "exactly the same" as SwiftUI -- `CommandGroup(replacing:)`, `before:`, `after:` and
      `CommandGroupPlacement`. Where there is no SwiftUI to copy (GTK, WinUI, Android), "use swift code to

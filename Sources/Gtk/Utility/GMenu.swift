@@ -1,7 +1,7 @@
 import CGtk
 
 public class GMenu {
-    var pointer: OpaquePointer
+    public var pointer: OpaquePointer
 
     public init() {
         pointer = g_menu_new()

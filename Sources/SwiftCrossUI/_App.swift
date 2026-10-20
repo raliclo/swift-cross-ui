@@ -202,9 +202,21 @@ class _App<AppRoot: App> {
             let result = rootNode.updateNode(nil, environment: environment)
 
             // Update application-wide menu
+            let openersBeforeUpdate = WindowOpeners.entries.count
             result.preferences.commands.apply(to: backend, environment: environment)
 
             rootNode.update(backend: backend, environment: environment)
+            // WindowGroup and Window register their openers in `update`, which runs after
+            // the menu was first applied, so that menu had no New Window and no window
+            // list. GTK and AppKit got them back from a later root-environment change;
+            // WinUI has none, and its File menu stayed without New Window (P92 with
+            // SCUI_DEBUG_MENU_DUMP, 2026-10-20). Applied again once the openers exist.
+            // WindowGroup 與 Window 在 `update` 裡註冊它們的 opener,而 `update` 在第一次套用選單之後才執行，所以那份選單沒有
+            // New Window 也沒有視窗清單。GTK 與 AppKit 後來因根環境變更而補上;WinUI 沒有，File 選單就一直缺 New Window
+            // (P92 加 SCUI_DEBUG_MENU_DUMP,2026-10-20)。opener 存在之後再套用一次。
+            if WindowOpeners.entries.count != openersBeforeUpdate {
+                result.preferences.commands.apply(to: backend, environment: environment)
+            }
             self.sceneGraphRoot = rootNode
         }
     }

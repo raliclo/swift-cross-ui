@@ -2828,6 +2828,41 @@ public final class GtkBackend:
     ) {
         let model = renderMenuBar(submenus, environment: environment)
         gtkApp.menuBarModel = model
+        // `SCUI_DEBUG_MENU_DUMP=1`: the menu bar model as GTK holds it, read back
+        // through GMenuModel in the form of `CommandLayout.textDescription`, so P92
+        // can compare it with the layout the framework made. Sections are where the
+        // separators went (renderMenu), so a section boundary is printed as `---`.
+        // `SCUI_DEBUG_MENU_DUMP=1`:經由 GMenuModel 讀回 GTK 持有的選單列模型，以 `CommandLayout.textDescription`
+        // 的格式印出，讓 P92 與框架產生的 layout 比對。分隔線在 renderMenu 裡變成 section,因此 section 邊界印成 `---`。
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_MENU_DUMP"] == "1" {
+            var lines: [String] = []
+            func describe(_ menu: UnsafeMutablePointer<GMenuModel>, _ depth: Int) {
+                let pad = String(repeating: "  ", count: depth)
+                var firstSection = true
+                for index in 0..<g_menu_model_get_n_items(menu) {
+                    var label = "?"
+                    if let value = g_menu_model_get_item_attribute_value(menu, index, "label", nil) {
+                        label = String(cString: g_variant_get_string(value, nil))
+                        g_variant_unref(value)
+                    }
+                    if let section = g_menu_model_get_item_link(menu, index, "section") {
+                        if !firstSection { lines.append(pad + "---") }
+                        firstSection = false
+                        describe(section, depth)
+                        g_object_unref(UnsafeMutableRawPointer(section))
+                    } else if let submenu = g_menu_model_get_item_link(menu, index, "submenu") {
+                        lines.append(pad + label)
+                        describe(submenu, depth + 1)
+                        g_object_unref(UnsafeMutableRawPointer(submenu))
+                    } else {
+                        lines.append(pad + label)
+                    }
+                }
+            }
+            describe(UnsafeMutablePointer(model.pointer), 0)
+            FileHandle.standardError.write(
+                Data(("menu-dump begin\n" + lines.joined(separator: "\n") + "\nmenu-dump end\n").utf8))
+        }
         #if canImport(Darwin)
             // The framework names the application menu after the process and puts it first.
             // Now if the bar is already up, and once more when the loop runs: before start-up

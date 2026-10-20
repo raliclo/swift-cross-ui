@@ -200,6 +200,13 @@ struct P92View: View {
         .padding(16)
         .onChange(of: field) { P92Model.log("field \(field)") }
         .onAppear {
+            // The framework's layout on stderr under --debug, beside the backend's
+            // SCUI_DEBUG_MENU_DUMP of the bar it built: the Windows and Linux runs compare the two.
+            // --debug 時把框架的 layout 印到 stderr,與 backend 以 SCUI_DEBUG_MENU_DUMP 印出的實際選單列並列:Windows 與 Linux 以此比對兩者。
+            if CommandLine.arguments.contains("--debug") {
+                FileHandle.standardError.write(
+                    Data(("layout begin\n" + P92Model.layoutText + "\nlayout end\n").utf8))
+            }
             #if canImport(AppKit)
                 if CommandLine.arguments.contains("--debug") {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

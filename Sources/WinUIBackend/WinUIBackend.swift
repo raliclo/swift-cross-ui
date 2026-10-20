@@ -1144,6 +1144,40 @@ public final class WinUIBackend:
             window.setMenuBarVisible(!items.isEmpty)
             window.menuBar.requestedTheme = .dark
         }
+        // `SCUI_DEBUG_MENU_DUMP=1`: the menus as built, read back from the
+        // MenuBarItems just attached, in the form of `CommandLayout.textDescription`
+        // (title, items two spaces in, `---`, submenus one level deeper) so P92 can
+        // compare the bar the platform shows with the layout the framework made.
+        // `SCUI_DEBUG_MENU_DUMP=1`:讀回剛附加的 MenuBarItem,以 `CommandLayout.textDescription` 的格式印出
+        // (標題、項目縮排兩格、`---`、子選單再深一層),讓 P92 比對平台顯示的選單列與框架產生的 layout。
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_MENU_DUMP"] == "1" {
+            var lines: [String] = []
+            func dump(_ item: MenuFlyoutItemBase, _ depth: Int) {
+                let pad = String(repeating: "  ", count: depth)
+                if let submenu = item as? MenuFlyoutSubItem {
+                    lines.append(pad + submenu.text)
+                    for index in 0..<Int(submenu.items.size) {
+                        if let child = submenu.items.getAt(UInt32(index)) { dump(child, depth + 1) }
+                    }
+                } else if item is MenuFlyoutSeparator {
+                    lines.append(pad + "---")
+                } else if let toggle = item as? ToggleMenuFlyoutItem {
+                    lines.append(pad + toggle.text)
+                } else if let button = item as? MenuFlyoutItem {
+                    lines.append(pad + button.text)
+                } else {
+                    lines.append(pad + "?\(type(of: item))")
+                }
+            }
+            for menu in items {
+                lines.append(menu.title)
+                for index in 0..<Int(menu.items.size) {
+                    if let child = menu.items.getAt(UInt32(index)) { dump(child, 1) }
+                }
+            }
+            FileHandle.standardError.write(
+                Data(("menu-dump begin\n" + lines.joined(separator: "\n") + "\nmenu-dump end\n").utf8))
+        }
     }
 
     public func computeRootEnvironment(
