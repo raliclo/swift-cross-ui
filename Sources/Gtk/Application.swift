@@ -104,7 +104,17 @@ public class Application: GObject, GActionMap {
                     GFile(files[i]).uri
                 )
             }
-            self.onOpen?(uris)
+            // With HANDLES_OPEN a launch that carries files emits `open` instead
+            // of `activate`, so the window is made here when it does not exist
+            // yet; otherwise an app launched with a URL would have no window.
+            // 有 HANDLES_OPEN 時，帶檔案的啟動會發出 `open` 而非 `activate`,因此視窗尚不存在時在此建立；否則以
+            // URL 啟動的 app 將沒有視窗。
+            self.activate()
+            if let onOpen = self.onOpen {
+                onOpen(uris)
+            } else {
+                self.pendingOpen.append(contentsOf: uris)
+            }
         }
     }
 
@@ -112,7 +122,33 @@ public class Application: GObject, GActionMap {
     public func run(_ windowCallback: @escaping (ApplicationWindow) -> Void) -> Int {
         self.windowCallback = windowCallback
 
-        let status = g_application_run(applicationPointer.cast(), 0, nil)
+        // Only the arguments that are URLs, after argv[0]. With argc 0, as this
+        // was, GApplication never saw the command line, so the URL an app was
+        // launched with never became an `open` -- and neither did the one a
+        // second launch forwards, which is the same path in the other process.
+        // P78 read "received 0" on Windows GTK (2026-10-20). Not the whole argv:
+        // GApplication parses options itself, and an app's own flag such as
+        // `--debug` would make it fail with "Unknown option" before any window.
+        // A URL needs a scheme of two letters or more, so `C:/x` stays a path.
+        //
+        // 只傳 argv[0] 之後屬於 URL 的引數。原本 argc 為 0,GApplication 從未看到命令列，因此 app 啟動時帶的
+        // URL 從未成為 `open`——第二次啟動所轉交的也一樣，那是另一個行程裡的同一條路徑。P78 在 Windows GTK 上讀到
+        // 「received 0」(2026-10-20)。不傳整個 argv:GApplication 會自行解析選項,app 自己的旗標(例如 `--debug`)
+        // 會讓它在任何視窗出現前以「Unknown option」失敗。URL 的 scheme 須至少兩個字母，因此 `C:/x` 仍是路徑。
+        let urls = CommandLine.arguments.dropFirst().filter { argument in
+            guard !argument.hasPrefix("-"), let url = URL(string: argument),
+                let scheme = url.scheme
+            else { return false }
+            return scheme.count > 1
+        }
+        let arguments = [CommandLine.arguments.first ?? "app"] + urls
+        let owned: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) } + [nil]
+        var argv = owned
+        let status = g_application_run(
+            applicationPointer.cast(), gint(arguments.count), &argv)
+        for pointer in owned {
+            free(pointer)
+        }
         g_object_unref(applicationPointer)
         return Int(status)
     }
@@ -131,5 +167,19 @@ public class Application: GObject, GActionMap {
         windowCallback?(window)
     }
 
-    public var onOpen: (([URL]) -> Void)?
+    /// Receives the URLs of every `open`, from this process's own command line
+    /// and from later launches GApplication forwards to it. URLs that arrive
+    /// before it is set (the launch URL: `open` comes before the window, and the
+    /// window is what sets this) are kept and handed over when it is.
+    /// 接收每一次 `open` 的 URL:來自本行程自己的命令列，以及 GApplication 轉交過來的後續啟動。在它設定之前抵達的
+    /// URL(啟動 URL:`open` 早於視窗，而設定它的正是視窗)會先保留，設定時再交出。
+    public var onOpen: (([URL]) -> Void)? {
+        didSet {
+            guard let onOpen, !pendingOpen.isEmpty else { return }
+            let urls = pendingOpen
+            pendingOpen = []
+            onOpen(urls)
+        }
+    }
+    private var pendingOpen: [URL] = []
 }

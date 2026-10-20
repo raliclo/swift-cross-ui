@@ -62,6 +62,10 @@ extension WinUIApplication {
             try withExtendedLifetime(
                 WindowsAppRuntimeInitializer(threadingModel: .single)
             ) {
+                // See WinUIApplication+Redirect.swift. / 見 WinUIApplication+Redirect.swift。
+                if redirectToRunningInstance() {
+                    return
+                }
                 var application: WinUIApplication!
                 Application.start { _ in
                     WinUIRunLoopTickler.setup()

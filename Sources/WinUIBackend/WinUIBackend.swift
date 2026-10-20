@@ -66,6 +66,7 @@ class WinUIApplication: SwiftApplication, @unchecked Sendable {
         if let url = Self.url(fromLaunchArguments: args.arguments) {
             Self.receive(url)
         }
+        Self.listenForRedirectedLaunches()
 
         Self.callback.withLock { callback in
             // We can't explicitly hop to the main actor because we haven't set up
@@ -76,7 +77,7 @@ class WinUIApplication: SwiftApplication, @unchecked Sendable {
         }
     }
 
-    private static func receive(_ url: URL) {
+    static func receive(_ url: URL) {
         if let handler = onReceiveURL.withLock({ $0 }) {
             handler.handle(url)
         } else {
@@ -87,22 +88,14 @@ class WinUIApplication: SwiftApplication, @unchecked Sendable {
     }
 
     private static func url(fromLaunchArguments arguments: String) -> URL? {
-        let trimmed = arguments.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return nil
-        }
-
-        if let url = URL(string: trimmed), url.scheme != nil {
-            return url
-        }
-
-        for argument in CommandLine.arguments.dropFirst() {
-            if let url = URL(string: argument), url.scheme != nil {
-                return url
-            }
-        }
-
-        return nil
+        // For an unpackaged app `arguments` is empty, and this used to return
+        // nil on an empty string before it ever looked at the command line -- so
+        // the URL a WinUI app was launched with never arrived: P78 read
+        // "received 0" (2026-10-20).
+        // 未封裝的 app 的 `arguments` 是空字串，而這裡過去在空字串時就回傳 nil,根本沒看命令列——因此 WinUI app
+        // 啟動時帶的 URL 從未送達:P78 讀到「received 0」(2026-10-20)。
+        url(inCommandLine: arguments)
+            ?? url(inCommandLine: CommandLine.arguments.dropFirst().joined(separator: " "))
     }
 }
 
@@ -1562,6 +1555,16 @@ public final class WinUIBackend:
         if widget is WinUI.Path {
             widget.margin = Thickness(left: 0, top: 0, right: 0, bottom: 0)
         }
+        // A mesh view draws at its size, and it was not redrawn when that size changed:
+        // P95 under SCUI_P95_GROW grew its window to 720 points and the swap chain stayed
+        // 360 wide, its drawable never logged again (2026-10-20). SizeChanged did not
+        // reach it, so the size that is set here asks for the frame itself.
+        // mesh view 依自己的尺寸繪製，而尺寸改變時它沒有重畫:2026-10-20 P95 在 SCUI_P95_GROW 下視窗長到 720 點，
+        // swap chain 卻停在 360 寬,drawable 再也沒有記錄。SizeChanged 沒有傳到它，所以在這裡設定尺寸時直接要求重畫。
+        if let mesh = widget as? Mesh3DD3DView {
+            mesh.requestRender()
+        }
+        (widget as? ClippedCanvas)?.clipToBounds(width: Double(size.x), height: Double(size.y))
     }
 
     public func createTooltipContainer(wrapping child: Widget) -> Widget {
@@ -3836,25 +3839,36 @@ public class CustomWindow: WinUI.Window {
         }
     }
 
+    /// A content size in pixels as a LONG, clamped. A view that fills its window
+    /// reports no maximum, an "infinite" size that arrives here as a huge Int, and
+    /// converting that straight to Int32 trapped: P95 under SCUI_P95_GROW crashed in
+    /// WM_GETMINMAXINFO with "Double value cannot be converted to Int32" (2026-10-20).
+    /// Half the range, so AdjustWindowRectExForDpi can still add the frame.
+    /// 以 LONG 表示、夾住範圍的像素內容尺寸。填滿視窗的 view 不回報上限，「無限」尺寸到這裡是一個極大的 Int,
+    /// 直接轉成 Int32 會中止:2026-10-20 P95 在 SCUI_P95_GROW 下於 WM_GETMINMAXINFO 當掉(「Double value cannot be
+    /// converted to Int32」)。取範圍的一半，讓 AdjustWindowRectExForDpi 仍能加上框架。
+    private static func trackingPixels(_ value: Double) -> LONG {
+        let limit = Double(LONG.max / 2)
+        guard value.isFinite else { return value < 0 ? -LONG(limit) : LONG(limit) }
+        return LONG(max(-limit, min(limit, value.rounded(.awayFromZero))))
+    }
+
     private func windowTrackingSize(forContentSize contentSize: SIMD2<Int>) -> POINT {
         guard let hwnd = cachedAppWindow.getHWND() else {
             let scaleFactor = scaleFactor
             return POINT(
-                x: LONG((Double(contentSize.x) * scaleFactor).rounded(.awayFromZero)),
-                y: LONG(
-                    (Double(contentSize.y + contentHeightAdjustment) * scaleFactor)
-                        .rounded(.awayFromZero)
-                )
+                x: Self.trackingPixels(Double(contentSize.x) * scaleFactor),
+                y: Self.trackingPixels(
+                    (Double(contentSize.y) + Double(contentHeightAdjustment)) * scaleFactor)
             )
         }
 
         let dpi = GetDpiForWindow(hwnd)
         let effectiveDPI = dpi == 0 ? UINT(USER_DEFAULT_SCREEN_DPI) : dpi
         let scaleFactor = Double(effectiveDPI) / Double(USER_DEFAULT_SCREEN_DPI)
-        let clientWidth = LONG((Double(contentSize.x) * scaleFactor).rounded(.awayFromZero))
-        let clientHeight = LONG(
-            (Double(contentSize.y + contentHeightAdjustment) * scaleFactor).rounded(.awayFromZero)
-        )
+        let clientWidth = Self.trackingPixels(Double(contentSize.x) * scaleFactor)
+        let clientHeight = Self.trackingPixels(
+            (Double(contentSize.y) + Double(contentHeightAdjustment)) * scaleFactor)
 
         var rect = RECT(left: 0, top: 0, right: clientWidth, bottom: clientHeight)
         let style = DWORD(bitPattern: Int32(GetWindowLongPtrW(hwnd, GWL_STYLE)))

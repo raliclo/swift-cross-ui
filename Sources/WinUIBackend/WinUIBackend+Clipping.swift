@@ -42,9 +42,18 @@ final class ClippedCanvas: WinUI.Canvas {
 
         sizeChanged.addHandler { [weak self] _, args in
             guard let self, let size = args?.newSize else { return }
-            let geometry = self.clip ?? RectangleGeometry()
-            geometry.rect = Rect(x: 0, y: 0, width: size.width, height: size.height)
-            self.clip = geometry
+            self.clipToBounds(width: Double(size.width), height: Double(size.height))
         }
+    }
+
+    /// Also called from `setSize(of:to:)`: SizeChanged alone never set the clip
+    /// in P17-DOE's column B, whose orange block spilled past the box on WinUI
+    /// while GTK clipped it (2026-10-20) -- the same silence P95's mesh view met.
+    /// 也由 `setSize(of:to:)` 呼叫：單靠 SizeChanged 時,P17-DOE 的 B 欄從未設定 clip,橘色區塊在 WinUI 上溢出外框，
+    /// 而 GTK 有裁切(2026-10-20)——與 P95 的 mesh view 遇到的是同一種沉默。
+    func clipToBounds(width: Double, height: Double) {
+        let geometry = clip ?? RectangleGeometry()
+        geometry.rect = Rect(x: 0, y: 0, width: Float(width), height: Float(height))
+        clip = geometry
     }
 }

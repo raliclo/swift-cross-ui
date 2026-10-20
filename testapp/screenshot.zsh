@@ -697,7 +697,22 @@ capture_with_wincap() {
 
     local png_bytes
     png_bytes="$(stat -c%s "$target" 2>/dev/null || echo 0)"
-    if [ "$png_bytes" -le 5000 ]; then
+    # The byte floor stood in for "the window was black" before wincap judged the
+    # non-black share itself (wincap.cpp: "below the 2% minimum"), so reaching here
+    # means the content already passed. The floor alone rejected good pictures that
+    # simply compress well -- P95's few flat colours made a 4531-byte PNG of a window
+    # 88.8% non-black, and the run read rc 7, "nothing was verified" (2026-10-20). So
+    # the floor applies only when wincap's log does not show at least 2% non-black.
+    # 位元組下限原本是「視窗是黑的」的替代判斷，那是在 wincap 自己判斷非黑比例之前(wincap.cpp:低於 2%
+    # 的門檻就會失敗),走到這裡代表內容已經通過。單靠下限會否決只是壓縮得好的正常照片——P95 只有幾種純色，一張 88.8% 非黑的
+    # 視窗截圖只有 4531 位元組，結果該次執行讀成 rc 7、「什麼都沒驗證到」(2026-10-20)。因此只有在 wincap 的紀錄沒有顯示
+    # 至少 2% 非黑時，才套用這個下限。
+    local share=0
+    if [ -f "$log" ]; then
+        share="$(grep -aoE 'non-black: [0-9]+/[0-9]+ \(([0-9.]+)%\)' "$log" | tail -1 \
+            | sed -E 's/.*\(([0-9]+)(\.[0-9]+)?%\)/\1/' || true)"
+    fi
+    if [ "$png_bytes" -le 5000 ] && [ "${share:-0}" -lt 2 ]; then
         wincap_reject "$log" "the PNG is $png_bytes bytes, at or below the 5000-byte floor"
         return 4
     fi

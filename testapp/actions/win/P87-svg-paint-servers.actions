@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P87 on Windows: SVG paint servers and effects; nothing to press. Pass: the nine numbered cells as P87.swift's header lists them, no magenta box or flag.
+# P87(Windows):不需按任何東西；九格如 P87.swift 標頭所列，不可有洋紅色。
+sleep,,,,,,5000000,hold for the capture,windows

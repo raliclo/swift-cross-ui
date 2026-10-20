@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17-DOE on Windows (TEST_BACKEND=WinUI or gtk4): #389, does clipShape/cornerRadius clip what the control does not? Nothing to press; the capture is compared with P17-DOE.swift's three columns.
+# P17-DOE(Windows):不需按任何東西，截圖與三欄比對。
+sleep,,,,,,4000000,hold for the capture,windows

@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P77 on Windows: one triangle mesh past 1,000,000 vertices with 32-bit indices; nothing to press. Pass: the mesh is drawn (no empty view, no render warning in the log).
+# P77(Windows):不需按任何東西；網格必須畫出來。
+sleep,,,,,,6000000,hold for the capture,windows

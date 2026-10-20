@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P95 on Windows: run with SCUI_P95_GROW=1 -- the content changes width every 3 s and the window follows. Pass: "drawable WxH" logged for each size, and the circle round (bounding box width/height 1) in the capture.
+# P95(Windows):以 SCUI_P95_GROW=1 執行；每個尺寸都記錄 drawable,截圖中的圓必須是圓的。
+sleep,,,,,,11000000,hold for the capture,windows

@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+# P78 on Windows: this file only holds the window for the capture, which reads "received 0" -- the URLs come from two launches, and an action file has no action that opens one. The pass condition is test_support/p78_send_urls.zsh: "received 2", launch then running. (This line said "the app delivers its own events" until 2026-10-20; it never did.)
+# P78(Windows):本檔只讓視窗停留以供截圖，畫面是「received 0」——URL 來自兩次啟動，而 action 檔沒有開啟 URL 的動作。通過條件由 test_support/p78_send_urls.zsh 判定:「received 2」,先 launch 後 running。(本行在 2026-10-20 之前寫著「app 自己送事件」,實際上從來沒有。)
+sleep,,,,,,5000000,hold for the capture,windows

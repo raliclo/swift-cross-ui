@@ -134,8 +134,11 @@ final class Mesh3DD3DView: WinUI.Canvas {
     private func renderNow(capture: Bool) -> (width: Int, height: Int, rgba: [UInt8])? {
         guard failure == nil, let panel, let renderer, let scene else { return nil }
         let scale = xamlRoot?.rasterizationScale ?? 1
-        let width = actualWidth
-        let height = actualHeight
+        // The size set by the layout (setSize(of:)) first: XAML's actual size can lag
+        // it by a layout pass when the frame is asked for straight after.
+        // 先用版面設定的尺寸(setSize(of:)):緊接著要求一幀時,XAML 的實際尺寸可能還落後一次版面計算。
+        let width = self.width.isFinite && self.width > 0 ? self.width : actualWidth
+        let height = self.height.isFinite && self.height > 0 ? self.height : actualHeight
         guard width >= 1, height >= 1 else { return nil }
         let pixels = SIMD2(
             max(Int((width * scale).rounded()), 1),
