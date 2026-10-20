@@ -1,7 +1,11 @@
-action,x,y,origin,button,key,micros,note,platform
-# P60 on Windows GtkBackend (TEST_BACKEND=gtk4): open the settings scene. Position measured 2026-10-20 with test_support/measure/measure_win.zsh; Windows GTK is not scaled, so these are the UIA DIPs times 1.25 (frame-capture pixels): open settings (88,273).
-# Pass: a settings window opens, separate from the main window.
-# P60(Windows GTK):開啟設定 scene。通過：設定在獨立的視窗中開啟。
-sleep,,,,,,1500000,let P60 lay out,windows
-click,88,273,frame,left,,,open settings,windows
-sleep,,,,,,2500000,let the settings window open,windows
+action,x,y,origin,button,key,micros,note,platform,target
+# P60 on Windows GtkBackend (TEST_BACKEND=gtk4): open the settings scene, then press +1 inside it. Positions measured 2026-10-20 with uia_rects under GTK_A11Y=accesskit; Windows GTK is not scaled, so these are the UIA DIPs times 1.25: open settings (88,273) in the main window; +1 (373,293) in the window titled Settings.
+# Pass: the main window (the final capture) reads count: 1.
+# P60(Windows GTK):開啟設定 scene,在設定視窗裡按 +1。通過：主視窗的 count 變成 1。
+sleep,,,,,,1500000,let P60 lay out,windows,
+click,88,273,frame,left,,,open settings,windows,
+sleep,,,,,,2500000,let the settings window open,windows,
+focus,,,,,,,switch to the settings window,windows,Settings
+sleep,,,,,,600000,,windows,
+click,373,293,frame,left,,,+1 -- the main window must read count: 1,windows,
+sleep,,,,,,1500000,hold for the capture,windows,

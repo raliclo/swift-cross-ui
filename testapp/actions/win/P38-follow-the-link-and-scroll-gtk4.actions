@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38 on Windows GtkBackend (TEST_BACKEND=gtk4; WebView2 inside the GTK window): wheel to the bottom of example.com, click its only link, then wheel inside the frame on the page it opens -- the steps of actions/win/P38-follow-the-link-and-scroll.actions. Frame pixels (GTK is not scaled): the page centre (424,469) from uia_rects under GTK_A11Y=accesskit (DIPs x 1.25); Learn more at (414,633) once wheeled to the end, read from a capture of that state on 2026-10-20.
+# Pass: Navigations reported goes from 1 to 2 with the IANA page in the frame, scrolled away from its top.
+# P38(Windows GTK):捲到 example.com 底部、點它唯一的連結，再於新頁面上捲動。通過:Navigations reported 由 1 變 2,框內是捲動過的 IANA 頁面。
+sleep,,,,,,3000000,let example.com load,windows
+move,424,469,frame,,,,into the framed page,windows
+sleep,,,,,,500000,,windows
+scroll,0,15,,,,,to the end of the page -- Learn more comes into view,windows
+sleep,,,,,,1200000,,windows
+click,414,633,frame,left,,,Learn more -- Navigations reported must become 2,windows
+sleep,,,,,,4000000,let the navigation finish,windows
+move,424,469,frame,,,,into the framed page,windows
+sleep,,,,,,500000,,windows
+scroll,0,5,,,,,the new page moves,windows
+sleep,,,,,,1000000,,windows
+scroll,0,5,,,,,further,windows
+sleep,,,,,,1500000,hold for the capture,windows

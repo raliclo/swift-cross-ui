@@ -1087,10 +1087,15 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   `.command`), drags 1. / **已結案，不是 backend 缺陷。**上面的結論是在確認紀錄管道之前下的；之後以對照組
   與探針證實：沒按鍵時 `move` 用 SetCursorPos 把游標跳過去，WinUI 不當成指標輸入。改用 `hover` 列後懸停回報 44 次，
   Windows 鍵也回報為 `.command`。
-- [ ] **A sheet asked for from window B does not appear.** P81: window B opens, the click on its
+- [x] **A sheet asked for from window B does not appear.** P81: window B opens, the click on its
   sheet button lands in window B (Win32Synthesiser hitRoot), no sheet over B or A in a desktop
   capture during the hold. Same on Windows GTK. The WinUI desktop capture was mistimed; redo it.
   從視窗 B 要求的 sheet 沒出現(WinUI 與 Windows GTK 皆然)。WinUI 的桌面擷取時機不對，要重拍。
+  **Closed 2026-10-20 -- it does appear; the capture could not see it.** uia_rects during the hold
+  found, under window B, a Popup (WinUI) or an owned window (Windows GTK) reading "sheet from window
+  B" with its close button -- nothing under window A. A window-by-title capture does not include
+  the popup, and the harness pins window A above B. / 已結案：sheet 其實有出現在視窗 B 上(UIA 證實),
+  只是擷取看不到彈出視窗。
 - [x] **Edit menu items chosen by mouse do nothing.** P92 with SCUI_P92_MENU=1 and
   actions/win/P92-edit-menu.actions: 66 rows replayed, last command none, field still hello.
   Whether the menu opened at all is not in the final capture.
@@ -1098,10 +1103,14 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   **Closed 2026-10-20 -- the replay, not the backend:** same cause as P88, `move` rows are
   SetCursorPos jumps. With `hover` rows p92-commands.log reads field hellohello, field hello, field
   hellohello, command AFTER-undoRedo, and the screen field hellohello. / 已結案：與 P88 同因，改用 `hover` 後全部項目都有效。
-- [ ] **P60's settings window is not in evidence.** The main window loses the foreground after open
+- [x] **P60's settings window is not in evidence.** The main window loses the foreground after open
   settings on both backends, but test.zsh captures the main window only. Capture by title
   (`screenshot.zsh -w`) during the hold.
   P60 的設定視窗沒有證據：主視窗失去前景，但只擷取了主視窗。改以標題擷取。
+  **Closed 2026-10-20:** uia_rects found the window titled Settings with its own count and +1 on
+  both backends; the action files now focus it and press +1, and the main window's final capture
+  reads count: 1 on WinUI and Windows GTK (P60's log: settings incremented to 1). / 已結案：兩個
+  backend 都有獨立的 Settings 視窗，在裡面按 +1 後主視窗 count 變成 1。
 
 ---
 

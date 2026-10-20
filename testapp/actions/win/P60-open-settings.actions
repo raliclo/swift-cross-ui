@@ -1,7 +1,11 @@
-action,x,y,origin,button,key,micros,note,platform
-# P60 on Windows (WinUI): open the settings scene -- the first step of actions/mac/P60-open-settings.actions. Position measured 2026-10-20 with test_support/measure/measure_win.zsh (DIPs at 125%): open settings (74,253).
-# Pass: a settings window opens, separate from the main window (P60: "settings opens in its own window").
-# P60(Windows,WinUI):開啟設定 scene。通過：設定在獨立的視窗中開啟。
-sleep,,,,,,1500000,let P60 lay out,windows
-click,74,253,frame,left,,,open settings,windows
-sleep,,,,,,2500000,let the settings window open,windows
+action,x,y,origin,button,key,micros,note,platform,target
+# P60 on Windows (WinUI): open the settings scene, then press +1 inside it -- actions/mac/P60-open-settings.actions. Positions measured 2026-10-20 with test_support/measure/uia_rects (DIPs at 125%): open settings (74,253) in the main window; +1 (359,270) in the window titled Settings. The focus row makes Settings the frame of reference.
+# Pass: the main window (the final capture) reads count: 1 -- the settings view shares the app's model. A settings view that renders but shares nothing looks identical in a screenshot of itself.
+# P60(Windows,WinUI):開啟設定 scene,在設定視窗裡按 +1。通過：主視窗(最終擷取)的 count 變成 1。
+sleep,,,,,,1500000,let P60 lay out,windows,
+click,74,253,frame,left,,,open settings,windows,
+sleep,,,,,,2500000,let the settings window open,windows,
+focus,,,,,,,switch to the settings window,windows,Settings
+sleep,,,,,,600000,,windows,
+click,359,270,frame,left,,,+1 -- the main window must read count: 1,windows,
+sleep,,,,,,1500000,hold for the capture,windows,
