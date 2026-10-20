@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# launch-args: --debug
+# P50 on iPad: the second panel opens as a real popover (on the phone it is a sheet), its button counts and its own
+# button closes it. Pressed by label, so no point is measured.
+#   zsh testapp/test_ios.zsh P50 --device "iPad Pro 11-inch (M5)" --actionfile testapp/actions/ios/P50-beta-popover-ipad.actions
+# Pass (p50-ios-stdout.log): popover beta shown; popover counter 1; popover beta closed programmatically.
+# iPad 上的 P50:第二個面板以真正的 popover 打開(手機上是 sheet),按鈕會計數，面板自己的按鈕會關掉它。依標籤點擊。通過條件見上方英文。
+sleep,,,,,,2000000,let P50 lay out,ios
+taplabel,,,,,Open the second panel (bottom anchor),,PANEL BETA opens,ios
+sleep,,,,,,1500000,,ios
+taplabel,,,,,press me (0),,the counter inside the popover,ios
+sleep,,,,,,1000000,,ios
+taplabel,,,,,close this panel,,the popover's own close button,ios
+sleep,,,,,,1500000,,ios

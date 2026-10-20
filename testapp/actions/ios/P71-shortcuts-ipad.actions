@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# launch-args: --debug
+# P71 on iPad: the same keys as P71-shortcuts.actions, through the iPad simulator's hardware keyboard -- the device where
+# a keyboard is expected. Pass (p71-ios-stdout.log, as the rows say): Cmd-S fires once, Cmd-Shift-E once, the disabled Cmd-D never.
+#   zsh testapp/test_ios.zsh P71 --device "iPad Pro 11-inch (M5)" --actionfile testapp/actions/ios/P71-shortcuts-ipad.actions
+# iPad 上的 P71:與 P71-shortcuts.actions 相同的按鍵，經由 iPad 模擬器的實體鍵盤。通過條件同該檔。
+sleep,,,,,,900000,let the scene settle before the first key,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,s,,Cmd-S -- plain must fire once,ios
+keyup,,,,,command,,release,ios
+sleep,,,,,,500000,,ios
+keydown,,,,,command,,hold Command,ios
+keydown,,,,,shift,,and Shift,ios
+key,,,,,e,,Cmd-Shift-E -- the modifier flags must survive,ios
+keyup,,,,,shift,,,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,500000,,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,d,,Cmd-D -- DISABLED: this one must NOT fire,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,800000,let the counters settle before the capture,ios

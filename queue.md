@@ -624,7 +624,7 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   system asks for under --debug; but the Simulator delivers no hover to apps --
   neither the style request nor a UIHoverGestureRecognizer fired across two
   hovers the runner logged. Run it on an iPad with a trackpad.
-- [ ] **(Low priority, user 2026-10-20) iPad action files**, named `<Pn>-<what>-ipad.actions`, measured on an iPad -- six exist and all six
+- [ ] **(Low priority, user 2026-10-20) iPad action files**, named `<Pn>-<what>-ipad.actions`, measured on an iPad -- 14 exist (2026-10-20: P16 columns, P50 popover and P71 shortcuts added, pressed by label; all three pass). Earlier: six exist and all six
   were replayed on 2026-10-13 (P5, P14, P59, P62, P72-cursor, P75); the other apps have none.
   Was: measured on an iPad
   capture (834x1210 points, @2x: points = pixels / 2). One exists:

@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16 on iPad: the split view switches from two columns to three and back. Pressed by label, so no point is measured.
+#   zsh testapp/test_ios.zsh P16 --device "iPad Pro 11-inch (M5)" --actionfile testapp/actions/ios/P16-switch-columns-ipad.actions
+# Pass: the dumptree row after the first press lists "Switch to 2 column" (the button relabels when the middle pane is in);
+# after the second press the final capture shows two columns again. On an iPad the panes sit side by side, where the
+# phone collapses them (PhoneSplitWidget).
+# iPad 上的 P16:分割視圖從兩欄切到三欄再切回。依標籤點擊，不需量座標。通過:第一次按下後的 dumptree 有「Switch to 2 column」,第二次後最終截圖回到兩欄。
+sleep,,,,,,2000000,let P16 lay out,ios
+taplabel,,,,,Switch to 3 column,,the middle pane comes in,ios
+sleep,,,,,,1200000,,ios
+dumptree,,,,,,,the button now reads Switch to 2 column,ios
+taplabel,,,,,Switch to 2 column,,and goes again,ios
+sleep,,,,,,1500000,leave two columns for the final capture,ios

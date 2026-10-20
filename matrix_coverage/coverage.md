@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2132**
+**Runs recorded / 已記錄的執行筆數: 2137**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit    | android<br>Android     | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|---------------------------|------------------------|--------------------------|--------------|
@@ -51,7 +51,7 @@ zsh matrix_coverage/coverage.zsh
 | P14           | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-13           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P15           | GEOMETRY 1/2 2026-09-07      | pass 2026-08-28                | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P15-DARK      | -                            | -                              | no marker 0/2 2026-09-07 | pass 2026-09-27              | pass 2026-10-09           | pass 2026-10-13        | pass 2026-10-16          |              |
-| P16           | GEOMETRY 1/2 2026-09-06      | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
+| P16           | GEOMETRY 1/2 2026-09-06      | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-20           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P17           | pass 2026-10-20              | -                              | pass 2026-10-20          | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-19          |              |
 | P17-DOE       | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P18           | ASTRAY 2026-09-06            | pass 2026-10-07                | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
@@ -78,7 +78,7 @@ zsh matrix_coverage/coverage.zsh
 | P39           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-19          |              |
 | P40           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P41           | pass 2026-09-17              | pass 2026-10-07                | pass 2026-10-19          | pass 2026-10-10              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
-| P42           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-09-30              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
+| P42           | capture log 2026-10-20       | capture log 2026-10-20         | no image 2026-09-07      | pass 2026-09-30              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P43           | pass 2026-10-19              | pass 2026-10-19                | no image 2026-09-07      | pass 2026-10-19              | pass 2026-10-19           | pass 2026-10-19        | pass 2026-10-19          |              |
 | P44           | pass 2026-09-08              | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P45           | -                            | -                              | -                        | pass 2026-09-28              | pass 2026-10-10           | pass 2026-10-13        | pass 2026-10-16          |              |
@@ -86,7 +86,7 @@ zsh matrix_coverage/coverage.zsh
 | P47           | pass 2026-10-19              | pass 2026-10-19                | -                        | pass 2026-09-30              | pass 2026-10-10           | pass 2026-10-10        | pass 2026-10-16          |              |
 | P48           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-30              | pass 2026-10-11           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P49           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-11           | pass 2026-10-13        | pass 2026-10-16          |              |
-| P50           | pass 2026-09-18              | pass 2026-09-18                | -                        | pass 2026-09-27              | pass 2026-10-11           | pass 2026-10-13        | pass 2026-10-16          |              |
+| P50           | pass 2026-09-18              | pass 2026-09-18                | -                        | pass 2026-09-27              | capture log 2026-10-20    | pass 2026-10-13        | pass 2026-10-16          |              |
 | P51           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-30              | pass 2026-10-11           | pass 2026-10-13        | pass 2026-10-19          |              |
 | P52           | pass 2026-09-18              | -                              | -                        | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P53           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-13        | pass 2026-10-16          |              |
@@ -107,7 +107,7 @@ zsh matrix_coverage/coverage.zsh
 | P68           | pass 2026-10-19              | pass 2026-10-19                | capture log 2026-10-19   | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P69           | capture log 2026-10-20       | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P70           | capture n/a 1/2 2026-09-16   | capture n/a 2026-09-16         | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-13        | pass 2026-10-19          |              |
-| P71           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
+| P71           | -                            | -                              | -                        | pass 2026-09-27              | capture log 2026-10-20    | pass 2026-10-12        | pass 2026-10-16          |              |
 | P72           | crash->fixed 2026-10-07      | pass 2026-10-07                | pass 2026-10-07          | pass 2026-09-27              | pass 2026-10-13           | pass 2026-10-13        | pass 2026-10-16          |              |
 | P73           | pass 2026-10-19              | pass 2026-10-19                | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P74           | -                            | pass 2026-10-07                | -                        | pass 2026-09-29              | pass 2026-10-12           | pass 2026-10-13        | pass 2026-10-16          |              |
