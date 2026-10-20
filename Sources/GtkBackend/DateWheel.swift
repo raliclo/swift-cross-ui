@@ -180,13 +180,25 @@ final class DateWheel: Box {
         latestDate = date
         if hasRowHeights {
             layoutRetries = 0
-        } else if layoutRetries < 20 {
+        } else if !retryPending && layoutRetries < 60 {
+            // One retry chain at a time. Every layout pass calls `apply`, and
+            // when each call started its own chain P41's ~500 launch-time calls
+            // spent the 60 tries before the first real layout, so the wheels
+            // stayed at 1925 (Windows GTK, zh_TW, 2026-10-20).
+            // 同一時間只有一條重試鏈。每次排版都會呼叫 `apply`,若每次呼叫都各開一條，P41 啟動時約 500 次呼叫會在
+            // 第一次真正排版之前就把 60 次額度用完，滾輪因此停在 1925(Windows GTK,zh_TW,2026-10-20)。
+            retryPending = true
             layoutRetries += 1
             // A wheel only ever runs on the main thread, as every GTK widget does.
             // 滾輪和每個 GTK widget 一樣，只會在主執行緒上執行。
             nonisolated(unsafe) let wheel = self
+            let delay = layoutRetries <= 20 ? 50 : 250
             MainActor.assumeIsolated {
-                GtkBackend.runInMainThread(afterMilliseconds: 50) {
+                // Quick at first, then slower: a window with many pickers can
+                // take seconds to lay out.
+                // 先快後慢：選擇器很多的視窗可能要好幾秒才排版完成。
+                GtkBackend.runInMainThread(afterMilliseconds: delay) {
+                    wheel.retryPending = false
                     guard let latestDate = wheel.latestDate else { return }
                     wheel.apply(latestDate)
                 }
@@ -194,15 +206,27 @@ final class DateWheel: Box {
         }
     }
 
+    private var retryPending = false
+
     private var latestDate: Date?
     private var layoutRetries = 0
 
+    /// Whether a scroll can land: the year column (201 rows, always taller
+    /// than its viewport) has its content laid out and a viewport smaller than
+    /// it -- `set_value` clamps to upper minus page, so either one missing puts
+    /// the wheel at its top. Measured on P41 under zh_TW on Windows GTK,
+    /// 2026-10-20: the adjustment read upper 0 for over forty tries (2 s), then
+    /// upper 3618, page 132, and the value 1746 that centres 2025.
+    /// 能否捲到位：年份欄(201 列，永遠比可視範圍高)的內容已排版，且可視範圍比它小——`set_value` 會夾在
+    /// upper 減 page 之內，缺一個滾輪就停在頂端。2026-10-20 於 Windows GTK 的 P41(zh_TW)實測:adjustment
+    /// 超過四十次(2 秒)讀到 upper 0,之後才是 upper 3618、page 132,以及讓 2025 置中的值 1746。
     private var hasRowHeights: Bool {
         guard
-            let scroller = monthScroller,
+            let scroller = yearScroller,
             let adjustment = gtk_scrolled_window_get_vadjustment(scroller.opaquePointer)
         else { return false }
-        return gtk_adjustment_get_upper(adjustment) > 0
+        let upper = gtk_adjustment_get_upper(adjustment)
+        return upper > 0 && upper > gtk_adjustment_get_page_size(adjustment)
     }
 
     /// Selects a row and scrolls it to the middle of its column.

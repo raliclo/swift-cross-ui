@@ -361,3 +361,64 @@ final class LocaleTimeRow: WinUI.StackPanel {
         return max(fieldWidth, widest + 52)
     }
 }
+
+/// The `.compact` style's text as the locale writes a numeric date, for
+/// `CalendarDatePicker.dateFormat`.
+///
+/// The CalendarDatePicker drew "8/24/2025" under zh_TW, where the region
+/// writes 2025/8/24: like the other WinUI pickers it formats with the app's
+/// languages. Its `DateFormat` takes a WinRT pattern, so the locale's own
+/// numeric pattern (`yMd`: zh_TW y/M/d, en_US M/d/y, de_DE d.M.y) is
+/// translated into one -- numbers only, which no language changes. Month
+/// names in the drop-down calendar stay the app's, the limit GtkBackend's
+/// GtkCalendar grid has too. `nil` when a field is missing, so the caller
+/// keeps the default instead of handing the `try!` setter a broken pattern.
+///
+/// `.compact` 樣式的文字，依 locale 書寫數字日期的方式，供 `CalendarDatePicker.dateFormat` 使用。
+/// CalendarDatePicker 在 zh_TW 下畫出「8/24/2025」,而該地區寫作 2025/8/24:它和其他 WinUI 選擇器一樣，以 app
+/// 的語言格式化。它的 `DateFormat` 接受 WinRT 格式字串，因此把 locale 自己的數字樣式(`yMd`)翻成那種格式——只有
+/// 數字，不受語言影響。下拉日曆裡的月份名稱仍是 app 的語言，GtkBackend 的 GtkCalendar 格線也有同樣的限制。缺欄位時
+/// 回傳 `nil`,讓呼叫端保留預設值，而不是把壞掉的格式交給 `try!` 的 setter。
+enum LocaleDateFormat {
+    static func numeric(for locale: Locale) -> String? {
+        guard
+            let pattern = DateFormatter.dateFormat(fromTemplate: "yMd", options: 0, locale: locale)
+        else { return nil }
+        var result = ""
+        var fields = Set<Character>()
+        var inQuote = false
+        var index = pattern.startIndex
+        while index < pattern.endIndex {
+            let character = pattern[index]
+            if character == "'" {
+                inQuote.toggle()
+                index = pattern.index(after: index)
+                continue
+            }
+            var run = 1
+            if !inQuote && character.isLetter {
+                var next = pattern.index(after: index)
+                while next < pattern.endIndex && pattern[next] == character {
+                    run += 1
+                    next = pattern.index(after: next)
+                }
+            }
+            switch inQuote ? " " : character {
+                case "y", "Y", "u":
+                    result += "{year.full}"
+                    fields.insert("y")
+                case "M", "L":
+                    result += run >= 2 ? "{month.integer(2)}" : "{month.integer}"
+                    fields.insert("M")
+                case "d":
+                    result += run >= 2 ? "{day.integer(2)}" : "{day.integer}"
+                    fields.insert("d")
+                default:
+                    if character == "{" || character == "}" { return nil }
+                    result.append(character)
+            }
+            index = pattern.index(index, offsetBy: inQuote ? 1 : run)
+        }
+        return fields.count == 3 ? result : nil
+    }
+}

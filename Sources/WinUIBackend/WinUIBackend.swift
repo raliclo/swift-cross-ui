@@ -4386,6 +4386,13 @@ final class CustomDatePicker: StackPanel {
                 try? calendarView.setDisplayDate(dateTime)
             case .calendarDatePicker(let calendarDatePicker):
                 calendarDatePicker.calendarIdentifier = identifier(for: calendar)
+                // The text in the locale's numeric order; see LocaleDateFormat.
+                // 依 locale 數字日期順序顯示的文字；見 LocaleDateFormat。
+                if let format = LocaleDateFormat.numeric(for: calendar.locale ?? .current),
+                    format != calendarDatePicker.dateFormat
+                {
+                    calendarDatePicker.dateFormat = format
+                }
                 calendarDatePicker.date = dateTime
             case .datePicker(let wheel):
                 let parts = calendar.dateComponents([.year, .month, .day], from: date)

@@ -166,12 +166,39 @@ final class WheelPicker: WinUI.ListView {
         return SIMD2(Int(desiredSize.width.rounded(.up)), Int(Self.fixedHeight))
     }
 
+    /// Puts the selected row in the middle of the five, as GtkBackend's wheels
+    /// do. `scrollIntoView` only brings a row to an edge -- the date wheels
+    /// showed their selection on the bottom row (P90, P41, 2026-10-20). Before
+    /// the template is applied there is no ScrollViewer and the edge placement
+    /// stands; LocaleDateWheel selects again once loaded, which centres it.
+    /// 把選中的列放在五列的中間，與 GtkBackend 的滾輪相同。`scrollIntoView` 只會把列帶到邊緣——日期滾輪的選取因此停在
+    /// 最底下一列(P90、P41,2026-10-20)。template 套用前沒有 ScrollViewer,維持邊緣的位置；LocaleDateWheel 會在載入後
+    /// 再選一次，那時就會置中。
+    private func centre(on index: Int) {
+        guard let scroller = Self.scrollViewer(in: self) else { return }
+        let offset = max(0, Double(index - Self.visibleRows / 2) * Self.rowHeight)
+        _ = try? scroller.changeView(nil, offset, nil, true)
+    }
+
+    private static func scrollViewer(in element: WinUI.UIElement) -> WinUI.ScrollViewer? {
+        if let scroller = element as? WinUI.ScrollViewer {
+            return scroller
+        }
+        for child in scuiChildren(of: element) {
+            if let found = scrollViewer(in: child) {
+                return found
+            }
+        }
+        return nil
+    }
+
     func setSelectedIndex(to index: Int?) {
         isUpdatingSelection = true
         defer { isUpdatingSelection = false }
         if let index, index < rows.count {
             selectedIndex = Int32(index)
             try? scrollIntoView(rows[index])
+            centre(on: index)
         } else {
             selectedIndex = -1
         }

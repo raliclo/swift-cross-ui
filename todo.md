@@ -1084,6 +1084,19 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   已完成(使用者選擇自己畫滾輪):日期為三欄 WheelPicker,依 locale 排序、月名取自 calendar;時間列依 `jm` 樣式，上午/下午
   取自 calendar。P90 zh_TW 顯示 2025/8月/24 與上午 09:46。`.compact`、`.clock`、`.rows` 在其他 locale 下尚未檢查；
   GtkBackend 的上午/下午固定放最後，WinUI 依樣式放前面——要統一。
+  **Follow-up, same day:** checked with P41 under SCUI_P41_LOCALE=zh_TW (new env var) on WinUI
+  and Windows GTK. `.clock` and `.rows` were already right (SwiftCrossUI's own views read
+  `\.locale`; 上午 placed by the pattern). `.compact` on WinUI drew 8/24/2025: its
+  CalendarDatePicker now gets a `dateFormat` built from the locale's numeric pattern
+  (LocaleDateFormat) and reads 2025/8/24. AM/PM order: decided by the locale's `jm` pattern on
+  every backend -- GtkBackend's TimeRow now matches (上午 first in zh_TW; WinUI, WSL, Windows GTK
+  checked on P90). WinUI's wheels centre the selection (WheelPicker.centre). GtkBackend's wheels
+  could stay at 1925 at launch: one retry chain at a time now, quick then slow, until the year
+  column can scroll. Not localised anywhere: the `.graphical` grid's month and weekday names
+  (WinUI CalendarView, GTK GtkCalendar take the app's or the C locale) -- a known limit of both.
+  後續(同日):以 P41 的 SCUI_P41_LOCALE=zh_TW 在 WinUI 與 Windows GTK 檢查。.clock/.rows 本來就正確；WinUI 的
+  .compact 改用依 locale 數字樣式產生的 dateFormat(2025/8/24);上午/下午一律依 `jm` 樣式擺放，GtkBackend 已跟進；
+  WinUI 滾輪選取置中；GtkBackend 滾輪啟動時停在 1925 的問題已修。.graphical 的月份/星期名稱兩邊都不在地化，屬已知限制。
 - [x] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
   yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
   `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,

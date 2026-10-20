@@ -63,6 +63,15 @@ struct P41RootView: View {
     // 使用固定日期而非 `Date()`，使兩次執行可互相比較，且截圖的意義不會在隔夜之後改變。
     static let start = Date(timeIntervalSince1970: 1_756_000_000)
 
+    // SCUI_P41_LOCALE=zh_TW draws every cell under that locale (2026-10-20), so
+    // the styles P90 does not cover -- .compact, .clock, .rows -- can be checked
+    // in a region other than the machine's. Unset, the inherited locale, as before.
+    // SCUI_P41_LOCALE=zh_TW 會讓每一格都以該 locale 繪製(2026-10-20),以便在本機以外的地區檢查 P90 沒涵蓋的
+    // 樣式——.compact、.clock、.rows。未設定時照舊沿用繼承來的 locale。
+    static let localeOverride: Locale? =
+        ProcessInfo.processInfo.environment["SCUI_P41_LOCALE"].map(Locale.init(identifier:))
+    @Environment(\.locale) var inheritedLocale
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("P41: date picker styles")
@@ -135,6 +144,7 @@ struct P41RootView: View {
             }
         }
         .padding(18)
+        .environment(\.locale, P41RootView.localeOverride ?? inheritedLocale)
         .onAppear {
             P41Diagnostics.write("RENDER COMPLETE -- P41 ready for date picker checks")
         }

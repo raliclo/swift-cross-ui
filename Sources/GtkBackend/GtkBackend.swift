@@ -7796,6 +7796,24 @@ final class TimeRow: Box {
             field.valueChanged = { [weak self] _ in self?.fieldChanged() }
         }
 
+        // AM/PM where the locale writes it: before the hour in zh_TW (上午 09:46),
+        // after it in en_US. It used to go last whatever the locale; the
+        // order is now the `jm` pattern's, as WinUIBackend's LocaleTimeRow and
+        // SwiftCrossUI's .rows and .clock already do (2026-10-20).
+        // 上午/下午放在 locale 書寫的位置:zh_TW 在時之前(上午 09:46),en_US 在之後。以前不論 locale 一律放最後；
+        // 現在依 `jm` 樣式排列，與 WinUIBackend 的 LocaleTimeRow 以及 SwiftCrossUI 的 .rows、.clock 相同(2026-10-20)。
+        let meridiemFirst: Bool = {
+            let pattern = DateFormatter.dateFormat(fromTemplate: "jm", options: 0, locale: locale) ?? ""
+            guard
+                let hour = pattern.firstIndex(where: { "hHkK".contains($0) }),
+                let meridiem = pattern.firstIndex(where: { "abB".contains($0) })
+            else { return false }
+            return meridiem < hour
+        }()
+        meridiemField?.notifySelected = { [weak self] _, _ in self?.fieldChanged() }
+        if meridiemFirst, let meridiemField {
+            add(meridiemField)
+        }
         add(hourField)
         add(Gtk.Label(string: ":"))
         add(minuteField)
@@ -7803,8 +7821,7 @@ final class TimeRow: Box {
             add(Gtk.Label(string: ":"))
             add(secondField)
         }
-        if let meridiemField {
-            meridiemField.notifySelected = { [weak self] _, _ in self?.fieldChanged() }
+        if !meridiemFirst, let meridiemField {
             add(meridiemField)
         }
     }
