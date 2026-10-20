@@ -231,6 +231,13 @@ gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
 // _NET_WM_STATE_ABOVE 時(2026-10-20:WSLg 的仍然沒有);Wayland 永遠不行。GtkBackend 只在此為 TRUE 時提供 `.floating`。
 gboolean scui_window_topmost_supported(void);
 
+// Adds every .ttf in `directory` whose name starts with `prefix` (case-insensitive)
+// to fontconfig, for this process only. Linux only; returns how many were added, 0
+// elsewhere. Call before Pango builds its font map. See gtk_wsl_fonts.c.
+// 把 `directory` 中名稱以 `prefix` 開頭(不分大小寫)的每個 .ttf 加入 fontconfig,僅限本行程。僅限 Linux;回傳
+// 加入的數量，其他平台為 0。須在 Pango 建立 font map 之前呼叫。見 gtk_wsl_fonts.c。
+int scui_add_font_files(const char *directory, const char *prefix);
+
 // Asks Windows for a dark or light title bar. Returns whether the platform
 // could honour it.
 //

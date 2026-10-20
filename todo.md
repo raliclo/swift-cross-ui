@@ -1078,10 +1078,16 @@ gave -38,-59 at one and 154,-6 at the other.
 - [ ] **zh_TW wheels write months in English on GTK.** P90 on WSLg 2026-10-20: the order is right (year,
   month, day) but the month column reads August where zh_TW writes 8月. The wheel names its months from
   something other than the locale it was given. / GTK 的 zh_TW 滾輪月份是英文(August 而非 8月),順序正確。
-- [ ] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
+- [x] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing
   anything. / WSL 上九種字重只畫出兩種(已安裝字型只有 Regular 與 Bold);屬於「讓 WSL/Windows 的 GTK 外觀與 Mac 一致」。
+  **Done 2026-10-20:** under WSL GtkBackend adds Windows' Segoe UI files to fontconfig and makes it
+  the default family (gtk_wsl_fonts.c), and follows Windows' dark/light setting through reg.exe.
+  P22 now draws five weights (light, regular, semibold, bold, black) in Segoe UI on dark, the face
+  Windows GTK uses. Still four short of the Mac's nine: the backend's weight table is offset by
+  100 for AppKit (`.regular` asks for 500), which Segoe UI has no face for. The title bar stays
+  WSLg's own. / 已完成：WSL 下改用 Windows 的 Segoe UI 並跟隨 Windows 深淺色,P22 現在畫出五種字重。
 
 - **An app asking for a 900x600 window gets 900x561 of content on GTK, and
   900x600 on WinUI.** Measured 2026-09-01 with P16 on WSLg.

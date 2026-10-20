@@ -509,6 +509,9 @@ let package = Package(
                 // X11, for _NET_WM_STATE_ABOVE in gtk_window_level.c. Linux only; GTK 4 built
                 // with its X11 backend already loads it. / X11,供 gtk_window_level.c 的 _NET_WM_STATE_ABOVE 使用。僅限 Linux。
                 .linkedLibrary("X11", .when(platforms: [.linux])),
+                // fontconfig, to add Windows' Segoe UI files under WSL (gtk_wsl_fonts.c). Pango
+                // already loads it on Linux. / fontconfig,供 WSL 下加入 Windows 的 Segoe UI 檔(gtk_wsl_fonts.c)。Linux 上 Pango 已載入它。
+                .linkedLibrary("fontconfig", .when(platforms: [.linux])),
             ]
         ),
         // Synthesised input, driven from a CSV file. Depends on nothing in this

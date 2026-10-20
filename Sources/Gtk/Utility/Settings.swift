@@ -78,6 +78,15 @@ public class Settings: GObject {
     @GObjectProperty(named: "gtk-overlay-scrolling")
     public var overlayScrolling: Bool
 
+    /// The font everything uses unless it names one, as "Family Size", e.g.
+    /// "Segoe UI 11". GtkBackend's system font sets only size and weight, so the
+    /// family comes from here.
+    ///
+    /// 未自行指定字型的一切所使用的字型，格式為「家族 字級」,例如 "Segoe UI 11"。GtkBackend 的系統字型只設定字級
+    /// 與字重，因此家族來自這裡。
+    @GObjectProperty(named: "gtk-font-name")
+    public var fontName: String
+
     /// Calls `handler` whenever the named property changes, e.g.
     /// `notify::gtk-theme-name`.
     ///

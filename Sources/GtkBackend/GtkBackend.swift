@@ -415,6 +415,9 @@ public final class GtkBackend:
         #endif
         Self.enableDirectCompositionIfRequested()
         Self.enablePerMonitorDPIAwareness()
+        #if os(Linux)
+            Self.addWindowsUIFontUnderWSL()
+        #endif
         // SCUI_GTK_APP_ID overrides both, and exists for running two test apps at
         // once. A SwiftPM executable has no metadata, so every app that does not
         // supply an identifier gets the SAME one -- and GApplication is
@@ -3030,15 +3033,15 @@ public final class GtkBackend:
     /// The colour scheme the desktop itself is set to, where the platform has
     /// one this backend can read and GTK does not already follow it.
     ///
-    /// Windows and macOS: GTK there ships its own theme and does not track the system
+    /// Windows, macOS and WSL (Windows read through interop): GTK there ships its own theme and does not track the system
     /// light/dark setting, so an app would sit in Adwaita light on a dark
-    /// desktop. On Linux the GTK theme *is* the desktop setting, so reading the
+    /// desktop. On a Linux desktop the GTK theme *is* the desktop setting, so reading the
     /// theme's colour already answers the question and there is nothing separate
     /// to consult.
     ///
     /// 平台自身所設定的配色，僅在「本 backend 讀得到、且 GTK 尚未跟隨」的情況下提供。
     ///
-    /// 僅限 Windows：GTK 在該平台自帶主題，不會追蹤系統的淺色／深色設定，因此 app 會在深色桌面上
+    /// Windows、macOS 與 WSL(經 interop 讀取 Windows):GTK 在這些平台自帶主題，不會追蹤系統的淺色／深色設定，因此 app 會在深色桌面上
     /// 停留於 Adwaita light。在 Linux 上，GTK 主題「就是」桌面的設定，因此讀取主題顏色便已回答了
     /// 這個問題，無須另行查詢。
     private var systemColorScheme: ColorScheme? {
@@ -3073,10 +3076,110 @@ public final class GtkBackend:
             // 系統外觀,macOS 上的 GTK 不會跟隨:Homebrew 的 GTK 在深色的 Mac 上畫 Adwaita 淺色，因此 P3 的標題
             // 是淺色配置的深灰色，畫在 app 的黑底上(2026-10-16)。深色模式下 AppleInterfaceStyle 為 "Dark",淺色時不存在。
             return UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .dark : .light
+        #elseif os(Linux)
+            // Under WSL the desktop is Windows, and WSLg's GTK has no setting of its
+            // own to follow: every app drew Adwaita light on a dark Windows desktop,
+            // while the same app is dark on Windows GTK and on GTK on the Mac
+            // (2026-10-20). So the Windows value is read through interop, once.
+            // WSL 之下桌面是 Windows,WSLg 的 GTK 沒有自己可跟隨的設定：每支 app 都在深色的 Windows 桌面上畫
+            // Adwaita 淺色，而同一支 app 在 Windows GTK 與 Mac 上的 GTK 都是深色(2026-10-20)。因此經由 interop
+            // 讀取 Windows 的值，只讀一次。
+            return Self.wslHostColorScheme
         #else
             return nil
         #endif
     }
+
+    #if os(Linux)
+        /// Windows' "default app mode" when this process runs under WSL, else nil.
+        ///
+        /// Read once, with `reg.exe` through WSL interop (59 ms measured), because
+        /// ``systemColorScheme`` is consulted repeatedly and a process per call
+        /// would be absurd. The cost is that a WSL app does not follow a change
+        /// made while it runs; it does follow it on the next launch. A run that
+        /// cannot start `reg.exe` within two seconds gets nil, which is the
+        /// pre-2026-10-20 behaviour, not an error.
+        ///
+        /// 本行程在 WSL 下執行時的 Windows「預設應用程式模式」,否則為 nil。以 `reg.exe` 經 WSL interop 讀取一次
+        /// (實測 59 ms),因為 ``systemColorScheme`` 會被反覆查詢，每次都開行程並不合理。代價是 WSL 的 app 不會跟隨
+        /// 執行期間的切換，下次啟動時才會。兩秒內無法啟動 `reg.exe` 時得到 nil,即 2026-10-20 之前的行為，而非錯誤。
+        /// Whether this process runs under WSL. / 本行程是否在 WSL 下執行。
+        private static let isWSL: Bool =
+            ProcessInfo.processInfo.environment["WSL_DISTRO_NAME"] != nil
+            || FileManager.default.fileExists(atPath: "/proc/sys/fs/binfmt_misc/WSLInterop")
+
+        /// Whether Segoe UI was added to fontconfig for this process.
+        /// 本行程是否已把 Segoe UI 加入 fontconfig。
+        nonisolated(unsafe) private static var usesWindowsUIFont = false
+
+        /// Under WSL, makes Windows' Segoe UI available to GTK; see gtk_wsl_fonts.c
+        /// for why (P22's nine weights drew as two in DejaVu Sans). Runs before
+        /// GApplication exists, because Pango reads fontconfig once, when it builds
+        /// its font map. SCUI_GTK_NO_WINDOWS_FONT=1 keeps the distro's font.
+        /// 在 WSL 下讓 GTK 可使用 Windows 的 Segoe UI;原因見 gtk_wsl_fonts.c(P22 的九種字重在 DejaVu Sans 中只畫出兩種)。
+        /// 在 GApplication 建立前執行，因為 Pango 只在建立 font map 時讀一次 fontconfig。SCUI_GTK_NO_WINDOWS_FONT=1
+        /// 保留發行版自己的字型。
+        static func addWindowsUIFontUnderWSL() {
+            guard isWSL, ProcessInfo.processInfo.environment["SCUI_GTK_NO_WINDOWS_FONT"] != "1"
+            else { return }
+            // segoeui* is regular, bold, italic and light; seguisb*, seguibl* and
+            // seguisli/seguili are semibold, black and the light italics. Not segui*
+            // as a whole, which would also add the emoji and symbol fonts.
+            // segoeui* 是一般、粗體、斜體與細體;seguisb*、seguibl* 與 seguisli/seguili 是半粗、特粗與細斜體。
+            // 不用整個 segui*,那會連 emoji 與符號字型一起加入。
+            let prefixes = ["segoeui", "seguisb", "seguibl", "seguili", "seguisli"]
+            let added = prefixes.reduce(0) { $0 + Int(scui_add_font_files("/mnt/c/Windows/Fonts", $1)) }
+            usesWindowsUIFont = added > 0
+        }
+
+        /// Swaps the family in `gtk-font-name` for Segoe UI and keeps its size;
+        /// the system font sets only size and weight, so this is the family every
+        /// Text gets. / 把 `gtk-font-name` 的家族換成 Segoe UI 並保留字級；系統字型只設定字級與字重，
+        /// 因此這就是每個 Text 得到的家族。
+        static func applyWindowsUIFontUnderWSL() {
+            guard usesWindowsUIFont, let settings = Gtk.Settings.default else { return }
+            let size = settings.fontName.split(separator: " ").last.flatMap { Double($0) } ?? 11
+            let sizeText = size == size.rounded() ? String(Int(size)) : String(size)
+            settings.fontName = "Segoe UI \(sizeText)"
+        }
+
+        private static let wslHostColorScheme: ColorScheme? = {
+            guard isWSL else { return nil }
+            let files = FileManager.default
+            let reg = "/mnt/c/Windows/System32/reg.exe"
+            guard files.isExecutableFile(atPath: reg) else { return nil }
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: reg)
+            process.arguments = [
+                "query", #"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"#,
+                "/v", "AppsUseLightTheme",
+            ]
+            let output = Pipe()
+            process.standardOutput = output
+            process.standardError = FileHandle.nullDevice
+            do { try process.run() } catch { return nil }
+            let deadline = Date().addingTimeInterval(2)
+            while process.isRunning && Date() < deadline { usleep(10_000) }
+            if process.isRunning {
+                process.terminate()
+                return nil
+            }
+            let text = String(
+                decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            // `    AppsUseLightTheme    REG_DWORD    0x0`: 0 is dark, 1 is light.
+            // 0 為深色,1 為淺色。
+            guard
+                let line = text.split(whereSeparator: \.isNewline)
+                    .first(where: { $0.contains("AppsUseLightTheme") }),
+                let value = line.split(whereSeparator: \.isWhitespace).last
+            else { return nil }
+            switch value.lowercased() {
+                case "0x0": return .dark
+                case "0x1": return .light
+                default: return nil
+            }
+        }()
+    #endif
 
     /// What the current GTK theme's foreground colour implies, and NOTHING else.
     ///
@@ -3588,6 +3691,10 @@ public final class GtkBackend:
             Gtk.Settings.default?.preferDarkTheme = (systemColorScheme == .dark)
             ambientColorScheme = systemColorScheme
         }
+
+        #if os(Linux)
+            Self.applyWindowsUIFontUnderWSL()
+        #endif
 
         // Seeded from the scheme rather than from the branch above, because both
         // paths end with GTK drawing `ambientColorScheme`: with the branch taken
