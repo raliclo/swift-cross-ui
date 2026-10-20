@@ -2582,7 +2582,16 @@ public final class GtkBackend:
     /// 本 backend 把 Ctrl+Q 給 `app.quit` 用的正是 `gtk_application_set_accels_for_action`
     /// (見 `setUpQuitAction`),因此這個機制是這棵樹**跑過**的,不是從標頭讀來的。
     private func applyShortcut(_ shortcut: KeyboardShortcut?, toAction action: String) {
-        guard let shortcut else { return }
+        // Cleared when the item has none. Action names are positions ("<prefix>_<i>"), so a
+        // rebuilt menu hands a name to another item, and the accelerator set for the old one
+        // stayed on it: in P92's `before` mode the menu is built twice at launch, and
+        // BEFORE-saveItem, now where Close had been, showed Close's Command-W (2026-10-20).
+        // 項目沒有快捷鍵時清空。action 名稱是位置(「<前綴>_<i>」),選單重建時同一個名稱會交給另一個項目，而為舊項目設的快捷鍵
+        // 會留在上面:P92 的 `before` 模式在啟動時建了兩次選單，排到 Close 原本位置的 BEFORE-saveItem 顯示了 Close 的 Command-W。
+        guard let shortcut else {
+            gtkApp.setAccelerators([], forAction: action)
+            return
+        }
         guard let accelerator = Self.gtkAccelerator(for: shortcut) else {
             // Loud rather than silent: an unbindable shortcut is a menu item
             // that looks configured and does nothing when the key is pressed.
@@ -2592,6 +2601,7 @@ public final class GtkBackend:
                 "no GTK accelerator for keyboard shortcut '\(shortcut.key.character)'"
                     + " with modifiers \(shortcut.modifiers.rawValue); \(action) has no shortcut"
             )
+            gtkApp.setAccelerators([], forAction: action)
             return
         }
         gtkApp.setAccelerators([accelerator], forAction: action)
@@ -2703,6 +2713,18 @@ public final class GtkBackend:
         // scalar 會被當成字面字元交給 GTK,而 `gtk_accelerator_parse` **會接受它**——把快捷鍵綁到一個
         // 不存在的鍵上,那是一次沉默的失敗,而不是一次拒絕。
         guard scalar.value >= 0x20, !(0xF700...0xF8FF).contains(scalar.value) else { return nil }
+        // A letter or digit is its own name. Punctuation is not: `gtk_accelerator_parse`
+        // reads "<Meta>?" as malformed ("Unable to parse accelerator", Gtk-CRITICAL) and
+        // installs nothing, so the Help item's Command-? did not exist on GtkBackend
+        // (P92 on macOS, 2026-10-20). GDK's own name for the key is used instead:
+        // `question`, `comma`, `slash`.
+        // 字母與數字的名稱就是它自己。標點不是:`gtk_accelerator_parse` 把「<Meta>?」視為格式錯誤(Gtk-CRITICAL)
+        // 而什麼都不安裝，於是 Help 項目的 Command-? 在 GtkBackend 上不存在(macOS 上的 P92,2026-10-20)。改用 GDK 自己的按鍵名稱。
+        if let character = Character(scalar).asciiValue, !Character(scalar).isLetter, !Character(scalar).isNumber,
+            let name = gdk_keyval_name(gdk_unicode_to_keyval(UInt32(character)))
+        {
+            return String(cString: name)
+        }
         return String(scalar)
     }
 
