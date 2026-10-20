@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15-DARK on WSL GtkBackend: press the button inside a window whose scheme is overridden to dark. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: A button (280,134).
+# Pass: the label reads A button (1) and Resolved still says dark.
+# P15-DARK(WSL):在被覆寫為深色的視窗裡按下按鈕。通過:A button (1),Resolved 仍是 dark。
+sleep,,,,,,3000000,let P15-DARK lay out,gtk
+click,280,134,,left,,,A button -- must read A button (1),gtk
+sleep,,,,,,1500000,hold for the capture,gtk

@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38 on WSL GtkBackend: focus the page, Tab to its only link, follow it, then wheel inside the frame -- actions/mac/P38-scroll-the-web-view.actions. The page exposes nothing to AT-SPI; the framed area starts below the text at y 202 in an 820x660 window, so (700,240) and (410,430) are estimates. Check them against the capture.
+# Pass: Navigations reported rises by one (it read 1 before) with the IANA page in the frame, scrolled away from its top.
+# P38(WSL):讓頁面取得焦點、Tab 到唯一的連結並開啟，再於框內捲動;座標依版面估計。通過:Navigations reported 加一，框內是捲動過的 IANA 頁面。
+sleep,,,,,,3000000,let example.com load,gtk
+click,700,240,,left,,,a blank spot of the page -- keyboard focus,gtk
+sleep,,,,,,600000,,gtk
+key,,,,,tab,,to Learn more,gtk
+sleep,,,,,,400000,,gtk
+key,,,,,return,,follow it,gtk
+sleep,,,,,,4000000,let the navigation finish,gtk
+move,410,430,,,,,into the framed page,gtk
+sleep,,,,,,500000,,gtk
+scroll,0,5,,,,,the page moves,gtk
+sleep,,,,,,1000000,,gtk
+scroll,0,5,,,,,further,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

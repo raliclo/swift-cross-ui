@@ -1117,8 +1117,13 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   carried no calendar at all, so a locale change never differed and never rebuilt it -- it does
   now. A rebuilt wheel then sat at 1925, because it had no row heights to scroll by; `DateWheel`
   re-applies the date until it has. P90 on Windows GTK now reads 2025 / 8月 / 24 and 上午 in both
-  wheels. WSL not yet re-run. / 已完成(Windows GTK):calendar 的 locale 沒有跟著 `\.locale`,只有日期的滾輪
-  的 Contents 不帶 calendar 所以不會重建；重建後的滾輪還沒列高而停在 1925,現在會重試捲動。WSL 尚未重跑。
+  wheels, and so does WSL (same day, after rebuilding there). / 已完成(Windows GTK 與 WSL):calendar 的 locale 沒有跟著 `\.locale`,只有日期的滾輪
+  的 Contents 不帶 calendar 所以不會重建；重建後的滾輪還沒列高而停在 1925,現在會重試捲動。
+- [ ] **Redo in the Edit menu does nothing on Windows GTK.** P92 with SCUI_P92_MENU=1,
+  actions/win/P92-edit-menu-gtk4.actions, 2026-10-20: Select All, Copy, Paste (field hellohello),
+  Undo (field hello) and the app's AFTER-undoRedo all ran from the menu, but Redo left the field at
+  hello -- p92-commands.log goes from "field hello" straight to "command AFTER-undoRedo".
+  Windows GTK 的 Edit 選單「重做」沒有作用；同一次中全選、複製、貼上、復原與 app 自己的項目都有效。
 - [x] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing

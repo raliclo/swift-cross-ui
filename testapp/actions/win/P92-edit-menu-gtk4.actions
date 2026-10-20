@@ -1,0 +1,71 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on Windows GtkBackend (TEST_BACKEND=gtk4), run with SCUI_P92_MENU=1: the steps of actions/win/P92-edit-menu.actions -- Select All, Copy, Paste, Undo, Redo through the Edit menu, then the app's own AFTER-undoRedo item.
+# Positions read 2026-10-20 from a desktop capture with the Edit menu open (its popover exposes nothing to UIA), frame pixels (GTK is not scaled): Edit (151,64); items at x 178: Undo 96, Redo 126, AFTER-undoRedo 156, Copy 229, Paste 259, Select All 319. Field (323,216), its text end (425,216).
+# Expected: field hellohello after Paste, hello after Undo, hellohello after Redo, then last command: AFTER-undoRedo.
+# P92(Windows GTK,SCUI_P92_MENU=1):經 Edit 選單全選、複製、貼上，再復原、重做，最後點 app 自己的項目。預期結果見上方英文。
+sleep,,,,,,1500000,let P92 lay out,windows
+click,323,216,frame,left,,,focus the field,windows
+sleep,,,,,,400000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,319,frame,,,,hover Select All -- hello selected,windows
+sleep,,,,,,150000,,windows
+move,178,319,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,319,frame,left,,,Select All -- hello selected,windows
+sleep,,,,,,120000,,windows
+mouseup,178,319,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,229,frame,,,,hover Copy -- the clipboard holds hello,windows
+sleep,,,,,,150000,,windows
+move,178,229,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,229,frame,left,,,Copy -- the clipboard holds hello,windows
+sleep,,,,,,120000,,windows
+mouseup,178,229,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+click,425,216,frame,left,,,the end of the text -- selection gone,windows
+sleep,,,,,,400000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,259,frame,,,,hover Paste -- field hellohello,windows
+sleep,,,,,,150000,,windows
+move,178,259,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,259,frame,left,,,Paste -- field hellohello,windows
+sleep,,,,,,120000,,windows
+mouseup,178,259,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,96,frame,,,,hover Undo -- field hello,windows
+sleep,,,,,,150000,,windows
+move,178,96,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,96,frame,left,,,Undo -- field hello,windows
+sleep,,,,,,120000,,windows
+mouseup,178,96,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,126,frame,,,,hover Redo -- field hellohello,windows
+sleep,,,,,,150000,,windows
+move,178,126,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,126,frame,left,,,Redo -- field hellohello,windows
+sleep,,,,,,120000,,windows
+mouseup,178,126,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+click,151,64,frame,left,,,open Edit,windows
+sleep,,,,,,700000,,windows
+move,170,156,frame,,,,hover AFTER-undoRedo -- the app's own item,windows
+sleep,,,,,,150000,,windows
+move,178,156,frame,,,,,windows
+sleep,,,,,,300000,,windows
+mousedown,178,156,frame,left,,,AFTER-undoRedo -- the app's own item,windows
+sleep,,,,,,120000,,windows
+mouseup,178,156,frame,left,,,release,windows
+sleep,,,,,,700000,,windows
+sleep,,,,,,1500000,let the capture land,windows

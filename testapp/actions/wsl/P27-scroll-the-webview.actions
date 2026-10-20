@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27 on WSL GtkBackend: wheel inside the WebView, as actions/mac/P27-scroll-the-webview.actions. The page exposes nothing to AT-SPI, so (380,560) is an estimate from the layout: the view sits below the six gradients in a 760x658 window. Check it against the capture.
+# Pass: the page moves inside the view, and the title and the six gradients of P27 do not.
+# P27(WSL):在 WebView 內捲動;頁面不提供 AT-SPI 資訊，座標依版面估計。通過：頁面移動,P27 自己的內容不動。
+sleep,,,,,,3000000,let the page load,gtk
+move,380,560,,,,,into the WebView (estimated),gtk
+sleep,,,,,,500000,,gtk
+scroll,0,4,,,,,the page moves inside the view,gtk
+sleep,,,,,,1000000,,gtk
+scroll,0,4,,,,,further -- the title and the gradients must not move,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

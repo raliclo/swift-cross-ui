@@ -33,6 +33,8 @@
 #ifndef G_OS_WIN32
 
 #include <dlfcn.h>
+#include <stdio.h>
+#include <unistd.h>
 
 // The SONAME of WebKitGTK 6.0's runtime (Ubuntu/Debian: libwebkitgtk-6.0-4).
 // WebKitGTK 6.0 runtime 的 SONAME(Ubuntu/Debian 套件:libwebkitgtk-6.0-4)。
@@ -107,6 +109,33 @@ static int surfaceless_egl_works(void) {
     return ok;
 }
 
+// Whether this user may open a DRM render node. The probe above runs in the UI
+// process, which on WSL also reaches the GPU through /dev/dxg (d3d12), so it
+// passed; WebKit's sandboxed web process has only /dev/dri. Measured 2026-10-20
+// after WSL kernel 6.18 added /dev/dri/card0 and renderD128 (root:video,
+// root:render, mode 660) for a user in neither group: the probe passed, the web
+// process printed "failed to open /dev/dri/renderD128: Permission denied" and
+// "Could not create surfaceless EGL display: EGL_NOT_INITIALIZED. Aborting...",
+// and P38 and P27 showed an empty grey frame with Navigations reported: 1.
+// Before that kernel there was no /dev/dri, the probe failed, and llvmpipe was
+// chosen -- which is why the 2026-09-17 runs drew the page.
+// 這個使用者能否開啟 DRM render node。上面的探測在 UI 行程執行，而 UI 行程在 WSL 上也能經
+// /dev/dxg(d3d12)用到 GPU,所以探測通過；WebKit 沙箱裡的網頁行程只有 /dev/dri。2026-10-20 實測：
+// WSL kernel 6.18 新增了 /dev/dri/card0 與 renderD128(root:video、root:render,權限 660),而使用者
+// 不在這兩個群組：探測通過，網頁行程印出 Permission denied 與「Could not create surfaceless EGL
+// display ... Aborting...」,P38 與 P27 只剩灰色的框。那個 kernel 之前沒有 /dev/dri,探測失敗而選了
+// llvmpipe——這正是 2026-09-17 那幾次畫得出頁面的原因。
+static int render_node_usable(void) {
+    for (int minor = 128; minor < 192; minor++) {
+        char path[32];
+        snprintf(path, sizeof path, "/dev/dri/renderD%d", minor);
+        if (access(path, R_OK | W_OK) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // NULL when WebKit can be created safely; otherwise the reason it cannot.
 // WebKit 可以安全建立時回傳 NULL;否則回傳無法建立的原因。
 static char *ensure_webkit_can_render(void) {
@@ -119,7 +148,7 @@ static char *ensure_webkit_can_render(void) {
             "no surfaceless EGL display, even with LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe"
         );
     }
-    if (surfaceless_egl_works()) {
+    if (render_node_usable() && surfaceless_egl_works()) {
         state = 1;
         return NULL;
     }

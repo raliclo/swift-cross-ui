@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P93 on WSL GtkBackend: ported 2026-10-20 from actions/win/P93-new-submenu-and-window-list.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name.
+# P93(WSL):由 actions/win/P93-new-submenu-and-window-list.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
+# P93 on Windows: two window groups and a single window; nothing to press. Run with SCUI_P93_MENU=1 SCUI_DEBUG_MENU_DUMP=1 to read the bar back -- without SCUI_P93_MENU there is no bar on Windows and the dump is empty: File > New > New Alpha Window / New Beta Window, Solo in the Window menu (reference/swiftui-commands/two-groups.txt). Both backends matched it 2026-10-20.
+# P93(Windows):不需按任何東西；以 SCUI_P93_MENU=1 SCUI_DEBUG_MENU_DUMP=1 讀回選單列並與 two-groups.txt 比對——少了 SCUI_P93_MENU,Windows 上沒有選單列、傾印是空的。2026-10-20 兩個 backend 皆相符。
+sleep,,,,,,6000000,hold for the capture,gtk
