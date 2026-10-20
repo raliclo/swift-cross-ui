@@ -3308,13 +3308,15 @@ public final class WinUIBackend:
         // lost its seconds at launch with no user input (P41, 2026-09-17:
         // 09:46:40 was written back as 09:46:00 before anything was touched).
         // WinUI's TimePicker has no seconds, so a 00-59 selector now sits beside
-        // it -- the same H:M:S shape GtkBackend draws with spin buttons.
+        // it -- the same H:M:S shape GtkBackend draws with spin buttons. Since
+        // 2026-10-20 the whole row, seconds included, is LocaleTimeRow; the
+        // TimePicker is gone (it wrote AM/PM in the app's language, P90).
         //
         // `.hourMinuteAndSecond` 以前每次更新都印「is not supported in WinUIBackend. Falling back
         // to .hourAndMinute.」,並且只顯示時與分。那個降級不只是不完整:**綁定值在啟動時、沒有任何
         // 使用者操作之下就失去了秒數**(P41,2026-09-17:什麼都還沒碰,09:46:40 就被寫回成 09:46:00)。
         // WinUI 的 TimePicker 沒有秒,所以現在在它旁邊放一個 00–59 的選擇器——與 GtkBackend 用 spin
-        // button 畫出的 H:M:S 同一個形狀。
+        // button 畫出的 H:M:S 同一個形狀。自 2026-10-20 起整列(含秒)由 LocaleTimeRow 繪製，TimePicker 已不再使用。
         customDatePicker.toggleTimeView(
             shown: components.contains(.hourAndMinute),
             seconds: components.contains(.hourMinuteAndSecond)
@@ -3340,8 +3342,18 @@ public final class WinUIBackend:
 
         customDatePicker.onChange = onChange
         customDatePicker.changeDateView(to: dateViewType)
-        customDatePicker.updateIfNeeded(date: date, calendar: environment.calendar)
+        // The month names, column order and AM/PM come from the calendar's
+        // locale, and `environment.calendar` does not follow `\.locale` -- the
+        // same fix as GtkBackend's updateDatePicker (P90, 2026-10-20). The range
+        // goes in first, because the wheel's year column is cut to it.
+        // 月份名稱、欄位順序與上午/下午取自 calendar 的 locale,而 `environment.calendar` 不會跟著 `\.locale`——
+        // 與 GtkBackend 的 updateDatePicker 同一個修正(P90,2026-10-20)。範圍先放入，因為滾輪的年份欄依它裁切。
+        var displayCalendar = environment.calendar
+        displayCalendar.locale = environment.locale
         customDatePicker.setDateRange(to: range)
+        customDatePicker.updateIfNeeded(
+            date: date, calendar: displayCalendar, environment: environment
+        )
         customDatePicker.setEnabled(to: environment.isEnabled)
 
         customDatePicker.setForeground(to: environment.explicitWinUIForegroundBrush)
@@ -3964,21 +3976,25 @@ final class CustomDatePicker: StackPanel {
     }
 
     deinit {
-        timeChangedEvent?.dispose()
-        secondsChangedEvent?.dispose()
         dateChangedEvent?.dispose()
     }
 
+    /// The date part. `.datePicker` is the wheel style (`.automatic` and
+    /// `.wheel`), drawn by `LocaleDateWheel` since 2026-10-20 rather than by
+    /// `WinUI.DatePicker`, which formats with the app's languages only and so
+    /// ignored `\.locale` (P90). See WinUIBackend+LocaleWheels.swift.
+    /// 日期部分。`.datePicker` 是滾輪樣式(`.automatic` 與 `.wheel`),自 2026-10-20 起由 `LocaleDateWheel`
+    /// 繪製，不再用只依 app 語言格式化、因而無視 `\.locale` 的 `WinUI.DatePicker`(P90)。
     enum DateViewType {
         case calendarView(CalendarView)
         case calendarDatePicker(CalendarDatePicker)
-        case datePicker(WinUI.DatePicker)
+        case datePicker(LocaleDateWheel)
 
-        var asControl: Control {
+        var asElement: FrameworkElement {
             switch self {
                 case .calendarView(let calendarView): calendarView
                 case .calendarDatePicker(let calendarDatePicker): calendarDatePicker
-                case .datePicker(let datePicker): datePicker
+                case .datePicker(let wheel): wheel
             }
         }
 
@@ -3998,19 +4014,20 @@ final class CustomDatePicker: StackPanel {
     }
 
     private var dateView: DateViewType?
-    private var timeView: TimePicker?
-    /// The row holding `timeView` and, for `.hourMinuteAndSecond`,
-    /// `secondsView`. One child of this panel, so the date view stays at index 0.
-    /// 裝著 `timeView`(以及 `.hourMinuteAndSecond` 時的 `secondsView`)的那一列。它是本 panel 的
-    /// 單一子元件,因此日期檢視維持在索引 0。
-    private var timeRow: StackPanel?
-    private var secondsView: ComboBox?
+    /// Hours, minutes, optionally seconds and AM/PM, in the locale's order.
+    /// One child of this panel, appended after the date view, so the date view
+    /// stays at index 0. It replaced a WinUI TimePicker plus a seconds ComboBox
+    /// on 2026-10-20: the TimePicker wrote AM/PM in the app's language whatever
+    /// `\.locale` said.
+    /// 依 locale 順序排列的時、分、可選的秒與上午/下午。它是本 panel 的單一子元件，排在日期檢視之後，因此日期
+    /// 檢視維持在索引 0。2026-10-20 取代了 WinUI TimePicker 加秒數 ComboBox:TimePicker 不管 `\.locale`
+    /// 怎麼說，都以 app 的語言寫上午/下午。
+    private var timeRow: LocaleTimeRow?
     private var date = Date()
     private var calendar = Calendar.current
+    private var range = Date.distantPast...Date.distantFuture
     private var needsUpdate = false
     var onChange: ((Date) -> Void)?
-    private var timeChangedEvent: EventCleanup?
-    private var secondsChangedEvent: EventCleanup?
     private var dateChangedEvent: EventCleanup?
 
     /// True while `updateIfNeeded` is pushing the bound value INTO the controls.
@@ -4032,10 +4049,6 @@ final class CustomDatePicker: StackPanel {
     /// `onChange`。
     private var isApplyingUpdate = false
 
-    /// Wide enough for "00" plus the drop-down chevron.
-    /// 足以容納「00」加上下拉箭頭的寬度。
-    static let secondsViewWidth = 72
-
     private func timeOfDay(_ date: Date) -> TimeInterval {
         date.timeIntervalSince(calendar.startOfDay(for: date))
     }
@@ -4047,7 +4060,7 @@ final class CustomDatePicker: StackPanel {
     /// 綁定值的時刻,供**日期**編輯保留。未顯示時間時為 `nil`,維持該處原本的行為。以前用的是
     /// `timeView?.selectedTime`——它沒有秒——所以選一天也會把秒歸零。
     private var keptTimeOfDay: TimeSpan? {
-        guard timeView != nil else { return nil }
+        guard timeRow != nil else { return nil }
         return TimeSpan(duration: Int64(timeOfDay(date) * ticksPerSecond))
     }
 
@@ -4058,83 +4071,53 @@ final class CustomDatePicker: StackPanel {
     }
 
     func toggleTimeView(shown: Bool, seconds: Bool) {
-        let hasSeconds = secondsView != nil
-        guard shown != (timeView != nil) || (shown && seconds != hasSeconds) else { return }
+        guard shown != (timeRow != nil) || (shown && seconds != timeRow?.showsSeconds) else {
+            return
+        }
 
-        // Tear down whatever is there, then build what is asked for. Rebuilding
-        // the row on a seconds toggle is simpler than inserting into it, and
-        // toggling is rare.
-        // 先拆掉現有的,再建出所要求的。切換秒數時整列重建,比往裡面插入簡單,而切換本來就少見。
+        // Tear down whatever is there, then build what is asked for. Always
+        // the last child: the date view is inserted at 0 and the row appended.
+        // Not an identity search -- wrapper identity is not stable in this
+        // binding (see WinUIBackend+LazyListRows.swift).
+        // 先拆掉現有的，再建出所要求的。永遠是最後一個子元件：日期檢視插在 0,這一列則是 append。不做身分搜尋——
+        // 這個綁定的包裝身分並不穩定(見 WinUIBackend+LazyListRows.swift)。
         if timeRow != nil {
-            timeChangedEvent?.dispose()
-            timeChangedEvent = nil
-            secondsChangedEvent?.dispose()
-            secondsChangedEvent = nil
-            // Always the last child: the date view is inserted at 0 and the row
-            // appended. Not an identity search -- wrapper identity is not stable
-            // in this binding (see WinUIBackend+LazyListRows.swift).
-            // 永遠是最後一個子元件:日期檢視插在 0,這一列則是 append。不做身分搜尋——這個綁定的包裝
-            // 身分並不穩定(見 WinUIBackend+LazyListRows.swift)。
             children.removeAtEnd()
-            self.timeRow = nil
-            self.timeView = nil
-            self.secondsView = nil
+            timeRow = nil
         }
 
         guard shown else { return }
 
-        let row = StackPanel()
-        row.orientation = .horizontal
-        row.spacing = 6
-
-        let timeView = TimePicker()
-        row.children.append(timeView)
-        timeChangedEvent = timeView.timeChanged.addHandler { [unowned self] _, change in
-            guard let change else { return }
-            // Hours and minutes from the picker, SECONDS FROM THE BOUND VALUE:
-            // the picker cannot represent them, so taking its seconds would
-            // zero them on every edit.
-            // 時與分取自 picker,**秒取自綁定值**:picker 表示不了秒,取它的秒等於每次編輯都歸零。
-            let pickedMinutes =
-                (Double(change.newTime.duration) / ticksPerSecond / 60).rounded(.down) * 60
-            let keptSeconds = timeOfDay(self.date).truncatingRemainder(dividingBy: 60)
-            report(calendar.startOfDay(for: self.date) + pickedMinutes + keptSeconds)
+        let row = LocaleTimeRow()
+        row.configure(calendar: calendar, showsSeconds: seconds)
+        row.onChange = { [unowned self] hour, minute, second in
+            // Seconds from the bound value when the row shows none, so an
+            // hour or minute edit does not zero them.
+            // 列上沒有秒時，秒取自綁定值，以免改時或分就把秒歸零。
+            let keptSeconds = second.map(Double.init)
+                ?? timeOfDay(self.date).truncatingRemainder(dividingBy: 60)
+            report(
+                calendar.startOfDay(for: self.date)
+                    + Double(hour * 3600 + minute * 60) + keptSeconds
+            )
+            DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
         }
-
-        if seconds {
-            let secondsView = ComboBox()
-            secondsView.width = Double(Self.secondsViewWidth)
-            secondsView.verticalAlignment = .center
-            for second in 0..<60 {
-                secondsView.items.append(String(format: "%02d", second))
-            }
-            row.children.append(secondsView)
-            secondsChangedEvent = secondsView.selectionChanged.addHandler {
-                [unowned self, unowned secondsView] _, _ in
-                let index = Int(secondsView.selectedIndex)
-                // -1 is WinUI's transient "no selection" while the list opens.
-                // -1 是清單開啟時 WinUI 暫時性的「無選取」。
-                guard index >= 0 else { return }
-                let wholeMinutes = (timeOfDay(self.date) / 60).rounded(.down) * 60
-                report(calendar.startOfDay(for: self.date) + wholeMinutes + Double(index))
-                DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
-            }
-            self.secondsView = secondsView
-            secondsView.loaded.addHandler { [weak self] _, _ in
-                DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
-            }
+        row.loaded.addHandler { [weak self] _, _ in
+            DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
         }
-
         children.append(row)
-        self.timeRow = row
-        self.timeView = timeView
+        timeRow = row
         needsUpdate = true
     }
 
     func setEnabled(to isEnabled: Bool) {
-        dateView?.asControl.isEnabled = isEnabled
-        timeView?.isEnabled = isEnabled
-        secondsView?.isEnabled = isEnabled
+        switch dateView {
+            case .calendarView(let view): view.isEnabled = isEnabled
+            case .calendarDatePicker(let picker): picker.isEnabled = isEnabled
+            case .datePicker(let wheel): wheel.setEnabled(isEnabled)
+            case nil: break
+        }
+        timeRow?.setEnabled(isEnabled)
     }
 
     /// The environment's explicit foreground on every part, or the theme's
@@ -4162,11 +4145,21 @@ final class CustomDatePicker: StackPanel {
                 try? control.clearValue(Control.foregroundProperty)
             }
         }
-        apply(timeView)
-        apply(secondsView)
+        for box in timeRow?.boxes ?? [] {
+            apply(box)
+        }
+        for separator in timeRow?.separators ?? [] {
+            if let brush {
+                separator.foreground = brush
+            } else {
+                try? separator.clearValue(WinUI.TextBlock.foregroundProperty)
+            }
+        }
         switch dateView {
-            case .datePicker(let picker):
-                apply(picker)
+            case .datePicker(let wheel):
+                for column in wheel.columns {
+                    apply(column)
+                }
             case .calendarView(let view):
                 apply(view)
                 if let brush {
@@ -4191,19 +4184,19 @@ final class CustomDatePicker: StackPanel {
     private var foregroundBrush: WinUI.Brush?
 
     /// `Foreground` did not reach the text of a `CalendarDatePicker` (the
-    /// date it shows) or of the seconds `ComboBox` (the selected second): on
-    /// P41 both stayed in the theme's colour with everything else red, and so
-    /// did overriding the `CalendarDatePickerTextForeground` and
+    /// date it shows) or of a `ComboBox` (the selected value): on P41 both
+    /// stayed in the theme's colour with everything else red, and so did
+    /// overriding the `CalendarDatePickerTextForeground` and
     /// `ComboBoxForeground` resources (2026-10-07). So the colour is set on
     /// the text blocks inside their templates, a local value that wins over
-    /// the template's; cleared again when there is no colour. The seconds box
-    /// rebuilds its displayed item when the selection changes, so its
-    /// selection handler calls this too. The `CalendarView` month header is
-    /// painted the same way. `CalendarView` 的月份標題也以同樣方式上色。
-    /// `Foreground` 到不了 `CalendarDatePicker` 的文字(它顯示的日期)與秒數 `ComboBox` 的文字(選中的秒數):在 P41 上，
+    /// the template's; cleared again when there is no colour. A ComboBox
+    /// rebuilds its displayed item when the selection changes, so the time
+    /// row's change handler calls this too. The `CalendarView` month header
+    /// is painted the same way.
+    /// `Foreground` 到不了 `CalendarDatePicker` 的文字(它顯示的日期)與 `ComboBox` 的文字(選中的值):在 P41 上，
     /// 其他東西都變紅時這兩者仍是主題顏色，覆寫 `CalendarDatePickerTextForeground` 與 `ComboBoxForeground` 資源也一樣
-    /// (2026-10-07)。因此把顏色設在它們 template 內的 text block 上——本地值勝過 template 的值；沒有顏色時再清除。秒數框在
-    /// 選取改變時會重建顯示項目，所以其選取 handler 也會呼叫這裡。
+    /// (2026-10-07)。因此把顏色設在它們 template 內的 text block 上——本地值勝過 template 的值；沒有顏色時再清除。ComboBox
+    /// 在選取改變時會重建顯示項目，所以時間列的變更 handler 也會呼叫這裡。`CalendarView` 的月份標題也以同樣方式上色。
     func paintTemplateText() {
         func walk(_ element: WinUI.UIElement) {
             if let text = element as? WinUI.TextBlock {
@@ -4227,8 +4220,8 @@ final class CustomDatePicker: StackPanel {
             case .datePicker, nil:
                 break
         }
-        if let secondsView {
-            walk(secondsView)
+        for box in timeRow?.boxes ?? [] {
+            walk(box)
         }
     }
 
@@ -4236,8 +4229,10 @@ final class CustomDatePicker: StackPanel {
         guard newDiscriminator != dateView?.discriminator else { return }
 
         dateChangedEvent?.dispose()
+        dateChangedEvent = nil
         if dateView != nil {
             children.removeAt(0)
+            dateView = nil
         }
 
         switch newDiscriminator {
@@ -4280,15 +4275,19 @@ final class CustomDatePicker: StackPanel {
                 }
                 needsUpdate = true
             case .datePicker:
-                let datePicker = WinUI.DatePicker()
-                dateView = .datePicker(datePicker)
-                children.insertAt(0, datePicker)
+                let wheel = LocaleDateWheel()
+                dateView = .datePicker(wheel)
+                children.insertAt(0, wheel)
                 orientation = .horizontal
-                dateChangedEvent = datePicker.selectedDateChanged.addHandler {
-                    [unowned self] _, _ in
-
-                    guard let selectedDate = datePicker.selectedDate else { return }
-                    report(componentsToFoundationDate(dateTime: selectedDate, timeSpan: keptTimeOfDay))
+                wheel.onChange = { [unowned self] year, month, day in
+                    // The time of day is kept, as the WinUI DatePicker's DateTime kept it.
+                    // 保留一天中的時刻，與 WinUI DatePicker 的 DateTime 保留它的方式相同。
+                    guard
+                        let picked = calendar.date(
+                            from: DateComponents(year: year, month: month, day: day)
+                        )
+                    else { return }
+                    report(calendar.startOfDay(for: picked) + timeOfDay(self.date))
                 }
                 needsUpdate = true
             case nil:
@@ -4297,6 +4296,10 @@ final class CustomDatePicker: StackPanel {
     }
 
     func setDateRange(to range: ClosedRange<Date>) {
+        if range != self.range {
+            self.range = range
+            needsUpdate = true
+        }
         guard let dateView else { return }
 
         let (startDate, _) = foundationDateToComponents(range.lowerBound)
@@ -4309,13 +4312,27 @@ final class CustomDatePicker: StackPanel {
             case .calendarDatePicker(let calendarDatePicker):
                 calendarDatePicker.minDate = startDate
                 calendarDatePicker.maxDate = endDate
-            case .datePicker(let datePicker):
-                datePicker.minYear = startDate
-                datePicker.maxYear = endDate
+            case .datePicker:
+                // The wheel's year column is cut to the range in `updateIfNeeded`.
+                // 滾輪的年份欄在 `updateIfNeeded` 中依範圍裁切。
+                break
         }
     }
 
-    func updateIfNeeded(date: Date, calendar: Calendar) {
+    /// The years a wheel offers: a hundred either side of the bound year, as
+    /// GtkBackend's wheel offers, cut to the range.
+    /// 滾輪提供的年份：綁定年份前後各一百年(與 GtkBackend 的滾輪相同),再依範圍裁切。
+    private func wheelYears(around year: Int) -> ClosedRange<Int> {
+        let low = max(year - 100, calendar.component(.year, from: range.lowerBound))
+        let high = min(year + 100, calendar.component(.year, from: range.upperBound))
+        return low <= high ? low...high : year...year
+    }
+
+    /// `calendar` carries the environment's locale (`updateDatePicker` puts it
+    /// there), so a locale change is a calendar change and reaches the wheels.
+    /// `calendar` 帶著 environment 的 locale(由 `updateDatePicker` 放入),因此 locale 改變就是 calendar 改變，
+    /// 會傳到滾輪。
+    func updateIfNeeded(date: Date, calendar: Calendar, environment: EnvironmentValues) {
         if !needsUpdate && date == self.date && calendar == self.calendar { return }
         isApplyingUpdate = true
         defer {
@@ -4326,7 +4343,7 @@ final class CustomDatePicker: StackPanel {
         self.date = date
         self.calendar = calendar
 
-        let (dateTime, timeSpan) = foundationDateToComponents(date)
+        let (dateTime, _) = foundationDateToComponents(date)
 
         switch dateView {
             case .calendarView(let calendarView):
@@ -4370,18 +4387,22 @@ final class CustomDatePicker: StackPanel {
             case .calendarDatePicker(let calendarDatePicker):
                 calendarDatePicker.calendarIdentifier = identifier(for: calendar)
                 calendarDatePicker.date = dateTime
-            case .datePicker(let datePicker):
-                datePicker.selectedDate = dateTime
+            case .datePicker(let wheel):
+                let parts = calendar.dateComponents([.year, .month, .day], from: date)
+                if let year = parts.year, let month = parts.month, let day = parts.day {
+                    wheel.configure(
+                        calendar: calendar, years: wheelYears(around: year), environment: environment
+                    )
+                    wheel.show(year: year, month: month, day: day)
+                }
             case nil:
                 break
         }
 
-        if let timeView {
-            timeView.selectedTime = timeSpan
-        }
-        if let secondsView {
-            let seconds = Int(timeOfDay(date).rounded(.down)) % 60
-            secondsView.selectedIndex = Int32(seconds)
+        if let timeRow {
+            timeRow.configure(calendar: calendar, showsSeconds: timeRow.showsSeconds)
+            let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
+            timeRow.show(hour: parts.hour ?? 0, minute: parts.minute ?? 0, second: parts.second ?? 0)
         }
     }
 
@@ -4436,41 +4457,16 @@ final class CustomDatePicker: StackPanel {
     }
 
     func naturalSize() -> SIMD2<Int> {
-        let timeViewSize =
-            if timeView != nil {
-                // Width is 242, as shown in the WinUI repository:
-                // https://github.com/marcelwgn/microsoft-ui-xaml/blob/ff21f9b212cea2191b959649e45e52486c8465aa/src/controls/dev/CommonStyles/TimePicker_themeresources.xaml#L116
-                // Height is experimentally 29 which I don't see anywhere in that file.
-                SIMD2(242, 29)
-            } else {
-                SIMD2<Int>.zero
-            }
-        // The seconds selector sits in the same row, after the row's spacing.
-        // 秒數選擇器位於同一列,在該列的間距之後。
-        //
-        // A FIXED size, not `WinUIBackend.naturalSize(of: secondsView)`. Measuring
-        // a ComboBox holding 60 items returned the height of its item list: the
-        // first build of this made P41's window 2757 px tall, drew the H:M:S row
-        // at the top of the cell and pushed its label ~1500 px below it.
-        // 用**固定**尺寸,而不是 `WinUIBackend.naturalSize(of: secondsView)`。量一個裝了 60 個項目的
-        // ComboBox,回傳的是它項目清單的高度:本修正的第一版把 P41 的視窗撐到 2757 px 高,H:M:S 那一列
-        // 畫在格子頂端,標籤則被推到它下方約 1500 px 處。
-        let secondsSize =
-            if secondsView != nil, let timeRow {
-                SIMD2(Self.secondsViewWidth + Int(timeRow.spacing), 32)
-            } else {
-                SIMD2<Int>.zero
-            }
-        let timeRowSize = SIMD2(
-            timeViewSize.x + secondsSize.x,
-            max(timeViewSize.y, secondsSize.y)
-        )
+        let timeRowSize = timeRow?.naturalSize() ?? .zero
 
-        let dateViewSize =
-            if let dateControl = dateView?.asControl {
-                WinUIBackend.naturalSize(of: dateControl)
-            } else {
-                SIMD2<Int>.zero
+        let dateViewSize: SIMD2<Int> =
+            switch dateView {
+                // `WheelPicker.naturalSize` measures at its fixed five-row
+                // height; the generic measure would lay every row out (P74).
+                // `WheelPicker.naturalSize` 以固定的五列高度量測；通用量測會把所有列都排開(P74)。
+                case .datePicker(let wheel): wheel.naturalSize()
+                case .some(let view): WinUIBackend.naturalSize(of: view.asElement)
+                case nil: .zero
             }
 
         if orientation == .horizontal {
@@ -4483,19 +4479,6 @@ final class CustomDatePicker: StackPanel {
                 x: max(timeRowSize.x, dateViewSize.x),
                 y: timeRowSize.y + dateViewSize.y + Int(self.spacing)
             )
-        }
-    }
-}
-
-extension WinUI.FrameworkElement {
-    var shouldBlockNextChangedSignal: Bool {
-        get {
-            (self.tag as? [String: Any])?["shouldBlockNextChangedSignal"] as? Bool ?? false
-        }
-        set {
-            var value = self.tag as? [String: Any] ?? [:]
-            value["shouldBlockNextChangedSignal"] = newValue
-            self.tag = value
         }
     }
 }

@@ -1063,7 +1063,7 @@ gave -38,-59 at one and 154,-6 at the other.
 Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.csv2 of that date).
 2026-10-20 由新的 actions/win 動作檔發現(結果列見 matrix_coverage/results.csv2 同日)。
 
-- [ ] **zh_TW does not reach DatePicker / TimePicker.** P90: heading zh_TW, pickers still read
+- [x] **zh_TW does not reach DatePicker / TimePicker.** P90: heading zh_TW, pickers still read
   August 24 2025 / 9 46 AM. Tried and reverted: `FrameworkElement.Language` set to `zh-TW` on the
   controls, both on the live controls and on fresh ones before they load (rebuilt on a locale
   change) -- no visible change either way. WinUI's pickers appear to format from the app's
@@ -1071,6 +1071,19 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   `ClockIdentifier`, or drawing the wheels ourselves as GtkBackend does.
   zh_TW 傳不到 DatePicker/TimePicker。試過並已還原：在控制項上設 `FrameworkElement.Language`(已上畫面的、
   以及載入前新建的都試過)皆無變化。下一步：格式字串與 ClockIdentifier,或像 GtkBackend 一樣自己畫滾輪。
+  **Done 2026-10-20 (user's choice: draw the wheels ourselves):** WinUIBackend+LocaleWheels.swift.
+  The wheel style is LocaleDateWheel -- year, month and day as three WheelPicker columns in the
+  order `DateFormatter.dateFormat(fromTemplate: "yMMMMd")` gives, month names from
+  `calendar.monthSymbols` -- and every time row is LocaleTimeRow (hour, minute, optional second,
+  AM/PM from `calendar.amSymbol`/`pmSymbol`, in the `jm` pattern's order). updateDatePicker puts
+  `\.locale` on the calendar, as GtkBackend's does. P90 zh_TW: 2025 / 8月 / 24 and 上午 09 : 46;
+  P41 en_US: August / 24 / 2025, bound values unchanged at launch (09:46:40 kept).
+  Not yet checked under another locale: `.compact` (CalendarDatePicker, still WinUI's), `.clock`
+  and `.rows`. GtkBackend's TimeRow puts AM/PM last whatever the locale; WinUI now follows the
+  pattern (上午 first in zh_TW) -- align one way or the other.
+  已完成(使用者選擇自己畫滾輪):日期為三欄 WheelPicker,依 locale 排序、月名取自 calendar;時間列依 `jm` 樣式，上午/下午
+  取自 calendar。P90 zh_TW 顯示 2025/8月/24 與上午 09:46。`.compact`、`.clock`、`.rows` 在其他 locale 下尚未檢查；
+  GtkBackend 的上午/下午固定放最後，WinUI 依樣式放前面——要統一。
 - [x] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
   yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
   `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,

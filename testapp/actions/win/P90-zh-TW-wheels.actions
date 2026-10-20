@@ -1,9 +1,7 @@
 action,x,y,origin,button,key,micros,note,platform
-# P90 on Windows (WinUI): zh_TW, then open the date wheel. The WinUI wheel style is a DatePicker, whose wheels are a flyout opened from its button. Positions measured 2026-10-20 with test_support/measure/measure_win.zsh: zh_TW (313,412), the first date picker (174,507) DIPs.
-# Pass: the heading says zh_TW, and the open flyout orders its columns as zh_TW writes a date (year, month, day).
-# P90(Windows,WinUI):選 zh_TW,再打開日期滾輪(WinUI 的滾輪是從按鈕開啟的 flyout)。通過：標題為 zh_TW,欄位順序為年、月、日。
+# P90 on Windows (WinUI): choose zh_TW. Since 2026-10-20 the WinUI wheel style is LocaleDateWheel (three always-visible columns, see WinUIBackend+LocaleWheels.swift) rather than a DatePicker flyout, so no second click opens anything. Position measured 2026-10-20 with test_support/measure/measure_win.zsh after that change: zh_TW (313,278) DIPs. (The flyout-era file clicked (313,412); the taller wheels moved the buttons up.)
+# Pass: the heading says zh_TW; both date wheels read 2025 / 8月 / 24 in that column order, and the time rows read 上午 09 : 46 -- the text GtkBackend shows.
+# P90(Windows,WinUI):選 zh_TW。通過：標題為 zh_TW;兩組日期滾輪依序為 2025、8月、24,時間列為上午 09:46——與 GtkBackend 顯示的文字相同。
 sleep,,,,,,1500000,let P90 lay out,windows
-click,313,412,frame,left,,,zh_TW,windows
-sleep,,,,,,1000000,,windows
-click,174,507,frame,left,,,open the date wheels,windows
+click,313,278,frame,left,,,zh_TW,windows
 sleep,,,,,,2000000,hold for the capture,windows
