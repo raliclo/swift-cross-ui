@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P108 on WSL GtkBackend: a held drag, then a throw, after the app's own FREE and BOUND; the steps of
+# actions/win/P108-throw-gtk4.actions (its header gives the order and why HOLD comes first).
+# Measured 2026-10-20 on p108-wslg-final-20261020-090456.png, client coordinates (origin left empty,
+# the frame offset (38, 59) taken off): the card is 40x40 at x 20-60, y 100-140, centre (40, 120).
+# Pass: HOLD releases at offset 20 with velocity 0 and no coast; THROW releases with the speed over
+# the last 0.1 s of the points as received and coasts on the closed form.
+# P108(WSL):先停住再拋擲，步驟同 Windows GTK 檔；卡片中心 (40, 120),client 座標。
+sleep,,,,,,16000000,FREE and BOUND run first,gtk
+click,300,400,,left,,,focus the window on blank space below the log -- WSLg can take the first press of an inactive window for activation,gtk
+sleep,,,,,,1000000,,gtk
+mousedown,40,120,,left,,,HOLD: press the card at offset 0,gtk
+sleep,,,,,,100000,,gtk
+move,50,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,60,120,,,,,,gtk
+sleep,,,,,,300000,hold still,gtk
+mouseup,,,,left,,,release in place with no speed -- no coast; the card is at offset 20,gtk
+sleep,,,,,,1500000,,gtk
+mousedown,60,120,,left,,,THROW: press the card at offset 20,gtk
+sleep,,,,,,100000,,gtk
+move,65,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,70,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,75,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,80,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,85,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,90,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,95,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,100,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,105,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+move,110,120,,,,,,gtk
+sleep,,,,,,16000,,gtk
+mouseup,,,,left,,,let go in place -- the card coasts,gtk
+sleep,,,,,,5000000,the coast,gtk

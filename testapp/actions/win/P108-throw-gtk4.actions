@@ -9,6 +9,8 @@ action,x,y,origin,button,key,micros,note,platform
 # the card on both Windows backends (2026-10-19), hence this order. Mouseups go in place: with a position, the
 # synthesiser's move and checks delayed the release past the 0.1 s the velocity is measured over.
 # 2026-10-19 Windows GTK: HOLD passes (20.00, velocity 0); the THROW drags the card to 70.00 but reads 0 pt/s -- the points arrive about 78 ms apart, and the 0.1 s velocity window holds none. Open.
+# 2026-10-20: passes. The 78 ms was the replay, not GTK: each held move enumerated and (under --debug) dumped every window. Win32Synthesiser now keeps the pressed window while a button is held; points arrive 31-39 ms apart, THROW reads 106-128 pt/s and coasts on the closed form, err 0.
+# 2026-10-20:通過。78 毫秒來自重放而非 GTK:每次按住移動都列舉(在 --debug 下還傾印)所有視窗;現在按住期間沿用按下時的視窗，點間隔 31-39 毫秒,THROW 讀到 106-128 pt/s 並依閉式解滑行。
 # P108(Windows):先「停住」再「拋擲」,讓兩次按下都落在已知位置的卡片上;通過條件見上方英文。
 sleep,,,,,,17000000,FREE and BOUND run first,windows
 mousedown,54,173,frame,left,,,HOLD: press the card at offset 0,windows

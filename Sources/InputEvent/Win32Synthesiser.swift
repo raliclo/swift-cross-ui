@@ -214,6 +214,16 @@
         /// 失敗時回傳 `0` 而非拋出錯誤，因為呼叫端會把 `0` 讀作「未改變」——一個「無法回答的識別檢查」
         /// 不應該成為中止整個重放的原因。
         public func currentWindowIdentity() -> Int {
+            // While a button is held, the window it went down in. A drag cannot move
+            // to another window, and asking again cost each held move a window
+            // enumeration and, under --debug, a dump of every window: P108's throw on
+            // Windows GTK received its drag points 65.6 ms apart with --debug and
+            // 37.5 ms without, for moves sent 16 ms apart, and with --debug the 0.1 s
+            // velocity window held no point and read 0 pt/s (2026-10-20).
+            // 按住按鍵期間，回傳按下時的那個視窗。拖曳不可能換到另一個視窗，而每次重問都讓每一次按住移動多一次視窗
+            // 列舉，在 --debug 下還要傾印所有視窗:2026-10-20 P108 在 Windows GTK 上的拋擲，每 16 毫秒送一次移動，
+            // 加 --debug 時每 65.6 毫秒才收到一個拖曳點、不加時 37.5 毫秒，而加 --debug 時 0.1 秒的速度窗內沒有點，讀成 0 pt/s。
+            if Self.heldButtons > 0, Self.identityAtPress != 0 { return Self.identityAtPress }
             guard let window = try? ownWindow() else { return 0 }
             return Int(bitPattern: window)
         }
@@ -514,6 +524,9 @@
         /// `move` is SendInput, so the toolkit sees a drag (see `move(to:in:)`).
         /// `mousedown` 按下、尚未放開的按鍵數：只要有一個,`move` 就走 SendInput,toolkit 才看得到拖曳。
         nonisolated(unsafe) private static var heldButtons = 0
+        /// The driven window when the held button went down; see `currentWindowIdentity`.
+        /// 按住的按鍵按下時被驅動的視窗;見 `currentWindowIdentity`。
+        nonisolated(unsafe) private static var identityAtPress = 0
 
         private func hideOwnConsoleOnce() {
             guard !Self.didHideConsole else { return }
@@ -866,11 +879,15 @@
                     if let point { try move(to: point, in: geometry) }
                     try send(mouseFlags: Self.downFlag(for: button))
                     Self.heldButtons += 1
+                    if Self.heldButtons == 1 {
+                        Self.identityAtPress = (try? ownWindow()).map { Int(bitPattern: $0) } ?? 0
+                    }
 
                 case .mouseUp(let button, let point):
                     if let point { try move(to: point, in: geometry) }
                     try send(mouseFlags: Self.upFlag(for: button))
                     Self.heldButtons = max(Self.heldButtons - 1, 0)
+                    if Self.heldButtons == 0 { Self.identityAtPress = 0 }
 
                 case .keyDown(let key):
                     try send(key: key, up: false)

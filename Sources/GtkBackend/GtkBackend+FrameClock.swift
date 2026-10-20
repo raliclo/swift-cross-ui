@@ -44,9 +44,44 @@ extension GtkBackend: BackendFeatures.FrameClocks {
     /// 動畫永遠不會跑。由框架延遲啟動應該可以避開這件事，但只有跑過一次才算數。
     public func startFrameClock(handler: @escaping @MainActor (Double) -> Void) {
         stopFrameClock()
-        guard let widget = frameClockWidget else { return }
-
         Self.currentFrameClockHandler = handler
+        // **A clock started before the first window exists still runs.**
+        //
+        // This returned without installing anything when there was no window yet,
+        // the hazard the note above predicted, and AnimationDriver had already
+        // marked its clock running, so it never asked again. An animation started
+        // in `onAppear` at launch did not move until something stopped and
+        // restarted the clock: launched directly on Windows GTK (2026-10-20), P96's
+        // driven back.out read peak 0.0019 with 0 ticks, P98's every event waited
+        // until 1.8 s, and P97's rows started at 0.33 s. The fallback below now runs
+        // from the start whatever happens, and attaches the GTK clock as soon as a
+        // window has a frame clock.
+        //
+        // **在第一個視窗出現之前啟動的時鐘照樣會跑。** 先前沒有視窗時這裡什麼都沒安裝就返回——正是上方說明
+        // 預言的陷阱——而 AnimationDriver 已經把時鐘標為執行中，不會再要求一次。於是啟動時在 `onAppear` 裡開始
+        // 的動畫，要等到有東西讓時鐘停下再啟動才會動:2026-10-20 在 Windows GTK 直接啟動時,P96 的 driven
+        // back.out 峰值 0.0019、0 次 tick,P98 的每個事件都等到 1.8 秒,P97 的各列 0.33 秒才開始。現在下方的
+        // 備援無論如何都從一開始就跑，並在視窗一有 frame clock 時掛上 GTK 的時鐘。
+        Self.pendingClockBackend = self
+        if let widget = frameClockWidget {
+            attachFrameClock(to: widget)
+        }
+        // A fallback until the first tick; see scheduleFallbackTick.
+        // 第一個 tick 之前的備援;見 scheduleFallbackTick。
+        Self.frameClockHasTicked = false
+        Self.fallbackGeneration += 1
+        Self.scheduleFallbackTick(generation: Self.fallbackGeneration, after: 0.05)
+    }
+
+    /// Installs the tick callback on `widget` once it has a frame clock, which a
+    /// window has from realisation on. Without one `begin_updating` could not be
+    /// called and GTK would tick once and stop, so this waits for the fallback's
+    /// next try instead.
+    /// 在 `widget` 有了 frame clock(視窗自 realise 起就有)時安裝 tick callback。沒有的話無法呼叫
+    /// `begin_updating`,GTK 只會 tick 一次就停，所以改等備援下一次再試。
+    @MainActor
+    fileprivate func attachFrameClock(to widget: UnsafeMutablePointer<GtkWidget>) {
+        guard gtk_widget_get_frame_clock(widget) != nil else { return }
         let box = Unmanaged.passRetained(GtkFrameClockBox()).toOpaque()
         let id = gtk_widget_add_tick_callback(
             widget,
@@ -130,11 +165,6 @@ extension GtkBackend: BackendFeatures.FrameClocks {
         // 情況下只有 33-58 fps(testapp/test_support/measure 的 gtk_frame_trace)。link 持續運轉時，下一次
         // callback 就是下一次更新。其他平台不受影響。
         _ = scui_macos_display_link_keep_running(1)
-        // A fallback until the first tick; see scheduleFallbackTick.
-        // 第一個 tick 之前的備援;見 scheduleFallbackTick。
-        Self.frameClockHasTicked = false
-        Self.fallbackGeneration += 1
-        Self.scheduleFallbackTick(generation: Self.fallbackGeneration, after: 0.05)
     }
 
     public func stopFrameClock() {
@@ -156,6 +186,7 @@ extension GtkBackend: BackendFeatures.FrameClocks {
         frameClockAttachedTo = nil
         Self.currentFrameClockHandler = nil
         Self.fallbackGeneration += 1
+        Self.pendingClockBackend = nil
     }
 
     /// The widget the clock hangs on: the first window there is.
@@ -166,6 +197,10 @@ extension GtkBackend: BackendFeatures.FrameClocks {
     /// Bumped by every start and stop, so a stale fallback tick stops itself.
     /// 每次啟動與停止都會遞增，讓過時的備援 tick 自行停止。
     @MainActor private static var fallbackGeneration = 0
+    /// The backend whose clock was started before it could attach, so the fallback
+    /// can attach it once a window exists.
+    /// 時鐘在能掛上之前就啟動的那個 backend,讓備援在有視窗之後替它掛上。
+    @MainActor private static weak var pendingClockBackend: GtkBackend?
 
     /// Ticks from the main queue at 60 Hz until the GTK clock delivers its
     /// first tick after a start.
@@ -191,6 +226,13 @@ extension GtkBackend: BackendFeatures.FrameClocks {
                 guard generation == fallbackGeneration, !frameClockHasTicked,
                     let handler = currentFrameClockHandler
                 else { return }
+                // Attach to the window as soon as there is one; see startFrameClock.
+                // 一有視窗就掛上;見 startFrameClock。
+                if let backend = pendingClockBackend, backend.frameClockID == nil,
+                    let widget = backend.frameClockWidget
+                {
+                    backend.attachFrameClock(to: widget)
+                }
                 handler(Double(g_get_monotonic_time()) / 1_000_000)
                 scheduleFallbackTick(generation: generation, after: 1.0 / 60)
             }
