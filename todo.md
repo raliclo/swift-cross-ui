@@ -1071,12 +1071,22 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   `ClockIdentifier`, or drawing the wheels ourselves as GtkBackend does.
   zh_TW 傳不到 DatePicker/TimePicker。試過並已還原：在控制項上設 `FrameworkElement.Language`(已上畫面的、
   以及載入前新建的都試過)皆無變化。下一步：格式字串與 ClockIdentifier,或像 GtkBackend 一樣自己畫滾輪。
-- [ ] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
+- [x] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
   yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
   `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,
   although the same Canvas-with-transparent-background shape works for `onHover`'s
   PointerEntered. First run of this code on Windows (it was written on macOS 2026-10-10).
   onContinuousHover 完全沒有回報。--debug 下 handler 的診斷什麼都沒記，所以 `PointerMoved` 根本沒到 hover target。
+  **Closed 2026-10-20 -- not a backend defect.** The conclusion above was drawn before the log
+  channel was checked; confirmed afterwards with a positive control (a log line at target creation
+  appeared in output/p88-actionfile.log, the per-move line did not) plus probes: PointerEntered
+  fired once, and the inner drag target saw moves only while the button was held. Cause: the
+  file's `move` rows, which Win32Synthesiser performs with SetCursorPos when no button is held --
+  a cursor jump, not pointer input. With `hover` rows (ten SendInput steps) P88 reads hover
+  reports 44, pointer x=153 y=100, last with cmd x=123 y=120 (so the Windows key also reaches
+  `.command`), drags 1. / **已結案，不是 backend 缺陷。**上面的結論是在確認紀錄管道之前下的；之後以對照組
+  與探針證實：沒按鍵時 `move` 用 SetCursorPos 把游標跳過去，WinUI 不當成指標輸入。改用 `hover` 列後懸停回報 44 次，
+  Windows 鍵也回報為 `.command`。
 - [ ] **A sheet asked for from window B does not appear.** P81: window B opens, the click on its
   sheet button lands in window B (Win32Synthesiser hitRoot), no sheet over B or A in a desktop
   capture during the hold. Same on Windows GTK. The WinUI desktop capture was mistimed; redo it.
