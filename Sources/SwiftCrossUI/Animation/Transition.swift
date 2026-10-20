@@ -23,8 +23,8 @@ import Foundation
 // so `Text("a").transition(.slide).padding()` uses `.slide`. Without one the view
 // fades (`.opacity`, SwiftUI's default) under the same conditions; without an
 // animation it is inserted and removed at once, and `.transition(.identity)` opts
-// out. A view with a `matchedGeometryEffect` does not fade when it is removed, or
-// when it is inserted with an id another view has held: it flies instead.
+// out. A view with a `matchedGeometryEffect` fades as well, as in SwiftUI: inserted
+// with an id another view held, it flies from that frame; removed, it flies to the view that takes its id.
 //
 // **The default fade.** The view has no transition containers of its own, so the
 // container wraps its widget in a visual-effect container (``DefaultTransitionSlot``):
@@ -47,7 +47,7 @@ import Foundation
 // **套用哪一個轉場。** 容器從被插入或移除的 view 的根往下，沿著只有一個子節點的 view 尋找 `.transition`,所以
 // `Text("a").transition(.slide).padding()` 用的是 `.slide`。沒有的話，view 在同樣的條件下淡入淡出(`.opacity`,
 // SwiftUI 的預設);沒有動畫時立刻插入與移除,`.transition(.identity)` 則可退出。帶 `matchedGeometryEffect` 的 view
-// 被移除時、或以另一個 view 持有過的 id 插入時不淡入淡出，而是飛過去。
+// 也淡入淡出，同 SwiftUI:以另一個 view 持有過的 id 插入時從那個 frame 飛來，被移除時飛向接手其 id 的 view。
 //
 // **預設的淡入淡出。** view 自己沒有轉場容器，所以由容器把它的 widget 包進一個視覺效果容器
 // (``DefaultTransitionSlot``):插入的 view 在其 widget 進入容器之前;移除的 view 在容器 commit 時——把 widget 取出、
@@ -680,28 +680,47 @@ enum TransitionLookup {
         prepareInsertion(of: ErasedViewGraphNode(wrapping: node), transaction: transaction)
     }
 
-    /// The node that takes the default fade, or nil when the view does not fade:
-    /// a view with a `matchedGeometryEffect` flies instead when it is removed,
-    /// or inserted with an id another view has held.
-    /// 接受預設淡入淡出的節點;view 不淡入淡出時為 nil:帶 `matchedGeometryEffect` 的 view 被移除時、或以另一個
-    /// view 持有過的 id 插入時，改為飛過去。
+    /// The node that takes the default fade. A view with a `matchedGeometryEffect`
+    /// fades too, as in SwiftUI: an inserted one while it flies from the frame its
+    /// id had, a removed one while it flies to the view that takes its id (2026-10-20).
+    /// 接受預設淡入淡出的節點。帶 `matchedGeometryEffect` 的 view 也淡入淡出，同 SwiftUI:插入的一邊從其 id 原本的 frame 飛來，
+    /// 移除的一邊飛向接手其 id 的 view(2026-10-20)。
     static func defaultTransitionHost(
         for node: ErasedViewGraphNode,
         inserting: Bool
     ) -> (any DefaultTransitionNode)? {
-        if let key = matchedKey(in: node) {
-            guard inserting, MatchedGeometryRegistry.shared.existing(key) == nil else { return nil }
-        }
         return node.node as? any DefaultTransitionNode
     }
 
     /// The `matchedGeometryEffect` id at the root of `node`, down through
     /// nodes with a single child. / `node` 的根(沿著只有一個子節點的節點往下)上的 `matchedGeometryEffect` id。
     static func matchedKey(in node: ErasedViewGraphNode) -> MatchedGeometryKey? {
+        matchedHost(in: node)?.matchedKey
+    }
+
+    /// Every view with a `matchedGeometryEffect` anywhere under `node`: a removed
+    /// branch (`Spacer()` beside a matched view, say) takes all of them with it.
+    /// `node` 底下任何位置帶 `matchedGeometryEffect` 的 view:被移除的分支(例如 matched view 旁邊有個
+    /// `Spacer()`)會把它們全部一起帶走。
+    static func matchedHosts(in node: ErasedViewGraphNode) -> [any MatchedGeometryHosting] {
+        var found: [any MatchedGeometryHosting] = []
+        var pending = [node.transform(with: Children())]
+        var visited = 0
+        while let children = pending.popLast(), visited < 4096 {
+            visited += 1
+            if let host = children as? any MatchedGeometryHosting {
+                found.append(host)
+            }
+            pending += children.erasedNodes.map { $0.transform(with: Children()) }
+        }
+        return found
+    }
+    /// The children carrying that id. / 帶著該 id 的 children。
+    static func matchedHost(in node: ErasedViewGraphNode) -> (any MatchedGeometryHosting)? {
         var children = node.transform(with: Children())
         for _ in 0..<64 {
             if let host = children as? any MatchedGeometryHosting {
-                return host.matchedKey
+                return host
             }
             let nodes = children.erasedNodes
             guard nodes.count == 1 else { return nil }
@@ -804,6 +823,9 @@ extension ViewGraphNode: DefaultTransitionNode {
 @MainActor
 protocol MatchedGeometryHosting: AnyObject {
     var matchedKey: MatchedGeometryKey { get }
+    /// Marks the view as removed under an animation, so it flies to the view
+    /// that takes its id. / 標記此 view 正在動畫中被移除，使它飛向接手其 id 的 view。
+    func markDeparting()
 }
 
 /// Views a container removed under an animation, kept in the container after
@@ -877,7 +899,7 @@ final class DepartingViews {
 
     /// Starts `node`'s removal transition when the update runs under an
     /// animation: its own `.transition`, or else the default fade. Nil when it
-    /// should go at once (no animation, or a matched view).
+    /// should go at once (no animation).
     /// 當更新帶動畫時，啟動 `node` 的移除轉場：它自己的 `.transition`,否則是預設的淡出。應立刻移除時(沒有動畫，或是
     /// 對齊的 view)回傳 nil。
     func depart(
@@ -886,6 +908,9 @@ final class DepartingViews {
     ) -> Departure? {
         guard let transaction = TransitionLookup.animatedTransaction(in: environment) else { return nil }
         let size = TransitionLookup.committedSize(of: node)
+        for host in TransitionLookup.matchedHosts(in: node) {
+            host.markDeparting()
+        }
         let controller: TransitionController
         var wrapsAtCommit: (any DefaultTransitionNode)?
         if let own = TransitionLookup.controller(in: node) {

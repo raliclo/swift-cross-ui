@@ -14,7 +14,10 @@
 //   REVERSE  withAnimation(.linear(duration: 1)) { order.reverse() }.
 //            Pass: MID err <= 1, DONE near 1 s plus the first frame, err <= 0.5.
 //   HERO     withAnimation(.easeInOut(duration: 0.8)) { expanded = true }.
-//            Pass: MID err <= 1 on origin and size, DONE err <= 0.5.
+//            Pass: MID err <= 1 on origin and size, DONE err <= 0.5. Since 2026-10-20 the
+//            thumbnail fades out while it flies to the panel and the panel fades in, as in
+//            SwiftUI: MID thumbnail err <= 1 against the same line, fade out opacity = its
+//            presence and fade in likewise; DONE has no thumbnail still flying.
 //   TAB      withAnimation(.linear(duration: 0.6)) { tab = "Tab 2" }.
 //            Pass: MID err <= 1, DONE err <= 0.5.
 //   JUMP     order = [2, 0, 3, 1] with no animation. Pass: drawn = layout at once.
@@ -131,6 +134,7 @@ struct P100RootView: View {
                 }
             }
             .frame(width: 300, height: 100)
+            ._effectDiagnosticsLabel("hero")
 
             Text("tabs: the underline follows")
                 .font(.system(size: 12))
@@ -283,6 +287,23 @@ struct P100RootView: View {
             }
         }
 
+        /// The removed thumbnail flies to the panel: drawn at old + (panel - old) * p.
+        /// 被移除的縮圖飛向面板：畫在 舊 + (面板 - 舊) * p。
+        func leavingError(_ probe: P100Probe, _ p: Double) -> Double {
+            guard let before = probe.before["hero"],
+                let after = MatchedGeometryDiagnostics.layoutFrame(of: "hero", in: ns),
+                let drawn = MatchedGeometryDiagnostics.departingFrames(of: "hero", in: ns).first
+            else { return .infinity }
+            return Self.distance(drawn, Self.lerp(before, after, p))
+        }
+        /// The default fade on the hero container, last frame of a phase: opacity and its own progress.
+        /// hero 容器上的預設淡入淡出，某階段的最後一幀：不透明度與它自己的進度。
+        func fade(_ phase: AnyTransition.Phase) -> String {
+            guard let sample = (TransitionDiagnostics.samples["hero"] ?? []).last(where: { $0.phase == phase }) else {
+                return "no frames"
+            }
+            return String(format: "opacity %.3f presence %.3f", sample.effects.visual.opacity, sample.presence)
+        }
         func hero() {
             let probe = P100Probe()
             probe.before["hero"] = MatchedGeometryDiagnostics.layoutFrame(of: "hero", in: ns)
@@ -292,11 +313,14 @@ struct P100RootView: View {
                 probe.midLogged = true
                 record(
                     String(
-                        format: "HERO MID p=%.3f err=%.2f; drawn %@ from %@ to %@",
+                        format: "HERO MID p=%.3f err=%.2f; drawn %@ from %@ to %@; thumbnail drawn %@ err=%.2f; fade out %@, fade in %@",
                         p, midError(probe, ["hero"], p),
                         Self.format(MatchedGeometryDiagnostics.drawnFrame(of: "hero", in: ns)),
                         Self.format(probe.before["hero"]),
-                        Self.format(MatchedGeometryDiagnostics.layoutFrame(of: "hero", in: ns))
+                        Self.format(MatchedGeometryDiagnostics.layoutFrame(of: "hero", in: ns)),
+                        Self.format(MatchedGeometryDiagnostics.departingFrames(of: "hero", in: ns).first),
+                        leavingError(probe, p),
+                        fade(.removal), fade(.insertion)
                     )
                 )
             }
@@ -305,8 +329,9 @@ struct P100RootView: View {
             } completion: {
                 record(
                     String(
-                        format: "HERO DONE at %.2f err=%.2f; mid seen %@",
-                        uptime - probe.started, restError(["hero"]), probe.midLogged ? "yes" : "no"
+                        format: "HERO DONE at %.2f err=%.2f; mid seen %@; thumbnail still flying %ld",
+                        uptime - probe.started, restError(["hero"]), probe.midLogged ? "yes" : "no",
+                        MatchedGeometryDiagnostics.departingFrames(of: "hero", in: ns).count
                     )
                 )
                 next(tabStep)

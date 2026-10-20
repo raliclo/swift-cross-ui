@@ -217,6 +217,9 @@ final class MatchedGeometryRegistry {
         /// 持有者的版面 frame,或上一個持有者放手時被畫在的位置。
         var frame: Path.Rect?
         var followers: [WeakFlipNode] = []
+        /// Views that held the id and are flying to its new holder while they are removed.
+        /// 曾持有此 id、在被移除期間正飛向新持有者的 view。
+        var departing: [WeakFlipNode] = []
     }
 
     struct WeakFlipNode {
@@ -247,6 +250,9 @@ final class FlipNode {
     var properties = MatchedGeometryProperties.frame
     var anchor = UnitPoint.center
     var isSource = true
+    /// Removed under an animation and still drawn while its transition runs: the
+    /// view that takes its id sends it flying there. / 在動畫中被移除、轉場期間仍在繪製:接手其 id 的 view 會讓它飛過去。
+    var isDeparting = false
 
     /// The layout frame in window coordinates, as last measured.
     /// 最後一次量到的版面 frame(視窗座標)。
@@ -313,6 +319,12 @@ final class FlipNode {
             from = visualFrame
         } else if let other = entry.holder {
             from = other.visualFrame ?? entry.frame
+            // The view it replaces flies here too while its removal fades it,
+            // as SwiftUI's does; a view that is not leaving stays where it is.
+            // 它所取代的 view 也在移除的淡出期間飛到這裡，同 SwiftUI;沒有要離開的 view 則留在原處。
+            if other.isDeparting, let transaction {
+                other.fly(to: frame, with: transaction)
+            }
         } else {
             from = entry.frame
         }
@@ -372,6 +384,16 @@ final class FlipNode {
         }
     }
 
+    /// Draws this departing view moving onto `target`, the frame of the view that
+    /// took its id. / 把這個離開中的 view 畫成移到 `target`(接手其 id 的 view 的 frame)上。
+    func fly(to target: Path.Rect, with transaction: LayoutTransactionState.Pending) {
+        guard let frame = layoutFrame, let key else { return }
+        let entry = registry.entry(key)
+        entry.departing.removeAll { $0.node == nil || $0.node === self }
+        entry.departing.append(MatchedGeometryRegistry.WeakFlipNode(node: self))
+        let end = FlipComponents.mapping(frame, onto: target, properties: properties, anchor: anchor)
+        animate(from: current, to: end, with: transaction)
+    }
     private func show(_ components: FlipComponents) {
         current = components
         draw?(components, anchor)
@@ -429,6 +451,14 @@ public enum MatchedGeometryDiagnostics {
         return MatchedGeometryRegistry.shared.existing(key)?.holder?.layoutFrame
     }
 
+    /// The drawn frames of the views that held `id` and are flying to its new
+    /// holder while their removal runs.
+    /// 曾持有 `id`、在移除期間正飛向新持有者的 view 目前畫出的 frame。
+    public static func departingFrames(of id: some Hashable, in namespace: Namespace.ID) -> [Path.Rect] {
+        let key = MatchedGeometryKey(namespace: namespace, id: AnyHashable(id))
+        let departing = MatchedGeometryRegistry.shared.existing(key)?.departing ?? []
+        return departing.compactMap { $0.node?.visualFrame }
+    }
     /// The drawn frames of the `isSource: false` views following `id`.
     /// 跟隨 `id` 的 `isSource: false` view 被畫出的 frame。
     public static func followerFrames(of id: some Hashable, in namespace: Namespace.ID) -> [Path.Rect] {
@@ -456,6 +486,7 @@ final class MatchedGeometryChildren<Content: View>: ViewGraphNodeChildren, Match
     }
 
     var matchedKey: MatchedGeometryKey { node.key ?? initialKey }
+    func markDeparting() { node.isDeparting = true }
 
     var widgets: [AnyWidget] { children.widgets }
     var erasedNodes: [ErasedViewGraphNode] { children.erasedNodes }

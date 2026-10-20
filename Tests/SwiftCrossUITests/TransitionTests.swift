@@ -319,7 +319,7 @@ struct TransitionTests {
         var body: some View { Text("a").matchedGeometryEffect(id: 1, in: namespace) }
     }
 
-    @Test("A plain view takes the default fade; a matched view flies instead when it replaces another")
+    @Test("A plain view and a matched view both take the default fade")
     func defaultFadeHost() {
         let plain = ErasedViewGraphNode(wrapping: ViewGraphHelpers.committedNode(for: Plain()))
         #expect(TransitionLookup.defaultTransitionHost(for: plain, inserting: true) != nil)
@@ -330,14 +330,16 @@ struct TransitionTests {
         let matched = ErasedViewGraphNode(wrapping: ViewGraphHelpers.committedNode(for: Matched(namespace: namespace)))
         let key = MatchedGeometryKey(namespace: namespace, id: AnyHashable(1))
         #expect(TransitionLookup.matchedKey(in: matched) == key)
-        // Removed: no fade. Inserted with an id nobody has held: it fades.
-        // 被移除：不淡出。以沒有人持有過的 id 插入：淡入。
-        #expect(TransitionLookup.defaultTransitionHost(for: matched, inserting: false) == nil)
+        // A matched view fades as well, as in SwiftUI (2026-10-20): removed, while it
+        // flies to the view that takes its id; inserted, while it flies from the frame
+        // its id had -- whether or not another view has held the id.
+        // matched view 也淡入淡出，同 SwiftUI(2026-10-20):被移除時一邊飛向接手其 id 的 view;插入時一邊從其 id
+        // 原本的 frame 飛來——不論是否有其他 view 持有過這個 id。
+        #expect(TransitionLookup.defaultTransitionHost(for: matched, inserting: false) != nil)
         #expect(TransitionLookup.defaultTransitionHost(for: matched, inserting: true) != nil)
-        // Once another view has held the id, it flies from there instead.
-        // 一旦另一個 view 持有過這個 id,它改為從那裡飛過來。
         _ = MatchedGeometryRegistry.shared.entry(key)
-        #expect(TransitionLookup.defaultTransitionHost(for: matched, inserting: true) == nil)
+        #expect(TransitionLookup.defaultTransitionHost(for: matched, inserting: true) != nil)
+        #expect(TransitionLookup.matchedHosts(in: matched).count == 1)
     }
 
     @Test("A container's child is its default fade's wrapper once it has one")
