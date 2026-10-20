@@ -74,6 +74,13 @@ extension AppKitBackend {
         return SIMD2(x: Int(size.width), y: Int(size.height))
     }
 
+    /// Nothing to lift: an AppKit sheet is exactly the size `updateSheet` gives
+    /// it, and a cover is given its window's, so it already covers the window
+    /// (P49, p49-macos-final-20261020-225609.png).
+    /// 沒有限制可拿掉:AppKit 的 sheet 就是 `updateSheet` 給它的大小，而 cover 拿到的是視窗的大小，所以本來就覆蓋視窗
+    /// (P49,p49-macos-final-20261020-225609.png)。
+    public func setPresentationFillsWindow(of sheet: NSCustomSheet, window: Window, _ fillsWindow: Bool) {}
+
     public func presentSheet(_ sheet: NSCustomSheet, window: Window, parentSheet: Sheet?) {
         let parent = parentSheet ?? window
         // beginSheet and beginCriticalSheet should be equivalent here, because we

@@ -335,8 +335,21 @@
         /// 依然會重放成功，每一次點擊也都會落在某個看似合理的位置。
         ///
         /// 判準是「沒有父視窗」:popover、sheet 與附著式面板全都是子視窗。
+        /// The key window, when it is titled, is the target even as a child window:
+        /// GtkBackend's sheets on macOS are child GdkMacosWindows (titled, key),
+        /// and skipping every child left a sheet's clicks and `taplabel`s resolving
+        /// against the main window -- P49's sheet Close pressed beside the sheet
+        /// (2026-10-20). Popovers stay out: an NSPopover's window and a GTK popover
+        /// (borderless, never key) are both untitled. Measured with P49 on GTK:
+        /// sheet styleMask 0x800F key, popover 0x8000 canBecomeKey false.
+        /// 有標題列樣式的 key window 即使是子視窗也是目標:GtkBackend 在 macOS 上的 sheet 是子 GdkMacosWindow(有標題列樣式、
+        /// 是 key),略過所有子視窗會讓 sheet 裡的點擊與 `taplabel` 以主視窗換算——P49 sheet 的 Close 按到 sheet 旁邊
+        /// (2026-10-20)。popover 仍排除:NSPopover 的視窗與 GTK 的 popover(無邊框、從不成為 key)都沒有標題列樣式。
         @MainActor
         private static func targetWindow() -> NSWindow? {
+            if let key = NSApp.keyWindow, key.isVisible, key.parent != nil, key.styleMask.contains(.titled) {
+                return key
+            }
             let ownWindows = NSApp.windows.filter { $0.isVisible && $0.parent == nil }
             return ownWindows.first { $0.isKeyWindow } ?? ownWindows.first
         }

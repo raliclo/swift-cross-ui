@@ -6671,6 +6671,11 @@ public final class GtkBackend:
         // - dragIndicatorVisibility is only supported on mobile so we ignore it.
     }
 
+    /// Nothing to lift: a GTK sheet window is sized by `updateSheet`, and a cover
+    /// is given its window's size (P49 on macOS GTK fills the window).
+    /// 沒有限制可拿掉:GTK 的 sheet 視窗由 `updateSheet` 決定大小，而 cover 拿到的是視窗的大小(macOS GTK 上的 P49 填滿視窗)。
+    public func setPresentationFillsWindow(of sheet: Sheet, window: Window, _ fillsWindow: Bool) {}
+
     public func presentSheet(_ sheet: Sheet, window: Window, parentSheet: Sheet?) {
         let parent = parentSheet ?? window
         sheet.isModal = true

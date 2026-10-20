@@ -34,6 +34,12 @@ public struct PreferenceValues: Sendable {
     /// The background color for enclosing sheets.
     public var presentationBackground: Color?
 
+    /// Whether the enclosing sheet covers its whole window, as `fullScreenCover`
+    /// asks. A sheet is otherwise the platform's own shape, which on a tablet is a
+    /// centred panel of limited width. Applies to enclosing sheets.
+    /// 外圍的 sheet 是否覆蓋整個視窗(`fullScreenCover` 的要求)。否則 sheet 是平台自己的形狀，在平板上是寬度有限、置中的面板。
+    public var presentationFillsWindow: Bool?
+
     /// Sets the preferred color scheme for the nearest enclosing presentation.
     public var preferredColorScheme: ColorScheme?
 
@@ -158,6 +164,7 @@ extension PreferenceValues {
         presentationDragIndicatorVisibility =
             children.compactMap(\.presentationDragIndicatorVisibility).first
         presentationBackground = children.compactMap(\.presentationBackground).first
+        presentationFillsWindow = children.compactMap(\.presentationFillsWindow).first
         preferredColorScheme = children.compactMap(\.preferredColorScheme).first
         interactiveDismissDisabled = children.compactMap(\.interactiveDismissDisabled).first
 

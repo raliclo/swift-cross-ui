@@ -7,5 +7,6 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
 # P49 在 Android 上:sheet。通過:sheet 不覆蓋整個視窗，文字在其中換行。
 sleep,,,,,,1500000,let P49 render,android
-click,110,473,,left,,,Show the sheet -- must not fill the window,android
+# 2026-10-21: by label, not by point. The points were measured on a phone layout; on swift-cross-ui-tablet36 the cover's point pressed "Show the popover". / 改以文字定位：舊座標量自手機版面，在平板上 cover 的點按到了「Show the popover」。
+taplabel,,,,,Show the sheet,,Show the sheet -- must not fill the window,android
 sleep,,,,,,1500000,let the presentation animate in,android

@@ -122,6 +122,11 @@ extension WinUIBackend: BackendFeatures.Sheets {
         }
     }
 
+    /// Nothing to lift: `createSheet` sets ContentDialogMaxWidth and MaxHeight to
+    /// 1e6, so the dialog is the size `updateSheet` gives it, and a cover is given
+    /// its window's. / 沒有限制可拿掉:`createSheet` 把 ContentDialog 的最大寬高設為 1e6,所以 dialog 就是 `updateSheet` 給的大小。
+    public func setPresentationFillsWindow(of sheet: Sheet, window: Window, _ fillsWindow: Bool) {}
+
     public func presentSheet(
         _ sheet: Sheet,
         window: Window,

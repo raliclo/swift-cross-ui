@@ -115,6 +115,19 @@ extension UIKitBackend {
         enclosingController!.present(sheet, animated: true)
     }
 
+    /// fullScreenCover: `.fullScreen` rather than a page sheet. A page sheet on
+    /// iPad is a centred form, and on iPhone it leaves the presenting view showing
+    /// along the top; neither covers the window. Only before presentation: UIKit
+    /// reads the style when it presents.
+    /// fullScreenCover:用 `.fullScreen` 而非 page sheet。iPad 上的 page sheet 是置中的表單，iPhone 上則在頂端露出呈現它的
+    /// view;兩者都沒有覆蓋視窗。只在呈現之前設定:UIKit 在呈現時讀取樣式。
+    public func setPresentationFillsWindow(of sheet: CustomSheet, window: Window, _ fillsWindow: Bool) {
+        #if !os(tvOS)
+            guard sheet.presentingViewController == nil else { return }
+            sheet.modalPresentationStyle = fillsWindow ? .fullScreen : .pageSheet
+        #endif
+    }
+
     public func dismissSheet(_ sheet: CustomSheet, window: Window, parentSheet: Sheet?) {
         // UIKit automatically dismisses nested presentations on our behalf.
         sheet.dismissProgrammatically()

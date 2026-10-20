@@ -29,6 +29,10 @@ extension AndroidBackend: BackendFeatures.Sheets {
         sheet.show(fragmentManager, "CustomSheet")
     }
 
+    public func setPresentationFillsWindow(of sheet: CustomSheet, window: Window, _ fillsWindow: Bool) {
+        sheet.setFillsWindow(fillsWindow)
+    }
+
     public func dismissSheet(_ sheet: CustomSheet, window: Window, parentSheet: CustomSheet?) {
         sheet.dismiss()
     }

@@ -64,6 +64,23 @@ extension BackendFeatures {
             interactiveDismissDisabled: Bool
         )
 
+        /// Makes the sheet cover its whole window, or returns it to the
+        /// platform's own sheet shape. `fullScreenCover` asks for it; every other
+        /// sheet passes `false`. Called before ``updateSheet`` and, on the first
+        /// pass, before ``presentSheet``, so a backend whose presentation
+        /// style is fixed at presentation time can set it then.
+        ///
+        /// A backend whose sheets are already as large as the size they are given
+        /// has nothing to lift, and says so where it implements this; one whose
+        /// platform caps a sheet -- a page sheet on iPad, Material's bottom sheet on
+        /// a tablet -- lifts the cap.
+        ///
+        /// 讓 sheet 覆蓋整個視窗，或回到平台自己的 sheet 形狀。`fullScreenCover` 會要求它，其他 sheet 傳 `false`。在
+        /// ``updateSheet`` 之前呼叫(第一輪也在 ``presentSheet`` 之前),好讓「呈現樣式在呈現時就固定」的 backend 能在那時設定。
+        /// sheet 本來就和給它的尺寸一樣大的 backend 沒有限制可拿掉，並在實作處寫明;平台會限制 sheet 的 backend(iPad 的
+        /// page sheet、平板上 Material 的 bottom sheet)要拿掉限制。
+        func setPresentationFillsWindow(of sheet: Sheet, window: Window, _ fillsWindow: Bool)
+
         /// Presents a sheet as a modal on top of or within the given window.
         ///
         /// Sheets should disable interaction with all content below them until they

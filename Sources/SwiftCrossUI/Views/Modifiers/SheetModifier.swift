@@ -253,6 +253,14 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             }
 
             let preferences = result.preferences
+            // Before updateSheet: UIKit builds a sheet's presentation controller the first
+            // time sheetPresentationController is read, which setting detents does, so the style is set first.
+            // 在 updateSheet 之前:UIKit 在第一次讀取 sheetPresentationController 時建立 presentation controller,設定 detents 會讀它，所以先設樣式。
+            backend.setPresentationFillsWindow(
+                of: sheet,
+                window: window as! NewBackend.Window,
+                preferences.presentationFillsWindow ?? false
+            )
             backend.updateSheet(
                 sheet,
                 window: window as! NewBackend.Window,

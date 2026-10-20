@@ -23,6 +23,9 @@ public class CustomSheet: JavaObject {
         _ showsDragHandle: Bool
     )
 
+    @JavaMethod
+    func setFillsWindow(_ fillsWindow: Bool)
+
     // Inherited from BottomSheetDialogFragment
     @JavaMethod
     func dismiss()

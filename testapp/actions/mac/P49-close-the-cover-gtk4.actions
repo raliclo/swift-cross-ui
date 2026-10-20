@@ -4,10 +4,8 @@ action,x,y,origin,button,key,micros,note,platform,target
 # dismissals: 2". GtkBackend has run onDismiss on both paths since c1138e51 (2026-09-08); the AppKit twin
 # is P49-close-the-cover.actions. By label, so no point depends on the GTK layout.
 #
-# The sheet's Close is a point in the MAIN window's frame, not a taplabel: on macOS a GTK sheet is a child
-# window, AppKitSynthesiser.targetWindow() skips child windows (so a popover is not taken for the driven
-# window), and a label found in the sheet was offset from the main window's corner -- it pressed beside the
-# sheet. The cover lies exactly over the main window, so its taplabel lands.
+# A GTK sheet on macOS is a titled child window; the replay targets it while it is key (AppKitSynthesiser
+# .targetWindow, 2026-10-20), so the sheet's Close is a taplabel like the cover's.
 # The focus rows put the main window back in front after a sheet closes: on macOS a GTK window that has
 # just lost its sheet did not take the next click, and "Show the sheet" pressed nothing (2026-10-20).
 # P49 經 GtkBackend:以 Close 關 cover 與 sheet(程式),再以 Escape 關 sheet(使用者)。最後必須是 1/1 與 sheet 計數 2。
@@ -19,7 +17,7 @@ sleep,,,,,,1500000,,macos,
 focus,,,,,,,the main window again,macos,P49 presentations
 taplabel,,,,,Show the sheet,,the comparison sheet,macos,
 sleep,,,,,,1500000,,macos,
-click,210,371,frame,left,,,"the sheet's Close, in the main window's frame (p49-macos-gtk4-final-20261020-233126.png): sheet dismissals 0 -> 1",macos,
+taplabel,,,,,Close,,"the sheet's Close: sheet dismissals 0 -> 1",macos,
 sleep,,,,,,1500000,,macos,
 focus,,,,,,,the main window again,macos,P49 presentations
 taplabel,,,,,Show the sheet,,the sheet again,macos,

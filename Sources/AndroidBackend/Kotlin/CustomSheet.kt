@@ -46,6 +46,11 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
     private var cornerRadiusDp = -1f
     private var detentsDp = floatArrayOf()
     private var showsDragHandle = false
+    private var fillsWindow = false
+    // Material's own cap, read once before it is lifted, so a sheet that stops
+    // filling gets it back (640 dp on swift-cross-ui-tablet36).
+    // Material 自己的上限，在拿掉之前讀一次，讓不再填滿的 sheet 能拿回它(swift-cross-ui-tablet36 上是 640 dp)。
+    private var materialMaxWidth: Int? = null
 
     private var root: ViewGroup? = null
     private var dragHandle: View? = null
@@ -102,6 +107,16 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
         return dialog
     }
 
+    /// fullScreenCover: the sheet spans the window's width, past Material's
+    /// tablet cap (P49 on swift-cross-ui-tablet36 drew its cover 640 dp wide in the
+    /// middle of a 1280 dp window, 2026-10-20). Its height comes from the detent.
+    /// fullScreenCover:sheet 橫跨整個視窗寬度，越過 Material 在平板上的上限(2026-10-20,swift-cross-ui-tablet36 上 P49 的
+    /// cover 在 1280 dp 的視窗中間只畫了 640 dp 寬)。高度來自 detent。
+    fun setFillsWindow(fillsWindow: Boolean) {
+        this.fillsWindow = fillsWindow
+        apply()
+    }
+
     private fun apply() {
         val root = root ?: return
         val dialog = dialog as? BottomSheetDialog ?: return
@@ -131,6 +146,12 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
         dragHandle?.visibility = if (showsDragHandle) View.VISIBLE else View.GONE
 
         val behavior = dialog.behavior
+        if (materialMaxWidth == null) materialMaxWidth = behavior.maxWidth
+        val maxWidth = if (fillsWindow) ViewGroup.LayoutParams.MATCH_PARENT else materialMaxWidth!!
+        if (behavior.maxWidth != maxWidth) {
+            behavior.maxWidth = maxWidth
+            root.requestLayout()
+        }
         val detents = detentsDp.map { (it * density).toInt() }
         if (detents.isEmpty()) {
             // No detents: as tall as the content, Material's default.

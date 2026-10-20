@@ -48,6 +48,13 @@ extension View {
                 .presentationCornerRadius(0)
                 .presentationDragIndicatorVisibility(.hidden)
                 .interactiveDismissDisabled()
+                // The frame above fills the size a sheet is offered, and the
+                // platform caps that size on a tablet: Material's bottom sheet at
+                // about 640 dp, UIKit's page sheet at a centred form. This tells
+                // the backend to lift the cap (P49 on a tablet, 2026-10-20).
+                // 上面的 frame 填滿 sheet 拿到的尺寸，而平台在平板上會限制那個尺寸:Material 的 bottom sheet 約 640 dp,
+                // UIKit 的 page sheet 是置中的表單。這一行要 backend 拿掉限制(平板上的 P49,2026-10-20)。
+                .preference(key: \.presentationFillsWindow, value: true)
         }
     }
 }
