@@ -111,14 +111,20 @@ test 與結果。
   (520x448 -> 820x528 -> 570x727 -> 970x727) logged 80 drawable sizes and the
   circle's box stayed 1.000-1.002; grow mode on 2026-10-14 gave 1.000 eight times.
   WSLg: the drawable follows (2026-10-19) but squareness is not measured on a
-  capture; Windows GTK4 not measured. Separate finding: a size set through the
-  accessibility API (System Events `set size`) changes the NSWindow but GTK does
-  not follow after the first one -- the area stays at the old size and the rest
-  of the window is unpainted; a drag does follow.
+  capture; Windows GTK4 not measured. Separate finding, checked later that day:
+  a size set through System Events (`set size`) reverted on the second try with
+  only the window moved is GDK 4.24.1 -- GTK answers `compute-size` with a default
+  size it brings up to date later in the same frame, and GDK sets that stale size
+  back. `gtk4-widget-factory` shows it every time (every second resize undone).
+  P95 and P53 did not, re-run afterwards (4 consecutive resizes, 2 rounds each,
+  idle, all cores loaded, and with the Android emulator running); the morning
+  P95 failure did not come back, so no workaround is in the code. Drags always follow.
   **狀態 2026-10-20:** f191f46c 已修(每次繪製依 drawable 尺寸重算投影)。**macOS GTK 已驗證**:P95 拖曳
   視窗角三次，記到 80 個 drawable 尺寸，圓的外框比例維持 1.000-1.002。WSLg 的圓形比例未量;Windows GTK4 未量。
-  另一項發現：用輔助使用 API(System Events `set size`)設定大小，第一次之後 GTK 不再跟著改，區域停在舊尺寸、
-  其餘部分沒有繪製;拖曳則正常。
+  另一項發現(當天稍後查證):用 System Events `set size` 改大小時，第二次被 GDK 復原、視窗只移動，是 GDK 4.24.1
+  的行為——GTK 回答 `compute-size` 時用的預設尺寸要到同一幀稍後才更新，GDK 便把過期的大小設回去。`gtk4-widget-factory`
+  每次都重現(每隔一次被復原)。P95 與 P53 之後重測都沒有發生(4 次連續改大小、各 2 輪，一般負載、滿載 CPU 與
+  Android 模擬器運作中皆然),早上 P95 的失敗未能重現，因此沒有加入繞過的程式;拖曳一直正常。
   **2026-10-14 (Windows): code fixed, NOT verified -- left open.** The view
   projection is no longer baked at commit time: GtkBackend hands the frame a
   function of the aspect ratio, and Mesh3DGLView calls it on every draw with

@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2129**
+**Runs recorded / 已記錄的執行筆數: 2132**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit    | android<br>Android     | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|---------------------------|------------------------|--------------------------|--------------|
@@ -105,7 +105,7 @@ zsh matrix_coverage/coverage.zsh
 | P66           | pass 2026-10-19              | pass 2026-10-19                | pass 2026-10-19          | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P67           | pass 2026-10-19              | pass 2026-10-19                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P68           | pass 2026-10-19              | pass 2026-10-19                | capture log 2026-10-19   | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
-| P69           | pass 2026-09-19              | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
+| P69           | capture log 2026-10-20       | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-30              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P70           | capture n/a 1/2 2026-09-16   | capture n/a 2026-09-16         | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-13        | pass 2026-10-19          |              |
 | P71           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-12           | pass 2026-10-12        | pass 2026-10-16          |              |
 | P72           | crash->fixed 2026-10-07      | pass 2026-10-07                | pass 2026-10-07          | pass 2026-09-27              | pass 2026-10-13           | pass 2026-10-13        | pass 2026-10-16          |              |
@@ -136,7 +136,7 @@ zsh matrix_coverage/coverage.zsh
 | P97           | capture log 2026-10-20       | capture log 2026-10-20         | capture log 2026-10-20   | capture log 2026-10-20       | pass 2026-10-16           | pass 2026-10-16        | capture log 2026-10-20   |              |
 | P98           | capture log 2026-10-20       | capture log 2026-10-20         | capture log 2026-10-20   | capture log 2026-10-20       | pass 2026-10-16           | pass 2026-10-16        | capture log 2026-10-20   |              |
 | P99           | capture log 2026-10-20       | capture log 2026-10-20         | capture log 2026-10-20   | capture log 2026-10-20       | pass 2026-10-16           | pass 2026-10-16        | capture log 2026-10-20   |              |
-| P100          | capture log 2026-10-20       | capture log 2026-10-20         | pass 2026-10-20          | capture log 2026-10-20       | capture log 2026-10-20    | capture log 2026-10-20 | capture log 2026-10-20   |              |
+| P100          | capture log 2026-10-20       | pass 2026-10-20                | pass 2026-10-20          | capture log 2026-10-20       | capture log 2026-10-20    | capture log 2026-10-20 | capture log 2026-10-20   |              |
 | P101          | capture log 2026-10-19       | capture log 2026-10-19         | capture log 2026-10-19   | pass 2026-10-17              | pass 2026-10-19           | pass 2026-10-19        | pass 2026-10-19          |              |
 | P102          | -                            | pass 2026-10-19                | -                        | pass 2026-10-17              | pass 2026-10-17           | pass 2026-10-17        | pass 2026-10-17          |              |
 | P103          | pass 2026-10-19              | pass 2026-10-19                | pass 2026-10-19          | pass 2026-10-20              | pass 2026-10-19           | pass 2026-10-19        | pass 2026-10-19          |              |
