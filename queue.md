@@ -128,9 +128,10 @@ entry is closed.
   now premultiply (`ImagePixels`). SVGTests: 27 tests incl. golden vs CoreSVG.
   P84 (new): six action files each on macOS, iOS simulator, Android emulator,
   every capture read.
-  - [ ] **Windows side: P84 on WinUI, GTK (Windows) and WSL.** The WinUI
+  - [x] **Windows side: P84 on WinUI, GTK (Windows) and WSL.** The WinUI
     premultiply edit in `WinUIBackend.updateImageView` has never been
     compiled. Coordinates for `actions/win/` still to be measured.
+    **DONE 2026-10-20**: compiled and drawn; the seven files for each of WinUI, Windows GTK (`-gtk4`) and WSL, measured and replayed -- features-alpha reads max 64, mean 0.104 on all three, as on macOS.
   - [x] **GTK on macOS: P84 verified 2026-10-09** (gtk4 4.24.1, libepoxy
     1.5.10, graphene 1.10.8, pango 1.58.2, gdk-pixbuf 2.44.8, librsvg 2.63.2
     via `testapp/install_tool_mac.zsh`). `compile.zsh -gtk4` now works on

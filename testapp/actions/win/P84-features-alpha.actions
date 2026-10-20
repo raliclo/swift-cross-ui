@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on windows (win): the steps of actions/mac/P84-features-alpha.actions, the SVG pane compared with its reference after the step.
+# Positions measured 2026-10-20 (UIA, WinUI DIPs at 125%): samples 1-5 at y 287, x 191 232 273 314 355; smaller (158,349), larger (229,349).
+# P84 的 Windows/WSL 版本：步驟同 actions/mac 的同名檔；座標於 2026-10-20 量測。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),windows
+click,314,287,frame,left,,,sample 4: features,windows
+sleep,,,,,,1000000,let the sample change settle,windows
+click,229,349,frame,left,,,larger,windows
+sleep,,,,,,4000000,hold for the capture,windows

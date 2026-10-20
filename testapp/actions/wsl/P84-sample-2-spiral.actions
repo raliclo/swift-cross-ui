@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on gtk (wsl): the steps of actions/mac/P84-sample-2-spiral.actions, the SVG pane compared with its reference after the step.
+# Positions measured 2026-10-20 (AT-SPI under WSLg, client coordinates): samples 1-5 at y 254, x 167 218 269 320 371; smaller (131,320), larger (216,320).
+# P84 的 Windows/WSL 版本：步驟同 actions/mac 的同名檔；座標於 2026-10-20 量測。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),gtk
+click,218,254,,left,,,sample 2: softpcb_spiral,gtk
+sleep,,,,,,4000000,hold for the capture,gtk
