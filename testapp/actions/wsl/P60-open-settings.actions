@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60 on WSL GtkBackend: open the settings scene -- the first step of actions/mac/P60-open-settings.actions. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates: open settings (77,219).
+# Pass: a settings window opens, separate from the main window (P60: "settings opens in its own window").
+# P60(WSL):開啟設定 scene。通過：設定在獨立的視窗中開啟。
+sleep,,,,,,1500000,let P60 lay out,gtk
+click,77,219,,left,,,open settings,gtk
+sleep,,,,,,2500000,let the settings window open,gtk

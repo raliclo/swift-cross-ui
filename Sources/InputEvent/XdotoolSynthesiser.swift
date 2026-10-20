@@ -82,7 +82,7 @@
             // 留下 `last action -> nothing yet`，因為每一次點擊都送到了別的視窗。若再以
             // `getactivewindow` 讀取幾何，問題會加倍，因為座標也會變成相對於那個別的視窗。
             let window = try ownWindow()
-            try run(["windowactivate", "--sync", window])
+            activate(window)
 
             try run(["mousemove", "--window", window, "0", "0"])
             let landed = try capture(["getmouselocation", "--shell"])
@@ -354,8 +354,13 @@
             // 版本、捨棄我的**。我們各自獨立修了同一個編譯中斷(123e95f4 與 53a576f7),而他們的跳脫
             // 更好:一個標準庫函式不可能對「哪些是元字元」與自己意見不合,而我的是一份自己打出來的清單。
             let pattern = "^\(NSRegularExpression.escapedPattern(for: title))$"
+            // `--all`: with `--pid` and `--name` together xdotool 3.20160805 ORs the
+            // conditions by default (`--any`), so this listed every window of the
+            // process and `focus "P81 window B"` picked window A (2026-10-20).
+            // `--all`:同時給 `--pid` 與 `--name` 時,xdotool 3.20160805 預設以 OR 結合條件(`--any`),
+            // 於是列出本行程的每一個視窗,`focus "P81 window B"` 選到了視窗 A(2026-10-20)。
             let listing =
-                (try? capture(["search", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ??
+                (try? capture(["search", "--all", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ??
                 ""
             let matches = listing.split(whereSeparator: \.isNewline).map(String.init)
 
@@ -377,7 +382,22 @@
                 )
             }
 
-            try run(["windowactivate", "--sync", window])
+            // No `--sync`, and failure is not fatal. Under WSLg's window manager
+            // `windowactivate --sync` never returned -- 10 s under `timeout` on
+            // 2026-10-20 with P81's two windows -- because the WM ignores
+            // _NET_ACTIVE_WINDOW, and `windowfocus` was overridden the same way:
+            // the replay simply hung and left no failure line. What a `focus` row
+            // has to achieve is that later rows measure against this window, which
+            // `rememberFocus` does; pointer events go to the window under the
+            // pointer whatever the WM thinks is active. Keys still go where the WM
+            // put focus.
+            // 不加 `--sync`,失敗也不致命。在 WSLg 的視窗管理員下 `windowactivate --sync` 從不返回——2026-10-20
+            // 以 P81 的兩個視窗實測，在 `timeout` 下等了 10 秒——因為 WM 忽略 _NET_ACTIVE_WINDOW,`windowfocus`
+            // 也同樣被蓋掉：重放就這樣卡住，沒有留下任何失敗訊息。`focus` 列要達成的是讓後續的列以這個視窗量測，
+            // 這由 `rememberFocus` 完成;指標事件送往指標下方的視窗，與 WM 認為哪個是作用中無關。按鍵仍送往 WM
+            // 給予焦點的地方。
+            activate(window)
+            _ = try? run(["windowraise", window])
             Self.rememberFocus(window)
         }
 
@@ -473,6 +493,23 @@
         /// Largest because a GTK app owns more than one X window and the first
         /// match can be a 1x1 helper -- `drive_xdotool.zsh` hit exactly that and
         /// captured a single pixel until it started picking by area.
+        /// Asks the window manager to make `window` active, and waits at most a
+        /// second for it. Never `windowactivate --sync`: that waits for as long as
+        /// the WM takes, and WSLg's WM does not answer -- a replay that switched
+        /// windows hung there with no failure line (P81, 2026-10-20). A WM that
+        /// ignores the request leaves the window as it was, and the replay goes on.
+        /// 請視窗管理員把 `window` 設為作用中，最多等一秒。絕不用 `windowactivate --sync`:它會一直等到 WM
+        /// 回應，而 WSLg 的 WM 不回應——切換視窗的重放就在那裡卡住，沒有失敗訊息(P81,2026-10-20)。WM 忽略
+        /// 要求時視窗維持原狀，重放照樣繼續。
+        private func activate(_ window: String) {
+            _ = try? run(["windowactivate", window])
+            for _ in 0..<20 {
+                let active = (try? capture(["getactivewindow"])) ?? ""
+                if active.trimmingCharacters(in: .whitespacesAndNewlines) == window { return }
+                usleep(50_000)
+            }
+        }
+
         private func ownWindow() throws -> String {
             let pid = ProcessInfo.processInfo.processIdentifier
             // `search` exits 1 when it matches nothing, so the empty case arrives

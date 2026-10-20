@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P81 on WSL GtkBackend: open window B, then ask for a sheet from it. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates: window A open second window (126,110); window B has the same layout, sheet (76,154).
+# Pass: the sheet appears over window B and says sheet from window B -- over window A it is the defect P81 exists for.
+# P81(WSL):開啟視窗 B,從 B 要一個 sheet。通過:sheet 出現在 B 上方並寫著 from window B。
+sleep,,,,,,3000000,let P81 lay out,gtk,
+click,126,110,,left,,,open second window,gtk,
+sleep,,,,,,3000000,let window B map,gtk,
+focus,,,,,,,switch to window B,gtk,P81 window B
+sleep,,,,,,600000,,gtk,
+click,76,154,,left,,,sheet -- from window B,gtk,
+sleep,,,,,,2500000,hold for the capture,gtk,
