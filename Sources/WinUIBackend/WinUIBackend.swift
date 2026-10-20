@@ -816,8 +816,45 @@ public final class WinUIBackend:
         }
     }
 
+    /// Whether `SCUI_WINUI_SNAPSHOT_QUIT_TEST` has run; it runs for the first window only.
+    /// `SCUI_WINUI_SNAPSHOT_QUIT_TEST` 是否已執行；只對第一個視窗執行。
+    nonisolated(unsafe) private static var snapshotQuitTestStarted = false
+
     public func show(window: Window) {
         try! window.activate()
+
+        // `SCUI_WINUI_SNAPSHOT_QUIT_TEST=1`: once the first window has content, ask the
+        // app to exit and take a snapshot while the exit is pending, so the snapshot's
+        // nested message pump runs through it. The process must still end; see
+        // `pump(until:)` and todo.md's "WinUI snapshot may consume WM_QUIT". Nothing
+        // in the public API reaches that pump with an exit pending, hence the switch.
+        // Measured 2026-10-20 with P17: the process ended 3-4 s after launch, rc 0,
+        // with this pump and with one that swallowed WM_QUIT alike -- WinUI's exit
+        // does not depend on a WM_QUIT the nested pump could take. A bare
+        // PostQuitMessage, by contrast, ends no WinUI app, pumped or not.
+        // `SCUI_WINUI_SNAPSHOT_QUIT_TEST=1`:第一個視窗有內容後，要求 app 結束，並在結束待處理時做一次截圖，讓截圖的
+        // 巢狀訊息 pump 經過它。行程仍必須結束；見 `pump(until:)` 與 todo.md「WinUI snapshot 可能吞掉退出訊息」。公開
+        // API 走不到「結束待處理時進入那個 pump」,因此用此開關。2026-10-20 以 P17 實測：行程在啟動後 3-4 秒結束、rc 0,
+        // 不論是這個 pump 還是會吞掉 WM_QUIT 的 pump——WinUI 的結束不依賴巢狀 pump 拿得走的 WM_QUIT。相對地，單純的
+        // PostQuitMessage 無論有沒有 pump,都結束不了 WinUI app。
+        if ProcessInfo.processInfo.environment["SCUI_WINUI_SNAPSHOT_QUIT_TEST"] == "1",
+            !Self.snapshotQuitTestStarted
+        {
+            Self.snapshotQuitTestStarted = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                MainActor.assumeIsolated {
+                    guard let content = window.content as? FrameworkElement else { return }
+                    try? Application.current?.exit()
+                    let shot = Self.snapshot(of: content)
+                    FileHandle.standardError.write(
+                        Data(
+                            ("snapshot-quit-test: snapshot "
+                                + (shot == nil ? "nil" : "taken")
+                                + " after Application.exit()\n").utf8)
+                    )
+                }
+            }
+        }
 
         #if canImport(InputEvent)
             if ActionFileReplay.requestedFile != nil {

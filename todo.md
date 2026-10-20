@@ -166,7 +166,7 @@ test 與結果。
   高度的比例固定。`measure/colour_bbox.swift` 只能在 macOS 上用(CoreGraphics);把擷圖複製到 Mac,或在那邊用任何真正的
   影像讀取工具量。先取樣圓的顏色——見 measure/README.md。
 
-- [ ] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
+- [x] **P2: WinUI snapshot may consume WM_QUIT / WinUI snapshot 可能吞掉退出訊息.**
   `Sources/WinUIBackend/WinUIBackend+InputTargets.swift:484` removes messages
   and dispatches them without handling `WM_QUIT`. Preserve/repost the quit
   message and stop the nested pump. Test closing the app while a snapshot is
@@ -182,6 +182,11 @@ test 與結果。
   test-app hook that snapshots a plain widget while a quit is posted.
   **2026-10-14(Windows):程式已修，尚未 runtime 驗證——保持未完成。**已能編譯。目前公開 API 走不到這裡：唯一
   呼叫者 Mesh3DView 在 WinUI 上走 Mesh3DD3DView 自己的讀回。要做上述 runtime 測試，需要測試 app 的專用觸發。
+  **2026-10-20 (Windows): verified, closed.** The hook is `SCUI_WINUI_SNAPSHOT_QUIT_TEST=1`
+  (WinUIBackend.show(window:)): the app is asked to exit and a snapshot is taken while the exit is
+  pending. P17 ended 3-4 s after launch, rc 0, with this pump and with one that swallowed WM_QUIT
+  alike; a bare `PostQuitMessage` ends no WinUI app either way, so WinUI's exit never depended on it.
+  **2026-10-20(Windows):已驗證，結案。**以 `SCUI_WINUI_SNAPSHOT_QUIT_TEST=1` 在結束待處理時截圖:P17 在 3-4 秒後結束、rc 0,新舊 pump 皆然。
 
 - [x] **P2: Test-data checks fail / 兩項測試資料檢查失敗 (reproduced / 已重現).**
   Coverage: seven `macos/appkit` or `macos/gtk4` rows have no matching matrix
