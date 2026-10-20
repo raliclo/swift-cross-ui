@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on WSL GtkBackend: actions/mac/P92-click-drag-copy.actions with Control for Command -- click the field, type x, undo it, double-click hello, copy, paste at the end. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: the field spans x 157-417 at y 163; hello is its first word, about 162-197.
+# Pass: the field reads hellohello.
+# P92(WSL):同 Mac 檔，以 Control 代替 Command。通過：欄位為 hellohello。
+sleep,,,,,,1500000,let the window settle,gtk
+click,380,163,,left,,,right of the text in the field,gtk
+sleep,,,,,,400000,,gtk
+key,,,,,x,,type x,gtk
+sleep,,,,,,500000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,z,,undo the x,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,500000,,gtk
+doubleclick,178,163,,left,,,"select hello by word -- a drag from x 161 to 205 selected nothing on 2026-10-20, so the paste brought back whatever the shared Windows clipboard held",gtk
+sleep,,,,,,300000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,c,,copy hello,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,300000,,gtk
+key,,,,,end,,caret to the end,gtk
+sleep,,,,,,300000,,gtk
+keydown,,,,,control,,,gtk
+key,,,,,v,,paste -- hellohello,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,1200000,hold for the capture,gtk

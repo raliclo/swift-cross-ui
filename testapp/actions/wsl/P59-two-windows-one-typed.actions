@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on WSL GtkBackend: clear, append A three times, then open the second window -- actions/mac/P59-two-windows-one-typed.actions. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: buttons y 200, append A 64, clear 258; open second window (101,242).
+# Pass: window A reads AAA in both rows; the second window has an empty scene draft and AAA as the app draft.
+# P59(WSL):先 clear,再 append A 三次，然後開第二個視窗。通過：視窗 A 兩列都是 AAA;第二個視窗 scene 為空、app 為 AAA。
+sleep,,,,,,1500000,let P59 lay out,gtk
+click,258,200,,left,,,clear -- both drafts persist between runs,gtk
+sleep,,,,,,400000,,gtk
+click,64,200,,left,,,append A,gtk
+sleep,,,,,,300000,,gtk
+click,64,200,,left,,,again,gtk
+sleep,,,,,,300000,,gtk
+click,64,200,,left,,,and again -- three appends into window A,gtk
+sleep,,,,,,500000,,gtk
+click,101,242,,left,,,open the second window,gtk
+sleep,,,,,,2000000,let the second window map and read its own storage,gtk

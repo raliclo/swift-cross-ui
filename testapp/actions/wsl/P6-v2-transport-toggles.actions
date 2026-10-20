@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6-v2 on WSL GtkBackend (P6-v2 is the GTK counterpart of P6): Sound, Frame drop, then the Speed and FPS drop-downs by keyboard, as actions/mac/P6-transport-toggles.actions. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: row y 218, Sound 77, Frame drop 175; drop-downs y 174, Speed 391, FPS 502.
+# Pass: the status reports Sound and Frame drop on, and the speed and rate changed from 1x and 60.
+# P6-v2(WSL):Sound、Frame drop,再用鍵盤操作 Speed 與 FPS 下拉選單。通過條件見上方英文。
+sleep,,,,,,2000000,let P6-v2 lay out,gtk
+click,77,218,,left,,,Sound,gtk
+sleep,,,,,,800000,,gtk
+click,175,218,,left,,,Frame drop,gtk
+sleep,,,,,,800000,,gtk
+click,391,174,,left,,,open the Speed drop-down,gtk
+sleep,,,,,,1000000,,gtk
+key,,,,,downArrow,,the next speed,gtk
+key,,,,,return,,choose it,gtk
+sleep,,,,,,1000000,,gtk
+click,502,174,,left,,,open the FPS drop-down,gtk
+sleep,,,,,,1000000,,gtk
+key,,,,,downArrow,,the next rate,gtk
+key,,,,,return,,choose it,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

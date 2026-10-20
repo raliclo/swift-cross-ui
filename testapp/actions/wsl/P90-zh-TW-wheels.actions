@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P90 on WSL GtkBackend: zh_TW; GTK draws the wheels inline. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: zh_TW (368,301).
+# Pass: the heading says zh_TW, and the date wheels read year, month, day.
+# P90(WSL):選 zh_TW。通過：標題為 zh_TW,日期滾輪為年、月、日。
+sleep,,,,,,1500000,let P90 lay out,gtk
+click,368,301,,left,,,zh_TW,gtk
+sleep,,,,,,2000000,hold for the capture,gtk

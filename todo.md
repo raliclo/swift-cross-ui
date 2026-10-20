@@ -1069,6 +1069,15 @@ gave -38,-59 at one and 154,-6 at the other.
   is not yet known. Next: AT-SPI dump with the popup open, then the same file on Windows GTK.
   WSL 上 menu 樣式的 Picker 不吃方向鍵。點擊有落在下拉鈕上，但 downArrow×2、return 之後仍是 Apple(預期 Cherry);
   同一次執行中其他樣式都變了。擷取拍不到彈出視窗，所以它是否真的開了還不知道。下一步：彈出時做 AT-SPI 傾印，再在 Windows GTK 上跑同一份檔。
+- [ ] **Super held during a hover is not reported on WSL.** P88 on WSLg 2026-10-20: pointer, drags
+  and hover reports all counted, but "last with cmd" stayed never. The X server does carry it -- xev
+  under the same xdotool keydown Super_L shows the next key with state 0x40 (Mod4) and Control with
+  0x4 -- so the loss is between X and `gtk_event_controller_get_current_event_state` in
+  GtkBackend+PointerHover.swift. / WSL 上懸停時按住 Super 不會回報。X 伺服器有帶 Mod4(xev 實測 state 0x40),
+  所以遺失發生在 X 與 GtkBackend+PointerHover.swift 的 `gtk_event_controller_get_current_event_state` 之間。
+- [ ] **zh_TW wheels write months in English on GTK.** P90 on WSLg 2026-10-20: the order is right (year,
+  month, day) but the month column reads August where zh_TW writes 8月. The wheel names its months from
+  something other than the locale it was given. / GTK 的 zh_TW 滾輪月份是英文(August 而非 8月),順序正確。
 - [ ] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing

@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P79 on WSL GtkBackend: show, hide, show, hide, refresh -- GtkWidgetRepresentable's make and dismantle (P79 exercised only Android until 2026-10-20). Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: show/hide (85,194), refresh (167,194).
+# Pass: made 2, dismantled 2.
+# P79(WSL):顯示、隱藏、顯示、隱藏、refresh。通過:made 2, dismantled 2。
+sleep,,,,,,1500000,let P79 lay out,gtk
+click,85,194,,left,,,show,gtk
+sleep,,,,,,600000,,gtk
+click,85,194,,left,,,hide,gtk
+sleep,,,,,,600000,,gtk
+click,85,194,,left,,,show,gtk
+sleep,,,,,,600000,,gtk
+click,85,194,,left,,,hide,gtk
+sleep,,,,,,800000,,gtk
+click,167,194,,left,,,refresh -- must read made 2 and dismantled 2,gtk
+sleep,,,,,,1500000,hold for the capture,gtk

@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on WSL GtkBackend: reveal p75-reveal.txt -- actions/mac/P75-reveal-a-file.actions. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: Reveal a file (239,118).
+# Pass: the row under the button stops saying not pressed, and the log says which file manager or portal took the request. A WSL distro may have no file manager at all; then the row must say so rather than claim success.
+# P75(WSL):顯示 p75-reveal.txt。通過：按鈕下一列不再是 not pressed,紀錄寫出由哪個檔案管理員或 portal 接手；若 WSL 沒有檔案管理員，該列必須如實說明而非宣稱成功。
+sleep,,,,,,1500000,let P75 render,gtk
+click,239,118,,left,,,Reveal a file,gtk
+sleep,,,,,,3000000,let the file manager come forward,gtk

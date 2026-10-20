@@ -6,6 +6,12 @@ import SwiftCrossUI
     import AndroidBackend
     import AndroidKit
     import SwiftJava
+#elseif canImport(WinUIBackend)
+    import WinUI
+    import WinUIBackend
+#elseif canImport(GtkBackend)
+    import Gtk
+    import GtkBackend
 #endif
 
 // P79: is an AndroidViewRepresentable dismantled when it leaves the view graph?
@@ -60,12 +66,12 @@ struct P79RootView: SwiftCrossUI.View {
                 Button(shown ? "hide" : "show") { shown.toggle() }
                 Button("refresh") { tick += 1 }
             }
-            #if canImport(AndroidBackend)
+            #if canImport(AndroidBackend) || canImport(WinUIBackend) || canImport(GtkBackend)
                 if shown {
                     P79NativeLabel()
                 }
             #else
-                Text("Android only: UIKit and AppKit have dismantleUIView / dismantleNSView.")
+                Text("Not exercised on this backend: UIKit and AppKit have dismantleUIView / dismantleNSView.")
             #endif
             Text("Expected after show, hide, show, hide, refresh: made 2, dismantled 2.")
             Text("預期：顯示、隱藏、顯示、隱藏、refresh 之後:made 2, dismantled 2。")
@@ -92,6 +98,41 @@ struct P79RootView: SwiftCrossUI.View {
         func updateAndroidView(_ view: TextView, context: Self.Context) {}
 
         static func dismantleAndroidView(_ view: TextView, coordinator: Void) {
+            P79Counts.dismantled += 1
+        }
+    }
+#endif
+
+// WinUI and GTK each have their own representable with a dismantle hook, and
+// until 2026-10-20 this app never exercised either: on Windows it showed one
+// line saying it was Android's. Same counts, same pass condition.
+// WinUI 與 GTK 各有自己的 representable 與 dismantle hook,而在 2026-10-20 之前本 app 從未測到它們：在 Windows
+// 上只顯示一行「這是 Android 的」。計數與通過條件相同。
+#if canImport(WinUIBackend)
+    struct P79NativeLabel: WinUIElementRepresentable {
+        func makeWinUIElement(context: Self.Context) -> WinUI.TextBlock {
+            P79Counts.made += 1
+            let block = WinUI.TextBlock()
+            block.text = "a native TextBlock"
+            return block
+        }
+
+        func updateWinUIElement(_ block: WinUI.TextBlock, context: Self.Context) {}
+
+        static func dismantleWinUIElement(_ block: WinUI.TextBlock, coordinator: Void) {
+            P79Counts.dismantled += 1
+        }
+    }
+#elseif canImport(GtkBackend)
+    struct P79NativeLabel: GtkWidgetRepresentable {
+        func makeGtkWidget(context: Self.Context) -> Gtk.Label {
+            P79Counts.made += 1
+            return Gtk.Label(string: "a native GtkLabel")
+        }
+
+        func updateGtkWidget(_ label: Gtk.Label, context: Self.Context) {}
+
+        static func dismantleGtkWidget(_ label: Gtk.Label, coordinator: Void) {
             P79Counts.dismantled += 1
         }
     }

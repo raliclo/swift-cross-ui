@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P88 on WSL GtkBackend: hover, hold Command (Super on Linux) without and with moving, drag across the panel, end inside it -- actions/mac/P88-hover-cmd-drag.actions. The panel exposes nothing to AT-SPI; it spans the area above the readouts (pointer line at y 380) in a 440x536 window, so the positions are those of the Mac file, inside it.
+# Pass: pointer follows, (cmd) appears while Super is held, last with cmd kept, drags counted, hover reports above 0.
+# P88(WSL):懸停、按住 Super(Linux 上的 Command)、拖過面板、停在面板內。通過條件見上方英文。
+move,150,200,,,,,into the panel,gtk
+sleep,,,,,,300000,,gtk
+move,160,205,,,,,,gtk
+sleep,,,,,,300000,,gtk
+keydown,,,,,command,,hold Super without moving,gtk
+sleep,,,,,,400000,,gtk
+move,170,210,,,,,move with Super held,gtk
+sleep,,,,,,400000,,gtk
+keyup,,,,,command,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,120,180,,left,,,start a drag on the panel,gtk
+move,170,200,,,,,,gtk
+move,220,230,,,,,,gtk
+mouseup,220,230,,left,,,,gtk
+sleep,,,,,,400000,,gtk
+move,200,190,,,,,end inside the panel,gtk
+sleep,,,,,,1000000,hold for the capture,gtk
