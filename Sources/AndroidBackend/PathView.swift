@@ -32,6 +32,9 @@ class PathView: JavaObject {
     func addGradientStop(_ stroke: Bool, _ color: Int32, _ position: Float)
 
     @JavaMethod
+    func setSweepGradient(_ stroke: Bool, _ ax: Float, _ ay: Float, _ startDegrees: Float)
+
+    @JavaMethod
     func set(
         path: AndroidGraphics.Path?,
         fillPaint: AndroidKit.Paint?,

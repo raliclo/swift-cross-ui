@@ -59,14 +59,17 @@ extension RadialGradient: ShapeStyle {
     }
 }
 
-// `AngularGradient` deliberately does not conform. `ResolvedFillStyle` has no
-// conic case, because XAML has no conic brush -- which is why
-// `WinUIBackend+AngularGradient.swift` exists as a separate workaround. A
-// conformance would have to invent a case that one of the two verified
-// backends cannot paint, so the absence is the honest state rather than an
-// oversight. It stays usable as a view, which is what it already was.
-//
-// `AngularGradient` 刻意不宣告 conformance。`ResolvedFillStyle` 沒有 conic case，因為 XAML 沒有
-// conic brush——那正是 `WinUIBackend+AngularGradient.swift` 作為獨立變通存在的原因。若要宣告
-// conformance，就得發明一個「已驗證的兩個 backend 之一畫不出來」的 case，因此這個缺席是誠實的
-// 現狀，而不是疏漏。它作為 view 仍可使用，那本來就是它原本的身分。
+extension AngularGradient: ShapeStyle {
+    /// A conic gradient in the shape's bounds, as in SwiftUI. Until 2026-10-20 it
+    /// did not conform, because XAML has no conic brush; WinUI's shape fill is the
+    /// part still to do (queue.md).
+    /// 形狀外框中的錐形漸層，同 SwiftUI。2026-10-20 之前因為 XAML 沒有 conic brush 而不遵循;WinUI 的形狀填色是尚未完成的部分(queue.md)。
+    public func _resolve(in environment: EnvironmentValues) -> ResolvedFillStyle {
+        .angularGradient(
+            gradient,
+            center: center,
+            startAngle: startAngle,
+            endAngle: endAngle ?? startAngle + Angle(degrees: 360)
+        )
+    }
+}

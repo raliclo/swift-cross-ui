@@ -100,6 +100,12 @@ extension AndroidBackend {
                     Float(endRadius)
                 )
                 addStops(of: gradient, to: view, stroke: stroke, environment: environment)
+            case .angularGradient(let gradient, let center, let startAngle, let endAngle):
+                view.setSweepGradient(stroke, Float(center.x), Float(center.y), Float(startAngle.degrees))
+                addStops(
+                    of: SwiftCrossUI.Gradient(stops: ResolvedFillStyle.angularTurnStops(gradient, startAngle: startAngle, endAngle: endAngle)),
+                    to: view, stroke: stroke, environment: environment
+                )
         }
     }
 

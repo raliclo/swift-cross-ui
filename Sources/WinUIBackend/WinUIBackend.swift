@@ -333,6 +333,18 @@ public final class WinUIBackend:
                     brush.gradientStops.append(stop)
                 }
                 return brush
+            case .angularGradient:
+                // NOT DONE on WinUI (queue.md): XAML has no conic brush and swift-winui
+                // projects no ImageBrush, so a shape or text cannot take the conic
+                // gradient that AngularGradientCanvas draws for the view. Until it is
+                // built on Windows this paints the midpoint colour and logs a notice --
+                // a known gap, not a supported state.
+                // WinUI 上尚未完成(queue.md):XAML 沒有 conic brush,swift-winui 也沒有投影 ImageBrush,因此形狀與文字無法用
+                // AngularGradientCanvas 為 view 畫的那種錐形漸層。在 Windows 上做好之前，這裡畫中間色並記錄 notice——這是已知缺口，不是支援的狀態。
+                logger.notice(
+                    "WinUIBackend does not draw an AngularGradient shape style yet; painting its midpoint colour"
+                )
+                return WinUI.SolidColorBrush(style.flattened(in: environment).uwpColor)
         }
     }
 

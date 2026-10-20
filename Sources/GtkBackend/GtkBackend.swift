@@ -5980,6 +5980,56 @@ public final class GtkBackend:
                 )
                 addStops(pattern, gradient)
                 return pattern
+            case .angularGradient(let gradient, let center, let startAngle, let endAngle):
+                // Cairo has no conic gradient; a mesh of 72 patches, each a 5 degree
+                // sector from the centre to a circle past every corner, its two edges
+                // in the colours at their angles and its arc a Bezier. Angles as
+                // SwiftUI's: from three o'clock, clockwise in cairo's y-down space.
+                // Cairo 沒有錐形漸層：以 72 片 mesh 拼成，每片是從中心到一個超過每個角的圓的 5 度扇形，兩邊是各自角度的顏色，
+                // 弧以 Bezier 曲線畫出。角度同 SwiftUI:自三點鐘方向起，在 cairo 的 y 向下座標中順時針。
+                let stops = ResolvedFillStyle.angularTurnStops(gradient, startAngle: startAngle, endAngle: endAngle)
+                    .map { ($0.location, $0.color.resolve(in: environment)) }
+                guard !stops.isEmpty else { return solid() }
+                let cx = box.x + center.x * box.width
+                let cy = box.y + center.y * box.height
+                let reach = [(box.x, box.y), (box.x + box.width, box.y), (box.x, box.y + box.height),
+                             (box.x + box.width, box.y + box.height)]
+                    .map { hypot($0.0 - cx, $0.1 - cy) }.max()! + 1
+                func colour(_ t: Double) -> SwiftCrossUI.Color.Resolved {
+                    if t <= stops[0].0 { return stops[0].1 }
+                    guard let i = stops.firstIndex(where: { $0.0 > t }) else { return stops[stops.count - 1].1 }
+                    let (l0, c0) = stops[i - 1], (l1, c1) = stops[i]
+                    let f = Float(l1 > l0 ? (t - l0) / (l1 - l0) : 1)
+                    return SwiftCrossUI.Color.Resolved(
+                        red: c0.red + (c1.red - c0.red) * f, green: c0.green + (c1.green - c0.green) * f,
+                        blue: c0.blue + (c1.blue - c0.blue) * f, opacity: c0.opacity + (c1.opacity - c0.opacity) * f
+                    )
+                }
+                let pattern = cairo_pattern_create_mesh()
+                let patches = 72
+                let step = 2 * Double.pi / Double(patches)
+                let k = 4.0 / 3.0 * tan(step / 4) * reach
+                for i in 0..<patches {
+                    let a0 = startAngle.radians + Double(i) * step, a1 = a0 + step
+                    let c0 = colour(Double(i) / Double(patches)), c1 = colour(Double(i + 1) / Double(patches))
+                    cairo_mesh_pattern_begin_patch(pattern)
+                    cairo_mesh_pattern_move_to(pattern, cx, cy)
+                    cairo_mesh_pattern_line_to(pattern, cx + cos(a0) * reach, cy + sin(a0) * reach)
+                    cairo_mesh_pattern_curve_to(
+                        pattern,
+                        cx + cos(a0) * reach - sin(a0) * k, cy + sin(a0) * reach + cos(a0) * k,
+                        cx + cos(a1) * reach + sin(a1) * k, cy + sin(a1) * reach - cos(a1) * k,
+                        cx + cos(a1) * reach, cy + sin(a1) * reach
+                    )
+                    cairo_mesh_pattern_line_to(pattern, cx, cy)
+                    for (corner, c) in [(0, c0), (1, c0), (2, c1), (3, c1)] {
+                        cairo_mesh_pattern_set_corner_color_rgba(
+                            pattern, UInt32(corner), Double(c.red), Double(c.green), Double(c.blue), Double(c.opacity)
+                        )
+                    }
+                    cairo_mesh_pattern_end_patch(pattern)
+                }
+                return pattern
         }
     }
 

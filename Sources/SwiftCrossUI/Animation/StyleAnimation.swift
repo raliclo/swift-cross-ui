@@ -193,6 +193,8 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
     case linear(GradientDrawing)
     /// Points: centre; scalars: start and end radius. / 點：中心;純量：起始與終止半徑。
     case radial(GradientDrawing)
+    /// Points: centre; scalars: start and end angle in radians. / 點：中心;純量：起訖角度(弧度)。
+    case angular(GradientDrawing)
 
     @MainActor
     init(_ style: ResolvedFillStyle, in environment: EnvironmentValues) {
@@ -208,6 +210,13 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
                     GradientDrawing(
                         gradient: gradient.resolved(in: environment), points: [center],
                         scalars: [startRadius, endRadius]
+                    )
+                )
+            case .angularGradient(let gradient, let center, let startAngle, let endAngle):
+                self = .angular(
+                    GradientDrawing(
+                        gradient: gradient.resolved(in: environment), points: [center],
+                        scalars: [startAngle.radians, endAngle.radians]
                     )
                 )
         }
@@ -226,6 +235,11 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
                     drawing.gradient, center: drawing.points[0], startRadius: drawing.scalars[0],
                     endRadius: drawing.scalars[1]
                 )
+            case .angular(let drawing):
+                return .angularGradient(
+                    drawing.gradient, center: drawing.points[0], startAngle: .radians(drawing.scalars[0]),
+                    endAngle: .radians(drawing.scalars[1])
+                )
         }
     }
 
@@ -237,7 +251,7 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
     private var gradientDrawing: GradientDrawing? {
         switch self {
             case .color: nil
-            case .linear(let drawing), .radial(let drawing): drawing
+            case .linear(let drawing), .radial(let drawing), .angular(let drawing): drawing
         }
     }
 
@@ -245,6 +259,7 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
     private func withDrawing(_ drawing: GradientDrawing) -> FillDrawing {
         switch self {
             case .radial: .radial(drawing)
+            case .angular: .angular(drawing)
             default: .linear(drawing)
         }
     }
@@ -288,7 +303,7 @@ enum FillDrawing: Equatable, Sendable, AnimatableValue {
             case .color(let color):
                 let c = color.resolve(in: environment)
                 return [Double(c.red), Double(c.green), Double(c.blue), Double(c.opacity)]
-            case .linear(let drawing), .radial(let drawing):
+            case .linear(let drawing), .radial(let drawing), .angular(let drawing):
                 return drawing.diagnosticValues(in: environment)
         }
     }
@@ -464,7 +479,7 @@ final class TextColorStorage: ViewGraphNodeChildren {
         switch fill {
             case .color(let color):
                 return environment.with(\.foregroundColor, color).with(\.textGradient, nil)
-            case .linear, .radial:
+            case .linear, .radial, .angular:
                 let style = fill.style(in: environment)
                 return environment
                     .with(\.foregroundColor, Color(style.flattened(in: environment)))

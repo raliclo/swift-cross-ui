@@ -32,4 +32,7 @@ class FittedTextView: AndroidKit.TextView {
 
     @JavaMethod
     func addGradientStop(_ color: Int32, _ position: Float)
+
+    @JavaMethod
+    func setSweepGradient(_ ax: Float, _ ay: Float, _ startDegrees: Float)
 }

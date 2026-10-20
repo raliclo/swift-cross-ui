@@ -93,7 +93,8 @@ struct StyleAnimationTests {
     func stops(_ fill: FillDrawing) -> [[Double]] {
         switch fill {
             case .color(let color): [rgb(color)]
-            case .linear(let drawing), .radial(let drawing): drawing.gradient.stops.map { rgb($0.color) }
+            case .linear(let drawing), .radial(let drawing), .angular(let drawing):
+                drawing.gradient.stops.map { rgb($0.color) }
         }
     }
 
@@ -107,6 +108,37 @@ struct StyleAnimationTests {
         #expect(FillDrawing.interpolated(from: .color(red), to: gradient, progress: 1) == gradient)
     }
 
+    @Test("An angular gradient tweens its colours and its two angles, and resolves back to the same style")
+    @MainActor
+    func angularTween() {
+        let a = FillDrawing.angular(GradientDrawing(gradient: Gradient(colors: [red, blue]), points: [.center], scalars: [0, 2 * .pi]))
+        let b = FillDrawing.angular(GradientDrawing(gradient: Gradient(colors: [blue, red]), points: [.center], scalars: [.pi, 2 * .pi]))
+        let half = FillDrawing.interpolated(from: a, to: b, progress: 0.5)
+        guard case .angular(let drawing) = half else {
+            Issue.record("an angular tween left the angular kind: \(half)")
+            return
+        }
+        #expect(abs(drawing.scalars[0] - .pi / 2) < 1e-9)
+        #expect(abs(drawing.scalars[1] - 2 * .pi) < 1e-9)
+        #expect(close(stops(half)[0], [0.5, 0, 0.5]))
+        guard case .angularGradient(_, _, let start, let end) = half.style(in: EnvironmentValues(backend: DummyBackend())) else {
+            Issue.record("an angular drawing resolved to another style")
+            return
+        }
+        #expect(abs(start.radians - .pi / 2) < 1e-9 && abs(end.radians - 2 * .pi) < 1e-9)
+    }
+    @Test("angularTurnStops squeezes the stops into the sweep, and reverses them for a backwards one")
+    func angularTurnStops() {
+        let gradient = Gradient(colors: [red, blue])
+        let half = ResolvedFillStyle.angularTurnStops(gradient, startAngle: .zero, endAngle: .degrees(180))
+        #expect(half.map(\.location) == [0, 0.5])
+        #expect(rgb(half[0].color) == rgb(red) && rgb(half[1].color) == rgb(blue))
+        let backwards = ResolvedFillStyle.angularTurnStops(gradient, startAngle: .degrees(90), endAngle: .zero)
+        #expect(backwards.map(\.location) == [0, 0.25])
+        #expect(rgb(backwards[0].color) == rgb(blue))
+        let full = ResolvedFillStyle.angularTurnStops(gradient, startAngle: .degrees(30), endAngle: .degrees(390))
+        #expect(full.map(\.location) == [0, 1])
+    }
     @Test("Colour to gradient: the gradient with every stop in that colour, moving to its own stops")
     func fillColourToGradient() {
         let gradient = linear([red, blue], .leading, .trailing)

@@ -11,9 +11,10 @@
 /// turned into protocols only after they did something (#63, #64), and that
 /// order worked. The protocol is #31.
 ///
-/// Angular is absent on purpose: XAML has no conic brush, which is why
+/// Angular was left out at first: XAML has no conic brush, which is why
 /// `WinUIBackend+AngularGradient.swift` exists as a workaround, and starting
-/// with the hardest case would stall the easy ones.
+/// with the hardest case would have stalled the easy ones. It was added on
+/// 2026-10-20 (`angularGradient`); WinUI's shape fill is still to do.
 ///
 /// 一個形狀被塗上什麼，解析到 backend 能據以行動的程度。
 ///
@@ -25,8 +26,8 @@
 /// 而在窄的部分能動之前先蓋寬的部分，順序是反的——`DatePickerStyle` 與 `ListStyle` 都是在它們
 /// 真的做了事之後才轉為 protocol（#63、#64），那個順序是可行的。protocol 本身是 #31。
 ///
-/// 刻意不含 angular：XAML 沒有 conic brush，這正是 `WinUIBackend+AngularGradient.swift` 作為
-/// 變通存在的原因，而從最難的情況起手會讓容易的那些一起卡住。
+/// angular 原本刻意不含：XAML 沒有 conic brush，這正是 `WinUIBackend+AngularGradient.swift` 作為
+/// 變通存在的原因。它在 2026-10-20 加入(見 `angularGradient`),WinUI 的形狀填色仍待完成。
 public enum ResolvedFillStyle: Sendable {
     case color(Color.Resolved)
 
@@ -44,6 +45,38 @@ public enum ResolvedFillStyle: Sendable {
         startRadius: Double,
         endRadius: Double
     )
+    /// A conic gradient, as SwiftUI's `AngularGradient`: angles from three
+    /// o'clock, clockwise on screen, the centre a unit point of the shape's
+    /// bounds. A gradient made with one angle has `endAngle` a full turn on.
+    /// Backends draw it as a full turn from `startAngle` with
+    /// ``angularTurnStops(_:startAngle:endAngle:)``.
+    /// 錐形漸層，同 SwiftUI 的 `AngularGradient`:角度自三點鐘方向起、在螢幕上順時針，中心是形狀外框的單位座標。
+    /// 只給一個角度的漸層，`endAngle` 是其後一整圈。backend 以 ``angularTurnStops(_:startAngle:endAngle:)``
+    /// 從 `startAngle` 畫一整圈。
+    case angularGradient(
+        Gradient,
+        center: UnitPoint,
+        startAngle: Angle,
+        endAngle: Angle
+    )
+    /// The stops over one turn that starts at `startAngle` (0 there, 1 a turn
+    /// on): squeezed into the sweep to `endAngle`, reversed for a sweep that
+    /// runs backwards, the last colour after it -- the rule
+    /// `AngularGradient.adjustedStops` applies to the view, so a shape and the
+    /// view draw the same gradient.
+    /// 從 `startAngle` 起一整圈的色標(該處為 0、一圈後為 1):壓進到 `endAngle` 的掃掠範圍、反向掃掠時反轉、其後是最後
+    /// 一個顏色——與 view 用的 `AngularGradient.adjustedStops` 規則相同，因此形狀與 view 畫出同一個漸層。
+    public static func angularTurnStops(
+        _ gradient: Gradient,
+        startAngle: Angle,
+        endAngle: Angle
+    ) -> [Gradient.Stop] {
+        let range = (endAngle - startAngle).degrees
+        let sweep = min(abs(range), 360) / 360
+        return gradient.stops
+            .map { Gradient.Stop(color: $0.color, location: (range < 0 ? 1 - $0.location : $0.location) * sweep) }
+            .sorted { $0.location < $1.location }
+    }
 
     /// The single colour to use when a backend cannot paint this style.
     ///
@@ -65,7 +98,8 @@ public enum ResolvedFillStyle: Sendable {
             case .color(let resolved):
                 return resolved
             case .linearGradient(let gradient, _, _),
-                .radialGradient(let gradient, _, _, _):
+                .radialGradient(let gradient, _, _, _),
+                .angularGradient(let gradient, _, _, _):
                 return Self.midpoint(of: gradient, in: environment)
         }
     }

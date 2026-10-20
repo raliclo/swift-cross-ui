@@ -9,7 +9,7 @@ public struct Gradient: Sendable, Hashable {
     ///
     /// - Parameters:
     ///   - stops: The stops of the Gradient. If no stop is passed, the gradient will be fully transparent.
-    init(stops: [Gradient.Stop]) {
+    public init(stops: [Gradient.Stop]) {
         guard let first = stops.first else {
             let invisible = Color.black.opacity(0)
             self.stops = [

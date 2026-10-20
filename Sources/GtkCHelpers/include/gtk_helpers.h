@@ -120,7 +120,9 @@ void gtk_passthrough_drawing_area_set_overflowing_draw_func(
 // kind 0 is the flat `rgba`; 1 a linear gradient from (geometry[0], geometry[1]) to
 // (geometry[2], geometry[3]); 2 a radial gradient centred at (geometry[0], geometry[1])
 // from radius geometry[2] to geometry[3]. Gradient points are unit points of the
-// path's bounds, radii points (as SwiftUI's RadialGradient). `stops` holds `stop_count` groups
+// path's bounds, radii points (as SwiftUI's RadialGradient); 3 a conic gradient centred at
+// (geometry[0], geometry[1]), a full turn from geometry[2] radians (from three o'clock,
+// clockwise). `stops` holds `stop_count` groups
 // of offset, red, green, blue, opacity. A path with no area paints `rgba`.
 // 形狀的填色或線條如何上色，供 gtk_passthrough_drawing_area_set_shape 使用。kind 0 是平面色 `rgba`;1 是從
 // (geometry[0], geometry[1]) 到 (geometry[2], geometry[3]) 的線性漸層;2 是以 (geometry[0], geometry[1]) 為中心、

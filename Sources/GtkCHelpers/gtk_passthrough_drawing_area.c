@@ -284,6 +284,15 @@ gboolean scui_append_gradient(
             x + (float)paint->geometry[2] * w, y + (float)paint->geometry[3] * h
         );
         gtk_snapshot_append_linear_gradient(snapshot, area, &start, &end, stops, paint->stop_count);
+    } else if (paint->kind == 3) {
+        // A conic gradient: geometry[2] is the start in radians from three o'clock,
+        // clockwise; GSK's rotation is degrees clockwise from twelve, as CSS's.
+        // 錐形漸層:geometry[2] 是自三點鐘方向順時針的起始弧度;GSK 的 rotation 是自十二點鐘方向順時針的度數，同 CSS。
+        graphene_point_t centre = GRAPHENE_POINT_INIT(
+            x + (float)paint->geometry[0] * w, y + (float)paint->geometry[1] * h
+        );
+        float rotation = (float)(paint->geometry[2] * 180.0 / G_PI) + 90.0f;
+        gtk_snapshot_append_conic_gradient(snapshot, area, &centre, rotation, stops, paint->stop_count);
     } else {
         // Radii in points, as SwiftUI's RadialGradient; not scaled by the box.
         float inner = (float)paint->geometry[2];

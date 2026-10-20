@@ -76,6 +76,7 @@ class FittedTextView(activity: Activity) : TextView(activity) {
     // 半徑以點(dp)為單位(同 SwiftUI 的 RadialGradient),與 PathView 相同。
     private var hasGradient = false
     private var gradientRadial = false
+    private var gradientSweep = false
     private var gradientGeometry = FloatArray(6)
     private val gradientColors = mutableListOf<Int>()
     private val gradientPositions = mutableListOf<Float>()
@@ -98,12 +99,23 @@ class FittedTextView(activity: Activity) : TextView(activity) {
     ) {
         hasGradient = true
         gradientRadial = radial
+        gradientSweep = false
         gradientGeometry = floatArrayOf(ax, ay, bx, by, startRadius, endRadius)
         gradientColors.clear()
         gradientPositions.clear()
         invalidate()
     }
 
+    /** A conic gradient centred at the unit point (ax, ay) of the view, from startDegrees. */
+    fun setSweepGradient(ax: Float, ay: Float, startDegrees: Float) {
+        hasGradient = true
+        gradientRadial = false
+        gradientSweep = true
+        gradientGeometry = floatArrayOf(ax, ay, 0f, 0f, startDegrees, 0f)
+        gradientColors.clear()
+        gradientPositions.clear()
+        invalidate()
+    }
     fun addGradientStop(color: Int, position: Float) {
         gradientColors.add(color)
         gradientPositions.add(position)
@@ -122,6 +134,9 @@ class FittedTextView(activity: Activity) : TextView(activity) {
         val positions =
             if (gradientPositions.size == 1) floatArrayOf(0f, 1f) else gradientPositions.toFloatArray()
         val g = gradientGeometry
+        if (gradientSweep) {
+            return scuiSweepShader(g[0] * w, g[1] * h, g[4], colors, positions)
+        }
         if (!gradientRadial) {
             return LinearGradient(g[0] * w, g[1] * h, g[2] * w, g[3] * h, colors, positions, Shader.TileMode.CLAMP)
         }

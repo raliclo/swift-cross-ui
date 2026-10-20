@@ -1272,6 +1272,9 @@ public final class AndroidBackend: BaseAppBackend {
                     Float(startRadius), Float(endRadius)
                 )
                 stops = radial.stops
+            case .angularGradient(let angular, let center, let startAngle, let endAngle):
+                view.setSweepGradient(Float(center.x), Float(center.y), Float(startAngle.degrees))
+                stops = ResolvedFillStyle.angularTurnStops(angular, startAngle: startAngle, endAngle: endAngle)
             case .color, nil:
                 view.clearGradient()
                 return

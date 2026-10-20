@@ -248,6 +248,13 @@ extension GtkBackend {
                 paint.kind = 2
                 paint.geometry = (center.x, center.y, startRadius, endRadius)
                 addStops(gradient)
+            case .angularGradient(let gradient, let center, let startAngle, let endAngle):
+                // Kind 3: a conic gradient, a full turn from geometry[2] (radians from
+                // three o'clock, clockwise) with the stops of that turn.
+                // 種類 3:錐形漸層，從 geometry[2](自三點鐘方向順時針的弧度)起一整圈，色標是那一圈的。
+                paint.kind = 3
+                paint.geometry = (center.x, center.y, startAngle.radians, 0)
+                addStops(Gradient(stops: ResolvedFillStyle.angularTurnStops(gradient, startAngle: startAngle, endAngle: endAngle)))
         }
         paint.stop_count = Int32(stops.count / 5)
         return stops.withUnsafeBufferPointer { buffer in

@@ -3,11 +3,13 @@ package dev.swiftcrossui.androidbackend
 import android.app.Activity
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import android.view.View
 
 /**
@@ -37,6 +39,8 @@ import android.view.View
 class PathView(activity: Activity) : View(activity) {
     private class GradientSpec {
         var isRadial = false
+        var isSweep = false
+        var startDegrees = 0f
         var ax = 0f
         var ay = 0f
         var bx = 0f
@@ -87,6 +91,16 @@ class PathView(activity: Activity) : View(activity) {
         invalidate()
     }
 
+    /** A conic gradient centred at the unit point (ax, ay) of the path's bounds. */
+    fun setSweepGradient(stroke: Boolean, ax: Float, ay: Float, startDegrees: Float) {
+        val spec = GradientSpec()
+        spec.isSweep = true
+        spec.ax = ax
+        spec.ay = ay
+        spec.startDegrees = startDegrees
+        if (stroke) strokeGradient = spec else fillGradient = spec
+        invalidate()
+    }
     fun addGradientStop(stroke: Boolean, color: Int, position: Float) {
         val spec = (if (stroke) strokeGradient else fillGradient) ?: return
         spec.colors.add(color)
@@ -121,6 +135,12 @@ class PathView(activity: Activity) : View(activity) {
         val positions =
             if (spec.positions.size == 1) floatArrayOf(0f, 1f) else spec.positions.toFloatArray()
 
+        if (spec.isSweep) {
+            return scuiSweepShader(
+                bounds.left + spec.ax * bounds.width(), bounds.top + spec.ay * bounds.height(),
+                spec.startDegrees, colors, positions,
+            )
+        }
         if (!spec.isRadial) {
             return LinearGradient(
                 bounds.left + spec.ax * bounds.width(),
@@ -168,4 +188,24 @@ class PathView(activity: Activity) : View(activity) {
         strokePaint.shader = shaderFor(strokeGradient)
         canvas.drawPath(path, strokePaint)
     }
+}
+
+/**
+ * A conic gradient as SwiftUI's AngularGradient draws it: a full turn clockwise from
+ * three o'clock, rotated to start at [startDegrees], with the stops of that turn
+ * (ResolvedFillStyle.angularTurnStops). SweepGradient wants positions from 0 to 1, so
+ * the first colour is put at 0 and the last at 1 when the stops do not reach them.
+ * 同 SwiftUI 的 AngularGradient 的錐形漸層：自三點鐘方向順時針一整圈，旋轉到 [startDegrees] 起始，色標是那一圈的。
+ * SweepGradient 要求位置從 0 到 1,色標沒涵蓋時在 0 補第一個顏色、在 1 補最後一個顏色。
+ */
+internal fun scuiSweepShader(cx: Float, cy: Float, startDegrees: Float, colors: IntArray, positions: FloatArray): Shader {
+    val c = colors.toMutableList()
+    val p = positions.toMutableList()
+    if (p.first() > 0f) { c.add(0, c.first()); p.add(0, 0f) }
+    if (p.last() < 1f) { c.add(c.last()); p.add(1f) }
+    val shader = SweepGradient(cx, cy, c.toIntArray(), p.toFloatArray())
+    val matrix = Matrix()
+    matrix.setRotate(startDegrees, cx, cy)
+    shader.setLocalMatrix(matrix)
+    return shader
 }
