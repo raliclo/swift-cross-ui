@@ -2158,7 +2158,9 @@ public final class GtkBackend:
             // `.floating` where the window manager implements it (X11 with
             // _NET_WM_STATE_ABOVE); see scui_window_topmost_supported.
             // 視窗管理員有實作時才提供 `.floating`(X11 且有 _NET_WM_STATE_ABOVE);見 scui_window_topmost_supported。
-            scui_window_topmost_supported() != 0
+            // Or under WSL, done on the Windows side; see GtkWSLTopmost.
+            // 或在 WSL 下，從 Windows 那一側完成；見 GtkWSLTopmost。
+            scui_window_topmost_supported() != 0 || GtkWSLTopmost.isAvailable
                 ? [.automatic, .normal, .floating] : [.automatic, .normal]
         #endif
     }
@@ -2167,7 +2169,16 @@ public final class GtkBackend:
         // Only `.floating` needs anything done, and only the platforms that
         // listed it above get here with it. The caller applies the level after
         // the window is shown, when the platform handle exists.
-        _ = scui_window_set_topmost(window.widgetPointer, level == .floating ? 1 : 0)
+        let done = scui_window_set_topmost(window.widgetPointer, level == .floating ? 1 : 0) != 0
+        #if os(Linux)
+            // No window manager support under WSLg; Windows does it instead.
+            // WSLg 下視窗管理員不支援，改由 Windows 完成。
+            if !done {
+                GtkWSLTopmost.set(window.widgetPointer, topmost: level == .floating)
+            }
+        #else
+            _ = done
+        #endif
     }
 
     public func setChild(ofWindow window: Window, to child: Widget) {
