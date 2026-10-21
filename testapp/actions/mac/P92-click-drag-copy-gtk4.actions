@@ -3,11 +3,11 @@ action,x,y,origin,button,key,micros,note,platform
 # selected by dragging and copied. The field starts as "hello", focused with its text selected.
 # CLICK: a click right of the text, then X typed: "X" if a click selects everything, "helloX" if it
 # places the caret. Command-Z puts "hello" back.
-# DRAG: pressed at the start of "hello" (frame x 86 -- GTK insets the text 4 points more than AppKit)
-# and moved right 5 points at a time to x 121 past its end, then let go. Command-C copies, the right
+# DRAG: pressed at the start of "hello" (frame x 176 -- GTK insets the text 4 points more than AppKit). The window is 640 points wide (defaultSize since 5b37bcf3): the field starts at x 168, the text spans x 177-205 (M4, 2026-10-21).
+# and moved right 5 points at a time to x 211 past its end, then let go. Command-C copies, the right
 # arrow moves the caret to the end, Command-V pastes: "hellohello".
 # Expected "field" lines in p92-commands.log, in order: helloX | hello | hellohello.
-# macOS 上 GtkBackend 的 P92:點擊文字欄位的行為，以及拖曳選取再複製。GTK 的文字內距比 AppKit 多 4 點，所以從 x 86 按下。
+# macOS 上 GtkBackend 的 P92:點擊文字欄位的行為，以及拖曳選取再複製。視窗寬 640 點(defaultSize,5b37bcf3 起),欄位從 x 168 起、文字在 x 177-205;GTK 的文字內距比 AppKit 多 4 點，所以從 x 176 按下、拖到 x 211。
 # p92-commands.log 的 field 各行應依序為 helloX、hello、hellohello。
 sleep,,,,,,1500000,let the window settle,macos
 click,250,167,frame,left,,,CLICK: right of the text in the field,macos
@@ -18,23 +18,23 @@ keydown,,,,,command,,,macos
 key,,,,,z,,undo the x,macos
 keyup,,,,,command,,,macos
 sleep,,,,,,500000,,macos
-mousedown,86,167,frame,left,,,DRAG: press at the start of hello,macos
+mousedown,176,167,frame,left,,,DRAG: press at the start of hello,macos
 sleep,,,,,,100000,,macos
-move,91,167,frame,,,,drag right,macos
+move,181,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,96,167,frame,,,,drag right,macos
+move,186,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,101,167,frame,,,,drag right,macos
+move,191,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,106,167,frame,,,,drag right,macos
+move,196,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,111,167,frame,,,,drag right,macos
+move,201,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,116,167,frame,,,,drag right,macos
+move,206,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,121,167,frame,,,,drag right,macos
+move,211,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-mouseup,121,167,frame,left,,,let go past the end: hello selected,macos
+mouseup,211,167,frame,left,,,let go past the end: hello selected,macos
 sleep,,,,,,300000,,macos
 keydown,,,,,command,,,macos
 key,,,,,c,,copy hello,macos

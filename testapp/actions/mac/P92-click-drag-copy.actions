@@ -3,7 +3,7 @@ action,x,y,origin,button,key,micros,note,platform
 # The field starts as "hello" and, as the window opens, has the focus with its text selected.
 # CLICK: a click right of the text, then X typed. A click that selects everything leaves "X"; one
 # that places the caret leaves "helloX". Command-Z puts "hello" back.
-# DRAG: pressed at the start of "hello" (frame x 82) and moved right 5 points at a time to x 116 past
+# DRAG: pressed at the start of "hello" (frame x 172; the window is 640 points wide since 5b37bcf3) and moved right 5 points at a time to x 206 past
 # its end, then let go -- a selection made by relative moves, as a person drags. Command-C copies it,
 # the right arrow moves the caret to the end, Command-V pastes: "hellohello".
 # Expected "field" lines in p92-commands.log, in order: helloX | hello | hellohello.
@@ -19,23 +19,23 @@ keydown,,,,,command,,,macos
 key,,,,,z,,undo the x,macos
 keyup,,,,,command,,,macos
 sleep,,,,,,500000,,macos
-mousedown,82,167,frame,left,,,DRAG: press at the start of hello,macos
+mousedown,172,167,frame,left,,,DRAG: press at the start of hello,macos
 sleep,,,,,,100000,,macos
-move,87,167,frame,,,,drag right,macos
+move,177,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,92,167,frame,,,,drag right,macos
+move,182,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,97,167,frame,,,,drag right,macos
+move,187,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,102,167,frame,,,,drag right,macos
+move,192,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,107,167,frame,,,,drag right,macos
+move,197,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,112,167,frame,,,,drag right,macos
+move,202,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-move,116,167,frame,,,,drag right,macos
+move,206,167,frame,,,,drag right,macos
 sleep,,,,,,30000,,macos
-mouseup,116,167,frame,left,,,let go past the end: hello selected,macos
+mouseup,206,167,frame,left,,,let go past the end: hello selected,macos
 sleep,,,,,,300000,,macos
 keydown,,,,,command,,,macos
 key,,,,,c,,copy hello,macos
