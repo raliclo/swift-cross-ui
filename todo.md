@@ -1073,11 +1073,16 @@ gave -38,-59 at one and 154,-6 at the other.
 Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.csv2 of that date).
 2026-10-20 由新的 actions/win 動作檔發現(結果列見 matrix_coverage/results.csv2 同日)。
 
-- [ ] **P101: START reads no rows on WinUI.** 2026-10-19 and again 2026-10-21: TO10 and CENTER3
+- [x] **P101: START reads no rows on WinUI.** 2026-10-19 and again 2026-10-21: TO10 and CENTER3
   measure 20 rows with error 0, but START, taken right after the list appears, sees 0 rows -- the
   rows are not laid out yet when the first scroll-visibility pass runs. GTK and WSL see 20 at START.
   Find which WinUI layout pass the scroll observers run in, or make START wait for the first layout.
   P101:WinUI 上 START 量到 0 列(列還沒排版)。GTK 與 WSL 在 START 時都有 20 列。
+  **Done 2026-10-21:** not a layout pass to find -- the measurement gave up. ScrollTrackingModifier
+  measured each row once at layout settle and retried once; on WinUI both came before XAML had laid
+  the rows out, so they stayed unmeasured until a scroll committed them again. It now retries every
+  50 ms for up to two seconds. START: 20 rows, err 0, identity rows 0-5 on WinUI and Windows GTK.
+  **已完成 2026-10-21:** 量測只重試一次就放棄;現在每 50 毫秒重試、最多兩秒。WinUI 與 Windows GTK 的 START 皆為 20 列、誤差 0。
 
 - [x] **zh_TW does not reach DatePicker / TimePicker.** P90: heading zh_TW, pickers still read
   August 24 2025 / 9 46 AM. Tried and reverted: `FrameworkElement.Language` set to `zh-TW` on the
@@ -1153,6 +1158,11 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   both backends; the action files now focus it and press +1, and the main window's final capture
   reads count: 1 on WinUI and Windows GTK (P60's log: settings incremented to 1). / 已結案：兩個
   backend 都有獨立的 Settings 視窗，在裡面按 +1 後主視窗 count 變成 1。
+
+- [ ] **P41-change-seconds needs a taller screen.** 2026-10-21: actions/win/P41-change-seconds.actions
+  was retargeted to the seconds column of the .rows picker, which sits below the bottom of this
+  laptop's desktop, so the replay cannot reach it here. Run it on a taller display, or scroll first.
+  P41-change-seconds 需要較高的螢幕：改點 .rows 的秒數欄後，它在這台筆電的桌面上落在畫面底部之外。
 
 ---
 

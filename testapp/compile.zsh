@@ -2094,6 +2094,30 @@ for app_name in $app_names; do
     rm -f "$output_path"
     cp "$exe_path" "$output_path"
     echo "    -> $output_path"
+    # Drop the DWARF debug info from a Windows .exe. A debug WinUI exe carried
+    # about 80 MB of it (.debug_str 35, .debug_info 15, .debug_loc 10 ...) on
+    # 15 MB of code, and 223 of them filled testapp/output to 22.6 GB with C:
+    # down to 2.5 GB free. Measured 2026-10-21: llvm-strip --strip-debug took
+    # 11.1 GB off those 223 files in 160 s, slowest 2.5 s, and P92-WinUI.exe
+    # went 162.5 -> 83.7 MB and still launched. The symbol table stays, so a
+    # crash still names its functions; only file and line are gone.
+    # SCUI_KEEP_DEBUG_INFO=1 keeps them for a build you mean to debug.
+    # 去掉 Windows .exe 裡的 DWARF 除錯資訊。一個 debug 的 WinUI exe 帶著約 80 MB(.debug_str 35、.debug_info 15、
+    # .debug_loc 10……),程式碼本身只有 15 MB;223 個這樣的檔案讓 testapp/output 達到 22.6 GB,C: 只剩 2.5 GB。
+    # 2026-10-21 實測:llvm-strip --strip-debug 在 160 秒內從這 223 個檔案拿掉 11.1 GB,最慢一個 2.5 秒;
+    # P92-WinUI.exe 從 162.5 MB 變成 83.7 MB,仍能啟動。符號表保留，當機時仍有函式名稱，只是沒有檔案與行號。
+    # 要除錯的建置用 SCUI_KEEP_DEBUG_INFO=1 保留它們。
+    if [ "${output_path:e}" = "exe" ] && [ "${SCUI_KEEP_DEBUG_INFO:-0}" != "1" ]; then
+        if command -v llvm-strip >/dev/null 2>&1; then
+            if llvm-strip --strip-debug "$output_path"; then
+                echo "    -> debug info stripped ($(( $(stat -c %s "$output_path") / 1000000 )) MB)"
+            else
+                echo "    !! llvm-strip failed; $output_path keeps its debug info" >&2
+            fi
+        else
+            echo "    !! llvm-strip not found; $output_path keeps its debug info" >&2
+        fi
+    fi
     manifest_record "$(basename "$output_path")" "$app_name" \
         "$manifest_host_os" "$manifest_backend"
 

@@ -808,20 +808,57 @@ struct ScrollTrackingModifier<Content: View>: TypeSafeView {
             children.node.scrolled(hub)
         } else if !children.retryScheduled {
             children.retryScheduled = true
-            backend.runInMainThread { [weak children] in
-                guard let children else { return }
+            retry(children, measured: measured, size: size, hub: hub, backend: backend, attempt: 1)
+        }
+    }
+
+    /// Measures again until the view has a place: WinUI lays out on a pass of
+    /// its own, after the dispatcher turn that ran `commit`, so a single retry
+    /// could still find the rows unplaced. P101's START read 0 of 20 rows on
+    /// WinUI (2026-10-19 and 2026-10-21) and the rows were measured only when
+    /// a scroll committed them again. The first retry is the next main-thread
+    /// turn, as before; the rest are 50 ms apart, for up to two seconds.
+    ///
+    /// 重新量測，直到 view 有了位置:WinUI 以自己的一輪排版，在執行 `commit` 的那一輪 dispatcher 之後，
+    /// 所以只重試一次仍可能找不到列的位置。P101 的 START 在 WinUI 上 20 列只量到 0 列(2026-10-19 與
+    /// 2026-10-21),要等一次捲動讓它們重新 commit 才量到。第一次重試仍是下一輪主執行緒;其餘間隔 50 毫秒，
+    /// 最多兩秒。
+    @MainActor
+    static func retry<Backend: BaseAppBackend>(
+        _ children: ScrollTrackingChildren<Content>,
+        measured: AnyWidget,
+        size: SIMD2<Double>,
+        hub: ScrollGeometryHub,
+        backend: Backend,
+        attempt: Int
+    ) {
+        let again: @MainActor () -> Void = { [weak children] in
+            guard let children else { return }
+            if let origin = GeometryReader<EmptyView>.originInWindow(
+                of: measured.into() as Backend.Widget, backend: backend
+            ),
+                let content = hub.contentOrigin?()
+            {
                 children.retryScheduled = false
-                guard
-                    let later = GeometryReader<EmptyView>.originInWindow(
-                        of: measured.into() as Backend.Widget, backend: backend
-                    ),
-                    let content = hub.contentOrigin?()
-                else { return }
                 children.node.frameInContent = Path.Rect(
-                    origin: SIMD2(Double(later.x - content.x), Double(later.y - content.y)),
+                    origin: SIMD2(Double(origin.x - content.x), Double(origin.y - content.y)),
                     size: size
                 )
                 children.node.scrolled(hub)
+            } else if attempt < 40 {
+                retry(
+                    children, measured: measured, size: size, hub: hub, backend: backend,
+                    attempt: attempt + 1
+                )
+            } else {
+                children.retryScheduled = false
+            }
+        }
+        if attempt == 1 {
+            backend.runInMainThread(action: again)
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                MainActor.assumeIsolated(again)
             }
         }
     }

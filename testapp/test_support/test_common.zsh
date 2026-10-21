@@ -1205,8 +1205,18 @@ run_windows() {
         # 只要要重放動作檔就帶上 SCUI_DEBUG=1，因為少了它，該旗標根本不存在於執行檔中。省略它的
         # 建置會產生一個完全忽略 -actionfile 的執行檔——那正是 DebugFeatures 的目的，而本腳本當時
         # 把它回報為「app 從未看到該旗標」。正確，但毫無用處。
+        # The backend being run is the one built. Without -gtk4 here a
+        # TEST_BACKEND=gtk4 run built the WinUI exe and then launched the old
+        # Pn-gtk4.exe: P101 on 2026-10-21 rebuilt P101-WinUI.exe with a
+        # ScrollTransition fix while the GTK run measured a build from the day
+        # before, and said nothing about it.
+        # 執行哪個 backend,就建置哪個。這裡少了 -gtk4 時,TEST_BACKEND=gtk4 的執行會建置 WinUI 的 exe,
+        # 然後啟動舊的 Pn-gtk4.exe:2026-10-21 的 P101 以 ScrollTransition 修正重建了 P101-WinUI.exe,
+        # GTK 那一輪量的卻是前一天的建置，而且沒有任何訊息。
+        local compile_backend=()
+        [ "${TEST_BACKEND:-}" = "gtk4" ] && compile_backend=(-gtk4)
         run_build 'error:|Build of product' \
-            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "$app"
+            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "${compile_backend[@]}" "$app"
     fi
 
     mkdir -p "$out"
