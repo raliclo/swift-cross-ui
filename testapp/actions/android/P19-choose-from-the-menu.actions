@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on Android: items chosen from the flat menu, by label. The menu is a platform PopupMenu; FrontWindows finds it
+# through WindowInspector (1ba5e444), so taplabel reaches its rows.
+# Pass: after the toggle, "toggle item -> true"; after the second open, "last action -> second button item".
+# The text item is not clickable and is not pressed. P19-open-the-flat-menu keeps the capture of the open menu.
+# P19 在 Android 上：以文字從扁平選單選項目。通過:toggle item -> true,last action -> second button item。
+sleep,,,,,,1500000,let P19 render,android
+taplabel,,,,,Open the menu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Toggle item,,toggle item -> true,android
+sleep,,,,,,1200000,,android
+key,,,,,escape,,close the menu if a check item left it open,android
+sleep,,,,,,800000,,android
+taplabel,,,,,Open the menu,,open it again,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Second button item,,last action -> second button item,android
+sleep,,,,,,1500000,,android

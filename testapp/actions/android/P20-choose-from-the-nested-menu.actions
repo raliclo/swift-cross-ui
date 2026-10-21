@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20 on Android: the nested menu walked by label to level three. The menus are platform PopupMenus; FrontWindows finds
+# them through WindowInspector (1ba5e444), so taplabel reaches their rows.
+# The disabled item is pressed first and must do nothing: "THIS MUST NOT HAPPEN" never appears.
+# Pass: "level 3 toggle -> true" after the first walk, then "last action -> level 2" after the second.
+# P20-open-the-nested-menu keeps the capture of the open first level.
+# P20 在 Android 上：以文字一路走到第三層。先按停用項目，不得有任何作用。通過:level 3 toggle -> true,之後 last action -> level 2。
+sleep,,,,,,1500000,let P20 render,android
+taplabel,,,,,Open the menu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Disabled item,,must do nothing,android
+sleep,,,,,,800000,,android
+key,,,,,escape,,close whatever is left open,android
+sleep,,,,,,800000,,android
+taplabel,,,,,Open the menu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Level 2 submenu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Level 3 submenu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Level 3 toggle,,level 3 toggle -> true,android
+sleep,,,,,,1200000,,android
+key,,,,,escape,,close the menu if the check item left it open,android
+sleep,,,,,,800000,,android
+taplabel,,,,,Open the menu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Level 2 submenu,,,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Level 2 item,,last action -> level 2,android
+sleep,,,,,,1500000,,android

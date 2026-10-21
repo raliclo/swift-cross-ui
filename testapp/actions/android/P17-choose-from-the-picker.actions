@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17 on Android: the longest option chosen from the picker's own dropdown (#161), by label, instead of by the Longest button.
+# The dropdown is a platform popup window; FrontWindows finds it through WindowInspector (1ba5e444).
+# Pass: "Selected: An extremely long option label that dwarfs the others", and the picker: line gives the width the
+# picker takes for it -- the same as P17-select-the-longest-picker-option, which sets it with the button.
+# P17 在 Android 上：以文字從 picker 自己的下拉選最長的選項。通過:Selected: 顯示該選項,picker: 那行與用按鈕選時相同。
+sleep,,,,,,1500000,let P17 render,android
+taplabel,,,,,S,,the picker shows S: open its dropdown,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,An extremely long option label that dwarfs the others,,choose the longest,android
+sleep,,,,,,1500000,let the picker resize,android

@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P2 on Android: a flavour chosen from the picker's dropdown, by label, so no coordinates and any screen size.
+# The dropdown is a platform popup window; FrontWindows finds it through WindowInspector (1ba5e444), so taplabel reaches its rows.
+# Pass: the summary line goes from "Selected: Vanilla, options: 2, changes: 0" to "Selected: Chocolate, options: 2, changes: 1".
+# The open dropdown itself is P2-expand-the-picker-options' neighbour; this file is the choice.
+# P2 在 Android 上：以文字從 picker 的下拉選一個口味。通過：摘要行變成 Selected: Chocolate, options: 2, changes: 1。
+sleep,,,,,,1500000,let P2 render,android
+taplabel,,,,,Vanilla,,the picker shows Vanilla: open its dropdown,android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Chocolate,,choose Chocolate -- Selected: Chocolate and changes: 1,android
+sleep,,,,,,1500000,,android
