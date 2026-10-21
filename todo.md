@@ -1200,12 +1200,20 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   re-aimed, P74 passes on WSL (Cherry, Three, Blue, Thu, the disabled group refused).
   已完成：按鍵其實到得了 popover;失敗在於使用打開時記下的項目——選單在打開與第一個按鍵之間重建了項目。現在 Down/Up
   當場取第一/最後一項並記住位置，Return 透過 action 觸發。P19 在 WSL 上三次皆正確;P74 的失誤是字型改變後座標過時，已重量。
-- [ ] **Super held during a hover is not reported on WSL.** P88 on WSLg 2026-10-20: pointer, drags
+- [x] **Super held during a hover is not reported on WSL.** P88 on WSLg 2026-10-20: pointer, drags
   and hover reports all counted, but "last with cmd" stayed never. The X server does carry it -- xev
   under the same xdotool keydown Super_L shows the next key with state 0x40 (Mod4) and Control with
   0x4 -- so the loss is between X and `gtk_event_controller_get_current_event_state` in
   GtkBackend+PointerHover.swift. / WSL 上懸停時按住 Super 不會回報。X 伺服器有帶 Mod4(xev 實測 state 0x40),
   所以遺失發生在 X 與 GtkBackend+PointerHover.swift 的 `gtk_event_controller_get_current_event_state` 之間。
+  **Done 2026-10-21.** xev under the same xdotool keydown Super_L showed every MotionNotify with
+  state 0x40, but the state GTK's motion controller passed on read 0x0: GDK turns Mod4 into SUPER
+  only when the keymap puts a Super key on Mod4. The Super_L key press itself does arrive, so
+  GtkHeldSuperKey (GtkBackend+SuperKey.swift) watches Super/Meta pressed and released on every
+  window (cleared when the window goes inactive) and eventModifiers adds `.command` while held.
+  P88 on WSL: last with cmd x=130 y=146, "modifier change without moving: seen (cmd)", 15 hover
+  reports, 1 drag.
+  已完成:X 伺服器的移動事件帶 Mod4,但 GTK 傳出的狀態是 0。改由 GtkHeldSuperKey 依按鍵事件追蹤 Super,P88 在 WSL 上記到 cmd。
 - [x] **zh_TW wheels write months in English on GTK.** P90 on WSLg 2026-10-20: the order is right (year,
   month, day) but the month column reads August where zh_TW writes 8月. The wheel names its months from
   something other than the locale it was given. / GTK 的 zh_TW 滾輪月份是英文(August 而非 8月),順序正確。

@@ -370,7 +370,11 @@ extension GtkBackend: BackendFeatures.KeyEvents {
         if state.rawValue & GDK_CONTROL_MASK.rawValue != 0 { modifiers.insert(.control) }
         if state.rawValue & GDK_SHIFT_MASK.rawValue != 0 { modifiers.insert(.shift) }
         if state.rawValue & GDK_ALT_MASK.rawValue != 0 { modifiers.insert(.option) }
-        if state.rawValue & (GDK_SUPER_MASK.rawValue | GDK_META_MASK.rawValue) != 0 {
+        // Or held by the key events, where GDK loses Super; see GtkHeldSuperKey.
+        // 或由按鍵事件得知按住——GDK 遺失 Super 的地方；見 GtkHeldSuperKey。
+        if state.rawValue & (GDK_SUPER_MASK.rawValue | GDK_META_MASK.rawValue) != 0
+            || GtkHeldSuperKey.isHeld
+        {
             modifiers.insert(.command)
         }
         return modifiers

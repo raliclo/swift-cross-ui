@@ -1388,6 +1388,9 @@ public final class GtkBackend:
         }
 
         windows.append(window)
+        // Super held, from the key events; see GtkHeldSuperKey.
+        // 由按鍵事件得知的 Super 按住狀態；見 GtkHeldSuperKey。
+        GtkHeldSuperKey.track(window)
 
         if let defaultSize {
             // The request goes out unadjusted, and the correction happens after
