@@ -1674,6 +1674,13 @@ public final class GtkBackend:
             self.rootEnvironmentChangeHandler?()
         }
 
+        // Before the content exists, so the first GPU frame does not land
+        // after `onAppear` (P97). See `warmUpRenderer(of:)`.
+        // 在內容存在之前執行，讓第一個 GPU 幀不會落在 `onAppear` 之後(P97)。見 `warmUpRenderer(of:)`。
+        #if os(Windows)
+            warmUpRenderer(of: window)
+        #endif
+
         return window
     }
 

@@ -1190,13 +1190,30 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   configured size 並取 `MAX(minimum, configured)`,已顯示的視窗只長不縮。GtkBackend 的 `setSize` 在要求較小尺寸時改為
   present 視窗(`Window.applyDefaultSizeNow`,僅 Windows),之後 360/720 交替、圓保持置中。P0、P44、P51 重拍尺寸不變。
 
-- [ ] **Windows GTK stalls its main thread for about half a second at startup.** P97, 2026-10-21:
+- [x] **Windows GTK stalls its main thread for about half a second at startup.** P97, 2026-10-21:
   every row reached 1 on time (linear 1.16 s, as on WinUI), so the clock ran from about 0.16 s,
   but nothing was sampled or drawn before 0.53 s, and speed(2) logged a jump. The Windows action
   files already warn that a fresh exe's first launch stalls about 3 s; this is a smaller stall on
   every launch. WSL does not show it (start 0.16, no jumps). Profile the first frames (shader or
   font cache?) before changing anything.
   Windows GTK 啟動時主執行緒停頓約半秒:P97 各列準時抵達，但 0.53 秒前沒有取樣也沒有繪製,speed(2) 記到一次跳躍。WSL 沒有。
+  **Done 2026-10-21 -- the first GPU frame, not fonts.** Launched P97-gtk4.exe directly, interleaved
+  rounds: `GSK_RENDERER=cairo` started at 0.17-0.19 while gl, ngl, vulkan and the default all started
+  at 0.39-0.45, so the stall is the GPU renderer's first frame (compiling its programs). Realizing the
+  window early alone saved 15-30 ms (start 0.36-0.38); drawing one offscreen frame of the common node
+  types with the window's renderer took 155-187 ms (750 ms on an exe's very first launch) and moved
+  the start to 0.19 with no jumps. GtkBackend now does that in `createWindow`, on Windows only
+  (`GtkBackend+RendererWarmUp.swift`; `SCUI_GTK_WARMUP=0` turns it off). Through test.zsh with the
+  action file: start 0.22, speed(2) reach 0.62, no jumps -- as WinUI. P0, P44, P51, P95 recaptured at
+  the same sizes; P92's edit-menu replay unchanged. The ~3 s stall on an exe's very first launch is
+  not this and is not addressed.
+  Side finding, not yet looked into: this GTK runtime prints `Unrecognized value "dcomp"` for the
+  `GDK_DEBUG=dcomp` GtkBackend appends, so that switch may no longer do anything here.
+  **2026-10-21 完成——是第一個 GPU 幀，不是字型。**直接啟動 P97 交錯量測:`GSK_RENDERER=cairo` 起點 0.17–0.19,gl、ngl、
+  vulkan 與預設都是 0.39–0.45,停頓來自 GPU renderer 的第一幀(編譯程式)。只提前 realize 省 15–30 毫秒;以視窗的 renderer
+  在螢幕外畫一幀常見節點花 155–187 毫秒，起點移到 0.19、沒有跳躍。GtkBackend 現在於 `createWindow` 這麼做(僅 Windows,
+  `SCUI_GTK_WARMUP=0` 可關閉)。經 test.zsh:起點 0.22,與 WinUI 相同。P0、P44、P51、P95 重拍尺寸不變,P92 重放結果不變。
+  exe 第一次啟動的約 3 秒停頓不是這個，未處理。另發現：此 GTK runtime 對 `GDK_DEBUG=dcomp` 回報 Unrecognized，待查。
 
 - [x] **A menu-style Picker does not take arrow keys on WSL (X11).** Measured 2026-10-20 with
   actions/wsl/P74-choose-in-every-style.actions: the click on the drop-down lands (the button
