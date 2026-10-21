@@ -1,0 +1,71 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on WSL GtkBackend, run with SCUI_P92_MENU=1 (pass it as TEST_APP_ENV, the only variables the WSL launcher forwards): the steps of actions/win/P92-edit-menu-gtk4.actions -- Select All, Copy, Paste, Undo, Redo through the Edit menu, then the app's own AFTER-undoRedo item.
+# Positions from AT-SPI under WSLg (x11) with the menu open, 2026-10-21, client coordinates: Edit (93,13); the menu spans x 63-221, y 20-364, and its items -- unnamed in AT-SPI, in the order Windows GTK shows -- sit at x 136: Undo 37, Redo 67, AFTER-undoRedo 97, Cut 140, Copy 170, Paste 200, Delete 230, Select All 260. Field (308,166), its text end (420,166).
+# Expected in p92-commands.log: field hellohello (Paste), field hello (Undo), field hellohello (Redo), command AFTER-undoRedo.
+# P92(WSL,SCUI_P92_MENU=1):經 Edit 選單全選、複製、貼上，再復原、重做，最後點 app 自己的項目。預期結果見上方英文。
+sleep,,,,,,1500000,let P92 lay out,gtk
+click,308,166,,left,,,focus the field,gtk
+sleep,,,,,,400000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,260,,,,,hover Select All -- hello selected,gtk
+sleep,,,,,,150000,,gtk
+move,136,260,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,260,,left,,,Select All -- hello selected,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,260,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,170,,,,,hover Copy -- the clipboard holds hello,gtk
+sleep,,,,,,150000,,gtk
+move,136,170,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,170,,left,,,Copy -- the clipboard holds hello,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,170,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+click,420,166,,left,,,the end of the text -- selection gone,gtk
+sleep,,,,,,400000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,200,,,,,hover Paste -- field hellohello,gtk
+sleep,,,,,,150000,,gtk
+move,136,200,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,200,,left,,,Paste -- field hellohello,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,200,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,37,,,,,hover Undo -- field hello,gtk
+sleep,,,,,,150000,,gtk
+move,136,37,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,37,,left,,,Undo -- field hello,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,37,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,67,,,,,hover Redo -- field hellohello,gtk
+sleep,,,,,,150000,,gtk
+move,136,67,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,67,,left,,,Redo -- field hellohello,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,67,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+click,93,13,,left,,,open Edit,gtk
+sleep,,,,,,700000,,gtk
+move,130,97,,,,,hover AFTER-undoRedo -- the app's own item,gtk
+sleep,,,,,,150000,,gtk
+move,136,97,,,,,,gtk
+sleep,,,,,,300000,,gtk
+mousedown,136,97,,left,,,AFTER-undoRedo -- the app's own item,gtk
+sleep,,,,,,120000,,gtk
+mouseup,136,97,,left,,,release,gtk
+sleep,,,,,,700000,,gtk
+sleep,,,,,,1500000,let the capture land,gtk

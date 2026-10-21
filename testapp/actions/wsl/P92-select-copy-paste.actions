@@ -1,9 +1,10 @@
 action,x,y,origin,button,key,micros,note,platform
 # P92 on WSL GtkBackend: actions/mac/P92-click-drag-copy.actions with Control for Command -- click the field, type x, undo it, double-click hello, copy, paste at the end. Positions from the AT-SPI dump under WSLg (x11) of 2026-10-20, client coordinates, origin empty: the field spans x 157-417 at y 163; hello is its first word, about 162-197.
 # Pass: the field reads hellohello.
+# Re-aimed 2026-10-21 by AT-SPI: since GtkBackend draws in Segoe UI under WSL (8f0fcad6) the field spans x 178-438 at y 166, so the old double-click at x 178 sat on its left padding and selected nothing (the run logged hellox, hello and no paste); hello is now double-clicked at (203,166), the end of the text clicked at (420,166).
 # P92(WSL):同 Mac 檔，以 Control 代替 Command。通過：欄位為 hellohello。
 sleep,,,,,,1500000,let the window settle,gtk
-click,380,163,,left,,,right of the text in the field,gtk
+click,420,166,,left,,,right of the text in the field,gtk
 sleep,,,,,,400000,,gtk
 key,,,,,x,,type x,gtk
 sleep,,,,,,500000,,gtk
@@ -11,7 +12,7 @@ keydown,,,,,control,,,gtk
 key,,,,,z,,undo the x,gtk
 keyup,,,,,control,,,gtk
 sleep,,,,,,500000,,gtk
-doubleclick,178,163,,left,,,"select hello by word -- a drag from x 161 to 205 selected nothing on 2026-10-20, so the paste brought back whatever the shared Windows clipboard held",gtk
+doubleclick,203,166,,left,,,"select hello by word -- a drag from x 161 to 205 selected nothing on 2026-10-20, so the paste brought back whatever the shared Windows clipboard held",gtk
 sleep,,,,,,300000,,gtk
 keydown,,,,,control,,,gtk
 key,,,,,c,,copy hello,gtk
