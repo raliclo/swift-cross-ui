@@ -138,7 +138,15 @@ struct P95View: View {
                     endPoint: .trailing
                 ).frame(width: 60, height: 24)
                 Image(P95Scene.swatchImage).resizable().frame(width: 60, height: 24)
-                Spacer()
+                // Not in grow mode: a Spacer gives the content an unbounded maximum
+                // width, so `.contentSize` had no maximum width to shrink the window
+                // back to, and the window stayed 720 wide after its first growth
+                // (SCUI_DEBUG_WINDOW_SIZE=1 logged maximum Int.max, 2026-10-21).
+                // 成長模式下不放:Spacer 讓內容的最大寬度沒有上限，`.contentSize` 因此沒有可以把視窗
+                // 縮回去的最大寬度，視窗第一次長大後就一直是 720 寬(SCUI_DEBUG_WINDOW_SIZE=1 記到最大值 Int.max,2026-10-21)。
+                if !P95Log.grow {
+                    Spacer()
+                }
             }
             if P95Log.grow {
                 // Grow mode: the window follows its content (`.contentSize`), so the

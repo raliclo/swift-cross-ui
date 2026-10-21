@@ -2355,11 +2355,25 @@ public final class GtkBackend:
                 ?? liveHeaderHeight
                 ?? Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration)
                 ?? 0
+        let previousSize = child.getSize()
         window.size = Size(
             width: newSize.x,
             height: newSize.y + menubarHeight(ofWindow: window) + titlebarHeight
         )
         child.preemptAllocatedSize(allocatedWidth: newSize.x, allocatedHeight: newSize.y)
+        // A smaller size has to be applied by hand on Windows, where GDK grows a
+        // mapped window to a new default size but never shrinks it (see
+        // `Window.applyDefaultSizeNow`). Measured 2026-10-21 with P95 grow mode:
+        // the core clamped the window to 360 every time its content went back
+        // to 360, and the window stayed 720 wide with the content in its left half.
+        // 在 Windows 上，較小的尺寸必須手動套用:GDK 會把已顯示的視窗長到新的 default size,卻永遠不會把它縮小
+        // (見 `Window.applyDefaultSizeNow`)。2026-10-21 以 P95 成長模式實測：內容每次回到 360,核心都把視窗夾到
+        // 360,而視窗始終維持 720 寬，內容擠在左半邊。
+        #if os(Windows)
+            if newSize.x < previousSize.width || newSize.y < previousSize.height {
+                window.applyDefaultSizeNow()
+            }
+        #endif
     }
 
     public func setSizeLimits(

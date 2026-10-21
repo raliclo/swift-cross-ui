@@ -81,6 +81,35 @@ open class Window: Widget {
         }
     }
 
+    /// Makes a mapped window take its default size now, smaller or larger.
+    ///
+    /// Setting the default size of a mapped window only queues a resize, and on
+    /// Windows that resize can grow the window but never shrink it: GDK's win32
+    /// `request_layout` records the HWND's current size as the configured size,
+    /// and `compute_toplevel_size` then answers `MAX(minimum, configured)`, so
+    /// the smaller default GTK asks for is discarded (gdksurface-win32.c, GTK
+    /// 4.22). Presenting the toplevel computes the size with no configured size,
+    /// so it is the one path that applies a smaller default. On a window that
+    /// is neither minimized, maximized nor fullscreen, `gtk_window_unminimize`
+    /// presents it with the base layout and nothing else: GDK's show returns
+    /// early for a visible window, so it is not raised or activated.
+    ///
+    /// 讓已顯示的視窗立刻採用它的 default size,變小或變大皆然。對已顯示的視窗設定 default size 只會排一次
+    /// resize,而在 Windows 上這次 resize 只能讓視窗變大、永遠縮不回去:GDK win32 的 `request_layout` 把
+    /// HWND 目前的大小記為 configured size,`compute_toplevel_size` 接著回答 `MAX(minimum, configured)`,
+    /// GTK 要求的較小 default 就被丟掉了(gdksurface-win32.c,GTK 4.22)。present toplevel 時計算尺寸不帶
+    /// configured size,所以它是唯一會套用較小 default 的路徑。視窗既未最小化、最大化也未全螢幕時,
+    /// `gtk_window_unminimize` 只會以基本 layout present 它，別無其他:GDK 的 show 對可見視窗直接返回，
+    /// 因此不會把它抬到前面或啟用它。
+    public func applyDefaultSizeNow() {
+        guard gtk_widget_get_mapped(widgetPointer).toBool(), !isMaximized, !isFullscreen,
+            let native = gtk_widget_get_native(widgetPointer),
+            let surface = gtk_native_get_surface(native),
+            gdk_toplevel_get_state(surface).rawValue & GDK_TOPLEVEL_STATE_MINIMIZED.rawValue == 0
+        else { return }
+        gtk_window_unminimize(castedPointer())
+    }
+
     public func setMinimumSize(to minimumSize: Size) {
         gtk_widget_set_size_request(
             castedPointer(),

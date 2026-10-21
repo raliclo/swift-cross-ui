@@ -1168,12 +1168,27 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
-- [ ] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
+- [x] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
   mesh drawable alternates 360x300 and 720x300 (its log), but after the window grew to 748 px no
   capture showed it narrow again, and every capture showed the mesh 360 wide, centred. Either
   `.windowResizability(.contentSize)` grows the window and never shrinks it, or the window capture
   of a GL surface returns a stale frame. Capture the desktop instead of the window to tell.
   P95 成長模式：視窗長到 748 後沒再被拍到變窄，網格一直是 360 寬。是視窗不縮回，還是擷取到舊畫面，待以桌面擷取分辨。
+  **Done 2026-10-21 -- neither guess was the whole answer.** Recorded the desktop at 2 fps instead of
+  capturing the window. (1) The window did not shrink because nothing asked it to: the header row's
+  `Spacer()` gave the content an unbounded maximum width (`SCUI_DEBUG_WINDOW_SIZE=1` logged maximum
+  Int.max), so `.contentSize` had no maximum to shrink to. P95 now leaves the Spacer out in grow mode.
+  (2) With a finite maximum, WSLg shrinks and grows (360 <-> 720), but Windows GTK still stayed 720
+  with the content in its left half: GDK win32 records the HWND's current size as the configured size
+  and takes `MAX(minimum, configured)`, so a mapped window can grow and never shrink. GtkBackend's
+  `setSize` now presents the window when asked for a smaller size (`Window.applyDefaultSizeNow`,
+  Windows only); it alternates 360/720 with the circle centred. P0, P44 and P51 recaptured after the
+  change at the same sizes. Rows in matrix_coverage/results.csv2 (2026-10-21, P95).
+  **2026-10-21 完成——兩個猜測都不是完整答案。**改以 2 fps 錄桌面。(1) 視窗沒縮，是因為沒有東西要它縮：標題列的
+  `Spacer()` 讓內容的最大寬度沒有上限(記到 Int.max),`.contentSize` 沒有可縮回的最大值;P95 成長模式現在不放 Spacer。
+  (2) 最大值有限後,WSLg 會縮放(360 <-> 720),Windows GTK 仍停在 720、內容擠在左半：GDK win32 把 HWND 目前大小當成
+  configured size 並取 `MAX(minimum, configured)`,已顯示的視窗只長不縮。GtkBackend 的 `setSize` 在要求較小尺寸時改為
+  present 視窗(`Window.applyDefaultSizeNow`,僅 Windows),之後 360/720 交替、圓保持置中。P0、P44、P51 重拍尺寸不變。
 
 - [ ] **Windows GTK stalls its main thread for about half a second at startup.** P97, 2026-10-21:
   every row reached 1 on time (linear 1.16 s, as on WinUI), so the clock ran from about 0.16 s,
