@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P92 on Android: an item chosen from the standard menus, by label. The menu is a platform PopupMenu, a window of its own;
+# FrontWindows finds it through WindowInspector (2026-10-21), so taplabel reaches its rows and a tap lands on them.
+# Pass: logcat has "[P92] command AFTER-pasteboard"; the capture reads last command: AFTER-pasteboard and commands chosen: 1,
+# and the layout lines name the app P92 (About P92, Hide P92, Quit P92), not app_process64.
+# P92 在 Android 上：以文字從標準選單選一項。選單是平台的 PopupMenu,自成一個視窗;FrontWindows 以 WindowInspector 找到它(2026-10-21)。
+# 通過:logcat 有 [P92] command AFTER-pasteboard;擷圖顯示 last command: AFTER-pasteboard、commands chosen: 1,版面各行的 app 名稱是 P92。
+# launch-args: --debug --p92-menu
+sleep,,,,,,2500000,let P92 lay out,android
+taplabel,,,,,☰,,open the standard menus,android
+sleep,,,,,,1500000,,android
+taplabel,,,,,Edit,,the Edit submenu,android
+sleep,,,,,,1500000,,android
+taplabel,,,,,AFTER-pasteboard,,choose it,android
+sleep,,,,,,2000000,commands chosen: 1,android

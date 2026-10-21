@@ -1,9 +1,9 @@
 action,x,y,origin,button,key,micros,note,platform
 # P92 on Android: CommandGroup placements with the standard menus on (.enableMenu via --p92-menu, since an Android launch carries no environment).
-# The menu button is pressed by its text, so no coordinates. The menu is a platform PopupMenu, which the replay cannot press into (FrontWindows.kt), so the file opens it and stops.
+# The menu button is pressed by its text, so no coordinates. The file opens the menu and stops, so the capture shows its top level.
 # Pass: the capture shows the top-level menus in the reference order for mode "after" (app name, File, Edit, View, Window, Help as testapp/reference/swiftui-commands/ lists them, with no Format);
-# the on-screen layout lines list every AFTER-<placement> item in its group. Choosing an item was checked by hand on swift-cross-ui-tablet36, 2026-10-20 (see results.csv2).
-# P92 在 Android 上：標準選單打開時(以 --p92-menu,因為 Android 啟動帶不了環境變數)的 CommandGroup 位置。以文字按選單按鈕。選單是平台 PopupMenu,重放按不進去，所以本檔打開它就停。
+# the on-screen layout lines list every AFTER-<placement> item in its group, under the app name P92. Choosing an item is P92-choose-from-the-menu.actions.
+# P92 在 Android 上：標準選單打開時(以 --p92-menu,因為 Android 啟動帶不了環境變數)的 CommandGroup 位置。以文字按選單按鈕，打開就停，讓擷圖拍到最上層選單;從選單選一項見 P92-choose-from-the-menu.actions。
 # launch-args: --debug --p92-menu
 sleep,,,,,,2500000,let P92 lay out,android
 taplabel,,,,,☰,,open the standard menus,android

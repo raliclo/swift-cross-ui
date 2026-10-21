@@ -27,6 +27,18 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
 
     let holder = JavaObjectHolder(object: object, environment: env)
     AndroidBackend.activity = Activity(javaHolder: holder)
+    // The app's name for everything that reads processName -- a window's default
+    // title, the app menu, an app's own text. The process here is app_process64, the
+    // zygote's executable, so P92 listed "Hide app_process64" while its menu read P92
+    // (2026-10-21). The application's label is the name the launcher shows.
+    // 讓所有讀 processName 的地方——視窗的預設標題、app 選單、app 自己的文字——拿到 app 的名稱。這裡的行程是
+    // zygote 的執行檔 app_process64,所以 P92 列出「Hide app_process64」,選單卻寫 P92(2026-10-21)。
+    // application 的 label 才是啟動器顯示的名稱。
+    if let label = AndroidBackend.activity.getApplicationInfo()?
+        .loadLabel(AndroidBackend.activity.getPackageManager())?.toString(), !label.isEmpty
+    {
+        ProcessInfo.processInfo.processName = label
+    }
     // Every MainActivity.onCreate lands here and runs the app again, so its
     // first window belongs in THIS activity. The flag is a static and outlived
     // the previous run: when the system recreated the activity -- a theme

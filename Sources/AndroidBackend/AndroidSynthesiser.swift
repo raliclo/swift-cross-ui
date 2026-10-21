@@ -1379,7 +1379,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let dispatched = Self.onMainThread {
             guard let activity = self.targetActivity() else { return false }
 
-            // A popup is a different window, and this dispatch cannot reach it.
+            // A popup is a different window, which the activity's dispatch cannot reach. Since 2026-10-21 FrontWindows finds it through WindowInspector and `deliver` below hands the event to it; what follows is how it was before.
             //
             // `Activity.dispatchTouchEvent` delivers to this activity's window.
             // A Spinner's dropdown and a `PopupMenu` are separate windows owned
@@ -1401,7 +1401,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             // has window focus unless another window has taken it, which for
             // this app means a popup.
             //
-            // 彈出視窗是另一個視窗，而這個 dispatch 抵達不了它。
+            // 彈出視窗是另一個視窗，而 activity 的 dispatch 抵達不了它。自 2026-10-21 起 FrontWindows 以 WindowInspector 找到它，下面的 deliver 交給它;以下說明的是之前的情況。
             //
             // `Activity.dispatchTouchEvent` 只會投遞到本 activity 的視窗。Spinner 的下拉與
             // `PopupMenu` 是由 WindowManager 持有的獨立視窗，而 Android 沒有提供 app 任何公開方式
@@ -1462,8 +1462,8 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         guard !alreadySaid else { return }
 
         let line = "-actionfile: this activity does not have window focus, so a "
-            + "popup (a picker dropdown or a menu) is in front. Touches "
-            + "synthesised here go to the activity's window and cannot reach "
+            + "window is in front, and FrontWindows found none with focus to deliver to. Touches "
+            + "synthesised here then go to the activity's window and cannot reach "
             + "it; this click will do nothing. See AndroidSynthesiser.\n"
         FileHandle.standardError.write(Data(line.utf8))
     }
