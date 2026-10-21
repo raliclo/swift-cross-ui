@@ -54,6 +54,42 @@ csv2_append matrix_coverage/results.csv2 2026-10-15 mac gtk4 P10 ok n/a window d
   'GTK/macOS comparison: noted -- the GTK button is 4 pt taller.'
 ```
 
+## GTK three ways: Windows, WSL and macOS
+
+One slide per app with GtkBackend at rest on Windows (left), under WSLg (middle)
+and on macOS (right). Asked for and published on 2026-10-21:
+https://claude.ai/artifact/AGQvHbzL4DMuvnraDB6Kqt (private to the owner until
+shared).
+
+```sh
+zsh testapp/test_support/pairs_deck/capture_gtk.zsh --win            # every Pn-gtk4.exe in testapp/output
+zsh testapp/test_support/pairs_deck/capture_gtk.zsh --wsl            # inside WSL: every Pn in testapp/output
+zsh testapp/test_support/pairs_deck/capture_gtk.zsh --win --build P55 P56   # rebuild those first
+zsh testapp/test_support/pairs_deck/build_gtk_deck.zsh OUTDIR MAC_TSV
+```
+
+**capture_gtk.zsh** runs `test.zsh Pn --showtime 3` with no action file and
+appends `utc,app,exit,image` to `testapp/output/gtk-pairs-<win|wsl>.csv2`. It
+passes `--no-build` unless given `--build`. An exe built with Swift 6.3.3
+(before 2026-10-12) and the WSL binaries from 2026-09-08 open no window at all
+-- the run ends `no visible window matched` with rc 7 -- so those need
+`--build`. The WSL checkout is a separate copy: copy the script there first. An
+older copy without `--build` took the flag for an app name, skipped it, and went
+on through the list with `--no-build` in parallel with the real run.
+
+**build_gtk_deck.zsh** needs the WSL records and screenshots copied into this
+checkout's `testapp/output` at the same relative paths. macOS is not
+re-captured: MAC_TSV lists, per app, the image already in the GTK / macOS deck
+and its caption, and the publish copies those server side as
+`img/mac-pN.jpg`. A publish takes at most 255 files, so it goes in two:
+`index.html` with the local images, then the macOS copies to the same URL.
+
+Result on 2026-10-21: 106 of 116 slides have all three. P6 does not build with
+GTK on Windows by design (a D3D11 swap chain; P6-v2 is its GTK form), P12 and
+P14 are out of the Windows scope, and P105-P112 are newer than the GTK / macOS
+deck. Recount with
+`grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`.
+
 ---
 
 # pairs_deck——GTK / macOS 並排
@@ -69,3 +105,18 @@ iOS / Android 簡報(「iOS and Android Pairs」)的 GTK / macOS 版，於 2026-
   本樹與本機都找不到 iOS / Android 簡報的產生器，所以才以該頁為模板。
 - **每頁的標籤是讀出來的，不是判斷出來的。** 取自 `results.csv2` 中該 app 最新一筆 `mac,gtk4`、備註以 `GTK/macOS comparison:`
   開頭的紀錄;沒有就顯示 `unrecorded`。
+
+## GTK 三方對照:Windows、WSL、macOS
+
+每支 app 一頁,GtkBackend 在 Windows(左)、WSLg(中)與 macOS(右)上的靜止畫面，於 2026-10-21 提出需求並發布:
+https://claude.ai/artifact/AGQvHbzL4DMuvnraDB6Kqt(僅擁有者可開，除非另行分享)。
+
+- `capture_gtk.zsh --win|--wsl [--build] [Pn ...]`:在 Windows 或 WSL 內對每支 app 執行 `test.zsh Pn --showtime 3`,
+  每次在 `testapp/output/gtk-pairs-<win|wsl>.csv2` 加一筆。預設 `--no-build`;以 Swift 6.3.3 建置的舊 exe(10-12 之前)
+  與 WSL 上 09-08 的舊執行檔都開不出視窗(「no visible window matched」),那些要加 `--build`。WSL 的 checkout 是另一份拷貝，
+  要先把腳本同步過去——舊版會把 `--build` 當成 app 名稱。
+- `build_gtk_deck.zsh OUTDIR MAC_TSV`:WSL 的紀錄與擷圖先複製到本 checkout 的 `testapp/output`(同樣的相對路徑)。macOS 不重拍,
+  MAC_TSV 列出 GTK / macOS 簡報裡已發布的影像,發布時以伺服器端複製成 `img/mac-pN.jpg`。單次發布上限 255 個檔案，所以分兩次：
+  先 index.html 與本地影像，再補 mac 影像。標籤是有擷圖的邊數。
+- 2026-10-21 的結果:116 頁中 106 頁三邊齊全。P6 在 Windows 上刻意不能以 GTK 建置(D3D11 swap chain,由 P6-v2 代替);
+  P12、P14 不在 Windows 範圍內;P105-P112 晚於 GTK / macOS 簡報。重算：`grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`。
