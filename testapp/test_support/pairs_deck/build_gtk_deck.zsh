@@ -71,7 +71,7 @@ figure() {
     ffmpeg -y -loglevel error -i $repo/$img -vf scale=-2:900 -q:v 4 $jpg
     local size=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x $repo/$img)
     local stamp=${${img:t:r}##*-final-}
-    printf '%s\n' "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · ${size/x/ × } px · $stamp</figcaption></figure>"
+    printf '%s\n' "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · ${size/x/ × } px · $stamp · $(( ($(wc -c < $jpg) + 512) / 1024 )) KB</figcaption></figure>"
 }
 
 mac_figure() {

@@ -90,6 +90,16 @@ P14 are out of the Windows scope, and P105-P112 are newer than the GTK / macOS
 deck. Recount with
 `grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`.
 
+## File size in the captions
+
+Every caption in the three decks (GTK / macOS, GTK three ways, iOS / Android)
+ends with the size of the published JPEG, in KB rounded to the nearest 1024
+bytes. `build_deck.zsh` and `build_gtk_deck.zsh` measure the JPEG they just
+wrote with `wc -c`; the macOS captions in the three-way deck come from the GTK /
+macOS deck and carry its size already. The iOS / Android deck has no generator,
+so on 2026-10-22 its sizes were measured from the downloaded published images
+and written into the page directly.
+
 ---
 
 # pairs_deck——GTK / macOS 並排
@@ -120,3 +130,9 @@ https://claude.ai/artifact/AGQvHbzL4DMuvnraDB6Kqt(僅擁有者可開，除非另
   先 index.html 與本地影像，再補 mac 影像。標籤是有擷圖的邊數。
 - 2026-10-21 的結果:116 頁中 106 頁三邊齊全。P6 在 Windows 上刻意不能以 GTK 建置(D3D11 swap chain,由 P6-v2 代替);
   P12、P14 不在 Windows 範圍內;P105-P112 晚於 GTK / macOS 簡報。重算：`grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`。
+
+## 說明中的檔案大小
+
+三份簡報(GTK / macOS、GTK 三方、iOS / Android)每張圖的說明最後是發布出去的 JPEG 大小(KB,四捨五入到 1024 位元組)。
+`build_deck.zsh` 與 `build_gtk_deck.zsh` 寫說明時用 `wc -c` 量剛產生的 JPEG;macOS 那一邊的說明取自 GTK / macOS 簡報，已帶有大小。
+iOS / Android 簡報沒有產生器，2026-10-22 的大小是下載已發布的影像量出來後直接補進頁面的。

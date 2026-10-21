@@ -77,7 +77,7 @@ figure() {
     local w=$(sips -g pixelWidth $repo/$img | awk '/pixelWidth/ {print $2}')
     local h=$(sips -g pixelHeight $repo/$img | awk '/pixelHeight/ {print $2}')
     local stamp=${${img:t:r}##*-final-}
-    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · $((w / 2)) × $((h / 2)) pt · $stamp</figcaption></figure>"
+    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · $((w / 2)) × $((h / 2)) pt · $stamp · $(( ($(wc -c < $jpg) + 512) / 1024 )) KB</figcaption></figure>"
 }
 
 {
