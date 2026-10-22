@@ -616,6 +616,23 @@ if [ "$saw_flag" -eq 1 ]; then
     set -- $remaining_args
 fi
 
+# Whether this build can `import Gtk`. Not the same as -gtk4: on Linux the
+# default manifest already carries Gtk and GtkBackend (see the products list),
+# so a GTK-only app builds there without the flag. Until 2026-10-22 the skip
+# below keyed on -gtk4 alone, so `compile.zsh P6-v2` in WSL printed "skipping
+# P6-v2.swift: it imports Gtk, which this build lacks", exited 0, and left a
+# two-day-old binary in output/ -- which test.zsh --build then launched, and its
+# light-themed window was caught only by a brightness check. Nothing failed.
+# 這個建置能否 `import Gtk`。這和 -gtk4 不是同一件事:Linux 的預設 manifest 本來就帶有 Gtk 與
+# GtkBackend(見 products 清單),所以 GTK 專屬的 app 在那裡不加旗標也建得起來。2026-10-22 之前，下方的
+# 略過只看 -gtk4,於是在 WSL 執行 `compile.zsh P6-v2` 會印出「skipping P6-v2.swift: it imports Gtk,
+# which this build lacks」、以 0 結束，並把一個兩天前的執行檔留在 output/——test.zsh --build 接著啟動它，而它的
+# 淺色視窗只靠亮度檢查才被發現。整個過程沒有任何一步失敗。
+build_has_gtk=$force_gtk4
+case "$host_uname" in
+    Linux*) build_has_gtk=1 ;;
+esac
+
 # With -gtk4 the Windows build needs GtkBackend in the package and the GTK
 # include paths on the command line. SwiftPM does not apply a systemLibrary's
 # pkgConfig cflags on Windows -- measured, the clang invocation for GtkCHelpers
@@ -1066,7 +1083,7 @@ compile_app() {
         continue
     fi
 
-    if [ "$force_gtk4" -eq 0 ] && [ "$imports_gtk" -eq 1 ] && [ "$imports_winui" -eq 0 ]; then
+    if [ "$build_has_gtk" -eq 0 ] && [ "$imports_gtk" -eq 1 ] && [ "$imports_winui" -eq 0 ]; then
         # The build that lacks Gtk is whichever one is running, not always WinUI.
         # A macOS user was told "which the WinUI build lacks" while building for
         # macOS, which reads as a message meant for someone else.
@@ -1184,7 +1201,7 @@ if [ "$target_platform" != "ios" ]; then
         if [ "$force_gtk4" -eq 1 ] && [ "$candidate_winui" -eq 1 ]; then
             continue
         fi
-        if [ "$force_gtk4" -eq 0 ] && [ "$candidate_gtk" -eq 1 ] \
+        if [ "$build_has_gtk" -eq 0 ] && [ "$candidate_gtk" -eq 1 ] \
             && [ "$candidate_winui" -eq 0 ]; then
             continue
         fi

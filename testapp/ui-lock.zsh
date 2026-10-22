@@ -229,6 +229,29 @@ holder_name() {
     [ -f "$lock_dir/holder" ] && cat "$lock_dir/holder" || printf 'unknown'
 }
 
+# True only when the recorded holder process is known to be gone. On
+# 2026-10-22 the WSL distro restarted mid-capture (journald restarted at 14:07;
+# the VM uptime did not reset), the run holding the lock died with it, and the
+# next run printed "wait: test-p58 holds the UI" until the 30-minute stale rule
+# fired. A dead holder is not a slow one, so it is reclaimed at once.
+# Only "no such process" counts as dead. kill -0 also fails with "operation not
+# permitted" for a live process of another user; that one is left alone. A pid
+# reused after a restart reads as alive, which falls back to the 30-minute rule
+# rather than taking a lock someone holds.
+# 只有確知所記錄的持有行程已不存在時才為真。2026-10-22,WSL distro 在擷取途中重啟(journald 於 14:07
+# 重新啟動，VM 的 uptime 沒有歸零),持有鎖的那次執行跟著死掉，下一次執行便一直印「wait: test-p58
+# holds the UI」,直到 30 分鐘的過期規則觸發。死掉的持有者不是慢的持有者，所以立刻回收。只有「no such
+# process」算死亡。kill -0 對另一個使用者的活行程也會失敗，訊息是「operation not permitted」,那種不動它。
+# 重啟後被重用的 pid 會被讀成活著，結果是退回 30 分鐘規則，而不是搶走別人持有的鎖。
+holder_gone() {
+    [ -f "$lock_dir/pid" ] || return 1
+    local pid err
+    pid="$(cat "$lock_dir/pid")"
+    [[ $pid == <2-> ]] || return 1
+    err="$(kill -0 "$pid" 2>&1)" && return 1
+    [[ $err == *"no such process"* ]]
+}
+
 holder_age() {
     [ -f "$lock_dir/taken_at" ] || { printf 0; return; }
     printf '%s' "$(( $(now) - $(cat "$lock_dir/taken_at") ))"
@@ -255,6 +278,11 @@ reclaim_if_stale() {
         fi
         return 0
     fi
+    if holder_gone; then
+        printf '!! reclaiming a lock whose holder process %s no longer exists\n' "$(cat "$lock_dir/pid")" >&2
+        rm -rf "$lock_dir"
+        return 0
+    fi
     local age
     age="$(holder_age)"
     [ "$age" -lt "$stale_seconds" ] && return 0
@@ -271,6 +299,14 @@ try_take() {
     mkdir "$lock_dir" 2>/dev/null || return 1
     printf '%s\n' "$holder" > "$lock_dir/holder"
     now > "$lock_dir/taken_at"
+    # The holder is our parent, test_common.zsh, which keeps the UI until it
+    # exits. Recorded only when it is a real, live process: zsh launched from
+    # Git Bash through the scoop shim sees $PPID as 1. See holder_gone.
+    # 持有者是我們的父行程 test_common.zsh,它會一直持有 UI 直到結束。只有在它確實是一個活著的
+    # 行程時才記錄：經 scoop shim 從 Git Bash 啟動的 zsh,看到的 $PPID 是 1。見 holder_gone。
+    if (( PPID > 1 )) && kill -0 "$PPID" 2>/dev/null; then
+        printf '%s\n' "$PPID" > "$lock_dir/pid"
+    fi
     return 0
 }
 
