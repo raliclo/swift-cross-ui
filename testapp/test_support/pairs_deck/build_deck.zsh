@@ -8,7 +8,9 @@
 #
 #   zsh testapp/test_support/pairs_deck/build_deck.zsh OUTDIR
 #
-# Writes OUTDIR/index.html and OUTDIR/img/{macos,gtk}-pN.jpg. Publish OUTDIR.
+# Writes OUTDIR/index.html and OUTDIR/img/{macos,gtk}-pN.jpg; publish those. Also
+# OUTDIR/mac-gtk.tsv, the MAC_TSV that build_gtk_deck.zsh takes: one row per GTK
+# image with the caption written here, app size included.
 #
 # The chip on each slide comes from results.csv2, as the iOS / Android chips
 # do: the newest mac,gtk4 row for that app whose note starts with
@@ -30,6 +32,8 @@ here=${0:A:h}
 repo=${here:h:h:h}
 out=${1:?usage: build_deck.zsh OUTDIR}
 mkdir -p $out/img
+mac_tsv=$out/mac-gtk.tsv
+: > $mac_tsv
 pairs=$repo/testapp/output/macos-pairs.csv2
 results=$repo/matrix_coverage/results.csv2
 
@@ -74,7 +78,7 @@ app_size() {
         print -rn -- 'app size n/a: no build left'
         return
     fi
-    printf 'app %.1f MB, built %s' $(( $(stat -f %z $bin) / 1048576.0 )) "$(stat -f %Sm -t %F $bin)"
+    printf 'app %.1f MB, built %s' $(( $(stat -L -f %z $bin) / 1048576.0 )) "$(stat -L -f %Sm -t %F $bin)"
 }
 
 figure() {
@@ -91,7 +95,15 @@ figure() {
     local stamp=${${img:t:r}##*-final-}
     local bin=$repo/testapp/output/$app
     [[ $backend == gtk4 ]] && bin+=-gtk4
-    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · $((w / 2)) × $((h / 2)) pt · $stamp · $(app_size $bin)</figcaption></figure>"
+    local caption="$name · $((w / 2)) × $((h / 2)) pt · $stamp · $(app_size $bin)"
+    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $caption</figcaption></figure>"
+    # The GTK side once more as a MAC_TSV row for build_gtk_deck.zsh: app, image here,
+    # caption. Written by the run that wrote the page, so the three-way deck's macOS
+    # captions carry the same app size and cannot fall behind it (2026-10-22: a
+    # hand-made MAC_TSV still held the captions from before app sizes).
+    # GTK 這一邊再寫一次成 MAC_TSV 的一列，給 build_gtk_deck.zsh:app、此處的影像、說明。由寫出頁面的同一次執行寫出，
+    # 所以三方簡報 macOS 欄的說明帶著相同的 app 大小，也不會落後(2026-10-22:手做的 MAC_TSV 仍是加上 app 大小之前的說明)。
+    if [[ $backend == gtk4 ]]; then print -r -- "$app"$'\t'"img/$side-${(L)app}.jpg?v=$stamp"$'\t'"$caption" >> $mac_tsv; fi
 }
 
 {

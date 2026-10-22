@@ -36,16 +36,17 @@ out=${1:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV}
 mac_tsv=${2:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV}
 mkdir -p $out/img
 
-# Newest record per app and side: later records win. The fields hold no commas.
-# 每支 app 每一邊最新的紀錄：較晚的紀錄勝出。欄位內沒有逗號。
+# Newest record per app and side: later records win. Read through csv2 as JSON,
+# never split on commas (the rule for every CSV here; this loop did until 2026-10-22).
+# 每支 app 每一邊最新的紀錄：較晚的紀錄勝出。經由 csv2 以 JSON 讀取，從不以逗號切割(本樹所有 CSV 的規則；這個迴圈到 2026-10-22 前都是切逗號)。
 typeset -A image exitcode
 for side in win wsl; do
     file=$repo/testapp/output/gtk-pairs-${side}.csv2
     [[ -s $file ]] || continue
-    while IFS=, read -r utc app rc img; do
-        image[$app/$side]=${img//\"/}
+    while IFS=$'\t' read -r app rc img; do
+        image[$app/$side]=$img
         exitcode[$app/$side]=$rc
-    done < <(csv2 -r -i $file)
+    done < <(csv2 -r --json -i $file | jq -r 'select(.fields) | .fields | [.app, .exit, .image] | @tsv')
 done
 
 # The built app sizes for the captions. Windows: Pn-gtk4.exe here. WSL: the Linux
@@ -62,6 +63,22 @@ while IFS=$'\t' read -r app src caption; do
     mac_src[$app]=$src
     mac_caption[$app]=$caption
 done < $mac_tsv
+# A caption with no app size comes from a MAC_TSV made before sizes were added
+# (2026-10-22). It is marked on the slide and named on stderr rather than shown
+# as if it were current; build_deck.zsh writes a current one as OUTDIR/mac-gtk.tsv.
+# 沒有 app 大小的說明，來自加上大小之前做的 MAC_TSV(2026-10-22)。它在投影片上標明、在 stderr 列出，而不是當成
+# 最新的顯示;build_deck.zsh 會寫出最新的 OUTDIR/mac-gtk.tsv。
+stale=()
+for app in ${(k)mac_caption}; do
+    if [[ ${mac_caption[$app]} != *' · app '[0-9]*' MB, built '* && ${mac_caption[$app]} != *' · app size n/a: '* ]]; then
+        stale+=($app)
+        mac_caption[$app]+=' · app size not in MAC_TSV'
+    fi
+done
+if (( $#stale )); then
+    printf '!! %d macOS caption(s) in %s carry no app size: %s\n' $#stale $mac_tsv "${(j: :)${(on)stale}}" >&2
+    printf '!! make MAC_TSV on the Mac with build_deck.zsh OUTDIR: it writes OUTDIR/mac-gtk.tsv\n' >&2
+fi
 
 apps=(${(u)${(k)image%%/*}} ${(k)mac_src})
 apps=(${(u)apps})

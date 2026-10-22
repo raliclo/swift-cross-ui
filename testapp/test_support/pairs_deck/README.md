@@ -99,14 +99,21 @@ file test.zsh launches: `Pn-gtk4.exe` on Windows, the Linux binary in the WSL
 checkout, and on the Mac `output/Pn`, `output/Pn-gtk4`, `output/Pn-ios.app/Pn`
 and `.androidApk/Pn.apk`. A build can be newer than the screenshot, which is
 why the date is there. `build_deck.zsh` and `build_gtk_deck.zsh` measure it
-themselves; the macOS captions in the three-way deck come from MAC_TSV. The
-iOS / Android deck has no generator.
+themselves. The three-way deck's macOS captions come from MAC_TSV, and
+`build_deck.zsh` writes that file: `OUTDIR/mac-gtk.tsv`, one row per GTK image
+(app, image, caption) holding the caption it put on the page, so the size
+travels with it. A MAC_TSV caption with no size -- one made by hand before
+sizes, as the one used until 2026-10-22 -- is marked "app size not in MAC_TSV"
+on the slide and listed on stderr. The iOS / Android deck has no generator.
 
 On 2026-10-22 all three pages were updated in place with the sizes measured
-that day (an earlier version that day showed the JPEG size instead). Only 30 of
-the 108 apps still had a `Pn-gtk4` on the Mac, so 78 GTK-on-macOS captions say
-n/a; filling them needs a rebuild on the Mac, since multissh cannot write into
-the Mac checkout.
+that day (an earlier version that day showed the JPEG size instead). The GTK /
+macOS captures were taken on M6 (192.168.213.177), and its builds of
+2026-10-18/19 are still there (113 `Pn-gtk4`), so those are the binaries the two
+GTK decks measure. The "30 of 108" counted that day was the M4 checkout
+(`/Volumes/Windows/proj_Win`, read through multissh), whose GTK builds had mostly
+been cleaned; M4 rebuilt 82 of the 83 missing the same day (P6 has no GTK form
+by design).
 
 ---
 
@@ -145,6 +152,9 @@ https://claude.ai/artifact/AGQvHbzL4DMuvnraDB6Kqt(僅擁有者可開，除非另
 `app 13.7 MB, built 2026-10-21`;找不到建置時寫 `app size n/a: no build left`。量的是 test.zsh 啟動的那個檔案:
 Windows 的 `Pn-gtk4.exe`、WSL checkout 的 Linux 執行檔、Mac 的 `output/Pn` 與 `output/Pn-gtk4`、`output/Pn-ios.app/Pn`、
 `.androidApk/Pn.apk`。建置可能比擷圖新，日期就是為此而列。`build_deck.zsh` 與 `build_gtk_deck.zsh` 寫說明時自己量;
-GTK 三方簡報 macOS 那一欄的說明取自 MAC_TSV。iOS / Android 簡報沒有產生器。
-2026-10-22 三份頁面都以當時量到的大小直接更新(先前一版放的是圖片 JPEG 大小，已改掉)。當天 Mac 上 108 支 app 只剩 30 支留有
-`Pn-gtk4`,所以 GTK on macOS 有 78 格是 n/a;要補齊得在 Mac 上重新建置——multissh 寫不進 Mac 的 checkout。
+GTK 三方簡報 macOS 那一欄的說明取自 MAC_TSV,而這個檔由 `build_deck.zsh` 寫出:`OUTDIR/mac-gtk.tsv`,每張 GTK 影像一列
+(app、影像、說明),說明就是它寫在頁面上的那一句，大小跟著一起帶過去。沒有大小的 MAC_TSV 說明(像 2026-10-22 以前手做的那份)
+會在投影片上標成「app size not in MAC_TSV」並列在 stderr。iOS / Android 簡報沒有產生器。
+2026-10-22 三份頁面都以當時量到的大小直接更新(先前一版放的是圖片 JPEG 大小，已改掉)。GTK / macOS 的擷圖是在 M6(192.168.213.177)
+拍的，它 10-18/19 的建置都還在(113 支 `Pn-gtk4`),兩份 GTK 簡報應量那些。當天數到的「108 支只剩 30 支」是 M4 的 checkout
+(`/Volumes/Windows/proj_Win`,經 multissh 讀取),那裡的 GTK 建置多已清掉;M4 同日補建了缺的 83 支中的 82 支(P6 依設計沒有 GTK 版)。
