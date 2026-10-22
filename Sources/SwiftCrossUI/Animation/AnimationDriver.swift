@@ -53,6 +53,33 @@ public final class AnimationDriver: @unchecked Sendable {
     private var tickers: [UUID: (Double?) -> Bool] = [:]
     private var isRunning = false
 
+    /// Tests only: a clock the test steps by hand, used instead of the backend's.
+    ///
+    /// No backend in the test target has a frame clock, so every animation there
+    /// finishes the moment it starts, and nothing that happens to a tween in
+    /// flight -- cancelling it, replacing it, its view going away -- can be
+    /// reached. Giving DummyBackend a clock instead would change every test that
+    /// relies on that instant finish. Added 2026-10-22 for the review findings
+    /// on `cancel` and on `repeatForever` outliving its view.
+    ///
+    /// 僅供測試：由測試手動推進的時鐘，取代 backend 的時鐘。測試目標中沒有任何 backend 有 frame clock,因此那裡的
+    /// 每個動畫一開始就結束，飛行中的補間會遇到的事——被取消、被取代、它的 view 消失——都測不到。改給 DummyBackend
+    /// 一個時鐘，會改變所有依賴「立即結束」的測試。2026-10-22 為 `cancel` 與「`repeatForever` 比 view 活得久」
+    /// 的審查發現而加入。
+    final class ManualClock {
+        fileprivate var handler: ((Double) -> Void)?
+
+        /// Delivers one frame at `timestamp`, in seconds. / 在 `timestamp`(秒)送出一幀。
+        func advance(to timestamp: Double) {
+            handler?(timestamp)
+        }
+    }
+
+    var manualClock: ManualClock?
+
+    /// How many tweens are in flight, for tests. / 進行中的補間數，供測試使用。
+    var activeTweenCount: Int { tweens.count }
+
     private struct Tween {
         var animation: Animation
         var startTime: Double?
@@ -147,6 +174,11 @@ public final class AnimationDriver: @unchecked Sendable {
 
     private func startClockIfNeeded() {
         guard !isRunning, !tweens.isEmpty || !tickers.isEmpty else { return }
+        if let manualClock {
+            isRunning = true
+            manualClock.handler = { [weak self] timestamp in self?.tick(at: timestamp) }
+            return
+        }
         guard let clock = MainActor.assumeIsolated({ backend as? any BackendFeatures.FrameClocks })
         else {
             // No clock: every animation lands on its final value immediately.
@@ -175,6 +207,10 @@ public final class AnimationDriver: @unchecked Sendable {
     private func stopClockIfIdle() {
         guard isRunning, tweens.isEmpty, tickers.isEmpty else { return }
         isRunning = false
+        if let manualClock {
+            manualClock.handler = nil
+            return
+        }
         if let clock = MainActor.assumeIsolated({ backend as? any BackendFeatures.FrameClocks }) {
             stop(clock: clock)
         }

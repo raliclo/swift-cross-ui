@@ -439,7 +439,29 @@ Do that first, whenever the thing that changed is mine.
 
 ## 6. 用 grep 過濾出來的一行,宣告整個測試套件「通過了」
 
-**2 次 / 2 天(2026-09-10、2026-09-16)。**
+**3 次 / 3 天(2026-09-10、2026-09-16、2026-10-22)。**
+
+### 第三次(2026-10-22):`echo "exit=$?"` 寫在管線之後
+
+一支在 WSL 跑測試的暫用腳本：
+
+```sh
+swift test --scratch-path .build-hosttest --filter SwiftCrossUITests 2>&1 | tail -25
+echo "exit=$?"
+```
+
+`$?` 是 `tail` 的，於是它印出 `exit=0`,而 `tail` 上面那幾行寫著 `error: Build failed`——裸的 `swift test` 會建置
+整個套件，包括 WSL 建不起來的 WinUIBackend(CWinRT 需要 `wtypesbase.h`)。這次沒有據此宣告通過：錯誤訊息就在
+同一個畫面上。但那行 `exit=0` 本身就是第二次的形狀，只是換了位置——從「讀到的退出碼」變成「自己印出來的退出碼」。
+改為把 `swift test` 導到檔案、在下一行讀 `rc=$?`,並用 repo 的方式(`--test-product swift-cross-uiPackageTests`)
+才建得起來:381 個測試通過、rc=0。
+
+*Third occurrence, 2026-10-22: a throwaway script ran `swift test ... | tail -25` and then
+`echo "exit=$?"`, which printed tail's status, `exit=0`, under a log ending `error: Build
+failed` (plain `swift test` builds WinUIBackend, which WSL cannot). Not reported as a pass --
+the error was on the same screen -- but the printed `exit=0` is entry 6's second shape moved
+into my own output. Fixed by redirecting `swift test` to a file and reading `rc=$?` on the
+next line; with `--test-product swift-cross-uiPackageTests` it builds, 381 passed, rc=0.*
 
 ### 第二次(2026-09-16):同一條,換了一個偽裝
 

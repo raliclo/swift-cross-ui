@@ -73,13 +73,21 @@ entry is closed.
   in results.csv2 the same day (macOS and GTK on macOS had no row before).
   2026-10-15,queue 第 10 項：觸控螢幕上按住的手指即是 hover。P88 多了「last active」,hover 時面板變橘色;
   各平台當天重跑並寫進 results.csv2(macOS 與 macOS 上的 GTK 之前沒有紀錄)。
-  - [ ] **WinUI: `onContinuousHover` -- written, NOT compiled** (2026-10-10,
+  - [x] **WinUI: `onContinuousHover` -- written, NOT compiled** (2026-10-10,
     on macOS). `WinUIBackend+InputTargets.swift`: `PointerMoved` /
     `PointerExited` on a `WinUIFeatureTarget`, modifiers from
     `currentModifiers()` (Control is `.control`, so SoftPCB accepts either).
     No report for a key pressed while the pointer rests, as GTK. Windows:
     build it, then P88 with `actions/win/` coordinates; if it does not
     compile, the fix or the removal is yours to make.
+    **DONE 2026-10-20 on the Windows side** (23b35cc1, "P88 on WinUI passes"):
+    built and run; P88 reads hover reports 44, last with cmd recorded, and 1
+    drag, once its pointer rows are `hover` (SendInput steps) rather than a
+    buttonless `move`, which SetCursorPos performs and WinUI does not treat as
+    pointer input. This box stayed unticked until 2026-10-22, when a review of
+    open items found it stale.
+    **2026-10-20 已在 Windows 端完成**(23b35cc1):已建置並執行,P88 讀到 44 次 hover 回報、最後一次帶 cmd,以及 1 次拖曳。
+    此勾選框一直未勾，直到 2026-10-22 檢查未完成項目時才發現它已過期。
 - [x] **AppKit: `.offset` (any geometric effect) on a view that appears
   later was not applied** (2026-10-10, found in SoftPCB's tab 9: a
   conditional label drawn at the overlay's corner). When Auto Layout gives a

@@ -30,15 +30,19 @@ different depending on where "here" was.
 
 ### Code review follow-up / 程式碼審查待辦 (2026-10-22, Windows)
 
-Four review findings. Item 4 was reproduced and its fix verified; items 1-3 are
-fixed in code from reading it and still need a runtime regression test, per the
-rule below. SwiftCrossUITests on WSL after the fixes: 379 tests in 52 suites
-passed, 1 known issue (GridLayoutTests), `swift test --scratch-path
-.build-hosttest --test-product swift-cross-uiPackageTests --filter
-SwiftCrossUITests`.
+Four review findings. Items 2-4 are reproduced and their fixes verified by a
+regression test that fails on the old code; item 1 compiles and saves on
+Android but its exact case has no test yet. SwiftCrossUITests on WSL: 381 tests
+in 53 suites passed, 1 known issue (GridLayoutTests), with
+`swift test --scratch-path .build-hosttest --test-product
+swift-cross-uiPackageTests --filter SwiftCrossUITests`. Plain `swift test`
+does not build on WSL (WinUIBackend's CWinRT needs `wtypesbase.h`); a first run
+of it piped through `tail` printed `exit=0` for a build that had failed.
 
-四項審查發現。第 4 項已重現並驗證修正；第 1-3 項依閱讀程式碼修正，依下方規則仍需 runtime 回歸測試。修正後 WSL 上的
-SwiftCrossUITests:52 個 suite 共 379 個測試通過，1 個 known issue(GridLayoutTests)。
+四項審查發現。第 2-4 項已重現，修正由「在舊程式上會失敗」的回歸測試驗證；第 1 項在 Android 上可編譯並能存檔，但其確切
+情境尚無測試。WSL 上的 SwiftCrossUITests:53 個 suite 共 381 個測試通過，1 個 known issue(GridLayoutTests)。
+裸的 `swift test` 在 WSL 上建不起來(WinUIBackend 的 CWinRT 需要 `wtypesbase.h`);第一次執行經 `tail` 管線，
+對一個失敗的建置印出了 `exit=0`。
 
 - [x] **4. check_action_files.zsh read the device column as the note.** It read
   `row[8]`; f1f8fbb0 put `device` at position 9, so a missing action file
@@ -50,29 +54,39 @@ SwiftCrossUITests:52 個 suite 共 379 個測試通過，1 個 known issue(GridL
   marked a copy by length and modification time, so a same-length save in the
   same millisecond, or one keeping its mtime, was not copied and still reported
   success. Now a SHA-256 of the bytes written, and an explicit save
-  (`commitStagedSave`) always writes. **Not compiled here** (no Kotlin
-  toolchain on Windows): build the Android backend and save twice within a
-  millisecond with equal lengths.
-  Android:存檔可能被當成已複製而略過。改為以寫入位元組的 SHA-256 標記，明確存檔一律寫入。**此處未編譯**:
-  需建置 Android backend,並在同一毫秒內以相同長度存檔兩次驗證。
-- [ ] **2. Cancelling an animation could delete the one its completion started.**
+  (`commitStagedSave`) always writes. ~~Not compiled here~~ -- **compiled and run
+  2026-10-22 on the M4 Mac**: compileDebugKotlin, BUILD SUCCESSFUL; P75's save
+  went through the staged path into the document ("read back: saved by P75").
+  Still open: two saves of equal length within one millisecond, which no action
+  file drives. (Two later P75 runs never pressed Save: the root scroll host was
+  still moving and the fixed point (195,305) missed -- the action file, not this
+  change; `taplabel Save...` would fix it.)
+  Android:存檔可能被當成已複製而略過。改為以寫入位元組的 SHA-256 標記，明確存檔一律寫入。2026-10-22 已在 M4 Mac 上
+  編譯並執行：P75 的存檔經代用路徑寫進文件。仍待：同一毫秒內兩次相同長度的存檔，目前沒有動作檔能驅動。
+- [x] **2. Cancelling an animation could delete the one its completion started.**
   `AnimationDriver.cancel` ended the group (which can run the completion
   synchronously) before removing the key. Now removed first; `start` places the
   new tween before ending the replaced one's group (also stops a shared group
   touching zero mid-replace), and `finishAllImmediately` removes before
-  `finish`. Needs a test with a clock that can be stepped -- DummyBackend has
-  none, and giving it one would change every test that relies on instant
-  animations.
-  取消動畫可能刪掉 completion 剛啟動的動畫。改為先移除再結束群組；`start` 先放入新補間再結束被取代者的群組；
-  `finishAllImmediately` 在 `finish` 之前移除。需要一個可手動推進的時鐘來測試——DummyBackend 沒有，而加上去會改變
-  所有依賴「動畫立即完成」的測試。
-- [ ] **3. A repeatForever tween outlived its view.** The tween's closure held
+  `finish`. **Test: AnimationLifetimeTests.completionSurvivesCancel**, on
+  `AnimationDriver.manualClock`, a clock the test steps (DummyBackend has none,
+  and giving it one would change every test relying on instant animations).
+  With the old `cancel` restored on the WSL copy it fails (`activeTweenCount`
+  0, "second done" missing); with the fix it passes.
+  取消動畫可能刪掉 completion 剛啟動的動畫。改為先移除再結束群組。測試:AnimationLifetimeTests.completionSurvivesCancel,
+  使用測試手動推進的 `AnimationDriver.manualClock`;在 WSL 副本上還原舊的 `cancel` 時失敗，修正後通過。
+- [x] **3. A repeatForever tween outlived its view.** The tween's closure held
   the state storage strongly and nothing cancels it when the view goes away.
   Now held weakly; a tween whose storage is gone cancels itself on its next
-  frame. Needs a runtime check that the storage is actually released when the
-  view is removed (something else could still hold it).
-  repeatForever 的補間比它的 view 活得久。改為弱參照 storage,storage 不在時於下一幀自行取消。需在 runtime 確認
-  view 被移除時 storage 確實被釋放(可能還有別的東西持有它)。
+  frame. The closure is `StateImpl.tweenApply` so a test can hold it: on Linux,
+  Swift Testing runs main-actor tests off the main thread, where assigning a
+  `@State` does not animate. **Test: AnimationLifetimeTests.
+  repeatForeverEndsWithItsStorage**: with a strong capture restored it fails
+  (storage not released, tween still running); with the fix it passes. Not
+  covered: whether anything else in a real view tree still holds the storage.
+  repeatForever 的補間比它的 view 活得久。改為弱參照 storage。閉包獨立為 `StateImpl.tweenApply` 以便測試持有：在 Linux
+  上 Swift Testing 於主執行緒之外執行 main-actor 測試，那裡對 `@State` 賦值不做動畫。測試:AnimationLifetimeTests.
+  repeatForeverEndsWithItsStorage;還原強參照時失敗，修正後通過。未涵蓋：真實 view 樹中是否還有別的東西持有 storage。
 
 ### Code review follow-up / 程式碼審查待辦 (2026-10-14, Windows)
 
