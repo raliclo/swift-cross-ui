@@ -236,6 +236,25 @@ holder_age() {
 
 reclaim_if_stale() {
     [ -d "$lock_dir" ] || return 0
+    # A lock directory with no holder file is an acquire that died between its
+    # mkdir and its first write, or a release that removed the files and not the
+    # directory. It has no taken_at, so holder_age said 0 for ever and it was
+    # never stale: on 2026-10-22 an empty .ui-lock in the WSL checkout, left at
+    # 09:56, kept a capture printing "wait: unknown holds the UI (0s)" for 25
+    # minutes. try_take writes the holder right after mkdir, so a minute without
+    # one is not a run in progress. `(Nmm+1)`: modified more than a minute ago.
+    # 沒有 holder 檔的鎖目錄，是死在 mkdir 與第一次寫入之間的 acquire,或只刪了檔案、沒刪目錄的 release。它沒有
+    # taken_at,所以 holder_age 永遠回答 0,永遠不會過期:2026-10-22,WSL checkout 裡一個 09:56 留下的空 .ui-lock,
+    # 讓一次擷取印了 25 分鐘的「wait: unknown holds the UI (0s)」。try_take 在 mkdir 之後立刻寫入 holder,所以一分鐘
+    # 都沒有 holder 就不是進行中的執行。`(Nmm+1)`:修改時間超過一分鐘。
+    if [ ! -f "$lock_dir/holder" ]; then
+        local orphan=(${lock_dir}(Nmm+1))
+        if (( $#orphan )); then
+            printf '!! reclaiming a lock directory with no holder file\n' >&2
+            rm -rf "$lock_dir"
+        fi
+        return 0
+    fi
     local age
     age="$(holder_age)"
     [ "$age" -lt "$stale_seconds" ] && return 0
