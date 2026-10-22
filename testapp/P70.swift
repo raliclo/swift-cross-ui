@@ -107,7 +107,13 @@ struct P70App: App {
                 P70RootView()
             }
         }
-        .defaultSize(width: 560, height: 560)
+        // 640, not 560. GTK's buttons and fields are taller than AppKit's, so at 560
+        // the last two paragraphs ended in "..." on Windows and WSL while macOS
+        // showed them whole (GTK three-way deck, 2026-10-23). The window is the
+        // app's to size, as P6-v2 decided; the backend does not grow it.
+        // 用 640 而非 560。GTK 的按鈕與欄位比 AppKit 高，所以在 560 時，最後兩段在 Windows 與 WSL 上被截成「...」,而 macOS
+        // 完整顯示(GTK 三方簡報，2026-10-23)。視窗大小由 app 自己決定，與 P6-v2 的做法相同；backend 不會替它放大。
+        .defaultSize(width: 560, height: 640)
     }
 }
 

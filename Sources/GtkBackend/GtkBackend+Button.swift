@@ -120,34 +120,29 @@ extension GtkBackend {
         button.loadCSS(environment: environment)
     }
 
-    /// The colour the theme gives a `.flat.destructive-action` button's text,
-    /// for every button style, read from an unshown probe button so it follows
-    /// the theme and its variant rather than a value of ours. A destructive
-    /// button keeps the ordinary bezel and only its label turns red, as AppKit
-    /// draws it; a disabled one dims that red the way the core dims any
-    /// coloured label (`suggestedForegroundColor.opacity(0.3)`).
-    /// 對每一種按鈕樣式，回傳主題賦予 `.flat.destructive-action` 按鈕文字的顏色，從一顆不顯示的探針按鈕讀取，
-    /// 因此跟隨主題及其變體，而非我們自己的值。危險按鈕保留一般外框，只有標籤變紅，與 AppKit 相同;
-    /// 停用時，core 會像對任何有顏色的標籤一樣把這個紅色變淡(`suggestedForegroundColor.opacity(0.3)`)。
+    /// The system red, as AppKitBackend returns: a destructive button keeps the
+    /// ordinary bezel and only its label turns red, and a disabled one dims that
+    /// red the way the core dims any coloured label
+    /// (`suggestedForegroundColor.opacity(0.3)`). `resolveAdaptiveColor` picks
+    /// GNOME's Red 3 (#E01B24) on light and Red 2 (#ED333B) on dark.
+    ///
+    /// Until 2026-10-23 this read the colour from an unshown probe button with
+    /// the theme's `.flat.destructive-action` class. On Windows and under WSLg the
+    /// probe answered the light variant's dark red even in dark mode, and P82's
+    /// "destructive, bordered" was dark red on a dark grey bezel, hard to read
+    /// beside AppKit's bright system red on the same bezel.
+    ///
+    /// 系統紅色，與 AppKitBackend 回傳的相同：危險按鈕保留一般外框，只有標籤變紅；停用時，core 會像對任何有顏色的標籤一樣
+    /// 把這個紅色變淡(`suggestedForegroundColor.opacity(0.3)`)。`resolveAdaptiveColor` 在淺色選 GNOME 的 Red 3(#E01B24),
+    /// 深色選 Red 2(#ED333B)。
+    ///
+    /// 2026-10-23 之前，這裡從一顆不顯示、帶主題 `.flat.destructive-action` 類別的探針按鈕讀顏色。在 Windows 與 WSLg 上，
+    /// 即使是深色模式，探針回答的仍是淺色變體的深紅，P82 的「destructive, bordered」成了深灰外框上的深紅字，與 AppKit 在同樣
+    /// 外框上的亮系統紅相比難以閱讀。
     public func destructiveButtonLabelColor(
         in environment: EnvironmentValues
     ) -> SwiftCrossUI.Color? {
-        let probe = Gtk.Button()
-        gtk_widget_add_css_class(probe.widgetPointer, "flat")
-        gtk_widget_add_css_class(probe.widgetPointer, "destructive-action")
-        // Inside a throwaway window: GTK resolves theme CSS only for a widget with a
-        // root (see `readAmbientColorScheme`), so a loose probe read the light
-        // variant's dark red, which P82 drew on the dark background (2026-10-16).
-        // 放在一個暫時性視窗裡:GTK 只為有 root 的 widget 解析主題 CSS(見 `readAmbientColorScheme`),
-        // 游離的探針讀到的是淺色變體的深紅色,P82 把它畫在深色背景上(2026-10-16)。
-        let probeWindow = Gtk.Window()
-        probeWindow.setChild(probe)
-        let colour = probe.getColor()
-        probeWindow.destroy()
-        return SwiftCrossUI.Color(
-            red: Double(colour.red), green: Double(colour.green),
-            blue: Double(colour.blue), opacity: Double(colour.alpha)
-        )
+        .system(.red)
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
