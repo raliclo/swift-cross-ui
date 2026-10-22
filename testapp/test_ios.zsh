@@ -28,6 +28,8 @@ do_build=1
 action_file=""
 dump_tree=0
 keep_stdout=0
+sleep_only_file=""
+sleep_only_rows=0
 app_args=()
 
 usage() {
@@ -427,6 +429,8 @@ if [ -n "$action_file" ]; then
         printf '==> %s presses nothing: running it without the XCUITest runner, stdout kept, for %ss\n' \
             "${action_file:t}" "$showtime_seconds"
         keep_stdout=1
+        sleep_only_file="${action_file:t}"
+        sleep_only_rows=$row_count
         action_file=""
     fi
 fi
@@ -611,6 +615,36 @@ if [ "$showtime_seconds" -gt 0 ]; then
     printf '==> Showing %s for %ss; press Ctrl-C to stop\n' "$target" "$showtime_seconds"
     trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; exit 130' INT TERM
     sleep "$showtime_seconds"
+fi
+
+# The verdict a sleep-only file gets in place of the runner's `replayed` line: the
+# app still running once the sleeps are over. sweep_apple.zsh reads replays from
+# that line, so without it all 18 sleep-only iOS files read as failures on
+# 2026-10-22 although every app had run its steps. A run whose app has gone by
+# then says `failed`, as a runner replay would. Asked from the simulator's own
+# launchctl, where a running app has a PID and a gone one "-".
+# 只有 sleep 的動作檔，以「sleep 結束時 app 仍在執行」取代 runner 的 `replayed` 那一行。sweep_apple.zsh
+# 從那一行讀取重放結果；少了它,2026-10-22 全部 18 份只有 sleep 的 iOS 動作檔都被判為失敗，雖然每支 app
+# 都跑完了自己的步驟。屆時 app 已經不在的執行印 `failed`,與 runner 重放一致。以模擬器自己的 launchctl
+# 查詢：執行中的 app 有 PID,已結束的是「-」。
+if [ -n "$sleep_only_file" ]; then
+    # Into variables first, then one grep that reads everything: under `set -o
+    # pipefail` a `grep -q` that stops at the first match leaves the writer before
+    # it with SIGPIPE, and the pipeline fails although the line was there -- the
+    # first version of this check read every running app as gone (2026-10-22). It
+    # also wrote "$bundle_id[", which zsh reads as a subscript; the braces stop that.
+    # 先存進變數，再用一個讀完全部輸入的 grep:在 `set -o pipefail` 之下,`grep -q` 一找到就結束，
+    # 前面的寫入端收到 SIGPIPE,整條管線即使找到了也算失敗——這個檢查的第一版把每支執行中的 app 都判為已結束(2026-10-22)。
+    # 第一版還寫成 "$bundle_id[",zsh 會把它當成下標；加上大括號就不會。
+    launchd_jobs="$(xcrun simctl spawn "$device_name" launchctl list 2>/dev/null || true)"
+    app_job="$(print -r -- "$launchd_jobs" | grep -F "UIKitApplication:${bundle_id}[" || true)"
+    if [[ "$app_job" == [0-9]* ]]; then
+        printf -- '-actionfile: replayed %s (%d sleep rows without the runner; the app was still running after %ss)\n' \
+            "$sleep_only_file" "$sleep_only_rows" "$showtime_seconds"
+    else
+        printf -- '-actionfile: failed %s: the app was not running after %ss (%d sleep rows without the runner)\n' \
+            "$sleep_only_file" "$showtime_seconds" "$sleep_only_rows"
+    fi
 fi
 
 capture "${target:l}-ios-final"
