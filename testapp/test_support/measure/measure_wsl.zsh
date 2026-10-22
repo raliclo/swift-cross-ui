@@ -10,7 +10,7 @@
 # measure_wsl.zsh -- 在 WSLg 下啟動 WSL 建置的 Pn,列出其無障礙元素及視窗座標中心點，這些數字**就是**
 # WSL 動作檔列要的數字(不填 origin 欄，即 xdotool 的預設)。
 #
-# The app is launched as test.zsh launches it for a replay -- GDK_BACKEND=x11 --
+# The app is launched as test.zsh launched it for a replay before 2026-10-22 -- GDK_BACKEND=x11 --
 # plus GTK_A11Y=atspi, and read with atspi_rects.py beside this script.
 # Calibrated 2026-10-19 against actions/wsl/P80-cursor.actions, whose rows were
 # verified by replay: hand 152,196 / cross 200,196 / text 244,196 measured, file
@@ -20,6 +20,13 @@
 # 讀取。2026-10-19 以經重放驗證的 actions/wsl/P80-cursor.actions 校準：量到 hand 152,196 / cross 200,196 /
 # text 244,196,檔案寫的是 152,196 / 199,196 / 244,196。本腳本不建置：請先在 WSL 內執行
 # `zsh testapp/compile.zsh Pn`(test.zsh --wsl 會做)。
+#
+# Deliberately without GTK_CSD=1, which test.zsh adds since 2026-10-22. Under it GTK draws
+# its title bar inside the window and every centre here would come out about 39 points
+# lower; the replay adds that offset itself (ActionFileReplay.clientContentOffset), so the
+# numbers a row takes are the ones measured without it.
+# 刻意不加 GTK_CSD=1(test.zsh 自 2026-10-22 起會加)。加了之後 GTK 把標題列畫在視窗內，這裡的每個中心點都會低約 39 點；
+# 重放會自己加上那個位移(ActionFileReplay.clientContentOffset),所以列要填的數字就是不加它時量到的。
 set -uo pipefail
 script_path="${0:A}"
 if [[ "${1:-}" == --help || -z "${1:-}" ]]; then

@@ -136,7 +136,7 @@ fi
 # 分頁，而 AsyncImage 位於第三個分頁上。此事是吃過虧才知道的——四次執行都回報快取為空，而事實是
 # 從頭到尾沒有人向快取要過東西。
 launch() {
-    wsl "export GDK_BACKEND=x11; cd $app_dir && pkill -x P26 2>/dev/null; sleep 1; \
+    wsl "export GDK_BACKEND=x11 GTK_CSD=1; cd $app_dir && pkill -x P26 2>/dev/null; sleep 1; \
         (env $render_env ./P26 --debug $1 -actionfile $actions > /tmp/p26-test.log 2>&1 &); \
         sleep 14; pkill -x P26 2>/dev/null; sleep 1" > /dev/null 2>&1
 }

@@ -251,15 +251,46 @@ public enum InputAction: Equatable, Sendable {
     /// 2026-10-02; AndroidSynthesiser finds the view in the activity's tree and
     /// scrolls the root to it. The desktop synthesisers post events to the system
     /// and know no views, so there the backend says where the text is
-    /// (``ActionFileReplay/locateLabel``, set by AppKitBackend and GtkBackend) and the
-    /// replay loop clicks that place. WinUIBackend sets no locator yet, and a
-    /// synthesiser asked directly refuses the verb with the reason.
+    /// (``ActionFileReplay/locateLabel``, set by AppKitBackend, GtkBackend and, since
+    /// 2026-10-22, WinUIBackend) and the replay loop clicks that place. A
+    /// synthesiser asked directly, with no locator set, refuses the verb with the reason.
     ///
     /// 點顯示這段文字的 view,不論它被排在哪裡；文字寫在 `key` 欄。座標是對某一個版面的主張:P10 的 Android 檔以位置瞄準
     /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次(2026-10-02、2026-10-10),第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 自
     /// 2026-10-02 起就有 `taplabel`;AndroidSynthesiser 在 activity 的樹裡找出那個 view,並把根捲到它那裡。桌面合成器把事件
-    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,AppKitBackend 與 GtkBackend 會設定),重放迴圈再點那個位置。WinUIBackend 尚未設定定位器；直接被要求的合成器會說明理由後拒絕。
+    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,AppKitBackend、GtkBackend 與 2026-10-22 起的 WinUIBackend 會設定),重放迴圈再點那個位置。沒有設定定位器時，直接被要求的合成器會說明理由後拒絕。
     case tapLabel(String)
+}
+
+extension InputAction {
+    /// This action with a `client` point moved by `dx, dy` points; any other
+    /// origin, and any action without a point, is returned unchanged.
+    ///
+    /// For ``ActionFileReplay/clientContentOffset``: where a backend's content
+    /// starts below a title bar it draws itself, a file's `client` coordinates
+    /// still mean "from the top-left of the content".
+    ///
+    /// 把 `client` 座標平移 `dx, dy` 點後的這個動作；其他 origin,以及沒有座標的動作，原樣傳回。供
+    /// ``ActionFileReplay/clientContentOffset`` 使用：backend 自己畫的標題列把內容往下推時，檔案中的 `client`
+    /// 座標仍然代表「從內容的左上角起算」。
+    public func shiftingClientPoint(dx: Double, dy: Double) -> InputAction {
+        func shift(_ point: Point?) -> Point? {
+            guard let point, point.origin == .client else { return point }
+            return Point(x: point.x + dx, y: point.y + dy, origin: .client)
+        }
+        switch self {
+            case .move(let point): return .move(shift(point)!)
+            case .hover(let point): return .hover(at: shift(point)!)
+            case .click(let button, let point): return .click(button, at: shift(point))
+            case .doubleClick(let button, let point): return .doubleClick(button, at: shift(point))
+            case .mouseDown(let button, let point): return .mouseDown(button, at: shift(point))
+            case .mouseUp(let button, let point): return .mouseUp(button, at: shift(point))
+            case .longPress(let point, let micros): return .longPress(at: shift(point), micros: micros)
+            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate, .orientation,
+                 .tapLabel:
+                return self
+        }
+    }
 }
 
 /// A position and the origin it is measured from.

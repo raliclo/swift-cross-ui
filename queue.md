@@ -107,7 +107,7 @@ entry is closed.
     the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
     such machine here).
     **DONE 2026-10-20 on the Windows side**: WinUI, GTK on Windows and WSL all pass (sleep-only `P89-offset-in-overlay.actions` in actions/win and actions/wsl).
-  - [ ] **Waits for the Windows side (user, 2026-10-13), with onContinuousHover there.** 等 Windows 端。
+  - [x] **Waits for the Windows side (user, 2026-10-13), with onContinuousHover there.** 等 Windows 端。
     **`taplabel` on WinUI, and on GTK under X11 and Windows.** Works on
     AppKitBackend and on GtkBackend on macOS (2026-10-10, `actions/mac/P10-taplabel.actions`:
     Direct, Covered and Hidden clicks all 1 on both): the backend sets
@@ -116,6 +116,27 @@ entry is closed.
     WinUIBackend sets none, so the row reaches Win32Synthesiser, whose refusal
     (`case .tapLabel`, like XdotoolSynthesiser's) is written from the Mac and not
     compiled -- a non-exhaustive-switch error there is this.
+    **DONE 2026-10-22 on the Windows side.** WinUIBackend now sets a locator
+    (`WinUIBackend+LabelLocator.swift`: open popups first, then the content;
+    TextBlock or TextBox text). Run with `actions/win/P10-taplabel.actions` and
+    `actions/wsl/P10-taplabel.actions` (Direct / Covered / Hidden):
+    GTK on Windows 1/1/1; GTK under WSLg 1/1/1 (twice; the first run after a
+    fresh build registered only Covered, with the same three positions);
+    WinUI 1/0/1, where the 0 is not the locator: the coordinate file
+    `actions/win/P10-hit-testing.actions` also leaves Covered at 0 on WinUI.
+    **2026-10-22 已在 Windows 端完成。** WinUIBackend 已設定定位器(先找開著的 popup,再找內容;比對 TextBlock 或 TextBox
+    的文字)。P10:Windows 上的 GTK 1/1/1;WSLg 上的 GTK 1/1/1(兩次；剛建置完的第一次只有 Covered 生效，三個位置相同);
+    WinUI 1/0/1,其中的 0 不是定位器的問題：以座標點擊的 `actions/win/P10-hit-testing.actions` 在 WinUI 上同樣讓
+    Covered 停在 0。
+  - [ ] **WinUI: a transparent overlay swallows the click meant for the button under it.**
+    P10's "Click me too" sits under a `Color.clear` overlay; on WinUI a click there
+    leaves Covered clicks at 0, by `taplabel` and by coordinates alike (2026-10-22),
+    while GTK on Windows, GTK under WSLg and AppKit all count it. Likely a XAML
+    hit-test rule (a Transparent brush is hit-testable, a null brush is not); not
+    yet looked at.
+    WinUI:透明覆蓋層吞掉了要給下方按鈕的點擊。P10 的「Click me too」上方蓋著 `Color.clear`;在 WinUI 上，不論用
+    `taplabel` 或座標點擊，Covered 都停在 0(2026-10-22),而 Windows 上的 GTK、WSLg 上的 GTK 與 AppKit 都有計數。可能是
+    XAML 的命中測試規則(Transparent 筆刷會被命中,null 筆刷不會);尚未調查。
   - [x] **GTK drew P89's 14 x 14 stroked Circle as a rounded square** (fixed -> completed.md (archived 2026-10-18)
 
 ## 2026-10-09 SVG in Image (user request, priority one)

@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10 on Windows, WinUI or GtkBackend (TEST_BACKEND=gtk4). Clicks the three P10 buttons by their text, not by position.
+# Expected: Direct clicks 1, Covered clicks 1, Hidden clicks 1 (the opaque overlay is allowsHitTesting(false)), as actions/mac/P10-taplabel.actions.
+# P10(Windows,WinUI 或 GtkBackend,TEST_BACKEND=gtk4): 以文字而非位置點 P10 的三顆按鈕。預期:Direct 1、Covered 1、Hidden 1(不透明的覆蓋層是 allowsHitTesting(false)),同 actions/mac/P10-taplabel.actions。
+sleep,,,,,,800000,let P10 render,windows
+taplabel,,,,,Click me,,Direct clicks 0 -> 1,windows
+sleep,,,,,,600000,,windows
+taplabel,,,,,Click me too,,Covered clicks 0 -> 1 through the transparent overlay,windows
+sleep,,,,,,600000,,windows
+taplabel,,,,,Hidden button,,Hidden clicks 0 -> 1 through the opaque allowsHitTesting(false) overlay,windows
+sleep,,,,,,800000,let the counters repaint,windows

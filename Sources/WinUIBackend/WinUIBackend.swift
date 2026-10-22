@@ -889,6 +889,9 @@ public final class WinUIBackend:
             // 得到，而在本 backend 上執行的 app 會靜默地忽略該旗標。Windows 建置預設採用哪個
             // backend 並不改變這件事：一個 backend 收到旗標卻安靜地什麼也不做，本身就是不一致，
             // 無論它是不是通常被選用的那一個。
+            // `taplabel`: see WinUIBackend+LabelLocator.swift.
+            // `taplabel`:見 WinUIBackend+LabelLocator.swift。
+            installLabelLocator(for: window)
             ActionFileReplay.replayIfRequested()
         #endif
     }

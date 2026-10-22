@@ -41,14 +41,37 @@ public enum ActionFileReplay {
     /// This is what makes `taplabel` work on the desktop. The synthesisers there
     /// post events to the system and know no views, so the row is turned into a
     /// click at the place the backend reports (``Synthesiser/replay(_:in:)``).
-    /// AppKitBackend and GtkBackend set it (2026-10-10); AndroidSynthesiser
+    /// AppKitBackend and GtkBackend set it (2026-10-10), WinUIBackend since 2026-10-22; AndroidSynthesiser
     /// answers `taplabel` itself and the iOS runner does so through XCUITest.
     ///
     /// 顯示某段文字的 view 在哪裡：它的中心，以距視窗 client 原點的點數表示；沒有 view 顯示它時為 `nil`。由能搜尋自己
     /// view 樹的 backend 設定；從重放執行緒呼叫。這就是讓 `taplabel` 在桌面上可用的東西：那裡的合成器把事件送給系統、
     /// 不認識 view,所以這一列會被換成在 backend 回報之處的一次點擊(``Synthesiser/replay(_:in:)``)。AppKitBackend 與
-    /// GtkBackend 會設定它(2026-10-10);AndroidSynthesiser 自己回應 `taplabel`,iOS runner 則透過 XCUITest。
+    /// GtkBackend 會設定它(2026-10-10),WinUIBackend 自 2026-10-22 起也會;AndroidSynthesiser 自己回應 `taplabel`,iOS runner 則透過 XCUITest。
     public nonisolated(unsafe) static var locateLabel: (@Sendable (String) -> (x: Double, y: Double)?)?
+
+    /// How far the window's content sits from the synthesiser's client origin,
+    /// in points, asked before each row; `nil` or `(0, 0)` leaves rows as they are.
+    ///
+    /// Set by GtkBackend on Linux. WSL runs are launched under X11 with
+    /// `GTK_CSD=1` (2026-10-22), so the title bar is GTK's own dark header bar,
+    /// as on Windows, rather than the light frame WSLg's window manager drew.
+    /// That bar is inside the X window, so xdotool's client origin is now its
+    /// top-left and the content starts about 39 points lower. Measured on P10:
+    /// `click,74,232` from actions/wsl/P10-hit-testing.actions hit nothing under
+    /// `GTK_CSD=1` until this offset was added, and 346 `client` rows in
+    /// actions/wsl were written against the content. Only `client` rows move
+    /// (``InputAction/shiftingClientPoint(dx:dy:)``); `taplabel` does not, as
+    /// ``locateLabel`` already answers from the surface's top-left.
+    ///
+    /// 視窗內容距合成器的 client 原點多遠(點數),每一列之前詢問；`nil` 或 `(0, 0)` 表示不動。由 Linux 上的
+    /// GtkBackend 設定。自 2026-10-22 起 WSL 以 X11 加 `GTK_CSD=1` 啟動，標題列是 GTK 自己的深色 header bar,
+    /// 與 Windows 相同，而不是 WSLg 視窗管理員畫的淺色框。那條標題列在 X 視窗之內，所以 xdotool 的 client 原點
+    /// 變成它的左上角，內容往下約 39 點。P10 實測:actions/wsl/P10-hit-testing.actions 的 `click,74,232` 在
+    /// `GTK_CSD=1` 下什麼都沒點到，直到加上這個位移；actions/wsl 裡有 346 列 `client` 座標是對內容量的。只有
+    /// `client` 列會移動(``InputAction/shiftingClientPoint(dx:dy:)``);`taplabel` 不動，因為 ``locateLabel``
+    /// 本來就以 surface 左上角作答。
+    public nonisolated(unsafe) static var clientContentOffset: (@Sendable () -> (x: Double, y: Double))?
 
     private static let lock = NSLock()
     private nonisolated(unsafe) static var hasReplayed = false

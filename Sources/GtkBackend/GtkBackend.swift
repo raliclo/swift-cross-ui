@@ -2538,21 +2538,7 @@ public final class GtkBackend:
                     // window only failed `taplabel Close` on P49's cover (2026-10-20).
                     // 作用中的頂層視窗，如同 AppKit 的定位器取 key window:sheet 或 cover 是自己的視窗，只搜第一個視窗會讓 P49
                     // cover 上的 `taplabel Close` 失敗(2026-10-20)。
-                    var target = root
-                    if let list = gtk_window_list_toplevels() {
-                        var node: UnsafeMutablePointer<GList>? = list
-                        while let current = node {
-                            if let data = current.pointee.data {
-                                let candidate = data.assumingMemoryBound(to: GtkWindow.self)
-                                let widget = data.assumingMemoryBound(to: GtkWidget.self)
-                                if gtk_window_is_active(candidate) != 0, gtk_widget_get_mapped(widget) != 0 {
-                                    target = widget
-                                }
-                            }
-                            node = current.pointee.next
-                        }
-                        g_list_free(list)
-                    }
+                    let target = Self.activeToplevel(or: root)
                     guard let found = find(target) else { return }
                     var bounds = graphene_rect_t()
                     guard gtk_widget_compute_bounds(found, target, &bounds) != 0 else { return }
@@ -2567,11 +2553,77 @@ public final class GtkBackend:
                 done.wait()
                 return place
             }
+            #if os(Linux)
+                // Where the content starts below a title bar GTK draws itself. WSL
+                // runs use X11 with GTK_CSD=1 (test_common.zsh), and action files
+                // were written against the content; see
+                // ActionFileReplay.clientContentOffset. A window with a custom
+                // titlebar (a toolbar's GtkHeaderBar) was client-side decorated
+                // before GTK_CSD=1 too, and its files were measured with the bar
+                // inside, so it reports no offset.
+                // GTK 自己畫的標題列之下，內容從哪裡開始。WSL 執行以 X11 加 GTK_CSD=1 啟動(test_common.zsh),而動作檔是對內容量的；
+                // 見 ActionFileReplay.clientContentOffset。自訂 titlebar 的視窗(工具列的 GtkHeaderBar)在 GTK_CSD=1 之前就已是
+                // client-side decoration,它的檔案量測時就把標題列算在內，所以回報零位移。
+                ActionFileReplay.clientContentOffset = { [weak self] in
+                    guard let self else { return (x: 0, y: 0) }
+                    let done = DispatchSemaphore(value: 0)
+                    nonisolated(unsafe) var offset = (x: 0.0, y: 0.0)
+                    self.runInMainThread {
+                        defer { done.signal() }
+                        let target = Self.activeToplevel(or: root)
+                        let window = UnsafeMutableRawPointer(target)
+                            .assumingMemoryBound(to: GtkWindow.self)
+                        guard gtk_window_get_titlebar(window) == nil,
+                            let child = gtk_window_get_child(window)
+                        else { return }
+                        var bounds = graphene_rect_t()
+                        guard gtk_widget_compute_bounds(child, target, &bounds) != 0 else { return }
+                        var surfaceX = 0.0
+                        var surfaceY = 0.0
+                        gtk_native_get_surface_transform(OpaquePointer(target), &surfaceX, &surfaceY)
+                        offset = (
+                            x: Double(bounds.origin.x) + surfaceX,
+                            y: Double(bounds.origin.y) + surfaceY
+                        )
+                    }
+                    done.wait()
+                    return offset
+                }
+            #endif
             ActionFileReplay.replayIfRequested(
                 layoutScale: Double(gtk_widget_get_scale_factor(window.widgetPointer))
             )
         #endif
     }
+
+    #if SCUI_DEBUG
+        /// The active, mapped toplevel, or `fallback` when none is: a sheet or
+        /// cover is a window of its own, so an action file aims at whichever one
+        /// has the focus. Shared by the `taplabel` locator and the client content
+        /// offset in `show(window:)`; call it on the GTK thread.
+        /// 作用中、已 map 的頂層視窗；沒有時傳回 `fallback`。sheet 或 cover 是自己的視窗，所以動作檔瞄準的是擁有焦點的
+        /// 那一個。由 `show(window:)` 裡的 `taplabel` 定位器與 client 內容位移共用；請在 GTK 執行緒呼叫。
+        static func activeToplevel(
+            or fallback: UnsafeMutablePointer<GtkWidget>
+        ) -> UnsafeMutablePointer<GtkWidget> {
+            var target = fallback
+            if let list = gtk_window_list_toplevels() {
+                var node: UnsafeMutablePointer<GList>? = list
+                while let current = node {
+                    if let data = current.pointee.data {
+                        let candidate = data.assumingMemoryBound(to: GtkWindow.self)
+                        let widget = data.assumingMemoryBound(to: GtkWidget.self)
+                        if gtk_window_is_active(candidate) != 0, gtk_widget_get_mapped(widget) != 0 {
+                            target = widget
+                        }
+                    }
+                    node = current.pointee.next
+                }
+                g_list_free(list)
+            }
+            return target
+        }
+    #endif
 
     public func activate(window: Window) {
         window.present()

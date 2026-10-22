@@ -99,6 +99,11 @@ fi
 shots_dir="$out_dir/screenshots"
 mkdir -p "$shots_dir"
 
+# Not GTK_CSD=1, unlike test.zsh since 2026-10-22: the clicks here are window-relative
+# and nothing adds the title bar GTK would draw inside the window, so the light WSLg frame
+# stays and a click still means "from the top-left of the content".
+# 不加 GTK_CSD=1,與 2026-10-22 起的 test.zsh 不同：這裡的點擊是視窗相對座標，沒有任何東西會補上 GTK 畫在視窗內的
+# 標題列，所以保留 WSLg 的淺色框，點擊仍代表「從內容左上角起算」。
 export GDK_BACKEND=x11
 
 printf '==> Closing any running %s\n' "$app"

@@ -1549,18 +1549,6 @@ run_wsl() {
             exit 64
         fi
         args="$args -actionfile /home/lowei/proj/swift-cross-ui/testapp/$relative"
-        # X11, not Wayland. xdotool speaks XTEST, which is an X11 extension; a
-        # GTK 4 app left to its own devices under WSLg becomes a Wayland client
-        # with no X window at all, and Wayland deliberately does not let one
-        # client drive another. Forced here rather than left to the tester,
-        # because the failure is a replay that reports it could not find the
-        # app's own window -- which reads as a bug in the finding, not as the
-        # session being the wrong kind.
-        # 強制使用 X11 而非 Wayland。xdotool 使用的 XTEST 是 X11 擴充；在 WSLg 下放任不管的 GTK 4
-        # app 會成為 Wayland client，根本沒有 X window，而 Wayland 也刻意不允許一個 client 驅動
-        # 另一個。在此強制而非交由測試者設定，是因為其失敗表現為「重放回報找不到 app 自己的視窗」
-        # ——那看起來像是尋找邏輯的 bug，而不像是 session 型別不對。
-        app_env="GDK_BACKEND=x11 $app_env"
         # See the Windows branch: stderr carries the backend's report of whether
         # the replay ran, and discarding it makes a failed replay look like a
         # product defect.
@@ -1578,7 +1566,31 @@ run_wsl() {
     # SCUI_DEBUG_EVENTS_DIR 置於最前，是一條字面的 Linux 路徑。`env` 依序取用這些指派，而 app 是
     # 最後一個詞，因此在此加一項不需要其他改動；該值不含空白也不含 `$`，這正是它能安全穿越 `-lc`
     # 字串的原因。
-    local launch_env="SCUI_DEBUG_EVENTS_DIR=$wsl_events_dir $render_env $app_env"
+    # X11, not Wayland. xdotool speaks XTEST, which is an X11 extension; a
+    # GTK 4 app left to its own devices under WSLg becomes a Wayland client
+    # with no X window at all, and Wayland deliberately does not let one
+    # client drive another. Forced here rather than left to the tester,
+    # because the failure is a replay that reports it could not find the
+    # app's own window -- which reads as a bug in the finding, not as the
+    # session being the wrong kind.
+    # 強制使用 X11 而非 Wayland。xdotool 使用的 XTEST 是 X11 擴充；在 WSLg 下放任不管的 GTK 4
+    # app 會成為 Wayland client，根本沒有 X window，而 Wayland 也刻意不允許一個 client 驅動
+    # 另一個。在此強制而非交由測試者設定，是因為其失敗表現為「重放回報找不到 app 自己的視窗」
+    # ——那看起來像是尋找邏輯的 bug，而不像是 session 型別不對。
+    #
+    # Every WSL launch, not only those with an action file (2026-10-22). Until
+    # then a capture without one ran under Wayland and a replay under X11, so
+    # the deck showed a window the UI tests never drove: a dark GTK title bar
+    # with only a close button against WSLg's light frame with three. GTK_CSD=1
+    # makes GTK draw its own dark header bar under X11 as well, the same bar
+    # GTK draws on Windows. Action files keep their coordinates: GtkBackend
+    # reports the bar's height and the replay adds it to `client` rows
+    # (ActionFileReplay.clientContentOffset).
+    # 每一次 WSL 啟動都這樣，不只帶動作檔的(2026-10-22)。在那之前，不帶動作檔的擷取跑在 Wayland、重放跑在 X11,
+    # 簡報呈現的是 UI 測試從未驅動過的視窗：只有關閉鈕的深色 GTK 標題列，對上 WSLg 有三顆鈕的淺色框。GTK_CSD=1 讓
+    # GTK 在 X11 下也畫自己的深色 header bar,與它在 Windows 上畫的相同。動作檔的座標不必改:GtkBackend 回報標題列
+    # 的高度，重放把它加到 `client` 列上(ActionFileReplay.clientContentOffset)。
+    local launch_env="SCUI_DEBUG_EVENTS_DIR=$wsl_events_dir GDK_BACKEND=x11 GTK_CSD=1 $render_env $app_env"
 
     clear_desktop_windows
     printf '==> Launching %s under WSLg\n' "$app"

@@ -410,6 +410,12 @@ extension Synthesiser {
                 )
                 continue
             }
+            // Rows only; `taplabel` above answers in client terms already.
+            // 只作用於檔案中的列;上方的 `taplabel` 本來就以 client 座標作答。
+            if let offset = ActionFileReplay.clientContentOffset?(), offset != (0, 0) {
+                try perform(action.shiftingClientPoint(dx: offset.x, dy: offset.y), in: geometry)
+                continue
+            }
             try perform(action, in: geometry)
         }
     }
