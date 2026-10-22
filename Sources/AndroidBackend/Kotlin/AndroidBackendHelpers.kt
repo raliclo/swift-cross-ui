@@ -191,7 +191,7 @@ class AndroidBackendHelpers {
         // 先找前景的 sheet 或 popover:觸控本來就經 FrontWindows 送得到它，但這裡只找 activity 自己的視窗，所以 P49 cover 上的
         // `taplabel Close` 以「no shown view」失敗(2026-10-20)。它的點以 activity 視窗座標給出，那正是 FrontWindows.dispatch
         // 接受、並換算回去的座標。
-        val front = FrontWindows.focused()
+        val front = FrontWindows.focused(activity)
         val inFront = front?.let { find(it) }
         if (inFront != null) {
             val decorOrigin = IntArray(2)

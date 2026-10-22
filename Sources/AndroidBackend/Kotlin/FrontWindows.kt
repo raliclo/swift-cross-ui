@@ -1,8 +1,6 @@
 package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -46,39 +44,46 @@ object FrontWindows {
     }
 
     /**
-     * The front window with focus, or null when an activity's own window has it.
+     * The front window with focus, or null when [activity]'s own window has it.
      *
      * A registered sheet or popover first. Otherwise any window of this process
-     * that has focus and is not an activity's own: a PopupMenu, a Spinner's
-     * dropdown, an alert. The platform builds those and keeps them private, so
-     * they never register; `WindowInspector.getGlobalWindowViews` (API 29, public,
-     * no permission) lists every window root of the process, theirs included.
-     * Without it the replay could open P92's menu and choose nothing from it
-     * ("no shown view has the text Edit", 2026-10-21).
+     * that has focus other than [activity]'s own -- the window the synthesiser
+     * dispatches into anyway: a PopupMenu, a Spinner's dropdown, an alert, or
+     * another activity such as P60's settings window. The platform builds menus
+     * and dropdowns and keeps them private, so they never register;
+     * `WindowInspector.getGlobalWindowViews` (API 29, public, no permission) lists
+     * every window root of the process, theirs included. Without it the replay
+     * could open P92's menu and choose nothing from it ("no shown view has the
+     * text Edit", 2026-10-21).
      *
-     * 有焦點的前景視窗；某個 activity 自己的視窗有焦點時為 null。先找登記過的 sheet 或 popover;否則找本行程
-     * 中任何有焦點、且不是 activity 自身的視窗:PopupMenu、Spinner 的下拉、alert。這些由平台建立並保持私有，
-     * 從不登記;`WindowInspector.getGlobalWindowViews`(API 29,公開，不需權限)列出本行程每個視窗的根，
-     * 包括它們。沒有它時，重放能打開 P92 的選單，卻選不了任何項目(2026-10-21)。
+     * Only [activity]'s decor is left out, compared by identity. The first version
+     * tried to leave out every activity's own window by walking each root's
+     * context up to an Activity; that walk never matched, so the target activity's
+     * window counted as a front window too, every key went straight to its decor,
+     * AndroidSynthesiser's Control-shortcut offer never ran, and P94's editor read
+     * "changes: 0" again (2026-10-22). Leaving out every window of type
+     * TYPE_BASE_APPLICATION instead fixed P94 and lost P60's settings window, an
+     * activity of its own ("no shown view has the text +1", the same day).
+     *
+     * 有焦點的前景視窗;[activity] 自己的視窗有焦點時為 null。先找登記過的 sheet 或 popover;否則找本行程中
+     * 除了 [activity] 自己(synthesiser 本來就送進去的那個視窗)以外任何有焦點的視窗:PopupMenu、Spinner 的下拉、
+     * alert,或另一個 activity,例如 P60 的設定視窗。選單與下拉由平台建立並保持私有，從不登記;
+     * `WindowInspector.getGlobalWindowViews`(API 29,公開，不需權限)列出本行程每個視窗的根，包括它們。
+     * 只排除 [activity] 的 decor,以同一物件比較。第一版想沿每個根的 context 找到 Activity,藉此排除所有 activity
+     * 自己的視窗，但那樣從未比對成功，目標 activity 的視窗也被當成前景視窗，按鍵全部直接送進它的 decor,
+     * AndroidSynthesiser 補送 Control 快捷鍵的那一步從未執行,P94 的編輯器又回到「changes: 0」(2026-10-22)。
+     * 改成排除所有 TYPE_BASE_APPLICATION 視窗，修好了 P94,卻失去 P60 的設定視窗——它本身是個 activity
+     * (同日，「no shown view has the text +1」)。
      */
     @JvmStatic
-    fun focused(): View? {
+    fun focused(activity: Activity?): View? {
         roots.mapNotNull { it.get() }
             .lastOrNull { it.isAttachedToWindow && it.hasWindowFocus() }
             ?.let { return it }
+        val own = activity?.window?.decorView
         return WindowInspector.getGlobalWindowViews().lastOrNull {
-            it.isAttachedToWindow && it.hasWindowFocus() && !isActivityWindow(it)
+            it.isAttachedToWindow && it.hasWindowFocus() && it !== own
         }
-    }
-
-    /** Whether [root] is the decor view of the activity it was made for. */
-    private fun isActivityWindow(root: View): Boolean {
-        var context: Context? = root.context
-        while (context is ContextWrapper) {
-            if (context is Activity) return context.window?.decorView === root
-            context = context.baseContext
-        }
-        return false
     }
 
     /**
@@ -87,7 +92,7 @@ object FrontWindows {
      */
     @JvmStatic
     fun dispatch(activity: Activity, event: MotionEvent): Boolean {
-        val root = focused() ?: return false
+        val root = focused(activity) ?: return false
         val decor = activity.window?.decorView ?: return false
         val activityOrigin = IntArray(2)
         val rootOrigin = IntArray(2)
@@ -106,12 +111,12 @@ object FrontWindows {
     /**
      * Delivers a key to the focused front window, as a keyboard does: Escape
      * or Back then reaches the sheet's dialog, which cancels it. Returns false
-     * when the activity's own window has focus. Without it every key went to
+     * when [activity]'s own window has focus. Without it every key went to
      * the activity and Escape left P49's sheet open (2026-10-20).
      */
     @JvmStatic
-    fun dispatchKey(event: KeyEvent): Boolean {
-        val root = focused() ?: return false
+    fun dispatchKey(activity: Activity, event: KeyEvent): Boolean {
+        val root = focused(activity) ?: return false
         root.dispatchKeyEvent(event)
         return true
     }
