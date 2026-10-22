@@ -1738,6 +1738,33 @@ run_macos() {
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id" \
         "$mac_bundle_dir/Info.plist" >/dev/null
     printf '    bundle identifier: %s\n' "$bundle_id"
+    # **Saved window frames are dropped before every launch**, so a window opens at
+    # its scene's defaultSize on AppKit as it does on GTK, Windows and WSL, none of
+    # which keep one. AppKitBackend restores `NSWindow Frame <id>` over defaultSize,
+    # as SwiftUI does, which is right for an app and wrong for a test: on
+    # 2026-10-22 P41 opened at 1202x799 on AppKit against 1340x888 on GTK, P17 at
+    # 900x846 against 900x860, and P92 still held the 460-point frame from before
+    # its defaultSize went to 640 -- each the size of some earlier run. Only those
+    # keys go; AppStorage in the same domain stays (window_sizes_mac.zsh deletes the
+    # whole domain because it measures nothing else). SCUI_KEEP_WINDOW_FRAME=1 keeps
+    # them, to test restoration itself. The keys are read through a full read and
+    # sed, not `| head` or `grep -q`, which pipefail would fail (test_ios.zsh, the
+    # same day).
+    # **每次啟動前丟掉儲存的視窗框**,讓 AppKit 上的視窗與 GTK、Windows、WSL 一樣以 scene 的 defaultSize 開啟——
+    # 那三者都不保存視窗框。AppKitBackend 會用 `NSWindow Frame <id>` 蓋過 defaultSize(與 SwiftUI 相同),
+    # 對 app 而言正確，對測試而言是錯的:2026-10-22 P41 在 AppKit 上開成 1202x799、GTK 上 1340x888,P17 是
+    # 900x846 對 900x860,而 P92 仍留著 defaultSize 改成 640 之前那個 460 點寬的視窗框——每一個都是之前某次執行的
+    # 尺寸。只刪這些鍵，同一 domain 裡的 AppStorage 保留(window_sizes_mac.zsh 刪整個 domain,因為它只量尺寸)。
+    # SCUI_KEEP_WINDOW_FRAME=1 會保留它們，用來測試還原本身。鍵以完整讀取加 sed 取得，不用 `| head` 或
+    # `grep -q`——pipefail 會讓那種寫法失敗(同日的 test_ios.zsh)。
+    if [ "${SCUI_KEEP_WINDOW_FRAME:-0}" != 1 ]; then
+        local saved_frames frame_key
+        saved_frames="$(defaults read "$bundle_id" 2>/dev/null | sed -n 's/^ *"\(NSWindow Frame [^"]*\)" = .*/\1/p' || true)"
+        for frame_key in ${(f)saved_frames}; do
+            defaults delete "$bundle_id" "$frame_key" >/dev/null 2>&1 || true
+            printf '    dropped saved frame: %s\n' "$frame_key"
+        done
+    fi
     rm -f "$mac_bundle_executable"
     cp "$out/$mac_exe" "$mac_bundle_executable"
     chmod +x "$mac_bundle_executable"
