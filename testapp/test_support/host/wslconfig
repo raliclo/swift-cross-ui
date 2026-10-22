@@ -1,0 +1,62 @@
+# WSL2 networking. Mirrored mode makes WSL share the host's network
+# interfaces, so it holds the same LAN address as Windows instead of sitting
+# behind a NAT on 172.x.
+#
+# The default NAT mode puts WSL on a private virtual switch, reachable from
+# Windows through a localhost relay but from nowhere else -- a peer on the LAN
+# cannot open a connection to it at all. The usual workaround, a
+# `netsh interface portproxy` entry, points at an address WSL reassigns on
+# every start, so it goes stale silently and the symptom is an unreachable
+# host with no error anywhere.
+#
+# WSL2 網路設定。mirrored 模式讓 WSL 共用主機的網路介面，因此它會持有與 Windows
+# 相同的 LAN 位址，而不是待在 172.x 的 NAT 之後。
+#
+# 預設的 NAT 模式把 WSL 放在私有虛擬交換器上，Windows 可透過 localhost relay 連到
+# 它，但其他地方一律不行——LAN 上的對端根本無法對它建立連線。常見的權宜作法
+# `netsh interface portproxy` 指向的是 WSL 每次啟動都會重新分配的位址，因此會無聲
+# 失效，症狀是「主機連不上」且各處都不會出現錯誤。
+[wsl2]
+networkingMode=mirrored
+
+# Memory. Left at the default, the VM may grow to half of the 32 GB RAM, and
+# Linux fills whatever it has with file cache: on 2026-10-22 vmmemWSL held
+# 14.9 GB committed while WSL itself used about 1 GB and 13.6 GB was Cached.
+# Windows counts that cache as committed memory, the commit charge reached its
+# limit, the pagefile grew until C: was full, and a background build was killed
+# for low memory. 8GB caps it; raise it if a swift build inside WSL is
+# OOM-killed.
+#
+# 記憶體。維持預設時，這個 VM 最多可以長到 32 GB RAM 的一半，而 Linux 會把手上的記憶體
+# 都拿去當檔案快取：2026-10-22 vmmemWSL 佔了 14.9 GB 已承諾記憶體，WSL 自己只用約 1 GB,
+# 13.6 GB 是 Cached。Windows 把那些快取算成已承諾記憶體，承諾量頂到上限，pagefile 長到
+# C: 滿了，背景建置因記憶體不足被停掉。8GB 是上限；WSL 裡的 swift build 若被 OOM 殺掉就調高。
+memory=8GB
+
+# hostAddressLoopback belongs under [experimental], not [wsl2]. Placed in the
+# wrong section it is simply ignored -- no warning, no error, and the symptom
+# is a connection that times out exactly as if the peer were down.
+#
+# Windows and WSL now share one address, and by default neither can open a
+# connection to the other through it. This permits it, so Windows <-> WSL tests
+# can use the same LAN address a remote peer uses instead of a second,
+# localhost-only path that behaves differently.
+#
+# hostAddressLoopback 屬於 [experimental] 而非 [wsl2]。放錯區段時它會被直接忽略
+# ——沒有警告、沒有錯誤，症狀是連線逾時，與「對端沒開機」完全相同。
+#
+# Windows 與 WSL 現在共用同一個位址，而預設情況下兩者都無法透過該位址連向對方。
+# 此項允許該連線，讓 Windows <-> WSL 的測試能使用與遠端對端相同的 LAN 位址，
+# 而不是另一條僅限 localhost、行為又不一樣的路徑。
+[experimental]
+hostAddressLoopback=true
+
+# autoMemoryReclaim is also an [experimental] key in WSL 3.0.3: wslservice.exe
+# names it "experimental.autoMemoryReclaim" next to "wsl2.memory" (checked with
+# strings on 2026-10-22). DropCache gives the file cache back to Windows once
+# WSL goes idle; Gradual releases it slowly; Disabled keeps it.
+#
+# autoMemoryReclaim 在 WSL 3.0.3 同樣是 [experimental] 的鍵:wslservice.exe 裡的名稱是
+# "experimental.autoMemoryReclaim",旁邊是 "wsl2.memory"(2026-10-22 以 strings 確認)。
+# DropCache 在 WSL 閒置後把檔案快取還給 Windows;Gradual 慢慢釋放;Disabled 不釋放。
+autoMemoryReclaim=DropCache
