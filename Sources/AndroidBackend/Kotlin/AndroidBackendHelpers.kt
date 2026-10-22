@@ -1502,10 +1502,16 @@ class AndroidBackendHelpers {
         val uri: Uri,
         val resolver: android.content.ContentResolver,
     ) {
-        // The length and modification time of the bytes last copied, so the
-        // observer does not copy again what commitStagedSave already did.
-        // 上一次複製的位元組之長度與修改時間，好讓 observer 不再重複 commitStagedSave 已做過的複製。
-        var copied: Pair<Long, Long>? = null
+        // A SHA-256 of the bytes last copied, so the observer does not copy again
+        // what commitStagedSave already did. It was the file's length and
+        // modification time until 2026-10-22, when a review pointed out that a
+        // save of the same length within the same millisecond, or one that keeps
+        // the modification time, matched the mark: the copy was skipped and the
+        // save reported success while the document kept the old bytes.
+        // 上一次複製之位元組的 SHA-256,好讓 observer 不再重複 commitStagedSave 已做過的複製。2026-10-22 之前它是檔案
+        // 的長度與修改時間；審查指出，同長度且在同一毫秒內的存檔，或保留了修改時間的存檔，會與該記號相符：複製被略過，
+        // 存檔回報成功，文件卻仍是舊內容。
+        var copied: ByteArray? = null
     }
 
     // Copies `file` into the document at `uri` each time the app finishes writing it.
@@ -1559,19 +1565,26 @@ class AndroidBackendHelpers {
     fun commitStagedSave(path: String): String? {
         val staged =
             synchronized(stagedSaves) { stagedSaves[File(path).absolutePath] } ?: return null
-        return copyStaged(staged)
+        return copyStaged(staged, force = true)
     }
 
-    private fun copyStaged(staged: StagedSave): String? =
+    // The bytes are read once, and the same bytes are both hashed and written, so
+    // what is marked as copied is exactly what reached the document.
+    // 位元組只讀一次，雜湊與寫入用的是同一份，因此記為「已複製」的正是送進文件的內容。
+    // `force` is for an explicit save: it always writes, so the document matches
+    // the file even if something else changed the document since the last copy.
+    // `force` 用於明確的存檔：一律寫入，即使上次複製之後文件被別的東西改過，文件也會與檔案一致。
+    private fun copyStaged(staged: StagedSave, force: Boolean = false): String? =
         synchronized(staged) {
-            val mark = staged.file.length() to staged.file.lastModified()
-            if (staged.copied == mark) return@synchronized null
             try {
+                val bytes = staged.file.readBytes()
+                val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+                if (!force && staged.copied?.contentEquals(digest) == true) return@synchronized null
                 val output =
                     staged.resolver.openOutputStream(staged.uri, "wt")
                         ?: return@synchronized "could not open ${staged.uri} for writing"
-                output.use { out -> staged.file.inputStream().use { it.copyTo(out) } }
-                staged.copied = mark
+                output.use { it.write(bytes) }
+                staged.copied = digest
                 null
             } catch (error: Exception) {
                 "could not copy the save to ${staged.uri}: $error"

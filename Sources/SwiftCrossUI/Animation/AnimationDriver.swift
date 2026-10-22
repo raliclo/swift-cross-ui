@@ -98,11 +98,19 @@ public final class AnimationDriver: @unchecked Sendable {
         apply: @escaping (Double) -> Void,
         finish: (() -> Void)? = nil
     ) {
-        tweens[key]?.group?.tweenEnded()
+        // The new tween is in place, and its group counted, before the replaced
+        // tween's group is told it ended -- the same ordering as `cancel`, for
+        // the same reason. It also matters when both belong to one group: ending
+        // first took that group's count to zero for a moment and could run its
+        // completion while the replacement was still to come.
+        // 新補間就位、其群組計數之後，才告知被取代者的群組已結束——與 `cancel` 相同的順序，理由也相同。兩者屬於同一
+        // 群組時這也重要：先結束會讓該群組的計數短暫歸零，可能在替代的補間尚未加入時就執行它的 completion。
+        let replaced = tweens.removeValue(forKey: key)
         group?.tweenStarted()
         tweens[key] = Tween(
             animation: animation, startTime: nil, apply: apply, group: group, finish: finish
         )
+        replaced?.group?.tweenEnded()
         startClockIfNeeded()
     }
 
@@ -123,9 +131,17 @@ public final class AnimationDriver: @unchecked Sendable {
         stopClockIfIdle()
     }
 
+    /// Removes the tween BEFORE its group is told it ended. `tweenEnded` can run
+    /// the `withAnimation` completion synchronously, and a completion that
+    /// animates the same value again starts a new tween under this key; ending
+    /// first and removing second deleted that new tween, so it never ran and its
+    /// own completion never came (review, 2026-10-22).
+    /// 先移除補間，再告知它的群組已結束。`tweenEnded` 可能同步執行 `withAnimation` 的 completion,而一個再次對
+    /// 同一個值做動畫的 completion 會在這個 key 下啟動新的補間；先結束、後移除會把那個新補間刪掉，它因而從未執行，
+    /// 它自己的 completion 也永遠不來(審查，2026-10-22)。
     func cancel(key: UUID) {
-        tweens[key]?.group?.tweenEnded()
-        tweens[key] = nil
+        let cancelled = tweens.removeValue(forKey: key)
+        cancelled?.group?.tweenEnded()
         stopClockIfIdle()
     }
 
@@ -176,9 +192,15 @@ public final class AnimationDriver: @unchecked Sendable {
             tickers[key] = nil
         }
         for (key, tween) in tweens {
+            // Removed before `finish` and the group's end, as in `cancel`: either
+            // can start a tween under this key, which must survive. And skipped
+            // when already gone: that start, with no clock, re-enters here and
+            // finishes the snapshot's later tweens itself.
+            // 與 `cancel` 相同，在 `finish` 與群組結束之前移除：兩者都可能在這個 key 下啟動補間，而那個補間必須留下。
+            // 已經不在時跳過：沒有時鐘時，那次啟動會重入這裡，自己把快照中後面的補間結束掉。
+            guard tweens.removeValue(forKey: key) != nil else { continue }
             tween.apply(1)
             tween.finish?()
-            tweens[key] = nil
             tween.group?.tweenEnded()
         }
     }

@@ -28,6 +28,52 @@ different depending on where "here" was.
 
 ## Now / 現在
 
+### Code review follow-up / 程式碼審查待辦 (2026-10-22, Windows)
+
+Four review findings. Item 4 was reproduced and its fix verified; items 1-3 are
+fixed in code from reading it and still need a runtime regression test, per the
+rule below. SwiftCrossUITests on WSL after the fixes: 379 tests in 52 suites
+passed, 1 known issue (GridLayoutTests), `swift test --scratch-path
+.build-hosttest --test-product swift-cross-uiPackageTests --filter
+SwiftCrossUITests`.
+
+四項審查發現。第 4 項已重現並驗證修正；第 1-3 項依閱讀程式碼修正，依下方規則仍需 runtime 回歸測試。修正後 WSL 上的
+SwiftCrossUITests:52 個 suite 共 379 個測試通過，1 個 known issue(GridLayoutTests)。
+
+- [x] **4. check_action_files.zsh read the device column as the note.** It read
+  `row[8]`; f1f8fbb0 put `device` at position 9, so a missing action file
+  passed. It now finds `note` by header name. Verified: a copy of the tree with
+  an invented citation returns 1 (the old script 0), the real tree 0.
+  check_action_files.zsh 把 device 欄當成備註讀：改以表頭名稱找 `note`。驗證：加入捏造引用的樹副本回傳 1(舊版 0),
+  實際的樹回傳 0。
+- [ ] **1. Android: a save could be skipped as already copied.** `copyStaged`
+  marked a copy by length and modification time, so a same-length save in the
+  same millisecond, or one keeping its mtime, was not copied and still reported
+  success. Now a SHA-256 of the bytes written, and an explicit save
+  (`commitStagedSave`) always writes. **Not compiled here** (no Kotlin
+  toolchain on Windows): build the Android backend and save twice within a
+  millisecond with equal lengths.
+  Android:存檔可能被當成已複製而略過。改為以寫入位元組的 SHA-256 標記，明確存檔一律寫入。**此處未編譯**:
+  需建置 Android backend,並在同一毫秒內以相同長度存檔兩次驗證。
+- [ ] **2. Cancelling an animation could delete the one its completion started.**
+  `AnimationDriver.cancel` ended the group (which can run the completion
+  synchronously) before removing the key. Now removed first; `start` places the
+  new tween before ending the replaced one's group (also stops a shared group
+  touching zero mid-replace), and `finishAllImmediately` removes before
+  `finish`. Needs a test with a clock that can be stepped -- DummyBackend has
+  none, and giving it one would change every test that relies on instant
+  animations.
+  取消動畫可能刪掉 completion 剛啟動的動畫。改為先移除再結束群組；`start` 先放入新補間再結束被取代者的群組；
+  `finishAllImmediately` 在 `finish` 之前移除。需要一個可手動推進的時鐘來測試——DummyBackend 沒有，而加上去會改變
+  所有依賴「動畫立即完成」的測試。
+- [ ] **3. A repeatForever tween outlived its view.** The tween's closure held
+  the state storage strongly and nothing cancels it when the view goes away.
+  Now held weakly; a tween whose storage is gone cancels itself on its next
+  frame. Needs a runtime check that the storage is actually released when the
+  view is removed (something else could still hold it).
+  repeatForever 的補間比它的 view 活得久。改為弱參照 storage,storage 不在時於下一幀自行取消。需在 runtime 確認
+  view 被移除時 storage 確實被釋放(可能還有別的東西持有它)。
+
 ### Code review follow-up / 程式碼審查待辦 (2026-10-14, Windows)
 
 Five open review items, ordered by severity. Items 1-4 are source-review

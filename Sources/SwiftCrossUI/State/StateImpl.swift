@@ -128,8 +128,21 @@ struct StateImpl<Storage: StateStorageProtocol> {
                 storage.postSet()
                 return
             }
+            // The storage is held weakly, and a tween whose storage is gone
+            // cancels itself on its next frame. Held strongly, a tween that never
+            // ends -- `repeatForever()` -- kept the state of a view that had been
+            // removed alive and kept the frame clock running for it, since nothing
+            // cancels a tween when its view goes away (review, 2026-10-22).
+            // storage 以弱參照持有，storage 已不在的補間會在下一幀自行取消。以強參照持有時，一個永不結束的補間
+            // ——`repeatForever()`——會讓已被移除之 view 的狀態一直存活，並為它持續驅動 frame clock,因為 view
+            // 消失時沒有任何東西會取消它的補間(審查，2026-10-22)。
             let storage = self.storage
-            AnimationDriver.shared.start(key: animationKey, animation: animation) { progress in
+            let key = animationKey
+            AnimationDriver.shared.start(key: key, animation: animation) { [weak storage] progress in
+                guard let storage else {
+                    AnimationDriver.shared.cancel(key: key)
+                    return
+                }
                 let value = V.interpolated(from: start, to: end, progress: progress)
                 guard let value = value as? Storage.Value else { return }
                 storage.value = value

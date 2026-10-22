@@ -60,10 +60,17 @@ import csv, fnmatch, glob, os, re, sys
 # macOS 預設 UTF-8，所以它在它被寫出來的地方能動，在別處不能。
 rows = list(csv.reader(open("matrix_coverage/results.csv2", newline="", encoding="utf-8")))
 present = {os.path.basename(p) for p in glob.glob("testapp/actions/*/*.actions")}
+# The note column by its header name, not by position. It was row[8] until the
+# device column arrived at position 9 (f1f8fbb0, 2026-10-22); after that row[8]
+# was the device, which never names an action file, so a missing file passed
+# silently -- a review reproduced it with an invented citation: 0 instead of 1.
+# 以表頭名稱找備註欄，而非位置。它原本是 row[8],直到 device 欄加在第 9 欄(f1f8fbb0,2026-10-22);
+# 此後 row[8] 是裝置名稱，從不含動作檔名，於是缺檔會無聲通過——審查以捏造的引用重現：回傳 0 而非 1。
+note_column = rows[0].index("note")
 
 missing = {}
 for number, row in enumerate(rows[2:], start=3):
-    if len(row) <= 8:
+    if len(row) <= note_column:
         continue
 # `(?![0-9A-Za-z])` so `.csv` does not match inside `.csv2`.
     #
@@ -108,7 +115,7 @@ for number, row in enumerate(rows[2:], start=3):
     # and reported it missing (2026-10-20).
     # 名稱可以 `_` 開頭：第 1888 列引用存在的 actions/ios/_watch-20s.actions,而首字元限定 [A-Za-z0-9*]
     # 時它被讀成 `watch-20s.actions` 並回報為缺少(2026-10-20)。
-    for name in re.findall(r"[A-Za-z0-9_*][A-Za-z0-9_.*-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[8]):
+    for name in re.findall(r"[A-Za-z0-9_*][A-Za-z0-9_.*-]*\.(?:csv|actions)(?![0-9A-Za-z])", row[note_column]):
         if name.endswith(".csv"):
             name = name[:-4] + ".actions"
         if "*" in name:
