@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P98 on macOS (GtkBackend): withAnimation callbacks and stagger
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P98.swift's header, read from the app's log (the [P98] lines) and the final capture. Written
+# 2026-10-22 from actions/android/P98-callbacks-and-stagger.actions, so the run goes through the sweep with a capture instead of a bare launch.
+# P98 在 macOS (GtkBackend) 上:withAnimation 的回呼與 stagger。app 自己執行步驟並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P98.swift 的檔頭，從 app 的 log 與最終截圖讀取。
+sleep,,,,,,5000000,let P98 run,macos

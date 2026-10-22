@@ -193,7 +193,9 @@ if [ "$platform" = ios ]; then
     device="$(xcrun simctl list devices -j 2>/dev/null | jq -r --arg n "$sim_name" '[.devices | to_entries[] | .key as $rt | .value[] | select(.name==$n or .udid==$n) | "\(.name) (\(.deviceTypeIdentifier | sub(".*SimDeviceType\\."; "") | gsub("-"; " ")), \($rt | sub(".*SimRuntime\\."; "") | sub("-"; " ") | gsub("-"; ".")))"] | first // empty')"
     device="${device:-$sim_name (model not read)}"
 else
-    device="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+    # Model and chip, not the computer name, which carries the owner's name.
+    # 機型與晶片，不用電腦名稱(那會帶著擁有者的名字)。
+    device="$(sysctl -n hw.model) ($(sysctl -n machdep.cpu.brand_string))"
 fi
 csv2_new "$out_csv" \
     "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,device,note" \

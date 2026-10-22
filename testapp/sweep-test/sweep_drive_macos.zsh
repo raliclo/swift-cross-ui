@@ -71,11 +71,13 @@ run_date="$(date +%F)"
 renderer=default
 
 # The `device` column, added to results.csv2 on 2026-10-22, before `note`: the
-# machine the app ran on (this Mac's computer name). Rows from before carry
+# machine the app ran on (this Mac's model and chip). Rows from before carry
 # `unrecorded`. Never left out, for the same reason as `renderer`.
-# `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器(這台 Mac 的電腦名稱)。
+# `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器(這台 Mac 的機型與晶片)。
 # 之前的列填 `unrecorded`。與 `renderer` 同理，不可省略。
-device="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+# The model and chip, not the computer or host name: those carry the owner's name
+# into a committed file (2026-10-22). / 機型與晶片，不用電腦名稱或主機名——那兩者會把擁有者的名字帶進提交的檔案。
+device="$(sysctl -n hw.model) ($(sysctl -n machdep.cpu.brand_string))"
 device="${device//,/ }"
 
 usage() { sed -n '2,9p' "$script_path" | sed 's/^# \{0,1\}//'; }

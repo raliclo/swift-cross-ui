@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P100 on macOS (AppKit): matchedGeometryEffect (Flip), including the fade-and-fly of a replaced view
+# The app runs its own steps (or shows its whole case at launch) and logs them; this file presses nothing and keeps the app open.
+# Pass: the criteria in testapp/P100.swift's header, read from the app's log (the [P100] lines) and the final capture. Written
+# 2026-10-22 from actions/android/P100-flip.actions, so the run goes through the sweep with a capture instead of a bare launch.
+# P100 在 macOS (AppKit) 上:matchedGeometryEffect(Flip),含被取代 view 的淡出與飛行。app 自己執行步驟並記錄;本檔什麼都不按，只讓 app 保持開啟。通過條件見 testapp/P100.swift 的檔頭，從 app 的 log 與最終截圖讀取。
+sleep,,,,,,7000000,let P100 run,macos
