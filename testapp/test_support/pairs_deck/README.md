@@ -90,15 +90,23 @@ P14 are out of the Windows scope, and P105-P112 are newer than the GTK / macOS
 deck. Recount with
 `grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`.
 
-## File size in the captions
+## App size in the captions
 
 Every caption in the three decks (GTK / macOS, GTK three ways, iOS / Android)
-ends with the size of the published JPEG, in KB rounded to the nearest 1024
-bytes. `build_deck.zsh` and `build_gtk_deck.zsh` measure the JPEG they just
-wrote with `wc -c`; the macOS captions in the three-way deck come from the GTK /
-macOS deck and carry its size already. The iOS / Android deck has no generator,
-so on 2026-10-22 its sizes were measured from the downloaded published images
-and written into the page directly.
+ends with the built app's size and build date, e.g. `app 13.7 MB, built
+2026-10-21`, or `app size n/a: no build left` when no build is found. It is the
+file test.zsh launches: `Pn-gtk4.exe` on Windows, the Linux binary in the WSL
+checkout, and on the Mac `output/Pn`, `output/Pn-gtk4`, `output/Pn-ios.app/Pn`
+and `.androidApk/Pn.apk`. A build can be newer than the screenshot, which is
+why the date is there. `build_deck.zsh` and `build_gtk_deck.zsh` measure it
+themselves; the macOS captions in the three-way deck come from MAC_TSV. The
+iOS / Android deck has no generator.
+
+On 2026-10-22 all three pages were updated in place with the sizes measured
+that day (an earlier version that day showed the JPEG size instead). Only 30 of
+the 108 apps still had a `Pn-gtk4` on the Mac, so 78 GTK-on-macOS captions say
+n/a; filling them needs a rebuild on the Mac, since multissh cannot write into
+the Mac checkout.
 
 ---
 
@@ -131,8 +139,12 @@ https://claude.ai/artifact/AGQvHbzL4DMuvnraDB6Kqt(僅擁有者可開，除非另
 - 2026-10-21 的結果:116 頁中 106 頁三邊齊全。P6 在 Windows 上刻意不能以 GTK 建置(D3D11 swap chain,由 P6-v2 代替);
   P12、P14 不在 Windows 範圍內;P105-P112 晚於 GTK / macOS 簡報。重算：`grep -o 'chip [a-z]*">[0-9] of 3' OUTDIR/index.html | sort | uniq -c`。
 
-## 說明中的檔案大小
+## 說明中的 app 大小
 
-三份簡報(GTK / macOS、GTK 三方、iOS / Android)每張圖的說明最後是發布出去的 JPEG 大小(KB,四捨五入到 1024 位元組)。
-`build_deck.zsh` 與 `build_gtk_deck.zsh` 寫說明時用 `wc -c` 量剛產生的 JPEG;macOS 那一邊的說明取自 GTK / macOS 簡報，已帶有大小。
-iOS / Android 簡報沒有產生器，2026-10-22 的大小是下載已發布的影像量出來後直接補進頁面的。
+三份簡報(GTK / macOS、GTK 三方、iOS / Android)每張圖的說明最後是該 app 建置出來的大小與建置日期，例如
+`app 13.7 MB, built 2026-10-21`;找不到建置時寫 `app size n/a: no build left`。量的是 test.zsh 啟動的那個檔案:
+Windows 的 `Pn-gtk4.exe`、WSL checkout 的 Linux 執行檔、Mac 的 `output/Pn` 與 `output/Pn-gtk4`、`output/Pn-ios.app/Pn`、
+`.androidApk/Pn.apk`。建置可能比擷圖新，日期就是為此而列。`build_deck.zsh` 與 `build_gtk_deck.zsh` 寫說明時自己量;
+GTK 三方簡報 macOS 那一欄的說明取自 MAC_TSV。iOS / Android 簡報沒有產生器。
+2026-10-22 三份頁面都以當時量到的大小直接更新(先前一版放的是圖片 JPEG 大小，已改掉)。當天 Mac 上 108 支 app 只剩 30 支留有
+`Pn-gtk4`,所以 GTK on macOS 有 78 格是 n/a;要補齊得在 Mac 上重新建置——multissh 寫不進 Mac 的 checkout。

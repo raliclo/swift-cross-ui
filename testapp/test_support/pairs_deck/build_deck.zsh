@@ -65,6 +65,18 @@ apps=(${(on)${(u)${(k)image%%/*}}})
 # Numeric order: P2 before P10, P15 before P15-DARK.
 apps=(${(f)"$(print -rl -- $apps | sort -t P -k2,2n -k2,2)"})
 
+# The built app's size and date, for the caption: the binary test.zsh launched,
+# which a later build may have replaced since the screenshot was taken.
+# 說明用的 app 建置大小與日期:test.zsh 啟動的那個執行檔；擷圖之後可能已被重新建置取代。
+app_size() {
+    local bin=$1
+    if [[ ! -f $bin ]]; then
+        print -rn -- 'app size n/a: no build left'
+        return
+    fi
+    printf 'app %.1f MB, built %s' $(( $(stat -f %z $bin) / 1048576.0 )) "$(stat -f %Sm -t %F $bin)"
+}
+
 figure() {
     local app=$1 backend=$2 side=$3 label=$4 name=$5
     local img=${image[$app/$backend]} rc=${exitcode[$app/$backend]}
@@ -77,7 +89,9 @@ figure() {
     local w=$(sips -g pixelWidth $repo/$img | awk '/pixelWidth/ {print $2}')
     local h=$(sips -g pixelHeight $repo/$img | awk '/pixelHeight/ {print $2}')
     local stamp=${${img:t:r}##*-final-}
-    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · $((w / 2)) × $((h / 2)) pt · $stamp · $(( ($(wc -c < $jpg) + 512) / 1024 )) KB</figcaption></figure>"
+    local bin=$repo/testapp/output/$app
+    [[ $backend == gtk4 ]] && bin+=-gtk4
+    print -r -- "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · $((w / 2)) × $((h / 2)) pt · $stamp · $(app_size $bin)</figcaption></figure>"
 }
 
 {

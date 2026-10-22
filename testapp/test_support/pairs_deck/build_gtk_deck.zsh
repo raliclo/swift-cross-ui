@@ -48,6 +48,15 @@ for side in win wsl; do
     done < <(csv2 -r -i $file)
 done
 
+# The built app sizes for the captions. Windows: Pn-gtk4.exe here. WSL: the Linux
+# binaries in the WSL checkout, a separate copy, read with stat through wsl.exe.
+# 說明用的 app 建置大小。Windows:此處的 Pn-gtk4.exe。WSL:WSL checkout(另一份拷貝)裡的 Linux 執行檔，經 wsl.exe 以 stat 讀取。
+typeset -A wsl_bytes wsl_mtime
+while read -r name bytes mtime; do
+    wsl_bytes[$name]=$bytes
+    wsl_mtime[$name]=$mtime
+done < <(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui/testapp/output -- sh -c 'stat -c "%n %s %Y" P* 2>/dev/null')
+
 typeset -A mac_src mac_caption
 while IFS=$'\t' read -r app src caption; do
     mac_src[$app]=$src
@@ -60,6 +69,16 @@ apps=(${(u)apps})
 # 數字順序:P2 在 P10 之前,P15 在 P15-DARK 之前。
 apps=(${(f)"$(printf '%s\n' $apps | sort -t P -k2,2n -k2,2)"})
 
+# "app 13.7 MB, built 2026-10-21" from a byte count and an mtime, or n/a without them.
+# 由位元組數與 mtime 得出「app 13.7 MB, built 2026-10-21」;沒有就是 n/a。
+app_size() {
+    if [[ -z ${1:-} ]]; then
+        printf '%s' 'app size n/a: no build left'
+        return
+    fi
+    printf 'app %.1f MB, built %s' $(( $1 / 1048576.0 )) "$(date -d @$2 +%F)"
+}
+
 figure() {
     local app=$1 side=$2 label=$3 name=$4
     local img=${image[$app/$side]} rc=${exitcode[$app/$side]}
@@ -71,7 +90,14 @@ figure() {
     ffmpeg -y -loglevel error -i $repo/$img -vf scale=-2:900 -q:v 4 $jpg
     local size=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x $repo/$img)
     local stamp=${${img:t:r}##*-final-}
-    printf '%s\n' "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · ${size/x/ × } px · $stamp · $(( ($(wc -c < $jpg) + 512) / 1024 )) KB</figcaption></figure>"
+    local appsize
+    if [[ $side == win ]]; then
+        local exe=$repo/testapp/output/$app-gtk4.exe
+        if [[ -f $exe ]]; then appsize=$(app_size $(stat -c '%s %Y' $exe)); else appsize=$(app_size); fi
+    else
+        appsize=$(app_size ${wsl_bytes[$app]:-} ${wsl_mtime[$app]:-})
+    fi
+    printf '%s\n' "<figure><img data-src=\"img/$side-${(L)app}.jpg?v=$stamp\" alt=\"$app on $label\"><figcaption><b>$label</b> $name · ${size/x/ × } px · $stamp · $appsize</figcaption></figure>"
 }
 
 mac_figure() {
