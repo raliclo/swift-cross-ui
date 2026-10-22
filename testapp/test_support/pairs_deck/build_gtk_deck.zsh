@@ -39,6 +39,11 @@ mkdir -p $out/img
 # Newest record per app and side: later records win. Read through csv2 as JSON,
 # never split on commas (the rule for every CSV here; this loop did until 2026-10-22).
 # 每支 app 每一邊最新的紀錄：較晚的紀錄勝出。經由 csv2 以 JSON 讀取，從不以逗號切割(本樹所有 CSV 的規則；這個迴圈到 2026-10-22 前都是切逗號)。
+# `tr -d '\r'`: jq.exe on Windows (winget jqlang.jq 1.8.2) ends every line in CRLF, so
+# each image path kept a CR, `-f` found none of them, and all 116 slides read "no
+# screenshot" for both sides -- with rc=0. Measured 2026-10-22.
+# `tr -d '\r'`:Windows 上的 jq.exe(winget jqlang.jq 1.8.2)每行以 CRLF 結尾，於是每條影像路徑都帶著一個 CR,
+# `-f` 一個也找不到,116 頁兩邊全是「no screenshot」——而且 rc=0。2026-10-22 實測。
 typeset -A image exitcode
 for side in win wsl; do
     file=$repo/testapp/output/gtk-pairs-${side}.csv2
@@ -46,7 +51,7 @@ for side in win wsl; do
     while IFS=$'\t' read -r app rc img; do
         image[$app/$side]=$img
         exitcode[$app/$side]=$rc
-    done < <(csv2 -r --json -i $file | jq -r 'select(.fields) | .fields | [.app, .exit, .image] | @tsv')
+    done < <(csv2 -r --json -i $file | jq -r 'select(.fields) | .fields | [.app, .exit, .image] | @tsv' | tr -d '\r')
 done
 
 # The built app sizes for the captions. Windows: Pn-gtk4.exe here. WSL: the Linux

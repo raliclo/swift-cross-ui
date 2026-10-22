@@ -127,6 +127,19 @@ apt-get install -y --no-install-recommends \
 # backend 的算繪缺陷，而非缺少套件。Windows 端不受影響，因為它使用含 CJK 的系統字型。
 apt-get install -y --no-install-recommends fonts-noto-cjk
 
+# Colour emoji font, for the same reason in a different block of Unicode. Noto
+# CJK has no emoji, and a stock WSL image has no emoji font at all: measured
+# 2026-10-22, `fc-list | grep -ci emoji` answered 0. GTK then draws each emoji
+# as a box holding its hex code point (U+1F4CD shows as "01F / 4CD"), which
+# P103 does in every cell of its picker. Again nothing errors, and again the
+# Windows side is unaffected because Segoe UI Emoji ships with the system.
+# 彩色 emoji 字型，理由相同，只是換了一段 Unicode。Noto CJK 不含 emoji，而原始的 WSL
+# 映像完全沒有 emoji 字型：2026-10-22 實測 `fc-list | grep -ci emoji` 為 0。GTK 於是
+# 把每個 emoji 畫成一個寫著十六進位碼位的方框(U+1F4CD 顯示為「01F / 4CD」),P103 的
+# 選擇器每一格都是如此。同樣不會有任何錯誤訊息；Windows 端同樣不受影響，因為系統內建
+# Segoe UI Emoji。
+apt-get install -y --no-install-recommends fonts-noto-color-emoji
+
 # PulseAudio client tools. Not needed to play audio -- libpulse is already
 # pulled in by ffmpeg -- but without them there is no way to ask whether the
 # audio server is even reachable, and that is the question that matters here.
