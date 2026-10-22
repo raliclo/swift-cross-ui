@@ -117,9 +117,19 @@ if [ "$host_kind" = mac ]; then
     build_step="cd $repo_root && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 | grep -E 'error:|complete!'"
     gui_target=macos
 else
-    wsl() {
-        MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "$1"
-    }
+    # Already inside WSL (capture_gtk.zsh --wsl runs there): run the step here.
+    # Going back out through wsl.exe from inside WSL failed the appCache checks
+    # twice on 2026-10-22 ("index has two headers and one record: expected 3,
+    # got 0") while the same script from Windows passed.
+    # 已經在 WSL 裡面(capture_gtk.zsh --wsl 就在那裡跑):就在這裡執行。2026-10-22 從 WSL 內部再經 wsl.exe 繞出去，appCache
+    # 檢查兩次都失敗(「index has two headers and one record:expected 3, got 0」),同一支腳本從 Windows 執行則通過。
+    if [ "$host_kind" = other ]; then
+        wsl() { zsh -lc "$1"; }
+    else
+        wsl() {
+            MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "$1"
+        }
+    fi
     cache_dir='$HOME/.cache/P26/appCache'
     app_dir='$HOME/proj/swift-cross-ui/testapp/output'
     actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.actions'

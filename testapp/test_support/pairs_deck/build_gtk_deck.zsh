@@ -4,7 +4,7 @@
 # to each of the other two. Same page as the GTK / macOS deck (build_deck.zsh):
 # template-head.html and template-tail.html with their @@TOKENS@@ filled in.
 #
-#   zsh testapp/test_support/pairs_deck/build_gtk_deck.zsh OUTDIR MAC_TSV
+#   zsh testapp/test_support/pairs_deck/build_gtk_deck.zsh OUTDIR MAC_TSV [NOTES_JSON]
 #   zsh testapp/test_support/pairs_deck/build_gtk_deck.zsh --help
 #
 # Windows and WSL come from capture_gtk.zsh: the newest record per app in
@@ -15,6 +15,7 @@
 # per app, the image already published in the GTK / macOS deck and its caption
 # (app, image path there, caption), and the publish copies those images as
 # img/mac-pN.jpg. The chip counts the sides that have a screenshot.
+# NOTES_JSON adds one line per slide on how Windows and WSL differ from macOS.
 #
 # 產生 GTK 三方對照簡報：每支測試 app 一頁,GtkBackend 在 Windows、WSL 與 macOS 上並排,WSL 放中間，使它分別
 # 緊鄰另外兩者。頁面與 GTK / macOS 簡報(build_deck.zsh)相同：填好 @@TOKENS@@ 的 template-head.html 與
@@ -29,11 +30,27 @@ script_path=${0:A}
 here=${script_path:h}
 repo=${here:h:h:h}
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then
-    sed -n '2,17p' $script_path | sed 's/^# \{0,1\}//'
+    sed -n '2,18p' $script_path | sed 's/^# \{0,1\}//'
     exit 0
 fi
 out=${1:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV}
-mac_tsv=${2:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV}
+mac_tsv=${2:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV [NOTES_JSON]}
+# NOTES_JSON, optional: {"P10": "how Windows and WSL differ from macOS", ...}, one
+# line per slide under the screenshots (gtk-vs-macos-notes.json beside this script,
+# written 2026-10-22 from the three screenshots of every slide). The screenshots
+# shrink from 900 to 820 px high to make room; a 1060 px slide has none otherwise.
+# Read through jq, with CR stripped for jq.exe as above.
+# NOTES_JSON(可省略):{"P10": "Windows 與 WSL 和 macOS 的差異", ...},每頁截圖下方一行(本腳本旁的 gtk-vs-macos-notes.json,
+# 2026-10-22 依每頁三張截圖寫成)。截圖高度由 900 縮為 820 px 以騰出空間；否則 1060 px 的投影片沒有位置。經 jq 讀取，並同上去掉 jq.exe 的 CR。
+notes_json=${3:-}
+img_h=900
+typeset -A cmp_note
+if [[ -n $notes_json ]]; then
+    img_h=820
+    while IFS=$'\t' read -r app text; do
+        cmp_note[$app]=$text
+    done < <(jq -r 'to_entries[] | [.key, .value] | @tsv' $notes_json | tr -d '\r')
+fi
 mkdir -p $out/img
 
 # Newest record per app and side: later records win. Read through csv2 as JSON,
@@ -138,8 +155,8 @@ mac_figure() {
     head=${head//@@BENCH_DARK@@/#1f1b33}
     head=${head//@@MUTED@@/#d8d3ee}
     head=${head//@@RULE@@/#7d74ad}
-    head=${head//@@IMG_SIZE@@/width: 440px; height: 900px; object-fit: contain; object-position: top;}
-    head=${head//@@TILE_RATIO@@/440 \/ 900}
+    head=${head//@@IMG_SIZE@@/width: 440px; height: ${img_h}px; object-fit: contain; object-position: top;}
+    head=${head//@@TILE_RATIO@@/440 \/ $img_h}
     printf '%s\n' $head
     printf '%s\n' '<section class="cover">'
     printf '%s\n' '  <h1>GTK on Windows, WSL and macOS</h1>'
@@ -159,7 +176,13 @@ mac_figure() {
         printf '%s\n' "<header><h2>$app</h2><span class=\"chip $c\">$count of 3</span><p class=\"note\"></p></header>"
         printf '%s\n' '<div class="pair">'
         printf '%s\n' $body
-        printf '%s\n' '</div></section>'
+        printf '%s\n' '</div>'
+        if [[ -n ${cmp_note[$app]:-} ]]; then
+            n=${cmp_note[$app]}
+            n=${n//&/&amp;}; n=${n//</&lt;}; n=${n//>/&gt;}
+            printf '%s\n' "<p class=\"cmp\"><b>vs macOS</b> $n</p>"
+        fi
+        printf '%s\n' '</section>'
     done
     tail=$(<$here/template-tail.html)
     tail=${tail//@@SLIDE_W@@/1460}

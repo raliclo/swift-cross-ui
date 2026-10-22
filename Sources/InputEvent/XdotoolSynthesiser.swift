@@ -359,10 +359,24 @@
             // process and `focus "P81 window B"` picked window A (2026-10-20).
             // `--all`:同時給 `--pid` 與 `--name` 時,xdotool 3.20160805 預設以 OR 結合條件(`--any`),
             // 於是列出本行程的每一個視窗,`focus "P81 window B"` 選到了視窗 A(2026-10-20)。
-            let listing =
-                (try? capture(["search", "--all", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ??
-                ""
-            let matches = listing.split(whereSeparator: \.isNewline).map(String.init)
+            // Waits up to 5 s for the window, polling every 0.1 s. A window the
+            // app has just been asked to open is not mapped at once: in the WSL
+            // sweep of 2026-10-22 P81's window B was still missing 3 s after the
+            // click (Windows was building at the time) and the row failed, while
+            // two runs on a quiet machine found it. Failing on the first look made
+            // the file's own sleep the only margin.
+            // 最多等 5 秒，每 0.1 秒查一次。剛被要求開啟的視窗不會立刻 map:2026-10-22 的 WSL sweep 中，P81 的視窗 B
+            // 在點擊 3 秒後仍不存在(當時 Windows 正在建置),這一列因而失敗；機器閒置時的兩次則都找到了。第一眼找不到就失敗，
+            // 等於只剩檔案自己的 sleep 當餘裕。
+            var matches: [String] = []
+            for attempt in 0..<50 {
+                let listing =
+                    (try? capture(["search", "--all", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ??
+                    ""
+                matches = listing.split(whereSeparator: \.isNewline).map(String.init)
+                if !matches.isEmpty || attempt == 49 { break }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
 
             guard let window = matches.first else {
                 // The visible titles are listed, so a mismatch is one line to
@@ -435,20 +449,24 @@
             return focusedWindow.isEmpty ? nil : focusedWindow
         }
 
-        /// Clears the remembered focus before anything is measured.
+        /// Clears the remembered focus when a replay ends, so a second replay in
+        /// the same process does not start pointed at the first one's window --
+        /// `ownWindow()` reads this before anything else.
         ///
-        /// The only reason this override exists -- the protocol's default does
-        /// nothing and that was right until a `focus` row could leave state behind.
-        /// Two replays in one process would otherwise have the second start pointed
-        /// at the first one's window, and `ownWindow()` reads this before it reads
-        /// anything else.
+        /// At the end, not in `prepareForReplay`, where it was until 2026-10-22.
+        /// The replay loop calls `prepareForReplay` again mid-file when the target
+        /// window changes, and a `focus` row changes it: so the focus was forgotten
+        /// the moment it was taken, the re-measure returned the first window, and
+        /// P81's click meant for window B landed on B's empty area in A's
+        /// coordinates. Its log said "target window changed" with A's frame both
+        /// times; only a desktop capture showed that no sheet ever opened.
         ///
-        /// 在任何量測開始之前,清除被記住的焦點。
-        ///
-        /// **這個覆寫存在的唯一理由**——協定的預設實作什麼都不做,而在「一列 `focus` 會留下狀態」之前,
-        /// 那是對的。否則同一行程中的第二次重放,會從「指向第一次那個視窗」的狀態開始,
-        /// 而 `ownWindow()` 讀它的時機早於讀任何其他東西。
-        public func prepareForReplay(_ actions: [InputAction]) throws {
+        /// 重放結束時清除被記住的焦點，使同一行程中的第二次重放不會從「指向第一次那個視窗」開始——`ownWindow()` 最先讀它。
+        /// 放在結束時，而不是 2026-10-22 之前所在的 `prepareForReplay`:目標視窗改變時，重放迴圈會在檔案中途再呼叫一次
+        /// `prepareForReplay`,而 `focus` 列正會改變目標；於是焦點一取得就被忘掉，重新量測回到第一個視窗，P81 要給視窗 B
+        /// 的點擊以 A 的座標落在 B 的空白處。log 兩次都寫「target window changed」,frame 卻都是 A 的；只有桌面截圖看得出
+        /// sheet 從來沒有打開。
+        public func finishReplay() {
             Self.forgetFocus()
         }
 

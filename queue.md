@@ -128,7 +128,7 @@ entry is closed.
     的文字)。P10:Windows 上的 GTK 1/1/1;WSLg 上的 GTK 1/1/1(兩次；剛建置完的第一次只有 Covered 生效，三個位置相同);
     WinUI 1/0/1,其中的 0 不是定位器的問題：以座標點擊的 `actions/win/P10-hit-testing.actions` 在 WinUI 上同樣讓
     Covered 停在 0。
-  - [ ] **WinUI: a transparent overlay swallows the click meant for the button under it.**
+  - [x] **WinUI: a transparent overlay swallows the click meant for the button under it.**
     P10's "Click me too" sits under a `Color.clear` overlay; on WinUI a click there
     leaves Covered clicks at 0, by `taplabel` and by coordinates alike (2026-10-22),
     while GTK on Windows, GTK under WSLg and AppKit all count it. Likely a XAML
@@ -137,7 +137,12 @@ entry is closed.
     WinUI:透明覆蓋層吞掉了要給下方按鈕的點擊。P10 的「Click me too」上方蓋著 `Color.clear`;在 WinUI 上，不論用
     `taplabel` 或座標點擊，Covered 都停在 0(2026-10-22),而 Windows 上的 GTK、WSLg 上的 GTK 與 AppKit 都有計數。可能是
     XAML 的命中測試規則(Transparent 筆刷會被命中,null 筆刷不會);尚未調查。
-  - [ ] **WSL sweep of 2026-10-22, three leftovers.** All 134 WSL action files ran
+    **FIXED 2026-10-22:** WinUIBackend.setColor gives a fully transparent colour no
+    brush (null background), so XAML lets the pointer through. P10 on WinUI: Covered
+    clicks 1 by `taplabel` and by coordinates.
+    **2026-10-22 已修正:** WinUIBackend.setColor 對完全透明的顏色不給筆刷(null 背景),XAML 便讓指標穿過。WinUI 上的 P10:
+    `taplabel` 與座標點擊的 Covered 都是 1。
+  - [ ] **WSL sweep of 2026-10-22, three leftovers (P81 and P26 fixed; P6-v2 open).** All 134 WSL action files ran
     under X11 with `GTK_CSD=1` (`sweep_drive_wsl.zsh`, adaptive showtime and
     `# expect:` checks); all replayed to the end except one P81 run (below), and
     of the 14 that declare an expectation, the 13 the sweep can judge were met (P54's is `expect: screenshot`, judged by eye). Three need a look:
@@ -150,6 +155,19 @@ entry is closed.
       then replayed to the end twice. Window B can take longer than the file's
       3 s; and the final capture is of window A only, so the sheet's placement
       is not in the image.
+      **FIXED 2026-10-22, and "replayed to the end twice" above was wrong.** Those
+      runs never pressed the sheet button: XdotoolSynthesiser.prepareForReplay
+      forgot the focused window, and the replay loop calls it again when `focus`
+      changes the target, so window B's click used window A's geometry (the log
+      showed A's frame after "target window changed"). The forget moved to
+      finishReplay; `focus` also waits up to 5 s for the window; test_P81.zsh sets
+      TEST_FINAL_CAPTURE=desktop. A desktop capture now shows "sheet from window
+      B" over window B. P1-open-root-sheet, the only other WSL file with a `focus`
+      row, re-measures sheet and main window correctly and still passes.
+      **2026-10-22 已修正，且上面「之後兩次都跑完」是錯的。** 那兩次從未按到 sheet 按鈕:XdotoolSynthesiser.prepareForReplay
+      把聚焦的視窗忘掉，而 `focus` 改變目標時重放迴圈會再呼叫它，於是給視窗 B 的點擊用了視窗 A 的座標。清除改到 finishReplay;
+      `focus` 也會等視窗最多 5 秒;test_P81.zsh 設定 TEST_FINAL_CAPTURE=desktop。桌面截圖現在看得到視窗 B 上的「sheet from
+      window B」。另一個有 `focus` 列的 WSL 檔 P1-open-root-sheet 仍然通過。
     - P26 from inside WSL: `capture_gtk.zsh --wsl P26` run IN WSL fails twice at
       test_P26.zsh's appCache checks ("index has two headers and one record:
       expected 3, got 0") and skips the GUI run, while the same command run
@@ -158,6 +176,9 @@ entry is closed.
       taken from Windows.
       P26 在 WSL 內部執行 capture_gtk.zsh 時，兩次都在 test_P26.zsh 的 appCache 檢查失敗並略過 GUI;同一個指令從 Windows 端
       執行則通過並拍到。test_P26.zsh 自己會呼叫 wsl.exe,在 WSL 內執行等於經 interop 繞出去再回來；簡報的截圖改從 Windows 端拍。
+      **FIXED 2026-10-22:** test_P26.zsh runs its steps with `zsh -lc` when it is
+      already inside WSL; `capture_gtk.zsh --wsl P26` in WSL then exits 0.
+      **2026-10-22 已修正:** test_P26.zsh 已在 WSL 內時直接以 `zsh -lc` 執行；在 WSL 內的 capture_gtk.zsh P26 以 0 結束。
     2026-10-22 的 WSL sweep:134 個 WSL 動作檔全部以 X11 加 `GTK_CSD=1` 跑過，除了 P81 的一次之外都重放到結尾;宣告通過條件的 14 個中，sweep 能判定的 13 個
     全部 met(P54 是 `expect: screenshot`,靠人看)。剩兩項待查:P6-v2-transport-toggles 重放完成，但最後那次截圖找不到視窗，`GTK_CSD` 開或關皆然(一般執行正常，
     簡報不受影響);P81 在 sweep 中失敗一次(視窗 B 晚於 3 秒才出現，當時 Windows 正在建置 P75),之後兩次都跑完，但最後截圖只拍到

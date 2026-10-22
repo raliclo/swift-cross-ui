@@ -1331,6 +1331,19 @@ public final class WinUIBackend:
         to color: SwiftCrossUI.Color.Resolved
     ) {
         let canvas = widget as! Canvas
+        // A fully transparent colour gets no brush at all. XAML hit-tests any
+        // element with a brush, Transparent included, and only a null
+        // background lets the pointer through; so `Color.clear` laid over a
+        // button swallowed its clicks here, while GTK on Windows, GTK under
+        // WSLg and AppKit all pass them on. Measured 2026-10-22 on P10: Covered
+        // clicks stayed at 0 on WinUI by taplabel and by coordinates alike.
+        // 完全透明的顏色不給筆刷。XAML 會對任何有筆刷的元素做命中測試(Transparent 也算),只有 null 背景會讓指標穿過;
+        // 所以蓋在按鈕上的 `Color.clear` 在這裡吃掉了點擊，而 Windows 上的 GTK、WSLg 上的 GTK 與 AppKit 都會讓點擊穿過。
+        // 2026-10-22 於 P10 實測:WinUI 上不論以 taplabel 或座標點擊，Covered 都停在 0。
+        guard color.opacity > 0 else {
+            canvas.background = nil
+            return
+        }
         let brush = WinUI.SolidColorBrush()
         brush.color = color.uwpColor
         canvas.background = brush

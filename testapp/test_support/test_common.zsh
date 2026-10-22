@@ -12,6 +12,15 @@ script_dir="${support_dir:h}"
 script_path="${0:a}"
 app="${TEST_APP:?TEST_APP is required}"
 title="${TEST_TITLE:-$app}"
+# The final screenshot is of the app's window by title, unless
+# TEST_FINAL_CAPTURE=desktop. That is for a result that lives in another window:
+# P81's pass condition is a sheet over its second window, and a capture of
+# window A by title could never show it (2026-10-22). The 1 s and timeout
+# captures stay on the window either way.
+# 最後那張截圖依標題拍 app 的視窗，除非設了 TEST_FINAL_CAPTURE=desktop。那是給「結果在另一個視窗裡」的情況用的:P81 的
+# 通過條件是第二個視窗上的 sheet,依標題拍視窗 A 永遠拍不到它(2026-10-22)。1 秒與逾時的截圖不論如何都拍視窗。
+final_window=(-w "$title")
+[ "${TEST_FINAL_CAPTURE:-}" = desktop ] && final_window=()
 log_name="${TEST_LOG_NAME:-${app:l}-debug-events.log}"
 marker="${TEST_MARKER:-}"
 timeout_seconds="${TEST_TIMEOUT_SECONDS:-30}"
@@ -1362,7 +1371,7 @@ run_windows() {
     capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_windows; then
         showtime "Windows $app"
-        capture -d 1 -w "$title" "$label-final"
+        capture -d 1 "${final_window[@]}" "$label-final"
     else
         capture -d 0 -w "$title" "$label-timeout"
     fi
@@ -1641,7 +1650,7 @@ run_wsl() {
     capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_wsl; then
         showtime "WSLg $app"
-        capture -d 1 -w "$title" "$label-final"
+        capture -d 1 "${final_window[@]}" "$label-final"
     else
         capture -d 0 -w "$title" "$label-timeout"
     fi
@@ -1857,7 +1866,7 @@ run_macos() {
             printf ' %ss\n' "$replay_waited"
         fi
         showtime "macOS $app"
-        capture -d 1 -w "$title" "$label-final"
+        capture -d 1 "${final_window[@]}" "$label-final"
     else
         capture -d 0 -w "$title" "$label-timeout"
     fi

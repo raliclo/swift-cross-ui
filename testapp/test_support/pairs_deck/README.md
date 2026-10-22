@@ -158,3 +158,21 @@ GTK 三方簡報 macOS 那一欄的說明取自 MAC_TSV,而這個檔由 `build_d
 2026-10-22 三份頁面都以當時量到的大小直接更新(先前一版放的是圖片 JPEG 大小，已改掉)。GTK / macOS 的擷圖是在 M6(192.168.213.177)
 拍的，它 10-18/19 的建置都還在(113 支 `Pn-gtk4`),兩份 GTK 簡報應量那些。當天數到的「108 支只剩 30 支」是 M4 的 checkout
 (`/Volumes/Windows/proj_Win`,經 multissh 讀取),那裡的 GTK 建置多已清掉;M4 同日補建了缺的 83 支中的 82 支(P6 依設計沒有 GTK 版)。
+
+## Notes against macOS (GTK three-way deck)
+
+`build_gtk_deck.zsh OUTDIR MAC_TSV gtk-vs-macos-notes.json` puts one line under
+each slide's screenshots saying how Windows and WSL differ from macOS, and shrinks
+the screenshots from 900 to 820 px high to make room. The notes were written on
+2026-10-22 from the three screenshots of every slide (116 notes; 58 read "Matches
+macOS apart from window chrome and scale"). They describe those captures, so a
+recapture makes the matching note stale: re-read the three images before
+publishing a slide whose screenshot changed. Count them with
+`jq length gtk-vs-macos-notes.json`.
+
+## 與 macOS 的比較筆記(GTK 三方簡報)
+
+`build_gtk_deck.zsh OUTDIR MAC_TSV gtk-vs-macos-notes.json` 會在每頁截圖下方加一行，說明 Windows 與 WSL 和 macOS
+的差異，並把截圖高度由 900 縮為 820 px 以騰出空間。筆記於 2026-10-22 依每頁三張截圖寫成(共 116 則；其中 58 則是
+「Matches macOS apart from window chrome and scale」)。它們描述的是那幾張截圖，所以重拍之後對應的筆記就會過期：截圖有變的
+那一頁，發布前請重看三張圖。數量用 `jq length gtk-vs-macos-notes.json` 計算。
