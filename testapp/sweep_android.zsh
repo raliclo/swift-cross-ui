@@ -112,8 +112,8 @@ export SCUI_UPDATE_STATS=1
 stats_csv="$script_dir/output/update-stats-android.csv2"
 if [ "$fresh" -eq 1 ] || [ ! -f "$out_csv" ]; then
     csv2_new "$out_csv" \
-        "app,scenario,build,launched,screenshots,content_box,overflow,note" \
-        "應用程式,情境,建置,已啟動,截圖數,內容框,溢出,備註"
+        "app,scenario,build,launched,screenshots,content_box,overflow,device,note" \
+        "應用程式,情境,建置,已啟動,截圖數,內容框,溢出,裝置,備註"
     rm -f "$stats_csv"
 fi
 
@@ -286,6 +286,24 @@ if ! device_ready; then
     done
     print "==> emulator ready"
 fi
+# The AVD every row ran on, before `note` (2026-10-22), asked of the running
+# emulator: it may have been up before this sweep, when avd_name is never set.
+# Android files split between the phone AVD (absolute phone coordinates) and the
+# tablet one, and the CSV did not say which a row measured. A sweep CSV written
+# before the column gets it here, filled `unrecorded`, so rows never go ragged.
+# 每一列執行所在的 AVD,位於 `note` 之前(2026-10-22),向執行中的模擬器詢問：它可能在本次 sweep 之前就已開著，
+# 那時 avd_name 不會被設定。Android 檔分成手機 AVD(手機絕對座標)與平板 AVD,而 CSV 不曾說出某列量的是哪一台。
+# 在本欄位之前寫的 sweep CSV 在此補上該欄、填 `unrecorded`,列的欄數因此不會參差。
+# No `| head` here or below: under pipefail a reader that stops early fails the
+# pipeline (test_ios.zsh, 2026-10-22). / 這裡與下方都不用 `| head`:pipefail 之下提早結束的讀取端會讓管線失敗。
+avd_out="$("$adb" -s "$serial" emu avd name 2>/dev/null || true)"
+device="${${(f)avd_out}[1]:-}"
+device="${device%$'\r'}"
+device="${device:-${avd_name:-AVD name not read}}"
+header_json="$(csv2 -r --json -i "$out_csv" | jq -c 'select(.meta) | .meta.header')"
+if [[ $header_json != *'"device"'* ]]; then
+    csv2 -add-column 8 'device,裝置' unrecorded -i "$out_csv" --in-place >/dev/null
+fi
 
 pass=0
 fail=0
@@ -384,7 +402,7 @@ PY
     fi
 
     build_state=$([ "$built" -gt 0 ] && print ok || print FAILED)
-    append_row "$app" "$scenario" "$build_state" "$launched" "$shots" "$box" "$overflow" "$note"
+    append_row "$app" "$scenario" "$build_state" "$launched" "$shots" "$box" "$overflow" "$device" "$note"
     update_stats_record "$stats_csv" "$app" "$scenario" "$log"
     printf "%-6s %-34s %-7s %-9s %-6s %-28s %s\n" \
         "$app" "${scenario:0:33}" "$build_state" "$launched" "$shots" "$box" "$note"

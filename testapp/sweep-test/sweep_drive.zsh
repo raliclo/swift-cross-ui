@@ -243,6 +243,15 @@ run_date="$(date +%F)"
 # 的歷史檔，對下一個讀取者（也就是 coverage.zsh）而言就是一份參差不齊的檔案。
 renderer=default
 
+# The `device` column, added to results.csv2 on 2026-10-22, before `note`: the
+# machine the app ran on. Until then only some notes said which AVD, simulator
+# or host a run used, and no reader could select on it. Rows from before carry
+# `unrecorded`. Never left out, for the same reason as `renderer`.
+# `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器。在此之前只有部分備註寫了
+# 用哪台 AVD、模擬器或主機，沒有讀取者能依它篩選。之前的列填 `unrecorded`。與 `renderer` 同理，不可省略。
+device="${COMPUTERNAME:-$(hostname)}"
+device="${device//,/ }"
+
 if [ ! -f "$results" ]; then
     printf 'sweep_drive.zsh: %s is missing; it is the history file and ships with the repo\n' \
         "$results" >&2
@@ -698,9 +707,9 @@ for app in $apps; do
         # results.csv2 是在兩台機器之間逐行合併的。量測依據見該處註解。
         note_field=""
         [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
-        printf '%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+        printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
             "$run_date" "$platform" "$label" "$app" \
-            "$launch" "$replay" "$capture" "$renderer" "$note_field" \
+            "$launch" "$replay" "$capture" "$renderer" "$device" "$note_field" \
             >> "$results"
         break
     fi
@@ -1379,9 +1388,9 @@ for app in $apps; do
     # 本腳本之所以是異類，是因為它用 printf 拼出資料列而不是經由 csv2，並把引號寫死在格式字串裡。
     note_field=""
     [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
-    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
         "$run_date" "$platform" "$label" "$app" \
-        "$launch" "$replay" "$capture" "$renderer" "$note_field" \
+        "$launch" "$replay" "$capture" "$renderer" "$device" "$note_field" \
         >> "$results"
     break
     done

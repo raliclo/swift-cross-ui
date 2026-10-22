@@ -240,6 +240,13 @@ usage() { sed -n '2,193p' "$script_path" | sed 's/^# \{0,1\}//'; }
 # 曾有一個落入啟動器的 `--help`，讓一個只想要一頁文字的人等了五分鐘。
 dry_run=0
 render_mode=hw
+# The `device` column, added to results.csv2 on 2026-10-22, before `note`: the
+# machine the app ran on, as WSL names it. Rows from before carry `unrecorded`.
+# Never left out, for the same reason as the renderer column.
+# `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器(WSL 所稱的主機名)。
+# 之前的列填 `unrecorded`。與 renderer 欄同理，不可省略。
+device="$(hostname)"
+device="${device//,/ }"
 apps=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -832,7 +839,7 @@ for app in "${apps[@]}"; do
     #
     # 寫法刻意與 sweep_drive.zsh 相同：兩個驅動器把同一個欄位寫成兩種樣子，會讓解析器開始用猜的。
     csv_note="${file_label:+$file_label: }$note"
-    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$render_mode,\"${csv_note//\"/\"\"}\"" \
+    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$render_mode,$device,\"${csv_note//\"/\"\"}\"" \
         -i "$results" --in-place; then
         appended=$(( appended + 1 ))
     else

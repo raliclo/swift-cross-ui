@@ -70,6 +70,14 @@ run_date="$(date +%F)"
 # 者遇上一份參差不齊檔案的成因。
 renderer=default
 
+# The `device` column, added to results.csv2 on 2026-10-22, before `note`: the
+# machine the app ran on (this Mac's computer name). Rows from before carry
+# `unrecorded`. Never left out, for the same reason as `renderer`.
+# `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器(這台 Mac 的電腦名稱)。
+# 之前的列填 `unrecorded`。與 `renderer` 同理，不可省略。
+device="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+device="${device//,/ }"
+
 usage() { sed -n '2,9p' "$script_path" | sed 's/^# \{0,1\}//'; }
 
 dry_run=0
@@ -355,7 +363,7 @@ for app in "${apps[@]}"; do
     # 一筆記錄已被截斷的歷史檔，要等到下一個讀取者才會發現。`csv2 -append` 會在寫入前驗證輸入、
     # 讀取既有檔案以檢查其最後一筆記錄，並且只寫入所追加的位元組——在副本上實測：126 行未變、新增
     # 一行，且一個同時含有逗號與加倍引號的 note 能被原樣解析回來。
-    csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$renderer,\"${note//\"/\"\"}\"" \
+    csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$renderer,$device,\"${note//\"/\"\"}\"" \
         -i "$results" --in-place
 done
 

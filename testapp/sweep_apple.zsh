@@ -183,9 +183,21 @@ export SCUI_UPDATE_STATS=1
 today="$(date +%Y-%m-%d)"
 stats_csv="$output_dir/update-stats-$tag.csv2"
 rm -f "$stats_csv"
+# The device every row ran on, before `note` (2026-10-22): on iOS the simulator
+# test_ios.zsh boots, with its model and runtime from simctl; on macOS this Mac.
+# Without it a sweep CSV did not say which simulator it measured.
+# 每一列執行所在的裝置，位於 `note` 之前(2026-10-22):iOS 上是 test_ios.zsh 開的模擬器，機型與 runtime 取自
+# simctl;macOS 上是這台 Mac。少了它,sweep CSV 不會說出量的是哪台模擬器。
+if [ "$platform" = ios ]; then
+    sim_name="${IOS_SIM_DEVICE:-swift-cross-ui}"
+    device="$(xcrun simctl list devices -j 2>/dev/null | jq -r --arg n "$sim_name" '[.devices | to_entries[] | .key as $rt | .value[] | select(.name==$n or .udid==$n) | "\(.name) (\(.deviceTypeIdentifier | sub(".*SimDeviceType\\."; "") | gsub("-"; " ")), \($rt | sub(".*SimRuntime\\."; "") | sub("-"; " ") | gsub("-"; ".")))"] | first // empty')"
+    device="${device:-$sim_name (model not read)}"
+else
+    device="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+fi
 csv2_new "$out_csv" \
-    "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,note" \
-    "日期,平台,backend,app,動作檔,結果,結束碼,重放,擷取,秒數,擷圖,備註"
+    "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,device,note" \
+    "日期,平台,backend,app,動作檔,結果,結束碼,重放,擷取,秒數,擷圖,裝置,備註"
 
 for f in "${files[@]}"; do
     name="${f:t}"
@@ -291,7 +303,7 @@ for f in "${files[@]}"; do
 
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note" >> "$rows_file"
-    csv2_append "$out_csv" "$today" "$platform" "$backend" "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note"
+    csv2_append "$out_csv" "$today" "$platform" "$backend" "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$device" "$replay_note"
     update_stats_record "$stats_csv" "$app" "${name%.actions}" "$log"
     printf '    %-6s %-44s %-7s rc=%-3s replay=%-4s capture=%-4s %4ss\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed"
