@@ -2634,3 +2634,83 @@ date,platform,backend,app,launch,replay,capture,renderer,device,note
 2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-taplabel.actions: "
 2026-10-22,wsl,gtk4,P18,ok,ok,window,hw,Ralic-W11,P18-three-dialogs.actions: expectation met: 'open: cancelled'
 2026-10-22,mac,gtk4,P75,ok,ok,desktop,default,"Mac16,10 (Apple M4)","P75-close-the-window.actions on GtkBackend: '[P75] close requested' and the close handler line; GTK quits with its last window, so the replay now reports at exit: 'replayed ... (3 actions; the app exited during action 3, and only sleeps followed it)'. The first sweep timed out at 602 s waiting for a line the exited app could not print (p75-macos-gtk4-final-20261022-192623.png, screen: the window had closed)."
+2026-10-22,wsl,gtk4,P57,ok,ok,window,hw,Ralic-W11,"P57-lazy-list-smoke.actions: "
+2026-10-22,wsl,gtk4,P58,ok,ok,window,hw,Ralic-W11,P58-left-to-L30.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P58,ok,ok,window,hw,Ralic-W11,P58-right-to-R45.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P59,ok,ok,window,hw,Ralic-W11,P59-two-windows-one-typed.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P60,ok,ok,window,hw,Ralic-W11,P60-open-settings.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P61,ok,ok,window,hw,Ralic-W11,P61-drag-the-trough.actions: expectation met: 'editing began'
+2026-10-22,wsl,gtk4,P62,ok,ok,window,hw,Ralic-W11,"P62-save-untitled.actions: "
+2026-10-22,wsl,gtk4,P63,ok,ok,window,hw,Ralic-W11,"P63-marker-matches-global.actions: "
+2026-10-22,wsl,gtk4,P64,ok,ok,window,hw,Ralic-W11,"P64-measure-the-frame-clock.actions: "
+2026-10-22,wsl,gtk4,P65,ok,ok,window,hw,Ralic-W11,"P65-drag-the-panel.actions: "
+2026-10-22,wsl,gtk4,P66,ok,ok,window,hw,Ralic-W11,"P66-animation-samples.actions: "
+2026-10-22,wsl,gtk4,P67,ok,ok,window,hw,Ralic-W11,"P67-accessibility-names.actions: "
+2026-10-22,wsl,gtk4,P68,ok,ok,window,hw,Ralic-W11,"P68-list-the-adapters.actions: "
+2026-10-22,wsl,gtk4,P69,ok,ok,window,hw,Ralic-W11,"P69-focus-walk.actions: "
+2026-10-22,wsl,gtk4,P70,ok,ok,window,hw,Ralic-W11,"P70-focus-gtk4.actions: "
+2026-10-22,wsl,gtk4,P71,ok,ok,window,hw,Ralic-W11,"P71-shortcuts.actions: "
+2026-10-22,wsl,gtk4,P72,ok,ok,window,hw,Ralic-W11,"P72-context-menu.actions: "
+2026-10-22,wsl,gtk4,P73,ok,ok,window,hw,Ralic-W11,P73-publish-during-build.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P74,ok,ok,window,hw,Ralic-W11,P74-choose-in-every-style.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P75,ok,ok,window,hw,Ralic-W11,P75-reveal-a-file.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P76,ok,ok,window,hw,Ralic-W11,P76-projection.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P77,ok,ok,window,hw,Ralic-W11,P77-million-vertices.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P78,ok,ok,window,hw,Ralic-W11,P78-received-twice.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P79,ok,ok,window,hw,Ralic-W11,P79-show-hide-twice.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P80,ok,ok,window,hw,Ralic-W11,P80-cursor.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P81,ok,fail,window,hw,Ralic-W11,P81-sheet-from-window-b.actions: no marker configured; capture is timed; -actionfile: failed: focus 'P81 window B': no visible window of this process has
+2026-10-22,wsl,gtk4,P82,ok,ok,window,hw,Ralic-W11,P82-destructive-press.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P83,ok,ok,window,hw,Ralic-W11,P83-select-in-both-lists.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-features-alpha.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-larger.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-sample-2-spiral.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-sample-3-meander.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-sample-4-features.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-sample-5-unsupported.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P84,ok,ok,window,hw,Ralic-W11,P84-smaller.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P85,ok,ok,window,hw,Ralic-W11,P85-svg-text.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P86,ok,ok,window,hw,Ralic-W11,P86-translucent-meshes.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P87,ok,ok,window,hw,Ralic-W11,P87-svg-paint-servers.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P88,ok,ok,window,hw,Ralic-W11,P88-hover-cmd-drag.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P89,ok,ok,window,hw,Ralic-W11,P89-offset-in-overlay.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P90,ok,ok,window,hw,Ralic-W11,P90-zh-TW-wheels.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P91,ok,ok,window,hw,Ralic-W11,P91-focusable.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P92,ok,ok,window,hw,Ralic-W11,P92-edit-menu.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P92,ok,ok,window,hw,Ralic-W11,P92-select-copy-paste.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P93,ok,ok,window,hw,Ralic-W11,P93-new-submenu-and-window-list.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P94,ok,ok,window,hw,Ralic-W11,P94-undo.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P95,ok,ok,window,hw,Ralic-W11,P95-square-at-every-size.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P96,ok,ok,window,hw,Ralic-W11,P96-timing-curves.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P97,ok,ok,window,hw,Ralic-W11,P97-delay-speed-repeat.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P98,ok,ok,window,hw,Ralic-W11,P98-callbacks-and-stagger.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P99,ok,ok,window,hw,Ralic-W11,P99-timeline.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P100,ok,ok,window,hw,Ralic-W11,P100-flip.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P101,ok,ok,window,hw,Ralic-W11,P101-scroll.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P102,ok,ok,window,hw,Ralic-W11,P102-long-press-drag.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P103,ok,ok,window,hw,Ralic-W11,P103-tap-long-press.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P104,ok,ok,window,hw,Ralic-W11,P104-layout-animation.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P105,ok,ok,window,hw,Ralic-W11,P105-transitions.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P106,ok,ok,window,hw,Ralic-W11,P106-keyframes.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P107,ok,ok,window,hw,Ralic-W11,P107-motion-path.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P108,ok,ok,window,hw,Ralic-W11,P108-throw.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P109,ok,ok,window,hw,Ralic-W11,P109-style-animation.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P110,ok,ok,window,hw,Ralic-W11,P110-steps.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P111,ok,ok,window,hw,Ralic-W11,P111-steps.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P112,ok,ok,window,hw,Ralic-W11,P112-gradient-radii-and-angles.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P0,ok,ok,window,hw,Ralic-W11,P0-present-environment-alert.actions: no marker configured; capture is timed; expectation met: 'immediate alert button clicked'
+2026-10-22,wsl,gtk4,P28,ok,ok,window,hw,Ralic-W11,P28-click-through-overlay.actions: expectation met: 'underlying button clicked count=1'
+2026-10-22,wsl,gtk4,P30,ok,ok,window,hw,Ralic-W11,P30-toggle-frame-width.actions: expectation met: 'size toggled wide=true'
+2026-10-22,wsl,gtk4,P31,ok,ok,window,hw,Ralic-W11,P31-tab-and-escape.actions: expectation met: 'alert opened'
+2026-10-22,wsl,gtk4,P32,ok,ok,window,hw,Ralic-W11,P32-empty-label-button.actions: expectation met: 'empty-label button clicked'
+2026-10-22,wsl,gtk4,P33,ok,ok,window,hw,Ralic-W11,P33-hide-details.actions: expectation met: 'details expanded=false'
+2026-10-22,wsl,gtk4,P34,ok,ok,window,hw,Ralic-W11,P34-scroll-to-row-50.actions: expectation met: 'scrollTo row 50 requested'
+2026-10-22,wsl,gtk4,P35,ok,ok,window,hw,Ralic-W11,P35-increment-count.actions: expectation met: 'count=1'
+2026-10-22,wsl,gtk4,P36,ok,ok,window,hw,Ralic-W11,"P36-focus-only-no-typing.actions: "
+2026-10-22,wsl,gtk4,P44,ok,ok,window,hw,Ralic-W11,P44-clip-third-cell.actions: no marker configured; capture is timed; expectation met: 'third cell clipped: true'
+2026-10-22,wsl,gtk4,P5,ok,ok,window,hw,Ralic-W11,"P5-stacked-alerts.actions: no marker configured; capture is timed; expectation met: 'requesting A, B and C together'"
+2026-10-22,wsl,gtk4,P52,ok,ok,window,hw,Ralic-W11,"P52-scroll-to-separation.actions: "
+2026-10-22,wsl,gtk4,P54,ok,ok,window,hw,Ralic-W11,P54-press-the-refresh.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P55,ok,ok,window,hw,Ralic-W11,P55-press-the-styled-button.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P56,ok,ok,window,hw,Ralic-W11,P56-jump-to-row-59.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P6-v2,ok,ok,fail,hw,Ralic-W11,P6-v2-transport-toggles.actions: an image WAS written and rejected on content -- non-black: 0/1069776 (0.0%); rendering versus capture/bridge cause is unresolved

@@ -137,6 +137,31 @@ entry is closed.
     WinUI:透明覆蓋層吞掉了要給下方按鈕的點擊。P10 的「Click me too」上方蓋著 `Color.clear`;在 WinUI 上，不論用
     `taplabel` 或座標點擊，Covered 都停在 0(2026-10-22),而 Windows 上的 GTK、WSLg 上的 GTK 與 AppKit 都有計數。可能是
     XAML 的命中測試規則(Transparent 筆刷會被命中,null 筆刷不會);尚未調查。
+  - [ ] **WSL sweep of 2026-10-22, three leftovers.** All 134 WSL action files ran
+    under X11 with `GTK_CSD=1` (`sweep_drive_wsl.zsh`, adaptive showtime and
+    `# expect:` checks); all replayed to the end except one P81 run (below), and
+    of the 14 that declare an expectation, the 13 the sweep can judge were met (P54's is `expect: screenshot`, judged by eye). Three need a look:
+    - P6-v2-transport-toggles: the replay finishes (15 actions) but the final
+      capture finds no window, with `GTK_CSD=0` and `=1` alike, and the 1 s
+      capture is 0-4% non-black. A plain run's final capture is fine (87.8%),
+      so the deck is unaffected; something after the drop-down rows.
+    - P81-sheet-from-window-b: failed once in the sweep ("no visible window of
+      this process has title P81 window B") while Windows was building P75,
+      then replayed to the end twice. Window B can take longer than the file's
+      3 s; and the final capture is of window A only, so the sheet's placement
+      is not in the image.
+    - P26 from inside WSL: `capture_gtk.zsh --wsl P26` run IN WSL fails twice at
+      test_P26.zsh's appCache checks ("index has two headers and one record:
+      expected 3, got 0") and skips the GUI run, while the same command run
+      from Windows passes and captures. test_P26.zsh calls wsl.exe itself, so
+      running it inside WSL goes back out through interop; the deck capture was
+      taken from Windows.
+      P26 在 WSL 內部執行 capture_gtk.zsh 時，兩次都在 test_P26.zsh 的 appCache 檢查失敗並略過 GUI;同一個指令從 Windows 端
+      執行則通過並拍到。test_P26.zsh 自己會呼叫 wsl.exe,在 WSL 內執行等於經 interop 繞出去再回來；簡報的截圖改從 Windows 端拍。
+    2026-10-22 的 WSL sweep:134 個 WSL 動作檔全部以 X11 加 `GTK_CSD=1` 跑過，除了 P81 的一次之外都重放到結尾;宣告通過條件的 14 個中，sweep 能判定的 13 個
+    全部 met(P54 是 `expect: screenshot`,靠人看)。剩兩項待查:P6-v2-transport-toggles 重放完成，但最後那次截圖找不到視窗，`GTK_CSD` 開或關皆然(一般執行正常，
+    簡報不受影響);P81 在 sweep 中失敗一次(視窗 B 晚於 3 秒才出現，當時 Windows 正在建置 P75),之後兩次都跑完，但最後截圖只拍到
+    視窗 A,看不到 sheet 的位置。
   - [x] **GTK drew P89's 14 x 14 stroked Circle as a rounded square** (fixed -> completed.md (archived 2026-10-18)
 
 ## 2026-10-09 SVG in Image (user request, priority one)
