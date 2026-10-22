@@ -212,7 +212,9 @@ extension Commands {
         }
         guard let menus = backend as? any BackendFeatures.ApplicationMenus else { return }
         let standard = backend as? any BackendFeatures.StandardCommands
-        let enabled = isMenuEnabled || MenuBarSettings.isEnabled
+        let enabled =
+            isMenuEnabled || MenuBarSettings.isEnabled
+            || (standard?.showsStandardMenusByDefault ?? false)
         let layout = layout(
             appName: appName,
             defaults: enabled ? standard

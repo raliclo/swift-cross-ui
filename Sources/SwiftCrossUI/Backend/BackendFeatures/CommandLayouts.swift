@@ -26,5 +26,22 @@ extension BackendFeatures {
     public protocol StandardCommands: Core {
         func hasStandardCommand(_ command: StandardCommand) -> Bool
         func performStandardCommand(_ command: StandardCommand)
+        /// Whether the platform shows the standard menus even when the app has not
+        /// turned them on: macOS always has a menu bar with an app menu, Quit in it.
+        /// When `true` the framework hands over the default items as if
+        /// ``Scene/enableMenu(_:)`` had been called, so the app's own menus do not
+        /// take the place of the system's and leave no Quit (GtkBackend on macOS,
+        /// P71 and P92, 2026-10-23).
+        /// 即使 app 沒有打開標準選單，平台是否仍會顯示它們:macOS 一定有選單列，其中的 app 選單裡有 Quit。為 `true`
+        /// 時，框架如同呼叫過 ``Scene/enableMenu(_:)`` 一樣交出預設項目，app 自己的選單才不會取代系統的、讓 Quit
+        /// 消失(macOS 上的 GtkBackend,P71 與 P92,2026-10-23)。
+        var showsStandardMenusByDefault: Bool { get }
     }
+}
+
+extension BackendFeatures.StandardCommands {
+    /// Whether the platform shows the standard menus whether or not the app turns
+    /// them on. `false` unless a backend says otherwise.
+    /// 平台是否不論 app 有沒有打開，都會顯示標準選單。除非 backend 另有說明，否則為 `false`。
+    public var showsStandardMenusByDefault: Bool { false }
 }

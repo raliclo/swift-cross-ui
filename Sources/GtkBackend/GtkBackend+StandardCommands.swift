@@ -18,6 +18,14 @@ import SwiftCrossUI
 /// 也是這樣呼叫它們;沒有該 action 的 widget 會忽略。Services 是寫著「沒有可用服務」的子選單，Help 說明沒有說明書，
 /// Hide 把視窗最小化、Show All 把它們帶回來;在 macOS 上這些交給 application 物件。
 extension GtkBackend: BackendFeatures.StandardCommands {
+    /// On macOS the GTK menu bar model becomes the screen's menu bar, whose first
+    /// menu is the app menu. Without the default items that menu held only the
+    /// app's own commands -- no About, Hide or Quit (P92) -- so they are always on
+    /// there, as AppKit has them.
+    /// 在 macOS 上 GTK 的選單列模型成為螢幕的選單列，而其第一個選單就是 app 選單。少了預設項目時，那個選單只有 app
+    /// 自己的指令——沒有 About、Hide 或 Quit(P92)——所以在那裡一律打開，與 AppKit 相同。
+    public var showsStandardMenusByDefault: Bool { Self.isDarwin }
+
     public func hasStandardCommand(_ command: StandardCommand) -> Bool {
         switch command {
             // Hide Others needs the other apps' windows, which GTK cannot reach; on macOS the
