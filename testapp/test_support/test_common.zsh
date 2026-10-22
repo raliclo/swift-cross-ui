@@ -149,7 +149,16 @@ posix_path() {
 # 命令列。P7 需要 SCUI_DEBUG_SPLIT：少了它仍會回報所有內容尺寸，但看不到 layout
 # 系統交給 backend 的上下界，也看不到分隔線最後停在哪——而內容寬度並不等於 pane
 # 寬度，把兩者混為一談曾對 #556 造成兩次自信但錯誤的判斷。
-app_env="${TEST_APP_ENV:-}"
+#
+# GtkBackend runs dark by default, on Windows, under WSL and on the Mac alike, so
+# the three captures of one app differ in layout rather than in theme: on
+# 2026-10-22 WSL drew P0 and P44 light while the other two were dark. Set
+# SCUI_GTK_COLOR_SCHEME=light, or =system to follow the host, to change it. Only
+# GtkBackend reads the variable; WinUI, AppKit, UIKit and Android ignore it.
+# GtkBackend 預設以深色執行，Windows、WSL 與 Mac 皆然，使同一支 app 的三張擷圖只差在版面而非主題:
+# 2026-10-22 WSL 把 P0 與 P44 畫成淺色，另外兩邊是深色。要改就設 SCUI_GTK_COLOR_SCHEME=light,或 =system
+# 跟隨主機。只有 GtkBackend 讀這個變數;WinUI、AppKit、UIKit 與 Android 都不理會。
+app_env="SCUI_GTK_COLOR_SCHEME=${SCUI_GTK_COLOR_SCHEME:-dark}${TEST_APP_ENV:+ $TEST_APP_ENV}"
 
 # An optional second log to clear before the run and include in the summary.
 # Diagnostics that live in the library write their own file rather than the

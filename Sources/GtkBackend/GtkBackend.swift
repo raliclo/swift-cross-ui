@@ -3105,6 +3105,7 @@ public final class GtkBackend:
     /// 停留於 Adwaita light。在 Linux 上，GTK 主題「就是」桌面的設定，因此讀取主題顏色便已回答了
     /// 這個問題，無須另行查詢。
     private var systemColorScheme: ColorScheme? {
+        if let forced = Self.forcedColorScheme { return forced }
         #if os(Windows)
             // HKCU\...\Themes\Personalize\AppsUseLightTheme, the value the
             // Settings app writes for "Choose your default app mode": 0 is dark,
@@ -3149,6 +3150,25 @@ public final class GtkBackend:
             return nil
         #endif
     }
+
+    /// A light/dark choice forced through `SCUI_GTK_COLOR_SCHEME` (`dark` or
+    /// `light`), which outranks ``systemColorScheme``'s platform reading; any
+    /// other value, or none, leaves the platform in charge. The test harness
+    /// sets it to `dark` by default so GtkBackend draws the same scheme on
+    /// Windows, under WSL and on the Mac: on 2026-10-22 the three-way deck had
+    /// Windows and the Mac dark while WSL was light on P0 and P44, which made
+    /// the comparison about the theme rather than the layout.
+    ///
+    /// 經 `SCUI_GTK_COLOR_SCHEME`(`dark` 或 `light`)強制指定的淺色／深色，優先於 ``systemColorScheme`` 對平台的讀取；
+    /// 其他值或未設定時，仍由平台決定。測試工具預設設為 `dark`,讓 GtkBackend 在 Windows、WSL 與 Mac 上畫同一種配色：
+    /// 2026-10-22 的三方簡報中 Windows 與 Mac 是深色，WSL 在 P0 與 P44 卻是淺色，比較的變成主題而不是版面。
+    private static let forcedColorScheme: ColorScheme? = {
+        switch ProcessInfo.processInfo.environment["SCUI_GTK_COLOR_SCHEME"] {
+            case "dark": return .dark
+            case "light": return .light
+            default: return nil
+        }
+    }()
 
     #if os(Linux)
         /// Windows' "default app mode" when this process runs under WSL, else nil.
