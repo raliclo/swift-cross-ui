@@ -19,5 +19,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 別的 app，而本檔的觸控只注入 P75 自己的視窗——重放記錄就這麼說，第一次執行按 SAVE 什麼也沒碰到。
 # 與 P72 的彈出選單相同，於下方的長 sleep 期間執行上面那一行 adb 指令。
 sleep,,,,,,1500000,let P75 render,android
-click,195,305,,left,,,Save...,android
+taplabel,,,,,Save...,,"Save... by label: the tap at (195, 305) missed on 2026-10-22 while the scroll host was still settling",android
 sleep,,,,,,9000000,"the host taps SAVE (adb shell input tap 927 2274) during this wait; P75 then writes and reads back",android

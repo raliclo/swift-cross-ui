@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on macOS: Close this window -> dismissWindow(). Pass: "[P75] close requested"
+# and then "[P75] close handler: the window's view disappeared" in output/p75-actionfile.log.
+# The second line needs the view graph to be released when the window closes; until
+# 2026-10-22 the incoming-URL handler held it strongly from the app delegate, and an
+# A/B run that day printed only the first line with the old capture.
+#
+# P75 在 macOS 上:Close this window -> dismissWindow()。通過:output/p75-actionfile.log 先有
+# "[P75] close requested",接著有 close handler 那一行。第二行需要視窗關閉時 view graph 被釋放;
+# 2026-10-22 之前收 URL 的 handler 從 app delegate 強參照著它，當天的 A/B 以舊寫法只印出第一行。
+sleep,,,,,,1500000,let P75 render,macos
+taplabel,,,,,Close this window,,dismissWindow(),macos
+sleep,,,,,,3000000,let the window close and onDisappear run,macos

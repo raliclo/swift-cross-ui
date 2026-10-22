@@ -88,8 +88,19 @@ public class ViewGraph<Root: View> {
         committedProposal = latestProposal
         self.currentRootViewResult = rootNode.commit()
         if isFirstUpdate {
-            setIncomingURLHandler? { url in
-                self.currentRootViewResult.preferences.onOpenURL?(url)
+            // **Weak**, because backends keep this handler for the life of the app
+            // (a static in UIKitBackend and WinUIBackend, the app delegate in
+            // AppKitBackend), so a strong capture kept the first window's whole view
+            // graph alive after the window closed and no `onDisappear` in it ever
+            // ran. Found 2026-10-22 on the iPad with P75's Close: WindowReference
+            // was released, and `leaks --traceTree` showed a global in the binary
+            // as the only path to the graph's root node.
+            // **弱參照**,因為各 backend 讓這個 handler 與 app 同壽(UIKitBackend 與 WinUIBackend 存在 static,
+            // AppKitBackend 存在 app delegate),強捕捉會讓第一個視窗的整個 view graph 在視窗關閉後
+            // 仍然存活，其中的 `onDisappear` 一個也不會執行。2026-10-22 在 iPad 上以 P75 的 Close 發現:
+            // WindowReference 已釋放，而 `leaks --traceTree` 顯示通往 graph 根節點的唯一路徑是 binary 裡的一個全域變數。
+            setIncomingURLHandler? { [weak self] url in
+                self?.currentRootViewResult.preferences.onOpenURL?(url)
             }
             isFirstUpdate = false
         }
