@@ -2633,3 +2633,4 @@ date,platform,backend,app,launch,replay,capture,renderer,device,note
 2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-hit-testing.actions: "
 2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-taplabel.actions: "
 2026-10-22,wsl,gtk4,P18,ok,ok,window,hw,Ralic-W11,P18-three-dialogs.actions: expectation met: 'open: cancelled'
+2026-10-22,mac,gtk4,P75,ok,ok,desktop,default,"Mac16,10 (Apple M4)","P75-close-the-window.actions on GtkBackend: '[P75] close requested' and the close handler line; GTK quits with its last window, so the replay now reports at exit: 'replayed ... (3 actions; the app exited during action 3, and only sleeps followed it)'. The first sweep timed out at 602 s waiting for a line the exited app could not print (p75-macos-gtk4-final-20261022-192623.png, screen: the window had closed)."

@@ -1834,6 +1834,22 @@ run_macos() {
                 if grep -aqE -- '-actionfile: (replayed|failed)' "$action_log" 2>/dev/null; then
                     break
                 fi
+                # **Stop when the app is gone.** A GTK app quits when its last window
+                # closes, so a file that closes it (P75-close-the-window on GtkBackend)
+                # ended the process, and this loop waited the full 600 s for a line
+                # nobody was left to print (2026-10-22). The replay now reports at a
+                # normal exit itself (ActionFileReplay.reportIfCutShort); a crash does
+                # not, and this check keeps that from costing ten minutes too. The
+                # same two names kill_existing uses.
+                # **app 不在了就停止等待。**GTK app 在最後一個視窗關閉時結束，所以一份會關掉它的檔案
+                # (GtkBackend 上的 P75-close-the-window)結束了行程，而這個迴圈為一行已經沒有人會印的字
+                # 等滿 600 秒(2026-10-22)。重放現在會在正常結束時自行回報(ActionFileReplay.reportIfCutShort);
+                # 崩潰則不會，這個檢查讓那種情況也不必耗上十分鐘。名稱與 kill_existing 用的兩個相同。
+                if ! pgrep -x debugTarget >/dev/null 2>&1 && ! pgrep -x "$app" >/dev/null 2>&1; then
+                    grep -aqE -- '-actionfile: (replayed|failed)' "$action_log" 2>/dev/null \
+                        || printf ' the app exited without a replayed or failed line;'
+                    break
+                fi
                 sleep 1
                 replay_waited=$((replay_waited + 1))
                 printf '.'

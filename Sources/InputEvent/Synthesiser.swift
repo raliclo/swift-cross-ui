@@ -318,7 +318,8 @@ extension Synthesiser {
     public func replay(_ actions: [InputAction], in geometry: WindowGeometry) throws {
         var geometry = geometry
         var identity = currentWindowIdentity()
-        for action in actions {
+        for (index, action) in actions.enumerated() {
+            ActionFileReplay.noteAction(index)
             let current = currentWindowIdentity()
             if current != 0, current != identity {
                 identity = current

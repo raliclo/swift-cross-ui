@@ -76,6 +76,79 @@ public enum ActionFileReplay {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var hasReplayed = false
 
+    /// The replay in progress, for ``reportIfCutShort()``: the file, its actions,
+    /// and the index of the action being performed. Nil before the replay starts
+    /// and after it reports `replayed` or `failed`.
+    ///
+    /// **An app may end its own process in the middle of a replay, and that can be
+    /// the thing under test.** A GTK application quits when its last window
+    /// closes, so P75's "Close this window" on GtkBackend ended the process
+    /// during the file's closing sleep and the replay never printed `replayed`.
+    /// The harness waited for that line for 600 s and the sweep recorded a
+    /// timeout, although the close and its `onDisappear` line had both happened
+    /// (macOS, 2026-10-22).
+    ///
+    /// 進行中的重放，供 ``reportIfCutShort()`` 使用：檔案、它的動作，以及正在執行的動作索引。重放開始前
+    /// 與回報 `replayed` 或 `failed` 之後為 nil。**app 可能在重放途中結束自己的行程，而那可能正是受測的
+    /// 事。**GTK 應用程式在最後一個視窗關閉時結束，所以 P75 的「Close this window」在 GtkBackend 上於檔案
+    /// 結尾的 sleep 期間結束了行程，重放從未印出 `replayed`。harness 為那一行等了 600 秒，sweep 記成逾時，
+    /// 而關閉與它的 `onDisappear` 那一行其實都已發生(macOS,2026-10-22)。
+    private nonisolated(unsafe) static var inFlight: (file: String, actions: [InputAction], index: Int)?
+
+    /// Records which action the replay is on. The replay loop calls it before
+    /// each action; it does nothing when no file replay is in progress.
+    /// 記下重放進行到哪一個動作。重放迴圈在每個動作之前呼叫；沒有檔案重放進行中時不做任何事。
+    public static func noteAction(_ index: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        if inFlight != nil { inFlight?.index = index }
+    }
+
+    /// Runs at a normal exit (`atexit`) and says how the replay ended, if it had
+    /// not said so yet.
+    ///
+    /// - Every action after the current one is a sleep: each input was sent and
+    ///   the app ended itself while the file was only waiting, or during the
+    ///   input that ended it. That is `replayed`, with the reason on the same
+    ///   line.
+    /// - Any input still unsent: `failed`, naming how many.
+    ///
+    /// A crash does not come here: a signal or a trap skips `atexit` handlers,
+    /// and the harness still sees no `replayed` line, as before.
+    ///
+    /// 在正常結束(`atexit`)時執行，若重放尚未說明自己如何結束，就在此說明。目前動作之後的每個動作都是
+    /// sleep:每個輸入都已送出，而 app 是在檔案只是在等待時、或在結束它的那個輸入期間結束自己——那是
+    /// `replayed`,原因寫在同一行。仍有輸入尚未送出則是 `failed`,並寫出幾個。崩潰不會來到這裡：信號或
+    /// trap 會略過 `atexit`,harness 一如以往看不到 `replayed`。
+    static func reportIfCutShort() {
+        lock.lock()
+        let state = inFlight
+        inFlight = nil
+        lock.unlock()
+        guard let state else { return }
+        let after = state.actions.dropFirst(state.index + 1)
+        let unsent = after.filter { if case .sleep = $0 { return false } else { return true } }.count
+        if unsent == 0 {
+            report(
+                "replayed \(state.file) (\(state.actions.count) actions; the app exited during action "
+                    + "\(state.index + 1), and only sleeps followed it)"
+            )
+        } else {
+            report(
+                "failed: the app exited during action \(state.index + 1) of \(state.actions.count) "
+                    + "with \(unsent) input action(s) still unsent"
+            )
+        }
+    }
+
+    /// Ends the in-progress record once the replay has reported for itself.
+    /// 重放自己回報之後，結束進行中的紀錄。
+    private static func finishInFlight() {
+        lock.lock()
+        inFlight = nil
+        lock.unlock()
+    }
+
     /// Replays the requested file against this process's own window, once.
     ///
     /// Call it from `show(window:)`. It returns immediately and does nothing at
@@ -150,6 +223,10 @@ public enum ActionFileReplay {
             do {
                 let synthesiser = try makeSynthesiser(layoutScale: layoutScale)
                 let actions = try ActionFile.load(contentsOf: file)
+                lock.lock()
+                inFlight = (file.lastPathComponent, actions, 0)
+                lock.unlock()
+                atexit { ActionFileReplay.reportIfCutShort() }
                 try synthesiser.prepareForReplay(actions)
                 defer { synthesiser.finishReplay() }
                 let geometry = try synthesiser.currentWindowGeometry()
@@ -204,8 +281,10 @@ public enum ActionFileReplay {
                 // 而逗號會落在那次比對之內——於是每一個被記錄的檔名都會多一個尾隨逗號,而那一欄正是
                 // 用來檢查「某支 app 重放的是不是自己的檔案」。在一行既有訊息上增加欄位,就是在改動
                 // 所有解析它的東西。
+                finishInFlight()
                 report("replayed \(file.lastPathComponent) (\(actions.count) actions)")
             } catch {
+                finishInFlight()
                 report("failed: \(error)")
             }
         }
