@@ -1350,13 +1350,14 @@ run_windows() {
     local events_dir_win
     events_dir_win="$(windows_path_mixed "$events_dir")"
 
-    if [ -n "$action_file" ]; then
-        ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir_win" ${(z)app_env} \
-            "./$win_exe" ${(z)args} >/dev/null 2>"$actionfile_log" & )
-    else
-        ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir_win" ${(z)app_env} \
-            "./$win_exe" ${(z)args} >/dev/null 2>&1 & )
-    fi
+    # stdout and stderr both to the action-file log, with or without an action
+    # file, as macOS does (2026-10-22). Before, stdout went to /dev/null in both
+    # branches and stderr too when no file was given, so print() output -- P75's
+    # "close handler" line -- was lost on Windows. See the WSL launch below.
+    # stdout 與 stderr 都寫進動作檔 log,不論有沒有動作檔，與 macOS 相同(2026-10-22)。在那之前兩個分支都把 stdout
+    # 丟到 /dev/null,沒有動作檔時連 stderr 也丟，所以 print() 的輸出——P75 的 close handler 那一行——在 Windows 上消失。
+    ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir_win" ${(z)app_env} \
+        "./$win_exe" ${(z)args} >"$actionfile_log" 2>&1 & )
 
     capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_windows; then
@@ -1533,7 +1534,14 @@ run_wsl() {
 
     local args="$app_args"
     local renderer_stderr="$renderer_log"
-    local redirection=">/dev/null 2>$renderer_log"
+    # stdout as well as stderr, as on macOS (2026-10-22). Until then stdout went to
+    # /dev/null here and on Windows, so an app that reports with print() -- P75's
+    # "close handler" line, which a831f45a was verified by on the Mac -- left no
+    # trace on either, and its pass condition could not be read.
+    # stdout 與 stderr 都保留，與 macOS 相同(2026-10-22)。在那之前，此處與 Windows 都把 stdout 丟到 /dev/null,
+    # 用 print() 回報的 app——P75 的 close handler 那一行，a831f45a 在 Mac 上就是靠它驗證的——在兩邊都不留痕跡，
+    # 它的通過條件也就無從讀取。
+    local redirection=">$renderer_log 2>&1"
     if [ -n "$action_file" ]; then
         # Re-rooted onto the WSL copy of the repo. The file lives in the
         # Windows checkout, which WSL can reach as /mnt/c -- but the app is
@@ -1554,7 +1562,7 @@ run_wsl() {
         # product defect.
         # 見 Windows 分支：stderr 承載 backend 對「重放是否執行」的回報，丟棄它會使失敗的重放
         # 看起來像產品缺陷。
-        redirection=">/dev/null 2>$actionfile_log"
+        redirection=">$actionfile_log 2>&1"
         renderer_stderr="$actionfile_log"
         printf '==> Action file: %s\n' "${action_file:t}"
     fi

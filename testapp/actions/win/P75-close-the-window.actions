@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Windows, WinUI or GtkBackend (TEST_BACKEND=gtk4): Close this window -> dismissWindow().
+# Pass: "[P75] close requested" and then "[P75] close handler: the window's view disappeared"
+# in output/p75-actionfile.log. The second line needs the view graph released when the window
+# closes (a831f45a: the incoming-URL handler now holds it weakly). From actions/mac/P75-close-the-window.actions.
+# expect: log-contains close handler: the window's view disappeared
+# P75(Windows,WinUI 或 GtkBackend):Close this window -> dismissWindow()。通過:output/p75-actionfile.log 先有
+# "[P75] close requested",接著有 close handler 那一行。第二行需要視窗關閉時 view graph 被釋放(a831f45a)。
+sleep,,,,,,1500000,let P75 render,windows
+taplabel,,,,,Close this window,,dismissWindow(),windows
+sleep,,,,,,3000000,let the window close and onDisappear run,windows

@@ -9,6 +9,8 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 此處截圖無從判讀——真正的檢查是「之後該行程是否仍在執行」，由執行器回報。若視窗仍留在視窗清單
 # 中，即為失敗。
+#
+# expect: process-exits
 sleep,,,,,,500000,let the window settle and take focus,gtk
 keydown,,,,,control,,,gtk
 key,,,,,q,,,gtk

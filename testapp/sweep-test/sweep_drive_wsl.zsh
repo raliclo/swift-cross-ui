@@ -593,7 +593,18 @@ for app in "${apps[@]}"; do
     # 關閉它，而那會截斷仍在進行中的重放——在 macOS 的 P26 上實測過，其動作檔會點擊分頁再等三秒。
     # 十秒而非最初可行的八秒：「剛好夠用於眼前唯一案例」的數值，正是會截斷下一個案例的數值。
     show_args=(--no-showtime)
-    [ "${#action_args[@]}" -gt 0 ] && show_args=(--showtime 10)
+    # Long enough for the file, not a fixed ten seconds: 22 WSL files sleep for
+    # longer than that (P52 for 93 s), and the 2026-10-22 sweep recorded all six it
+    # reached as `cut short`. The sum of sleep and long-press times, plus 5 s.
+    # 足夠讓這個檔案跑完，而不是固定十秒:WSL 有 22 個檔案的 sleep 比那更久(P52 是 93 秒),2026-10-22 的 sweep
+    # 把跑到的六個全記成 `cut short`。取 sleep 與長按時間的總和再加 5 秒。
+    if [ "${#action_args[@]}" -gt 0 ]; then
+        replay_seconds="$(grep -v '^#' "$action_file" \
+            | awk -F, 'NR > 1 && ($1 == "sleep" || $1 == "longpress") { s += $7 } END { printf "%d", s / 1000000 + 0.999 }')"
+        showtime=$(( ${replay_seconds:-0} + 5 ))
+        [ "$showtime" -lt 10 ] && showtime=10
+        show_args=(--showtime "$showtime")
+    fi
 
     # A WSL build is a Swift compile on the Linux side, which is minutes rather
     # than seconds, so the two ceilings are not the same number. The macOS twin
@@ -796,6 +807,60 @@ for app in "${apps[@]}"; do
             esac ;;
         *) capture=n/a; add_note "unrecognised capture line: $(printf '%s' "$capture_line" | cut -c1-60)" ;;
     esac
+
+    # The action file's own pass condition, as sweep_drive.zsh reads it on
+    # Windows: `# expect: process-exits` and `# expect: log-contains TEXT`. This
+    # driver did not read either until 2026-10-22, so a WSL `ok` meant only that
+    # the replay finished and a window was captured. P10-ctrl-q, which passes by
+    # the app quitting, was recorded as `cut short` and `fail` for exactly that.
+    #
+    # process-exits: the last wincap line says whether the window was still
+    # there at the final capture; test.zsh closes the app only after that.
+    # log-contains: this run's stderr log and event log, both emptied at
+    # launch by test_common.zsh, so a line cannot come from an earlier run.
+    # Same words as Windows: met, UNMET, UNCHECKED (the app wrote nothing).
+    #
+    # 動作檔自己的通過條件，與 Windows 上 sweep_drive.zsh 讀的相同:`# expect: process-exits` 與
+    # `# expect: log-contains 文字`。本腳本在 2026-10-22 之前兩者都不讀，所以 WSL 的 `ok` 只代表重放跑完、也截到了視窗。
+    # 以 app 結束為通過條件的 P10-ctrl-q,正因此被記成 `cut short` 與 `fail`。
+    # process-exits:最後一行 wincap 說明最後那次截圖時視窗還在不在;test.zsh 在那之後才關閉 app。
+    # log-contains:這次執行的 stderr log 與事件 log,兩者都在啟動時由 test_common.zsh 清空，所以不會讀到上一次的內容。
+    # 用語與 Windows 相同:met、UNMET、UNCHECKED(app 什麼都沒寫)。
+    if [ -n "$action_file" ]; then
+        if grep -qE '^# *expect: *process-exits' "$action_file" 2>/dev/null; then
+            last_window="$(printf '%s\n' "$out" | grep -E 'wincap: (window:|no visible window matched)' | tail -1)"
+            case "$last_window" in
+                *"no visible window matched"*)
+                    replay=ok; capture=n/a; note=""
+                    add_note "quit as expected: no window was left for the final capture" ;;
+                *)
+                    replay=FAIL
+                    add_note "the window was still there at the final capture -- this file passes by the process quitting" ;;
+            esac
+        fi
+        expect_log="$(grep -m1 -E '^# *expect: *log-contains .' "$action_file" 2>/dev/null)"
+        expect_log="${expect_log#*log-contains }"
+        expect_log="${expect_log%$'\r'}"
+        if [ -n "$expect_log" ]; then
+            if [ "$replay" != ok ]; then
+                add_note "expectation '$expect_log' not checked -- the replay did not finish"
+            else
+                events_out="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d "$wsl_distro" -- zsh -lc \
+                    "cat $wsl_repo/testapp/debug-events/${app:l}-debug-events.log 2>/dev/null; true" 2>/dev/null \
+                    | tr -d '\r' || true)"
+                spoke="$(printf '%s\n' "$replay_out" | grep -E "^\[${app}[]-]"; printf '%s' "$events_out")"
+                if printf '%s\n%s\n' "$replay_out" "$events_out" | grep -qF -- "$expect_log"; then
+                    add_note "expectation met: '$expect_log'"
+                elif [ -z "$spoke" ]; then
+                    replay=UNCHECKED
+                    add_note "expectation '$expect_log' could not be checked -- the replay ran but the app wrote nothing this run"
+                else
+                    replay=UNMET
+                    add_note "expectation '$expect_log' is not in this run's logs"
+                fi
+            fi
+        fi
+    fi
 
     printf '%-28s %-9s %-8s %-8s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
 

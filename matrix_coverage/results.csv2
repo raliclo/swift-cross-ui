@@ -2555,3 +2555,81 @@ date,platform,backend,app,launch,replay,capture,renderer,device,note
 2026-10-22,android,android,P75,ok,ok,screen,default,swift-cross-ui-api36b,"P75-save-and-read-back.actions, Save... now by taplabel (the fixed tap missed while the scroll host settled); host pressed SAVE in DocumentsUI; '[P75] save: ... read back: saved by P75' and /sdcard/Download/p75-saved.txt holds 'saved by P75' (18:32). The launch re-created the activity once and the replaced view graph's onDisappear now runs (p75-android-final-20261022-183313.png)."
 2026-10-22,android,android,P75,ok,ok,screen,default,swift-cross-ui-api36b,"P75-close-the-window.actions after the ViewGraph fix: close requested, close handler line 3 ms later, activity finished (p75-android-final-20261022-183414.png)."
 2026-10-22,mac,appkit,P75,ok,ok,desktop,default,"Mac16,10 (Apple M4)",P75-close-the-window.actions (new): '[P75] close requested' then '[P75] close handler: the window's view disappeared' in two runs with the ViewGraph [weak self] fix; an A/B run with the old strong capture printed only 'close requested'. The final capture is the whole screen because the window had closed (p75-macos-final-20261022-190153.png).
+2026-10-22,wsl,gtk4,P6,ok,ok,window,hw,Ralic-W11,"P6-v2-transport-toggles.actions: "
+2026-10-22,wsl,gtk4,P0,ok,ok,window,hw,Ralic-W11,P0-present-environment-alert.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P1,ok,ok,window,hw,Ralic-W11,P1-open-root-sheet.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P2,ok,ok,window,hw,Ralic-W11,P2-controls-and-resizing.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P3,ok,ok,window,hw,Ralic-W11,P3-sidebar-and-image.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P4,ok,ok,window,hw,Ralic-W11,P4-row-callback.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P5,ok,ok,window,hw,Ralic-W11,P5-stacked-alerts.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P6-v2,ok,ok,fail,hw,Ralic-W11,P6-v2-transport-toggles.actions: an image WAS written and rejected on content -- non-black: 0/1069776 (0.0%); rendering versus capture/bridge cause is unresolved
+2026-10-22,wsl,gtk4,P7,ok,ok,window,hw,Ralic-W11,"P7-list-selection.actions: "
+2026-10-22,wsl,gtk4,P8,ok,ok,window,hw,Ralic-W11,"P8-scroll-outer.actions: "
+2026-10-22,wsl,gtk4,P8,ok,ok,window,hw,Ralic-W11,"P8-scroll-over-strip.actions: "
+2026-10-22,wsl,gtk4,P8,ok,ok,window,hw,Ralic-W11,"P8-scroll-strip-sideways.actions: "
+2026-10-22,wsl,gtk4,P9,ok,ok,window,hw,Ralic-W11,"P9-force-update-and-width.actions: "
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-allows-hit-testing.actions: "
+2026-10-22,wsl,gtk4,P10,ok,cut short,fail,hw,Ralic-W11,P10-ctrl-q.actions: the WSL log has replaying P10-ctrl-q.actions and no replayed line -- the app was killed or captured mid-replay; an image WAS written and rejected on content -- non-black: 0/385092 (0.0%); rendering versus capture/bridge cause is unresolved
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-hit-testing.actions: "
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-taplabel.actions: "
+2026-10-22,wsl,gtk4,P11,ok,ok,window,hw,Ralic-W11,"P11-clamped-sliders.actions: "
+2026-10-22,wsl,gtk4,P12,no marker,n/a,fail,hw,Ralic-W11,declares a marker that never appeared; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh wrote no image file at all
+2026-10-22,wsl,gtk4,P13,ok,ok,window,hw,Ralic-W11,"P13-zstack.actions: "
+2026-10-22,wsl,gtk4,P14,no marker,n/a,fail,hw,Ralic-W11,declares a marker that never appeared; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh wrote no image file at all
+2026-10-22,wsl,gtk4,P15-DARK,ok,ok,window,hw,Ralic-W11,P15-DARK-button-under-an-overridden-scheme.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P15,ok,ok,window,hw,Ralic-W11,"P15-colour-scheme.actions: "
+2026-10-22,wsl,gtk4,P16,ok,ok,window,hw,Ralic-W11,"P16-force-update-winui.actions: "
+2026-10-22,wsl,gtk4,P17-DOE,ok,ok,window,hw,Ralic-W11,P17-DOE-the-control-clips-too.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P17,ok,ok,window,hw,Ralic-W11,"P17-picker-and-sizes.actions: "
+2026-10-22,wsl,gtk4,P18,ok,cut short,window,hw,Ralic-W11,P18-three-dialogs.actions: the WSL log has replaying P18-three-dialogs.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P19,ok,ok,window,hw,Ralic-W11,"P19-keyboard.actions: "
+2026-10-22,wsl,gtk4,P19,ok,ok,window,hw,Ralic-W11,"P19-open-and-select.actions: "
+2026-10-22,wsl,gtk4,P20,ok,ok,window,hw,Ralic-W11,"P20-ctrl-k-shortcut.actions: "
+2026-10-22,wsl,gtk4,P21,ok,ok,window,hw,Ralic-W11,"P21-disabled-field.actions: "
+2026-10-22,wsl,gtk4,P21,ok,ok,window,hw,Ralic-W11,"P21-text-fields.actions: "
+2026-10-22,wsl,gtk4,P22,ok,ok,window,hw,Ralic-W11,"P22-weights.actions: "
+2026-10-22,wsl,gtk4,P23,ok,ok,window,hw,Ralic-W11,"P23-more-rows.actions: "
+2026-10-22,wsl,gtk4,P23,ok,ok,window,hw,Ralic-W11,"P23-scroll-rows.actions: "
+2026-10-22,wsl,gtk4,P23,ok,ok,window,hw,Ralic-W11,"P23-select-a-cell.actions: "
+2026-10-22,wsl,gtk4,P23,ok,ok,window,hw,Ralic-W11,"P23-select-a-header.actions: "
+2026-10-22,wsl,gtk4,P24,ok,ok,window,hw,Ralic-W11,"P24-back-through.actions: "
+2026-10-22,wsl,gtk4,P24,ok,ok,window,hw,Ralic-W11,"P24-path-survives-state.actions: "
+2026-10-22,wsl,gtk4,P24,ok,ok,window,hw,Ralic-W11,"P24-push-three.actions: "
+2026-10-22,wsl,gtk4,P24,ok,ok,window,hw,Ralic-W11,"P24-record-and-pop.actions: "
+2026-10-22,wsl,gtk4,P25,ok,ok,window,hw,Ralic-W11,"P25-drop-zones-at-rest.actions: "
+2026-10-22,wsl,gtk4,P26,ok,ok,window,hw,Ralic-W11,"P26-swiftcrossui-tab.actions: "
+2026-10-22,wsl,gtk4,P27,ok,ok,window,hw,Ralic-W11,P27-scroll-the-webview.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P28,ok,ok,window,hw,Ralic-W11,"P28-click-through-overlay.actions: "
+2026-10-22,wsl,gtk4,P29,ok,ok,window,hw,Ralic-W11,P29-texteditor-disabled.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P30,ok,ok,window,hw,Ralic-W11,"P30-toggle-frame-width.actions: "
+2026-10-22,wsl,gtk4,P31,ok,ok,window,hw,Ralic-W11,"P31-tab-and-escape.actions: "
+2026-10-22,wsl,gtk4,P32,ok,ok,window,hw,Ralic-W11,"P32-empty-label-button.actions: "
+2026-10-22,wsl,gtk4,P33,ok,ok,window,hw,Ralic-W11,"P33-hide-details.actions: "
+2026-10-22,wsl,gtk4,P34,ok,cut short,window,hw,Ralic-W11,P34-scroll-to-row-50.actions: the WSL log has replaying P34-scroll-to-row-50.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P35,ok,ok,window,hw,Ralic-W11,"P35-increment-count.actions: "
+2026-10-22,wsl,gtk4,P36,ok,cut short,window,hw,Ralic-W11,P36-focus-only-no-typing.actions: the WSL log has replaying P36-focus-only-no-typing.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P37,ok,ok,window,hw,Ralic-W11,"P37-floating-level.actions: "
+2026-10-22,wsl,gtk4,P38,ok,ok,window,hw,Ralic-W11,"P38-follow-the-link-and-scroll.actions: "
+2026-10-22,wsl,gtk4,P39,ok,ok,window,hw,Ralic-W11,P39-read-nine-cells-against-the-control.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P40,ok,ok,window,hw,Ralic-W11,P40-read-seven-tiles-and-the-clipping.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P41,ok,ok,window,hw,Ralic-W11,P41-graphical-pick-day.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P42,ok,ok,window,hw,Ralic-W11,"P42-scale-factor-at-launch.actions: "
+2026-10-22,wsl,gtk4,P43,ok,ok,window,hw,Ralic-W11,P43-gradient-clipped-to-the-shape.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P44,ok,ok,window,hw,Ralic-W11,P44-clip-third-cell.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P45,ok,ok,window,hw,Ralic-W11,P45-computed-binding-toggle.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P46,ok,ok,window,hw,Ralic-W11,"P46-increment-model.actions: "
+2026-10-22,wsl,gtk4,P47,ok,ok,window,hw,Ralic-W11,P47-draw-every-symbol.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P48,ok,ok,window,hw,Ralic-W11,"P48-expand-colorpicker.actions: "
+2026-10-22,wsl,gtk4,P49,ok,ok,window,hw,Ralic-W11,P49-show-fullscreen-cover.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P50,ok,ok,window,hw,Ralic-W11,P50-arrow-edge-bottom-gtk4.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P51,ok,ok,window,hw,Ralic-W11,"P51-scroll-to-adaptive.actions: "
+2026-10-22,wsl,gtk4,P52,ok,cut short,window,hw,Ralic-W11,P52-scroll-to-separation.actions: the WSL log has replaying P52-scroll-to-separation.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P53,ok,ok,window,hw,Ralic-W11,P53-control-click-close.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P54,ok,ok,window,hw,Ralic-W11,P54-press-the-refresh.actions: no marker configured; capture is timed
+2026-10-22,wsl,gtk4,P55,ok,cut short,window,hw,Ralic-W11,P55-press-the-styled-button.actions: no marker configured; capture is timed; the WSL log has replaying P55-press-the-styled-button.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P56,ok,cut short,window,hw,Ralic-W11,P56-jump-to-row-59.actions: no marker configured; capture is timed; the WSL log has replaying P56-jump-to-row-59.actions and no replayed line -- the app was killed or captured mid-replay
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-allows-hit-testing.actions: "
+2026-10-22,wsl,gtk4,P10,ok,ok,n/a,hw,Ralic-W11,P10-ctrl-q.actions: quit as expected: no window was left for the final capture
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-hit-testing.actions: "
+2026-10-22,wsl,gtk4,P10,ok,ok,window,hw,Ralic-W11,"P10-taplabel.actions: "
+2026-10-22,wsl,gtk4,P18,ok,ok,window,hw,Ralic-W11,P18-three-dialogs.actions: expectation met: 'open: cancelled'
