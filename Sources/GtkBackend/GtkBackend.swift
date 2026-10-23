@@ -4604,7 +4604,6 @@ public final class GtkBackend:
             }
 
         textView.selectable = environment.isTextSelectionEnabled
-        textView.css.clear()
         // A gradient is painted by the label's container with the glyphs as
         // its mask (gtk_text_paint.c), so the glyphs are drawn opaque. Below
         // GTK 4.14 there are no gradient nodes and the text takes the
@@ -4620,7 +4619,17 @@ public final class GtkBackend:
         } else {
             scui_widget_set_text_paint(textView.widgetPointer, nil)
         }
-        textView.css.set(properties: cssProperties(for: textEnvironment))
+        // One assignment, so an unchanged style reloads nothing. Every widget's
+        // provider is added for the whole display, so each load restyles every
+        // widget, and `css.clear()` then `css.set(...)` loaded twice per update
+        // even when nothing changed. P96 on Windows GTK, one Text changed per
+        // frame: about 27 ms of each frame in GTK's layout phase, 25.0 / 27.7 /
+        // 29.3 fps; with this, 46.0 / 55.0 / 56.0 (interleaved, 2026-10-23).
+        // 只賦值一次，樣式未變就不重新載入。每個 widget 的 provider 都加在整個 display 上，所以每次載入都會重新替
+        // 所有 widget 套樣式，而 `css.clear()` 再 `css.set(...)` 即使沒有任何改變，每次更新也載入兩次。Windows GTK
+        // 上的 P96 每幀改一個 Text:每幀約 27 毫秒花在 GTK 的 layout 階段,25.0 / 27.7 / 29.3 fps;改成這樣後為
+        // 46.0 / 55.0 / 56.0(交錯量測,2026-10-23)。
+        textView.css.set(properties: cssProperties(for: textEnvironment), clear: true)
         scaleColourEmoji(in: textView, text: content, size: environment.resolvedFont.pointSize)
     }
 
@@ -4871,10 +4880,9 @@ public final class GtkBackend:
         toggle.toggled = { widget in
             onChange(widget.active)
         }
-        toggle.css.clear()
         // This is a control, but we set isControl to false anyway because isControl overrides
         // the button background and makes the on and off states of the toggle look identical.
-        toggle.css.set(properties: cssProperties(for: environment, isControl: false))
+        toggle.css.set(properties: cssProperties(for: environment, isControl: false), clear: true)
     }
 
     public func setState(ofToggle toggle: Widget, to state: Bool) {
@@ -5028,7 +5036,6 @@ public final class GtkBackend:
             onSubmit()
         }
 
-        textField.css.clear()
         var properties = cssProperties(for: environment, isControl: true)
         // See `GtkBackend+TextFieldStyle.swift`. This also flips `has-frame`,
         // which is why it takes the entry and not just the style.
@@ -5038,7 +5045,7 @@ public final class GtkBackend:
             environment.backendTextFieldStyle,
             applyingTo: textField
         )
-        textField.css.set(properties: properties)
+        textField.css.set(properties: properties, clear: true)
     }
 
     public func setContent(ofTextField textField: Widget, to content: String) {
@@ -5117,9 +5124,10 @@ public final class GtkBackend:
             onChange(buffer.text)
         }
 
-        textEditor.css.clear()
-        textEditor.css.set(properties: cssProperties(for: environment, isControl: false))
-        textEditor.css.set(property: CSSProperty(key: "background", value: "none"))
+        textEditor.css.set(
+            properties: cssProperties(for: environment, isControl: false)
+                + [CSSProperty(key: "background", value: "none")],
+            clear: true)
     }
 
     public func setContent(ofTextEditor textEditor: Widget, to content: String) {
@@ -5200,7 +5208,7 @@ public final class GtkBackend:
         // Apply the current text styles to the dropdown's labels
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
         block.set(properties: cssProperties(for: environment))
-        picker.cssProvider.loadCss(from: block.stringRepresentation)
+        picker.loadCSSText(from: block.stringRepresentation)
 
         guard hasChanged else {
             return
@@ -5232,7 +5240,7 @@ public final class GtkBackend:
     private func applyLabelStyles(to picker: Widget, environment: EnvironmentValues) {
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
         block.set(properties: cssProperties(for: environment))
-        picker.cssProvider.loadCss(from: block.stringRepresentation)
+        picker.loadCSSText(from: block.stringRepresentation)
     }
 
     public func setSelectedOption(ofPicker picker: Widget, to selectedOption: Int?) {
@@ -5368,7 +5376,7 @@ public final class GtkBackend:
             case .dark:
                 backgroundColor = Gtk.Color.eightBit(90, 90, 90)
         }
-        progressBar.cssProvider.loadCss(
+        progressBar.loadCSSText(
             from: """
                 trough {
                     background-color: \(CSSProperty.rgba(backgroundColor));
@@ -5411,7 +5419,7 @@ public final class GtkBackend:
         // single update: a menu that stops needing the override has to stop
         // carrying it.
         guard !themeDraws(environment.colorScheme) else {
-            menu.cssProvider.loadCss(from: "")
+            menu.loadCSSText(from: "")
             return
         }
 
@@ -5429,7 +5437,7 @@ public final class GtkBackend:
         }
 
         // Set styles
-        menu.cssProvider.loadCss(
+        menu.loadCSSText(
             from: """
                 contents {
                     background: \(CSSProperty.rgba(menuBackground));
@@ -6467,8 +6475,7 @@ public final class GtkBackend:
     ) {
         let table = table as! Gtk.Table
         table.setColumnLabels(labels)
-        table.css.clear()
-        table.css.set(properties: cssProperties(for: environment))
+        table.css.set(properties: cssProperties(for: environment), clear: true)
     }
 
     public func setCells(
@@ -6762,20 +6769,25 @@ public final class GtkBackend:
         sheet.onDismiss = onDismiss
 
         // Add a slight border to not be just a flat corner
-        sheet.css.clear()
-        sheet.css.set(
-            property: .border(
+        // Built whole and set once: each change of `css` reloads a provider the
+        // whole display shares, so clear-then-set restyled every widget twice
+        // (see updateTextView).
+        // 先組好再一次設定:`css` 每改一次就重新載入整個 display 共用的 provider,先清空再設定會讓每個 widget
+        // 重新套樣式兩次(見 updateTextView)。
+        var sheetProperties: [CSSProperty] = [
+            .border(
                 color: SwiftCrossUI.Color.gray.resolve(in: environment).gtkColor,
                 width: 1
             )
-        )
+        ]
 
         // Respect corner radius and background Color
         let radius = cornerRadius.map(Int.init) ?? defaultSheetCornerRadius
-        sheet.css.set(property: .cornerRadius(radius))
+        sheetProperties.append(.cornerRadius(radius))
         if let backgroundColor {
-            sheet.css.set(property: .backgroundColor(backgroundColor.gtkColor))
+            sheetProperties.append(.backgroundColor(backgroundColor.gtkColor))
         }
+        sheet.css.set(properties: sheetProperties, clear: true)
 
         sheet.interactiveDismissDisabled = interactiveDismissDisabled
 
@@ -7547,23 +7559,19 @@ final class DatePickerWidget: Box {
     func applyStyles(toGrid gridProperties: [CSSProperty], toButton buttonProperties: [CSSProperty])
     {
         if let grid {
-            grid.css.clear()
-            grid.css.set(properties: gridProperties)
+            grid.css.set(properties: gridProperties, clear: true)
         }
         if let button {
-            button.css.clear()
-            button.css.set(properties: buttonProperties)
+            button.css.set(properties: buttonProperties, clear: true)
             // The grid in the popover is a grid, and gets the grid's treatment.
-            button.grid.css.clear()
-            button.grid.css.set(properties: gridProperties)
+            button.grid.css.set(properties: gridProperties, clear: true)
         }
         if let timeRow {
             // A spin button keeps its frame for the same reason the compact
             // button does. The font and colour have to land here rather than on
             // the container, because a spin button's text sits in a `text` node
             // and the descendant `label` selector never reaches it.
-            timeRow.css.clear()
-            timeRow.css.set(properties: buttonProperties)
+            timeRow.css.set(properties: buttonProperties, clear: true)
         }
     }
 

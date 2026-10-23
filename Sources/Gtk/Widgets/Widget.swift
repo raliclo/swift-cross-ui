@@ -63,7 +63,26 @@ open class Widget: GObject {
     /// 把 `css` 載入本 widget 的 provider。設為 open,讓會在同一個 provider 寫入自己規則的 widget 能兩者並存——
     /// 第二次 `loadCss` 會取代 provider 的內容，而不是附加。
     open func reloadCSS() {
-        cssProvider.loadCss(from: css.stringRepresentation)
+        loadCSSText(from: css.stringRepresentation)
+    }
+
+    /// The text last loaded into `cssProvider`.
+    /// 上一次載入 `cssProvider` 的文字。
+    private var loadedCSSText: String?
+
+    /// Loads `text` into this widget's provider unless it is what the provider
+    /// already holds. The provider is added for the whole display, so every load
+    /// restyles every widget there: P96 on Windows GTK spent about 27 ms of each
+    /// frame in GTK's layout phase reloading styles that had not changed
+    /// (2026-10-23). Every load of a widget's provider goes through here, so
+    /// the remembered text is always what the provider holds.
+    /// 除非 provider 已經持有 `text`,否則將其載入本 widget 的 provider。provider 是加在整個 display 上的，所以每次
+    /// 載入都會重新替那裡的每個 widget 套樣式:Windows GTK 上的 P96 每幀約有 27 毫秒花在 GTK 的 layout 階段，重新載入
+    /// 根本沒變的樣式(2026-10-23)。widget provider 的每次載入都經過這裡，因此記住的文字永遠是 provider 實際持有的。
+    public func loadCSSText(from text: String) {
+        guard text != loadedCSSText else { return }
+        loadedCSSText = text
+        cssProvider.loadCss(from: text)
     }
 
     /// A unique CSS class for this widget. The class is lazily added to the

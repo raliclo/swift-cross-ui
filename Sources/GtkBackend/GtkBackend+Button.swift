@@ -74,7 +74,6 @@ extension GtkBackend {
             gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
         }
 
-        button.css.clear()
         button.css.set(
             properties: cssProperties(
                 for: environment,
@@ -87,7 +86,8 @@ extension GtkBackend {
                 // backend 的 provider 位階高於主題，因此「同時樣式化按鈕又加上樣式類別」會讓該類別
                 // 靜默落敗。
                 deferToThemeStyleClass: environment.buttonRole == .destructive
-            )
+            ),
+            clear: true
         )
     }
 
@@ -168,13 +168,11 @@ extension GtkBackend {
         let testString = "Teststring"
         let dummyButton = Button()
         dummyButton.label = testString
-        dummyButton.css.clear()
-        dummyButton.css.set(properties: cssProperties(for: rootEnvironment, isControl: true))
+        dummyButton.css.set(properties: cssProperties(for: rootEnvironment, isControl: true), clear: true)
 
         let textView = CustomLabel(string: testString)
-        textView.css.clear()
         // css needs to be set, otherwise text measures way too big.
-        textView.css.set(properties: cssProperties(for: rootEnvironment))
+        textView.css.set(properties: cssProperties(for: rootEnvironment), clear: true)
         let textSize = size(
             of: testString,
             whenDisplayedIn: textView,
@@ -216,7 +214,7 @@ fileprivate final class GtkCustomButton: Gtk.Button {
     /// 兩組規則放在同一個 provider:先是按鈕的，再是 app 的 `css`,選擇器為 `button.customButton.<class>`——
     /// 比上方所有設定背景的規則更具體，且排在同樣具體的 `.flat` 規則之後，因此 app 所要求的勝出。
     override func reloadCSS() {
-        cssProvider.loadCss(from: baseCSS + "\nbutton.customButton" + css.stringRepresentation)
+        loadCSSText(from: baseCSS + "\nbutton.customButton" + css.stringRepresentation)
     }
 
     init() {

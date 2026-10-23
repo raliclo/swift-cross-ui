@@ -502,7 +502,7 @@ extension GtkBackend {
         // 漏到選單或 picker 上。
         if let backgroundColor {
             let colour = CSSProperty.rgba(backgroundColor.gtkColor)
-            popover.popover.cssProvider.loadCss(
+            popover.popover.loadCSSText(
                 from: """
                     .\(popover.popoverClass),
                     .\(popover.popoverClass) > contents {
@@ -518,7 +518,7 @@ extension GtkBackend {
             // 載入一份**空的** stylesheet,而不是寫一條「預設顏色」的規則:只有 GTK 知道主題原本會
             // 畫什麼,在此指名一個顏色等於由本 backend 蓋過主題——那正是 `GtkBackend.swift:5129`
             // 用很長篇幅記載的那個錯誤。
-            popover.popover.cssProvider.loadCss(from: "")
+            popover.popover.loadCSSText(from: "")
         }
 
         // The background is left to the theme, and nothing here overrides it. A
