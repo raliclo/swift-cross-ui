@@ -48,16 +48,16 @@
   "zh": "compact 樣式的 DatePicker 在 Windows 與 WSL 上將日期顯示為「21 Oct 2026」／「22 Oct 2026」，在 macOS 上則為「Oct 18, 2026」。時間也不同（屬預期）；其餘皆相同。"
  },
  "P12": {
-  "en": "Only macOS has a screenshot: P12 is the AndroidBackend repro app, and Windows and WSL are out of its scope (gtk-test-plan-findings.md).",
-  "zh": "只有 macOS 有截圖:P12 是 AndroidBackend 的重現 app,Windows 與 WSL 不在它的範圍內(gtk-test-plan-findings.md)。"
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
  },
  "P13": {
   "en": "Matches macOS apart from window chrome and scale; the red, green and blue boxes are more saturated on Windows and WSL.",
   "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；紅、綠、藍方框在 Windows 與 WSL 上飽和度較高。"
  },
  "P14": {
-  "en": "Only macOS has a screenshot: P14 is the UIKitBackend (iOS) repro app, and Windows and WSL are out of its scope (gtk-test-plan-findings.md).",
-  "zh": "只有 macOS 有截圖:P14 是 UIKitBackend(iOS)的重現 app,Windows 與 WSL 不在它的範圍內(gtk-test-plan-findings.md)。"
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
  },
  "P15": {
   "en": "Matches macOS apart from window chrome and scale.",

@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2757**
+**Runs recorded / 已記錄的執行筆數: 2761**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL                 | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|----------------------------|------------------------------|------------------------|--------------------|--------------------------|--------------|
@@ -46,9 +46,9 @@ zsh matrix_coverage/coverage.zsh
 | P9            | pass 2026-09-06              | pass 2026-08-28                | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-19          |              |
 | P10           | pass 2026-10-23              | pass 2026-10-23                | capture n/a 3/4 2026-10-22 | pass 2026-10-20              | pass 2026-10-22        | pass 2026-10-19    | pass 2026-10-16          |              |
 | P11           | pass 2026-09-17              | pass 2026-09-17                | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-23          |              |
-| P12           | -                            | -                              | no marker 2026-10-22       | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-16          |              |
+| P12           | pass 2026-10-23              | -                              | pass 2026-10-23            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-16          |              |
 | P13           | pass 2/2 2026-09-08          | -                              | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-16          |              |
-| P14           | -                            | -                              | no marker 2026-10-22       | pass 2026-09-27              | pass 3/3 2026-10-22    | pass 2026-10-13    | pass 2026-10-16          |              |
+| P14           | pass 2026-10-23              | -                              | pass 2026-10-23            | pass 2026-09-27              | pass 3/3 2026-10-22    | pass 2026-10-13    | pass 2026-10-16          |              |
 | P15           | GEOMETRY 1/2 2026-09-07      | pass 2026-08-28                | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-16          |              |
 | P15-DARK      | pass 2026-10-20              | pass 2026-10-20                | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-22    | pass 2026-10-16          |              |
 | P16           | GEOMETRY 1/2 2026-09-06      | -                              | pass 2026-10-22            | pass 2026-09-27              | pass 2026-10-22        | pass 2026-10-13    | pass 2026-10-16          |              |
