@@ -198,6 +198,15 @@ apt-get install -y --no-install-recommends pulseaudio-utils
 # netpbm 用於轉換其輸出，因為沒人打得開的擷取檔算不上證據。
 apt-get install -y --no-install-recommends xdotool x11-utils x11-apps netpbm
 
+# A screen reader, for #123 (queue.md row 8): what Orca actually says about P69
+# is checked from its debug log, with speech-dispatcher's dummy output module so
+# nothing is spoken aloud. The AT-SPI probe reads the tree; only a reader shows
+# what a user hears from it. Added 2026-10-23 at the user's request.
+# 螢幕報讀器，供 #123(queue.md 第 8 列)使用:Orca 對 P69 實際念出什麼，從它的除錯日誌檢查，speech-dispatcher
+# 用 dummy 輸出模組，因此不會真的發出聲音。AT-SPI 探針讀的是樹;只有報讀器能顯示使用者實際聽到的內容。
+# 2026-10-23 應使用者要求加入。
+apt-get install -y --no-install-recommends orca speech-dispatcher
+
 # WebKitGTK 6.0, the engine behind GtkBackend's WebView on Linux (P38). The
 # RUNTIME package only: gtk_webkit.c loads libwebkitgtk-6.0.so.4 with dlopen, so
 # no headers are needed to build, and a machine without it still builds and
