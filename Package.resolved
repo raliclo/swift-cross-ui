@@ -1,5 +1,5 @@
 {
-  "originHash" : "e1d47171a0f09d7abb802e04c331d0a0a5062a8b24a023170a5295c7a5107321",
+  "originHash" : "0217f2c4529192c89c7205bb7cc961dd19ed68f3f23bf271d75048c1b704e29d",
   "pins" : [
     {
       "identity" : "androidkit",
@@ -103,10 +103,10 @@
     {
       "identity" : "swift-java",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stackotter/swift-java",
+      "location" : "https://github.com/raliclo/swift-java",
       "state" : {
-        "revision" : "e04c0ed6af98936ca6300e94be9a19869df418a2",
-        "version" : "0.5.1"
+        "branch" : "develop",
+        "revision" : "e04c0ed6af98936ca6300e94be9a19869df418a2"
       }
     },
     {
