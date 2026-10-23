@@ -1,4 +1,4 @@
-#if os(Windows)
+#if os(Windows) || os(Linux)
     import CGtk
     import Foundation
     import Gtk
@@ -29,6 +29,18 @@
         /// 交錯量測三輪：只 realize 花 15–30 毫秒，起點移到 0.36–0.38;在此畫一幀常見節點花 155–187 毫秒(exe 第一次
         /// 啟動時 750 毫秒),起點移到 0.19 且沒有跳躍。成本不是新增的，只是改在內容出現之前付。程式依 GL context
         /// 保存，而 display 共用該 context,所以之後的視窗幾乎不花成本。`SCUI_GTK_WARMUP=0` 可關閉，供量測用。
+        ///
+        /// Linux too since 2026-10-23. Under WSLg the NVIDIA driver behind Mesa's
+        /// d3d12 compiles every shader again in each process (perf: 17% of P96's
+        /// samples in libnvidia-gpucomp, 29% in Mesa, whose own disk cache already
+        /// holds them), and P96's first moving frame waited 870 ms for it. With
+        /// this warm-up, which now also draws a filled and a stroked path and a
+        /// transformed fill, it waits about 560 ms, and P96 draws 48.3-49.0 fps in
+        /// its first 3 s against 41.0-41.7 without (interleaved, two rounds).
+        /// 自 2026-10-23 起 Linux 也執行。WSLg 下，Mesa d3d12 背後的 NVIDIA 驅動在每個行程都重新編譯每個 shader(perf:
+        /// P96 的取樣有 17% 在 libnvidia-gpucomp、29% 在 Mesa,而 Mesa 自己的磁碟快取早已存有它們),P96 第一個移動的幀為此
+        /// 等了 870 毫秒。有了本預熱(現在也畫一條填色路徑、一條描邊路徑與一個變換後的填色)後約等 560 毫秒，P96 前 3 秒
+        /// 為 48.3–49.0 fps,不預熱為 41.0–41.7(交錯量測兩輪)。
         func warmUpRenderer(of window: Gtk.Window) {
             guard ProcessInfo.processInfo.environment["SCUI_GTK_WARMUP"] != "0" else { return }
             // A window of its own, never `window`: realizing the app's window this
@@ -79,6 +91,31 @@
             let layout = gtk_widget_create_pango_layout(probe, "Ag 0.1")
             gtk_snapshot_append_layout(snapshot, layout, &grey)
             g_object_unref(UnsafeMutableRawPointer(layout))
+
+            // A filled and a stroked path, as GtkBackend draws every Shape since
+            // f84ee359, and a fill under the transform Fixed.setChildMatrix builds.
+            // 填色與描邊的路徑(自 f84ee359 起 GtkBackend 以此繪製每個 Shape),以及 Fixed.setChildMatrix
+            // 所建變換下的填色。
+            let builder = gsk_path_builder_new()
+            gsk_path_builder_add_rect(builder, &bounds)
+            var centre = graphene_point_t(x: 32, y: 32)
+            gsk_path_builder_add_circle(builder, &centre, 20)
+            if let path = gsk_path_builder_free_to_path(builder) {
+                gtk_snapshot_append_fill(snapshot, path, GSK_FILL_RULE_WINDING, &grey)
+                let stroke = gsk_stroke_new(2)
+                gtk_snapshot_append_stroke(snapshot, path, stroke, &grey)
+                gsk_stroke_free(stroke)
+                gsk_path_unref(path)
+            }
+            var offset = graphene_point_t(x: 3.5, y: 2.25)
+            var matrix = graphene_matrix_t()
+            graphene_matrix_init_from_2d(&matrix, 0.866, 0.5, -0.5, 0.866, 0, 0)
+            let transform = gsk_transform_matrix(gsk_transform_translate(nil, &offset), &matrix)
+            gtk_snapshot_save(snapshot)
+            gtk_snapshot_transform(snapshot, transform)
+            gtk_snapshot_append_color(snapshot, &grey, &bounds)
+            gtk_snapshot_restore(snapshot)
+            gsk_transform_unref(transform)
 
             guard let node = gtk_snapshot_free_to_node(snapshot) else { return }
             defer { gsk_render_node_unref(node) }
