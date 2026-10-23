@@ -1,6 +1,6 @@
 </div></div>
 
-<form id="jump" data-prevent-swipe><label for="jump-app">App</label><input id="jump-app" inputmode="numeric" placeholder="50" type="text" pattern="[0-9]*" aria-label="App number" autocomplete="off"><button type="submit">Go</button><button type="button" id="grid">Grid</button></form>
+<form id="jump" data-prevent-swipe><label for="jump-app">App</label><input id="jump-app" inputmode="numeric" placeholder="50" type="text" pattern="[0-9]*" aria-label="App number" autocomplete="off"><button type="submit">Go</button><button type="button" id="grid">Grid</button><span class="zoom"><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-reset" aria-label="Reset zoom">100%</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></span></form>
 <div id="tiles" data-prevent-swipe hidden><div class="bar"><b>All apps</b><button type="button" id="tiles-close">Close</button></div><div class="wrap"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.js"></script>
@@ -46,5 +46,76 @@ function showTiles(on) {
 document.getElementById('grid').addEventListener('click', function () { showTiles(true); });
 document.getElementById('tiles-close').addEventListener('click', function () { showTiles(false); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') showTiles(false); });
+// Zoom, per page: each page keeps its own level and position. The captures sit in a clipped stage;
+// − and + scale them about the middle of what is in view, the level button goes back to 100%.
+// A long press (0.35 s without moving) turns the pointer into a hand; dragging then moves the captures.
+var ZMIN = 1, ZMAX = 6, ZSTEP = 1.25, HOLD_MS = 350, SLOP = 6;
+var zoomReset = document.getElementById('zoom-reset');
+document.querySelectorAll('.slides > section .pair').forEach(function (pair) {
+  var stage = document.createElement('div'); stage.className = 'stage';
+  pair.parentNode.insertBefore(stage, pair); stage.appendChild(pair);
+  stage.zoom = { z: 1, x: 0, y: 0 };
+  stage.querySelectorAll('img').forEach(function (img) { img.draggable = false; });
+  stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  var hold = null, drag = null, start = null;
+  function endHold() { clearTimeout(hold); hold = null; }
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0) return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    endHold();
+    hold = setTimeout(function () {
+      hold = null;
+      drag = { x: start.x, y: start.y, s: Reveal.getScale() || 1 };
+      try { stage.setPointerCapture(start.id); } catch (err) {}
+      stage.classList.add('grab', 'grabbing');
+    }, HOLD_MS);
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (hold && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > SLOP) endHold();
+    if (!drag) return;
+    e.preventDefault();
+    var st = stage.zoom;
+    st.x += (e.clientX - drag.x) / drag.s; st.y += (e.clientY - drag.y) / drag.s;
+    drag.x = e.clientX; drag.y = e.clientY;
+    applyZoom(stage);
+  });
+  function release(e) {
+    endHold();
+    if (!drag) return;
+    drag = null; e.preventDefault();
+    stage.classList.remove('grab', 'grabbing'); stage.dragged = true; setTimeout(function () { stage.dragged = false; }, 0);
+    try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+  }
+  stage.addEventListener('pointerup', release);
+  stage.addEventListener('pointercancel', release);
+  // A tap that became a drag must not also act as a click.
+  stage.addEventListener('click', function (e) { if (stage.dragged) e.stopPropagation(); }, true);
+});
+function applyZoom(stage) {
+  var st = stage.zoom, w = stage.clientWidth, h = stage.clientHeight;
+  // Scaled about the top middle: x can move by half the extra width either way, y up by all the extra height.
+  var mx = w * (st.z - 1) / 2, my = h * (st.z - 1);
+  st.x = Math.max(-mx, Math.min(mx, st.x)); st.y = Math.max(-my, Math.min(0, st.y));
+  stage.firstChild.style.transform = st.z === 1 ? '' : 'translate(' + st.x + 'px,' + st.y + 'px) scale(' + st.z + ')';
+  stage.classList.toggle('zoomed', st.z > 1);
+  // Zoomed in, a swipe drags instead of turning the page.
+  if (st.z > 1) stage.setAttribute('data-prevent-swipe', ''); else stage.removeAttribute('data-prevent-swipe');
+  if (stage === currentStage()) zoomReset.textContent = Math.round(st.z * 100) + '%';
+}
+function currentStage() { var c = Reveal.getCurrentSlide(); return c ? c.querySelector('.stage') : null; }
+function zoomBy(f) {
+  var stage = currentStage(); if (!stage) return;
+  var st = stage.zoom, z = Math.max(ZMIN, Math.min(ZMAX, f ? st.z * f : 1));
+  if (Math.abs(z - 1) < 0.01) z = 1;
+  // Keep the point in the middle of the view where it is.
+  var cy = stage.clientHeight / 2;
+  st.x = st.x * z / st.z; st.y = cy - (cy - st.y) * z / st.z; st.z = z;
+  applyZoom(stage);
+}
+document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(ZSTEP); });
+document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(1 / ZSTEP); });
+zoomReset.addEventListener('click', function () { zoomBy(0); });
+function showZoom() { var s = currentStage(); zoomReset.textContent = Math.round((s ? s.zoom.z : 1) * 100) + '%'; }
+Reveal.on('slidechanged', showZoom); Reveal.on('ready', showZoom);
 </script>
 

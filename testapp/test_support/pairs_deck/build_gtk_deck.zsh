@@ -161,7 +161,7 @@ mac_figure() {
     printf '%s\n' '<section class="cover">'
     printf '%s\n' '  <h1>GTK on Windows, WSL and macOS</h1>'
     printf '%s\n' "  <p>$#apps test apps with GtkBackend, each captured at rest: Windows GTK (left) and WSLg (middle) on this PC, $(date +%Y-%m-%d), and GTK on the Mac (right) from the GTK / macOS deck, scaled to the same height.</p>"
-    printf '%s\n' '  <p><kbd>→</kbd> <kbd>←</kbd> step through the apps. <b>Grid</b> at the bottom left lists every app. Type a number in the box beside it to jump there.</p>'
+    printf '%s\n' '  <p><kbd>→</kbd> <kbd>←</kbd> step through the apps. <b>Grid</b> at the bottom left lists every app. Type a number in the box beside it to jump there. <b>−</b> <b>100%</b> <b>+</b> zoom the page; hold the mouse button or a finger on the captures until the pointer becomes a hand, then drag to move around.</p>'
     printf '%s\n' '  <div class="legend"><span class="chip aligned">3 of 3</span> every side captured <span class="chip noted">2 of 3</span> one side missing; its caption says why</div>'
     printf '%s\n' '</section>'
     for app in $apps; do

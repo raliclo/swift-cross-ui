@@ -119,7 +119,7 @@ figure() {
     print -r -- '<section class="cover">'
     print -r -- '  <h1>GTK and macOS, pair by pair</h1>'
     print -r -- "  <p>$#apps test apps, each captured at rest on this Mac with AppKitBackend (left) and GtkBackend (right, TEST_BACKEND=gtk4), $(date +%Y-%m-%d), scaled to the same height.</p>"
-    print -r -- '  <p><kbd>→</kbd> <kbd>←</kbd> step through the apps. <b>Grid</b> at the bottom left lists every app. Type a number in the box beside it to jump there.</p>'
+    print -r -- '  <p><kbd>→</kbd> <kbd>←</kbd> step through the apps. <b>Grid</b> at the bottom left lists every app. Type a number in the box beside it to jump there. <b>−</b> <b>100%</b> <b>+</b> zoom the page; hold the mouse button or a finger on the captures until the pointer becomes a hand, then drag to move around.</p>'
     print -r -- '  <div class="legend"><span class="chip aligned">aligned</span> matches <span class="chip noted">noted</span> a recorded difference <span class="chip unrecorded">unrecorded</span> no comparison row yet</div>'
     print -r -- '</section>'
     for app in $apps; do
