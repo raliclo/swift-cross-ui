@@ -77,10 +77,10 @@ measured for a different reason.
 | backend | plausible surface | evidence |
 |---|---|---|
 | GtkBackend, Windows | needs `GskGLRenderer`, which needs Direct Composition | measured: without DComp, GTK on Windows realizes `GskCairoRenderer`, which cannot even draw a transform node — see `bugs/Gtk4-bugs.md` §1 and §3 |
-| GtkBackend, WSL | `GskVulkanRenderer`, on lavapipe | measured: hardware Vulkan is absent on this machine, so anything drawn is drawn by the CPU — `bugs/Gtk4-bugs.md` §2 |
-| GtkBackend, Linux native | `GskGLRenderer` on real hardware | **assumption**, not measured here |
+| GtkBackend, WSL | `GskVulkanRenderer`, on lavapipe | measured: the WSL host has no hardware Vulkan, so anything drawn is drawn by the CPU — `bugs/Gtk4-bugs.md` §2 |
+| GtkBackend, Linux native | `GskGLRenderer` on real hardware | **assumption**, not measured |
 | WinUIBackend | D3D11 through a composition swapchain | the mechanism already exists in this repository: `Sources/WinUIBackend/D3D11VideoInterop.swift` uses `CreateSwapChainForComposition` for P6 |
-| AppKitBackend / UIKitBackend | Metal, presumably `MTKView` or `CAMetalLayer` | **assumption** — out of scope on this machine, and needs a Mac |
+| AppKitBackend / UIKitBackend | Metal through `MTKView` | since implemented: `Sources/SwiftCrossUIMetal/Mesh3DMetalView.swift` is an `MTKView`, shared by `AppKitBackend+Mesh3DView.swift` and `UIKitBackend+Mesh3DView.swift` |
 
 Two consequences follow from the measured rows and should shape the design
 rather than be discovered during it:

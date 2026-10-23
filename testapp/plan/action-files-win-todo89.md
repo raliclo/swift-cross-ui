@@ -75,9 +75,14 @@ files that pass by doing nothing.
 
 ## The decision this document cannot make: does a `sleep`-only file belong in `win/`?
 
+**Decided (2026-10-19, `1d47d395`): the mac form.** All ten now have a `win/`
+file whose notes each carry one measured claim, and `win/README.md` was brought
+in line with the files in `12f0ef6f`. Both arguments are kept below as they
+stood before the decision.
+
 **Six of the ten have no controls, and the repository already contains two
-opposite answers about what to do with such an app.** The parent session has to
-pick one; this section states both fairly, because picking wrongly is how the
+opposite answers about what to do with such an app.** One has to be picked
+before files are written; this section states both fairly, because picking wrongly is how the
 "passes by doing nothing" failure gets in.
 
 **`testapp/actions/win/README.md` says no.** Its "Eight apps that should never
@@ -117,15 +122,18 @@ from now has no record of what "correct" was.
 
 **A recommendation, not a decision.** Where this document proposes a `sleep`-only
 file below, it proposes the **mac form only** — one claim per row, each naming a
-probe and the reading it must give — and never the weak form. If the parent
-session does not want to measure those probes, the correct outcome is **no
+probe and the reading it must give — and never the weak form. If nobody is going
+to measure those probes, the correct outcome is **no
 file**, not a file with unmeasured notes. An unverified `(VERIFIED)` marker is
 the same lie as an unmeasured coordinate, one layer up.
 
 ## 本文件無法代為做出的決定：只含 `sleep` 的檔案該不該進入 `win/`？
 
-**十支中有六支沒有控制項，而本儲存庫對於「這種 app 該怎麼辦」已經同時存在兩個相反的答案。** 必須由
-上層工作階段擇一；本節公平地陳述兩者，因為選錯正是「靠什麼都不做而通過」得以混入的途徑。
+**已定案(2026-10-19,`1d47d395`):採 mac 形式。** 十支都已有 `win/` 檔案，每一列 note 帶一項經量測的主張;
+`win/README.md` 已於 `12f0ef6f` 改成與現有檔案一致。以下保留決定前的兩方論點。
+
+**十支中有六支沒有控制項，而本儲存庫對於「這種 app 該怎麼辦」已經同時存在兩個相反的答案。** 寫檔
+之前必須擇一；本節公平地陳述兩者，因為選錯正是「靠什麼都不做而通過」得以混入的途徑。
 
 **`testapp/actions/win/README.md` 說不。** 其「八支永遠不該有動作檔的 app」一節點名 P25、P27、P37、
 P38、P39、P40、P42、P43——即**這十支中的六支**——並主張：它們全都沒有可互動的控制項；指向它們的點擊
@@ -150,7 +158,7 @@ P15-DARK 與 P17-DOE 外，這十支每一支都有 mac 檔；ios 則十支俱�
 主張；一個月後看著 P40 那七個方塊的人，手上沒有任何「何謂正確」的記錄。
 
 **這是建議，不是決定。** 下文凡提議只含 `sleep` 的檔案處，一律只提議 **mac 形式**——每列一項主張，
-各自指名一個取樣點及其必須給出的讀數——絕不提議弱形式。若上層工作階段不打算量測那些取樣點，正確的
+各自指名一個取樣點及其必須給出的讀數——絕不提議弱形式。若沒有人要量測那些取樣點，正確的
 結果是**不寫檔案**，而不是寫一個帶著未量測 note 的檔案。一個未經查證的 `(VERIFIED)` 標記，與一個
 未經量測的座標是同一種謊言，只是高了一層。
 
@@ -169,7 +177,7 @@ file, so the run leaves evidence that does not depend on reading pixels.
 
 `testapp/P44.swift`, written 2026-09-04. Does `clipped()` cut a child down to its
 frame? It exists because nothing exercised `BackendFeatures.Clipping` on Android
-and AndroidBackend did not implement it, so `clipped()` went through
+and AndroidBackend did not implement it (the commit that added P44, `f8d5f886`, does), so `clipped()` went through
 `@CastBackend` and would have taken the process down. **GtkBackend does conform**
 — `Sources/GtkBackend/GtkBackend.swift:49` lists `BackendFeatures.Clipping` — so
 on Windows/GtkBackend the question is not "does it abort" but "does it actually
@@ -182,7 +190,7 @@ that is not a defect in the app, but it means there is no second source to
 cross-check against.
 
 `testapp/P44.swift`，撰於 2026-09-04。`clipped()` 會把子元件裁到它的 frame 之內嗎？它的存在是因為
-Android 上沒有任何東西用到 `BackendFeatures.Clipping`，而 AndroidBackend 並未實作它。**GtkBackend
+當時 Android 上沒有任何東西用到 `BackendFeatures.Clipping`，而 AndroidBackend 並未實作它（新增 P44 的同一個 commit `f8d5f886` 補上了）。**GtkBackend
 確實符合該 conformance**（`Sources/GtkBackend/GtkBackend.swift:49`），因此在 Windows/GtkBackend 上，
 問題不是「會不會中止」，而是「究竟有沒有裁切」。無 issue 編號。**P44 完全未出現在
 `UI-test-plan-en.md#overall-plan-p0-p41` 中**（該計畫停在 P41），亦未出現於 `issues.csv` 與各結果文件。
@@ -295,10 +303,10 @@ not require anyone to interpret an image.
 
 **Do this one second.** It is the richest app of the ten — five clickable
 targets, a genuine drag, a scrollable region — and it is the only one of the ten
-that has never been run on this machine at all.
+that has never been run on the Windows host at all.
 
 **這一支請排第二。** 它是十支中內容最豐富的——五個可點擊目標、一次真正的拖曳、一個可捲動區域——
-而且是十支中唯一一支在本機上從未執行過的。
+而且是十支中唯一一支在 Windows 主機上從未執行過的。
 
 ### 1. What it is for / 它的用途
 
@@ -854,7 +862,7 @@ fill region instead of the stroke.
 
 For all four, an action file could contain nothing but `sleep` rows. **The
 capture is the entire experiment**, and `screenshot.zsh` produces it without a
-replay. If the parent session adopts the mac form, the claim shapes to measure
+replay. If the mac form is adopted, the claim shapes to measure
 are below — the *shapes*, not the numbers, which must come off the Windows
 captures. Each is chosen because it is falsifiable and has a built-in control:
 
@@ -1062,7 +1070,7 @@ runs on Windows — the app's own line 151 was changed on 2026-09-05 for exactly
 this confusion, so that the window names the backend it is *running* on rather
 than the one it was written for.
 
-另有兩項屬「過期」而非「錯誤」，值得重新查核而非照抄：`gtk-test-plan-findings.md:1411` 稱 P11 在本機
+另有兩項屬「過期」而非「錯誤」，值得重新查核而非照抄：`gtk-test-plan-findings.md:1411` 稱 P11 在 Windows 主機
 上仍屬範圍之外，而 P11 正是本任務的範圍之一；`P0-P26-windows-findings.md:459` 把 P11 列為 macOS
 app——那是它的出處，而非關於它能否在 Windows 上執行的陳述。
 
@@ -1101,7 +1109,7 @@ app——那是它的出處，而非關於它能否在 Windows 上執行的陳�
 1. **P44**——一次按壓、三項同時可觀察的改變，外加一行不需人工判讀像素的 log。
 2. **P11**——單一檔案所能學到最多者。**量測座標之前**先確認它能啟動並檢查 `p11-startup.log`。
 3. **P15-DARK**——十支中成本最低的一次執行，且能解決一個未決問題；需要淺色系統主題，且完全不需點擊。
-4. **P27**——在真正的 `WebView` 中捲動；宜在上層決定 `sleep` 政策之後再做。
+4. **P27**——在真正的 `WebView` 中捲動；宜在 `sleep` 政策定案之後再做。
 5. **P39、P40、P43**——僅在採用 mac 形式、且取樣點確實經過量測時才做。
 6. **P17-DOE**——最後，甚或不做。其實驗已隨 #389 經由 P3 修復而定案。
 7. **P37、P25**——不寫檔案。對 P37 而言，寫了比不寫更糟，因為框架本身就保證了那個結果。

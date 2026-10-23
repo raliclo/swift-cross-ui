@@ -1,7 +1,7 @@
 # patches
 
 Changes this tree needs in code it does not own, kept as patches because the
-tree that owns them cannot be pushed to from here.
+tree that owns them is not one this fork can push to.
 
 | patch | applies to | why it is a patch |
 | --- | --- | --- |

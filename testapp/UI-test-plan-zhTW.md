@@ -9,7 +9,7 @@
 其餘每一行都未更動。
 
 **`UI-test-plan_zhTW.md`(WinUI P0-P6)刻意沒有併進來。** 它列在 `.git/info/exclude` 裡,
-是一份**只存在於本機**的檔案;把它折進一個會被提交的檔案,等於替使用者決定把它發佈出去。
+是一份**只存在於本機**的檔案;把它折進一個會被提交的檔案,等於未經同意就把它發佈出去。
 它仍在 `testapp/` 底下,原地未動。
 
 英文那一半是 `UI-test-plan-en.md`。兩者不是逐行對譯——本來就不是。
@@ -955,7 +955,7 @@ Runtime tools：
   Basic Render Driver 作為 CPU 基準線），以及 `testapp/gpu-matrix.zsh`：逐一執行所有
   模式並把結果寫入 `testapp/P6_findings/gpu-modes.csv`（含 date_tested、mode、
   resolution、target_fps、measured_fps、dropped/s、逐階段耗時與完整 ffmpeg 參數，
-  確保可重現）。本機 adapter 0 是 AMD Radeon iGPU、adapter 1 是 Nvidia RTX 4060。
+  確保可重現）。Windows 11 測試機的 adapter 0 是 AMD Radeon iGPU、adapter 1 是 Nvidia RTX 4060。
   結論：**五種模式在 1080p/4K、30/60 FPS 下差異都在雜訊範圍內，連完全不用 GPU 也
   一樣**；呈現階段一律只花 0–6 ms。選哪張 GPU 對這個工作負載不是槓桿。
 - 2026-08-12：以相同濾鏡鏈單獨執行 ffmpeg 輸出到 NUL，4K@60 可達約 123 fps
@@ -1030,7 +1030,7 @@ Runtime tools：
   視窗。Foundation 的 `Process` 只傳 `CREATE_UNICODE_ENVIRONMENT`，且無從加上
   `CREATE_NO_WINDOW`，因此五個生成點全部改走 `P6WindowlessProcess`，直接呼叫
   `CreateProcessW`。連帶也要自行實作引數引號處理、handle 繼承、終止與結束碼；其他
-  平台維持 Foundation 路徑。詳見 `testapp/todo-foundation.md`。
+  平台維持 Foundation 路徑。詳見 `testapp/todo/todo-foundation_zhTW.md`。
 - 2026-08-13：曾嘗試把各 app 連結成 GUI 子系統執行檔，已收回。它雖能消掉檔案總管
   開啟時附帶的主控台，但只要子行程仍由 Foundation 生成就會更糟：沒有可繼承的主控台
   時，ffmpeg 與 ffplay 會各自開出一個、且在其執行期間都存在的主控台視窗。理由已記在
@@ -1186,7 +1186,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
    (CPU)`。目前所有模式的呈現都是 CPU 路徑；旗標只切換解碼。
 3. 確認音訊。它是獨立的 ffplay 行程，因此不保證同步：1x 時貼合到足以觀看，3x 時會飄移。
    這是預期行為。
-4. 在相同速度、幀率與解析度下連續執行 `-cpu` 與 `-gpu`，比較兩份摘要。在本機上兩者的差距
+4. 在相同速度、幀率與解析度下連續執行 `-cpu` 與 `-gpu`，比較兩份摘要。在 Windows 11 測試機上兩者的差距
    落在雜訊範圍內，因為瓶頸是 RGBA 管線的讀取，而非解碼。
 5. 將速度推到 `3x` 並觀察 `dropped/sec`。只有當幀的到達速度快於可顯示速度時才會掉幀；單純
    慢於目標速率的解碼器會把每一幀都顯示出來，並回報較低的 fps。
@@ -2193,7 +2193,7 @@ Notes:
 
 ## Linux 計畫:透過 WSL 的 GtkBackend
 
-目標：在這台機器上重現 open 的 GtkBackend/Gtk3Backend issues，能修的就修，並將修正提交 upstream。工作方式和 WinUI 工作相同：先重現，量測而非推論，並保留證據。
+目標：在 Windows 11 測試機的 WSL 上重現 open 的 GtkBackend issues，能修的就修，並將修正提交 upstream。工作方式和 WinUI 工作相同：先重現，量測而非推論，並保留證據。
 
 哪個 app 涵蓋哪個 issue，以及 WSLg 執行結果是能判定 issue 還是只能顯示症狀，請看 `UI-test-plan-en.md#platform-matrix`。下方 Tier 1 / Tier 2 的區分就來自那份文件；但請注意，Tier 2 不等於「WSLg 會扭曲它」：要讀 caveat 欄，因為只有 #556 是關於 window sizing 本身。
 
@@ -2241,7 +2241,7 @@ swift build --target GtkBackend      # not --product
 
 `--target GtkBackend` 不是偏好，而是必要。單純 `swift build` 或 `--product SwiftCrossUI` 會讓 SwiftPM 建置 default target set，其中包含 `WinUIInterop` C target，Linux 上會因 `'Windows.h' file not found` 失敗。直接指定 target 才能繞過。
 
-本機量測：clean 狀態下 `--target GtkBackend` 需要 61.7 秒；warm 後 `testapp/compile.zsh` 建一個 repro app 約 5-15 秒。
+於 Windows 11 測試機的 WSL 量測：clean 狀態下 `--target GtkBackend` 需要 61.7 秒；warm 後 `testapp/compile.zsh` 建一個 repro app 約 5-15 秒。
 
 ### Phase 2 -- 既有 test apps 提供的免費覆蓋率
 
@@ -2285,7 +2285,7 @@ swift build --target GtkBackend      # not --product
 
 先重現這些；但在宣稱 fix 前，請在真正的 Linux desktop session 上確認，或至少明確說明只在 WSLg 下檢查過。
 
-**Tier 3 -- 需要目前沒有的東西，或不是 bug**
+**Tier 3 -- 需要此處沒有的硬體或環境，或不是 bug**
 
 | # | Title | Why |
 |---|---|---|
@@ -2563,10 +2563,10 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 - 音訊（已解決）：P6 在 WSLg 上沒有聲音。**唯一的成因是 WSLg 的 PulseAudio server 停止監聽**，`pactl`、`paplay` 與 SDL 三個客戶端在同一時刻都得到 `Connection refused`。在 Windows 執行 `wsl --shutdown` 後重開 WSL，伺服器即恢復（`Server Name: pulseaudio`、`Server Version: 17.0`、`Default Sink: RDPSink`、`RDP Sink - Connected to fd 20`），播放經使用者實聽確認。Windows 端音訊裝置本來就全部正常（Realtek(R) Audio `oem10.inf`、NVIDIA HD Audio、AMD HD Audio、NVIDIA Virtual Audio Device，狀態皆為 Started）。
 - 音訊誤判紀錄（重要，避免重蹈）：中途一度把 32 行 `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'` 當成根本原因，並為此在 P6 中加入 `SDL_AUDIODRIVER=pulse`。那是**症狀而非病因**——pulse 連不上時 SDL 才退回 ALSA。伺服器修復後實測：不設任何變數時 exit 0 且 0 行 ALSA 錯誤，SDL 自己就會選擇 pulse；強制 `SDL_AUDIODRIVER=alsa` 才會產生那 32 行。因此該程式碼改動已撤除。當初之所以誤判為「pulse 修好了」，是因為判定用的 grep 只匹配 `ALSA|error`，看不見 pulse 路徑真正的失敗訊息 `Could not initialize SDL - Could not connect to PulseAudio`：ALSA 路徑是吵鬧的失敗，pulse 路徑是安靜的失敗，兩者都沒有播放。**教訓：用退出碼判定成敗，不要用只匹配特定字串的過濾器。**
 - 判別要點：若沒有 `pactl`，此問題無法與「client 端設定錯誤」區分——socket 存在、`PULSE_SERVER` 指向正確、檔案權限也正常，看起來完全設定妥當。`pactl info` 是唯一能分辨兩者的檢查，因此 `pulseaudio-utils` 已列入 `install_tool_wsl.sh`。伺服器可在 socket 檔案仍留在原處的情況下停止服務，所以「socket 存在」不足以作為判斷依據。
-- WSL 安裝腳本從未被同步到 WSL：`rsync_WSL.zsh` 的 include 樣式只涵蓋 `*.swift` 與 `testapp/**/*.zsh`，因此 `install_tool_wsl.sh` 從未送達 WSL。實際發現 WSL 端的副本仍停留在 8 月 16 日的版本，而本機已改過多次。已於 include 清單加入該檔並註明理由。
+- WSL 安裝腳本從未被同步到 WSL：`rsync_WSL.zsh` 的 include 樣式只涵蓋 `*.swift` 與 `testapp/**/*.zsh`，因此 `install_tool_wsl.sh` 從未送達 WSL。實際發現 WSL 端的副本仍停留在 8 月 16 日的版本，而 Windows 端已改過多次。已於 include 清單加入該檔並註明理由。
 - 安裝腳本已拆分：`install_tool_wsl.sh` 僅保留引導職責（檢查 root、安裝 zsh、交棒），實際邏輯移入新的 `install_tool_wsl.zsh`。維持 `.sh` 進入點的理由無法迴避——該腳本面對的是尚未安裝 zsh 的機器，而安裝 zsh 正是它的工作；若用 zsh shebang，核心會因找不到直譯器而使它完全無法啟動。形狀與「自我提權後立刻交棒」的 `.ps1` launcher 相同。兩個進入點的 `--help` 皆在 0.2 秒內回應且不安裝任何東西。
 - WSL 在 Windows 那一側的磁碟與記憶體（2026-10-23）：發行版的 `ext4.vhdx` 只會變大——WSL 裡用 79 GB，C: 上是 82 GB——所以 WSL 裡釋出的空間不會還回來。分兩半處理：`install_tool_wsl.zsh` 現在啟用 `fstrim.timer`（加上清掉 `ConditionVirtualization=!container` 的 drop-in，因為 systemd 把 WSL 算成容器，否則計時器會一直是「inactive (dead) ... start condition unmet」）、執行一次 `fstrim`，並透過 WSL 互通檢查 vhdx 是否稀疏；不是時印出 `wsl --shutdown; wsl --manage <distro> --set-sparse true`（只有 Windows 能設定，且 WSL 必須停止）。`test.zsh --wsl`／`--both` 會執行 `test_support/check_wsl_host.zsh --quiet`，在 vhdx 不是稀疏、C: 剩不到 20 GB、或 `.wslconfig` 的 `[wsl2]` 沒有 `memory=`、`[experimental]` 沒有 `autoMemoryReclaim` 時發出警告——只警告、不擋。本機設成稀疏並修剪後立刻拿回約 1 GB;其餘要在 WSL 停止時用 `diskpart` 的 `compact vdisk` 收回。
-- 第三方套件庫會中止整個安裝：本機於 2026-08-17 的 GPU 調查期間加入了 NVIDIA CUDA repo 卻沒有一併安裝 keyring，`apt-get update` 因而以 `NO_PUBKEY A4B469963BF863CC` 失敗；在 `set -e` 下安裝腳本在裝任何東西之前就中止——而它需要的每個套件其實都取得得到。已改為「回報但繼續」，讓真正找不到套件時由安裝指令自行失敗。該 repo 本身仍待處理：補上金鑰或移除（GPU 調查已確認問題不在驅動）。
+- 第三方套件庫會中止整個安裝：2026-08-17 的 GPU 調查期間在 WSL 中加入了 NVIDIA CUDA repo 卻沒有一併安裝 keyring，`apt-get update` 因而以 `NO_PUBKEY A4B469963BF863CC` 失敗；在 `set -e` 下安裝腳本在裝任何東西之前就中止——而它需要的每個套件其實都取得得到。已改為「回報但繼續」，讓真正找不到套件時由安裝指令自行失敗。該 repo 本身仍待處理：補上金鑰或移除（GPU 調查已確認問題不在驅動）。
 - GTK 檔案選擇器不關閉（Open，**僅限 Wayland**）：完整 2×2 對照如下，四格皆為實測。
 
   | | Wayland | XWayland |
@@ -2576,7 +2576,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 
   結論：**`gtk_native_dialog_destroy()` 沒有任何作用，該修正已撤除。** 先前提出的 refcount 假說（`GObject.init` 對 `gtk_file_chooser_native_new` 已交付的參考再 `g_object_ref` 一次，使物件永不終結）**已被推翻**——若成立，加上明確 destroy 應當有效。
 - 檔案選擇器：已確認 response handler 有正常觸發。日誌顯示使用者選檔後出現 `load /mnt/c/.../20260721 …`、`session token 2`、`frame 00:00`、`Frame ready`，亦即 URL 有交回、檔案有載入、影格有解出。**只有對話框沒有消失**，因此問題不在 signal 傳遞，而在對話框視窗的生命週期，且僅發生於 Wayland。XWayland 下同一份程式碼完全正常。
-- 檢驗方法備忘：判斷「是否為本專案的缺陷」的下一步，是拿一個非 SwiftCrossUI 的原生 GTK4 app（例如 `gtk4-demo` 的檔案選擇器）在 WSLg Wayland 下測試。若它同樣不關閉，則問題屬於 GTK 或 WSLg，與 GtkBackend 無關；若它正常關閉，才需要回頭查 backend。尚未執行。
+- 檢驗方法備忘：判斷「是否為本專案的缺陷」的方法，是拿一個非 SwiftCrossUI 的原生 GTK4 app 的檔案選擇器在 WSLg Wayland 下測試。若它同樣不關閉，則問題屬於 GTK 或 WSLg，與 GtkBackend 無關；若它正常關閉，才需要回頭查 backend。已於 2026-08-19 以 `gtk4-node-editor` 執行，其對話框正常關閉：見下方「GTK 檔案選擇器：根因確認」。
 - Wayland 與 XWayland 必須分開驗證：Wayland 依設計不允許一個行程驅動另一個 client，因此 xdotool 在預設的 WSLg 工作階段中看不到任何視窗。這代表兩者是真正不同的測試目標——在其中一邊重現的錯誤不能作為另一邊的證據，上述檔案選擇器即為實例。
 - WSL GUI 自動化已可用：`xdotool` 搭配 `xwd`／`netpbm` 可在 XWayland 下點擊控制項並擷取視窗內容，且不依賴 Windows 端解鎖。座標須使用 `xdotool mousemove --window`（視窗相對），絕對座標會因視窗裝飾而失準——實測絕對座標點擊完全沒有反應，改為相對座標後立即成功。注意 `xwd` 位於 `x11-apps` 而非 `x11-utils`。
 - WSLg 視窗完全不出現（已解決，成因為 COPY MODE）：回報症狀是「P6 啟動後點工作列圖示也不會到前景，甚至根本看不到視窗」。App 本身完全正常——日誌有 `auto-load`、`frame 00:00`、`Frame ready`，代表 `onAppear` 已執行、視窗已建立、影格持續解碼；`/mnt/wslg/weston.log` 也顯示視窗已註冊給 RDP peer（`associateWindowId: 1`、`appWindowId: 0x10`）。真正的原因是 **WSLg 處於 COPY MODE**：其算繪路徑降級，視窗雖存在卻無法被帶到前景。於 Windows 執行 `wsl --shutdown` 後重開即恢復，視窗立即正常顯示。
@@ -2590,7 +2590,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 
 #### GTK 檔案選擇器：根因確認
 
-- **根因是所使用的 API，而非我們的用法。** 判別方式是拿一個完全不含 SwiftCrossUI 的原生 GTK4 app（`gtk4-node-editor`）在同一個 WSLg Wayland 工作階段下測試：它的檔案對話框**正常關閉**。以 `nm -D --undefined-only` 比對兩者實際連結的符號：
+- **根因是所使用的 API，而非 GtkBackend 的用法。** 判別方式是拿一個完全不含 SwiftCrossUI 的原生 GTK4 app（`gtk4-node-editor`）在同一個 WSLg Wayland 工作階段下測試：它的檔案對話框**正常關閉**。以 `nm -D --undefined-only` 比對兩者實際連結的符號：
 
   | | 使用的 API | Wayland 結果 |
   |---|---|---|
@@ -2600,7 +2600,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
   同一台機器、同一個 GTK 4.22、同一個 compositor，差別只在 API。
 - `GtkFileChooserNative` 在 GIR 中標記為 `deprecated="1"`（`Gtk-4.0.gir`）。標頭檔本身沒有 `GDK_DEPRECATED` 巨集，因此以標頭檔查詢會得到「未標記淘汰」的錯誤結論——GIR 才是權威來源，也正是 `GtkCodeGen` 產生 Swift 綁定所依據的同一份資料。
 - 取代用的 `GtkFileDialog` 自 **GTK 4.10** 起提供（`GDK_AVAILABLE_IN_4_10`），系統標頭中所需函式齊備：`open`／`open_multiple`／`save`／`select_folder` 及各自的 `_finish`，加上 `set_title`、`set_initial_folder`、`set_filters`、`set_accept_label`。它是**非同步 API**（`GAsyncResult` callback），與現行以 `response` signal 為中心的實作模型不同，因此遷移需要改寫而非替換函式名稱。
-- 方法備忘：先前三次嘗試修正都失敗，因為都在假設「我們用錯了」。真正有效的一步是**切開責任歸屬**——用原生 app 做對照，確認同一環境下別人做得到。這比任何一個新假說都便宜。
+- 方法備忘：先前三次嘗試修正都失敗，因為都在假設「GtkBackend 用錯了」。真正有效的一步是**切開責任歸屬**——用原生 app 做對照，確認同一環境下別人做得到。這比任何一個新假說都便宜。
 
 #### 放棄 GTK3 支援
 
@@ -2609,7 +2609,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 - `Examples` 內的 `#if canImport(Gtk3Backend)` 分支在模組消失後會自動編譯掉，不會破壞建置，但仍一併移除；`ControlsApp.swift` 的 `#if !canImport(Gtk3Backend)` 則相反——它在移除後永遠為真，因此拆掉包裹讓內容無條件編譯。
 - 文件與註解清理另外揪出**兩個真正的破損**，不只是文字：`Scripts/generate_gtk.sh` 仍呼叫已刪除的 `./generate_gtk3.sh`；`GtkCodeGen` 的 `gtk3AllowListedClasses` 與 `version == "3.0"` 分支是實際的產生邏輯。CI workflow 也還在建置與產生 `Gtk3Backend` 的文件（三個步驟＋docc 合併清單）。`Publisher.swift` 另有一個 ``` ``Gtk3Backend`` ``` 的 DocC 符號連結，目標消失後會變成無法解析的連結。
 - 刻意**保留**的三處：`gtk_helpers.h` 中作者記述某次 macOS 建置異常的第一人稱說明、`AppBackend refactor.md`（開頭即言明是某 PR 的變更清單，本質為歷史文件），以及 `GtkCodeGen` 中 `populate-popup` 的停用理由——後者已改寫為「GTK3 已移除故該理由不再適用，但尚未在 GTK4 上驗證重新啟用」，而不是直接開啟該訊號，因為那是行為變更。改寫歷史記述等同偽造記錄。
-- **rsync 不會傳播刪除，且建置成功會掩蓋這件事**：`rsync_WSL.zsh` 刻意不使用 `--delete`（WSL 端的 `output/`、build 快取與本地修改應保留）。因此本機刪除 193 個 GTK3 檔案後，WSL 端**全部仍在**；而 SwiftPM 會忽略 `Package.swift` 不再宣告的目錄，所以 WSL 上四個 target 依然建置成功——一棵已經與本機不一致的樹，看起來完全正常。已手動清除 WSL 端並重新驗證，同時把這個後果寫進 `rsync_WSL.zsh` 的標頭。
+- **rsync 不會傳播刪除，且建置成功會掩蓋這件事**：`rsync_WSL.zsh` 刻意不使用 `--delete`（WSL 端的 `output/`、build 快取與本地修改應保留）。因此 Windows 端刪除 193 個 GTK3 檔案後，WSL 端**全部仍在**；而 SwiftPM 會忽略 `Package.swift` 不再宣告的目錄，所以 WSL 上四個 target 依然建置成功——一棵已經與 Windows 端不一致的樹，看起來完全正常。已手動清除 WSL 端並重新驗證，同時把這個後果寫進 `rsync_WSL.zsh` 的標頭。
 - 驗證：`Gtk`、`GtkBackend`、`DefaultBackend`、`GtkExample` 四個 target 皆建置成功；所有編輯過的檔案通過 `swiftc -parse`。整包 `swift build` 與 `Examples` 在 Linux 上仍會停在 `WinUIInterop`／`swift-winui` 缺 `Windows.h`、`wtypesbase.h`——那是既有的平台限制，與本次移除無關。
 
 #### GtkBackend 已能在 Windows 上建置
@@ -2729,7 +2729,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 - 本次變更後最新 P39 final screenshots：WSLg `p39-wslg-final-20260901-071259.png`，Windows `p39-windows-final-20260901-071318.png`。PIL comparison 仍顯示 Windows `opacity mean_diff=69.20`；blur、saturation、brightness、contrast、grayscale、hue rotation 仍是 `mean_diff=0.00`。WSLg 則每個非 control sample 都有非零差異。
 - **2026-09-02 起已被取代：WinUI 七項 visual effects 全部已實作。** 上面劃掉的各條刻意保留而非刪除——它們在當時是誠實且量測正確的判讀，而留下「看似合理但為假的查證長什麼樣子」比一張乾淨的頁面更有價值。改變的是程式碼，不是量測方法。`WinUIBackend+VisualEffects.swift` 現已建立真正的 Win2D effect graph（`Win2DEffectGraph`）：blur 用 `GaussianBlurEffect`，saturation 與 brightness 用 `ColorMatrixEffect`，另有 `ContrastEffect`、`GrayscaleEffect`、`HueRotationEffect`；opacity 保留為 `needsOnlyOpacity` 快速路徑，完全跳過 effect graph。用的是 Win2D，而非舊條目所預測的 `Microsoft.UI.Composition` graph，且 `Microsoft.Graphics.Canvas.dll` 隨 `testapp/output/` 一起出貨。2026-09-02 驗證：`applied=8 failed=0 total=8`——此數字的重跑指令為 `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`。2026-09-02 亦以 wincap 截圖做像素層級驗證，各 cell 的 mean HSV saturation：saturation 0 → 0.000、saturation 0.5 → 0.515、control（=1）→ 0.818、saturation 2.5 → 0.992——一條單調遞增的階梯，先前那組全為 0 的結果不可能產生它。在 2026-09-02 之前確實有一項是真的壞的：`saturation 2.5` 會以 `0x80070057` `E_INVALIDARG` 失敗，因為 Win2D 的 `SaturationEffect` 無法過飽和；已改用 `ColorMatrixEffect`。
 - 2026-09-01 P16 重跑，對象是同一小時重新建置的 binary：**三個點擊全部命中，取代先前那條「狀態變化未被確認」的紀錄。** 判讀方式是對照 `P16.swift` 中的初始值，而非目測：`updateCount` 起始為 `0`，截圖顯示 `Force update (1)`；`selectedArea` 起始為 `nil`，截圖顯示 `Science` 為選取狀態；`columns` 起始為 `.two`，而按鈕顯示 `Switch to 2 column`——那是 `.three` 時的標籤，且三個窗格皆在。先前回報「沒有狀態變化」的那次執行，正是同時回報 `SendInput` 為 `ERROR_ACCESS_DENIED` 的那一次。
-- 同一次執行回報 `-actionfile: warning: the window never took the foreground. This file only moves and clicks, so it ran on the topmost pin alone`。這並非失敗：點擊是依座標投遞給該處最上層的視窗，而 `SetWindowPos(HWND_TOPMOST)` 已把我方視窗置於該處，這正是三個點擊都命中的原因。之所以值得知道，是因為任何與焦點相關的行為，都可能與「確實取得前景」的那次執行不同。
+- 同一次執行回報 `-actionfile: warning: the window never took the foreground. This file only moves and clicks, so it ran on the topmost pin alone`。這並非失敗：點擊是依座標投遞給該處最上層的視窗，而 `SetWindowPos(HWND_TOPMOST)` 已把 app 視窗置於該處，這正是三個點擊都命中的原因。之所以值得知道，是因為任何與焦點相關的行為，都可能與「確實取得前景」的那次執行不同。
 - **#160 剩下的症狀在高度，不在寬度。** 最終截圖回報 `sidebar: 180 x 22`、`middle: 180 x 22`、`detail: 460 x 22`。寬度現在是正確的，而它原本是這個 bug 中看得見的那一半；高度 22 不可能正確，因為窗格是填滿視窗的。同一次執行回報的變化過程為 `sidebar 0 -> 180`、`middle 0 -> 180`、`detail 0 -> 460 -> 660`——寬度會安定下來，高度則從未離開 22。
 - 2026-09-01，更正上一條：**寬度同樣不可信，因此「剩下的症狀在高度」是錯的。** 那個探針是位於窗格 `VStack` 之內、且套在 `.frame(height: 22)` 之下的 `GeometryReader`，所以高度只可能是 22，而寬度量到的是內容欄、不是窗格。將 reader 移入 `.overlay(alignment: .topLeading)`（`P7SplitProbe` 成功採用的形狀）會弄壞 P16：視窗從未出現，wincap 在第一秒與結束時都找不到可擷取的視窗，動作檔從未重放，窗格回報 `sidebar 200 x 142` 與 `detail 20 x 46`。已還原。`.overlay` 在此的行為與 SwiftUI 不同，而它在本專案本就有前科——它曾吞掉指標事件。
 - **因此 #160 目前無法由 P16 的數字定案**，任何方向都不行。上方關於三個點擊的結果仍然成立，因為那是從 app 自身的狀態讀出的，而非來自探針。
@@ -2752,7 +2752,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
 - 這次安定是自行發生的，在首次算繪之內、任何互動之前，因此它也不是 #160——#160 指的是「一直錯到狀態改變為止」。它是一個 39px 的暫態，稱不上「嚴重錯誤」，而且寬度從未變動。
 - **兩者哪一個才對：WinUI 的。GTK 少了 39px，而那 39 就是一條標題列。** P16 要求 `.defaultSize(width: 900, height: 600)`。量測 `p16-gtk-headerbar-20260901-165737.png`：GTK 視窗表面恰為 **900x600**，其**內**有一條 **39px** 的 client-side decoration 標題列，實際內容區為 **900x561**。485 − 446 正好等於 39。GTK 的**第一輪**才是遵守了要求的那一次；它隨後正確地為「實際比要求更小的視窗」重新排版。有問題的不是版面系統，是視窗。
 - 成因：`GtkBackend.createWindow` 把要求的尺寸直接交給 `window.defaultSize`（GtkBackend.swift:994-997），也就是 `gtk_window_set_default_size`（Sources/Gtk/Widgets/Window.swift:63），而在 GTK4 中它設定的是**含 CSD 標題列的整個視窗**。在 Windows 上標題列屬於 non-client 區域——同一支 app 量到 916x639 的外框包著 900x600 的 client——所以 WinUI 交付了所要求的尺寸。已另立任務追蹤；寬度不受影響，兩個 backend 都回報 `total=880` = 900 − 2×10 padding。
-- SwiftUI 在此的行為**尚未驗證**——需要 Mac，而本機不在範圍內。待查證的預期是：`.defaultSize` 設定的是**內容**尺寸，因為在 macOS 上它對應視窗的 content rect，標題列另計，那會讓 SwiftUI 站在 WinUI 這一邊。此處記為「待量測的事項」，不是結論。
+- SwiftUI 在此的行為**尚未驗證**——需要 Mac。待查證的預期是：`.defaultSize` 設定的是**內容**尺寸，因為在 macOS 上它對應視窗的 content rect，標題列另計，那會讓 SwiftUI 站在 WinUI 這一邊。此處記為「待量測的事項」，不是結論。
 - **P7 在 GTK 上，現在帶有內容尺寸：** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`，三行相同。當初為 #556 定案的「sidebar 200 / 420」在版面層級得到確認。
 - **收回上一句裡的「值得一併檢視」。** 「207 對 220」與「140 對 77」是在查證之前就被稱為異常的；量測 `p7-gtk-556-20260901-165945.png` 之後，每一個都有解釋，而且沒有一個是缺陷：
   - detail 的文字在畫面上確實斷成兩行，兩行的 ink 寬度為 186 與 140，因此最長那一行是 186；再加上 `VStack` 左右各 10px 的 padding，子視圖寬度就是 206–207。**換行後的 `Text` 回報的是最長那一行的寬度，不是它被提議的寬度**——SwiftUI 也是如此。提議是 220、回答是 207，因為文字在單字邊界斷行。
@@ -2888,7 +2888,7 @@ content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標�
   content size after correction (+1500ms): allocated 900x561 shortfall 0x39
   ```
 
-  刻意取兩個延遲：單一次的延後讀數無法分辨「修正沒有作用」與「修正有效但我量得太早」，因為兩者
+  刻意取兩個延遲：單一次的延後讀數無法分辨「修正沒有作用」與「修正有效但讀數取得太早」，因為兩者
   都會印出舊的數字。時序造成的假象會給出**兩個不同的**數字；同一個數字出現兩次，代表那個指派是
   no-op。
 

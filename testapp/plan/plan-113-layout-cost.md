@@ -4,7 +4,7 @@
 
 **Status: measured. Four arms, five sizes, every number a min of n=50.**
 
-Windows 端訂下的判準,原話:*「給 P52 加一條純 `Text` 的 arm,同樣形狀、同樣交錯、同樣取最小
+判準的原文(Windows 一側提出):*「給 P52 加一條純 `Text` 的 arm,同樣形狀、同樣交錯、同樣取最小
 值。曲線相同 → 成本在 stack 版面,按鈕只是附帶;曲線不同 → 在 `Button`」*,參考點是
 *「48 顆按鈕時一次按壓約 **0.3 秒** 花在版面上」*。
 
@@ -45,7 +45,7 @@ like; n^1.5 would have quadrupled it. Not reproduced on AppKit up to 192 cells.
 
 ### 2. 曲線相同 —— 因此**成長**在 stack 版面
 
-三條 arm 的指數在 0.95 至 0.96 之間,彼此無法區分。依 Windows 訂下的判準,這就是
+三條 arm 的指數在 0.95 至 0.96 之間,彼此無法區分。依上述判準,這就是
 「曲線相同」那一支:**隨格數成長的那一部分來自 stack 版面,而不是來自 `Button`**。
 
 ### 3. 但常數不是「附帶的」:`Button` 讓每格貴 3.5 倍
@@ -67,14 +67,14 @@ button itself.
 
 ---
 
-## 三、0.3 秒那個參考點在這裡沒有重現 / The 0.3 s reference does not reproduce here
+## 三、0.3 秒那個參考點在 AppKit 上沒有重現 / The 0.3 s reference does not reproduce on AppKit
 
 48 顆按鈕時,`primitive` 一次按壓是 **min 10.5 ms、median 20.7 ms、max 41.0 ms**——比
 0.3 秒少了一個數量級以上。
 
 這不是說那個數字錯了,而是說**它不是 AppKit 上的數字**。若它量自 GTK 或 WinUI,那本身就是一
 項發現:同一份版面程式碼在不同 backend 上差了 30 倍,而那會把「該優化版面」變成「該去看那個
-backend 的 widget 建立成本」。**這是需要 Windows 端回答的一個問題,而不是我能從這台機器回答的。**
+backend 的 widget 建立成本」。**這要由產生那個參考點的機器(Windows)回答,AppKit 上的量測回答不了。**
 
 Measured at 48 on AppKit: 10.5 ms min, 20.7 ms median -- more than an order of
 magnitude below the 0.3 s reference. If that figure came from GTK or WinUI then
@@ -105,8 +105,8 @@ done
 `lastSentinel[3]` 在第一步跑起來之前就終結了行程。
 
 **它的症狀不是崩潰訊息,是日誌停在 `CONFIG` 之後不再前進**——看起來與「benchmark 卡住了」
-一模一樣,而我最初也是那樣讀它的,還去找了「視窗在背景被節流」這個並不存在的原因。四個陣列
+一模一樣,容易讓人去找「視窗在背景被節流」這個並不存在的原因。四個陣列
 現在都是 `count: armCount`,並在該處寫下這段症狀。
 
 The symptom was not a crash message but a log that stopped after `CONFIG`,
-indistinguishable from a stalled benchmark -- which is how I first read it.
+indistinguishable from a stalled benchmark, which invites a search for background-window throttling that is not the cause.

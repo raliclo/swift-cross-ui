@@ -1,6 +1,6 @@
 # 準備提交給 swift-corelibs-foundation 的事項
 
-這些是在建立 P6 Windows video path 時發現的問題。每一項都讓 `testapp/P6.swift` 必須加入 workaround；如果 Foundation 暴露底層 Win32 能力，這些 workaround 就不需要存在。量測資料來自本機：Windows 11、AMD Radeon iGPU + RTX 4060、1920x1080 @ 125%。
+這些是在建立 P6 Windows video path 時發現的問題。每一項都讓 `testapp/P6.swift` 必須加入 workaround；如果 Foundation 暴露底層 Win32 能力，這些 workaround 就不需要存在。量測資料來自 Windows 測試機：Windows 11、AMD Radeon iGPU + RTX 4060、1920x1080 @ 125%。
 
 ## 1. Windows 上的 `Pipe` 無法設定 buffer size
 

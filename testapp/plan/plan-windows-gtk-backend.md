@@ -150,7 +150,7 @@ baseline」所要求的。該 backend 的原始碼不動，且仍可建置。
 **為何 GTK4 不做成 submodule**：Windows 端的 GTK4 來自
 `testapp/install_gtk4_windows.zsh`，它下載 gvsbuild 的 release zip 並修補其 `.pc` 檔。
 gvsbuild 是一套由 Python recipes 構成的建置系統，而非二進位發行版；做成 submodule 只會
-取得那些 recipes，仍須在本機執行數小時的 MSVC 建置，而我們真正需要的是它的 release
+取得那些 recipes，仍須在本機執行數小時的 MSVC 建置，而真正需要的是它的 release
 產物。GTK4 上游也有相同問題。submodule 所能提供的版本鎖定，改由該腳本中的版本字串負責。
 
 ## Why
@@ -379,7 +379,7 @@ WinUIBackend 維持為 baseline：不移除、不標記淘汰、保持可建置�
 
 ## What each -GPU value actually selects
 
-**Verified 2026-08-29 on this machine only** (integrated AMD Radeon plus a
+**Verified 2026-08-29 on the Windows test machine only** (integrated AMD Radeon plus a
 discrete NVIDIA adapter). Re-measure with
 `zsh testapp/gpu_flag_test.zsh --no-build` before quoting the renderer column
 anywhere else — see the caveat below the table.
@@ -398,7 +398,7 @@ NVIDIA adapter. The `GskGLRenderer` in row 4 is an observation from that run,
 not an assertion the test would fail on.
 
 Three of the four rows say `GskCairoRenderer`, and they say it for three
-different reasons. Cairo is **this machine's** answer to `-GPU 1`, not the
+different reasons. Cairo is **the Windows test machine's** answer to `-GPU 1`, not the
 definition of `-GPU 1`: without Direct Composition, GTK on Windows cannot
 realize `GskGLRenderer` at all, so the default and the explicit software request
 land on the same renderer here. On a machine where GL realizes unaided they
@@ -563,7 +563,7 @@ itself, which is the only source that settles it:
         vulkan - Disabled during GTK build
           help - Print this help
 
-The cause is upstream of us and is a one-line build decision. `/c/gtk4` is a
+The cause is upstream of SwiftCrossUI and is a one-line build decision. `/c/gtk4` is a
 [gvsbuild](https://github.com/wingtk/gvsbuild) install (MSVC, `gtk-4-1.dll`,
 `.lib` import libraries), and gvsbuild's GTK 4 recipe passes **`-Dvulkan=disabled`**
 with no vulkan or shaderc dependency. MSYS2's `mingw-w64-gtk4`, at the **same
@@ -665,11 +665,11 @@ or record the gap. `SCUI_GTK_DCOMP=1` also still forces it on, kept only as the
 reproduction for the upstream GTK report in
 [bugs/Gtk4-bugs.md](../../bugs/Gtk4-bugs.md).
 
-**僅在本機驗證，2026-08-29**（AMD Radeon，透過原生 WGL 的 GL 4.6）。以
+**僅在 Windows 測試機上驗證，2026-08-29**（AMD Radeon，透過原生 WGL 的 GL 4.6）。以
 `zsh testapp/gpu_flag_test.zsh` 重新產生——該腳本斷言的是上表的**關係**，不是這些
 名字；在別處引用「繪製器」那一欄之前請重新量測。
 
-四列裡有三列寫著 `GskCairoRenderer`，而這三列的理由各不相同。Cairo 是**這台機器**對
+四列裡有三列寫著 `GskCairoRenderer`，而這三列的理由各不相同。Cairo 是**這台 Windows 測試機**對
 `-GPU 1` 的答案，不是 `-GPU 1` 的定義：沒有 Direct Composition，Windows 上的 GTK 根本
 無法實現 `GskGLRenderer`，於是「預設」與「明確要求軟體」在此落到同一個繪製器上；在一台
 GL 能自行實現的機器上則不會。
@@ -716,7 +716,7 @@ Cairo。去問 GTK 自己，那是唯一能了結此事的來源：
     $ GSK_RENDERER=help ./P40-gtk4.exe
         vulkan - Disabled during GTK build
 
-成因在我們的上游，而且只是一行 build 決策。`/c/gtk4` 是一份
+成因在 SwiftCrossUI 的上游，而且只是一行 build 決策。`/c/gtk4` 是一份
 [gvsbuild](https://github.com/wingtk/gvsbuild) 安裝（MSVC、`gtk-4-1.dll`、`.lib` 匯入
 程式庫），而 gvsbuild 的 GTK 4 配方傳的是 **`-Dvulkan=disabled`**，且未列任何 vulkan 或
 shaderc 相依。MSYS2 的 `mingw-w64-gtk4` 在**同樣的 4.22.4** 版本上傳的是

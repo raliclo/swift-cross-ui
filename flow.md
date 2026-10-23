@@ -18,7 +18,7 @@ track, not a task.
 
 | remote | points at | which is |
 | --- | --- | --- |
-| `origin` | `raliclo/…` | our fork, where `develop` lives and where both machines push |
+| `origin` | `raliclo/…` | the fork, where `develop` lives and where both machines push |
 | `upstream` | `moreSwift/…` | the project pull requests go to |
 
 **The same names in the same roles on both hosts, and inside the submodules.**
@@ -45,7 +45,7 @@ touched; only `git fetch moreSwift` and `moreSwift/main` style uses changed.
 
 | remote | 指向 | 也就是 |
 | --- | --- | --- |
-| `origin` | `raliclo/…` | 我們的 fork，`develop` 所在，兩台機器都推這裡 |
+| `origin` | `raliclo/…` | 本 fork，`develop` 所在，兩台機器都推這裡 |
 | `upstream` | `moreSwift/…` | 送 pull request 的目標 |
 
 **兩台主機、以及各 submodule 內部，都用同樣的名字對應同樣的角色。** 於 2026-09-09 對齊——在那之前
@@ -351,9 +351,9 @@ Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看�
 `queue.md` 是那份清單,`heartbeats/heartbeat.zsh` 是讀它的東西。**這一條不是流程偏好,是一次
 實際發生過三次的錯誤的矯正措施**——見 `mistakes.md` 第 1 條。
 
-一份貼在訊息中的待辦表會隨著 context 壓縮而淡出,而淡出之後,「佇列已經空了」與「我不記得佇列了」
+一份貼在訊息中的待辦表會隨著 context 壓縮而淡出,而淡出之後,「佇列已經空了」與「佇列已不在 context 裡」
 在內部讀起來完全相同:兩者都不會產生任何一行輸出,兩者都會讓那個回合以一份看起來完整的報告收尾。
-使用者發現它的方式,是連問兩次「Are you still working ?」——需要問這句話,本身就是症狀。
+外部看得到的唯一徵兆,是有人得連問兩次「Are you still working ?」——需要問這句話,本身就是症狀。
 
 ```sh
 zsh heartbeats/heartbeat.zsh --on     # 開
@@ -364,7 +364,7 @@ zsh heartbeats/heartbeat.zsh --off    # 關;此後每一次心跳都是一次無
 搭配 `/loop` 使用,而**理由不是「cron 做不到」——這句話本頁原本寫過,而它是錯的。** cron 到得了一個
 活著的 session:`multissh` 有 exec 通道,而 `screen -X stuff` 會寫進該 session 的 stdin;兩者都在
 2026-09-09 端到端實測過,工具是 `heartbeats/heartbeat.zsh`,量到的數字記在 `mistakes.md` 第 1 條。
-真正的限制是那個 session 必須跑在 multiplexer 之內,而今天兩台機器上都沒有這樣的 session。
+真正的限制是那個 session 必須跑在 multiplexer 之內,而 2026-09-09 時兩台機器上都沒有這樣的 session。
 
 對**佇列**而言選 `/loop`,是因為它從「正在做事的那個 session 內部」重新進入,因此下一個項目是由
 必須採取行動的那個 session 自己讀到的,而不是被別人打進去的:
@@ -381,8 +381,8 @@ zsh heartbeats/heartbeat.zsh --off    # 關;此後每一次心跳都是一次無
 
 The queue lives in `queue.md`, not in the conversation. This is the corrective for
 a mistake that happened three times, not a style preference: a pasted table fades
-with compaction, and once it has, "the queue is empty" and "I no longer remember
-the queue" produce the same output, which is none. Pair it with `/loop` because
+with compaction, and once it has, "the queue is empty" and "the queue is no longer
+in context" produce the same output, which is none. Pair it with `/loop` because
 that re-enters from inside the session doing the work -- not because cron cannot
 reach a session, which this page previously claimed and which is false. Tick the
 box in the same commit as the work.
@@ -423,7 +423,7 @@ zsh Scripts/check_action_files.zsh
 ```
 
 `Scripts/test.zsh` 已經包含它,因此走正常閘門就會跑到。單獨列出,是因為它要回答的問題發生在**提交之前**:
-「我剛寫下的那句 `(VERIFIED …)`,別人跑得起來嗎?」
+「剛寫下的那句 `(VERIFIED …)`,別人跑得起來嗎?」
 
 它檢查的是:results.csv2 中每一個被引用的動作檔(舊列寫 `.csv`,2026-10-14 起是 `.actions`),都存在於 `testapp/actions/` 之下。
 
@@ -479,21 +479,21 @@ zsh Scripts/check_action_files.zsh
 
 ### 3g. 一項功能要嘛在五個 backend 上都有，要嘛不存在
 
-`CLAUDE.md` 的內容。此處只補一句：**「這個平台沒有對應的 API」是待查證的主張。** 2026-09-02 我曾以
+`CLAUDE.md` 的內容。此處只補一句：**「這個平台沒有對應的 API」是待查證的主張。** 2026-09-02 曾以
 「`CALayer.filters` 在 iOS 上不參與合成」為由拒絕實作 `VisualEffects`。那個量測是對的，由它推出的
 結論是錯的——iOS 提供的路徑是「把 filter 套用在子樹的算繪結果上」。**一項量測到的平台限制，終究
 只是「所走那條路」的限制。**
 
-### 3h. `mistakes.md` 的維護：記的是「我說錯的話」，不是「找到的 bug」
+### 3h. `mistakes.md` 的維護：記的是「說錯的話」，不是「找到的 bug」
 
 這兩者常被混為一談，而它們的用途完全不同：
 
 | 檔案 | 記什麼 | 主詞 |
 | --- | --- | --- |
 | `bugs/bug-<Backend>.md` | 程式的缺陷 | 那個 backend |
-| `mistakes/mistakes.csv2` | **我當時的說法，以及實際情況** | 我 |
+| `mistakes/mistakes.csv2` | **當時的說法，以及實際情況** | 說出那句話的一方(以第一人稱記) |
 
-一個 backend 的缺陷不進 `mistakes`。**一句我說出口、後來被證明是假的話**才進——即使那句話最後
+一個 backend 的缺陷不進 `mistakes`。**一句說出口、後來被證明是假的話**才進——即使那句話最後
 沒有造成任何損害。
 
 **而這張表不能只寫在這裡。** 一個要寫下發現的人，手上開著的是那個檔案，不是本文件。所以每一份
@@ -515,17 +515,17 @@ zsh Scripts/check_action_files.zsh
 
 #### 三個已經踩過的坑
 
-- **rebase 衝突時手改 `mistakes.md`。** 2026-09-03 我這麼做了,即使該檔第五行就寫著不要。衝突要
+- **rebase 衝突時手改 `mistakes.md`。** 2026-09-03 發生過一次,即使該檔第五行就寫著不要。衝突要
   解在 `.csv2` 上,然後重新產生。手改 md 解出來的衝突,會在下一次執行產生器時無聲消失。
-- **`.csv2` 有兩行標題**（英文、繁中）。用 `len(rows) - 1` 數資料列會多算一筆,而我就是這樣得出
-  「兩個檔案不同步」的錯誤結論——然後才發現是自己數錯。要數就數 `len(rows) - 2`,或直接用
+- **`.csv2` 有兩行標題**（英文、繁中）。用 `len(rows) - 1` 數資料列會多算一筆,曾因此得出
+  「兩個檔案不同步」的錯誤結論——實際上是數錯了。要數就數 `len(rows) - 2`,或直接用
   `zsh mistakes/mistakes.zsh --count`。
 - **欄位裡有逗號。** 用 `csv2` 或 Python 的 `csv` 模組,絕不用 `cut -d,`。
 
 #### 什麼時候寫
 
 **在修好之前寫，不是修好之後。** 修好之後，那句錯話會顯得無關緊要，於是它不會被寫下來——而
-`caught_by` 這一欄的價值，正好來自「當時我本來可以怎麼發現」，那份記憶在修好之後就模糊了。
+`caught_by` 這一欄的價值，正好來自「當時本來可以怎麼發現」，那份記憶在修好之後就模糊了。
 
 2026-09-03 這一天補了三筆，全都是「診斷或量測的錯」而非程式錯誤：把一張裁切圖當成縮放後的證據拿給
 人看；從一支 app 的一個控制項推及整個平台的一項功能；以及在檢查輸入之前就先改機制（那個「非同步

@@ -74,7 +74,7 @@ either the client area or the window frame as its origin and `--window` offers
 only one of them. It finds its own window and converts:
 
 ```
-xdotool search --onlyvisible --pid <our pid>    ->  pick the largest by area
+xdotool search --onlyvisible --pid <app pid>    ->  pick the largest by area
 xdotool windowactivate --sync <id>
 xdotool mousemove --window <id> 0 0             ->  client origin, read back
 xdotool getmouselocation --shell                    from getmouselocation
@@ -221,7 +221,7 @@ directly with `swiftc`, which is how `InputEvent`'s parser is checked.
 
 Because launching twelve at once produced a sweep in which every app looked
 dead, and every one of them was fine. That was one of three false failures in a
-single session, all caused by how runs were driven rather than by what was run.
+single round of testing, all caused by how runs were driven rather than by what was run.
 
 The others: a script launched through `cmd /c start /b zsh` received a
 Windows-form `PATH`, so prepending POSIX entries gave MSYS a mixture it could not
@@ -231,8 +231,8 @@ quote.
 
 See `verified-test-process.md` for the full list.
 
-因為一次啟動十二支，曾產生一份「每支 app 看起來都死了」的結果，而實際上它們全都正常。那是同一個
-工作階段中三次假失敗之一，三次的成因都在於「執行方式」，而非「被執行的對象」。
+因為一次啟動十二支，曾產生一份「每支 app 看起來都死了」的結果，而實際上它們全都正常。那是同一
+輪測試中三次假失敗之一，三次的成因都在於「執行方式」，而非「被執行的對象」。
 
 另外兩次：透過 `cmd /c start /b zsh` 啟動的腳本收到的是 Windows 格式的 `PATH`，因此在前方接上
 POSIX 項目後，MSYS 得到一個無法轉換的混合格式，子行程也就無法解析 GTK 的 DLL；以及對 `tasklist`
@@ -359,7 +359,7 @@ So the real pairing is not "Cairo or DComp" but:
 | without DComp | `GskCairoRenderer` | CPU |
 | with DComp | `GskGLRenderer` | GPU |
 
-On this machine GTK cannot realize the GL renderer unaided:
+On the Windows 11 test machine GTK cannot realize the GL renderer unaided:
 
     Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
         OpenGL requires Direct Composition
@@ -386,8 +386,8 @@ when `-GPU 2` or above is passed.
 3. **CPU against GPU.** The two have different performance and startup costs.
    Not yet measured; see `testapp/plan/plan-gpu-selection.md`.
 
-**A number to distrust.** "Which renderer `-GPU 1` gives" is a fact about *this
-machine*, not about the flag. Here it is Cairo, because GL cannot realize
+**A number to distrust.** "Which renderer `-GPU 1` gives" is a fact about *the
+machine*, not about the flag. On the Windows 11 test machine it is Cairo, because GL cannot realize
 without DComp; on a machine where GL realizes unaided it would be
 `GskGLRenderer`. Do not assert a renderer name for `-GPU 1` in a test — assert
 that `-GPU 1` matches the no-flag default, which is what it actually means. The
@@ -410,7 +410,7 @@ measured per-flag table for this machine is in
 | 未啟用 DComp | `GskCairoRenderer` | CPU |
 | 啟用 DComp | `GskGLRenderer` | GPU |
 
-在這台機器上，GTK 無法自行實現 GL 繪製器（實際訊息見上方英文區塊）。設定 `GDK_DEBUG=dcomp`
+在 Windows 11 測試機上，GTK 無法自行實現 GL 繪製器（實際訊息見上方英文區塊）。設定 `GDK_DEBUG=dcomp`
 之後便會取得 `GskGLRenderer`，而且是**真正的硬體**：AMD Radeon(TM) Graphics，或釘定至獨顯後的
 NVIDIA GeForce RTX 4060 Laptop GPU——兩者皆為透過原生 WGL 的 OpenGL 4.6。`GtkBackend` 會在傳入
 `-GPU 2` 以上時要求它。
@@ -428,8 +428,8 @@ NVIDIA GeForce RTX 4060 Laptop GPU——兩者皆為透過原生 WGL 的 OpenGL 
 3. **CPU 與 GPU 的差異。** 兩者的效能與啟動成本並不相同。尚未量測，詳見
    `testapp/plan/plan-gpu-selection.md`。
 
-**一個不該相信的數字。** 「`-GPU 1` 會得到哪個繪製器」是關於**這台機器**的事實，而非關於這個旗標。
-此處是 Cairo，因為沒有 DComp 就實現不了 GL；在一台 GL 能自行實現的機器上，它會是
+**一個不該相信的數字。** 「`-GPU 1` 會得到哪個繪製器」是關於**所在機器**的事實，而非關於這個旗標。
+在 Windows 11 測試機上是 Cairo，因為沒有 DComp 就實現不了 GL；在一台 GL 能自行實現的機器上，它會是
 `GskGLRenderer`。**請勿在測試中斷言 `-GPU 1` 的繪製器名稱**——應斷言「`-GPU 1` 與不加旗標的預設
 相同」，那才是它真正的意義。
 

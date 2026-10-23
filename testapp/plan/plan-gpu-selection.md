@@ -11,12 +11,16 @@ GPU 的情況下，也包含外接 GPU。
 
 Design. **Only the Windows half is measured**; everything about macOS, Linux,
 iOS, Android and eGPU behaviour below is reasoning from documentation, not
-observation. This machine has two internal adapters and no eGPU, and no Mac.
-Treat any unmarked claim here as unverified.
+observation. It was written on the Windows host, which has two internal adapters,
+no eGPU, and no Mac. Treat any unmarked claim here as unverified. Since then
+`BackendFeatures.GraphicsAdapters` has been implemented on all five backends
+(GTK `abf49d12`, WinUI `289364ba`, AppKit and UIKit `610493ea`, Android `ab9c53cf`);
+the reasoning below predates those.
 
 設計文件。**只有 Windows 那一半是實測的**；以下關於 macOS、Linux、iOS、Android 與 eGPU 的
-一切都是依文件推論，而非觀察所得。這台機器有兩張內建介面卡、沒有 eGPU，也沒有 Mac。此處
-未標記的宣稱一律視為未經驗證。
+一切都是依文件推論，而非觀察所得。本文寫於 Windows 主機，該機有兩張內建介面卡、沒有 eGPU，也沒有 Mac。
+此處未標記的宣稱一律視為未經驗證。其後 `BackendFeatures.GraphicsAdapters` 已在五個 backend 實作
+(GTK `abf49d12`、WinUI `289364ba`、AppKit 與 UIKit `610493ea`、Android `ab9c53cf`),下文的推論早於這些實作。
 
 ## What is already built
 

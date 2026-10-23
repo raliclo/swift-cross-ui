@@ -16,23 +16,23 @@ Android, and the reason is one line of `otool` output.
 
 ---
 
-## 那個通則,以及它為什麼對我們不成立
+## 那個通則,以及它為什麼對 SwiftCrossUI 不成立
 
 網路上常見的說法(Reddit r/Android、itnerd.blog 等)是:
 
 > 同一支 app,iOS 的下載與安裝體積通常是 Android 的 2 到 3.5 倍。
 > iOS 平均 35–40 MB 基本檔案、安裝後 50–150 MB;Android 壓縮下載平均 12–15 MB。
 
-那個說法有三個成立的理由,而**我們一個也沒有**:
+那個說法有三個成立的理由,而**這裡一個也沒有**:
 
-| 該通則倚賴的前提 | 我們的情況 |
+| 該通則倚賴的前提 | 這裡的情況 |
 | --- | --- |
 | iOS 要帶 asset catalog 的 @2x/@3x 圖 | 測試 app 幾乎沒有資產 |
-| Android 有 split APK / dynamic delivery,12–15 MB 是「切開後的下載量」 | 我們出單一 universal APK,沒有切 |
-| 比較的兩邊都是原生 app,各自使用平台的 runtime | 我們把一整套**非原生**的 runtime 搬上 Android |
+| Android 有 split APK / dynamic delivery,12–15 MB 是「切開後的下載量」 | 測試 app 出的是單一 universal APK,沒有切 |
+| 比較的兩邊都是原生 app,各自使用平台的 runtime | SwiftCrossUI 把一整套**非原生**的 runtime 搬上 Android |
 
-The rule compares two native apps each using its platform's own runtime. We
-carry a foreign runtime onto one of them.
+The rule compares two native apps each using its platform's own runtime.
+SwiftCrossUI carries a foreign runtime onto one of them.
 
 ---
 
@@ -149,7 +149,7 @@ Kotlin app does not pay it and a Swift iOS app does not pay it.
 
 **iOS 的數字量的是 Simulator 的 `.app`,不是裝置上的 `.ipa`。** 兩者不完全相同——`.ipa` 會經過
 App Store 的加密與 thinning——但關鍵結論不受影響:`otool -L` 顯示它連的是 `/usr/lib/swift/`,
-而那在裝置上與在模擬器上同樣成立。若要一個裝置端的數字,需要一次真機建置,本機目前做不到。
+而那在裝置上與在模擬器上同樣成立。若要一個裝置端的數字,需要一次真機建置,這份量測沒有做。
 
 The iOS figure is a Simulator `.app`, not a device `.ipa`. The conclusion does
 not depend on that: `otool -L` shows it linking `/usr/lib/swift/`, which is true

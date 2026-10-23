@@ -16,7 +16,7 @@ the root view's type — so the key for most test apps is
     "NSWindow Frame TupleView1<HotReloadableView>-0"
 
 which they share. A window then opens at whatever size the last app to use that
-key was left at, and `.defaultSize` never gets a look in. On this machine that
+key was left at, and `.defaultSize` never gets a look in. On the measuring Mac that
 key held `620 65 1076 907` before it was cleared, and P28 opened at 680x448 as a
 bare executable and 1076x907 from a bundle — same binary, same commit.
 
@@ -74,7 +74,7 @@ Three lines, all identical:
 [SplitView] total=880.0 minLeading=86.0 minTrailing=20.0 -> bounds min=86 max=860 currentSidebar=200 leadingContent=200.0x497.0 trailingContent=680.0x497.0
 ```
 
-Against the two you already have:
+Against the two numbers in the request:
 
 | | lines | leadingContent | trailingContent |
 |---|---|---|---|
@@ -82,7 +82,7 @@ Against the two you already have:
 | GTK | 3 | 200x485 → 200x446 → 200x446 | 680x… |
 | **AppKit** | **3** | **200x497** | **680x497** |
 
-Two things that may matter to you and that I am reporting rather than
+Two things that may matter, reported rather than
 interpreting:
 
 - AppKit commits **three times**, like GTK, not once like WinUI. Unlike GTK the
@@ -121,15 +121,15 @@ that changed, since `max` moves 384 → 400 by the same 16.
 
 So this is not a backend detail. Both backends' `List` fills the 200 width and
 answers 140 for height — five rows at a 28-point pitch — and the framework
-centres it in the 180-tall pane. Your own note says SwiftUI's `List` is greedy
+centres it in the 180-tall pane. The request's note says SwiftUI's `List` is greedy
 on both axes and would answer 180; two independent backends answering 140 puts
-the divergence in the shared layout code, which is the conclusion you set up
+the divergence in the shared layout code, which is the conclusion the request set up
 this measurement to reach.
 
-Worth adding, because it is the same 28 twice and I do not think it is a
-coincidence worth hiding: the row pitch here is 28 points and the AppKit title
+Worth adding, because the same 28 appears twice:
+the row pitch here is 28 points and the AppKit title
 bar measured in Q1 is also 28 points. They are unrelated quantities that happen
-to match on this machine, so do not read a relationship into a future run where
+to match on the measuring Mac (macOS 27.0), so do not read a relationship into a future run where
 one of them moves.
 
 ---
@@ -143,7 +143,7 @@ one of them moves.
 
 ## 重跑之前請先讀這一段
 
-**先清除已存的視窗 frame，否則 Q1 量到的不是你要的東西。**
+**先清除已存的視窗 frame，否則 Q1 量到的不是想量的東西。**
 `AppKitBackend.createWindow` 會呼叫 `setFrameAutosaveName(id)`，並自
 `UserDefaults.standard` 讀回 `"NSWindow Frame \(id)"`，而 `id` 是由 root view 的型別推得
 ——因此大多數測試 app 的鍵是同一個：
@@ -151,7 +151,7 @@ one of them moves.
     "NSWindow Frame TupleView1<HotReloadableView>-0"
 
 視窗於是會以「最後一個使用該鍵的 app 被留下的尺寸」開啟，`.defaultSize` 根本沒有機會作用。
-在這台機器上，該鍵在被清除前的值是 `620 65 1076 907`；同一個 binary、同一個 commit，P28 以裸
+在量測用的 Mac 上，該鍵在被清除前的值是 `620 65 1076 907`；同一個 binary、同一個 commit，P28 以裸
 執行檔啟動是 680x448，自 bundle 啟動則是 1076x907。
 
 下列數字是在刪除該鍵（於這兩支 app 可能觸及的每一個 domain）之後取得的，指令見上方英文段落。
@@ -181,7 +181,7 @@ one of them moves.
 
 P16 為三行、完全相同；P7 亦為三行、完全相同（原始行見上方英文段落）。
 
-兩件我只回報、不作詮釋的事：
+兩件只回報、不作詮釋的事：
 
 - AppKit 會 commit **三次**，與 GTK 相同，而非如 WinUI 只有一次。但與 GTK 不同的是，這三行
   完全一致——高度全程不動，而 GTK 的是 485 → 446 → 446。因此「commit 三次」與「高度逐步收斂」
@@ -198,10 +198,10 @@ P7 方面，`total`、`currentSidebar` 與 `leadingContent` 三者完全一致�
 `leadingContent=200.0x140.0`，與 GTK 回報的 140 相同，而窗格高 180。
 
 因此這不是某個 backend 的細節。兩個 backend 的 `List` 都填滿了 200 的寬度、高度卻回答 140
-——五列乘以 28 點的列距——框架隨後將它置中於 180 高的窗格中。你自己的註記指出 SwiftUI 的 `List`
+——五列乘以 28 點的列距——框架隨後將它置中於 180 高的窗格中。請求中的註記指出 SwiftUI 的 `List`
 在兩個軸向皆為貪婪、應回答 180；兩個各自獨立的 backend 都回答 140，就把這個分歧定位在共用的
 版面程式碼中，而那正是這次量測所要抵達的結論。
 
-還有一點值得補充，因為同一個 28 出現了兩次，我認為不該把它藏起來：此處的列距是 28 點，而 Q1 量到
-的 AppKit 標題列也是 28 點。這兩個量彼此無關，只是在這台機器上恰好相同——因此若日後某次執行中
+還有一點值得補充，因為同一個 28 出現了兩次：此處的列距是 28 點，而 Q1 量到
+的 AppKit 標題列也是 28 點。這兩個量彼此無關，只是在這台 Mac(macOS 27.0)上恰好相同——因此若日後某次執行中
 其中一個變動了，請不要在兩者之間讀出任何關聯。

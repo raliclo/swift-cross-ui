@@ -729,12 +729,12 @@ notches as `click --repeat`, back to back with no gap, and GTK coalesces a rapid
 burst into one kinetic gesture whose distance depends on timing rather than on
 the count. Split a long scroll into bursts with a sleep between them, and end at
 the hard stop of the scroll range if the position has to be reproducible.
-`testapp/actions/P21-disabled-field.actions` is written that way and says so.
+`testapp/actions/wsl/P21-disabled-field.actions` is written that way and says so.
 
 **此過程確實產生了一項真實的限制，且與節奏有關。** 單一的 `scroll,0,40` 在三次執行中各走了不同
 距離。xdotool 是以 `click --repeat` 背靠背送出格數、中間毫無間隔，而 GTK 會把急促的連發併為單一
 kinetic 手勢，其距離取決於時序而非次數。若需要可重現的位置，請將長距離捲動拆成數段、段間加入
-sleep，並以捲動範圍的硬性盡頭作結。`testapp/actions/P21-disabled-field.actions` 即依此撰寫並註明。
+sleep，並以捲動範圍的硬性盡頭作結。`testapp/actions/wsl/P21-disabled-field.actions` 即依此撰寫並註明。
 
 ## P9: text and field sizing -- all steps pass, neither issue reproduces
 

@@ -83,10 +83,10 @@ backend to do it, which is what SoftPCB's manifest shows.
    answers item 3**: a snapshot API is both the export an application asks for
    and the hook a test needs, which is why it goes first.
 
-### The direction, decided by the user on 2026-09-19
+### The direction, decided on 2026-09-19
 
-> "raise the Metal renderer in protocol level and then move most Metal renderer
-> in macOS and iOS backend first, we will do the rest platforms later"
+Raise the Metal renderer to the protocol level, put the Metal implementation in
+the macOS and iOS backends first, and do the remaining platforms later.
 
 So not a handle to a surface, and not snapshot-first: **the renderer itself is
 lifted into the framework.** An application describes a mesh and a camera; the
@@ -94,7 +94,7 @@ backend draws it. That is the same relationship `Paths` already has for 2D, and
 it is what stops the next application from writing SoftPCB's `MTKView` and
 shaders a second time.
 
-**方向由使用者於 2026-09-19 定下:把 renderer 升到協定層,Metal 實作先進 macOS 與 iOS 的 backend,
+**方向於 2026-09-19 定下:把 renderer 升到協定層,Metal 實作先進 macOS 與 iOS 的 backend,
 其餘平台後補。** 因此不是「交出一塊表面」,也不是「先做快照」:**是把 renderer 本身放進框架**。
 app 描述一個 mesh 與一台相機,由 backend 畫出來——那正是 `Paths` 在 2D 上已有的關係,
 也是讓下一支 app 不必再寫一次 SoftPCB 那份 `MTKView` 與著色器的方式。
@@ -148,8 +148,9 @@ distinction M9 turned on.
 
 1. AppKit — the renderer, and P72 driven on macOS.
 2. UIKit — the same target, P72 driven on the simulator.
-3. Android (mine), GTK and WinUI (Windows side) — later, by the user's decision
-   above. The protocol is conformance-checked so they stay green meanwhile.
+3. Android (Mac host), GTK and WinUI (Windows host) — later, as decided above.
+   The protocol is conformance-checked so they stay green meanwhile. All three
+   have since landed: Android `4199fd5c`, GTK `740fd24c`, WinUI `a94c68af`.
 4. The five input/output gaps from the table above (scroll, raw keys, cursor,
    context menu, snapshot) as separate work, snapshot first, because it is also
    the only way a test can judge what was drawn.
@@ -210,13 +211,13 @@ weeks of work whose first honest capture is still a triangle, and it would have
 to be reimplemented per backend or bring a renderer of its own. This plan does
 not propose it, and deliberately leaves the question open: with a surface in
 place, an application can use SceneKit, RealityKit, a Metal renderer of its own,
-or a future SwiftCrossUI layer, and we will know which by watching what people
-reach for.
+or a future SwiftCrossUI layer, and what people actually reach for will show
+which.
 
 不做的事:把 three.js 的 scene graph 移植過來。用 Swift 寫 `Scene`/`Mesh`/`Material` 是好幾週的工作,
 而它第一張誠實的擷圖仍然只是一個三角形;何況那還得逐 backend 重做、或自帶一個 renderer。本計畫不提議它,
 並刻意把問題留著:有了表面之後,app 可以用 SceneKit、RealityKit、自己的 Metal renderer,或未來的
-SwiftCrossUI 層——而我們會從「人們實際伸手去拿什麼」看出答案。
+SwiftCrossUI 層——而答案會從「人們實際伸手去拿什麼」看出來。
 
 ---
 
@@ -265,8 +266,8 @@ this protocol adds no timer of its own.
 Because the rule in `CLAUDE.md` is about features being *implemented* on the five
 shipped backends, and this one genuinely can be on all five —
 `CAMetalLayer` (AppKit, UIKit), `GtkGLArea` (GTK), `SurfaceView` (Android),
-`SwapChainPanel` (WinUI) — but not all five by me. Conformance-checked means the
-two I cannot compile here keep building, and `P72` reads
+`SwapChainPanel` (WinUI) — but not all five from one machine: GTK and WinUI do
+not compile on the Mac. Conformance-checked means those two keep building, and `P72` reads
 `gpu surface supported: NO` on them until they land, which is the same signal
 `#109` used.
 
@@ -289,10 +290,9 @@ being driven, which is the same distinction M9's gesture work turned on.
 **判定完成的條件**:相隔一秒的兩張擷圖,其讀數的 frame count 要前進,而三角形要在不同角度。
 單獨一張三角形的擷圖只證明表面存在,不證明有東西在驅動它——那正是 M9 手勢那件事上的同一個分野。
 
-Android and the two Windows backends are named here as the rest of the work, not
-skipped: Android is mine and comes after Apple; GTK and WinUI are the Windows
-side's, and the handle cases for them are in the enum from the first commit so
-that adding them is an implementation rather than a protocol change.
+Android and the two Windows backends were named here as the rest of the work, not
+skipped: Android on the Mac host after Apple, GTK and WinUI on the Windows host.
+All three have since landed: Android `4199fd5c`, GTK `740fd24c`, WinUI `a94c68af`.
 
 ---
 
@@ -312,13 +312,14 @@ Metal、用不到它。它值得一讀(`MTLContext` 的形狀)、也值得推薦
 
 ---
 
-## 6. Open question for the Windows side
+## 6. WinUI under the single-threaded apartment startup (answered)
 
-Does `SwapChainPanel` inside WinUI's XAML island behave with the
-single-threaded apartment startup that landed on 2026-09-17? If it does not, the
-WinUI case of the handle enum may need to be a composition surface instead. That
-is a question, not an assumption: I cannot build WinUI here.
+The open question was whether `SwapChainPanel` inside WinUI's XAML island
+behaves with the single-threaded apartment startup that landed on 2026-09-17, or
+whether the WinUI case would need a composition surface instead. It behaves:
+WinUIBackend draws `Mesh3DViews` with Direct3D 11 in a `SwapChainPanel`
+(`a94c68af`).
 
-給 Windows 那邊的一個問題:在 2026-09-17 落地的單執行緒 apartment 啟動之下,XAML island 裡的
-`SwapChainPanel` 行為正常嗎?若否,handle enum 的 WinUI case 可能要改成 composition surface。
-這是問題,不是假設——我在此處建不了 WinUI。
+原本的問題是:在 2026-09-17 落地的單執行緒 apartment 啟動之下,XAML island 裡的 `SwapChainPanel`
+行為是否正常,或 WinUI 那一格得改成 composition surface。答案是正常:WinUIBackend 以 Direct3D 11
+在 `SwapChainPanel` 裡畫 `Mesh3DViews`(`a94c68af`)。

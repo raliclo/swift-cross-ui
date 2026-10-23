@@ -182,14 +182,14 @@ text was read from. Paths are relative to the repo root.
 one, 19 of the 41 files now declare an outcome.
 
 **A 42nd file appeared while this was being written.** `P11-clamped-sliders.actions`
-was created at 2026-09-07 21:59 by another session and is untracked; it is
+was created at 2026-09-07 21:59 by parallel work and was untracked at the time; it is
 outside this pass and was not touched. For the record it would not have been
 marked either: `p11-debug-events.log` holds one line, `RENDER COMPLETE`, in each
 of its eight runs.
 
 **合計：39 個之中有 17 個加上了標記，22 個沒有。** 連同原本就有的兩個，41 個檔案中現有 19 個
-會宣告結果。本文撰寫期間另有第 42 個檔案 `P11-clamped-sliders.actions` 於 2026-09-07 21:59 由另一個
-工作階段建立且尚未納入版控；它不在本輪範圍內，也未被更動。附帶一提，它同樣不會被標記：
+會宣告結果。本文撰寫期間另有第 42 個檔案 `P11-clamped-sliders.actions` 於 2026-09-07 21:59 由並行的
+工作建立，當時尚未納入版控；它不在本輪範圍內，也未被更動。附帶一提，它同樣不會被標記：
 `p11-debug-events.log` 在八次執行中每次都只有一行 `RENDER COMPLETE`。
 
 ---
@@ -207,7 +207,7 @@ cannot come from launching.
 But `testapp/output/p18-debug-events.log` holds **nine** driven runs and not one
 `cancelled` line, and the matching run log contains **zero**
 `target window changed` lines — so no picker ever opened in the sweep and the
-three Escapes had nothing to cancel. In the same sweep session, P31's click
+three Escapes had nothing to cancel. In the same sweep, P31's click
 inside its own alert landed on a `Windows.UI.Core.CoreWindow`. Both are the
 foreground problem `sweep_drive.zsh` documents at `clear_desktop`.
 

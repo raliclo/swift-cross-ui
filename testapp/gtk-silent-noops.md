@@ -119,7 +119,7 @@ lines — `setBehaviors` moved `:300` → `:1687`, `baseItemPadding` `:1207` →
 `:2860`, `createAlert` `:2078` → `:3653`. And they are still moving: while this
 audit ran, `Sources/GtkBackend/GtkBackend.swift` was under edit in the working
 tree (a `BackendFeatures.Toolbars` conformance, +27 lines at the top of the
-class), which shifted every number below it mid-session. A line number in this
+class), which shifted every number below it mid-audit. A line number in this
 document is a fossil; the symbol name is what survives.
 
 | # | 2026-09-08 | evidence |
@@ -534,7 +534,7 @@ That shift is what forces the collision. Nine SwiftUI weights have to land on
 `200…900`, which is eight steps, so **two of them must share a number**; whoever
 wrote this chose `semibold` and `bold`. Moving the collision somewhere else is
 not obviously better, and deciding where it belongs means comparing rendered
-text against AppKit — which needs a Mac, and is out of scope on this machine.
+text against AppKit — which needs a Mac.
 
 兩者仍同樣對應到 `700`（如上）。
 
@@ -544,7 +544,7 @@ AppKit 的字重，我不得不調整這些數值」。
 
 正是那個偏移造成了碰撞：九個 SwiftUI 字重必須落在 `200…900` 這八個級距上，因此**必有兩者共用同一
 個數值**；當初的作者選擇讓 `semibold` 與 `bold` 相撞。把碰撞移到別處未必更好，而要決定它該落在哪裡
-，就得把繪製出來的文字拿去與 AppKit 比對——那需要一台 Mac，在本機屬於範圍之外。
+，就得把繪製出來的文字拿去與 AppKit 比對——那需要一台 Mac。
 
 <details><summary>The original finding / 原始發現</summary>
 
@@ -584,7 +584,7 @@ The shape of the table makes a clean fix impossible on its own terms: the ladder
 runs 200…900, which is eight hundred-steps for nine weights, so *some* pair must
 collide unless the range is extended to 1000 or the deliberate +100 shift is
 removed. Both move weights whose values the source comment says were set by
-measuring against AppKit — and that measurement cannot be redone on this machine.
+measuring against AppKit — and that measurement can only be redone on a Mac.
 
 **Deferred to a Mac** for that reason, rather than guessed at here. The ladder
 and the action file are in place, so the same measurement can be repeated on
@@ -616,7 +616,7 @@ family's, and only the `semibold`/`bold` CSS duplicate is ours to fix.
 
 對照表自身的形狀使得「就地乾淨修復」不可能：階梯落在 200…900，是九種字重擠進八個百位刻度，因此
 除非把範圍延伸到 1000、或取消那個刻意的 +100 位移，**必然**有某一組會碰撞。而這兩種做法都會動到
-「原始碼註解表明是實測對齊 AppKit 而定」的數值——那項實測無法在本機重做。
+「原始碼註解表明是實測對齊 AppKit 而定」的數值——那項實測只能在 Mac 上重做。
 
 **因此本項延後至 Mac 處理**，而非在此臆測。階梯與動作檔都已就位，同一項量測在兩邊都可重複執行
 （指令見上）。
@@ -624,7 +624,7 @@ family's, and only the `semibold`/`bold` CSS duplicate is ours to fix.
 一項尚未驗證的假設，在 Mac 或此處只需一道指令即可確認：由這些數據推得的字面集合——在 300、400、
 600、700、900 各有不同繪製結果——正好就是 Segoe UI 的字面集合（Light、Regular、Semibold、Bold、
 Black），而它是 GTK 在 Windows 上的預設字族。若事實如此，則那些「繪製上的碰撞」屬於字族，而真正
-屬於我們該修的，只有 `semibold`／`bold` 這個 CSS 數值重複。
+屬於 GtkBackend 該修的，只有 `semibold`／`bold` 這個 CSS 數值重複。
 
 <details><summary>The original finding / 原始發現</summary>
 
@@ -1075,24 +1075,24 @@ used it. Deliberately the toolkit's answer rather than the display's, matching
 the decision in `InputEvent.WindowGeometry.scale`: GTK's is an integer and the
 two disagree at 125% on Windows.
 
-Verified on WSL, because on this machine GTK reports 1 either way and a working
+Verified on WSL, because on the Windows test machine GTK reports 1 either way and a working
 implementation is indistinguishable from the old hardcoded 1: `GDK_SCALE=1`
 gave 1.0 and `GDK_SCALE=2` gave 2.0 through the value actually written into the
 environment.
 
-Still open, and the harder half the original TODO named: neither backend
-notifies when the factor changes, so a window dragged between displays of
-different scale keeps the value it started with.
+The harder half the original TODO named --
+notifying when the factor changes -- has since been done too, so a window dragged between displays of
+different scale is updated: GtkBackend through `notify::scale-factor` (ffa4006b, f92e39df; fractional scales in 85942e99), WinUIBackend by recomputing the environment on a scale change (7456a953).
 
 GtkBackend 與 WinUIBackend 現在都會寫入此值：一邊用 `gtk_widget_get_scale_factor`，另一邊用早已
 算好、卻從未被使用的 `CustomWindow.scaleFactor`。刻意採用 toolkit 的答案而非顯示器的，與
 `InputEvent.WindowGeometry.scale` 的決定一致：GTK 的是整數，而在 Windows 的 125% 之下兩者並不一致。
 
-於 WSL 驗證，因為在這台機器上 GTK 兩種情況都回報 1，可運作的實作與舊有的寫死 1 無法區分：
+於 WSL 驗證，因為在 Windows 測試機上 GTK 兩種情況都回報 1，可運作的實作與舊有的寫死 1 無法區分：
 `GDK_SCALE=1` 得 1.0、`GDK_SCALE=2` 得 2.0，且量的是真正寫進 environment 的那個值。
 
-仍未處理、亦即原 TODO 所稱較難的那一半：兩個 backend 都不會在該比例變動時發出通知，因此視窗被拖到
-不同縮放的顯示器時，會保留它啟動時的值。
+原 TODO 所稱較難的那一半——比例變動時發出通知——之後也已完成，因此視窗被拖到
+不同縮放的顯示器時，值會跟著更新：GtkBackend 經 `notify::scale-factor` 通知(ffa4006b、f92e39df,小數縮放見 85942e99),WinUIBackend 在縮放變更時重新計算 environment(7456a953)。
 
 <details><summary>The original finding / 原始發現</summary>
 
@@ -1218,7 +1218,7 @@ body-sized text and clipped.
 
 **Why it is unconfirmed**: the two cases differ — the ambient-theme measurement
 read a *theme* colour, whereas this reads a provider the app installed on the
-display itself. I did not run it. **No `testapp/P*.swift` uses `lineLimit` at all**
+display itself. It has not been run. **No `testapp/P*.swift` uses `lineLimit` at all**
 (grepped, zero hits), which is consistent with this being an unnoticed gap.
 
 **How to settle it**: a view with `.font(.largeTitle).lineLimit(2)` over long text,
@@ -1254,7 +1254,7 @@ per-widget class 選取——見 `Sources/Gtk/Widgets/Widget.swift:34-54` 與
 的高度而遭截斷。
 
 **為何未證實**：兩個情境有差異——環境主題那次量測讀的是*主題*顏色，而這裡讀的是 app 自己安裝
-於 display 的 provider。我沒有實際執行。**`testapp/P*.swift` 中完全沒有任何一支使用
+於 display 的 provider。此情境尚未實際執行。**`testapp/P*.swift` 中完全沒有任何一支使用
 `lineLimit`**（已 grep，零筆），這與「這是一個未被注意到的缺口」相符。
 
 **如何定案**：在 GtkBackend 與另一個 backend 上，並排顯示長文字的
@@ -1773,7 +1773,7 @@ whole of what is missing there besides #11.
 ## 17. `baseItemPadding(ofSelectableListView:)` returns all zeros — **still unverified 2026-08-27; here is what would settle it** **[src]**
 
 Looked at and deliberately not changed. The CSS below is still installed, so the
-"zero may well be honest" reading stands, and nothing in this session moved it
+"zero may well be honest" reading stands, and nothing in this audit moved it
 either way.
 
 **What will not settle it**, tried first and discarded: measuring a list row in
@@ -1794,8 +1794,8 @@ shift every list's layout.
 
 **17. `baseItemPadding(ofSelectableListView:)` 回傳全零 — 2026-08-27 仍未驗證；以下是能夠定案的方法 [src]**
 
-已查看，並刻意不做更動。下方的 CSS 仍然存在，因此「零很可能是誠實的」這個解讀依然成立，而本次工作
-階段沒有任何東西能把它推向任一邊。
+已查看，並刻意不做更動。下方的 CSS 仍然存在，因此「零很可能是誠實的」這個解讀依然成立，而本次稽核
+沒有任何東西能把它推向任一邊。
 
 **無法定案的做法**（先試過並否決）：從 P7 的截圖量測某一列。選取矩形與字形之間的間距，是
 SwiftCrossUI 自身的版面 padding **加上** GTK 的，而截圖無法把兩者分開。一個「兩種原因都可能造成」

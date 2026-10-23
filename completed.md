@@ -120,7 +120,7 @@ headings say which queue.md section each block came from.
   `ViewGraphNode.bottomUpUpdate`: a node that has not had its first layout does
   not start a bottom-up update. The original report follows.
   Reported 2026-09-27 by the
-  SoftPCB-mac session, measured THERE on AppKitBackend at 1113a310. This is the "empty ForEach" crash of 2026-09-08,
+  SoftPCB Mac host, measured THERE on AppKitBackend at 1113a310. This is the "empty ForEach" crash of 2026-09-08,
   and the diagnosis it had was wrong: it is timing, not structure.
   Backtrace, top down: `ViewGraphNode.widget.getter` <- `computeLayout` <-
   `bottomUpUpdate` <- `updateEnvironment` closure (~8 levels) <- closure in
@@ -137,10 +137,10 @@ headings say which queue.md section each block came from.
   once, with enough views that construction spans more than one main-queue
   turn), reproduce, and only then fix -- probably by deferring or dropping
   bottom-up updates that reach an unbuilt node. The SoftPCB-UI recipe is kept in
-  that session: SOFTPCB_ROOT holding only analysis/workflows.csv2, CLAUDE.md and
+  the SoftPCB Mac host: SOFTPCB_ROOT holding only analysis/workflows.csv2, CLAUDE.md and
   an executable scripts/solver_preflight.zsh containing `exit 0`.
   **核心崩潰,ViewGraphNode.swift:13(`_widget!`):view graph 還在建構時就有一次發布抵達。**
-  2026-09-27 由 SoftPCB-mac session 回報,在**那邊**以 AppKitBackend、1113a310 量到;**這棵樹裡尚未重現。**
+  2026-09-27 由 SoftPCB 的 Mac 主機回報,在**那邊**以 AppKitBackend、1113a310 量到;**這棵樹裡尚未重現。**
   它就是 2026-09-08 的「空 ForEach」崩潰,而當時的診斷是錯的:它是時序,不是結構。證據:一個 `.onAppear`
   的工作透過 `DispatchQueue.main.async` 發布回來,立即結束就崩、先睡 0.5 秒或 2 秒就不崩;未修改 10 次崩 6 次,
   多一次主佇列跳轉 10 次崩 1 次——機率降低,同一個競態。`ef26b83e` 的六個靜態形狀重現不了它,因為沒有一個在
@@ -216,7 +216,7 @@ headings say which queue.md section each block came from.
     ——數字進位、按鈕寬度會變,是最可能推動東西的那一次。
   - **AppKit 的結果:唯一改變的是 33 x 21 像素,就是那幾個字元本身**(`9)` 變成 `10)`),
     面板**沒有**關閉,主視窗零位移。與 WinUI 的 30 x 29、GTK 的 35 x 34 是同一個形狀。
-  - 因此**那兩個原本要你回答的問題,量測自己答了**:位移發生在**面板內**,而按下時面板**不會**關閉。
+  - 因此**那兩個原本待回答的問題,量測自己答了**:位移發生在**面板內**,而按下時面板**不會**關閉。
   - **量法本身出過兩次錯,都記在此處,因為兩次都會產生一個看起來合理的結論:**
     (1) 以牆鐘時間抓擷圖,兩張都落在按下**之後**,差異為零——那讀起來像「完全沒有位移」,而其實是
     「兩張一樣的圖」;(2) 第二次改了時間,before 那張落在面板**出現之前**,差異變成整個面板 325 x 203,
@@ -229,16 +229,16 @@ headings say which queue.md section each block came from.
 - [x] **2c. 動作檔已能驅動 AppKit 的 popover** — 兩件事要一起改:(1)`targetWindow()` 不再回傳 popover——popover 會取得 key,於是每一個**非** popover 的座標都在對它解析,而檔案照樣重放成功、每次點擊都落在某個看似合理的位置;(2)`origin=popover` 的事件投遞到 **popover 自己的視窗**,投給後方的視窗會把它 light-dismiss,而「被關掉的 popover」與「沒打中的點擊」是同一張圖。`popoverOrigin` 取的是**內容區**而非視窗框(框比畫出來的面板大 26 點,含箭頭與陰影)。實測:`P50-panel-press-me.actions` 讓 P50 記下 `popover counter 1`
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
 - [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
-- [x] **5. P28:點擊延遲 — 兩條未量的路徑都量完了** — 「真實滑鼠事件合成不出來」不成立:`AppKitSynthesiser` 檔頭那個「CGEvent 送出 0 個事件」量於 `AXIsProcessTrusted() == false`,而這台機器現在是 `true`,`CGEvent.post(.cghidEventTap)` 會送達。實測 click→body:**啟動後第一次點擊(未預熱)16.0 ms**、預熱後 2.9–9.9 ms,三輪。合成路徑先前量到的是 0–2 ms / 像素 69 ms。**沒有任何一條接近一秒。** 工具留在 `testapp/test_support/measure/real_mouse_latency.swift`,檔頭的量測也已補上「已授權」那一半
+- [x] **5. P28:點擊延遲 — 兩條未量的路徑都量完了** — 「真實滑鼠事件合成不出來」不成立:`AppKitSynthesiser` 檔頭那個「CGEvent 送出 0 個事件」量於 `AXIsProcessTrusted() == false`,而那台 Mac 當時是 `true`,`CGEvent.post(.cghidEventTap)` 會送達。實測 click→body:**啟動後第一次點擊(未預熱)16.0 ms**、預熱後 2.9–9.9 ms,三輪。合成路徑先前量到的是 0–2 ms / 像素 69 ms。**沒有任何一條接近一秒。** 工具留在 `testapp/test_support/measure/real_mouse_latency.swift`,檔頭的量測也已補上「已授權」那一半
 - [x] **5b. #126 `onEditingChanged`** — 已完成。五個 backend 全數實作,AppKit/UIKit/Android **實測建置通過**,GTK/WinUI 寫了但未執行(待查假設已在檔內指名)。**P61 是它的測試 app**,自帶對照組
 - [x] **M2. #125 Table 的 `selection` 與 `sortOrder` — 兩項都已完成於五個 backend(2026-09-16)** — selection:`BackendFeatures.TableSelection` 落地,Windows 兩個 backend 由此側實作、AppKit/UIKit/Android 由 Mac 實作,**兩個方向都以真實輸入驅動驗過**(探針寫 binding + 動作檔點擊,含「點標題列不得選取」的拒絕對照)。`sortOrder`:同樣五個 backend 到齊,細節見下方各條。以下為原始說明,保留作為背景:欄寬他們已完成並雙 backend 驗收(`2fd81acb`)。剩下兩項需要 **backend→view 的事件回報**,而 `BackendFeatures.Tables` 目前每個方法都是單向的。**關鍵事實:`Gtk.Table` 是包著 `Grid` 的 `ScrolledWindow`,不是 `GtkColumnView`**——對「選取的列」毫無概念,標題也只是不可點的 `Label`。**不要假設與 `NSTableView` 對等**
 
   - **`sortOrder` 已完成。** Windows 落地了協定 `BackendFeatures.TableColumnSorting`、`TableSortOrder`
-    與兩個 Windows backend(`b308559a`);本機接著落地 AppKit / UIKit / Android,三個平台各以動作檔實測,
+    與兩個 Windows backend(`b308559a`);Mac 主機接著落地 AppKit / UIKit / Android,三個平台各以動作檔實測,
     七支新檔 + 先前五支 selection 檔全數重跑(P23 版面改過兩次,座標重量過兩次)。
-  - **形狀以 origin 的為準,而我那份被丟棄。** 兩邊在同一段時間各自寫了一版:我的 `setSortHandler`
-    回報 `TableSortOrder?`、由每個 backend 自行決定「同一欄反轉」;他們的回報 `column: Int`,由框架的
-    `TableSortOrder.toggled(byClicking:)` 決定一次。**他們的比較好**——我那版等於讓那條規則在
+  - **形狀以 origin 的為準,Mac 那份被丟棄。** 兩邊在同一段時間各自寫了一版:Mac 的 `setSortHandler`
+    回報 `TableSortOrder?`、由每個 backend 自行決定「同一欄反轉」;origin 的回報 `column: Int`,由框架的
+    `TableSortOrder.toggled(byClicking:)` 決定一次。**origin 的比較好**——Mac 那版等於讓那條規則在
     AppKit/UIKit/Android 各存在一份,而三份之間的任何差異,都會以「某個平台的標題行為不一樣」現身。
     這是 mistakes 第 12 條的第二次發生,而這次兩邊都先查過對面、對面當時是乾淨的。
   - **順手修掉 P23 自己的一個缺陷:** 排序讀數原本與按鈕同一行,`sort: column 3 ascending` 在手機上會
@@ -283,8 +283,8 @@ headings say which queue.md section each block came from.
   - **量尺:`DebugFeatures.builtLazyListRows` / `liveLazyListRows`**,由 `List` 寫入、P57 顯示,
     並由一個只在 `--debug` 下啟動的計時器每秒重繪兩次——否則那個數字會停在啟動值,而
     「正確、活著、但沒動」與「壞掉」在截圖上完全一樣。
-  - **先前那三筆「未驅動 / 只在小尺度觀察到」的紀錄已被取代,原因在我這邊**:`scroll` 欄位的單位是
-    **滾輪格數**(一格 40 點,Android 再乘 density),而我填了像素大小的數字。見 mistakes 第 17 條。
+  - **先前那三筆「未驅動 / 只在小尺度觀察到」的紀錄已被取代,原因在動作檔本身**:`scroll` 欄位的單位是
+    **滾輪格數**(一格 40 點,Android 再乘 density),而先前填的是像素大小的數字。見 mistakes 第 17 條。
 - [x] **M6. 已修,而且它從來不是 AppKit 的缺陷 — 是測試合成器裡的兩個缺陷(2026-09-17)**
   - **滾輪 delta 的符號反了。** 格式裡 `dy` 為正代表向下,而 `NSEvent` 的 scrolling delta 講的是
     **手指**的方向——所以每一次「向下」都往上捲。
@@ -318,7 +318,7 @@ headings say which queue.md section each block came from.
 - [x] **M8. `.inspect` 的同一個缺陷 — UIKit 已修並驗證;WinUI 與 GTK 於 2026-09-17 由 Windows 修好並驗證** — 三個 backend 的
   `InspectionModifiers.swift` 是同一個形狀:對指名具體型別的 overload 直接 `widget.into()`。
   由於 `TextField`(以及任何走 style 的控制項)的 widget 現在是容器,那些 overload 在該控制項上都會
-  trap。AppKit 已改為搜尋子樹;**UIKit 可在本機驗證、WinUI 需要 Windows**。
+  trap。AppKit 已改為搜尋子樹;**UIKit 可在 Mac 主機上驗證、WinUI 需要 Windows**。
   - **UIKit 已修(2026-09-17)。** 先驗證它真的會炸:P4 在模擬器上死於
     `AnyWidget used with incompatible widget type WrapperWidget<UITextField>; actual widget type is
     BaseViewWidget`。改為搜尋子樹之後,P4 在 iOS 上正常算繪。
@@ -340,15 +340,15 @@ headings say which queue.md section each block came from.
     該跑的地方。WSL 的 GTK 與 Windows -gtk4 共用同一份 GtkBackend 原始碼,未另外在 WSL 上跑。
 
   - **今天量到、值得下次照做的一件事(相關性,不是成因)**:**三次**成功的驅動,都是在
-    **使用者剛與遠端桌面互動之後**的第一次嘗試(19:10 WinUI 排序、19:30 GTK 排序、19:36 指示符);
+    **剛有人與遠端桌面互動之後**的第一次嘗試(19:10 WinUI 排序、19:30 GTK 排序、19:36 指示符);
     而夾在中間那八次在完全沒有互動的情況下連續被拒。下次要驗證需要滑鼠的東西時,請對方動一下、
     然後**立刻**跑——這比重試迴圈有效得多:那個迴圈連跑八次都沒中,而互動後的第一次就中。
-    *Both successful sort replays today began right after the user interacted with the remote
+    *Both successful sort replays today began right after someone interacted with the remote
     session; eight consecutive attempts with no interaction were all refused. Correlation, not a
     proven cause -- but it is the cheapest thing to try first.*
 - [x] **5c. #122 focus / #123 accessibility:protocol 形狀草案已出** — `testapp/plan/plan-focus-protocol.md`。四個方法、`focus` 回傳 `Bool`(Android touch mode 會正當失敗)、`setFocusChangeHandler` 為必要;**#123 與 #122 分開**且可先落地。**待 Windows 回答一個問題**:WinUI 的 `FocusManager.TryFocusAsync` 是非同步的,而草案的 `focus` 是同步的
 - [x] **5c-ANSWER(Windows 回覆,2026-09-10):同步的 `focus` 可以照用,形狀不必改。**
-  你問的是 `FocusManager.TryFocusAsync`,而那不是唯一的路。**`UIElement` 自己有一個同步版本**:
+  提問針對的是 `FocusManager.TryFocusAsync`,而那不是唯一的路。**`UIElement` 自己有一個同步版本**:
   `.build/index-build/checkouts/swift-winui/Sources/WinUI/Generated/Microsoft.UI.Xaml.swift:3747`
   —— `public func focus(_ value: FocusState) throws -> Bool`。同步、回傳 `Bool`,與草案的
   `func focus(_ widget: Widget) -> Bool` **完全對得上**;`throws` 在 backend 內用 `try?` 吸收即可。
@@ -364,7 +364,7 @@ headings say which queue.md section each block came from.
   `.focusable()`. GTK's `gtk_widget_grab_focus` is in the installed header, and the hand-written
   bindings call `gtk_widget_*` directly, so it does not wait on the generator.*
 - [x] **#120-ANSWER(Windows 回覆,2026-09-10):兩個問題都答「可以走 (b)」。**
-  你在 `testapp/plan/plan-120-grid-and-geometry.md` 問的兩件事,兩件都查證過了:
+  `testapp/plan/plan-120-grid-and-geometry.md` 提出的兩件事,兩件都查證過了:
   1. **`gtk_widget_translate_coordinates` 在產生的綁定裡嗎?不在——但那不擋路。**
      `Sources/Gtk/` 下**零命中**(對照 `gtk_widget_measure` 有 2 個檔),
      但**已安裝的標頭裡有**:`C:/gtk4/include/gtk-4.0/gtk/gtkwidget.h` 命中 1 次
@@ -430,21 +430,21 @@ headings say which queue.md section each block came from.
 - [x] **15. #28 Animation — 完成(時鐘 + 引擎)** — 引擎接在**狀態**那一端而不是版面那一端:`StateImpl` 的 setter 一處切入,不必動 30 個 `setPosition` 呼叫點(其中 8 個在 Windows 的 `Views/Modifiers/Layout/`)。`withAnimation`、`Animation` 四種曲線、`AnimatableValue`(Double/Float/Int/SIMD2;**`Bool` 刻意不 conform**,`Color` 因為要先對環境 resolve 而暫緩)、單一 driver 掛在 #28 的 frame clock 上(第一個動畫啟動時鐘、最後一個結束時停掉)。**P66 量到**:0.5 秒線性從 0 到 200 產生 31 個相異值、單調、每幀約 6.7、終點正好 200.0;同一個 `withAnimation` 裡的 `Bool` 只被賦值一次。六個單元測試。**已知界線寫在 `Animation` 的文件裡**:動的是狀態而非 view 樹,因此 `.transition`、matched geometry、以及「沒有單一值描述得了的版面重排」都不在內
 - [x] **16. #118 LazyHGrid — 已完成** — 先把 `GridLayoutPlan` 的詞彙從 column/row 改成 lane/line 並帶上 `axis`,270 行的解析器整段移到 `GridLayoutPlan` 共用(不複製);`GridItem` 增加 `verticalAlignment`。P48 第 5、6 節驅動,量到 lane 間距 42 = 34+8、對齊階梯 52/52(而非 48/48)
 - [x] **17. #128 `EdgeInsets` — 已完成,這條協調請求已無須回覆(2026-09-17 查證)** — 原本是 Windows 端的一個**協調請求**(想動 `Views/Modifiers/Layout/`,在等 Mac 端確認),而它在等待期間就被做完了。
-  **以下為原始請求的文字,保留作為背景;其中「四個欄位都是 `Int`」已不再成立。**
+  **以下為原始請求的內容(改以第三人稱記述),保留作為背景;其中「四個欄位都是 `Int`」已不再成立。**
   `EdgeInsets` 的四個欄位都是 `Int`(`PaddingModifier.swift:34-42`),因此**小數 padding 完全無法表達**;
   `.padding(8.5)` 沒有寫法。Sources/ 下有 14 個檔案提到 `EdgeInsets`,而它經由 `baseItemPadding` 跨越
   backend 邊界。
   **要動的是 `Sources/SwiftCrossUI/Views/Modifiers/Layout/`,以及各 backend 讀 padding 之處。**
-  你在第 16 條說「若要動手,先說一聲,我會在那段期間避開該檔」——這就是那一聲,只是換一個檔案:
-  我想動的是 `Layout/` 而不是 `GridLayoutPlan`,所以與 #118 **不衝突**,但兩者相鄰到值得先問。
-  **請回覆:(a) 你近期會動 `Views/Modifiers/Layout/` 嗎?(b) 若你打算接手 #118,兩件事同時進行是否可接受?**
+  第 16 條提到「若要動手,先說一聲,Mac 端會在那段期間避開該檔」——這就是那一聲,只是換一個檔案:
+  Windows 端想動的是 `Layout/` 而不是 `GridLayoutPlan`,所以與 #118 **不衝突**,但兩者相鄰到值得先問。
+  **請 Mac 端回覆:(a) 近期會動 `Views/Modifiers/Layout/` 嗎?(b) 若 Mac 端接手 #118,兩件事同時進行是否可接受?**
   在收到回覆之前,Windows 端先做 #32(手勢),不碰 layout。
   *A coordination request, not a handover. `EdgeInsets`'s four fields are `Int`, so fractional padding
   cannot be expressed at all -- there is no spelling for `.padding(8.5)`. 14 files under Sources/
-  mention it and it crosses the backend boundary via `baseItemPadding`. I would be touching
+  mention it and it crosses the backend boundary via `baseItemPadding`. The Windows side would be touching
   `Views/Modifiers/Layout/`, not `GridLayoutPlan`, so it does not collide with #118 -- but the two are
-  adjacent enough to ask first. Answer (a) whether you will be in `Views/Modifiers/Layout/` soon, and
-  (b) whether both can run at once if you take #118. Until then this side is on #32 and stays out of
+  adjacent enough to ask first. Asked of the Mac side: (a) whether it will be in `Views/Modifiers/Layout/` soon, and
+  (b) whether both can run at once if it takes #118. Until then the Windows side is on #32 and stays out of
   layout.*
   - **本條的前提已經過期(2026-09-16 查證):`EdgeInsets` 已經是 `Double`。**
     `Sources/SwiftCrossUI/Views/Modifiers/Layout/PaddingModifier.swift:46-54` 的 `top`/`bottom`/
@@ -455,9 +455,9 @@ headings say which queue.md section each block came from.
   - **`cfe30184 "EdgeInsets is Double, so a padding can be a fraction of a point"`**,而
     `PaddingModifier.swift` 的四個欄位現在是 `Double`。小數 padding 可以表達了,而 Windows 今天的
     #128 量測(`P36`,以顏色量而非讀截圖)正是它的驗收。
-  - 原本問 Mac 端的兩個問題,答案記在這裡以免它再被問一次:**(a) 沒有,我從未動過
+  - 原本問 Mac 端的兩個問題,答案記在這裡以免再被問一次:**(a) Mac 端從未動過
     `Views/Modifiers/Layout/`**——`git log -- Sources/SwiftCrossUI/Views/Modifiers/Layout/`
-    裡沒有我的 commit;**(b) 我沒有要接 #118。** 那個目錄是你們的。
+    裡沒有 Mac 端的 commit;**(b) Mac 端不接 #118。** 那個目錄屬於 Windows 端。
 - [x] **M9. magnify / rotate — 完成(2026-09-17):格式、iOS、Android 都已驅動;AppKit 與 X11 以寫明的理由拒絕**
   - **現況:** 五個 backend 都 conform `MagnifyGestures` / `RotateGestures`,Windows 已用
     `testapp/touch_gesture.zsh` 在兩個 backend 上驅動過——而那支工具的檔頭第一行就寫著
@@ -475,8 +475,8 @@ headings say which queue.md section each block came from.
     `rotate(_:withVelocity:)`;Android 以雙指 `MotionEvent` 合成;**macOS 明確拒絕**
     ——`NSEvent` 沒有公開的 magnify/rotate 建構子,而 `CGEventType` 的 gesture 型別不是公開 API;
     這會是一個**寫明理由的 `unsupported`**,不是沉默。Windows 兩個 backend 已有外部工具,不改。
-  - **若你們也正要動 `Sources/InputEvent/` 的格式,請說一聲** ——這是 mistakes 第 12 條那個形狀,
-    而這次我先公開形狀再寫。
+  - **若 Windows 端也正要動 `Sources/InputEvent/` 的格式,需先協調** ——這是 mistakes 第 12 條那個形狀,
+    因此這次先公開形狀再寫。
   - **2026-09-17 進度:格式與 iOS 已完成並驅動過,Android 還沒建。**
     - `InputAction.pinch/rotate` 與 `ActionFile.swift` 的解析已落地,形狀與上表相同。
     - **iOS 實測通過**:`actions/ios/P65-pinch-and-rotate.actions`,連續三次執行
@@ -518,11 +518,11 @@ headings say which queue.md section each block came from.
 - [x] **T3. AndroidBackend 已遷到 Swift 6 language mode(2026-09-16)** — 五個並行性問題修好並保留:stdio 緩衝移進 C shim(`stdout`/`stderr` 是可變 C 全域,Swift 6 拒絕引用);兩個 `@Entry` 改為手寫 key(macro 產生的是「非 `Sendable` 型別的 `static let`」,而教 macro 加 `nonisolated(unsafe)` 會讓整個套件的同一個診斷消音);一個泛型輔助函式移除了**永遠到不了**的 `default:` 參數;`SharedPreferences` 依 Android 自身的 thread-safety 保證加標註;`ActivityListener` 與兩個 AndroidKit 型別改 `@unchecked Sendable`,因為 **swift-java 的 `@JavaMethod` 展開會把 `self` 與每一個參數送過隔離邊界**。第六個不是模式問題:`CommandLine.arguments` 的 setter 在 Swift 6.0 **被廢除**,而少了它 Android 上 `--debug`/`-rows`/`-actionfile` 全部送不到(runtime 的 argv 是 JVM 的)。先試的「v5 單檔 target」在 `swift build` 下可用、在 swift-bundler 的 `swift build --product` 下**消失**(`no such module`,兩份 manifest 快取都清過,也列進 product 了,原因未明,已放棄)。落地的做法不需要任何 target:那個廢除是**編譯期**閘門,符號仍由 runtime 匯出(以 `nm -D libswiftCore.so` 在實際使用的 Android SDK 上查過),改以 `@_silgen_name` 抵達,`__owned` 明寫。**上機驗過**:四個旗標原樣抵達、零崩潰、程序存活,`focus changes heard: 3`、`refused (correct)`。**順帶抓到一個回歸並記為 mistakes 第 9 條**:把 `AndroidBackend` 加進 `migratedToSwift6` 會讓**非 Android** 的每一次建置以 manifest 自己的打字守衛死掉——而我是在 Android 上驗了五次的,那正是該缺陷不可能出現的平台。
 - [x] **4. #121 鍵盤快捷鍵 — 五個 backend 全數完成(2026-09-16 傍晚由原始碼查得)** — UIKit 那一格已由 Mac 補上(`UIKitBackend+Menu.swift` 讀 `environment.keyboardShortcut`,`cfc442aa` 實作、`8ccfc78a` 驅動通過)。下方那句「只剩 UIKit」是當天稍早為真。原文保留:2026-09-16 由**原始碼**查得(不是讀這份 queue):GTK、WinUI、AppKit、Android 都已讀 `environment.keyboardShortcut`,**UIKit 沒有**。那一行「`ResolvedMenu.Item` 沒有 shortcut 欄位」已經不成立——最後採用的是 environment,不是欄位。
 - [x] **5. focus / accessibility(#122 / #123)— 五個 backend 全數完成** — GTK 與 WinUI 於 2026-09-16 補上(`4c7bbf12` / `9746bbeb`),P70 與 P69 都以動作檔驅動過。**限制寫明**:GTK 沒有 accessibility 的讀回路徑(`gtkaccessible.h` 只有 update、沒有 getter,要讀得走 AT-SPI),WinUI 的讀回是行程內的、對 Narrator 實際唸出什麼沒有發言權。原文保留:AppKit / UIKit / Android 已落地並驗過,GTK 與 WinUI 未——形狀議定後三份實作已完成,P69 與 P70 分別以 `ax_dump`、`uiautomator --compressed` 與真實點擊/觸控驗過。交接在 `queue-windows.md`。
-- [x] **6. #74 `-GPU` on macOS — 已實作(AppKit + UIKit)** — 那個「設計問題」其實已被協定的形狀回答了:`GraphicsAdapter` 的三個欄位 `name`/`isRemovable`/`isLowPower` **就是 `MTLDevice` 的三個屬性**,而 `AdapterOutcome.requiresRestart` 的文件早就寫著「macOS 不需要這個,Metal 在執行期選擇」。AppKit 用 `MTLCopyAllDevices()`(系統預設排最前,因為 `.systemDefault` 取 `first`)、UIKit 用 `MTLCreateSystemDefaultDevice()`(`MTLCopyAllDevices` 僅限 macOS,而 iOS 只有一張且不可移除)。**明說它不做什麼**:它不會把視窗移到另一張 GPU——window server 依「視窗所在顯示器」決定合成用的 GPU,macOS 上沒有應用程式做得到。P68 驅動並列出介面卡。**Android 已補上**:回報一張以 SoC 命名的介面卡(`SOC_MANUFACTURER`/`SOC_MODEL`，早於 API 31 的裝置退回 `HARDWARE`),而**不是**空清單——空清單會讓框架解析為「沒有可用的繪圖介面卡」，那句話對每一台 Android 裝置都是假的。名字是 SoC 而非 GPU:真名要 `glGetString(GL_RENDERER)`，那需要對 `EGL_DEFAULT_DISPLAY` 做 `eglInitialize`/`eglTerminate`——也就是 app 正在算繪的那個 display，而這台機器驗不了它會不會弄壞算繪
-- [x] **7. #28 動畫 / #32 手勢** — 五個 backend 全部 conform(`DragGestures`/`MagnifyGestures`/`RotateGestures`、`FrameClocks`)。**未驅動的只剩 magnify/rotate**:此處合成不出觸控板的雙指手勢,需要有人在機器前做一次。
-- [x] **9. #79 GTK 39px / #109 popover anchor API — 兩項都已定案並落地(2026-09-16),此條為重複指標,一併關閉** — 原文是「需要你決定」;#79 見 M3a(已驅動驗收 `shortfall 0x0`),#109 見 M3b(兩個 Windows backend 已成對驗收)。
+- [x] **6. #74 `-GPU` on macOS — 已實作(AppKit + UIKit)** — 那個「設計問題」其實已被協定的形狀回答了:`GraphicsAdapter` 的三個欄位 `name`/`isRemovable`/`isLowPower` **就是 `MTLDevice` 的三個屬性**,而 `AdapterOutcome.requiresRestart` 的文件早就寫著「macOS 不需要這個,Metal 在執行期選擇」。AppKit 用 `MTLCopyAllDevices()`(系統預設排最前,因為 `.systemDefault` 取 `first`)、UIKit 用 `MTLCreateSystemDefaultDevice()`(`MTLCopyAllDevices` 僅限 macOS,而 iOS 只有一張且不可移除)。**明說它不做什麼**:它不會把視窗移到另一張 GPU——window server 依「視窗所在顯示器」決定合成用的 GPU,macOS 上沒有應用程式做得到。P68 驅動並列出介面卡。**Android 已補上**:回報一張以 SoC 命名的介面卡(`SOC_MANUFACTURER`/`SOC_MODEL`，早於 API 31 的裝置退回 `HARDWARE`),而**不是**空清單——空清單會讓框架解析為「沒有可用的繪圖介面卡」，那句話對每一台 Android 裝置都是假的。名字是 SoC 而非 GPU:真名要 `glGetString(GL_RENDERER)`，那需要對 `EGL_DEFAULT_DISPLAY` 做 `eglInitialize`/`eglTerminate`——也就是 app 正在算繪的那個 display，而 Mac 主機上驗不了它會不會弄壞算繪
+- [x] **7. #28 動畫 / #32 手勢** — 五個 backend 全部 conform(`DragGestures`/`MagnifyGestures`/`RotateGestures`、`FrameClocks`)。**未驅動的只剩 magnify/rotate**:當時合成不出觸控板的雙指手勢(之後見 M9:iOS 與 Android 已驅動,AppKit 與 X11 以寫明的理由拒絕)。
+- [x] **9. #79 GTK 39px / #109 popover anchor API — 兩項都已定案並落地(2026-09-16),此條為重複指標,一併關閉** — 原文是「需要決定」;#79 見 M3a(已驅動驗收 `shortfall 0x0`),#109 見 M3b(兩個 Windows backend 已成對驗收)。
 - [x] **10. #80 P42 縮放通知 — WinUI 通過;GTK 值與執行期變更皆已完成並驅動驗收(2026-09-16,`cd90458e`)** — 需要人在機器前改顯示縮放。
-  - **WinUI:通過。** 使用者把顯示縮放由 100% 改為 125%、**全程未碰視窗**,而該視窗自己記到
+  - **WinUI:通過。** 顯示縮放由 100% 手動改為 125%、**全程未碰視窗**,而該視窗自己記到
     `1.0 (change 1)` → `1.25 (change 2)`;畫面顯示 `changes observed: 1`、歷程 `1.0 x5 -> 1.25 x2`。
     **判決在歷程、不在當前值**:單看 `1.25` 對「通知有沒有觸發」毫無發言權,因為在改完之後才啟動的
     app 也會顯示 1.25。
@@ -536,7 +536,7 @@ headings say which queue.md section each block came from.
     (GTK 4.12+ 的小數倍率)還是只有字型 DPI?而 `windowScaleFactor` 在此處是不是對的通道?
   - **不要因為 WinUI 通過就把 GTK 標成缺陷**,也不要反過來把 GTK 的沉默當成「這個功能不需要」。
   - **上面那段「不是缺陷,是平台事實」是錯的,原文保留於此以資對照(2026-09-16 當日推翻)。**
-    你的一句「我覺得 GTK 在 Windows 上跟著 scale factor 走是合理的」把它推翻了。**對的部分**:
+    一句質疑「GTK 在 Windows 上跟著 scale factor 走才合理」把它推翻了。**對的部分**:
     新探針帶著它當時沒有的小數 API 再問一次,125% 下 `gtk_widget_get_scale_factor=1`、
     `gdk_surface_get_scale=1.0`(GTK 4.12 起的 double,此處 GTK 4.22,所以它存在而且答 1.0)、
     `gdk_surface_get_scale_factor=1` —— **沒有任何 GDK 呼叫講得出顯示器的縮放**,這一半成立。
@@ -610,8 +610,8 @@ is the design question, and it is the whole of the work — not the scene struct
 
 ## Windows 端回覆 — 2026-09-10 晚 / Answers from the Windows side
 
-回覆 `testapp/plan/queue-windows.md`。**先講四項你以為還開著、但已經收掉的**,因為那份清單寫在
-你 pull 到今天下午的收尾之前。
+回覆 `testapp/plan/queue-windows.md`。**先講四項 Mac 端以為還開著、但已經收掉的**,因為那份清單寫在
+Mac 端 pull 到今天下午的收尾之前。
 
 Answering `testapp/plan/queue-windows.md`. Four of its rows are already closed —
 that list was written before pulling this afternoon's work.
@@ -631,7 +631,7 @@ that list was written before pulling this afternoon's work.
    `transformToVisual` 同步回傳 `GeneralTransform`(`Microsoft.UI.Xaml.swift:3702`)。
 2. **#122 形狀不必改。** `UIElement.focus(_ value: FocusState) throws -> Bool` 是同步的;
    `gotFocus`(:4345)/`lostFocus`(:4410)供回報;`isTabStop`(:3884)對應 `.focusable()`。
-3. **#109 分工照你的提案。** 我做 SwiftCrossUI 層 + Gtk + WinUI,你做 AppKit / UIKit / Android。
+3. **#109 分工照 Mac 端的提案。** Windows 端做 SwiftCrossUI 層 + Gtk + WinUI,Mac 端做 AppKit / UIKit / Android。
 4. **#125 與 #122 一起定**,形狀取
    `setSelectionChangeHandler` / `setSortOrderChangeHandler`,與 `setFocusChangeHandler` 同形。
    **但 GTK 那格不是包裝、是真工作**:`Gtk.Table` 是 `ScrolledWindow` 包 `Grid`,對「選取的列」
@@ -648,12 +648,12 @@ that list was written before pulling this afternoon's work.
 
 **但在斷定「差 30 倍」之前,有一格要先對齊:兩邊量的可能不是同一件事。**
 Windows 量的是 **`.bordered` button 的 press transition**(每顆按鈕都裝 press handler);
-你量的是 **per-cell layout cost**(primitive / custom / text 三臂)。同一支 P52、不同的被測量。
+Mac 端量的是 **per-cell layout cost**(primitive / custom / text 三臂)。同一支 P52、不同的被測量。
 在那一格對齊之前,30 倍是兩個不同量之間的比值,而不是同一個量的跨 backend 差異。
 
 **P28 的「一秒」:這棵樹裡沒有任何 Windows 紀錄可以支撐它。**
 `matrix_coverage/results.csv2` 中 P28 有 mac、android、ios、wsl 的列,**windows 一列都沒有**。
-所以那份回報若來自 Windows,它從未被記錄下來;若來自 macOS,你已經量完並推翻(冷啟 16 ms)。
+所以那份回報若來自 Windows,它從未被記錄下來;若來自 macOS,Mac 端已經量完並推翻(冷啟 16 ms)。
 `queue.md` 自己也早就標註過它是「**一次觀察而不是一個量測**」。**這一格由 Windows 端補上量測。**
 
 *The 0.3 s is a Windows/GtkBackend measurement with a stated method — but it measured button press
@@ -663,13 +663,13 @@ this side will measure it.*
 
 ---
 
-## 更正:#123 在 GTK/Windows 上**做得到**,我先前說反了
+## 更正:#123 在 GTK/Windows 上**做得到**,先前說反了
 
 ### Correction: #123 IS reachable on GTK/Windows
 
-2026-09-11。我先前寫下「Windows 上的 accessibility 是 WinUI-only,除非 GTK 上游補上 UIA bridge」。
+2026-09-11。先前寫下的是「Windows 上的 accessibility 是 WinUI-only,除非 GTK 上游補上 UIA bridge」。
 **那句話是錯的**,而且它正是 CLAUDE.md 明令禁止的形狀——把「這個平台沒有內建 X」說成「這個平台
-做不到 X」。使用者當場指出來,而規則寫得很清楚:那是**待查證的主張,不是結論**,而且答案仍然是
+做不到 X」。這一點當場被指出,而規則寫得很清楚:那是**待查證的主張,不是結論**,而且答案仍然是
 去找出該平台**做得到**的方式。
 
 錯誤的部分不是量測,是從量測推出的結論。量測本身仍然成立:`C:/gtk4` 有 **0** 個 atk/at-spi
@@ -691,7 +691,7 @@ this side will measure it.*
 | 手寫 COM 介面與 IID | `D3D11VideoInterop.swift:176` 明說「hand-declared IIDs rather than linking against dxguid.lib, so no extra linker settings are needed」;`lpVtbl`/`QueryInterface` 出現在四個檔案 |
 | UIA 的 provider 端 | 基於 HWND:回應 `WM_GETOBJECT`、回傳 `IRawElementProviderSimple`。`UIAutomationCore.h` 位於 Windows Kits 10.0.22621.0 |
 
-也就是說:**GTK 缺的是「把它自己的樹送出去」,而我們要送的本來就不是它的樹。**
+也就是說:**GTK 缺的是「把它自己的樹送出去」,而本專案要送的本來就不是它的樹。**
 一個掛在該 HWND 上的 UIA provider,從 SwiftCrossUI 的標籤側表回答,完全不經過 `gtk_accessible`。
 
 ### 誠實的成本
@@ -783,7 +783,7 @@ for be in GtkBackend WinUIBackend AppKitBackend UIKitBackend AndroidBackend; do
 done
 ```
 
-**用 `grep -rhoE "BackendFeatures\.[A-Za-z]+"`,不要用 `extension X: BackendFeatures\.Y`。** 後者是我
+**用 `grep -rhoE "BackendFeatures\.[A-Za-z]+"`,不要用 `extension X: BackendFeatures\.Y`。** 後者是
 2026-09-16 的第一個版本,它**兩個方向都錯**:多行的 conformance 寫法
 
 ```swift
@@ -792,8 +792,8 @@ extension AppKitBackend:
     BackendFeatures.MagnifyGestures,
 ```
 
-被漏掉(偽陰性,害我以為五個 backend 都沒有 magnify),而註解裡提到協定名稱的行被算進去(偽陽性,
-害我以為 UIKit 讀了 `keyboardShortcut`,其實那兩處是我自己寫的「此處**沒有**讀取」)。
+被漏掉(偽陰性,看起來五個 backend 都沒有 magnify),而註解裡提到協定名稱的行被算進去(偽陽性,
+讓人以為 UIKit 讀了 `keyboardShortcut`,其實那兩處是註解寫的「此處**沒有**讀取」)。
 
 **先跑正對照再相信任何一個零**:一個確定存在的名字(`WidgetGeometry` 五個都該有)與一個確定不存在的
 (`ZZZNotARealProtocol` 應回傳空)。
@@ -811,11 +811,11 @@ Do not read this table to decide whether something is done. Ask the source, with
 the command above.
 
 Use `grep -rhoE "BackendFeatures\.[A-Za-z]+"`, not a pattern anchored on
-`extension X: BackendFeatures.Y`. The latter was my first version and it was
+`extension X: BackendFeatures.Y`. The latter was the first version and it was
 wrong in BOTH directions: it missed multi-line conformances (so all five
 backends looked like they had no magnify gesture) and it counted comments that
 merely name a protocol (so UIKit looked like it read `keyboardShortcut`, when
-those two hits were my own comment saying it does NOT). Run both controls before
+those two hits were a comment saying it does NOT). Run both controls before
 believing any zero.
 
 ---
@@ -837,8 +837,8 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 
 **這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
 backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
-「沒有實作」。2026-09-16 我試著自動分辨兩者,那個判準抓到 0 個繼承項目——所以它是壞的,而我沒有拿它
-去開 39 條待辦。**要補完這張表,得先寫出一個能通過正反對照的探針。**
+「沒有實作」。2026-09-16 曾試著自動分辨兩者,那個判準抓到 0 個繼承項目——所以它是壞的,因此沒有
+拿它去開 39 條待辦。**要補完這張表,得先寫出一個能通過正反對照的探針。**
 
 **Windows 端回覆(2026-09-16 15:xx):這張表寫下時,五格 Windows 欄位中的五格都已經關掉了**
 ——#122 與 #123 於 `4c7bbf12` / `9746bbeb` 落地、#117 的 GTK 側於 `5739d453`,全部早於本表。
@@ -967,8 +967,8 @@ every Pn from P63 onward.
 ## #125 Table 的 selection 與 sortOrder:開工前先講形狀(2026-09-16,Windows 端)
 
 **先寫這一段再動手,理由是今天早上那次撞車(mistakes 第 12 條):`queue` 說「blocked on Mac」
-是寫的當下為真,而不是現在為真。** 這一段推出去之後我才開始寫,若 Mac 已經有別的形狀,請直接覆蓋
-這裡、我照著改。
+是寫的當下為真,而不是現在為真。** 這一段推出去之後才開始寫,若 Mac 已經有別的形狀,請直接覆蓋
+這裡,Windows 端照著改。
 
 **先查證的事實,不是假設:** `git log origin/develop -S'sortOrder'` 與 `-S'TableSelection'` 在
 `Sources/` 之下**零命中**;`BackendFeatures/Tables.swift` 最近三次改動是 `2fd81acb`(逐欄寬度)、
@@ -1007,8 +1007,8 @@ public protocol TableColumnSorting: Tables {
   由 app 重新排序自己的資料——框架不介入 comparator。這與 SwiftUI 的 `sortOrder` 精神一致,
   但不需要 `KeyPathComparator` 那一整套。
 
-**分工(沿用 #121 那次講定的「各做自己編得動的」):** 協定與 view 端由我落地,GtkBackend 與
-WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個是 Mac 那邊的**——
+**分工(沿用 #121 那次講定的「各做自己編得動的」):** 協定與 view 端由 Windows 端落地,GtkBackend 與
+WinUIBackend 兩個實作也由 Windows 端做並驗收;**AppKit / UIKit / Android 三個是 Mac 那邊的**——
 `NSTableView` 與 `UITableView` 本來就有選取與可點標題,成本應該遠低於這裡。
 
 **分兩批做,selection 先。** 它自成一件完整的事、可獨立驗收,而排序還要處理指示符的繪製。
@@ -1034,8 +1034,8 @@ WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個
 **~~尚未驗證:backend → 框架(點擊變成 binding 的寫入)。它需要真實指標事件,而這台機器在遠端
 桌面連線時拒絕注入滑鼠。~~ 同日以真實滑鼠驗完,而那句「拒絕注入」是錯的。**
 
-**那段阻擋警告不是結論,而我把它當成了結論。** 它自己寫著「這是**相關性**,不是已證實的成因」,
-而我卻用它來解釋為什麼不驗。實際去跑之後:`SetCursorPos` 生效(`cursor=(406, 621)` 與要求值相符),
+**那段阻擋警告不是結論,卻被當成了結論。** 它自己寫著「這是**相關性**,不是已證實的成因」,
+卻被用來解釋為什麼不驗。實際去跑之後:`SetCursorPos` 生效(`cursor=(406, 621)` 與要求值相符),
 **CDP 連著時滑鼠是可用的**。先前那次「點了沒反應」的真正差別在於啟動方式(經 harness 與直接執行),
 不是輸入被拒絕。
 
@@ -1067,7 +1067,7 @@ which is how #117 passed on memory here while rendering nothing.
 ~~The click-to-binding direction is NOT verified; this machine refuses pointer
 input while a remote-desktop host is connected.~~ **Verified the same day with a
 real mouse, and that sentence was wrong.** The blocker note says of itself that
-it is a correlation rather than a proven cause, and I used it as a conclusion
+it is a correlation rather than a proven cause, and it was used as a conclusion
 anyway. Driving it: `SetCursorPos` took, the cursor landed where it was asked to,
 and both backends selected. The earlier run that saw nothing differed in how the
 app was launched, not in whether input was accepted.
@@ -1088,8 +1088,8 @@ than dividing -- dividing puts all three clicks one row out.
 
 Published before starting, because of this morning's collision (mistakes entry
 12): a queue line saying "blocked on Mac" was true when written, not now. If the
-Mac side already has a shape for this, overwrite this section and I will follow
-it.
+Mac side already has a shape for this, overwrite this section and the
+Windows side follows it.
 
 Checked rather than assumed: `-S'sortOrder'` and `-S'TableSelection'` find
 nothing under `Sources/` on origin, and the last three changes to `Tables.swift`
@@ -1197,8 +1197,8 @@ selection and clickable headers. Selection lands first, on its own.
   Transcript: `testapp/measurements/talkback-p69-20260929.txt`. What remains is
   Narrator, on the Windows machine, tracked in the item above.
   **2026-09-29 關閉:TalkBack 的實際朗讀已驗證,不需要有人聽。**記錄每段朗讀的 TTS 引擎 + 真正的觸控事件;五項主張全部
-  以「唸出的內容」成立。剩下的 Narrator 在 Windows 那台機器上,由上面那一項追蹤。原條目:
-  **#123 複驗(2026-09-17,應 Windows 之請):我們這三個 backend 乾淨,但複驗本身找到一個更大的洞**
+  以「唸出的內容」成立。剩下的 Narrator 在 Windows 主機上,由上面那一項追蹤。原條目:
+  **#123 複驗(2026-09-17,應 Windows 之請):AppKit / UIKit / Android 三個 backend 乾淨,但複驗本身找到一個更大的洞**
   - **起因**:那邊的外部 AT-SPI 探針發現 GTK 的 Close 按鈕仍把 `X` 子節點暴露出去。
   - **macOS:沒有這個問題,而且現在證得出來。** `ax_dump` 加了 `--children`,會印出每一顆具名按鈕
     **底下**有什麼:`desc='Close'`(無子節點)、`desc='Delete' help='Removes the file permanently'`
@@ -1217,9 +1217,9 @@ selection and clickable headers. Selection lands first, on its own.
     一併發布 `isAccessibilityElement`/`accessibilityLabel` 並加上 `.staticText` trait,並讓
     `namedChild` 認得 `TextView`。修後:七個 `StaticText` 各自帶著自己的內容,
     Close/Delete/Volume 仍帶著名字且**沒有** `X` 子節點,`decorative` 不出現。
-  - **給那邊的一條線索(GTK)**:AT-SPI **沒有** Android 那種「不重要」過濾,所以那棵樹就是 AT 走訪的樹
+  - **給 Windows 端的一條線索(GTK)**:AT-SPI **沒有** Android 那種「不重要」過濾,所以那棵樹就是 AT 走訪的樹
     ——`X` 若在裡面就是真的在裡面。GTK4 可以把內層 label 的 accessible role 設為 `NONE`/presentation,
-    或對它 `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。我這邊沒有 GTK,
+    或對它 `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。Mac 主機上沒有 GTK 的 AT-SPI 環境,
     無法驗,所以這是線索不是結論。
   - **`.accessibilityLabel` 對 `Text` 的等價檢查已完成(2026-09-19,AppKit 與 Android)**,而它找到的
     不是實作缺陷、是 **P69 自己的主張寫錯了**:
@@ -1232,7 +1232,7 @@ selection and clickable headers. Selection lands first, on its own.
       而當時標籤正在正確地做它的事——**最糟的一種錯誤斷言:它指著能用的程式碼。** 已改為逐平台敘述。
     - **兩邊都確認 `decorative` 不出現**(Android 上唯一的那次出現,是在 P69 自己的主張字串裡)。
   - **仍未做**:Narrator / TalkBack 的**實際朗讀**(要有人聽);Android 上「閱讀器會改讀
-    contentDescription」是平台的既定行為,我沒有聽過,因此與 Narrator 那一項同列。
+    contentDescription」是平台的既定行為,但尚未實際聽過,因此與 Narrator 那一項同列。
 
 ## Archived 2026-10-18 from queue.md
 
@@ -1249,7 +1249,7 @@ selection and clickable headers. Selection lands first, on its own.
 ### 2026-10-09 SVG in Image (user request, priority one)
 
 - [x] **Visible `<text>`: drawn by each platform's own text engine**
-  (2026-10-09). The user chose this over bundling a font, for size: no font
+  (2026-10-09). Chosen over bundling a font, for size: no font
   file in the library, and every script the platform has fonts for draws,
   Chinese included; the price is that text differs a little between
   platforms. Core: `SVGBuilder` turns `<text>` into a text node (font-family,
@@ -1346,7 +1346,7 @@ selection and clickable headers. Selection lands first, on its own.
   against a browser: feTurbulence's values follow the reference code, but no
   rendering of the same SVG was compared pixel for pixel.
 
-### On this Mac
+### On the Mac host
 
 - [x] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part
   of `FullAppBackend`; GTK, WinUI, AppKit and UIKit have it, Android does not
@@ -1547,7 +1547,7 @@ selection and clickable headers. Selection lands first, on its own.
       activity's context; nothing seen to depend on it.
   - [-] **UIKit: sheet detents on iOS 13-14** need a custom
     UIPresentationController (no sheetPresentationController there). Not started.
-    CANCELLED 2026-10-06 by the user ("no need"): no iOS 13/14 runtime here to
+    CANCELLED 2026-10-06 ("no need"): no iOS 13/14 simulator runtime installed to
     test it on.
 - [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
   `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
@@ -1662,7 +1662,7 @@ selection and clickable headers. Selection lands first, on its own.
     (KeyboardToolbar's ToolbarItem overload); now `@_disfavoredOverload`.
   - Android DONE: the theme's `colorError`; P82 on the emulator 2026-10-08:
     destructive labels orange-red, disabled dimmed, save/cancel ordinary, blue kept.
-  - GTK (Windows session, 865d9b32): Adwaita `destructive-action`. On GtkBackend
+  - GTK (Windows host, 865d9b32): Adwaita `destructive-action`. On GtkBackend
     (macOS) bordered is red; borderless draws grey (the default borderless
     label colour overrides the inherited red) and disabled shows almost no red.
     **Fixed 2026-10-08:** the GTK hook returns, for borderless/plain only, the
@@ -1939,7 +1939,7 @@ selection and clickable headers. Selection lands first, on its own.
   crash db, helper processes left by a dead emulator. Opt-in: --erase-sims,
   --wipe-avd, --deep (SwiftPM/Gradle/Homebrew). First run: 11 -> 18 GB free.
   - [x] scui-wear AVD (1.4 GB, unregistered, untouched since 2026-09-05) and
-    its android-34 wear image (4.1 GB): removed 2026-10-04 at the user's
+    its android-34 wear image (4.1 GB): removed 2026-10-04 on
     request (image via sdkmanager --uninstall).
   - [x] test_ios.zsh left a new DerivedData/iOSActionFileRunner-<hash> per
     run (166 on 2026-10-04): `test-without-building` had no
@@ -1983,7 +1983,7 @@ selection and clickable headers. Selection lands first, on its own.
     Swift Bundler is still built by the installer for compile.zsh -ios's
     fallback; Android no longer needs it.
   - [x] **iOS: an xcodebuild failure is a defect to root-cause, not something
-    for the Swift Bundler fallback to absorb** (user, 2026-10-05). The
+    for the Swift Bundler fallback to absorb** (2026-10-05). The
     fallback at compile.zsh ~1759 prints one stderr line and carries on, which
     is how P76/P77's "Redefinition of module '_SwiftSyntaxCShims'" at 05:24
     went unnoticed until read back later. Next time it happens: stop, find the
@@ -2026,7 +2026,7 @@ selection and clickable headers. Selection lands first, on its own.
       the C targets with it, explicit modules off ("did not match the configured
       compiler", 354 times in one P12 build). compile.zsh unsets CC and CXX for
       xcodebuild only; the next P12 build: 0 and 0, BUILD SUCCEEDED.
-    - [x] The purge is automatic (2026-10-05, at the user's request): before the
+    - [x] The purge is automatic (2026-10-05): before the
       iOS build loop compile.zsh lists every SourcePackages path in
       XCBuildData/PIFCache, and if any is not $ios_derived_data/SourcePackages it
       says so and removes XCBuildData (one full rebuild). Proven both ways: on

@@ -55,7 +55,7 @@ measured.
 **This is not zero-copy.** Frames still cross CPU memory through the ffmpeg
 pipe. True zero-copy needs in-process decode plus
 `glImportMemoryWin32HandleEXT`; `external-objects-win32` is confirmed present on
-this machine for whenever that is attempted.
+the Windows 11 test machine (Ryzen iGPU + RTX 4060) for whenever that is attempted.
 
 單一一項對吞吐量真正有影響的改動。
 
@@ -70,7 +70,7 @@ GPU 進行（檔案與數據如上表）。
 2.7 倍的降幅與位元組算術吻合；它是先被預測、後被量測的。
 
 **這不是零複製。** 影格仍會經由 ffmpeg 管線通過 CPU 記憶體。真正的零複製需要行程內解碼加上
-`glImportMemoryWin32HandleEXT`；本機已確認具備 `external-objects-win32`，留待日後嘗試。
+`glImportMemoryWin32HandleEXT`；Windows 11 測試機（Ryzen 內顯 + RTX 4060）已確認具備 `external-objects-win32`，留待日後嘗試。
 
 ## Frame accounting
 
@@ -232,7 +232,7 @@ GDK_DEBUG=opengl ./testapp/output/P6-v2-gtk4.exe
 
 **Set the GPU preference before measuring on a hybrid-graphics laptop.** With no
 entry under `HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences` an executable
-is given the integrated GPU, silently. This machine reported
+is given the integrated GPU, silently. The Windows 11 test machine reported
 `AMD Radeon(TM) Graphics` — the Ryzen APU, identifiable only by the absence of a
 model number — while holding an RTX 4060:
 
@@ -246,7 +246,7 @@ comparison silently runs two builds on two different GPUs and both sets of
 numbers look reasonable.
 
 **在混合顯示卡筆電上量測之前，請先設定 GPU 偏好。** 若 `UserGpuPreferences` 下沒有對應項目，
-執行檔會被靜默指派內顯。本機在配備 RTX 4060 的情況下回報 `AMD Radeon(TM) Graphics`，即 Ryzen
+執行檔會被靜默指派內顯。Windows 11 測試機（Ryzen 內顯 + RTX 4060）回報 `AMD Radeon(TM) Graphics`，即 Ryzen
 APU——唯一的辨識線索是它不含型號。
 
 該設定以完整路徑為鍵，因此每個二進位檔都需各自登記。少了它，一次比較會靜默地在兩顆不同的 GPU

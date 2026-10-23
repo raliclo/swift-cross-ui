@@ -118,7 +118,7 @@ Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `test
 |---|---|---|
 | `9ac01c11` | GeometryReader doc 範例修正 | 最小的一個：兩行註解，純文件 |
 | `b35939f1` | file dialog 後的前景焦點歸還 | 無對應 upstream issue，測 P6 時發現 |
-| `8dc6380b` | P6 首幀發布的自我死鎖 crash | 早於本次工作，獨立於 NV12 |
+| `8dc6380b` | P6 首幀發布的自我死鎖 crash | 早於 NV12 這條工作，與它無關 |
 
 另有兩筆 NV12 的 commit 卡在命名：`Sources/WinUIBackend/D3D11VideoInterop.swift`
 有六個 P6- 前綴的 public type，送 PR 前要先改名。

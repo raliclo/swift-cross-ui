@@ -1,6 +1,6 @@
 # Mobile comparison flow: iOS vs Android, one Pn at a time
 
-Agreed with the user on 2026-10-09. The unit of work is ONE test app, carried
+Process adopted on 2026-10-09. The unit of work is ONE test app, carried
 from capture to a verified fix before the next app starts:
 
 ```
@@ -13,21 +13,21 @@ findings, and a fix made long after its capture is checked against a picture
 of older code. One app at a time keeps every fix next to the capture that
 proves it.
 
-**Goal (user, 2026-10-09):** what Android shows should line up with iOS,
+**Goal (2026-10-09):** what Android shows should line up with iOS,
 alignment above all. iOS is the reference. A gap that needs a choice -- a
-behaviour change, files that would have to be re-measured -- is put to the user
+behaviour change, files that would have to be re-measured -- goes to the maintainer
 rather than settled here.
 
 ## Rules
 
-- **Show the user both screenshots** (user, 2026-10-09) for every comparison,
+- **Show both screenshots to the maintainer** for every comparison,
   and again after every fix: iOS left, Android right, sent with SendUserFile,
-  so the user can catch what the comparison missed.
+  so a reviewer can catch what the comparison missed.
 - **Yield the simulators to SoftPCB** whenever it asks for a UI test slot:
   finish the current app, stop, and resume only when it says it is done.
 - **One platform at a time, one app at a time.** Never run the iOS and the
   Android harness together, and never a macOS run while either is going
-  (user, 2026-10-09: "don't do it in parallel"). Reading screenshots is not a
+  (2026-10-09: "don't do it in parallel"). Reading screenshots is not a
   run; capturing is.
 - **Capture from a fresh build.** No `-n` on the capture that a comparison or a
   fix is judged by.
@@ -117,7 +117,7 @@ default font draws Chinese as empty boxes.
 
 # 行動平台比對流程:iOS 與 Android,一次一支 Pn
 
-2026-10-09 與使用者議定。工作單位是**一支**測試 app,從截圖一路做到修正驗證完成，才開始下一支：
+2026-10-09 起採用的流程。工作單位是**一支**測試 app,從截圖一路做到修正驗證完成，才開始下一支：
 
 ```
 Pn:截 iOS -> 截 Android -> 比對 -> 修正 -> 兩邊重截 -> 驗證 -> 記錄 -> P(n+1)
@@ -128,8 +128,8 @@ Pn:截 iOS -> 截 Android -> 比對 -> 修正 -> 兩邊重截 -> 驗證 -> 記�
 
 ## 規則
 
-- **一次一個平台、一次一支 app。** iOS 與 Android 的測試不同時跑，其中一個在跑時也不跑 macOS(使用者，
-  2026-10-09:「不要平行」)。讀截圖不算執行，截圖才算。
+- **一次一個平台、一次一支 app。** iOS 與 Android 的測試不同時跑，其中一個在跑時也不跑 macOS
+  (2026-10-09:「不要平行」)。讀截圖不算執行，截圖才算。
 - **截圖來自重新建置。** 用來判斷比對或修正的那次截圖不加 `-n`。
 - **兩張截圖來自同一個 commit。** 跨兩種程式碼狀態的比對，找到的是程式碼的差異，不是平台的差異。
 - **修正以「兩個平台重截同一支 Pn」驗證**,不是靠推理。修正動到共用檔案(core、共用的 Kotlin helper)時，

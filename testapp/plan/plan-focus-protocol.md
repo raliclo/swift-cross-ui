@@ -1,17 +1,21 @@
 # plan: the shape of a focus protocol (#122), and where accessibility (#123) differs
 
-**狀態:形狀草案,尚未實作。沒有任何 backend 因這份文件而改變。**
+**狀態:已實作。** 這份形狀於 2026-09-16 在五個 backend 落地(`ef1c4c02`、`38394d14`、`ab2d1d51`),
+協定是 `BackendFeatures.FocusableViews`。以下保留實作前的草案。
 
-**Status: a shape, not an implementation. No backend has changed for this.**
+**Status: implemented.** This shape landed on all five backends on 2026-09-16
+(`ef1c4c02`, `38394d14`, `ab2d1d51`) as `BackendFeatures.FocusableViews`. The
+draft below is kept as written before implementation.
 
-Windows 端要求「在寫任何 backend 之前先定形狀」,並由 Mac 端負責 AppKit/UIKit/Android 三份。
-這份文件是那個形狀,連同**在這台機器上查得到的部分已經查過**——因為同一週已經有兩次「寫在無法編譯
+#122 的協議是「先定形狀、再寫任何 backend」,AppKit/UIKit/Android 三份由 Mac 負責、GTK 與 WinUI 由 Windows 負責。
+這份文件是那個形狀,連同**在 Mac 上查得到的部分已經查過**——因為同一週已經有兩次「寫在無法編譯
 該檔的機器上」的實作,用到了並不存在的 API。
 
-The Windows side asked for the shape before any backend, and for the Mac side to
-own AppKit, UIKit and Android. This is that shape, with the parts that could be
-checked here already checked -- twice this week an implementation written on a
-machine that cannot compile the file used an API that does not exist.
+#122 was agreed as shape first, backends after, with the Mac owning AppKit, UIKit
+and Android and Windows owning GTK and WinUI. This is that shape, with the parts
+that could be checked on the Mac already checked -- twice that week an
+implementation written on a machine that cannot compile the file used an API
+that does not exist.
 
 ---
 
@@ -36,7 +40,7 @@ machine that cannot compile the file used an API that does not exist.
 因此 `gtk_widget_grab_focus(pointer)` 今天就能寫。
 
 程式碼產生器是為了「要一個 Swift 類別」時用的(#32 的三個 `Gesture*` 是類別,所以那次確實需要);
-要的若只是一個函式,直接呼叫它。**我把「binding 缺席」讀成了「能力缺席」,那兩者不是同一回事**
+要的若只是一個函式,直接呼叫它。**原先的草案把「binding 缺席」讀成了「能力缺席」,那兩者不是同一回事**
 ——而這正是本檔開頭所警告的那種錯誤的鏡像版本。
 
 ~~The GTK row is the most important line here.~~ **Corrected 2026-09-10.** The
@@ -44,8 +48,8 @@ generated Swift not having `grabFocus` is true and does not imply it cannot be
 used: `Sources/Gtk` calls C symbols directly throughout -- `gtk_widget_measure`,
 `gtk_widget_compute_point`, `gtk_widget_add_tick_callback` -- and imports CGtk.
 The generator is for when a Swift CLASS is wanted, which is why #32's three
-`Gesture*` types did need it. A function can just be called. I read "the binding
-is absent" as "the capability is absent", and those are not the same thing.
+`Gesture*` types did need it. A function can just be called. The first draft
+read "the binding is absent" as "the capability is absent", and those are not the same thing.
 
 ---
 
@@ -143,26 +147,26 @@ func setAccessibilityHint(ofWidget widget: Widget, to hint: String?)
 func setAccessibilityValue(ofWidget widget: Widget, to value: String?)
 func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool)
 ```
-
-把兩者合成一個 protocol,會讓「只想加標籤」的 backend 被迫實作焦點回報。分開之後,#123 可以先落地,
+把兩者合成一個 protocol,會讓「只想加標籤」的 backend 被迫實作焦點回報。分開之後,#123 可以先落地。
 而 #122 等 GTK 的 `grabFocus` 產生出來。
 
 Focus is an action plus an event; accessibility labels are properties nobody
 else changes. One protocol for both would force a backend that only wants labels
 to implement focus reporting, so they are separate -- and #123 can land first,
-while #122 waits for GTK's `grabFocus` to be generated.
+to implement focus reporting, so they are separate, and #123 can land first.
 
 ---
 
-## 五、要 Windows 同意什麼 / What needs agreement
+## 五、需要 Windows 同意的事(已定)/ What needed agreement (settled)
 
-1. **這個四方法的形狀**,特別是 `focus` 回傳 `Bool`。
-2. ~~**`grabFocus` 要先產生**~~ ——**取消,那是我的誤判。** 直接呼叫 `gtk_widget_grab_focus`,與本模組既有的十幾處 C 呼叫相同。
+1. **這個四方法的形狀**,特別是 `focus` 回傳 `Bool`。已照此實作(2026-09-16:`ef1c4c02` AppKit/UIKit/Android、`38394d14` GTK、`ab2d1d51` WinUI)。
+2. ~~**`grabFocus` 要先產生**~~ ——**取消,原判斷有誤。** 直接呼叫 `gtk_widget_grab_focus`,與本模組既有的十幾處 C 呼叫相同。
 3. **#123 與 #122 分開**,而 #123 可以先做。
-4. WinUI 那一格由你們填:`FocusManager.TryFocusAsync` 是非同步的,而本 protocol 的 `focus` 是同步的
-   ——那是這份草案裡**唯一一個我無法從這台機器查證的衝突**。若它非同步不可,請告訴我,形狀要改。
+4. WinUI 那一格:草案時唯一無法在 Mac 上查證的衝突是 `FocusManager.TryFocusAsync` 為非同步、本 protocol 的
+   `focus` 為同步。結果不需要改形狀:WinUIBackend 用的是一直都在 `UIElement` 上、同步並回傳 `Bool` 的
+   `focus(_:)`(見 `WinUIBackend+Focus.swift`)。
 
-The one thing I could not check from here is WinUI: `FocusManager.TryFocusAsync`
-is asynchronous while `focus` here is synchronous. If that cannot be made to
-work, the shape has to change, and that is the question to answer before anyone
-writes an implementation.
+The one item that could not be checked on the Mac was WinUI:
+`FocusManager.TryFocusAsync` is asynchronous while `focus` here is synchronous.
+The shape did not have to change: WinUIBackend uses `UIElement.focus(_:)`, which
+is synchronous and returns `Bool` (see `WinUIBackend+Focus.swift`).

@@ -1,7 +1,7 @@
 # P52: PrimitiveButtonStyle against a custom ButtonStyle
 
-**Verdict, 2026-09-08: no measurable difference, and that refutes what this
-session predicted before running it.**
+**Verdict, 2026-09-08: no measurable difference, and that refutes the
+prediction made from the code before running it.**
 
 Regenerate everything below with:
 
@@ -13,7 +13,7 @@ cd testapp/output && PATH=/c/gtk4/bin:$PATH ./P52-gtk4.exe --debug
 Every number is a minimum of `n` samples with `n` printed beside it. Re-run
 rather than quote this file if it is more than a week old.
 
-**2026-09-08 判定：測不出差異，而這推翻了本 session 在執行之前所做的預測。**
+**2026-09-08 判定：測不出差異，而這推翻了執行之前從程式碼所做的預測。**
 
 上方的指令可重新產生以下每一個數字。每個數字都是 `n` 個樣本的最小值，且 `n` 都印在旁邊。若本檔已超過
 一週，請重跑，而不要引用它。
@@ -22,7 +22,7 @@ rather than quote this file if it is more than a week old.
 
 ## What was predicted, and what was wrong with it
 
-Before P52 existed, this session reasoned from the code that a custom
+Before P52 existed, a reading of the code predicted that a custom
 `ButtonStyle` costs an extra layout pass per press transition, and that
 `PrimitiveButtonStyle` therefore wins. **Two of the three premises do not
 survive reading `Button.swift`.**
@@ -44,7 +44,7 @@ The third premise held: `Button.Children` is now `TupleViewChildren1<AnyView>`
 unconditionally, so every button gains one container widget. Both arms pay it,
 so it cancels in this comparison.
 
-**本 session 原先的預測，以及它錯在哪裡。** 在 P52 存在之前，本 session 從程式碼推論：自訂
+**原先的預測，以及它錯在哪裡。** 在 P52 存在之前，曾從程式碼推論：自訂
 `ButtonStyle` 每一次按壓轉換都要多付一輪版面計算，因此 `PrimitiveButtonStyle` 較快。**三項前提中有
 兩項讀過 `Button.swift` 之後就站不住。**
 

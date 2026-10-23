@@ -152,7 +152,7 @@ settles.
 doing eventually and deliberately skipped here: `testapp/P6.swift` records that a
 window pinned topmost puts a file picker behind itself, and `prepareForReplay`
 pins for the whole replay, so a file that opens one has a good chance of hanging
-a run with an invisible modal dialog holding the app. That needs a session where
+a run with an invisible modal dialog holding the app. That needs an attended run where
 somebody can dismiss it by hand.
 
 ## 不值得為其撰寫動作檔的 app
@@ -169,7 +169,7 @@ somebody can dismiss it by hand.
 **P18**——三個按鈕，每個都會開啟**原生的** modal 對話框。這件事終究值得做，此處是刻意略過的：
 `testapp/P6.swift` 記錄過「置頂的視窗會把檔案選取對話框壓到自己後面」，而 `prepareForReplay` 在
 整場重放期間都維持置頂，因此開啟對話框的檔案很可能會讓執行卡在一個看不見、卻抓著 app 的 modal
-對話框上。那需要一次「有人能親手把它關掉」的工作階段。
+對話框上。那需要一次有人能親手把它關掉的值守執行。
 
 ---
 
@@ -288,8 +288,8 @@ Side by side, the same prefix with a single `/FI` returns the `LogonUI.exe` row.
 was thrown away: a P19 replay that appeared to click nothing, two probes that
 appeared to show a menu refusing to open, and a P21 run that failed with
 `SendInput exited with status 5`. Re-run afterwards on a genuinely unlocked
-desktop, P19 and P21 both passed on the first attempt. Fixed during this session
-by the agent who owns the script, including failing closed when the check cannot
+desktop, P19 and P21 both passed on the first attempt. Fixed the same day
+in the script, including failing closed when the check cannot
 run.
 
 The shape is worth keeping: the exclusion variable and the doubled slash are two
@@ -302,7 +302,7 @@ fixes for the same MSYS problem, and they cancel each other out.
 
 **這件事造成了一小時的假結果。** 19:17 至 20:15 之間的一切都被作廢：一次看似什麼都沒點到的 P19 重放、
 兩次看似「選單拒絕開啟」的探測，以及一次以 `SendInput exited with status 5` 失敗的 P21。事後在確實
-未鎖定的桌面上重跑，P19 與 P21 都是第一次嘗試就通過。此問題已由負責該腳本的 agent 於本次工作階段
+未鎖定的桌面上重跑，P19 與 P21 都是第一次嘗試就通過。此問題已於同日在該腳本中
 修正，並改為「檢查無法執行時即視為鎖定」。
 
 這個形狀值得記住：排除變數與雙斜線是同一個 MSYS 問題的兩種解法，而它們會互相抵銷。
@@ -325,7 +325,7 @@ Judge the lock by a **desktop** capture, or by `SendInput`'s status 5.
 
 `LogonUI.exe` was present in `tasklist` at 19:18, when input was demonstrably
 being delivered, and still present at 21:00 when it was. Its presence alone did
-not track the lock state on this machine in either direction — worth re-checking
+not track the lock state on the Windows 11 test machine in either direction — worth re-checking
 before trusting a gate built on it.
 
 ### 2. 各項儀器在工作站鎖定時的行為
@@ -335,7 +335,7 @@ before trusting a gate built on it.
 **桌面**擷取，或看 `SendInput` 的 status 5。
 
 `LogonUI.exe` 在 19:18（輸入明顯能送達時）就已存在於 `tasklist` 中，21:00（同樣能送達時）也仍在。
-在這台機器上，光憑它的存在與否，無法在任一方向上追蹤鎖定狀態——若某個閘門建立在它之上，值得先重新
+在 Windows 11 測試機上，光憑它的存在與否，無法在任一方向上追蹤鎖定狀態——若某個閘門建立在它之上，值得先重新
 確認。
 
 ### 3. A GTK popover on Windows is its own top-level window
@@ -457,7 +457,7 @@ P10 的無視窗狀態**不是**這一種：它在沒有其他實例的乾淨啟
   out of time waiting for the workstation, which was locked for roughly 70 of the
   150 minutes this took.
 - **Nine apps in the P0–P26 range are absent from the table above.** P11, P12 and
-  P14 are macOS, Android and iOS apps and out of scope on this machine. P4 and P6
+  P14 are macOS, Android and iOS apps and need those hosts. P4 and P6
   import the WinUI products, which `-gtk4` removes and `compile.zsh` refuses up
   front, so neither has a GtkBackend build to drive. P1 is dialogs and sheets and
   belongs with P18. P6-v2, P15-DARK and P17-DOE are variants of apps already
@@ -476,7 +476,7 @@ P10 的無視窗狀態**不是**這一種：它在沒有其他實例的乾淨啟
   請直接數那份清單，不要相信這個數字本身。每一個都只是幾個按鈕、只需要一份檔案；本輪掃描是在等待
   工作站的過程中用完了時間——這 150 分鐘裡，工作站約有 70 分鐘處於鎖定狀態。
 - **P0–P26 範圍內有九個 app 未出現在上方表格中。** P11、P12、P14 分別是 macOS、Android 與 iOS 的
-  app，在本機不在範圍內。P4 與 P6 會 import WinUI 的 product，而 `-gtk4` 會移除它們、`compile.zsh`
+  app，需要 Mac、Android 或 iOS 主機。P4 與 P6 會 import WinUI 的 product，而 `-gtk4` 會移除它們、`compile.zsh`
   也會提前拒絕，因此兩者都沒有可驅動的 GtkBackend 建置。P1 是對話框與 sheet，與 P18 同類。P6-v2、
   P15-DARK 與 P17-DOE 則是表中已列 app 的變體。
 - **P10 只是被觀察，並未被診斷**：它會啟動、持續執行、註冊自己的標題，然後不顯示任何視窗。這是否
@@ -609,7 +609,7 @@ a capture taken after a file whose other clicks landed.
 
 ## Instrument problems found this pass / 本輪發現的儀器問題
 
-### `tasklist /v` takes 54 seconds on this machine
+### `tasklist /v` takes 54 seconds on the Windows 11 test machine
 
 Measured three times on 2026-08-27: 52.6 s, 54.7 s, 53.3 s, for 412 rows.
 `screenshot.zsh -w` calls it through `resolve_window_title` before every window
@@ -624,7 +624,7 @@ This also explains an observation the first pass wrote down without diagnosing:
 `P8-scroll-outer.actions` already carried the note that "a `screenshot.zsh` call
 takes the better part of a minute to return here".
 
-`tasklist /v` 在本機需 54 秒（2026-08-27 三次量測：52.6、54.7、53.3 秒，412 列）。
+`tasklist /v` 在 Windows 11 測試機上需 54 秒（2026-08-27 三次量測：52.6、54.7、53.3 秒，412 列）。
 `screenshot.zsh -w` 每次都會呼叫它，因此一次視窗擷取約需一分鐘，最多兩分鐘；不加 `-w` 的桌面擷取
 則從不呼叫它，約兩秒返回。重新量測的指令見上方英文區塊。
 
@@ -719,7 +719,7 @@ the same moment as the result you intend to believe.
   that types.
 - **P18, P22, P25 and P17-DOE** have no file on purpose. P22 and P17-DOE are
   settled by a single screenshot, which the baseline captures provide; P25 needs
-  a real OLE drag; P18 needs a session where somebody can dismiss a modal dialog
+  a real OLE drag; P18 needs an attended run where somebody can dismiss a modal dialog
   by hand.
 
 - **仍未執行任何 WinUIBackend 的重放。** `P24-push-one-level-winui.actions` 屬於 125% 時期且**未**重新

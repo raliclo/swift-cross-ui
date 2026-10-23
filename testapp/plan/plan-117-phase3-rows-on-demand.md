@@ -1,11 +1,14 @@
 # #117 phase 3:依需求建列 —— 為什麼它比它看起來大
 
-**狀態:已量測、形狀已定,尚未實作。這一項需要五個 backend 的協定改動,而那個改動是「方向反轉」,
-不是新增一個方法。**
+**狀態:已實作。** `BackendFeatures.LazyListRows` 先在 AppKit / UIKit / Android 落地(`7bea79b2`,2026-09-11),
+接著 WinUI(`bde16de0`)與 GTK(`5739d453`)。以下是動手前的量測與設計:這一項需要五個 backend 的協定改動,
+而那個改動是「方向反轉」,不是新增一個方法。
 
-**Status: measured, shape settled, not implemented. This one needs a protocol
-change on all five backends, and the change is a REVERSAL of direction rather
-than an added method.**
+**Status: implemented.** `BackendFeatures.LazyListRows` landed on AppKit, UIKit
+and Android first (`7bea79b2`, 2026-09-11), then WinUI (`bde16de0`) and GTK
+(`5739d453`). What follows was measured and designed before that: it needs a
+protocol change on all five backends, and the change is a REVERSAL of direction
+rather than an added method.
 
 ---
 

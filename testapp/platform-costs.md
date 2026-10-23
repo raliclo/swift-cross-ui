@@ -1,11 +1,11 @@
 # Platform costs that decide a design
 
 Numbers that rule a shape of solution in or out, with the command that produced
-each one beside it. Measured on this machine — re-run them rather than quoting
+each one beside it. Measured on the Windows 11 test machine and its WSL — re-run them rather than quoting
 them, because a number nobody can re-derive is guaranteed to be wrong later and
 the next reader will not know it.
 
-決定某種解法可不可行的成本數字，每一個數字旁邊都附上產生它的指令。以本機實測——請重新執行而非直接
+決定某種解法可不可行的成本數字，每一個數字旁邊都附上產生它的指令。於 Windows 11 測試機與其 WSL 實測——請重新執行而非直接
 引用，因為一個沒有人能重新推導的數字，日後必定會是錯的，而下一位讀者不會知道。
 
 ---

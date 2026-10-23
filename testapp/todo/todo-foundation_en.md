@@ -2,7 +2,7 @@
 
 Found while building P6's Windows video path. Each item cost a workaround in
 `testapp/P6.swift` that would not exist if Foundation exposed the underlying
-Win32 capability. Measurements are from this machine (Windows 11, AMD Radeon
+Win32 capability. Measurements are from the Windows test machine (Windows 11, AMD Radeon
 iGPU + RTX 4060, 1920x1080 @ 125%).
 
 ## 1. `Pipe` gives no way to set the buffer size on Windows

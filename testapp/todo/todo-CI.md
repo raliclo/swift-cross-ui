@@ -2,7 +2,7 @@
 
 Tracks what the Android opt-in change (`0c90f3fc`) requires from CI, and what
 still needs verifying there. None of the items below could be checked locally,
-because the CI environment differs from this machine in ways that matter.
+because the CI environment differs from the local development Mac in ways that matter.
 
 ## Environment gap
 

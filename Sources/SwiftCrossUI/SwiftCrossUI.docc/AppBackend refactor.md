@@ -81,23 +81,25 @@ comprehensive-ish list of changes:
     where it _is_ implemented)~~ -- corrected 2026-09-09 to: AppKitBackend, GtkBackend, WinUIBackend
     and UIKitBackend. UIKitBackend now conforms outright
     (`Sources/UIKitBackend/UIKitBackend+Menu.swift:137`), so the Catalyst carve-out no longer
-    applies. AndroidBackend does *not* conform.
+    applies. AndroidBackend conforms too since `569e0b2d` (2026-09-16).
   - ~~``BackendFeatures/ExternalURLs``: all backends~~ -- corrected 2026-09-09 to: all backends
     except AndroidBackend. The row was written before AndroidBackend existed, which is the other way
     a "all backends" claim goes stale: not because a feature was removed, but because the set of
-    backends grew underneath it.
+    backends grew underneath it. AndroidBackend conforms since `1b87257f` (2026-09-30).
   - ~~``BackendFeatures/IncomingURLs``: all backends~~ -- corrected 2026-09-09 to: all backends
-    except AndroidBackend, for the same reason as `ExternalURLs` above.
+    except AndroidBackend, for the same reason as `ExternalURLs` above. AndroidBackend conforms
+    since `4bc735ee` (2026-10-06).
   - ~~``BackendFeatures/RevealFiles``: all backends except UIKitBackend and WinUIBackend~~ --
     corrected 2026-09-09 to: AppKitBackend, GtkBackend and WinUIBackend. WinUIBackend gained it on
-    2026-09-02 (`Sources/WinUIBackend/WinUIBackend+RevealFiles.swift:4`); UIKitBackend and
-    AndroidBackend still lack it.
+    2026-09-02 (`Sources/WinUIBackend/WinUIBackend+RevealFiles.swift:4`). UIKitBackend and
+    AndroidBackend followed in `1b87257f` (2026-09-30), so all five backends conform.
   - ``BackendFeatures/FileOpenDialogs``: all backends except UIKitBackend on tvOS
   - ~~``BackendFeatures/FileSaveDialogs``: all backends except UIKitBackend~~ -- corrected
     2026-09-09 to: all backends except UIKitBackend and AndroidBackend. Both of those declare only
     `FileOpenDialogs`; the ``BackendFeatures/FileDialogs`` typealias that the other three use is
     `FileOpenDialogs & FileSaveDialogs`
-    (`Sources/SwiftCrossUI/Backend/BackendFeatures/FileDialogs/FileDialogs.swift:3`).
+    (`Sources/SwiftCrossUI/Backend/BackendFeatures/FileDialogs/FileDialogs.swift:3`). Both have
+    declared `FileSaveDialogs` since `1b87257f` (2026-09-30), so all five backends conform.
   - ``BackendFeatures/Alerts``: all backends
   - ~~``BackendFeatures/Sheets``: all backends except WinUIBackend and Gtk3Backend~~ -- corrected
     2026-09-09 to: **all five backends**. WinUIBackend gained sheets on 2026-09-08
@@ -136,8 +138,8 @@ comprehensive-ish list of changes:
     corrected 2026-09-09: the `Gtk3Backend` exclusion names a target that does not exist. All five
     current backends conform; the tvOS carve-out for UIKitBackend stands.
   - ``BackendFeatures/WindowClosing``: all backends except UIKitBackend
-    - Still true as of 2026-09-09, with AndroidBackend added to the exclusion: it declares neither
-      `WindowClosing` nor the ``BackendFeatures/Windowing`` typealias that supplies it.
+    - Corrected 2026-10-24: UIKitBackend and AndroidBackend both conform since `1b87257f`
+      (2026-09-30), so all five backends do.
   - ~~``BackendFeatures/WindowBehaviors``: all backends~~ -- corrected 2026-09-09 to: all backends
     except AndroidBackend. UIKitBackend does conform
     (`Sources/UIKitBackend/UIKitBackend+Window.swift:256`).
@@ -163,8 +165,9 @@ no longer missing, and the line of code offered here as something a user might w
 app is now literally in the repository, at
 `Sources/WinUIBackend/WinUIBackend+Sheets.swift:10`, as of 2026-09-08. Written out in user code
 today it would be a duplicate conformance and would not compile. Pick a feature that a backend
-genuinely lacks if you need a live example -- as of this re-check, `RevealFiles` on UIKitBackend or
-AndroidBackend would do.
+genuinely lacks if you need a live example -- as of 2026-10-24, `WindowBehaviors` on AndroidBackend
+would do (`RevealFiles`, the example given on 2026-09-09, reached UIKitBackend and AndroidBackend in
+`1b87257f`).
 
 Of course, we'd want to encourage people to upstream such code into the main project, but this is
 still a useful thing for people to be able to do. It'd also slightly reduce the (admittedly not

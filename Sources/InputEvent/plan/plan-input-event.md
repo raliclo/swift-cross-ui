@@ -1,6 +1,6 @@
 # Plan: synthesised input from a CSV file
 
-## What we want
+## Goals
 
 An app built with SwiftCrossUI, given `-actionfile <path>`, replays the actions
 in that file against its own window. One file format, the same behaviour on
@@ -9,7 +9,7 @@ Windows and on Linux, so a UI test is written once.
 ## Why
 
 `xdotool` drives GTK apps on Linux and cannot drive anything on Windows. Every
-interaction check in this project has been Linux-only for that reason: P19's
+interaction check in this project had been Linux-only for that reason: P19's
 menu has been opened and its item clicked, P21's disabled button has been proved
 to refuse input, P24's stack has been pushed — all on Linux, none on Windows.
 The comparison the Pn apps exist for is half missing, and it is the half that
@@ -113,7 +113,7 @@ keystrokes, not intent.
 the window come to the front on Windows at all; without that this feature would
 type into whatever was in front.
 
-**Our own key names, not each platform's.** Linux wants keysyms, Windows wants
+**SwiftCrossUI's own key names, not each platform's.** Linux wants keysyms, Windows wants
 virtual-key codes, and they disagree. A file written against one would silently
 do nothing on the other, which is the failure mode this project has spent the
 most time on. One table, mapped twice.

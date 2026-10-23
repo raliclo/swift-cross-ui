@@ -174,7 +174,7 @@ Regenerate:
 **It is not lazier than `LazyVStack`, and the doc comment says so first.** If
 anything it is the more eager of the two: it cannot decide how many rows there
 are without counting every cell, so it materialises all of them by construction
-rather than merely by omission. Nobody should read "we shipped LazyVGrid" as
+rather than merely by omission. Nobody should read "LazyVGrid shipped" as
 progress on the laziness half — that half is untouched.
 
 ~~Flowing a `@ViewBuilder` block into columns needed one piece of framework
@@ -752,7 +752,7 @@ rather than in a parity list.
 
 ---
 
-## Divergences from SwiftUI — APIs we HAVE, that do not match / 與 SwiftUI 的分歧——已實作、但與 SwiftUI 不一致者
+## Divergences from SwiftUI — APIs SwiftCrossUI HAS, that do not match / 與 SwiftUI 的分歧——已實作、但與 SwiftUI 不一致者
 
 Everything above this line is about what is **missing**. This section is about
 what is **present and wrong**, which the rest of the document cannot see: a name
@@ -860,15 +860,15 @@ AppKit 的註解把理由寫得一清二楚。**於是巢狀的那個 sheet 拿�
 任何拿巢狀 sheet 來測這件事的人——而那正是測試 sheet 關閉回呼最自然的做法，因為它是有兩個可觀察
 事件的情況——都會得出「它可以運作」的結論。
 
-#### The `.popover` correction — I called a divergence "aligning with SwiftUI" during the merge / `.popover` 的更正——合併期間我把一項分歧說成了「與 SwiftUI 一致」
+#### The `.popover` correction — a divergence was called "aligning with SwiftUI" during the merge / `.popover` 的更正——合併期間一項分歧被說成了「與 SwiftUI 一致」
 
 **This must be stated as a correction, not as a corrected fact.** During the
-merge I described the macOS side's design — *pass the anchor **widget** rather
-than an edge* — as **aligning with SwiftUI**. That was wrong, and it was wrong in
+merge the macOS side's design — *pass the anchor **widget** rather
+than an edge* — was described as **aligning with SwiftUI**. That was wrong, and it was wrong in
 the direction that does the damage: it reported a deliberate divergence as
 conformance, which is precisely the failure this document exists to catch.
 
-SwiftUI's popover takes `attachmentAnchor:` and `arrowEdge:`. **We have neither**
+SwiftUI's popover takes `attachmentAnchor:` and `arrowEdge:`. **On 2026-09-08 SwiftCrossUI had neither** (`arrowEdge` was added on 2026-09-16 by #109, `bbac9251`; `attachmentAnchor` is still absent)
 — `View.popover(isPresented:onDismiss:content:)` at
 `Views/Modifiers/PopoverModifier.swift:22`–`:26` takes no positioning parameter,
 and the anchor is hard-wired to the modifier's own widget at `:157`.
@@ -881,11 +881,11 @@ reason to diverge. **It is not a reason to call it conformance.** The two claims
 have different consequences — one closes the item, the other leaves a row in the
 table above.
 
-**這必須寫成一項更正，而不是寫成一項已更正的事實。** 合併期間，我把 macOS 那側的設計——*傳入錨點
-**widget** 而非某個 edge*——描述為**與 SwiftUI 一致**。那是錯的，而且錯在會造成損害的那個方向：
+**這必須寫成一項更正，而不是寫成一項已更正的事實。** 合併期間，macOS 那側的設計——*傳入錨點
+**widget** 而非某個 edge*——被描述為**與 SwiftUI 一致**。那是錯的，而且錯在會造成損害的那個方向：
 它把一項刻意的分歧回報成了一致，而那正是本文件存在所要抓的失誤。
 
-SwiftUI 的 popover 接受 `attachmentAnchor:` 與 `arrowEdge:`。**我們兩者皆無**——
+SwiftUI 的 popover 接受 `attachmentAnchor:` 與 `arrowEdge:`。**2026-09-08 時 SwiftCrossUI 兩者皆無**(`arrowEdge` 後於 2026-09-16 由 #109 加入,`bbac9251`;`attachmentAnchor` 至今仍無)——
 `Views/Modifiers/PopoverModifier.swift:22`–`:26` 的
 `View.popover(isPresented:onDismiss:content:)` 不接受任何定位參數，錨點在 `:157` 被寫死為該
 modifier 自身的 widget。`grep -rn "arrowEdge\|attachmentAnchor" Sources/ --include=*.swift` → **0**。
@@ -984,7 +984,7 @@ stated. Where it is not, it is marked here instead of guessed.
 - **`.popover` having no `onDismiss:` in SwiftUI** (silent row 2). Stated from
   the documented signature `popover(isPresented:attachmentAnchor:arrowEdge:content:)`,
   not from an interface file. The half that *is* verified here is the one that
-  matters: our five backends disagree with **each other**, which is a divergence
+  matters: the five backends disagree with **each other**, which is a divergence
   no reading of SwiftUI can excuse.
 
 For contrast, `LabelStyle` **is** verified to match SwiftUI's shape — it is
@@ -1008,7 +1008,7 @@ styles was a choice, not a constraint.
   任何一張表**，而不是被當成響亮分歧列出。
 - **SwiftUI 的 `.popover` 沒有 `onDismiss:`**（無聲第 2 列）。此說法出自已公開的簽名
   `popover(isPresented:attachmentAnchor:arrowEdge:content:)`，而非出自 interface 檔。此處**已經**
-  查證的是更要緊的那一半：我們的五個 backend 彼此不一致——那是任何對 SwiftUI 的解讀都無法開脫的
+  查證的是更要緊的那一半：五個 backend 彼此不一致——那是任何對 SwiftUI 的解讀都無法開脫的
   分歧。
 
 作為對照，`LabelStyle` **已查證**與 SwiftUI 的形狀一致——它是

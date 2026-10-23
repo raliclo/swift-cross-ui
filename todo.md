@@ -1,27 +1,27 @@
 # todo
 
-Work that is known, sized and not done. Written 2026-08-27 from a working
-session's task list, which otherwise lives nowhere.
+Work that is known, sized and not done. Started 2026-08-27 from a task list
+that was not recorded anywhere else.
 
 Each entry says what was measured rather than what was assumed, because several
 items here exist only because a confident guess was checked and turned out to be
 wrong. Where a number appears, the command that produced it is beside it or in
 the file it points at.
 
-已知、已估過規模、尚未完成的工作。於 2026-08-27 自某次工作階段的任務清單寫成——否則那份清單不會
-留在任何地方。
+已知、已估過規模、尚未完成的工作。始於 2026-08-27,來源是一份原本沒有
+記錄在任何地方的任務清單。
 
 每一項記錄的是「量到什麼」而非「假設什麼」，因為此處有數項之所以存在，正是因為某個看似有把握的猜測
 被查證後證實是錯的。凡出現數字之處，產生它的指令就在旁邊，或在它所指向的檔案裡。
 
 **Entries are tagged with the platform they were written on** — (Windows),
-(Mac), (WSL). Not for credit: this file is the only channel between two sessions
-that cannot talk to each other, and a measurement's platform is often the thing
+(Mac), (WSL). Not for credit: this file is the only shared record between work
+on the Mac and on Windows, and a measurement's platform is often the thing
 that decides whether it applies. "Cannot be verified here" means something
 different depending on where "here" was.
 
 **每一項條目都標記了它是在哪個平台上寫下的**——(Windows)、(Mac)、(WSL)。這不是為了記功：本檔是
-兩個無法互相通訊的 session 之間唯一的通道，而一項量測結果出自哪個平台，往往正是決定它適不適用的
+Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果出自哪個平台，往往正是決定它適不適用的
 關鍵。「此處無法驗證」的意思，會隨著「此處」是哪裡而不同。
 
 ---
@@ -54,7 +54,7 @@ of it piped through `tail` printed `exit=0` for a build that had failed.
   marked a copy by length and modification time, so a same-length save in the
   same millisecond, or one keeping its mtime, was not copied and still reported
   success. Now a SHA-256 of the bytes written, and an explicit save
-  (`commitStagedSave`) always writes. ~~Not compiled here~~ -- **compiled and run
+  (`commitStagedSave`) always writes. **Compiled and run
   2026-10-22 on the M4 Mac**: compileDebugKotlin, BUILD SUCCESSFUL; P75's save
   went through the staged path into the document ("read back: saved by P75").
   Still open: two saves of equal length within one millisecond, which no action
@@ -191,10 +191,10 @@ test 與結果。
   the drawable's own size. Compiled and launched in WSLg with Swift 6.4.0 (P76),
   but WSLg was in "[WARN:COPY MODE]" and both captures were 0.0% non-black, so
   there is no geometry to measure yet; it needs WSL restarted (`wsl --shutdown`,
-  which only the user runs). Windows GTK4 still draws no mesh (WGL, 2026-10-08).
+  run by hand only). Windows GTK4 still draws no mesh (WGL, 2026-10-08).
   **2026-10-14(Windows):程式已修，尚未驗證——保持未完成。**投影改為每次繪製時以 drawable 自己的尺寸計算。
   已在 WSLg 以 Swift 6.4.0 編譯並啟動 P76,但 WSLg 處於「[WARN:COPY MODE]」,兩張截圖皆全黑，尚無幾何可量；
-  需重啟 WSL(`wsl --shutdown`,僅由使用者執行)。Windows GTK4 仍畫不出 mesh(WGL,2026-10-08)。
+  需重啟 WSL(`wsl --shutdown`,只能手動執行)。Windows GTK4 仍畫不出 mesh(WGL,2026-10-08)。
   **First display measured 2026-10-14 (WSLg, after `wsl --shutdown`).** P76's
   drawable is 360x300. The cyan helix ring, measured on both captures the same
   way: before (350b66f8) 360 px wide and cut off at both edges of the drawable,
@@ -221,13 +221,13 @@ test 與結果。
   每張擷圖以 `measure/colour_bbox.swift` 量測：圓的外框在 5 種 drawable 下皆為正方形(比例 1.000),高度 6 次都是
   drawable 高度的 0.715–0.717;第 6 次 1020x1542 左右被切掉(1024x1104,比例 0.928),高度比例同為 0.715,不是變形。
   以 System Events 設定尺寸則 GL area 不會重繪(見 measure/README.md)。仍未做:WSLg 上的縮放，以及 Windows GTK4。
-  **For the Windows session:** run `zsh testapp/test.zsh P95 --wsl` and `TEST_BACKEND=gtk4
+  **Windows check (done 2026-10-21, below):** run `zsh testapp/test.zsh P95 --wsl` and `TEST_BACKEND=gtk4
   zsh testapp/test.zsh P95 --windows`, resize the window by dragging its corner several
   times, and photograph each size. Pass: the circle's box is square at every size and
   its height keeps one share of the drawable's height. `measure/colour_bbox.swift` is
   macOS-only (CoreGraphics); copy the captures to the Mac, or measure there with any
   real image reader. Sample the circle's colour first -- see measure/README.md.
-  **給 Windows 的 session:** 執行 `zsh testapp/test.zsh P95 --wsl` 與 `TEST_BACKEND=gtk4 zsh testapp/test.zsh P95
+  **Windows 驗證步驟(2026-10-21 已完成，見下方):** 執行 `zsh testapp/test.zsh P95 --wsl` 與 `TEST_BACKEND=gtk4 zsh testapp/test.zsh P95
   --windows`,拖曳視窗角落改變大小數次，每種尺寸都拍一張。通過條件：圓的外框在每種尺寸下都是正方形，高度占 drawable
   高度的比例固定。`measure/colour_bbox.swift` 只能在 macOS 上用(CoreGraphics);把擷圖複製到 Mac,或在那邊用任何真正的
   影像讀取工具量。先取樣圓的顏色——見 measure/README.md。
@@ -331,9 +331,9 @@ test 與結果。
   **WinUI:沒設標籤的按鈕,UIA Name 是空的。** 文字只以子節點存在。AppKit 以第一段文字命名、GTK 由內容
   計算;WinUI 的 content 是 UIElement,XAML 推導不出來。P67 從未在 Windows 上跑過。
 - GtkBackend on Windows has no accessibility at all: moved to
-  **Lowest priority** at the end of this file, by the user's decision on
-  2026-09-17.
-  Windows 上的 GtkBackend 完全沒有無障礙:依使用者 2026-09-17 的決定,移到本檔末尾的**最低優先**。
+  **Lowest priority** at the end of this file, by a
+  2026-09-17 decision.
+  Windows 上的 GtkBackend 完全沒有無障礙:2026-09-17 決定移到本檔末尾的**最低優先**。
 
 Evidence and local commit split: `testapp/plan/verification-followup-20260917.md`.
 
@@ -377,7 +377,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 ### 2026-09-17 (Mac) — 一個 8dp 的手勢奪取、兩個回報缺口、以及 iOS 的第一支外部無障礙探針
 
 全部已修並以動作檔在裝置上驅動過。列在此處,是因為其中兩項在**其他 backend 上可能同形**,
-而那部分我這裡驗不了。
+而那部分在 Mac 上驗不了。
 
 - [x] **Android:會捲動的祖先在一個 touch slop 處奪走手勢(8dp = 420 dpi 下 21 px)。**
       `ContinuousGestureContainer` 把隨之而來的 `ACTION_CANCEL` 當成結束回報,其後每個 move 都靜靜
@@ -395,9 +395,9 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 - [x] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
       之內,會不會在幾個 px 之後被容器接手?」GTK 有 `GtkGestureSingle` 的 propagation phase 與
       `gtk_gesture_set_state(GTK_EVENT_SEQUENCE_CLAIMED)`;WinUI 有 `ManipulationMode` 與
-      `CapturePointer`。**我這裡沒有那兩個平台,無法驗。** 檢查方式與這裡相同:拖一個滑桿、拖遠一點,
+      `CapturePointer`。**Mac 上沒有那兩個平台,無法驗。** 檢查方式與這裡相同:拖一個滑桿、拖遠一點,
       看值有沒有跟到底、以及頁面有沒有反而捲動。
-      **Windows 回覆(2026-09-17):兩個 backend 都沒有被搶。** `P11 --nested-slider`(新旗標)把滑桿
+      **Windows 結果(2026-09-17):兩個 backend 都沒有被搶。** `P11 --nested-slider`(新旗標)把滑桿
       分別放進水平與垂直 `ScrollView`,以單指合成觸控拖曳。WinUI:水平 29 次寫入到 100、垂直 30 次到
       100。GTK:水平到 98 且容器不動、垂直 10/10 到 100。**對照組**(在滑桿外滑動,容器確實會捲)兩邊
       都做了,排除「容器根本捲不動」。**途中找到 GTK 4.22.4 的崩潰**:觸控裝置在手勢剛結束時被移除,
@@ -407,10 +407,10 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       ~~WSL 未驅動。~~ **WSL 已補(2026-09-18):** `GDK_BACKEND=x11` 下以 xdotool 拖曳(WSLg 沒有合成觸控裝置,
       所以是**滑鼠**拖曳;`GtkScrolledWindow` 只對**觸控**做平移,因此這裡只回答滑桿那一半,容器搶不搶仍以
       Windows 的量測為準)。座標另外在 WSLg 上擷圖量過(視窗 760x710),水平到 99、垂直到 97,app 存活,沒有被搶。
-      **回報上游那一項改記在 `todo-Gtk.md`**(2026-09-18 使用者指定):那是 GTK 自己的缺陷,而且對外回報
+      **回報上游那一項改記在 `todo-Gtk.md`**(2026-09-18 決定):那是 GTK 自己的缺陷,而且對外回報
       要先取得同意。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
-      Android 只就**頁面自己**發起的導覽詢問它;第一次載入由我們的 `loadUrl` 發起,因此從未被回報:
+      Android 只就**頁面自己**發起的導覽詢問它;第一次載入由 backend 自己的 `loadUrl` 發起,因此從未被回報:
       P38 畫出了 example.com 而旁邊寫著 `Navigations reported: 0`,AppKit 與 UIKit 都寫 1。改用
       `onPageStarted`(等同兩個 Apple backend 的 `didCommit`)。之後:1,並列出 URL。
 - [x] **iOS:每一段文字都不在無障礙樹上。** 新增的外部探針(`test_ios.zsh --dump-tree`,印 XCUITest
@@ -424,12 +424,12 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       沒有 `decorative`。Android 未壓縮的 dump 看得到 `Close → … → TextView 'X'`,**那不是缺陷**
       ——普通 `uiautomator dump` 會設 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`;`--compressed`(與輔助技術
       所走訪者相符的那一份)給的是 `Close` 0 個子節點、`decorative` 不存在。兩份同一次執行取得。
-- [x] **(給 Windows / GTK)** AT-SPI **沒有**那種「不重要」過濾,所以你們看到的樹就是 AT 走訪的樹
-      ——`X` 在裡面就是真的在。線索(不是結論,我這裡無法驗):GTK4 可把內層 label 的 accessible role
+- [x] **(給 Windows / GTK)** AT-SPI **沒有**那種「不重要」過濾,所以 GTK 上看到的樹就是 AT 走訪的樹
+      ——`X` 在裡面就是真的在。線索(不是結論,在 Mac 上無法驗):GTK4 可把內層 label 的 accessible role
       設為 `NONE`/presentation,或對它
       `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。Narrator 的實際朗讀
       也仍未驗。
-      **Windows 回覆(2026-09-17):用了第二個線索,已修並以外部探針驗過。** 帶層級的 dump 顯示 `X` 是
+      **Windows 結果(2026-09-17):用了第二個線索,已修並以外部探針驗過。** 帶層級的 dump 顯示 `X` 是
       按鈕的**子孫**(button → panel → panel → label)。設了標籤的 BUTTON 角色會把直接子元件標為
       HIDDEN;不限定條件會讓沒設標籤的按鈕失去名字(`Delete`、`Volume` 的名稱正是由內容算出),也會讓加在
       容器上的標籤藏掉容器裡的控制項,所以兩個條件都加了。修後 `Close` 零個子節點,5 項檢查全過。
@@ -445,7 +445,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       P67 第三顆 `HStack { Text("two"); Text("texts") }`:WSLg 的 GtkBackend 以 AT-SPI 讀到 `two texts`
       (GTK 由全部內容計算),SwiftUI 的 VoiceOver 也唸兩段;AppKit 的 `firstTextFieldValue` 只取第一段,
       得到的 `two` 是截斷。WinUIBackend 已改為依序串接全部 TextBlock(UIA:`two texts`,P69 探針仍 18/18),
-      P67 畫面上的預期字串也已改成 `two texts`。**你們那三個 backend 在跟進前會與畫面上的預期不符**——那是
+      P67 畫面上的預期字串也已改成 `two texts`。**AppKit / UIKit / Android 在跟進前會與畫面上的預期不符**——那是
       刻意留下的訊號。Windows 端 2026-09-17。
 - [x] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上——四個都到得了,AppKit 需要一個修正
       (2026-09-17 Mac 端)。** AppKit 原本只把標籤設在 description 上,而靜態文字是**由 value** 被宣讀的,
@@ -458,21 +458,21 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       `uiautomator --compressed` 給 `TextView text='12:30' content-desc='Half past twelve'`,
       而 contentDescription 正是輔助技術會用來取代 text 的那一個;`text` 保留畫面上的字,是因為 Android
       對 TextView 一律如此回報。原文保留於下—— 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
-      **Windows 回覆(2026-09-17):GTK 與 WinUI 都到得了。** P69 新增 `Text("12:30")
+      **Windows 結果(2026-09-17):GTK 與 WinUI 都到得了。** P69 新增 `Text("12:30")
       .accessibilityLabel("Half past twelve")`,兩支外部探針各加兩項檢查(名稱出現、`12:30` 不出現)。
       WSLg AT-SPI:`label 'Half past twelve'`,7 項全過。WinUI UIA(control 與 content view):
       `text 'Half past twelve'`,無 `12:30`。**但 Windows 上的 GTK 沒有任何無障礙後端**(見上方),
       那一格無從談起。**AppKit / Android 還沒問**——P69 已經帶著這段文字,跑 `ax_dump` 與
       `uiautomator dump --compressed` 就能回答。
-- [x] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
+- [x] **(給 Windows / WinUI)WinUI 的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
       不是同一個缺陷。** 這裡的教訓很具體:Android 普通 `uiautomator dump` 會設
       `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器抵達不了的 view,而 `--compressed` 才是
       對的那一份——同一次執行、同一支 app,一份看得到 `X` 與 `decorative`,另一份兩者都沒有。
-      你們的 plan 檔自己也寫了「this client does not expose ItemStatus or identify its UIA tree
+      Windows 端的 plan 檔自己也寫了「this client does not expose ItemStatus or identify its UIA tree
       filter」。**先確定那支客戶端走的是哪一棵樹(raw / control / content)**,再據以判斷
       `setAccessibilityView(.raw)` 有沒有生效;raw 樹本來就會看到被排除的節點。
       AT-SPI 那邊沒有這個出口,所以 GTK 的 `X` 仍然是真的。
-      **Windows 回覆(2026-09-17):不是同一件事,是真缺陷,已修。** 新探針 `p69_uia.zsh` 指明 view:
+      **Windows 結果(2026-09-17):不是同一件事,是真缺陷,已修。** 新探針 `p69_uia.zsh` 指明 view:
       `X` 與 `decorative` 都在 Narrator 走的 **control** view 裡。`AccessibilityView.raw` 只作用於
       單一元素、子節點會被提升;改為設定整個子樹後 18/18。細節見本檔上方 #123 一節。
 
@@ -489,8 +489,8 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       三像素高的長條。改為**不把高度提議給標籤**(`childProposal.height = nil`):在此處每一個 backend 上,
       按鈕的高度本來就是「標籤高度加 padding」,沒有任何一個會垂直拉伸或壓縮按鈕。P50 的
       `.frame(minHeight:)` 繞道已移除,按鈕在無繞道下正常繪製;P52(96 顆按鈕)與 iOS 的 P50 也各拍過一張。
-      **給 Windows:這是共用程式碼的改動,請在 GTK 與 WinUI 上看一眼按鈕的高度。**
-      **Windows 回覆(2026-09-18):那一行是對的,但單獨存在時在 Windows 上把視窗撐爆,已在其上補完。**
+      **這是共用程式碼的改動,需在 GTK 與 WinUI 上確認按鈕的高度(結果見下一段)。**
+      **Windows 結果(2026-09-18):那一行是對的,但單獨存在時在 Windows 上把視窗撐爆,已在其上補完。**
       只有該改動時,23 支基準 app 中有 8 支開得遠高於先前(P50 782x918 → 782x**2198**、P70 592 → 1282、
       P23 652 → 1141、P34 661 → 1109、P5 412 → 1106);GTK 相同(P50 808x1005 → 1228)。原因是把高度留空之後,
       `Text` 在寬度 0、無高度限制時會**一行一個字元**(`Text.swift` 檔頭自己點名了這個情況),而那個高度
@@ -498,7 +498,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       探詢下,連寬度也不提議,於是按鈕的最小尺寸是「標籤理想尺寸 + padding」。之後 23 支中 20 支與基準一致,
       P36 與 P50 的差異在把改動完全還原時同樣存在(與此無關),唯一真正的改變是 **P5 的最小寬度**
       (WinUI 482→526、GTK 508→582)——視窗不再能比它最寬的按鈕更窄。測試 101 項全過。
-      **請 Mac 端在 AppKit / UIKit 覆驗 P50 與 P52**:寬度那一側我這裡沒有辦法量。
+      **AppKit / UIKit 的 P50 與 P52 覆驗**:見下方「2026-09-18 (Mac)」一節;寬度那一側在 Windows 上無法量。
 - [x] **順帶查明:AppKit 儲存的視窗框會蓋過 `.defaultSize`。** `createWindow` 會呼叫
       `setFrameAutosaveName(id)`,而被還原的 frame 會覆寫剛設定的預設尺寸——這正是先前把
       `.defaultSize` 從 700 改成 900 卻毫無變化的原因(`defaults delete P50` 之後才生效)。
@@ -512,11 +512,11 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       沒有,所以是高度、不是換行。`.defaultSize(width:height:)` 蓋不過它(第一次排版後視窗會被改成
       內容的理想尺寸),把 AppKit 儲存的視窗框從 user defaults 清掉也沒有改變任何事。
       目前以 P50 自己 `.frame(minHeight: 1000)`(僅 AppKit)繞過,那是繞過、不是修好。
-- [x] **(留給 Windows / GTK / WinUI)`.trailing` 那一半值得在你們那邊也看一眼。** Android 上
+- [x] **(留給 Windows / GTK / WinUI)`.trailing` 那一半值得在 Windows 上也檢查。** Android 上
       上/下這一對分辨不出東西(下方放不下,平台一律往上移),真正做得出差別的是左右;GTK 的
       `GtkPopover.position` 與 WinUI 的 `Flyout.placement` 是否也有同樣的「不可證偽的一對」風險,
-      要看你們視窗裡那顆錨點的位置。
-      **Windows 回覆(2026-09-17):兩邊都有那個風險,換了位置之後兩邊都分得出來。**
+      要看 Windows 視窗裡那顆錨點的位置。
+      **Windows 結果(2026-09-17):兩邊都有那個風險,換了位置之後兩邊都分得出來。**
       - **WinUI:** 在預設的 782 寬視窗裡,這一對**分不出來**:第一顆按鈕左側只有約 127 px,而面板約
         285 px 寬,於是 `.leading` 被翻到右邊,兩張圖一模一樣。把視窗拉寬到 1500 後(內容置中)就分得出來:
         leading 在左、trailing 在右。
@@ -526,7 +526,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
         它不顯示、也不擲錯,而 log 照樣寫 `shown`。已改為 `.bottom`,與 Mac 端同日把 AppKit 改到下方
         (cf4a4a88)的一致性決定相同;修後 ALPHA 在下方、BETA 放不下而翻到上方。見 mistakes #21。
         **cf4a4a88 註解裡「WinUI 的 Flyout 自動放在放得下的下方」這句不成立**——`.auto` 什麼都不顯示。
-      - **WinUI 的 popover 沒有箭頭(使用者回報,2026-09-17),已補上。** `Flyout` 不畫尖角,swift-winui
+      - **WinUI 的 popover 沒有箭頭(2026-09-17 實機觀察),已補上。** `Flyout` 不畫尖角,swift-winui
         也沒投影 `TeachingTip`。`PopoverArrow` 依面板**實際落點**判斷側邊,用獨立 `Popup` 畫三角形,
         顏色取 presenter 自己的筆刷;面板以 `translation` 讓出箭頭的空間,不影響 XAML 的翻轉。四個方向的
         合成截圖:`p50w-popover-arrow-final.png`。
@@ -534,10 +534,10 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       觸控點擊各 0/2;**沒有箭頭的舊版建置同樣 0/2**,所以不是箭頭造成的。GTK 那邊 2026-09-09 已記過
       「重放器點不到 popover 內部」(`P50-press-inside-popover.actions`)。尚未區分是合成輸入到不了 flyout 的
       popup,還是真的按不下去——**需要一次真人點擊**才能定案。
-      **同日定案並修正:真的按不下去,而且不限於 popover。** 使用者真實點擊也沒反應;UIA Invoke 同一顆按鈕則記下
+      **同日定案並修正:真的按不下去,而且不限於 popover。** 真實滑鼠點擊也沒反應;UIA Invoke 同一顆按鈕則記下
       `popover counter 1`,所以壞的是點擊判定。原因:`.border` 是疊在上方的 `Rectangle().stroke(...)`,
       而 WinUI 的 `renderPath` 把看不見的填色設成**透明**筆刷——XAML 會對透明筆刷做點擊判定。改為 `nil` 後,
-      觸控 2/2、使用者真實點擊 3/3。~~**待查:GTK 的「重放器點不到 popover 內部」是否其實也是同一件事。**~~
+      觸控 2/2、真實滑鼠點擊 3/3。~~**待查:GTK 的「重放器點不到 popover 內部」是否其實也是同一件事。**~~
       **查過,不是(2026-09-17):** Windows -gtk4 上以**觸控**點 popover 內的 `press me`,log 記下
       `popover counter 1`、`2`(popover 擷圖 `p50g-popover-20260917-213155.png`)。GTK 的點擊判定沒有問題;
       9/9 那份動作檔點不到,是滑鼠合成(SetCursorPos + SendInput)這條路的限制,與描邊無關。
@@ -550,7 +550,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 
 - **AppKit:寬度有一支跟著變,高度三支都沒變。**
   - `P5` **480x408 → 551x408**:最小尺寸 `120x121 → 551x166`,而它的 `.defaultSize` 是 480x380,
-    因此新的最小寬度直接決定了視窗寬度。與你們在 WinUI(482→526)與 GTK(508→582)量到的同向。
+    因此新的最小寬度直接決定了視窗寬度。與 Windows 端在 WinUI(482→526)與 GTK(508→582)量到的同向。
   - `P50` 780x928 → 780x928(最小 `82x374 → 299x434`,兩軸都仍低於 780x900 的提議)。
   - `P52` 1000x928 → 1000x928(最小 `724x0`,兩次完全相同——它的按鈕只有一個字元寬)。
 - **UIKit:`P50` 與 `P52` 逐像素相同**(只有狀態列時鐘與 home indicator 那幾列變了),
@@ -559,31 +559,31 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
   (`…lert A`、`Show Alert C (stacks o…`)。擷圖 `p5-ios-final-20260918-082215.png`(前)
   對 `-081830.png`(後)。
 - **更正:那張 23 支 app 的量測表就在 repo 裡**(`testapp/measurements/window-sizes-winui-sta-20260917.csv2`
-  與 `-20260918.csv2`),我先前寫「在你們手上、不在我這」是錯的。以 multissh 連上 Win11 查過:
+  與 `-20260918.csv2`),先前記為「只在 Windows 端」是錯的。以 multissh 連上 Win11 查過:
   HEAD 相同(`3cbf45a9`)、工作區乾淨、measurements 目錄裡也只有那三份,沒有更新的東西。
 - **兩張表逐支比對:23 支裡有 3 支動了。** `P5` 寬 +44(482→526)、`P36` 高 +65(732→797)、
   `P50` 高 +14(918→932);其餘 20 支完全相同。
 - **同樣那三支在 AppKit 上:只有 P5 動。** `P5` 480→551(+71);**`P36` 兩次都是 820x728**
-  (最小高度 466→481,但仍遠低於 700 的提議);`P50` 780x928 不變(它今天的內容本來就被我們兩邊各改過,
+  (最小高度 466→481,但仍遠低於 700 的提議);`P50` 780x928 不變(它今天的內容本來就在 Mac 與 Windows 兩端各被改過,
   所以那 +14 不宜直接歸給這次 Button 改動)。也就是說:**寬度那一側兩個桌面 backend 同向,
   高度那一側只有 WinUI 會長——差別在「那支 app 的視窗是不是正好坐在它的最小尺寸上」。**
 - [x] **已做,但條件不是「手機」而是「視窗長不大」(2026-09-18 Mac 端)。** 新增環境值
       `windowSizeIsFixed`,由 `WindowReference` 從 `isWindowProgrammaticallyResizable(_:)` 設定
       ——那正是它自己判斷 `windowSizeIsFinal` 時所用的同一個答案,所以是「一個事實、一個地方」,
       而不是再猜一次哪些平台是手機。`Button.computeLayout` 在該旗標為真時維持**舊有**的提議
-      (寬高都減去 padding,標籤可被壓縮、會折行);為假時走你們的新規則。
+      (寬高都減去 padding,標籤可被壓縮、會折行);為假時走 Windows 端 2026-09-18 的新規則。
       - **iOS P5 回到原樣**:藍色按鈕文字占據的列 1474..1788、欄 74..1234,與**兩次 Button 改動之前
         完全相同**(被裁切的那一版是 1508..1754 的單行);與修改前擷圖的差異是 3209 個像素、
         沒有任何一個超過 60/255,是反鋸齒而不是版面。
       - **Android P5 三顆按鈕照樣折行、完整在畫面內**(`isWindowProgrammaticallyResizable` 回答 false,
         與 UIKit 同一條路)。
       - **AppKit 不受影響**:P5 仍是 551x408、最小 551x166;P50 780x928、最小 299x434。
-      - **給 Windows:** GTK 的 `isWindowProgrammaticallyResizable` 在**全螢幕**時回答 false,
+      - **Windows 待確認:** GTK 的 `isWindowProgrammaticallyResizable` 在**全螢幕**時回答 false,
         因此全螢幕的 GTK 視窗現在也會走「可壓縮」那一條——那與這條規則的用意一致(視窗長不大),
-        但值得你們在全螢幕下看一眼。WinUI 一律回答 true,不受影響。
-- **原提案(保留原文):給 Windows 的一個選項(你們決定):** 目前「一顆按鈕的最小寬度 = 標籤在理想寬度下的寬度」。
+        尚待在 Windows 全螢幕下確認。WinUI 一律回答 true,不受影響。
+- **原提案(保留原文,已由上一項的 `windowSizeIsFixed` 取代):給 Windows 的一個選項:** 目前「一顆按鈕的最小寬度 = 標籤在理想寬度下的寬度」。
   若改成「= 標籤的**最小**寬度(最長單詞)」,桌面端的高度爆炸依然被擋住(最小高度仍是一行),
-  而手機端可以繼續折行、不會被切(現在 P5 在 iPhone 上是兩端被裁掉的)。我沒有動它,因為那會再一次
+  而手機端可以繼續折行、不會被切(現在 P5 在 iPhone 上是兩端被裁掉的)。當時未採用,因為那會再一次
   改變五個 backend 的最小尺寸,而那需要在 Windows 上重跑一次那 23 支的表才算數。
 
 ### 2026-09-18 (Mac) — 用 `SCUI_DEBUG_WINDOW_SIZE` 掃過 72 支 app 的視窗尺寸
@@ -675,17 +675,14 @@ AppKitBackend、UIKitBackend,**以及整組 Gtk**(`GtkBackend`、`Gtk`、`GtkExa
 **刪除**對應的列。這種段落比本檔其他任何東西都更快過期,因此每一列都標了日期,也寫明「什麼才算完成」。
 若某一列已超過兩三天,請先對照程式碼再相信它。
 
-上表由上而下:WinUIBackend 先前**根本無法編譯**(`startBringIntoView` 會 throw 而呼叫端沒有 `try`),
-已修、建置中——該檔標頭寫的「UNVERIFIED」意思是「未執行過」,而事實是它連編譯都沒有過;
-`WinUIBackend` 新增了 `DebugFeatures` 依賴,好讓上述失敗能被回報而不是被吞掉(這是任務 #48 前進一個
-檔案,不是完成);WinUI 的 `setRefreshHandler(to: nil)` 會留下按鈕、重新啟用又會多包一層 Grid,已修
-待驗;`LazyVGridTests.swift` 為新增,重現 adaptive 溢出,**預期為紅**;#119 與 #120 已診斷、未修。
+上表由上而下(2026-09-17/18 查證):WinUIBackend 先前**根本無法編譯**(`startBringIntoView` 會 throw 而呼叫端
+沒有 `try`),已修，之後已建置多次;`WinUIBackend` 新增的 `DebugFeatures` 依賴讓失敗被記錄而不是被 `try?` 吞掉,
+表中四個檔案已完成，任務 #48 在這些檔案以外的部分仍開著;WinUI 的 `setRefreshHandler(to: nil)` 已修並以
+`P54 --toggle-refreshable` 驗證;#119 已由 Mac 端在 `bdf09534` 修好(本側重複的測試套件已刪除);#120 以
+`withKnownIssue` 釘住、刻意未修。
 
-**在 Windows 上跑測試需要 GTK 的 include 旗標**——純 `swift test` 會在 `GtkCHelpers` 以
-`'gtk/gtk.h' file not found` 失敗,而且 `swift test` 無論你有沒有 `--filter` 都會建置每一個 target。
-上方程式碼區塊即為正確的呼叫方式,用的是與 `compile.zsh -gtk4` 相同的那 14 個旗標。冷啟動要**十分鐘
-以上**。**切勿在一個建置執行時再啟動另一個**:一次並行的 `swift test` 在 554 步中的第 10 步以
-`error: fatalError` 死亡,那看起來完全不像鎖衝突,而像是套件壞掉。
+無論如何仍成立的兩件事:冷啟動要**十分鐘以上**;**切勿在一個建置執行時再啟動另一個**:一次並行的
+`swift test` 在 554 步中的第 10 步以 `error: fatalError` 死亡,那看起來完全不像鎖衝突,而像是套件壞掉。
 
 ---
 
@@ -851,18 +848,18 @@ gradient fill arrives. The real work is `renderPath` accepting something richer
 than two colours, across six backends, plus a gradient fill in each — which is
 its own project and not a matter of following a protocol shape.
 
-**That project is four backends done and one to go, as of 2026-09-02.**
+**That project is done on all five backends: four by 2026-09-02, Android on 2026-09-04.**
 `renderPath` gained a `ResolvedFillStyle`-taking overload with a flattening
 default, so the signature change broke nothing: GtkBackend opted in first with
 Cairo, then WinUIBackend with XAML brushes, then AppKitBackend and UIKitBackend
 with `CGGradient`, the last two written **and measured on a Mac** rather than
 blind. Verified with P43 on macOS and iOS on 2026-09-02: the gradient circle is
 round, the flat control is unchanged, the rectangle runs red to blue, and the
-stroked circle is a ring with an empty middle. **AndroidBackend still takes the
-flattening default** — it draws a plausible flat shape and warns once — and is
-the one remaining gap; closing it needs a machine that can build and run
-Android. `ShapeStyle` itself is still unwritten; what has moved is the backend
-half it was waiting on.
+stroked circle is a ring with an empty middle. AndroidBackend, the last gap,
+followed on 2026-09-04 (`56ef8dd5`: a `Shader` on top of the flat colour, in
+`AndroidBackend+PathGradients.swift`), so all five backends now draw gradient fills
+and AndroidBackend no longer takes the flattening default. `ShapeStyle` was written afterwards:
+it exists as a protocol (`Views/Styles/ShapeStyle/ShapeStyle.swift`).
 
 `ToggleStyle` was the one of the three that could be done, and it was the
 tidiest starting point of any style here: already a struct with `.switch`,
@@ -1095,7 +1092,7 @@ conforming to `@MainActor` protocols.
 **A measurement trap, recorded so it is not repeated.** `swift build -Xswiftc
 -swift-version -Xswiftc 6` is *not* the language mode. It is global, so it
 recompiles dependencies too — the first probe reported 17 errors, every one of
-them inside `.build/checkouts/swift-image-formats` and none in our code. Size
+them inside `.build/checkouts/swift-image-formats` and none in this repository's code. Size
 this job with `swiftLanguageMode`, never with `-Xswiftc`.
 
 ### Action files are tied to the display scale — done 2026-08-27
@@ -1152,7 +1149,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   `ClockIdentifier`, or drawing the wheels ourselves as GtkBackend does.
   zh_TW 傳不到 DatePicker/TimePicker。試過並已還原：在控制項上設 `FrameworkElement.Language`(已上畫面的、
   以及載入前新建的都試過)皆無變化。下一步：格式字串與 ClockIdentifier,或像 GtkBackend 一樣自己畫滾輪。
-  **Done 2026-10-20 (user's choice: draw the wheels ourselves):** WinUIBackend+LocaleWheels.swift.
+  **Done 2026-10-20 (decision: draw the wheels in the backend):** WinUIBackend+LocaleWheels.swift.
   The wheel style is LocaleDateWheel -- year, month and day as three WheelPicker columns in the
   order `DateFormatter.dateFormat(fromTemplate: "yMMMMd")` gives, month names from
   `calendar.monthSymbols` -- and every time row is LocaleTimeRow (hour, minute, optional second,
@@ -1162,7 +1159,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   Not yet checked under another locale: `.compact` (CalendarDatePicker, still WinUI's), `.clock`
   and `.rows`. GtkBackend's TimeRow puts AM/PM last whatever the locale; WinUI now follows the
   pattern (上午 first in zh_TW) -- align one way or the other.
-  已完成(使用者選擇自己畫滾輪):日期為三欄 WheelPicker,依 locale 排序、月名取自 calendar;時間列依 `jm` 樣式，上午/下午
+  已完成(決定自己畫滾輪):日期為三欄 WheelPicker,依 locale 排序、月名取自 calendar;時間列依 `jm` 樣式，上午/下午
   取自 calendar。P90 zh_TW 顯示 2025/8月/24 與上午 09:46。`.compact`、`.clock`、`.rows` 在其他 locale 下尚未檢查；
   GtkBackend 的上午/下午固定放最後，WinUI 依樣式放前面——要統一。
   **Follow-up, same day:** checked with P41 under SCUI_P41_LOCALE=zh_TW (new env var) on WinUI
@@ -1337,10 +1334,10 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   menu bar. The earlier "all but Redo worked" run was luck in which window the replay chose.
   GtkContentFocus (GtkBackend+ContentFocus.swift) remembers each menu-bar window's last focus
   outside the menu bar, weakly, and the commands go there. P92 replayed: hellohello / hello /
-  hellohello / AFTER-undoRedo; by the user's own clicks: Select All, Copy, Paste, Undo, Redo,
+  hellohello / AFTER-undoRedo; by hand: Select All, Copy, Paste, Undo, Redo,
   then Select All + Delete emptied the field.
   已完成——不只重做，而是所有 Edit 標準項目。點選單列會把焦點移到選單列且不還回，指令都送到了選單列。GtkContentFocus
-  記住選單列以外的最後焦點，指令改送給它。重放與使用者手動點擊都驗證通過。
+  記住選單列以外的最後焦點，指令改送給它。重放與手動點擊都驗證通過。
 - [x] **Nine font weights draw as two on WSL.** P22 on WSLg 2026-10-20: ultraLight to regular are
   one weight and medium to black another -- the installed face has Regular and Bold only. Part of
   making GTK on WSL/Windows look like GTK on the Mac; compare with the Mac capture before changing
@@ -2156,7 +2153,7 @@ Three things this makes visible that the category list did not:
 
   **`alignment` 的型別是唯一真正的決定,而 SwiftUI 早已做過。** SwiftUI 的 `GridItem.alignment` 是
   `Alignment?`——雙軸型別——而非 `HorizontalAlignment?`,正是為了讓同一個 `GridItem` 同時服務兩種
-  grid。我們的是 `HorizontalAlignment?`,因此 `LazyHGrid` 無法照現狀使用它。三個選項,依應考慮的
+  grid。本專案的是 `HorizontalAlignment?`,因此 `LazyHGrid` 無法照現狀使用它。三個選項,依應考慮的
   順序:(1) **把 `GridItem.alignment` 放寬為 `Alignment?`**,與 SwiftUI 一致;對傳入 `.leading` 的
   程式碼是破壞性變更,而在本樹中那只有 P48 與 P51,別無其他——這是符合 SwiftUI 形狀的答案。
   (2) 另立 `HGridItem`,不破壞既有程式碼,但那是一個 SwiftUI 沒有的第二型別,而 `#34 API shapes`
@@ -2344,7 +2341,7 @@ also keeps a bare `.padding()` unambiguous.
 不帶引數的 `.padding()` 不致產生歧義。
 
 Working order agreed 2026-08-27: protocol level first, then GtkBackend for
-WSL/Windows here; AppKit, UIKit and Android are done on the Mac side. So each
+WSL/Windows; AppKit, UIKit and Android are done on the Mac side. So each
 item lands as a `BackendFeatures` protocol plus one implementation, and the
 other backends follow separately.
 
@@ -2633,9 +2630,9 @@ window was not reachable from the Windows capture path.
 
 ## Needs another machine / 需要另一台機器
 
-### Six items the Windows session had been tracking OUTSIDE this file — written down 2026-09-09
+### Six items the Windows host had been tracking OUTSIDE this file — written down 2026-09-09
 
-**These existed only in a Windows session's in-memory task list. They were never
+**These existed only in an uncommitted task list on the Windows host. They were never
 a file, never committed, and could not be found by anyone else.** The Mac side
 searched `todo.md`, all of `testapp/plan/`, and `matrix_coverage/` for the
 numbers being quoted at them and correctly found nothing: a third numbering
@@ -2672,9 +2669,9 @@ grep AppKit and UIKit for a hardcoded `foregroundColor`, and compare against
 what GtkBackend and WinUIBackend do now that task "Backend CSS should suggest a
 default, not enforce it over the theme" has landed on both.
 
-### 六項 Windows session 一直在本檔**之外**追蹤的項目——2026-09-09 寫下
+### 六項 Windows 主機一直在本檔**之外**追蹤的項目——2026-09-09 寫下
 
-**它們只存在於某個 Windows session 的記憶體任務清單中：從未成為檔案、從未提交，別人也無從尋獲。**
+**它們只存在於 Windows 主機上一份未提交的任務清單中：從未成為檔案、從未提交，別人也無從尋獲。**
 Mac 端搜遍了 `todo.md`、`testapp/plan/` 全部與 `matrix_coverage/`，尋找被引用的那些編號，而正確地一無所獲：
 有第三套編號被當成共享編號在引用，但它從來就不是。同時存在三個編號空間，其中只有兩個是真實的——
 `testapp/plan/parity-gaps-survey.md` 的本地編號（最大到 88）與上游 GitHub issue。第三套是易逝的。
@@ -2814,9 +2811,9 @@ The last two are not silent, and are cheaper:
    changing either public type back to an integer.
 
 **A correction that belongs with these, not buried.** While merging `dea9ccff`
-this side described the Mac side's "pass the anchor widget rather than an edge"
+the Windows side described the Mac side's "pass the anchor widget rather than an edge"
 popover design as *aligning with SwiftUI*. That was wrong. SwiftUI has
-`attachmentAnchor` and `arrowEdge`; we have neither. The argument for their
+`attachmentAnchor` and `arrowEdge`; this project has neither. The argument for that
 design still stands -- a pinned edge would be honoured off the edge of the
 monitor, and a popover nobody can see has shown nothing -- but it is a
 deliberate divergence, not conformance, and it was recorded as the opposite.
@@ -2918,9 +2915,9 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
    `GridItem.Size` 與 `EdgeInsets` 現在會以 `Double` 保留數值直到版面計算；剩餘工作是跨平台建置與截圖驗證，
    不是把公開型別改回整數。
 
-**一則應與上述並列、而非被掩埋的更正。** 在合併 `dea9ccff` 期間，本側曾把 Mac 端「傳錨點 widget
+**一則應與上述並列、而非被掩埋的更正。** 在合併 `dea9ccff` 期間，Windows 端曾把 Mac 端「傳錨點 widget
 而非傳邊」的 popover 設計描述為**與 SwiftUI 對齊**。那是錯的。SwiftUI 有 `attachmentAnchor` 與
-`arrowEdge`，我們兩者皆無。他們該設計的理由依然成立——釘死的一側會被忠實遵守到螢幕之外，而一個
+`arrowEdge`，本專案兩者皆無。該設計的理由依然成立——釘死的一側會被忠實遵守到螢幕之外，而一個
 沒人看得見的 popover 等於什麼都沒顯示——但那是刻意的偏離，不是對齊，而當初被記成了相反的事。
 
 - **AppKitBackend and UIKitBackend conformances written but never compiled.**
@@ -2944,7 +2941,7 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
 
 ### AppKit hit testing: fixed 2026-09-01 by restoring 9623ad67
 
-`226a4af7` puts back the implementation `e25b3a65` had reverted. `hitTest(_:)`
+`3bb0d320` puts back the implementation `e25b3a65` had reverted. `hitTest(_:)`
 receives a point in the **superview's** space -- the AppKit header says so --
 so one conversion is needed at the top and the same point then goes to every
 child unchanged. Both wrong versions are correct only while the container sits
@@ -2979,7 +2976,7 @@ counting every other app's launches as its own.
 
 ### AppKit hit testing：2026-09-01 以還原 9623ad67 修復
 
-`226a4af7` 把 `e25b3a65` 所反轉掉的實作放了回去。`hitTest(_:)` 收到的點位於 **superview** 的座標系
+`3bb0d320` 把 `e25b3a65` 所反轉掉的實作放了回去。`hitTest(_:)` 收到的點位於 **superview** 的座標系
 ——AppKit 的標頭如此陳述——因此只需在最上方轉換一次，之後同一個點原封不動交給每一個 child。兩個
 錯誤版本都只有在 container 恰好位於其 superview 原點時才會是對的，這正是 P26 的分頁列自始至終
 可用、而一般控制項不可用的原因。
@@ -2999,9 +2996,9 @@ autosave 就住在那裡，其名稱由 AppKitBackend 依 root view 的型別推
 同一個共用 domain 裡還放著 `p0LaunchCount`，因此 P0 的 AppStorage 一直把其他每一支 app 的啟動
 算成了自己的。
 
-### AppKit hit testing: was still not working on the Mac as of 2026-09-01
+### AppKit hit testing: still not working as of 2026-09-01 (fixed the same day by `3bb0d320`, see above)
 
-**The 2026-08-27 entry below records this as fixed. It is not, on this machine.**
+**The 2026-08-27 entry below records this as fixed. It was not, on the Mac.**
 Re-measured 2026-09-01 with `e25b3a65` confirmed in the tree by
 `git merge-base --is-ancestor` and with binaries built the same morning:
 
@@ -3020,7 +3017,7 @@ Re-measured 2026-09-01 with `e25b3a65` confirmed in the tree by
 Tab strip reachable, ordinary controls not -- the same split the probe table
 below found. Whatever `e25b3a65` fixed, this path is not it.
 
-**2026-08-27：以下記錄此問題已修復。在這台機器上並非如此。** 於 2026-09-01 重新量測，`e25b3a65`
+**下方 2026-08-27 的條目記為已修復;2026-09-01 在 Mac 上並非如此(同日已由 `3bb0d320` 修好，見上方)。** 於 2026-09-01 重新量測，`e25b3a65`
 已由 `git merge-base --is-ancestor` 確認在樹中，執行檔亦為當日上午建置：
 
 - P21（純按鈕、無 overlay）：動作檔以 `origin=frame` 點擊 `59,206`——即該按鈕自身的中心，取自視窗
@@ -3034,19 +3031,14 @@ below found. Whatever `e25b3a65` fixed, this path is not it.
 分頁列可觸及、一般控制項不可——與下方探測表所發現的分界相同。無論 `e25b3a65` 修好了什麼，都不是
 這條路徑。
 
-### AppKit hit testing: ~~nothing but text fields can be clicked~~ — reported FIXED on 2026-08-27
+### AppKit hit testing: ~~nothing but text fields can be clicked~~ — recorded as fixed on 2026-08-27; actually fixed 2026-09-01 by `3bb0d320`
 
-**Fixed 2026-08-27 by `e25b3a65 Fix AppKit hit testing and Swift 6 replay
-build`, on the Mac.** Not verified here and not verifiable here -- there is no
-macOS in this checkout's reach -- so this is recorded as reported by that side,
-not as something this session measured.
-
-The cause was two frame-of-reference errors at once, which is why fixing either
-alone made it fail differently rather than work: `point` arrives already in the
-container's own coordinate space, and each child needs it in the child's space,
-so exactly one conversion is needed and it belongs inside the child loop. The
-old code converted from the superview and then handed every child a
-container-space point.
+**`e25b3a65 Fix AppKit hit testing and Swift 6 replay build` (2026-08-27) was
+recorded as the fix and was not.** It treated `point` as already in the
+container's own space and converted it into each child's space -- the shape
+`9623ad67` had just removed -- under a comment asserting that premise. AppKit
+passes `point` in the receiver's superview space. `3bb0d320` restored
+`9623ad67` on 2026-09-01; see "AppKit hit testing: fixed 2026-09-01" above.
 
 The investigation below is kept because it is what made the fix findable: the
 per-control probe table is the thing that separated "the container is wrong"
@@ -3054,7 +3046,7 @@ from "the coordinates are wrong", and the arithmetic worked through for the
 button is what identified the second error rather than only the first.
 
 Measured on macOS 2026-08-27, after `882b43f8 Implement AppKit hit testing and
-add P28 coverage`. Handed over rather than fixed; the Mac side stopped here.
+add P28 coverage`. Not fixed on macOS at that point.
 
 `AppKitHitTestingContainer.hitTest` returns nil for almost everything. Probed
 directly on a live window, points at the exact centre of each control:
@@ -3090,8 +3082,8 @@ hit-testing too. So the container is self-consistent with a non-standard
 convention and breaks where it meets real AppKit views. The reverted experiment
 is recorded so nobody spends the same hour on it.
 
-**A fix is written and needs one command on a Mac to confirm or kill it.**
-`9623ad6` on the Windows side. There were two frame-of-reference errors at once,
+**The fix is `9623ad67`, written on the Windows host; `e25b3a65` replaced it and `3bb0d320`
+restored it on 2026-09-01.** There were two frame-of-reference errors at once,
 which is why the reverted experiment failed differently rather than worked:
 `hitTest(_:)` takes its point in the receiver's *superview* space, so
 `convert(point, to: child)` started from the wrong space, and
@@ -3106,12 +3098,10 @@ the button's bounds — so the containment check passed and hid the problem —
 and then `button.hitTest((26, 13))` compared (26, 13) against x 114...166,
 y 212...239 and correctly said nil.
 
-Unverified from here: this is a Windows host and AppKitBackend does not compile
-on it. The prediction is specific — `test.zsh P28 --macos --actionfile` should
-put "clicked" into `p28-debug-events.log`, where it currently appears zero
-times. If it does not, the remaining suspect is the flippedness of the
-container relative to its children, which the measurements above cannot rule
-out.
+Confirmed on macOS on 2026-09-01 after `3bb0d320`: P28 logs the underlying
+button as clicked (count=1, then count=2) and P21 counts its click; see
+"AppKit hit testing: fixed 2026-09-01" above. The flippedness of the container
+did not need investigating.
 
 - **Benchmark Metal's feature set on macOS**, then implement the useful subset
   on GtkBackend through GSK render nodes and GLSL rather than Metal shaders.
@@ -3135,10 +3125,11 @@ out.
   Windows GTK gets WebView2 hosted on the HWND GTK4 already hands out for its
   surface — the same control `WinUIBackend+WebView.swift` drives today.
 
-  **Still not implemented, and that is a different sentence from "undecided".**
-  `GtkBackend+WebView.swift:105-109` returns the placeholder label, and
-  `Package.swift:420-422` still declares only `pkgConfig: "gtk4"`. The decision
-  exists; the work does not.
+  **Implemented 2026-09-17.** Windows GtkBackend hosts WebView2 in the GTK
+  window (`a7a933ab`, `gtk_webview2.c`); Linux and WSL load WebKitGTK 6.0 with
+  dlopen (`7fac786e`, `gtk_webkit.c`), so `Package.swift` gains no build
+  dependency. The placeholder label is now only for Windows builds made
+  without `WebView2.h`.
 
   ~~**WebKitGTK 作為系統相依。**~~ **2026-09-04 已回答，而且答案寫在程式碼裡、不在這裡**——
   `Sources/GtkBackend/GtkBackend+WebView.swift:29-49` 記載了該決定及其背後的量測：
@@ -3147,9 +3138,9 @@ out.
   Windows 的 GTK 則改用 WebView2，寄宿於 GTK4 為其 surface 所交出的那個 HWND 之上——
   正是 `WinUIBackend+WebView.swift` 今天所驅動的同一個控制項。
 
-  **仍未實作，而那與「未決定」是兩句不同的話。** `GtkBackend+WebView.swift:105-109` 回傳的
-  仍是 placeholder label，`Package.swift:420-422` 也仍然只宣告 `pkgConfig: "gtk4"`。
-  決定存在，工作不存在。
+  **已於 2026-09-17 實作。** Windows 的 GtkBackend 以 WebView2 寄宿於 GTK 視窗(`a7a933ab`,
+  `gtk_webview2.c`);Linux 與 WSL 以 dlopen 載入 WebKitGTK 6.0(`7fac786e`,`gtk_webkit.c`),因此
+  `Package.swift` 不需新增建置相依。佔位 label 現在只給沒有 `WebView2.h` 的 Windows 建置。
 
 Verified 2026-09-10: this section said "Only one open decision" while that one
 decision had been answered six days earlier, in a file it does not cite.
@@ -3173,8 +3164,8 @@ AppKit 停止搜尋，於是被停用的 overlay 會吞掉點擊而非讓它穿�
 
 ## Lowest priority / 最低優先
 
-Set by the user on 2026-09-17. Pick these up only when nothing above is open.
-使用者 2026-09-17 指定。上方沒有待辦時才處理。
+Set 2026-09-17. Pick these up only when nothing above is open.
+2026-09-17 指定。上方沒有待辦時才處理。
 
 - [x] **P52's window opens COLLAPSED on GtkBackend/Windows: 752x68, title bar and
   nothing else**, against `.defaultSize(width: 1000, height: 900)`. Measured

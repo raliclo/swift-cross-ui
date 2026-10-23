@@ -1,8 +1,10 @@
 # plan: virtualising `List` (#117)
 
-**狀態:設計,尚未實作。沒有任何程式碼因這份文件而改變。**
+**狀態:已實作。** Phase 2 在 AppKit(`1ff4f3cf`),UIKit 與 Android(`c88e3994`),GTK(`a0b61b8f`)與 WinUI(`53c4a660`),皆在 2026-09-09。以下是動手前的設計。
 
-**Status: design only. No code has changed for this document.**
+**Status: implemented.** Phase 2 on AppKit (`1ff4f3cf`), UIKit and Android
+(`c88e3994`), GTK (`a0b61b8f`) and WinUI (`53c4a660`), all on 2026-09-09. The
+design below was written before that.
 
 寫在動手之前,理由是 2026-09-09 量到的東西改變了這項工作的形狀——它不是「把一個慢的清單變快」,
 而是「這個清單根本沒有視口」。
@@ -167,7 +169,7 @@ requirement's shape is derived rather than guessed.
    剩下 GTK 與 WinUI,見第 5 點。
    *A phase's acceptance test does not travel with the phase. The one that worked on AppKit
    cannot fail on either platform whose window is the screen.*
-5. **GTK 與 WinUI 由 Windows 端驗證**,檔頭寫明該先查什麼。
+5. **GTK 與 WinUI 在 Windows 上驗證**,檔頭寫明該先查什麼。已完成:GTK `a0b61b8f`、WinUI `53c4a660`(2026-09-09);依需求建列見 `plan-117-phase3-rows-on-demand.md`。
 
 Phase 2 是刻意排在第一位的:它把「框架擁有版面」這個決定在**一個** backend 上推翻,而那是整件事
 裡唯一還沒有人做過的部分。若它在 AppKit 上行不通,後面四個都不必寫。

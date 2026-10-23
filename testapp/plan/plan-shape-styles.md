@@ -136,7 +136,7 @@ only styling entry points take a concrete `Color`
 ## The constraint that decides the design
 
 **Changing `renderPath`'s signature breaks five backends at once, and two of
-them cannot be compiled on this machine.** AppKitBackend and UIKitBackend need
+them cannot be compiled on the Windows host.** AppKitBackend and UIKitBackend need
 a Mac; that is the same wall as #59. A signature change would therefore be
 written blind for 40% of the implementations and land as a build break for
 whoever pulls next.
@@ -144,7 +144,7 @@ whoever pulls next.
 So the design has to be **additive**: existing backends keep compiling
 untouched, and each opts in when someone can build and see it.
 
-**改動 `renderPath` 的簽章會同時破壞五個 backend，其中兩個在本機無法編譯。** AppKitBackend 與
+**改動 `renderPath` 的簽章會同時破壞五個 backend，其中兩個在 Windows 主機上無法編譯。** AppKitBackend 與
 UIKitBackend 需要 Mac，與 #59 是同一道牆。因此簽章變更等於為其中 40% 的實作盲寫，並且會讓下一個
 pull 的人拿到一個建置失敗。設計因此必須是**加法式的**：既有 backend 原封不動仍可編譯，各自在有人
 能建置並親眼確認時再選擇加入。

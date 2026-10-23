@@ -1,10 +1,13 @@
 # #120 真正的 Grid 與 `GeometryProxy.frame(in:)`:兩件事、一個共同的牆
 
-**狀態:形狀已定,事實已查證,尚未實作。** 這兩項原本被歸為「純框架、Mac 可獨力完成」,那句話
+**狀態:已實作。** `Grid` 已有真正的欄與 `gridCellColumns`(`d5d9c36e`);`frame(in:)` 依下文選項 (b) 落地(`6b1ca9d2`);兩者都已在兩個 Windows backend 上驗過(`25c0cf77`)。以下是實作前寫的計畫。這兩項原本被歸為「純框架、Mac 可獨力完成」,那句話
 對 #120 成立、對 `frame(in:)` **不成立**——查證之後才看得出來,而差別在於一個具體的機制。
 
-**Status: shapes settled and facts checked, nothing implemented.** Both were
-filed as "pure framework, the Mac side can do them alone". That is true of #120
+**Status: implemented.** `Grid` got real columns and `gridCellColumns`
+(`d5d9c36e`); `frame(in:)` landed through option (b) below (`6b1ca9d2`); both
+were verified on the two Windows backends (`25c0cf77`). This plan was written
+before that. Both were filed as "pure framework, the Mac side can do them
+alone". That is true of #120
 and NOT true of `frame(in:)`, and the difference only becomes visible once the
 mechanism is checked rather than assumed.
 
@@ -19,7 +22,7 @@ mechanism is checked rather than assumed.
 | `ViewLayoutResult` 是否保有 `childResults` | **否。** 它只在 init 中拿去合併 `preferences`,不儲存 | 「Grid 可以從每一列的結果讀到儲存格寬度」——不行 |
 | 有沒有 backend 能回答「這個 widget 在哪」 | **沒有。** `Core` 只有 `setPosition`(setter)與 `naturalSize`;整個 `BackendFeatures/` 沒有位置的 getter | 「`frame(in: .global)` 去問 backend 就好」 |
 | `LayoutableChild.commit` 能不能帶東西 | **不能。** 它是 `@MainActor () -> ViewLayoutResult`,兩端都不帶參數 | 「父層可以在 commit 時把座標交給子層」 |
-| 環境裡有沒有「請重新版面」 | **沒有通用的。** 只有我為 #117 加的 `onWindowChromeChange`,它是視窗外框專用 | 「先給 0,下一輪再修正」——沒有東西會觸發下一輪 |
+| 環境裡有沒有「請重新版面」 | **沒有通用的。** 只有為 #117 加的 `onWindowChromeChange`,它是視窗外框專用 | 「先給 0,下一輪再修正」——沒有東西會觸發下一輪 |
 
 `ViewLayoutResult` does not keep `childResults`; no backend can report a
 widget's position; `LayoutableChild.commit` carries nothing either way; and
@@ -80,26 +83,28 @@ Grid **自己**驅動它那些列的 `computeLayout`,因此它可以在**同一�
 | 選項 | 動到什麼 | 風險 |
 | --- | --- | --- |
 | (a) `commit` 改成 `commit(_ context:)` | **46 個呼叫點**,其中數個在 `Views/Modifiers/Layout/`——**Windows 的 #128 區域** | 重疊衝突,而且是核心型別的簽章 |
-| (b) 加一個 backend requirement「回報 widget 的位置」 | 五個 backend。AppKit `convert(_:to: nil)`、UIKit `convert(_:to: nil)`、Android `getLocationInWindow`、GTK `gtk_widget_translate_coordinates`、WinUI `TransformToVisual` | 我編得了三個,**GTK 與 WinUI 編不了**——本樹兩週內已被這件事咬過兩次 |
+| (b) 加一個 backend requirement「回報 widget 的位置」 | 五個 backend。AppKit `convert(_:to: nil)`、UIKit `convert(_:to: nil)`、Android `getLocationInWindow`、GTK `gtk_widget_translate_coordinates`、WinUI `TransformToVisual` | Mac 能編其中三個,**GTK 與 WinUI 只能在 Windows 上編**——本樹兩週內已被這件事咬過兩次 |
 | (c) 通用的「請重新版面」+ 逐輪修正的座標 | 一個環境值加一個觸發器;`onWindowChromeChange` 是同形狀的先例 | 迴圈風險:每次座標變動都要求重新版面 |
 
-**我的建議是 (b),而且不是因為它最便宜。** `.global` 問的是「這個 view 在視窗裡的哪裡」,而
+**建議採 (b),而且不是因為它最便宜。** `.global` 問的是「這個 view 在視窗裡的哪裡」,而
 那個問題的權威答案在平台那一側——(a) 與 (c) 都是在框架裡重建一份平台已經知道的資訊,並在每一次
-有 modifier 偷偷位移子節點時安靜地出錯。(b) 的代價是誠實的:它需要 Windows 端寫 GTK 與 WinUI
-那兩格,與 #122 完全同一個協議。
+有 modifier 偷偷位移子節點時安靜地出錯。(b) 的代價是誠實的:GTK 與 WinUI 那兩格要在 Windows 上寫,
+與 #122 完全同一個協議。**後來採用的正是 (b)**:`BackendFeatures.WidgetGeometry`,五個 backend 各有
+`+WidgetGeometry.swift`(`6b1ca9d2`)。
 
-My recommendation is (b), and not because it is cheapest. `.global` asks where
+Recommended: (b), and not because it is cheapest. `.global` asks where
 a view is inside its window, and the platform is the authority on that; (a) and
 (c) both rebuild in the framework something the platform already knows, and go
 quietly wrong every time a modifier shifts a child. (b)'s cost is honest: two
-cells for the Windows side, exactly like #122.
+cells to be written on Windows, exactly like #122. **(b) is what was built:**
+`BackendFeatures.WidgetGeometry`, with a `+WidgetGeometry.swift` in each of the
+five backends (`6b1ca9d2`).
 
-### 要 Windows 回答的兩件事
+### 原本要 Windows 回答的兩件事(已答,`627582d7`)
 
-1. **`frame(in:)` 走 (b) 嗎?** 若是,GTK 的 `gtk_widget_translate_coordinates` 是否已經在產生
-   出來的 Swift 裡?(`grabFocus` 就不在——見 `plan-focus-protocol.md`。)
-2. **WinUI 的 `TransformToVisual` 是同步的嗎?** 這是 #122 那份草案裡唯一沒能從這台機器查證的
-   同一類問題。
+1. **`frame(in:)` 走 (b) 嗎?** 是。GTK 的 `gtk_widget_translate_coordinates` 不在產生出來的
+   Swift 裡,但在已安裝的標頭裡,與 `grab_focus` 相同,直接呼叫即可。
+2. **WinUI 的 `TransformToVisual` 是同步的嗎?** 是:`transformToVisual(_:) throws -> GeneralTransform!`。
 
 ### 不在本次範圍內
 

@@ -1,11 +1,11 @@
 # todo-Gtk — things to raise with GTK upstream, not with this repository
 
 Items here are defects in GTK itself, found while driving SwiftCrossUI. Each one
-says what was measured, where it lives in GTK's own source, and what we did on
-our side meanwhile. Nothing here is reported to anyone until the user says so.
+says what was measured, where it lives in GTK's own source, and what was done on
+the GtkBackend side meanwhile. Nothing here is reported upstream without explicit approval.
 
 本檔收錄的是在驅動 SwiftCrossUI 時發現、但**缺陷在 GTK 本身**的項目。每一條都寫明量到什麼、對應到 GTK
-原始碼的哪裡,以及我們這邊同時做了什麼。**在使用者同意之前,不對外回報任何一條。**
+原始碼的哪裡,以及 GtkBackend 端同時做了什麼。**未經明確同意,不向上游回報任何一條。**
 
 ---
 
@@ -39,7 +39,7 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   tablet, or a remote-desktop session dropping its touch device. The synthetic
   device only made it easy to hit.
 
-  **Our side**, so the crash cannot take an app down meanwhile:
+  **GtkBackend side**, so the crash cannot take an app down meanwhile:
   `Sources/GtkCHelpers/gtk_device_lifetime.c` takes one reference on the seat's
   `device-removed` signal, which fires before both unrefs, and never releases
   it. After that: 10 of 10 runs alive with no criticals, in the harness where
@@ -52,7 +52,7 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   `_gdk_win32_get_cursor_pos`(`gdk/win32/gdkevents-win32.c:166`),NULL display 由
   `gdk_device_winpointer_query_state` 傳入。原始碼位置是 `gdk/win32/gdkinput-winpointer.c` 的
   `winpointer_enumerate_devices`。真實硬體同樣會走到:拔掉觸控螢幕或繪圖板、遠端桌面移除觸控裝置。
-  我們這邊已在 `Sources/GtkCHelpers/gtk_device_lifetime.c` 以 `device-removed` 多取一個永不釋放的參考擋住,
+  GtkBackend 端已在 `Sources/GtkCHelpers/gtk_device_lifetime.c` 以 `device-removed` 多取一個永不釋放的參考擋住,
   修後 10/10 存活(commit `9dd625ac`)。
 
 ---
@@ -85,12 +85,12 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   label over computed text, or GTK should not attach runs when a label is set,
   is the question to put upstream.
 
-  **Our side:** nothing. `setAccessibilityLabel` already sets the property, and
+  **GtkBackend side (superseded by the 2026-10-20 correction below):** nothing. `setAccessibilityLabel` already sets the property, and
   it is correct on AT-SPI; there is nothing to change in GtkBackend for this.
   `testapp/test_support/measure/p69_uia.zsh` grades it as `text_label` and
   `no_original_text`, the only two of its nine checks that GTK fails.
 
-  **2026-10-20: "Our side: nothing" was wrong, and so was "Where it lives".** The text runs
+  **2026-10-20: "GtkBackend side: nothing" was wrong, and so was "Where it lives".** The text runs
   do not overwrite the label: AccessKit's Windows adapter names a Role::Label node from its
   *value* (accesskit_windows 0.29 `name()` -> `label_comes_from_value`), and a GtkLabel's value
   is its runs unless one is set explicitly (accesskit_consumer `write_value`). GTK maps
@@ -98,7 +98,7 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   `CustomLabel`, on Windows only. P69 with the AccessKit build: all nine checks pass in both
   views, `text name='Half past twelve' class='GtkLabel'` (still a UIA Text control). What is
   left to raise upstream, when approved, is whether an explicit label should win for a Label role.
-  **2026-10-20:「我們這邊不需要改」與「位置」都錯了。**AccessKit 的 Windows adapter 對 Role::Label 取「值」當名稱，而 GtkLabel 的值在沒有明確設定時就是文字 run;GTK 把 VALUE_TEXT 對應到值，因此 GtkBackend 在 Windows 上也把標籤設為 CustomLabel 的 VALUE_TEXT。P69 九項全過。上游要問的只剩「Label role 是否該優先採用明確的 label」。
+  **2026-10-20:「GtkBackend 端不需要改」與「位置」都錯了。**AccessKit 的 Windows adapter 對 Role::Label 取「值」當名稱，而 GtkLabel 的值在沒有明確設定時就是文字 run;GTK 把 VALUE_TEXT 對應到值，因此 GtkBackend 在 Windows 上也把標籤設為 CustomLabel 的 VALUE_TEXT。P69 九項全過。上游要問的只剩「Label role 是否該優先採用明確的 label」。
 
   **在 `GtkLabel` 上設定的標籤到不了 Windows:AccessKit 以節點的文字為名。** 2026-09-19 以 P69 量到:WSLg 的
   AT-SPI 讀到 `label 'Half past twelve'`;Windows 的 AccessKit 建置經行程外 UIA 讀到的卻是
@@ -106,4 +106,4 @@ our side meanwhile. Nothing here is reported to anyone until the user says so.
   正確地沒有 `X` 子節點,因此不是整條路壞掉。`gtkaccesskitcontext.c` 確實有把 LABEL 對應到
   `accesskit_node_set_label`,但同一個函式接著為 `GtkLabel` 呼叫 `add_single_text_layout` 掛上 Pango 文字,
   而送到 UIA 的名稱取自那些文字。該由 adapter 優先採用明確標籤,還是 GTK 在已設標籤時不掛文字,是要問上游的。
-  **我們這邊不需要改**:`setAccessibilityLabel` 已經設了該屬性,在 AT-SPI 上也是對的。
+  **GtkBackend 端(原判斷「不需要改」,已由上方 2026-10-20 的更正取代)**:`setAccessibilityLabel` 已經設了該屬性,在 AT-SPI 上也是對的。

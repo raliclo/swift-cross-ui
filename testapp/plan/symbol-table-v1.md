@@ -380,7 +380,7 @@ Recorded rather than resolved. Each is a real risk to the table, not a formality
    on Windows 10. The column needs the suffix, and 15 of the 36 are now verified
    against a running GTK rather than against a document.
 
-   The other 21 are still unjudged. This machine has no `adwaita-icon-theme`
+   The other 21 are still unjudged. The GTK install the probe ran on had no `adwaita-icon-theme`
    package, so the probe was answering out of GTK's own built-in resource, which
    carries only what GTK itself draws. Installing that theme is what finishes the
    remaining 21 and tests the premise above about `edit`, `view`, `more` and the
@@ -403,7 +403,7 @@ Recorded rather than resolved. Each is a real risk to the table, not a formality
    所描述的「Segoe 在 Windows 10 上」屬於同一類失敗。本欄需要該後綴，而其中 15 個現在是對著一個
    執行中的 GTK、而非對著一份文件驗證過的。
 
-   其餘 21 個仍未判定。本機沒有 `adwaita-icon-theme` 套件，因此該探針回答的是 GTK 自身內建資源，
+   其餘 21 個仍未判定。探針所用的 GTK 安裝沒有 `adwaita-icon-theme` 套件，因此它回答的是 GTK 自身內建資源，
    其中只含 GTK 自己會畫的東西。安裝該主題才能完成剩下的 21 個，並檢驗上方關於 `edit`、`view`、
    `more` 等的推測——即使只用內建資源，仍有三個規範之外的名稱解析成功
    （`view-more-symbolic`、`view-list-symbolic`、`view-grid-symbolic`），那是「該推測為真」的第一項

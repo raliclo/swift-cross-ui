@@ -990,7 +990,7 @@ Verification status:
 - 2026-08-11: the geometry is verified with `-calib`, which fills the swap chain with a red border, a green centre cross and corner blocks, and is then measured by scanning the screenshot's pixels rather than by eye. Both 960x540 and 4K measure as `x=360..1559` = 1200 px = the 960 DIP viewport, with the borders and centre cross where they should be.
 - 2026-08-12: **the Windows bottleneck was the pipe, not the GPU, and it is now measured rather than inferred.** Per-stage timings are logged once a second (`stage timings:` lines). At 1080p the read stage cost 102-164 ms per frame against a 33 ms budget, while presenting cost 0-4 ms. The cause is Foundation's `Pipe`: swift-corelibs-foundation calls `CreatePipe(..., 0)` on Windows, so the buffer is the system default of a few kilobytes and an 8 MB frame arrives in thousands of reads, each allocating a `Data` that is then appended into a growing 8 MB buffer and copied a second time into the mapped texture. There is no API to configure that buffer size.
 - 2026-08-12: P6 now creates its own Win32 pipe with an 8 MB buffer and reads frames with `ReadFile` straight into the mapped staging texture, in one call when the mapped row pitch matches the frame's rows. The read stage dropped to 0-17 ms per frame and **1080p reports 0 dropped frames/sec in every GPU mode**.
-- 2026-08-12: GPU selection flags (`-amd`, `-nvidia`, `-both-gpu`, `-no-gpu`; `-both-gpu` decodes on the Nvidia card and presents on the display's adapter, `-no-gpu` presents through Microsoft's Basic Render Driver as a CPU baseline) plus `testapp/gpu-matrix.zsh`, which runs every mode and reports dropped frames/sec and stage timings. This machine has an AMD Radeon iGPU as adapter 0 and an Nvidia RTX 4060 as adapter 1. Measured over 25 s per mode:
+- 2026-08-12: GPU selection flags (`-amd`, `-nvidia`, `-both-gpu`, `-no-gpu`; `-both-gpu` decodes on the Nvidia card and presents on the display's adapter, `-no-gpu` presents through Microsoft's Basic Render Driver as a CPU baseline) plus `testapp/gpu-matrix.zsh`, which runs every mode and reports dropped frames/sec and stage timings. The Windows 11 test machine has an AMD Radeon iGPU as adapter 0 and an Nvidia RTX 4060 as adapter 1. Measured over 25 s per mode:
 
   | Mode | 1080p read | 1080p dropped/s | 4K read | 4K dropped/s |
   |---|---|---|---|---|
@@ -1030,7 +1030,7 @@ Verification status:
   - A video processor input texture needs `D3D11_BIND_DECODER`, not `D3D11_BIND_SHADER_RESOURCE`: the video engine reads it, the shader units do not. Otherwise `CreateVideoProcessorInputView` fails with `E_INVALIDARG`.
   - The NV12 capability probe has to run on the adapter that will present. Probing the default adapter and then presenting from the software one chose NV12 on a device that cannot convert it, and the NV12 bytes then reached the RGBA image fallback and trapped. The probe is adapter-aware now and the fallback never builds an RGBA image from NV12 bytes.
 - 2026-08-12: a bigger decoder pipe buffer does not help. At 4K@60: 25 MB (two frames, the default) gave 49.9 fps, 128 MB gave 51.6, 512 MB gave 48.2, and **2 GB gave 45.3** -- slightly worse than the default. `CreatePipe` accepts 2 GB, but a pipe buffer absorbs jitter rather than raising throughput, and letting the decoder run seconds ahead only wastes memory and has to be discarded on a seek. The earlier 8 MB fix mattered only because the buffer was smaller than a single frame. `-pipe-mb <n>` re-runs this.
-- 2026-08-13: **the decoder no longer opens console windows.** P6 spawns ffmpeg, ffplay, zstd and two ffprobes, and restarts the decoder on every resolution or frame-rate change; each spawn opened a console window whenever P6 had no console to inherit, which is the case when it is launched from Explorer or from a pty-based terminal. Foundation's `Process` passes only `CREATE_UNICODE_ENVIRONMENT` and offers no way to add `CREATE_NO_WINDOW`, so all five spawns now go through `P6WindowlessProcess`, which calls `CreateProcessW` directly. That also meant reimplementing argument quoting, handle inheritance, termination and exit codes; other platforms keep the Foundation path. See `testapp/todo-foundation.md`.
+- 2026-08-13: **the decoder no longer opens console windows.** P6 spawns ffmpeg, ffplay, zstd and two ffprobes, and restarts the decoder on every resolution or frame-rate change; each spawn opened a console window whenever P6 had no console to inherit, which is the case when it is launched from Explorer or from a pty-based terminal. Foundation's `Process` passes only `CREATE_UNICODE_ENVIRONMENT` and offers no way to add `CREATE_NO_WINDOW`, so all five spawns now go through `P6WindowlessProcess`, which calls `CreateProcessW` directly. That also meant reimplementing argument quoting, handle inheritance, termination and exit codes; other platforms keep the Foundation path. See `testapp/todo/todo-foundation_en.md`.
 - 2026-08-13: linking the apps as GUI-subsystem executables was tried and reverted. It removes the console Explorer opens, but with children still spawned through Foundation it makes things worse: with no console to inherit, ffmpeg and ffplay get a console window each for as long as they run. The reasoning is recorded in `compile.zsh` so it is not attempted again without fixing the spawning first.
 - 2026-08-13: **`-maximized` and bringing the window to the front now work**, and the fix was to identify the window by its title. The previous lookup took the calling thread's first visible window and fell back to `GetForegroundWindow()`, so before the XAML window existed it maximised and activated whatever the user was using -- the terminal that launched P6. It also timed the retry window from process start, which had already expired by the time the window appeared several seconds later. Both are fixed: matched by title, retried for five seconds from the moment the window is first found.
 - 2026-08-13: **960x540 was cropped on the NV12 path** while 1080p and 4K were correct. The two paths present different regions: RGBA copies the frame into the buffer's corner and lets DXGI stretch that region, so the source is the frame; NV12 goes through the video processor, which scales the frame across the whole buffer, so the source is the whole buffer. Asking for the frame region there presented only its top-left corner, stretched. It is invisible whenever the frame is at least as large as the viewport, because the buffer is then the frame size -- which is why only the smallest preset showed it. Re-calibrated after the fix: the video spans `x=360..1559`, 1200 px, at every preset.
@@ -1183,7 +1183,7 @@ Test steps:
 3. Confirm audio. It is a separate ffplay process, so sync is not enforced: at
    1x it tracks well enough to watch, at 3x it drifts. That is expected.
 4. Run `-cpu` and `-gpu` back to back at the same speed, fps and resolution, and
-   compare the summary lines. On this machine they came out within noise of each
+   compare the summary lines. On the Windows 11 test machine they came out within noise of each
    other, because the bottleneck is the RGBA pipe read, not decode.
 5. Push the speed to `3x` and watch `dropped/sec`. Dropping only happens when
    frames arrive faster than they can be shown; a decoder that is simply slower
@@ -2501,8 +2501,8 @@ Notes:
 
 ## Linux plan: GtkBackend through WSL
 
-Goal: reproduce the open GtkBackend/Gtk3Backend issues on this machine, fix what
-we can, and submit the fixes upstream. Same working style as the WinUI work:
+Goal: reproduce the open GtkBackend issues under WSL on the Windows 11 test machine,
+fix what can be fixed, and submit the fixes upstream. Same working style as the WinUI work:
 reproduce first, measure rather than infer, and keep the evidence.
 
 For which app covers which issue, and whether a WSLg run settles it or only
@@ -2571,7 +2571,7 @@ swift build --target GtkBackend      # not --product
 includes the `WinUIInterop` C target, and that fails on Linux with
 `'Windows.h' file not found`. Naming the target directly is the way past it.
 
-Measured on this machine: 61.7 s from clean for `--target GtkBackend`, and
+Measured under WSL on the Windows 11 test machine: 61.7 s from clean for `--target GtkBackend`, and
 `testapp/compile.zsh` builds a repro app in 5-15 s once that is warm.
 
 ### Phase 2 -- free coverage from the existing test apps
@@ -2632,7 +2632,7 @@ than checking it on one.
 Reproduce these, but before claiming a fix, confirm the behaviour on a real
 Linux desktop session or at least state that it was only checked under WSLg.
 
-**Tier 3 -- needs something we do not have, or is not a bug**
+**Tier 3 -- needs hardware or a setup not available here, or is not a bug**
 
 | # | Title | Why |
 |---|---|---|
@@ -3007,7 +3007,7 @@ outstanding. Evidence and remaining checks:
 
   So **`gtk_native_dialog_destroy()` changes nothing and the fix has been reverted.** The refcount theory proposed earlier (that `GObject.init` takes a second reference on top of the one `gtk_file_chooser_native_new` already hands over, leaving the object never finalised) is **disproven** -- if it held, an explicit destroy would have worked.
 - File chooser: the response handler is confirmed to fire normally. After the user picked a file the log shows `load /mnt/c/.../20260721 …`, `session token 2`, `frame 00:00` and `Frame ready`, so the URL came back, the file loaded and frames decoded. **Only the dialog fails to disappear**, which puts the problem in the dialog window's lifetime rather than in signal delivery, and only under Wayland. The same code is fine under XWayland.
-- Method note for next time: the way to decide whether this is even our defect is to run a non-SwiftCrossUI GTK4 app -- `gtk4-demo`'s file chooser, say -- under WSLg Wayland. If that also fails to close, the problem belongs to GTK or WSLg rather than GtkBackend; only if it closes cleanly is the backend worth investigating. Not yet done.
+- Method note: the way to decide whether this is a GtkBackend defect at all is to run a non-SwiftCrossUI GTK4 app's file chooser under WSLg Wayland. If that also fails to close, the problem belongs to GTK or WSLg rather than GtkBackend; only if it closes cleanly is the backend worth investigating. Done on 2026-08-19 with `gtk4-node-editor`, whose dialog closes: see "GTK file chooser: root cause found" below.
 - Wayland and XWayland have to be verified separately: Wayland does not let one process drive another client by design, so xdotool sees no windows at all in a default WSLg session. They are genuinely different test targets -- a bug reproduced under one is not evidence about the other, as the file chooser above demonstrates.
 - GUI automation now works on WSL: `xdotool` with `xwd`/`netpbm` can click controls and capture window contents under XWayland, without depending on the Windows session being unlocked. Coordinates must go through `xdotool mousemove --window` (window-relative); absolute coordinates are thrown off by window decorations -- measured, absolute clicks did nothing at all and the same click landed correctly once made relative. Note that `xwd` is in `x11-apps`, not `x11-utils`.
 - The WSLg window did not appear at all (resolved; the cause was COPY MODE): the report was that P6 started but clicking its taskbar icon did not bring it forward, and the window could not be seen at all. The app itself was fine -- the log had `auto-load`, `frame 00:00` and `Frame ready`, so `onAppear` had run, the window had been created and frames were decoding, and `/mnt/wslg/weston.log` showed the window registered with the RDP peer (`associateWindowId: 1`, `appWindowId: 0x10`). The cause was **WSLg being in COPY MODE**: its rendering path had degraded, so the window existed but could not be raised. `wsl --shutdown` on Windows followed by reopening WSL cleared it and the window appeared immediately.
@@ -3021,7 +3021,7 @@ outstanding. Evidence and remaining checks:
 
 #### GTK file chooser: root cause found
 
-- **The cause is the API in use, not how we use it.** Established by running a native GTK4 app with no SwiftCrossUI in it (`gtk4-node-editor`) in the same WSLg Wayland session: its file dialog **closes normally**. Comparing the symbols each actually links against, via `nm -D --undefined-only`:
+- **The cause is the API in use, not how GtkBackend uses it.** Established by running a native GTK4 app with no SwiftCrossUI in it (`gtk4-node-editor`) in the same WSLg Wayland session: its file dialog **closes normally**. Comparing the symbols each actually links against, via `nm -D --undefined-only`:
 
   | | API used | Wayland |
   |---|---|---|
@@ -3031,7 +3031,7 @@ outstanding. Evidence and remaining checks:
   Same machine, same GTK 4.22, same compositor; the API is the only difference.
 - `GtkFileChooserNative` is marked `deprecated="1"` in the GIR (`Gtk-4.0.gir`). The header carries no `GDK_DEPRECATED` macro, so checking the header alone gives the wrong answer -- the GIR is authoritative, and it is the same data `GtkCodeGen` generates the Swift bindings from.
 - The replacement, `GtkFileDialog`, has been available since **GTK 4.10** (`GDK_AVAILABLE_IN_4_10`), and the system headers carry everything needed: `open`/`open_multiple`/`save`/`select_folder` with their `_finish` counterparts, plus `set_title`, `set_initial_folder`, `set_filters` and `set_accept_label`. It is an **async API** (`GAsyncResult` callbacks) rather than the `response`-signal model the current code is built around, so migrating means rewriting the flow, not renaming calls.
-- Method note: three attempted fixes failed because each assumed we were using the API wrongly. What worked was **separating ownership** -- using a native app as a control to see whether anyone can do this in the same environment. That is cheaper than any further theory.
+- Method note: three attempted fixes failed because each assumed GtkBackend was using the API wrongly. What worked was **separating ownership** -- using a native app as a control to see whether anyone can do this in the same environment. That is cheaper than any further theory.
 
 #### Dropping GTK3
 
@@ -3183,7 +3183,7 @@ All final screenshots below were measured with PIL. Every final capture was visi
 - That settle happens on its own, within the first render and before any interaction, so it is not #160 either -- #160 is a layout that stays wrong until a state change. It is a 39px transient, not "very incorrect", and the widths never move.
 - **Which of the two is right: WinUI's. GTK is 39px short, and the 39 is a header bar.** P16 asks for `.defaultSize(width: 900, height: 600)`. Measuring `p16-gtk-headerbar-20260901-165737.png`: the GTK window surface is exactly **900x600**, there is a **39px** client-side-decoration header bar inside it, and the content area is **900x561**. 485 - 446 = 39 exactly. GTK's *first* pass is the one that honours the request; it then correctly re-lays out for a window that turned out smaller than asked for. The layout system is not at fault -- the window is.
 - Cause: `GtkBackend.createWindow` hands the requested size straight to `window.defaultSize` (GtkBackend.swift:994-997) and so to `gtk_window_set_default_size` (Sources/Gtk/Widgets/Window.swift:63), which in GTK4 sizes the **whole window including the CSD titlebar**. On Windows the title bar is non-client area -- the same app measures a 916x639 frame around a 900x600 client -- so WinUI delivers what was asked. Filed as its own task; the widths are unaffected, both backends report `total=880` = 900 - 2x10 padding.
-- What SwiftUI does here is **not verified** -- it needs a Mac, which is out of scope on this machine. The expectation to check there is that `.defaultSize` sets the *content* size, because on macOS it maps to the window's content rect and the title bar is additional, which would put SwiftUI on WinUI's side. Recorded as the thing to measure, not as a result.
+- What SwiftUI does here is **not verified** -- it needs a Mac. The expectation to check there is that `.defaultSize` sets the *content* size, because on macOS it maps to the window's content rect and the title bar is additional, which would put SwiftUI on WinUI's side. Recorded as the thing to measure, not as a result.
 - **P7 on GTK, now with content sizes:** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`, three identical lines. The sidebar figure of 200/420 that settled #556 is confirmed at the layout level.
 - **Retracting "worth a look" from the line above.** The 207-against-220 and the 140-against-77 were called anomalies before they were checked; measuring `p7-gtk-556-20260901-165945.png` explains every one of them, and none is a defect:
   - The detail text is visibly wrapped into two lines. Their ink widths are 186 and 140, so the longest laid-out line is 186; add the `VStack`'s 10px padding on each side and the child's width is 206-207. **A wrapped `Text` reports the width of its longest line, not the width it was offered**, which is also what SwiftUI does. The offer was 220 and the answer was 207 because the text broke at a word boundary.
@@ -3361,7 +3361,7 @@ All final screenshots below were measured with PIL. Every final capture was visi
   ```
 
   Two delays on purpose: one late reading cannot separate "the correction did
-  nothing" from "the correction worked and I measured too early", because both
+  nothing" from "the correction worked and the reading was taken too early", because both
   print the old number. A timing artefact would give two *different* numbers.
   The same number twice means the assignment is a no-op.
 
