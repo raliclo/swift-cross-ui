@@ -207,6 +207,15 @@ apt-get install -y --no-install-recommends xdotool x11-utils x11-apps netpbm
 # 2026-10-23 應使用者要求加入。
 apt-get install -y --no-install-recommends orca speech-dispatcher
 
+# A profiler that can name symbols. WSL's own perf (under /usr/lib/linux-tools/
+# *-microsoft-standard-WSL2) resolves none, not even libc's; Ubuntu 26.04 ships perf
+# in linux-perf, no longer in linux-tools-generic (which installed no perf at all,
+# 2026-10-23). Used for the first-frame wait of P96 under WSLg (queue.md row 27).
+# 能解出符號的效能分析器。WSL 自帶的 perf(位於 /usr/lib/linux-tools/*-microsoft-standard-WSL2)連 libc 的
+# 符號都解不出;Ubuntu 26.04 把 perf 放在 linux-perf,不再放在 linux-tools-generic(後者裝完根本沒有 perf,
+# 2026-10-23)。用於 WSLg 下 P96 第一幀的等待(queue.md 第 27 列)。
+apt-get install -y --no-install-recommends linux-perf
+
 # WebKitGTK 6.0, the engine behind GtkBackend's WebView on Linux (P38). The
 # RUNTIME package only: gtk_webkit.c loads libwebkitgtk-6.0.so.4 with dlopen, so
 # no headers are needed to build, and a machine without it still builds and

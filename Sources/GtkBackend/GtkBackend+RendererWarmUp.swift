@@ -30,10 +30,12 @@
         /// 啟動時 750 毫秒),起點移到 0.19 且沒有跳躍。成本不是新增的，只是改在內容出現之前付。程式依 GL context
         /// 保存，而 display 共用該 context,所以之後的視窗幾乎不花成本。`SCUI_GTK_WARMUP=0` 可關閉，供量測用。
         ///
-        /// Linux too since 2026-10-23. Under WSLg the NVIDIA driver behind Mesa's
-        /// d3d12 compiles every shader again in each process (perf: 17% of P96's
-        /// samples in libnvidia-gpucomp, 29% in Mesa, whose own disk cache already
-        /// holds them), and P96's first moving frame waited 870 ms for it. With
+        /// Linux too since 2026-10-23. Under WSLg Mesa's d3d12 driver and the NVIDIA driver
+        /// behind it redo their shader work in each process (perf, whole run: 29% Mesa,
+        /// 17% the NVIDIA compiler; in the wait itself 51% Mesa, 21% the NVIDIA user-mode
+        /// driver and 5% its compiler, the rest off the CPU -- Mesa's disk cache keeps
+        /// the GLSL, not the d3d12 variants it builds per draw state), and P96's first
+        /// moving frame waited 870 ms for it. With
         /// this warm-up, which now also draws a filled and a stroked path and a
         /// transformed fill, it waits about 560 ms, and P96 draws 48.3-49.0 fps in
         /// its first 3 s against 41.0-41.7 without (interleaved, two rounds).
