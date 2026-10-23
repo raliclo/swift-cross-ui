@@ -1,0 +1,466 @@
+{
+ "P0": {
+  "en": "Matches macOS apart from window chrome and scale; the @AppStorage launch count reads 24 on Windows, 12 on WSL and 8 on macOS.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；@AppStorage 的啟動次數在 Windows 上為 24，在 WSL 上為 12，在 macOS 上為 8。"
+ },
+ "P1": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P2": {
+  "en": "The warning (second) Delete button is a grey button with dim red text on Windows and WSL, but a filled red button with white text on macOS. Everything else matches.",
+  "zh": "警告樣式的（第二個）Delete 按鈕在 Windows 與 WSL 上是灰色按鈕配暗紅色文字，在 macOS 上則是填滿紅色、配白色文字的按鈕。其餘皆相同。"
+ },
+ "P3": {
+  "en": "On macOS the sidebar and middle-column lists have a dark grey background that runs to the bottom of the window. On Windows and WSL those lists are black and only the selected row is shaded.",
+  "zh": "在 macOS 上，側邊欄與中間欄的清單有深灰色背景，一路延伸到視窗底部。在 Windows 與 WSL 上，這些清單是黑色的，只有選取的列帶有底色。"
+ },
+ "P4": {
+  "en": "Rows are taller on Windows and WSL, so only Run 0-6 fit, against Run 0-8 on macOS. The text and controls are otherwise the same.",
+  "zh": "Windows 與 WSL 上的列較高，因此只放得下 Run 0-6，macOS 則為 Run 0-8。除此之外，文字與控制項皆相同。"
+ },
+ "P5": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P6": {
+  "en": "Only WSL has a screenshot; Windows and macOS have none. On WSL the video area is a plain white frame between black bars while the status line reads 'Playing 1x at 30 FPS'.",
+  "zh": "只有 WSL 有截圖；Windows 與 macOS 都沒有。在 WSL 上，影片區域是夾在黑邊之間的純白框，而狀態列顯示「Playing 1x at 30 FPS」。"
+ },
+ "P7": {
+  "en": "On macOS both lists (Plain List and the NavigationSplitView sidebar) sit on a darker filled background, which Windows and WSL lack. Windows also shows a dark highlight on the Banana row under the cursor.",
+  "zh": "在 macOS 上，兩個清單（Plain List 與 NavigationSplitView 側邊欄）都位於較深的填色背景上，Windows 與 WSL 則沒有。Windows 另外在游標下的 Banana 列顯示深色醒目提示。"
+ },
+ "P8": {
+  "en": "Windows and WSL show an extra 'backend -> GtkBackend' line that macOS lacks, and a brighter red box. At the bottom they cut 'Outer row 5' to a sliver and show a partial 11th label after H9, while macOS shows 'Outer row 5' whole.",
+  "zh": "Windows 與 WSL 多顯示一行 macOS 沒有的「backend -> GtkBackend」，紅色方框也較亮。在底部，它們把「Outer row 5」裁切到只剩一小條，並在 H9 之後顯示部分的第 11 個標籤，macOS 則完整顯示「Outer row 5」。"
+ },
+ "P9": {
+  "en": "The clipped sample text in the blue band wraps to two lines on Windows and WSL and three on macOS, and the band is a brighter cyan-blue. Otherwise it matches.",
+  "zh": "藍色帶狀區域中被裁切的範例文字，在 Windows 與 WSL 上換行成兩行，在 macOS 上為三行，且該帶狀區域是較亮的青藍色。其餘皆相同。"
+ },
+ "P10": {
+  "en": "Matches macOS apart from window chrome and scale; the orange allowsHitTesting(false) block is a brighter orange on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；橘色的 allowsHitTesting(false) 區塊在 Windows 與 WSL 上是較亮的橘色。"
+ },
+ "P11": {
+  "en": "The compact DatePicker shows the date as '21 Oct 2026' / '22 Oct 2026' on Windows and WSL but 'Oct 18, 2026' on macOS. The time differs as well (expected); the rest matches.",
+  "zh": "compact 樣式的 DatePicker 在 Windows 與 WSL 上將日期顯示為「21 Oct 2026」／「22 Oct 2026」，在 macOS 上則為「Oct 18, 2026」。時間也不同（屬預期）；其餘皆相同。"
+ },
+ "P12": {
+  "en": "Only macOS has a screenshot; Windows and WSL have none.",
+  "zh": "只有 macOS 有截圖；Windows 與 WSL 都沒有。"
+ },
+ "P13": {
+  "en": "Matches macOS apart from window chrome and scale; the red, green and blue boxes are more saturated on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；紅、綠、藍方框在 Windows 與 WSL 上飽和度較高。"
+ },
+ "P14": {
+  "en": "Only macOS has a screenshot; Windows and WSL have none.",
+  "zh": "只有 macOS 有截圖；Windows 與 WSL 都沒有。"
+ },
+ "P15": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P16": {
+  "en": "On macOS the sidebar list has a darker filled panel, and its swatches are a paler blue. On Windows and WSL the sidebar has no panel and the swatches are bright cyan.",
+  "zh": "在 macOS 上，側邊欄清單有較深的填色面板，色塊則是較淡的藍色。在 Windows 與 WSL 上，側邊欄沒有面板，色塊是亮青色。"
+ },
+ "P17": {
+  "en": "Recaptured on macOS on 2026-10-23: the size labels are black on white and the Picker is a full-width drop-down (373x24), as on Windows and WSL; the old capture predated 6f4f94a2. The subject text wraps instead of being cut. The reported sizes still differ: Windows and WSL 153x54, 326x18, 136x140 against macOS 150x48, 351x16, 145x140.",
+  "zh": "已於 2026-10-23 在 macOS 上重新擷取：尺寸標籤為白底黑字，Picker 為全寬下拉選單（373x24），與 Windows 和 WSL 相同；舊的擷取早於 6f4f94a2。受測文字改為換行，不再被截斷。回報的尺寸仍有差異：Windows 與 WSL 為 153x54、326x18、136x140，macOS 則為 150x48、351x16、145x140。"
+ },
+ "P18": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P19": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P20": {
+  "en": "Windows and WSL show an in-window menu bar with a 'P20' item above the content, which the macOS window does not have. The rest matches.",
+  "zh": "Windows 與 WSL 在內容上方顯示一條視窗內的選單列，其中有「P20」項目，macOS 視窗則沒有。其餘皆相同。"
+ },
+ "P21": {
+  "en": "Windows and WSL cut the window off at the 'Slider step' slider, while macOS also shows a second, disabled step slider below it. The controls shown otherwise match.",
+  "zh": "Windows 與 WSL 的視窗在「Slider step」滑桿處就被截斷，macOS 則還在其下方顯示第二個已停用的 step 滑桿。除此之外，顯示出的控制項皆相同。"
+ },
+ "P22": {
+  "en": "The 300pt wrapping sample breaks into two lines on Windows and WSL and three on macOS. Windows and WSL cut the window off at the first Weights row, while macOS shows ultraLight, thin and light.",
+  "zh": "300pt 的換行範例在 Windows 與 WSL 上斷成兩行，在 macOS 上為三行。Windows 與 WSL 的視窗在第一個 Weights 列就被截斷，macOS 則顯示 ultraLight、thin 與 light。"
+ },
+ "P23": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P24": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P25": {
+  "en": "Matches macOS apart from window chrome and scale; the drop-zone green is brighter on Windows and WSL than on macOS.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；拖放區的綠色在 Windows 與 WSL 上比 macOS 亮。"
+ },
+ "P26": {
+  "en": "Matches macOS apart from window chrome and scale; macOS truncates 'use AsyncImage' to 'use Asyncl...' in the note column, while Windows and WSL show it in full.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；macOS 在備註欄中將「use AsyncImage」截斷為「use Asyncl...」，Windows 與 WSL 則完整顯示。"
+ },
+ "P27": {
+  "en": "On Windows and WSL the Angular and Sweep reversed gradients have a different colour layout from macOS: the colours sit in different directions, and the sweep is on the right half instead of the left. The WebView has a scrollbar with arrow buttons on Windows and no visible scrollbar on WSL.",
+  "zh": "在 Windows 與 WSL 上，Angular 與 Sweep reversed 漸層的色彩配置與 macOS 不同：顏色朝向不同的方向，且 sweep 位於右半邊而非左半邊。WebView 在 Windows 上有帶箭頭按鈕的捲軸，在 WSL 上則看不到捲軸。"
+ },
+ "P28": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P29": {
+  "en": "Matches macOS apart from window chrome and scale; the orange rounded rectangle is a brighter orange on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；橘色圓角矩形在 Windows 與 WSL 上是較亮的橘色。"
+ },
+ "P30": {
+  "en": "On Windows and WSL every angular-gradient tile has a different colour arrangement from macOS (blue/magenta top, yellow bottom, versus macOS red left, yellow top). Layout, blur, grayscale and rotate all match.",
+  "zh": "在 Windows 與 WSL 上，每個角度漸層圖塊的色彩排列都與 macOS 不同（藍／洋紅在上、黃在下；macOS 則是紅在左、黃在上）。版面配置、模糊、灰階與旋轉皆相同。"
+ },
+ "P31": {
+  "en": "Matches macOS apart from window chrome and scale; the 'Missing APIs' footer fits on one line on Windows and WSL but wraps to two on macOS.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；「Missing APIs」頁尾在 Windows 與 WSL 上可容納於一行，在 macOS 上則換行成兩行。"
+ },
+ "P32": {
+  "en": "The footer text differs. Windows and WSL show 'In use: accessibilityLabel and accessibilityHint on the empty button, ...', while macOS shows 'Missing APIs: accessibilityLabel, accessibilityHint, ...'.",
+  "zh": "頁尾文字不同。Windows 與 WSL 顯示「In use: accessibilityLabel and accessibilityHint on the empty button, ...」，macOS 則顯示「Missing APIs: accessibilityLabel, accessibilityHint, ...」。"
+ },
+ "P33": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P34": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P35": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P36": {
+  "en": "Matches macOS apart from window chrome and scale; the padding swatches use more saturated magenta, green and orange on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；padding 色塊在 Windows 與 WSL 上使用飽和度較高的洋紅、綠與橘色。"
+ },
+ "P37": {
+  "en": "Matches macOS apart from window chrome and scale; the Traditional Chinese lines use a different CJK font on Windows and WSL, and WSL places the full-width punctuation differently.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；繁體中文各行在 Windows 與 WSL 上使用不同的 CJK 字型，且 WSL 的全形標點位置不同。"
+ },
+ "P38": {
+  "en": "Matches macOS apart from window chrome and scale. Windows shows a WebView scrollbar with arrow buttons and WSL shows no scrollbar, while macOS has a plain scrollbar.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。Windows 顯示帶箭頭按鈕的 WebView 捲軸，WSL 不顯示捲軸，macOS 則是一般的捲軸。"
+ },
+ "P39": {
+  "en": "Windows matches macOS. On WSL every gradient tile is rotated roughly 180 degrees (blue/magenta top, yellow bottom), and the hueRotation tile shows magenta on the left and green on the right instead of green left, magenta right.",
+  "zh": "Windows 與 macOS 相同。在 WSL 上，每個漸層圖塊都旋轉了約 180 度（藍／洋紅在上、黃在下），且 hueRotation 圖塊左側為洋紅、右側為綠色，而非左綠右洋紅。"
+ },
+ "P40": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P41": {
+  "en": "Windows and WSL show 12 cells in three columns, including .wheel lists, analog .clock faces and .rows steppers; macOS shows 6 cells in two columns and the text '.wheel is unavailable on macOS'; dates read '24 Aug 2025', not 'Aug 24, 2025', and the .wheel date+time steppers are tall empty boxes.",
+  "zh": "Windows 與 WSL 以三欄顯示 12 格，包括 .wheel 清單、類比 .clock 錶面與 .rows 步進器；macOS 以兩欄顯示 6 格，並顯示文字「.wheel is unavailable on macOS」；日期顯示為「24 Aug 2025」而非「Aug 24, 2025」，且 .wheel 的日期＋時間步進器是高而空白的方框。"
+ },
+ "P42": {
+  "en": "The scale readout differs: macOS 'current: 2.0, changes observed: 1, 1.0 x2 -> 2.0 x4'; Windows 'current: 1.25, changes 1, 1.0 x4 -> 1.25 x2'; WSL 'current: 1.0, changes observed: 0, 1.0 x6'. The Chinese line uses a different CJK font on Windows and WSL.",
+  "zh": "縮放比例讀數不同：macOS 為「current: 2.0, changes observed: 1, 1.0 x2 -> 2.0 x4」；Windows 為「current: 1.25, changes 1, 1.0 x4 -> 1.25 x2」；WSL 為「current: 1.0, changes observed: 0, 1.0 x6」。中文那一行在 Windows 與 WSL 上使用不同的 CJK 字型。"
+ },
+ "P43": {
+  "en": "Matches macOS apart from window chrome and scale; colours are more saturated on Windows and WSL, especially the green circle, and the CJK line uses a different font.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 與 WSL 上的顏色飽和度較高，尤其是綠色圓形，且 CJK 那一行使用不同的字型。"
+ },
+ "P44": {
+  "en": "Matches macOS apart from window chrome and scale; all three cells clip identically and the Chinese text renders on both.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；三個格子的裁切方式完全相同，且中文文字在兩者上都能顯示。"
+ },
+ "P45": {
+  "en": "The toggle buttons end in a ballot mark (✗) on Windows and WSL instead of a plain multiplication sign (✕) on macOS. The final Chinese paragraph is cut to one line ending in '...', while macOS shows it in full on two lines.",
+  "zh": "切換按鈕在 Windows 與 WSL 上以投票叉號（✗）結尾，而非 macOS 上的一般乘號（✕）。最後一段中文被截成一行並以「...」結尾，macOS 則以兩行完整顯示。"
+ },
+ "P46": {
+  "en": "Matches macOS apart from window chrome and scale; less of the LazyVStack section is visible at the bottom on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；在 Windows 與 WSL 上，底部可見的 LazyVStack 區段較少。"
+ },
+ "P47": {
+  "en": "Windows and WSL draw filled Adwaita-style icons instead of the macOS outline symbols, and several show a different picture. delete and clear are circled or boxed X marks, info is a light bulb, help is a page, map is a crosshair, zoomIn is a plus in a box, and sort is a list.",
+  "zh": "Windows 與 WSL 繪製的是填滿的 Adwaita 風格圖示，而非 macOS 的線框符號，且其中數個顯示的是不同的圖案。delete 與 clear 是圓圈或方框中的 X 記號，info 是燈泡，help 是一張頁面，map 是十字準星，zoomIn 是方框中的加號，sort 則是清單。"
+ },
+ "P48": {
+  "en": "Matches macOS apart from window chrome and scale; the '4. ColorPicker' heading visible at the bottom on macOS is below the fold on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；macOS 底部可見的「4. ColorPicker」標題，在 Windows 與 WSL 上則位於可視範圍之外。"
+ },
+ "P49": {
+  "en": "Windows and WSL show an extra counter: the first status line reads 'cover opens: 0, dismissals: 0, sheet dismissals: 0', while macOS lacks 'sheet dismissals'.",
+  "zh": "Windows 與 WSL 多顯示一個計數器：第一行狀態文字為「cover opens: 0, dismissals: 0, sheet dismissals: 0」，macOS 則沒有「sheet dismissals」。"
+ },
+ "P50": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P51": {
+  "en": "Windows and WSL keep the ControlGroup heading on one line where macOS wraps it, and the Grid cell borders are magenta rather than violet. Both windows show less of section 6 at the bottom.",
+  "zh": "Windows 與 WSL 將 ControlGroup 標題保持在一行，macOS 則會換行，且 Grid 儲存格邊框是洋紅色而非紫羅蘭色。這兩個視窗底部顯示的第 6 區段都較少。"
+ },
+ "P52": {
+  "en": "On Windows and WSL the primitive-arm button grid is wider and runs past the left edge of the window, so the first column is cut off. On macOS the grid sits fully inside with a margin.",
+  "zh": "在 Windows 與 WSL 上，primitive-arm 按鈕網格較寬，並超出視窗左緣，因此第一欄被切掉。在 macOS 上，網格完整位於視窗內並留有邊距。"
+ },
+ "P53": {
+  "en": "The info toolbar button shows a light bulb and the trash button shows a circled X on Windows and WSL, instead of a circled i and a trash can on macOS. All three toolbar buttons are smaller than on macOS.",
+  "zh": "在 Windows 與 WSL 上，info 工具列按鈕顯示燈泡，trash 按鈕顯示圓圈中的 X，而非 macOS 上的圓圈 i 與垃圾桶。三個工具列按鈕都比 macOS 上的小。"
+ },
+ "P54": {
+  "en": "Matches macOS apart from window chrome and scale; the floating Refresh button covers the 'P54: r' title on all three, but it is more opaque on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；浮動的 Refresh 按鈕在三者上都蓋住了「P54: r」標題，但在 Windows 與 WSL 上較不透明。"
+ },
+ "P55": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P56": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P57": {
+  "en": "Resident memory reads 286 MB on Windows and 313 MB on WSL against 148 MB on macOS (first render 0.008/0.006 s vs 0.004 s). On Windows and WSL the list rows have no darker panel behind them, unlike the dark list box on macOS.",
+  "zh": "常駐記憶體在 Windows 為 286 MB、在 WSL 為 313 MB，macOS 則為 148 MB（首次繪製 0.008/0.006 s 對 0.004 s）。在 Windows 與 WSL 上，清單列後方沒有較深色的面板，不像 macOS 上有深色的清單框。"
+ },
+ "P58": {
+  "en": "Windows shows a framed vertical scrollbar to the right of the R column, which macOS and WSL do not show. Otherwise both match macOS apart from window chrome and scale.",
+  "zh": "Windows 在 R 欄右側顯示一條帶外框的垂直捲軸，macOS 與 WSL 都沒有。其餘部分，兩者除了視窗外框與縮放比例之外皆與 macOS 相同。"
+ },
+ "P59": {
+  "en": "On macOS the Chinese expectation paragraph is cut off with an ellipsis after two lines; Windows and WSL show it in full on three lines. Otherwise matches.",
+  "zh": "在 macOS 上，中文的預期說明段落在兩行後以省略號截斷；Windows 與 WSL 則以三行完整顯示。其餘相同。"
+ },
+ "P60": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P61": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P62": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P63": {
+  "en": "The reported coordinates differ: macOS shows global x=90 y=294 and named box y=46, Windows global x=93 y=300 and named y=48, WSL global x=94 y=300 and named y=48. The layout otherwise matches, including the faint text in the light box.",
+  "zh": "回報的座標不同：macOS 顯示 global x=90 y=294、named box y=46，Windows 為 global x=93 y=300、named y=48，WSL 為 global x=94 y=300、named y=48。除此之外版面相同，包括淺色框中的淡色文字。"
+ },
+ "P64": {
+  "en": "The frame-clock line differs a lot: macOS 57.9 Hz (gaps 16.3-50.0 ms), Windows 67.6 Hz (gap min 0.0 ms, max 398.7 ms), WSL 28.7 Hz with only 54 ticks (max gap 998.5 ms). Layout matches.",
+  "zh": "frame-clock 那一行差異很大：macOS 57.9 Hz（間隔 16.3-50.0 ms），Windows 67.6 Hz（間隔最小 0.0 ms、最大 398.7 ms），WSL 28.7 Hz 且只有 54 個 tick（最大間隔 998.5 ms）。版面相同。"
+ },
+ "P65": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P66": {
+  "en": "The animation sample count is much lower off macOS: 29 samples over 0.57 s on macOS, 9 over 0.61 s on Windows and 2 over 1.16 s on WSL. All three report monotonic yes; layout matches.",
+  "zh": "在 macOS 以外，動畫取樣數少得多：macOS 在 0.57 s 內有 29 個取樣，Windows 在 0.61 s 內有 9 個，WSL 在 1.16 s 內只有 2 個。三者都回報 monotonic yes；版面相同。"
+ },
+ "P67": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P68": {
+  "en": "Windows and WSL list 2 adapters (AMD Radeon Graphics [low power] and NVIDIA GeForce RTX 4060 Laptop GPU, in opposite order) where macOS lists 1 (Apple M6). Layout matches.",
+  "zh": "Windows 與 WSL 列出 2 個介面卡（AMD Radeon Graphics [low power] 與 NVIDIA GeForce RTX 4060 Laptop GPU，順序相反），macOS 則列出 1 個（Apple M6）。版面相同。"
+ },
+ "P69": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P70": {
+  "en": "Matches macOS apart from window chrome and scale. All three open at 560x640 and show both Expected paragraphs in full (macOS recaptured at 37cafb49 on 2026-10-23, with some empty space at the top and bottom).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。三者皆以 560x640 開啟，並完整顯示兩段 Expected 段落（macOS 於 2026-10-23 在 37cafb49 重新截圖，上下各留有些許空白）。"
+ },
+ "P71": {
+  "en": "Windows and WSL show an in-window menu bar with a 'P71' item below the header bar. On macOS GTK uses the screen-top menu bar, as AppKit does, so the window capture cannot show it; there it holds the app menu, File, Edit, View, P71, Window and Help, with the standard items added by 213d9c4e (2026-10-23). Content and counters match.",
+  "zh": "Windows 與 WSL 在標題列下方顯示視窗內選單列，其中有一個「P71」項目。在 macOS 上，GTK 與 AppKit 一樣使用螢幕頂端的選單列，因此視窗截圖拍不到；那裡包含應用程式選單、File、Edit、View、P71、Window 與 Help，標準項目由 213d9c4e（2026-10-23）加入。內容與計數器相同。"
+ },
+ "P72": {
+  "en": "Windows shows frames drawn 85 against clock ticks 282, where macOS has 282/283; its cube also has a grey side face. On WSL the cube's top face is purple, not yellow, and the long renderer line wraps onto two lines.",
+  "zh": "Windows 顯示 frames drawn 85 對 clock ticks 282，macOS 則為 282/283；其立方體還有一個灰色側面。在 WSL 上，立方體頂面是紫色而非黃色，且較長的 renderer 那一行折成兩行。"
+ },
+ "P73": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P74": {
+  "en": "On WSL the selected 'Red' in the disabled radio group is a bright blue dot and looks barely dimmed; macOS and Windows show it greyed. Otherwise matches.",
+  "zh": "在 WSL 上，停用的選項按鈕群組中被選取的「Red」是一個亮藍色圓點，看起來幾乎沒有變暗；macOS 與 Windows 則顯示為灰色。其餘相同。"
+ },
+ "P75": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P76": {
+  "en": "Matches macOS apart from window chrome and scale; the helix looks brighter cyan and the point dots slightly larger on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；在 Windows 與 WSL 上，螺旋線看起來是較亮的青色，點也略大。"
+ },
+ "P77": {
+  "en": "Matches macOS apart from window chrome and scale; the gradient is slightly more saturated on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；在 Windows 與 WSL 上，漸層的飽和度略高。"
+ },
+ "P78": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P79": {
+  "en": "Windows and WSL are missing the line 'Android only: UIKit and AppKit have dismantleUIView / dismantleNSView.' that macOS shows under the buttons. Everything else matches.",
+  "zh": "Windows 與 WSL 少了 macOS 在按鈕下方顯示的那一行「Android only: UIKit and AppKit have dismantleUIView / dismantleNSView.」。其餘皆相同。"
+ },
+ "P80": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P81": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P82": {
+  "en": "All three draw the destructive labels in a bright system red on the ordinary bezel, as AppKit does, with the disabled one dimmed and 'blue set' blue (macOS recaptured at 37cafb49 on 2026-10-23).",
+  "zh": "三者都和 AppKit 一樣，在一般的按鈕外框上以鮮豔的系統紅色繪製 destructive 標籤，其中停用的那個變暗，「blue set」為藍色（macOS 於 2026-10-23 在 37cafb49 重新截圖）。"
+ },
+ "P83": {
+  "en": "On macOS both lists sit on darker panels; on Windows and WSL the list backgrounds are the same colour as the window. Windows also shows a black hover highlight on 'Sent' in the sidebar list.",
+  "zh": "在 macOS 上，兩個清單都位於較深色的面板上；在 Windows 與 WSL 上，清單背景與視窗同色。Windows 另外在側邊欄清單的「Sent」上顯示黑色的滑鼠懸停醒目提示。"
+ },
+ "P84": {
+  "en": "Matches macOS apart from window chrome and scale; raster timings are slower (Windows 2.5/8.8 ms, WSL 2.5/11.6 ms, macOS 1.3/3.3 ms).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；點陣化耗時較長（Windows 2.5/8.8 ms，WSL 2.5/11.6 ms，macOS 1.3/3.3 ms）。"
+ },
+ "P85": {
+  "en": "Inside the SVG the font faces differ: Windows draws 'mono' in a light Courier-like face and a different serif, while WSL uses DejaVu-style faces throughout. Line 6 is a brighter red on both; all nine items are present and positioned as on macOS.",
+  "zh": "SVG 內的字型不同：Windows 以類似 Courier 的細體字型繪製「mono」，襯線字型也不一樣，而 WSL 全部使用 DejaVu 風格的字型。第 6 行在兩者上都是較亮的紅色；九個項目皆在，位置也與 macOS 相同。"
+ },
+ "P86": {
+  "en": "Matches macOS apart from window chrome and scale; on Windows and WSL the left square is a pure saturated red where macOS shows a slightly orange red.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；在 Windows 與 WSL 上，左側方塊是純粹飽和的紅色，macOS 則顯示略帶橘色的紅。"
+ },
+ "P87": {
+  "en": "Matches macOS apart from window chrome and scale; all nine SVG samples render on Windows and WSL, with reds slightly more saturated than on macOS.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；九個 SVG 範例在 Windows 與 WSL 上都能繪製，紅色比 macOS 略為飽和。"
+ },
+ "P88": {
+  "en": "WSL matches macOS (blue panel, 'pointer: not yet', 0 hover reports). Windows shows the hover panel orange with 'pointer: x=284 y=201', 'last active' set and 'hover reports: 2' because the pointer sat over it.",
+  "zh": "WSL 與 macOS 相同（藍色面板、「pointer: not yet」、0 次 hover 回報）。Windows 的 hover 面板則為橘色，並顯示「pointer: x=284 y=201」、已設定「last active」以及「hover reports: 2」，因為指標停在它上方。"
+ },
+ "P89": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P90": {
+  "en": "Windows and WSL replace the macOS wheels with year/month/day lists (year column first, blue selected row) and hour/minute as -/+ spin buttons with an AM dropdown; in the combined row the spin buttons are tall boxes and the lists are cut off mid-row.",
+  "zh": "Windows 與 WSL 以年/月/日清單（年份欄在最前、選取列為藍色）取代 macOS 的滾輪，時/分則改為 -/+ 微調按鈕並附 AM 下拉選單；在合併的那一列中，微調按鈕是高大的方框，清單則在列的中間被截斷。"
+ },
+ "P91": {
+  "en": "Matches macOS apart from window chrome and scale; WSL draws a more visible rounded focus ring around the blue A box.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；WSL 在藍色 A 方框周圍繪製較明顯的圓角焦點框。"
+ },
+ "P92": {
+  "en": "Windows and WSL draw an in-window menu bar (app, File, Edit, Format, View, Window, Help); on macOS the same menus are in the screen-top menu bar, as with AppKit. Since 213d9c4e (2026-10-23) they carry the standard items there too (About, Hide, Quit, Close, Undo and the rest); before it the macOS app menu held only the AFTER items. The app menu is named P92-gtk4.exe on Windows, P92 on WSL and debugTarget on macOS, where the harness runs every app from one debugTarget.app bundle (AppKit shows the same name). The macOS layout listing runs on past the window's bottom.",
+  "zh": "Windows 與 WSL 繪製視窗內選單列（app、File、Edit、Format、View、Window、Help）；在 macOS 上，同樣的選單和 AppKit 一樣位於螢幕頂端的選單列。自 213d9c4e（2026-10-23）起，那裡的選單也帶有標準項目（About、Hide、Quit、Close、Undo 等）；在此之前，macOS 的應用程式選單只有 AFTER 項目。應用程式選單在 Windows 上名為 P92-gtk4.exe，在 WSL 上為 P92，在 macOS 上為 debugTarget，因為在 macOS 上測試框架從同一個 debugTarget.app bundle 執行所有 app（AppKit 也顯示同樣的名稱）。macOS 的版面列表延伸超出視窗底部。"
+ },
+ "P93": {
+  "en": "Matches macOS apart from window chrome and scale; Windows and WSL show no in-window menu bar.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 與 WSL 不顯示視窗內選單列。"
+ },
+ "P94": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P95": {
+  "en": "Matches macOS apart from window chrome and scale; the cyan and red fills are slightly more saturated on Windows and WSL.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；在 Windows 與 WSL 上，青色與紅色填色略為飽和。"
+ },
+ "P96": {
+  "en": "On Windows the red progress markers sit at each tile's right edge, off the curves; WSL markers are on the curves like macOS. The stats line differs: back.out distinct 3, final 1.0911 (Windows) and 1.0410 (WSL), against distinct 26, final 1.0000 on macOS.",
+  "zh": "在 Windows 上，紅色進度標記位於每個圖塊的右緣，偏離曲線；WSL 的標記則和 macOS 一樣落在曲線上。統計那一行不同：back.out distinct 3，final 1.0911（Windows）與 1.0410（WSL），macOS 則為 distinct 26、final 1.0000。"
+ },
+ "P97": {
+  "en": "Layout matches, but timing readouts differ: WSL reports jumps 1-2 on most rows where macOS has 0, and starts delay rows at 1.20 vs 0.58. Windows matches macOS jumps except speed(2), which shows jumps 1.",
+  "zh": "版面相同，但計時讀數不同：WSL 在大多數列上回報 jumps 1-2，macOS 則為 0，且 delay 列起始於 1.20，macOS 為 0.58。Windows 的 jumps 與 macOS 相同，唯有 speed(2) 顯示 jumps 1。"
+ },
+ "P98": {
+  "en": "Bars and stagger squares match, but Windows and WSL both report 'stagger order: 0 1 2 3 4 5 6 7' where macOS reports '3 4 2 5 1 6 0 7'.",
+  "zh": "長條與交錯方塊相同，但 Windows 與 WSL 都回報「stagger order: 0 1 2 3 4 5 6 7」，macOS 則回報「3 4 2 5 1 6 0 7」。"
+ },
+ "P99": {
+  "en": "Matches macOS apart from window chrome and scale; the recorded times differ slightly (PLAY ENDED at 1.62/1.63 vs 1.52).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；記錄的時間略有不同（PLAY ENDED 在 1.62/1.63，macOS 為 1.52）。"
+ },
+ "P100": {
+  "en": "Layout matches, but the Windows and WSL log has no TAB MID/TAB DONE lines, HERO MID adds thumbnail and fade-opacity fields, and REVERSE MID's target is (200.0, 160.0) where macOS has (200.0, 124.0).",
+  "zh": "版面相同，但 Windows 與 WSL 的記錄沒有 TAB MID/TAB DONE 行，HERO MID 多了 thumbnail 與 fade-opacity 欄位，且 REVERSE MID 的目標為 (200.0, 160.0)，macOS 則為 (200.0, 124.0)。"
+ },
+ "P101": {
+  "en": "Matches macOS apart from window chrome and scale; Windows and WSL rows show visible colour steps between Row 1 to Row 5 where macOS shows a smooth gradient.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 與 WSL 的 Row 1 到 Row 5 之間可看出明顯的色階，macOS 則是平滑的漸層。"
+ },
+ "P102": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P103": {
+  "en": "WSL renders every emoji (Noto style). Windows shows tofu boxes with hex codes for the parking P (01F17F), the airplane (2708) and the heart (2764), in both the Places list and the picker grid.",
+  "zh": "WSL 能繪製所有 emoji（Noto 風格）。Windows 對停車 P（01F17F）、飛機（2708）與愛心（2764）顯示帶十六進位碼的豆腐框，在 Places 清單與選擇器網格中皆是如此。"
+ },
+ "P104": {
+  "en": "Matches macOS apart from window chrome and scale; Windows counters differ (30 width frames vs 48, VALUE DONE err 1.23 pt over 139 frames vs 0.89 over 60).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 的計數器不同（width 影格 30 個對 48 個；VALUE DONE err 為 1.23 pt、歷時 139 個影格，對 0.89、60 個影格）。"
+ },
+ "P105": {
+  "en": "No macOS screenshot. WSL shows an extra 'no .transition (default fade)' row with orange, green and blue blocks that Windows lacks; frame counts differ (Windows 144/142, WSL 63/61).",
+  "zh": "沒有 macOS 截圖。WSL 多了一列「no .transition (default fade)」，含橘、綠、藍色方塊，Windows 則沒有；影格數不同（Windows 144/142，WSL 63/61）。"
+ },
+ "P106": {
+  "en": "No macOS screenshot. Windows and WSL match each other; the 'PhaseAnimator([0, 1]) cycling' area is empty on both.",
+  "zh": "沒有 macOS 截圖。Windows 與 WSL 彼此相同；兩者的「PhaseAnimator([0, 1]) cycling」區域都是空的。"
+ },
+ "P107": {
+  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (288 vs 121) and the square's position along the track.",
+  "zh": "沒有 macOS 截圖。除了影格數（288 對 121）與方塊在軌道上的位置之外，Windows 與 WSL 彼此相同。"
+ },
+ "P108": {
+  "en": "No macOS screenshot. Windows shows the blue block near the right end of the track while WSL shows it at the left; both read offset (0.0, 0.0), and Windows reports 144 frames/s vs 60 on WSL.",
+  "zh": "沒有 macOS 截圖。Windows 的藍色方塊靠近軌道右端，WSL 則位於左端；兩者讀數皆為 offset (0.0, 0.0)，Windows 回報每秒 144 個影格，WSL 為 60。"
+ },
+ "P109": {
+  "en": "No macOS screenshot. The angular gradient (third square) is rotated 180 degrees between them: Windows has red lower-left and blue upper-left, WSL red upper-right and blue lower-right.",
+  "zh": "沒有 macOS 截圖。兩者的角度漸層（第三個方塊）相差 180 度：Windows 紅色在左下、藍色在左上，WSL 紅色在右上、藍色在右下。"
+ },
+ "P110": {
+  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (about 109 vs 48).",
+  "zh": "沒有 macOS 截圖。除了影格數（約 109 對 48）之外，Windows 與 WSL 彼此相同。"
+ },
+ "P111": {
+  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (245 vs 103).",
+  "zh": "沒有 macOS 截圖。除了影格數（245 對 103）之外，Windows 與 WSL 彼此相同。"
+ },
+ "P112": {
+  "en": "No macOS screenshot. Windows and WSL match each other.",
+  "zh": "沒有 macOS 截圖。Windows 與 WSL 彼此相同。"
+ },
+ "P6-v2": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P15-DARK": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ },
+ "P17-DOE": {
+  "en": "Matches macOS apart from window chrome and scale.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。"
+ }
+}

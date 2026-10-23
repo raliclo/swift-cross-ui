@@ -18,6 +18,10 @@
 # of the note under the app id. No such row is "unrecorded": nobody has put
 # the two side by side and said whether they match. A side whose run left no
 # screenshot shows the exit status instead of an image.
+# The zh-TW translation of the note, from macos-pairs-notes.zh-TW.json, sits
+# under the screenshots (deck_zh.zsh); one whose English has changed is left out
+# and named on stderr. The last slide lists the apps missing a screenshot: a side
+# that left none, or a testapp/ source never captured.
 #
 # 產生 GTK / macOS 對照簡報：每支測試 app 一頁，左邊 AppKitBackend、右邊 GtkBackend,兩者都由 capture_macos.zsh
 # 在這台 Mac 上靜止時擷取。頁面與 2026-10-12 發布的 iOS / Android 簡報相同(reveal.js、Grid 索引、號碼框),
@@ -25,17 +29,21 @@
 # 每頁的標籤與 iOS / Android 的一樣來自 results.csv2:該 app 最新一筆 mac,gtk4、備註以「GTK/macOS comparison:」開頭
 # 的紀錄——冒號後是 aligned 或 noted,其餘備註顯示在 app 編號旁。沒有這種紀錄就是 unrecorded:還沒有人把兩者
 # 並排看過並說出是否一致。某一邊的執行沒有留下擷圖時，顯示結束狀態而不是影像。
+# 說明的 zh-TW 翻譯在 macos-pairs-notes.zh-TW.json,顯示在截圖下方(deck_zh.zsh);英文改過的就不顯示，並列在 stderr。
+# 最後一頁列出缺少截圖的 app:某一邊沒有擷圖，或 testapp/ 有原始檔卻從未擷取。
 
 emulate -L zsh
 setopt pipe_fail
 here=${0:A:h}
 repo=${here:h:h:h}
+source $here/deck_zh.zsh
 out=${1:?usage: build_deck.zsh OUTDIR}
 mkdir -p $out/img
 mac_tsv=$out/mac-gtk.tsv
 : > $mac_tsv
 pairs=$repo/testapp/output/macos-pairs.csv2
 results=$repo/matrix_coverage/results.csv2
+zh_load $here/macos-pairs-notes.zh-TW.json
 
 html_escape() {
     local s=$1
@@ -127,14 +135,27 @@ figure() {
         print -r -- "<section data-app=\"$app\">"
         print -r -- "<header><h2>$app</h2><span class=\"chip $c\">$c</span><p class=\"note\">$(html_escape "${note[$app]}")</p></header>"
         print -r -- '<div class="pair">'
-        figure $app appkit macos macOS AppKitBackend
-        figure $app gtk4 gtk GTK 'GtkBackend on macOS'
-        print -r -- '</div></section>'
+        body=$(
+            figure $app appkit macos macOS AppKitBackend
+            figure $app gtk4 gtk GTK 'GtkBackend on macOS'
+        )
+        print -r -- $body
+        todo_collect $app "$body"
+        print -r -- '</div>'
+        zh_line $app "${note[$app]:-}" '中文說明'
+        print -r -- '</section>'
     done
+    # Apps with a source in testapp/ and no capture at all.
+    # testapp/ 有原始檔卻完全沒有擷取的 app。
+    for src in ${(f)"$(print -rl -- $repo/testapp/P*.swift(N:t:r) | sort -t P -k2,2n -k2,2)"}; do
+        (( ${apps[(Ie)$src]} )) || todo_uncaptured $src 'AppKit and GTK'
+    done
+    todo_section
     tail=$(<$here/template-tail.html)
     tail=${tail//@@SLIDE_W@@/1180}
-    tail=${tail//@@SLIDE_H@@/1060}
+    tail=${tail//@@SLIDE_H@@/1200}
     tail=${tail//@@TILE_SIDE@@/macos}
     print -r -- $tail
 } > $out/index.html
 print -r -- "$out/index.html: $#apps apps"
+zh_report

@@ -74,17 +74,31 @@ body { color: var(--ink); font-family: var(--sans); }
   background: transparent; border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); font: 600 15px var(--mono); }
 #tiles .wrap img { width: 100%; height: auto; aspect-ratio: @@TILE_RATIO@@; object-fit: cover; object-position: top; background: var(--plate); display: block; }
 #tiles button:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
-/* Zoom: − 100% + beside Grid scale the captures of the page on screen; a long press turns the pointer into a hand that drags them. */
+/* Zoom: − 100% + beside Grid scale the page on screen; a long press turns the pointer into a hand that drags it. */
 #jump { flex-wrap: wrap; max-width: calc(100vw - 160px); }
+#jump button { touch-action: manipulation; }
 #jump .zoom { display: flex; gap: 4px; }
 #jump .zoom button { min-width: 2.4em; }
 #zoom-reset { min-width: 4.2em; }
-.stage { overflow: hidden; position: relative; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.stage .pair { transform-origin: 50% 0; will-change: transform; }
-.stage img { -webkit-user-drag: none; }
-.stage.zoomed { touch-action: none; }
-.stage.grab, .stage.grab * { cursor: grab !important; }
-.stage.grabbing, .stage.grabbing * { cursor: grabbing !important; }
+.reveal .slides > section { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.reveal .slides > section img { -webkit-user-drag: none; }
+.reveal .slides > section.zoomed { touch-action: none; will-change: transform; }
+.reveal .slides > section.grab, .reveal .slides > section.grab * { cursor: grab !important; }
+.reveal .slides > section.grabbing, .reveal .slides > section.grabbing * { cursor: grabbing !important; }
+/* zh-TW: a line under each note (deck_zh.zsh). Notes show three lines; a tap on one shows all of it, another folds it. */
+.zh, .cmp.zh b { font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", var(--sans); }
+.cmp { -webkit-line-clamp: 3; cursor: pointer; }
+.cmp.zh { margin-top: 6px; }
+.cmp.zh b { font-size: 17px; letter-spacing: 0; text-transform: none; }
+.note { cursor: pointer; }
+.note.open, .cmp.open { -webkit-line-clamp: unset; display: block; overflow: visible; position: relative; z-index: 3; background: var(--bench); }
+/* The last page: apps with a screenshot missing. */
+.todo { padding: 60px 60px 0; }
+.todo > .zh { font-size: 34px; color: var(--muted); margin: -16px 0 30px; }
+.todo ul { columns: 2; column-gap: 56px; margin: 0; padding-left: 1.1em; font-size: 24px; line-height: 1.35; color: var(--muted); }
+.todo li { break-inside: avoid; margin-bottom: 14px; }
+.todo li b { color: var(--ink); font-family: var(--mono); margin-right: 8px; }
+.todo li .zh { display: block; font-size: 22px; margin-top: 2px; }
 </style>
 
 <div class="reveal"><div class="slides">

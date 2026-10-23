@@ -1,0 +1,390 @@
+{
+ "P0": {
+  "en": "aligned; GTK uses a light theme where AppKit is dark, plus Adwaita buttons. The launch counts differ (\"3\" vs \"4\") only because the two runs happened one after the other.",
+  "zh": "一致；GTK 使用淺色主題，AppKit 則為深色，另有 Adwaita 按鈕。啟動次數不同（「3」對「4」）只是因為兩次執行是先後進行的。"
+ },
+ "P1": {
+  "en": "aligned; GTK light theme and Adwaita buttons are platform chrome.",
+  "zh": "一致；GTK 淺色主題與 Adwaita 按鈕屬於平台外觀。"
+ },
+ "P2": {
+  "en": "aligned -- AppKit now draws every caption GTK does (Selected/Expected lines, TextEditor border check); the earlier missing lines were Text proposed zero height coming back 1 pt tall (queue 17).",
+  "zh": "一致——AppKit 現在會繪出 GTK 所繪的每一則說明文字（Selected/Expected 行、TextEditor 邊框檢查）；先前缺少的行，是因為 Text 在被提議零高度時回傳了 1 pt 的高度（queue 17）。"
+ },
+ "P3": {
+  "en": "noted -- GTK draws the column headings, \"Expected:\" lines and \"Tick: off\" in dark grey on the black background, which is almost unreadable; AppKit draws them in white.",
+  "zh": "有差異——GTK 在黑色背景上以深灰色繪製欄標題、「Expected:」行與「Tick: off」，幾乎無法閱讀；AppKit 則以白色繪製。"
+ },
+ "P4": {
+  "en": "aligned; AppKit shows a visible scroll bar and rows 0–9, GTK shows rows 0–6 with taller Adwaita buttons.",
+  "zh": "一致；AppKit 顯示可見的捲軸與第 0–9 列，GTK 則顯示第 0–6 列，Adwaita 按鈕較高。"
+ },
+ "P5": {
+  "en": "aligned; GTK light theme and Adwaita buttons are platform chrome.",
+  "zh": "一致；GTK 淺色主題與 Adwaita 按鈕屬於平台外觀。"
+ },
+ "P7": {
+  "en": "aligned; GTK draws white boxes behind both lists, which is list styling.",
+  "zh": "一致；GTK 在兩份清單後方繪出白色方框，這屬於清單樣式。"
+ },
+ "P8": {
+  "en": "noted -- the two captions are drawn on AppKit now; still different: the H0-H8 labels are cut off by AppKit's horizontal scroll bar where GTK shows them in full (queue 26).",
+  "zh": "有差異——兩則說明文字現在已在 AppKit 上繪出；仍不同之處：H0-H8 標籤被 AppKit 的水平捲軸截斷，GTK 則完整顯示（queue 26）。"
+ },
+ "P9": {
+  "en": "aligned; GTK draws the clipped text dark on the blue band, AppKit draws it white.",
+  "zh": "一致；GTK 在藍色色帶上以深色繪製被裁切的文字，AppKit 則以白色繪製。"
+ },
+ "P10": {
+  "en": "aligned -- the two captions above the fixed-size buttons are drawn on AppKit now and the buttons sit level (queue 17).",
+  "zh": "一致——固定尺寸按鈕上方的兩則說明文字現在已在 AppKit 上繪出，且按鈕高度齊平（queue 17）。"
+ },
+ "P11": {
+  "en": "noted -- the Scrollbar direction caption is drawn on AppKit now; the date pickers still differ in style (AppKit stepper field, GTK dropdown and spin buttons), as each platform's own control.",
+  "zh": "有差異——Scrollbar direction 說明文字現在已在 AppKit 上繪出；日期選擇器的樣式仍不同（AppKit 為步進欄位，GTK 為下拉選單與數值調整按鈕），各為該平台自有的控制項。"
+ },
+ "P12": {
+  "en": "aligned; AppKit fills the margin-test buttons with blue, while GTK shows grey buttons with blue only at the corners.",
+  "zh": "一致；AppKit 以藍色填滿邊距測試按鈕，GTK 則顯示灰色按鈕，僅在角落有藍色。"
+ },
+ "P13": {
+  "en": "aligned -- every caption the earlier row listed is drawn on AppKit now, and the Identical message rows are whole.",
+  "zh": "一致——先前那一列所列的每則說明文字現在都已在 AppKit 上繪出，Identical 訊息列也完整無缺。"
+ },
+ "P14": {
+  "en": "aligned; the adaptive colour block is white on dark AppKit and black on light GTK, each following its own theme.",
+  "zh": "一致；自適應色塊在深色的 AppKit 上為白色，在淺色的 GTK 上為黑色，各自依循自己的主題。"
+ },
+ "P15": {
+  "en": "noted -- The status line differs: AppKit reads \"Resolved: dark\", GTK reads \"Resolved: light\". Otherwise the layout matches.",
+  "zh": "有差異——狀態行不同：AppKit 顯示「Resolved: dark」，GTK 顯示「Resolved: light」。除此之外版面一致。"
+ },
+ "P16": {
+  "en": "aligned; GTK draws a white list box in the sidebar where AppKit uses a grey sidebar, and both read \"sidebar: 180 x 22\" and \"detail: 660 x 22\".",
+  "zh": "一致；GTK 在側邊欄繪出白色清單框，AppKit 則使用灰色側邊欄，兩者皆顯示「sidebar: 180 x 22」與「detail: 660 x 22」。"
+ },
+ "P17": {
+  "en": "noted -- the captions are drawn on AppKit now; still different: AppKit draws the measurement labels as blank white rectangles and its picker as a wide blue bar (queue 26).",
+  "zh": "有差異——說明文字現在已在 AppKit 上繪出；仍不同之處：AppKit 將測量標籤繪成空白的白色矩形，並將其選擇器繪成寬的藍色長條（queue 26）。"
+ },
+ "P18": {
+  "en": "aligned; GTK wraps the last line onto two lines, and its light theme and Adwaita buttons are platform chrome.",
+  "zh": "一致；GTK 將最後一行折成兩行，其淺色主題與 Adwaita 按鈕屬於平台外觀。"
+ },
+ "P19": {
+  "en": "aligned; the backend line differs as expected, and the light theme and button styling are platform chrome.",
+  "zh": "一致；backend 行如預期般不同，淺色主題與按鈕樣式屬於平台外觀。"
+ },
+ "P20": {
+  "en": "aligned; GTK light theme and button styling are platform chrome.",
+  "zh": "一致；GTK 淺色主題與按鈕樣式屬於平台外觀。"
+ },
+ "P21": {
+  "en": "aligned; GTK's taller controls push the volume slider and progress view below the window edge, and AppKit shows a scroll bar.",
+  "zh": "一致；GTK 較高的控制項把音量滑桿與進度檢視推到視窗邊緣以下，AppKit 則顯示捲軸。"
+ },
+ "P22": {
+  "en": "aligned; the backend line differs as expected, and glyph widths and the light theme are platform chrome.",
+  "zh": "一致；backend 行如預期般不同，字符寬度與淺色主題屬於平台外觀。"
+ },
+ "P23": {
+  "en": "aligned -- AppKit's columns take Table's widths now, no cell runs into the next column, and the long cell in row 3 ends in an ellipsis as on GTK (queue 17 c).",
+  "zh": "一致——AppKit 的欄現在採用 Table 的寬度，沒有儲存格延伸進下一欄，第 3 列的長儲存格也與 GTK 一樣以省略號結尾（queue 17 c）。"
+ },
+ "P24": {
+  "en": "aligned; Adwaita buttons and GTK header bar are platform chrome.",
+  "zh": "一致；Adwaita 按鈕與 GTK 標題列屬於平台外觀。"
+ },
+ "P25": {
+  "en": "aligned; only fonts and window chrome differ.",
+  "zh": "一致；只有字型與視窗外觀不同。"
+ },
+ "P26": {
+  "en": "aligned -- AppKit's table columns take Table's widths and the full-width style; no overlap and nothing past the right edge (queue 17 c).",
+  "zh": "一致——AppKit 的表格欄採用 Table 的寬度與全寬樣式；沒有重疊，也沒有內容超出右緣（queue 17 c）。"
+ },
+ "P27": {
+  "en": "noted -- the gradient captions and the title are whole on AppKit now, and both sides show example.com in the WebView; still different: the angular and sweep gradients run the opposite way round (AppKit blue at the top left, GTK red at the left and blue at the bottom right).",
+  "zh": "有差異——漸層說明文字與標題現在在 AppKit 上已完整，且兩側的 WebView 都顯示 example.com；仍不同之處：角度漸層與環繞漸層的方向相反（AppKit 藍色在左上，GTK 紅色在左側、藍色在右下）。"
+ },
+ "P28": {
+  "en": "aligned; only theme and fonts differ.",
+  "zh": "一致；只有主題與字型不同。"
+ },
+ "P29": {
+  "en": "noted -- the indeterminate bar and spinner captions are drawn on AppKit now; the disabled TextEditor still has no visible field box on AppKit.",
+  "zh": "有差異——不確定進度列與旋轉指示器的說明文字現在已在 AppKit 上繪出；停用的 TextEditor 在 AppKit 上仍沒有可見的欄位框。"
+ },
+ "P30": {
+  "en": "aligned -- the tile captions are drawn on AppKit now; the grayscale tile is the same grey on both since 5c5f29b2.",
+  "zh": "一致——圖塊說明文字現在已在 AppKit 上繪出；自 5c5f29b2 起，灰階圖塊在兩邊是相同的灰色。"
+ },
+ "P31": {
+  "en": "aligned; text field, toggle button and slider styling are platform chrome.",
+  "zh": "一致；文字欄位、切換按鈕與滑桿樣式屬於平台外觀。"
+ },
+ "P32": {
+  "en": "noted -- AppKit clips \"Progress label\" (only its top edge shows); everything else matches.",
+  "zh": "有差異——AppKit 裁切了「Progress label」（只露出其頂緣）；其餘皆一致。"
+ },
+ "P33": {
+  "en": "aligned; Adwaita buttons are platform chrome.",
+  "zh": "一致；Adwaita 按鈕屬於平台外觀。"
+ },
+ "P34": {
+  "en": "aligned; AppKit shows a permanent scroll bar beside the rows and GTK uses an overlay scroll bar.",
+  "zh": "一致；AppKit 在列旁顯示常駐捲軸，GTK 則使用覆蓋式捲軸。"
+ },
+ "P35": {
+  "en": "aligned; the on \"Toggle state\" is blue in AppKit and pressed-grey in GTK, which is platform styling.",
+  "zh": "一致；開啟狀態的「Toggle state」在 AppKit 中為藍色，在 GTK 中為按下的灰色，屬於平台樣式。"
+ },
+ "P36": {
+  "en": "aligned; picker, text field and button styling differ only as platform chrome.",
+  "zh": "一致；選擇器、文字欄位與按鈕樣式的差異僅屬平台外觀。"
+ },
+ "P37": {
+  "en": "noted -- The status lines differ: AppKit reads \"supported levels -> automatic, normal, floating\" / \"floating is supported\", GTK reads \"automatic, normal\" / \"floating is NOT supported: this window will behave normally\".",
+  "zh": "有差異——狀態行不同：AppKit 顯示「supported levels -> automatic, normal, floating」/「floating is supported」，GTK 顯示「automatic, normal」/「floating is NOT supported: this window will behave normally」。"
+ },
+ "P38": {
+  "en": "noted -- AppKit loads example.com (\"Navigations reported: 1\"). GTK shows \"Navigations reported: 0\", \"(none yet)\" and a grey box with \"WebKitGTK could not start: libwebkitgtk-6.0.so.4 could not be loaded\" text.",
+  "zh": "有差異——AppKit 載入了 example.com（「Navigations reported: 1」）。GTK 顯示「Navigations reported: 0」、「(none yet)」，以及一個帶有「WebKitGTK could not start: libwebkitgtk-6.0.so.4 could not be loaded」文字的灰色方框。"
+ },
+ "P39": {
+  "en": "aligned -- grayscale 1 is the AppKit grey on GTK now (5c5f29b2) and brightness is additive on both; the angular gradient layout still differs, as the earlier row said.",
+  "zh": "一致——GTK 上的 grayscale 1 現在是 AppKit 的灰色（5c5f29b2），且亮度在兩邊都是加法運算；角度漸層的版面仍不同，如先前那一列所述。"
+ },
+ "P40": {
+  "en": "noted -- AppKit clips the header: title, \"backend -> AppKitBackend\" and the description line are cut off at their bottoms. The tiles match GTK.",
+  "zh": "有差異——AppKit 裁切了頁首：標題、「backend -> AppKitBackend」與說明行的底部都被截斷。圖塊與 GTK 一致。"
+ },
+ "P41": {
+  "en": "noted -- .automatic is a text stepper on AppKit but a calendar on GTK, and .hourAndMinute(AndSecond) are analog clocks vs spin fields. AppKit omits some readouts; GTK wraps one label letter by letter (\".h-o-u-r-M-in-...\").",
+  "zh": "有差異——.automatic 在 AppKit 上是文字步進器，在 GTK 上則是日曆；.hourAndMinute(AndSecond) 則是類比時鐘對數值調整欄位。AppKit 省略了部分讀數；GTK 將一個標籤逐字母折行（「.h-o-u-r-M-in-...」）。"
+ },
+ "P42": {
+  "en": "noted -- Status line differs: AppKit \"1.0 x2 -> 2.0 x6\", GTK \"1.0 x2 -> 2.0 x4\".",
+  "zh": "有差異——狀態行不同：AppKit 為「1.0 x2 -> 2.0 x6」，GTK 為「1.0 x2 -> 2.0 x4」。"
+ },
+ "P43": {
+  "en": "noted -- the shape captions are drawn on AppKit now; still different: AppKit's gradient-stroke ring is clipped flat on four sides where GTK draws it round (queue 26).",
+  "zh": "有差異——形狀說明文字現在已在 AppKit 上繪出；仍不同之處：AppKit 的漸層筆畫圓環在四邊被裁成平直，GTK 則畫成圓形（queue 26）。"
+ },
+ "P44": {
+  "en": "aligned -- the title and the cell captions are whole on AppKit now and both footer lines end in an ellipsis, as on GTK.",
+  "zh": "一致——標題與儲存格說明文字現在在 AppKit 上已完整，兩行頁尾文字也都與 GTK 一樣以省略號結尾。"
+ },
+ "P45": {
+  "en": "aligned; toggle-button and button styling are platform chrome.",
+  "zh": "一致；切換按鈕與按鈕樣式屬於平台外觀。"
+ },
+ "P46": {
+  "en": "aligned; GTK's taller controls push the \"lazy row\" lines below the window edge.",
+  "zh": "一致；GTK 較高的控制項把「lazy row」各行推到視窗邊緣以下。"
+ },
+ "P47": {
+  "en": "noted -- GTK draws many symbols as truncated text (\"Pho…\", \"M…\", \"Lo…\", \"Batt…\", \"…\") and truncates \"definitely.not.a.sy…\". AppKit draws all 36 as glyphs with full labels.",
+  "zh": "有差異——GTK 將許多符號繪成被截斷的文字（「Pho…」、「M…」、「Lo…」、「Batt…」、「…」），並截斷了「definitely.not.a.sy…」。AppKit 將全部 36 個都繪成字符並附上完整標籤。"
+ },
+ "P48": {
+  "en": "aligned; GTK cell labels are dark text on navy (low contrast) where AppKit uses white text, from the light theme.",
+  "zh": "一致；GTK 的儲存格標籤是海軍藍底上的深色文字（對比度低），AppKit 則使用白色文字，這源自淺色主題。"
+ },
+ "P49": {
+  "en": "aligned; AppKit renders in dark appearance and GTK in light, and the buttons are styled differently by each toolkit.",
+  "zh": "一致；AppKit 以深色外觀呈現，GTK 以淺色呈現，按鈕則由各工具組套用不同樣式。"
+ },
+ "P50": {
+  "en": "aligned -- the arrow edge supported line is drawn on AppKit now.",
+  "zh": "一致——arrow edge supported 行現在已在 AppKit 上繪出。"
+ },
+ "P51": {
+  "en": "noted -- GTK cuts the last Chinese line of section 2 short at \"須跨到 ...\"; AppKit wraps it to finish with \"C3 右緣\". The six sections otherwise match.",
+  "zh": "有差異——GTK 把第 2 節最後一行中文截短在「須跨到 ...」；AppKit 則將其折行，並以「C3 右緣」結尾。除此之外六節皆一致。"
+ },
+ "P52": {
+  "en": "noted -- GTK's primitive button grid is larger and its first column is clipped at the left window edge. All GTK custom-arm cell borders are orange at rest; AppKit's are grey, which matches the source (orange only when highlighted or pressed). GTK also cuts the Chinese line short.",
+  "zh": "有差異 —— GTK 的基本按鈕格線較大，第一欄在視窗左緣被裁切。GTK 所有 custom-arm 儲存格的邊框在靜止時都是橘色；AppKit 的是灰色，與原始碼相符（僅在醒目提示或按下時才是橘色）。GTK 也把中文那一行截短了。"
+ },
+ "P53": {
+  "en": "noted -- The toolbar items differ. AppKit puts Add, Info and Delete together at trailing with labels; GTK puts + at leading and shows info as a lightbulb and trash as an x-circle icon, trailing.",
+  "zh": "有差異 —— 工具列項目不同。AppKit 將 Add、Info 與 Delete 一起放在尾端並附標籤；GTK 將 + 放在前端，並在尾端以燈泡圖示表示 info、以 x-circle 圖示表示垃圾桶。"
+ },
+ "P54": {
+  "en": "noted -- AppKit's floating \"Refresh\" button sits over the \"P54: refreshable\" title and overlaps it; GTK shows no button, which the app text describes as expected. The rest matches.",
+  "zh": "有差異 —— AppKit 的浮動「Refresh」按鈕位於「P54: refreshable」標題上方並與之重疊；GTK 不顯示按鈕，app 文字說明這是預期行為。其餘一致。"
+ },
+ "P55": {
+  "en": "aligned except the counter: \"total draws: 10\" on AppKit, \"total draws: 6\" on GTK.",
+  "zh": "一致，僅計數不同：AppKit 為「total draws: 10」，GTK 為「total draws: 6」。"
+ },
+ "P56": {
+  "en": "aligned; AppKit draws a visible scroll bar beside the row list and GTK uses overlay scrolling.",
+  "zh": "一致；AppKit 在列清單旁繪製可見的捲軸，GTK 則使用覆疊式捲動。"
+ },
+ "P57": {
+  "en": "noted -- GTK reads \"rows built / held by the framework: 205 / 205\" against AppKit's \"10 / 10\", and resident memory is 149 MB against 106 MB. GTK's list has a white background.",
+  "zh": "有差異 —— GTK 顯示「rows built / held by the framework: 205 / 205」，AppKit 則為「10 / 10」；常駐記憶體為 149 MB 對 106 MB。GTK 的清單為白色背景。"
+ },
+ "P58": {
+  "en": "aligned; AppKit shows the scroll bars of both columns and GTK uses overlay scrollbars.",
+  "zh": "一致；AppKit 顯示兩欄的捲軸，GTK 則使用覆疊式捲軸。"
+ },
+ "P59": {
+  "en": "noted -- GTK cuts the final Chinese paragraph short at \"所要抓...\"; AppKit wraps it in full, ending \"失敗。\". The rest matches.",
+  "zh": "有差異 —— GTK 將最後一段中文截短於「所要抓...」；AppKit 完整換行顯示，結尾為「失敗。」。其餘一致。"
+ },
+ "P60": {
+  "en": "aligned; the only differences are button styling and appearance.",
+  "zh": "一致；唯一的差異是按鈕樣式與外觀。"
+ },
+ "P61": {
+  "en": "aligned; the slider and buttons are each toolkit's own style.",
+  "zh": "一致；滑桿與按鈕皆為各工具包本身的樣式。"
+ },
+ "P62": {
+  "en": "noted -- GTK cuts the Chinese paragraph short at \"都是正...\"; AppKit wraps it onto a second line ending \"的。\". The rest matches.",
+  "zh": "有差異 —— GTK 將中文段落截短於「都是正...」；AppKit 將其換行至第二行，結尾為「的。」。其餘一致。"
+ },
+ "P63": {
+  "en": "noted -- The geometry values differ. AppKit reads global x=92 y=287 and named box x=24 y=31; GTK reads global x=0 y=0 and named box x=0 y=0, which the header says is wrong. GTK adds a 'named space \"box\" starts here' label, and AppKit's box text is low-contrast white on lavender.",
+  "zh": "有差異 —— 幾何數值不同。AppKit 顯示 global x=92 y=287 與 named box x=24 y=31；GTK 顯示 global x=0 y=0 與 named box x=0 y=0，標頭說明這是錯誤的。GTK 多了一個「named space \"box\" starts here」標籤，而 AppKit 的 box 文字是淡紫底白字，對比度低。"
+ },
+ "P64": {
+  "en": "aligned; the live tick numbers differ (122 ticks at 60.0 Hz against 113 at 58.4 Hz), as expected for timing output.",
+  "zh": "一致；即時 tick 數值不同（60.0 Hz 下 122 個 tick，對 58.4 Hz 下 113 個），對計時輸出而言屬預期。"
+ },
+ "P65": {
+  "en": "aligned; the same three coloured gesture areas and the same labels.",
+  "zh": "一致；相同的三個彩色手勢區域與相同的標籤。"
+ },
+ "P66": {
+  "en": "aligned; only live values differ (32 against 26 samples, offset 48 against 62) and the blue square sits at a slightly different x.",
+  "zh": "一致；僅即時數值不同（32 對 26 個樣本，偏移 48 對 62），且藍色方塊的 x 位置略有不同。"
+ },
+ "P67": {
+  "en": "aligned; AppKit's third button reads \"two  texts\" with a wider gap, and the button styling differs.",
+  "zh": "一致；AppKit 的第三個按鈕顯示「two  texts」，間距較寬，且按鈕樣式不同。"
+ },
+ "P68": {
+  "en": "noted -- GTK reports \"adapters: 0\" and lists no adapter; AppKit reports \"adapters: 1\" and lists \"Apple M6\".",
+  "zh": "有差異 —— GTK 回報「adapters: 0」且未列出任何 adapter；AppKit 回報「adapters: 1」並列出「Apple M6」。"
+ },
+ "P69": {
+  "en": "aligned; the buttons are each toolkit's own style.",
+  "zh": "一致；按鈕皆為各工具包本身的樣式。"
+ },
+ "P70": {
+  "en": "noted -- GTK cuts the English \"Expected\" paragraph short at \"means t...\"; AppKit shows its third line, \"handler never fires.\". The rest matches.",
+  "zh": "有差異 —— GTK 將英文「Expected」段落截短於「means t...」；AppKit 顯示其第三行「handler never fires.」。其餘一致。"
+ },
+ "P71": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P72": {
+  "en": "aligned; the renderer strings differ (\"Metal (Apple M6)\" against \"Apple M6 / 4.1 Metal - 91.7\"), and the frame counts and cube angle are live values.",
+  "zh": "一致；渲染器字串不同（「Metal (Apple M6)」對「Apple M6 / 4.1 Metal - 91.7」），影格數與立方體角度為即時數值。"
+ },
+ "P73": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P74": {
+  "en": "aligned; GTK light theme vs AppKit dark, Adwaita dropdown, segmented and radio styling, and the wheel drawn as a bordered list are platform chrome.",
+  "zh": "一致；GTK 淺色主題對 AppKit 深色主題、Adwaita 的下拉選單、分段控制與單選按鈕樣式，以及以加框清單繪製的滾輪，皆屬平台外觀。"
+ },
+ "P75": {
+  "en": "aligned; GTK light theme and larger Adwaita buttons are platform chrome.",
+  "zh": "一致；GTK 淺色主題與較大的 Adwaita 按鈕屬平台外觀。"
+ },
+ "P76": {
+  "en": "aligned; same cubes, dots, ticks, helix and captions; only the theme and button styling differ.",
+  "zh": "一致；相同的立方體、圓點、刻度、螺旋線與說明文字；僅主題與按鈕樣式不同。"
+ },
+ "P77": {
+  "en": "aligned; same gradient square and captions; GTK light theme and button styling are platform chrome.",
+  "zh": "一致；相同的漸層方塊與說明文字；GTK 淺色主題與按鈕樣式屬平台外觀。"
+ },
+ "P78": {
+  "en": "aligned; identical text, \"received 0\" on both; theme only.",
+  "zh": "一致；文字完全相同，兩邊皆為「received 0」；僅主題不同。"
+ },
+ "P79": {
+  "en": "aligned; \"made 0, dismantled 0 (0)\" on both; GTK light theme and larger buttons are platform chrome.",
+  "zh": "一致；兩邊皆為「made 0, dismantled 0 (0)」；GTK 淺色主題與較大的按鈕屬平台外觀。"
+ },
+ "P80": {
+  "en": "aligned; same cursor boxes, menu target, \"scroll: 0, 0 ended: 0\"; theme only.",
+  "zh": "一致；相同的游標方塊、選單目標與「scroll: 0, 0 ended: 0」；僅主題不同。"
+ },
+ "P81": {
+  "en": "aligned; same five buttons and text; GTK buttons taller, theme differs.",
+  "zh": "一致；相同的五個按鈕與文字；GTK 按鈕較高，主題不同。"
+ },
+ "P82": {
+  "en": "noted -- GTK fills \"destructive, blue set\" with red, so the blue label sits on a red button; AppKit shows blue text on a neutral button. Other buttons match apart from styling.",
+  "zh": "有差異 —— GTK 將「destructive, blue set」填滿紅色，因此藍色標籤落在紅色按鈕上；AppKit 則在中性按鈕上顯示藍色文字。其他按鈕除樣式外皆一致。"
+ },
+ "P83": {
+  "en": "aligned -- the default and .sidebar captions are drawn on AppKit now; the lists match.",
+  "zh": "一致 —— AppKit 現在會繪製 default 與 .sidebar 的說明文字；清單一致。"
+ },
+ "P84": {
+  "en": "aligned; same thumbnails and numbers (\"max 14, mean 0.062\"); the faint yellow SVG text is harder to see on GTK's light background.",
+  "zh": "一致；相同的縮圖與數值（「max 14, mean 0.062」）；淡黃色的 SVG 文字在 GTK 的淺色背景上較難看清。"
+ },
+ "P85": {
+  "en": "aligned; all nine SVG text samples and captions match; theme only.",
+  "zh": "一致；全部九個 SVG 文字範例與說明文字皆一致；僅主題不同。"
+ },
+ "P86": {
+  "en": "aligned; same red and blue squares, yellow band and grey veil; theme only.",
+  "zh": "一致；相同的紅色與藍色方塊、黃色帶狀區與灰色遮罩；僅主題不同。"
+ },
+ "P87": {
+  "en": "aligned; all nine SVG paint and effect cells match, \"diagnostics: 0\"; theme only.",
+  "zh": "一致；全部九個 SVG 繪製與效果格皆一致，「diagnostics: 0」；僅主題不同。"
+ },
+ "P88": {
+  "en": "aligned -- the one-line labels keep their descenders on AppKit now (yes, keys).",
+  "zh": "一致 —— AppKit 上的單行標籤現在保有字母下伸部（yes、keys）。"
+ },
+ "P89": {
+  "en": "aligned; all items on the red line, \"state: after\" on both; AppKit's ring looks slightly polygonal, GTK's is smooth.",
+  "zh": "一致；所有項目都在紅線上，兩邊皆為「state: after」；AppKit 的圓環看起來略呈多邊形，GTK 的則平滑。"
+ },
+ "P90": {
+  "en": "aligned; same locale buttons and the line \"The wheel style is unavailable on macOS\" on both; theme and button styling only.",
+  "zh": "一致；兩邊都有相同的地區設定按鈕與「The wheel style is unavailable on macOS」這一行；僅主題與按鈕樣式不同。"
+ },
+ "P91": {
+  "en": "noted -- AppKit reads \"focused: a\", \"focus changes heard: 1\", with a focus ring on the blue box; GTK reads \"focused: none\", \"focus changes heard: 0\", no ring.",
+  "zh": "有差異 —— AppKit 顯示「focused: a」、「focus changes heard: 1」，藍色方塊上有焦點環；GTK 顯示「focused: none」、「focus changes heard: 0」，沒有焦點環。"
+ },
+ "P92": {
+  "en": "aligned; same menu-layout listing and the \"hello\" field; AppKit shows a scroll bar, GTK an overlay one, which is platform chrome.",
+  "zh": "一致；相同的選單配置列表與「hello」欄位；AppKit 顯示捲軸，GTK 則是覆疊式捲軸，屬平台外觀。"
+ },
+ "P93": {
+  "en": "aligned; same four lines in the \"Alpha\" window; theme only.",
+  "zh": "一致；「Alpha」視窗中相同的四行；僅主題不同。"
+ },
+ "P94": {
+  "en": "aligned; \"hello\" in the editor, \"changes: 0\" on both; theme only.",
+  "zh": "一致；編輯器中為「hello」，兩邊皆為「changes: 0」；僅主題不同。"
+ },
+ "P95": {
+  "en": "aligned; same circle, square and top bar; the strip right of the bar is window background (dark on AppKit, light on GTK), so the theme differs.",
+  "zh": "一致；相同的圓形、方形與頂列；頂列右側的區塊是視窗背景（AppKit 為深色，GTK 為淺色），因此是主題不同。"
+ },
+ "P15-DARK": {
+  "en": "aligned; both windows are dark and read \"Requested: dark  Resolved: dark\".",
+  "zh": "一致；兩個視窗都是深色，並顯示 \"Requested: dark  Resolved: dark\"。"
+ },
+ "P17-DOE": {
+  "en": "aligned -- the three column captions are drawn on AppKit now; the clipping result was already the same.",
+  "zh": "一致——AppKit 現在也畫出三個欄位的說明文字；裁切結果原本就相同。"
+ }
+}

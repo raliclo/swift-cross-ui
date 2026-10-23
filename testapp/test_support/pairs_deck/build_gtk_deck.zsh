@@ -29,6 +29,7 @@ setopt pipe_fail
 script_path=${0:A}
 here=${script_path:h}
 repo=${here:h:h:h}
+source $here/deck_zh.zsh
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then
     sed -n '2,18p' $script_path | sed 's/^# \{0,1\}//'
     exit 0
@@ -42,14 +43,22 @@ mac_tsv=${2:?usage: build_gtk_deck.zsh OUTDIR MAC_TSV [NOTES_JSON]}
 # Read through jq, with CR stripped for jq.exe as above.
 # NOTES_JSON(可省略):{"P10": "Windows 與 WSL 和 macOS 的差異", ...},每頁截圖下方一行(本腳本旁的 gtk-vs-macos-notes.json,
 # 2026-10-22 依每頁三張截圖寫成)。截圖高度由 900 縮為 820 px 以騰出空間；否則 1060 px 的投影片沒有位置。經 jq 讀取，並同上去掉 jq.exe 的 CR。
+# Its zh-TW translation, when there is one, is NOTES_JSON with .zh-TW before .json
+# (deck_zh.zsh): a second line under each note, so the slide grows to 1240 px. The
+# last slide lists every app with a side missing, read from the captions.
+# 若有 zh-TW 翻譯，就是 NOTES_JSON 在 .json 前加上 .zh-TW 的檔案(deck_zh.zsh):每則說明下方再一行，所以投影片加高到 1240 px。
+# 最後一頁列出每個缺了某一邊的 app,取自說明文字。
 notes_json=${3:-}
 img_h=900
+slide_h=1060
 typeset -A cmp_note
 if [[ -n $notes_json ]]; then
     img_h=820
+    slide_h=1240
     while IFS=$'\t' read -r app text; do
         cmp_note[$app]=$text
     done < <(jq -r 'to_entries[] | [.key, .value] | @tsv' $notes_json | tr -d '\r')
+    zh_load ${notes_json:r}.zh-TW.json
 fi
 mkdir -p $out/img
 
@@ -172,6 +181,7 @@ mac_figure() {
         )
         count=$(printf '%s\n' $body | grep -c '<img ')
         if (( count == 3 )); then c=aligned; else c=noted; fi
+        todo_collect $app "$body"
         printf '%s\n' "<section data-app=\"$app\">"
         printf '%s\n' "<header><h2>$app</h2><span class=\"chip $c\">$count of 3</span><p class=\"note\"></p></header>"
         printf '%s\n' '<div class="pair">'
@@ -181,13 +191,16 @@ mac_figure() {
             n=${cmp_note[$app]}
             n=${n//&/&amp;}; n=${n//</&lt;}; n=${n//>/&gt;}
             printf '%s\n' "<p class=\"cmp\"><b>vs macOS</b> $n</p>"
+            zh_line $app "${cmp_note[$app]}" '與 macOS 比較'
         fi
         printf '%s\n' '</section>'
     done
+    todo_section
     tail=$(<$here/template-tail.html)
     tail=${tail//@@SLIDE_W@@/1460}
-    tail=${tail//@@SLIDE_H@@/1060}
+    tail=${tail//@@SLIDE_H@@/$slide_h}
     tail=${tail//@@TILE_SIDE@@/wsl}
     printf '%s\n' $tail
 } > $out/index.html
 printf '%s\n' "$out/index.html: $#apps apps"
+zh_report
