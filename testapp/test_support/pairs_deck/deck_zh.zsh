@@ -13,7 +13,7 @@
 typeset -gA zh_en zh_text
 typeset -ga zh_missing zh_stale todo_items todo_known
 
-# Sides with no screenshot by design rather than by failure, keyed "DECK APP SIDE"
+# Sides with no screenshot by design or out of a machine's scope, not by failure, keyed "DECK APP SIDE"
 # (DECK is todo_deck, set by the builder: three or mac). The to-do page lists them
 # apart, under "Not expected", so they are neither chased nor forgotten.
 # 刻意而非失敗造成的沒有截圖，鍵為「DECK APP SIDE」(DECK 是 builder 設定的 todo_deck:three 或 mac)。
@@ -22,6 +22,10 @@ typeset -g todo_deck=
 typeset -gA todo_by_design=(
     'three P6 Windows' 'P6 imports the WinUI products, which a GTK build on Windows removes (compile.zsh); P6-v2 is its GTK counterpart|P6 import 了 WinUI 的 product,Windows 上的 GTK 建置會移除它們(compile.zsh);它的 GTK 版是 P6-v2'
     'mac P6-v2 macOS' 'P6-v2 imports Gtk itself, so AppKit cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 AppKit 無法建置；它是 P6 的 GTK 版'
+    'three P12 Windows' 'P12 is the AndroidBackend repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P12 是 AndroidBackend 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
+    'three P12 WSL' 'P12 is the AndroidBackend repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P12 是 AndroidBackend 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
+    'three P14 Windows' 'P14 is the UIKitBackend (iOS) repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P14 是 UIKitBackend(iOS)的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
+    'three P14 WSL' 'P14 is the UIKitBackend (iOS) repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P14 是 UIKitBackend(iOS)的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
 )
 
 # FILE: load the translations; a missing file loads none.
@@ -115,8 +119,8 @@ todo_section() {
         printf '%s\n' '</ul>'
     fi
     if (( $#todo_known )); then
-        printf '%s\n' '<h2>Not expected: no screenshot by design</h2>'
-        printf '%s\n' '<p class="zh" lang="zh-Hant-TW">預期沒有：刻意不建置的那一邊</p>'
+        printf '%s\n' '<h2>Not expected: by design or out of scope</h2>'
+        printf '%s\n' '<p class="zh" lang="zh-Hant-TW">預期沒有：刻意不建置，或不在該機器的範圍內</p>'
         printf '%s\n' '<ul class="known">'
         for item in $todo_known; do
             IFS=$'\t' read -r app en zh <<< $item
