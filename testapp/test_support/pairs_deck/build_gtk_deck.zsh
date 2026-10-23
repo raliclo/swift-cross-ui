@@ -30,6 +30,7 @@ script_path=${0:A}
 here=${script_path:h}
 repo=${here:h:h:h}
 source $here/deck_zh.zsh
+todo_deck=three
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then
     sed -n '2,18p' $script_path | sed 's/^# \{0,1\}//'
     exit 0

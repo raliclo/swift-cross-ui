@@ -11,7 +11,18 @@
 # 不印出那一行 zh,而是在 stderr 列出，免得它出現在一則它已不再翻譯的說明旁邊。
 
 typeset -gA zh_en zh_text
-typeset -ga zh_missing zh_stale todo_items
+typeset -ga zh_missing zh_stale todo_items todo_known
+
+# Sides with no screenshot by design rather than by failure, keyed "DECK APP SIDE"
+# (DECK is todo_deck, set by the builder: three or mac). The to-do page lists them
+# apart, under "Not expected", so they are neither chased nor forgotten.
+# 刻意而非失敗造成的沒有截圖，鍵為「DECK APP SIDE」(DECK 是 builder 設定的 todo_deck:three 或 mac)。
+# 待辦頁把它們分開列在「預期沒有」之下，既不會被當成待辦去追，也不會被忘記。
+typeset -g todo_deck=
+typeset -gA todo_by_design=(
+    'three P6 Windows' 'P6 imports the WinUI products, which a GTK build on Windows removes (compile.zsh); P6-v2 is its GTK counterpart|P6 import 了 WinUI 的 product,Windows 上的 GTK 建置會移除它們(compile.zsh);它的 GTK 版是 P6-v2'
+    'mac P6-v2 macOS' 'P6-v2 imports Gtk itself, so AppKit cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 AppKit 無法建置；它是 P6 的 GTK 版'
+)
 
 # FILE: load the translations; a missing file loads none.
 # FILE:載入翻譯；檔案不存在時什麼都不載入。
@@ -62,12 +73,17 @@ todo_zh() {
 # APP FIGURES: note each figure without a screenshot for the to-do page.
 # APP FIGURES:把每個沒有截圖的 figure 記到待辦頁。
 todo_collect() {
-    local app=$1 line label why
+    local app=$1 line label why reason
     local -a en zh
     for line in ${(f)2}; do
         [[ $line == '<figure><figcaption>'* ]] || continue
         label=${${line#*<b>}%%</b>*}
         why=${${line##* · }%%</figcaption>*}
+        reason=${todo_by_design[$todo_deck $app $label]:-}
+        if [[ -n $reason ]]; then
+            todo_known+=("$app"$'\t'"$label: ${reason%%|*}"$'\t'"$label:${reason#*|}")
+            continue
+        fi
         en+=("$label: $why")
         zh+=("$label:$(todo_zh $why)")
     done
@@ -93,6 +109,16 @@ todo_section() {
     else
         printf '%s\n' '<ul>'
         for item in $todo_items; do
+            IFS=$'\t' read -r app en zh <<< $item
+            printf '%s\n' "<li><b>$app</b> $(zh_escape $en)<span class=\"zh\" lang=\"zh-Hant-TW\">$(zh_escape $zh)</span></li>"
+        done
+        printf '%s\n' '</ul>'
+    fi
+    if (( $#todo_known )); then
+        printf '%s\n' '<h2>Not expected: no screenshot by design</h2>'
+        printf '%s\n' '<p class="zh" lang="zh-Hant-TW">預期沒有：刻意不建置的那一邊</p>'
+        printf '%s\n' '<ul class="known">'
+        for item in $todo_known; do
             IFS=$'\t' read -r app en zh <<< $item
             printf '%s\n' "<li><b>$app</b> $(zh_escape $en)<span class=\"zh\" lang=\"zh-Hant-TW\">$(zh_escape $zh)</span></li>"
         done

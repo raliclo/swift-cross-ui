@@ -37,6 +37,7 @@ setopt pipe_fail
 here=${0:A:h}
 repo=${here:h:h:h}
 source $here/deck_zh.zsh
+todo_deck=mac
 out=${1:?usage: build_deck.zsh OUTDIR}
 mkdir -p $out/img
 mac_tsv=$out/mac-gtk.tsv

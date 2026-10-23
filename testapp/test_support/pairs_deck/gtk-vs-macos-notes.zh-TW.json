@@ -420,36 +420,36 @@
   "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 的計數器不同（width 影格 30 個對 48 個；VALUE DONE err 為 1.23 pt、歷時 139 個影格，對 0.89、60 個影格）。"
  },
  "P105": {
-  "en": "No macOS screenshot. WSL shows an extra 'no .transition (default fade)' row with orange, green and blue blocks that Windows lacks; frame counts differ (Windows 144/142, WSL 63/61).",
-  "zh": "沒有 macOS 截圖。WSL 多了一列「no .transition (default fade)」，含橘、綠、藍色方塊，Windows 則沒有；影格數不同（Windows 144/142，WSL 63/61）。"
+  "en": "Windows has no 'no .transition (default fade)' row, the orange, green and blue blocks that WSL and macOS show under the ForEach rows. Otherwise matches macOS apart from window chrome and scale; all three end with four ForEach rows, and Windows draws 144 frames in each one-second transition where WSL and macOS draw about 63.",
+  "zh": "Windows 沒有「no .transition (default fade)」那一列，也就是 WSL 與 macOS 在 ForEach 列下方顯示的橘、綠、藍色塊。其餘除了視窗外框與縮放比例之外，與 macOS 相同；三邊最後都是四列 ForEach,Windows 每個一秒的轉場畫 144 個影格,WSL 與 macOS 約 63 個。"
  },
  "P106": {
-  "en": "No macOS screenshot. Windows and WSL match each other; the 'PhaseAnimator([0, 1]) cycling' area is empty on both.",
-  "zh": "沒有 macOS 截圖。Windows 與 WSL 彼此相同；兩者的「PhaseAnimator([0, 1]) cycling」區域都是空的。"
+  "en": "Matches macOS apart from window chrome and scale; KEYS DONE err=0.000 pt on all three (289 frames on Windows, 121 on WSL, 122 on macOS).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；三邊 KEYS DONE err=0.000 pt(影格數 Windows 289、WSL 121、macOS 122)。"
  },
  "P107": {
-  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (288 vs 121) and the square's position along the track.",
-  "zh": "沒有 macOS 截圖。除了影格數（288 對 121）與方塊在軌道上的位置之外，Windows 與 WSL 彼此相同。"
+  "en": "Matches macOS apart from window chrome and scale; the marker sits at a different point of the path in each only because it keeps moving. RUN DONE err=0.000 pt and track length 588.495 on all three.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；標記在路徑上的位置各不相同，只是因為它一直在移動。三邊 RUN DONE err=0.000 pt,路徑長度皆為 588.495。"
  },
  "P108": {
-  "en": "No macOS screenshot. Windows shows the blue block near the right end of the track while WSL shows it at the left; both read offset (0.0, 0.0), and Windows reports 144 frames/s vs 60 on WSL.",
-  "zh": "沒有 macOS 截圖。Windows 的藍色方塊靠近軌道右端，WSL 則位於左端；兩者讀數皆為 offset (0.0, 0.0)，Windows 回報每秒 144 個影格，WSL 為 60。"
+  "en": "Matches macOS apart from window chrome and scale. The card is mid-coast on Windows and at 0 on WSL and macOS only because the captures fell at different moments of the BOUND step; FREE ends at 199.80 on all three.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。卡片在 Windows 上正在滑行、在 WSL 與 macOS 上位於 0,只是因為擷圖落在 BOUND 步驟的不同時刻；三邊 FREE 都停在 199.80。"
  },
  "P109": {
-  "en": "No macOS screenshot. The angular gradient (third square) is rotated 180 degrees between them: Windows has red lower-left and blue upper-left, WSL red upper-right and blue lower-right.",
-  "zh": "沒有 macOS 截圖。兩者的角度漸層（第三個方塊）相差 180 度：Windows 紅色在左下、藍色在左上，WSL 紅色在右上、藍色在右下。"
+  "en": "The third swatch, the angular gradient, is turned half a turn on Windows: its red quarter is at the lower left, where WSL and macOS have it at the upper right. Otherwise matches macOS apart from window chrome and scale; colour errors 0 on all three.",
+  "zh": "第三個色塊(角度漸層)在 Windows 上轉了半圈：紅色的四分之一在左下,WSL 與 macOS 則在右上。其餘除了視窗外框與縮放比例之外，與 macOS 相同；三邊顏色誤差皆為 0。"
  },
  "P110": {
-  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (about 109 vs 48).",
-  "zh": "沒有 macOS 截圖。除了影格數（約 109 對 48）之外，Windows 與 WSL 彼此相同。"
+  "en": "Matches macOS apart from window chrome and scale; the gradient text, the four shapes and the VALUE bar agree, colour errors 0 on all three.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；漸層文字、四個圖形與 VALUE 條一致，三邊顏色誤差皆為 0。"
  },
  "P111": {
-  "en": "No macOS screenshot. Windows and WSL match each other apart from frame counts (245 vs 103).",
-  "zh": "沒有 macOS 截圖。除了影格數（245 對 103）之外，Windows 與 WSL 彼此相同。"
+  "en": "Matches macOS apart from window chrome and scale; every timeline number is the same on all three, and DRAW DONE err=0.0000 pt.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；三邊每個時間軸數字都相同，DRAW DONE err=0.0000 pt。"
  },
  "P112": {
-  "en": "No macOS screenshot. Windows and WSL match each other.",
-  "zh": "沒有 macOS 截圖。Windows 與 WSL 彼此相同。"
+  "en": "Matches macOS apart from window chrome and scale; the red disc is the same size in every shape and in the RADIAL text.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；每個圖形與 RADIAL 文字中的紅色圓盤大小都一樣。"
  },
  "P6-v2": {
   "en": "Matches macOS apart from window chrome and scale.",

@@ -386,5 +386,37 @@
  "P17-DOE": {
   "en": "aligned -- the three column captions are drawn on AppKit now; the clipping result was already the same.",
   "zh": "一致——AppKit 現在也畫出三個欄位的說明文字；裁切結果原本就相同。"
+ },
+ "P105": {
+  "en": "noted -- AppKit is left with three ForEach rows and a half-faded row offset to the leading edge after the remove-and-reinsert step; GTK shows the four rows the step ends with (rows.remove(at: 1), then id 9 inserted at 1). A second AppKit capture (20261023-135436) shows the same. The self-test lines agree apart from frame counts (62 vs 60).",
+  "zh": "有差異——在先移除再插入的步驟之後，AppKit 留下三列 ForEach,外加一列半透明、往前端偏移的列;GTK 顯示該步驟結束時應有的四列(rows.remove(at: 1),接著在 1 插入 id 9)。第二次 AppKit 擷圖(20261023-135436)也一樣。自我測試的數字除了影格數(62 對 60)之外都相同。"
+ },
+ "P106": {
+  "en": "aligned -- the same keyframe timeline on both: KEYS DONE err=0.000 pt over 313 checks, 122 frames, end (240.00, 20.00, 1.000).",
+  "zh": "一致——兩邊的關鍵影格時間軸相同:KEYS DONE err=0.000 pt,共 313 次檢查,122 個影格，終點 (240.00, 20.00, 1.000)。"
+ },
+ "P107": {
+  "en": "aligned -- RUN DONE err=0.000 pt and track length 588.495 on both; angle err 0.119 vs 0.116 deg over 314 samples, progress vs clock 15.3 ms on AppKit and 8.6 ms on GTK.",
+  "zh": "一致——兩邊 RUN DONE err=0.000 pt,路徑長度皆為 588.495;314 個取樣的角度誤差為 0.119 對 0.116 度，進度相對時鐘的差在 AppKit 為 15.3 ms、GTK 為 8.6 ms。"
+ },
+ "P108": {
+  "en": "noted -- FREE agrees (end 199.80, coast 3.800 vs 3.801 s, 228 vs 227 frames). The card is at the bound on AppKit and at 0 on GTK only because the captures fell at different moments of the BOUND step. The first coast tick comes 0.014 s after the release on AppKit and 0.053 s on GTK.",
+  "zh": "有差異——FREE 結果一致(終點 199.80,滑行 3.800 對 3.801 秒，影格 228 對 227)。卡片在 AppKit 停在邊界、在 GTK 位於 0,只是因為兩次擷圖落在 BOUND 步驟的不同時刻。放開後第一個滑行影格,AppKit 在 0.014 秒後,GTK 在 0.053 秒後。"
+ },
+ "P109": {
+  "en": "aligned -- the three gradient swatches and the two blue captions match; colour errors 0 on both, 62 vs 60 frames.",
+  "zh": "一致——三個漸層色塊與兩個藍色標題相同;兩邊顏色誤差皆為 0,影格 62 對 60。"
+ },
+ "P110": {
+  "en": "aligned -- the gradient text, the four gradient shapes and the VALUE bar match; colour errors 0 on both, the mid sample at p=0.517 on AppKit and 0.500 on GTK.",
+  "zh": "一致——漸層文字、四個漸層圖形與 VALUE 條相同;兩邊顏色誤差皆為 0,中段取樣在 AppKit 為 p=0.517、GTK 為 0.500。"
+ },
+ "P111": {
+  "en": "aligned -- every timeline and draw number is the same: DRAW DONE err=0.0000 pt over 286 checks, end (100.00, -0.02), 104 frames.",
+  "zh": "一致——所有時間軸與繪製數字都相同:DRAW DONE err=0.0000 pt,共 286 次檢查，終點 (100.00, -0.02),104 個影格。"
+ },
+ "P112": {
+  "en": "aligned -- the red disc is 40 pt across in every shape and in the RADIAL text on both, and the angular gradients match.",
+  "zh": "一致——兩邊每個圖形與 RADIAL 文字中的紅色圓盤都是 40 pt 寬，角度漸層也相同。"
  }
 }

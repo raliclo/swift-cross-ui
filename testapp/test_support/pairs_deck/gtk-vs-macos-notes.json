@@ -107,12 +107,12 @@
  "P102": "Matches macOS apart from window chrome and scale.",
  "P103": "WSL renders every emoji (Noto style). Windows shows tofu boxes with hex codes for the parking P (01F17F), the airplane (2708) and the heart (2764), in both the Places list and the picker grid.",
  "P104": "Matches macOS apart from window chrome and scale; Windows counters differ (30 width frames vs 48, VALUE DONE err 1.23 pt over 139 frames vs 0.89 over 60).",
- "P105": "No macOS screenshot. WSL shows an extra 'no .transition (default fade)' row with orange, green and blue blocks that Windows lacks; frame counts differ (Windows 144/142, WSL 63/61).",
- "P106": "No macOS screenshot. Windows and WSL match each other; the 'PhaseAnimator([0, 1]) cycling' area is empty on both.",
- "P107": "No macOS screenshot. Windows and WSL match each other apart from frame counts (288 vs 121) and the square's position along the track.",
- "P108": "No macOS screenshot. Windows shows the blue block near the right end of the track while WSL shows it at the left; both read offset (0.0, 0.0), and Windows reports 144 frames/s vs 60 on WSL.",
- "P109": "No macOS screenshot. The angular gradient (third square) is rotated 180 degrees between them: Windows has red lower-left and blue upper-left, WSL red upper-right and blue lower-right.",
- "P110": "No macOS screenshot. Windows and WSL match each other apart from frame counts (about 109 vs 48).",
- "P111": "No macOS screenshot. Windows and WSL match each other apart from frame counts (245 vs 103).",
- "P112": "No macOS screenshot. Windows and WSL match each other."
+ "P105": "Windows has no 'no .transition (default fade)' row, the orange, green and blue blocks that WSL and macOS show under the ForEach rows. Otherwise matches macOS apart from window chrome and scale; all three end with four ForEach rows, and Windows draws 144 frames in each one-second transition where WSL and macOS draw about 63.",
+ "P106": "Matches macOS apart from window chrome and scale; KEYS DONE err=0.000 pt on all three (289 frames on Windows, 121 on WSL, 122 on macOS).",
+ "P107": "Matches macOS apart from window chrome and scale; the marker sits at a different point of the path in each only because it keeps moving. RUN DONE err=0.000 pt and track length 588.495 on all three.",
+ "P108": "Matches macOS apart from window chrome and scale. The card is mid-coast on Windows and at 0 on WSL and macOS only because the captures fell at different moments of the BOUND step; FREE ends at 199.80 on all three.",
+ "P109": "The third swatch, the angular gradient, is turned half a turn on Windows: its red quarter is at the lower left, where WSL and macOS have it at the upper right. Otherwise matches macOS apart from window chrome and scale; colour errors 0 on all three.",
+ "P110": "Matches macOS apart from window chrome and scale; the gradient text, the four shapes and the VALUE bar agree, colour errors 0 on all three.",
+ "P111": "Matches macOS apart from window chrome and scale; every timeline number is the same on all three, and DRAW DONE err=0.0000 pt.",
+ "P112": "Matches macOS apart from window chrome and scale; the red disc is the same size in every shape and in the RADIAL text."
 }
