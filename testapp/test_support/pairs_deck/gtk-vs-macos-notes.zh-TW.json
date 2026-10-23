@@ -420,8 +420,8 @@
   "zh": "除了視窗外框與縮放比例之外，與 macOS 相同；Windows 的計數器不同（width 影格 30 個對 48 個；VALUE DONE err 為 1.23 pt、歷時 139 個影格，對 0.89、60 個影格）。"
  },
  "P105": {
-  "en": "Windows has no 'no .transition (default fade)' row, the orange, green and blue blocks that WSL and macOS show under the ForEach rows. Otherwise matches macOS apart from window chrome and scale; all three end with four ForEach rows, and Windows draws 144 frames in each one-second transition where WSL and macOS draw about 63.",
-  "zh": "Windows 沒有「no .transition (default fade)」那一列，也就是 WSL 與 macOS 在 ForEach 列下方顯示的橘、綠、藍色塊。其餘除了視窗外框與縮放比例之外，與 macOS 相同；三邊最後都是四列 ForEach,Windows 每個一秒的轉場畫 144 個影格,WSL 與 macOS 約 63 個。"
+  "en": "Matches macOS apart from window chrome and scale, with the 'no .transition (default fade)' row on all three. The Windows capture (2026-10-23) fell later in the self-test, so its seven 'if shown' tiles and the EACH and DEFAULT lines are up while WSL and macOS stop at ELSE DONE. Windows draws about 120-145 frames in each one-second transition, WSL and macOS about 63.",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同，三邊都有「no .transition (default fade)」那一列。Windows 的擷圖(2026-10-23)落在自我測試較後面的時刻，所以顯示了七個「if shown」色塊與 EACH、DEFAULT 那幾行,WSL 與 macOS 則停在 ELSE DONE。Windows 每個一秒的轉場約畫 120-145 個影格,WSL 與 macOS 約 63 個。"
  },
  "P106": {
   "en": "Matches macOS apart from window chrome and scale; KEYS DONE err=0.000 pt on all three (289 frames on Windows, 121 on WSL, 122 on macOS).",
@@ -436,8 +436,8 @@
   "zh": "除了視窗外框與縮放比例之外，與 macOS 相同。卡片在 Windows 上正在滑行、在 WSL 與 macOS 上位於 0,只是因為擷圖落在 BOUND 步驟的不同時刻；三邊 FREE 都停在 199.80。"
  },
  "P109": {
-  "en": "The third swatch, the angular gradient, is turned half a turn on Windows: its red quarter is at the lower left, where WSL and macOS have it at the upper right. Otherwise matches macOS apart from window chrome and scale; colour errors 0 on all three.",
-  "zh": "第三個色塊(角度漸層)在 Windows 上轉了半圈：紅色的四分之一在左下,WSL 與 macOS 則在右上。其餘除了視窗外框與縮放比例之外，與 macOS 相同；三邊顏色誤差皆為 0。"
+  "en": "Matches macOS apart from window chrome and scale: the three gradient swatches, the angular one included, and the two blue captions agree on all three; colour errors 0 everywhere (124 frames on Windows, about 61 on WSL and macOS).",
+  "zh": "除了視窗外框與縮放比例之外，與 macOS 相同：三個漸層色塊(包括角度漸層)與兩個藍色標題三邊一致；顏色誤差皆為 0(影格數 Windows 124,WSL 與 macOS 約 61)。"
  },
  "P110": {
   "en": "Matches macOS apart from window chrome and scale; the gradient text, the four shapes and the VALUE bar agree, colour errors 0 on all three.",

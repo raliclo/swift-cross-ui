@@ -107,11 +107,11 @@
  "P102": "Matches macOS apart from window chrome and scale.",
  "P103": "WSL renders every emoji (Noto style). Windows shows tofu boxes with hex codes for the parking P (01F17F), the airplane (2708) and the heart (2764), in both the Places list and the picker grid.",
  "P104": "Matches macOS apart from window chrome and scale; Windows counters differ (30 width frames vs 48, VALUE DONE err 1.23 pt over 139 frames vs 0.89 over 60).",
- "P105": "Windows has no 'no .transition (default fade)' row, the orange, green and blue blocks that WSL and macOS show under the ForEach rows. Otherwise matches macOS apart from window chrome and scale; all three end with four ForEach rows, and Windows draws 144 frames in each one-second transition where WSL and macOS draw about 63.",
+ "P105": "Matches macOS apart from window chrome and scale, with the 'no .transition (default fade)' row on all three. The Windows capture (2026-10-23) fell later in the self-test, so its seven 'if shown' tiles and the EACH and DEFAULT lines are up while WSL and macOS stop at ELSE DONE. Windows draws about 120-145 frames in each one-second transition, WSL and macOS about 63.",
  "P106": "Matches macOS apart from window chrome and scale; KEYS DONE err=0.000 pt on all three (289 frames on Windows, 121 on WSL, 122 on macOS).",
  "P107": "Matches macOS apart from window chrome and scale; the marker sits at a different point of the path in each only because it keeps moving. RUN DONE err=0.000 pt and track length 588.495 on all three.",
  "P108": "Matches macOS apart from window chrome and scale. The card is mid-coast on Windows and at 0 on WSL and macOS only because the captures fell at different moments of the BOUND step; FREE ends at 199.80 on all three.",
- "P109": "The third swatch, the angular gradient, is turned half a turn on Windows: its red quarter is at the lower left, where WSL and macOS have it at the upper right. Otherwise matches macOS apart from window chrome and scale; colour errors 0 on all three.",
+ "P109": "Matches macOS apart from window chrome and scale: the three gradient swatches, the angular one included, and the two blue captions agree on all three; colour errors 0 everywhere (124 frames on Windows, about 61 on WSL and macOS).",
  "P110": "Matches macOS apart from window chrome and scale; the gradient text, the four shapes and the VALUE bar agree, colour errors 0 on all three.",
  "P111": "Matches macOS apart from window chrome and scale; every timeline number is the same on all three, and DRAW DONE err=0.0000 pt.",
  "P112": "Matches macOS apart from window chrome and scale; the red disc is the same size in every shape and in the RADIAL text."
