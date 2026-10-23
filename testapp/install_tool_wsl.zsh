@@ -44,7 +44,13 @@ script_path="${0:A}"
 # 2026-10-12 之前是 6.3.3。隨 Windows 那一側一起移動：Windows 上只剩 Swift 6.4.0 之後，用 6.3.3 編的 Swift 程式
 # 就載入不了(Windows 上 runtime 版本互不相容),而 Android SDK 已於 2026-10-05 換到 6.4.0,各主機用同一個版本
 # 才是能推理的狀態。Linux 的封存檔於 2026-10-12 確認存在(HTTP 200,1.1 GB),指令見上。
-SWIFT_VERSION="${SWIFT_VERSION:-6.4.0}"
+# 6.4.1 since 2026-10-23: the user's rule is 6.4.1 on WSL and Windows, and the
+# 6.4.0 default replaced the WSL toolchain that day (see the move-aside below).
+# The archive was checked to exist (HTTP 200, 1,124,788,555 bytes):
+#   curl -sI https://download.swift.org/swift-6.4.1-release/ubuntu2404/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-ubuntu24.04.tar.gz
+# 2026-10-23 起為 6.4.1:使用者規定 WSL 與 Windows 用 6.4.1,而 6.4.0 的預設值在當天換掉了 WSL 的工具鏈(見下方的移到一旁)。
+# 封存檔已確認存在(HTTP 200,1,124,788,555 位元組),指令見上。
+SWIFT_VERSION="${SWIFT_VERSION:-6.4.1}"
 SWIFT_PLATFORM="${SWIFT_PLATFORM:-ubuntu24.04}"
 SWIFT_PREFIX="${SWIFT_PREFIX:-/usr/local/swift}"
 COMPAT_DIR="/usr/local/lib/swift-compat"
@@ -354,7 +360,23 @@ else
     printf '  %s\n' "$url"
     tmp="$(mktemp -d)"
     curl -fsSL -o "$tmp/$archive" "$url"
-    rm -rf "$SWIFT_PREFIX"
+    # Another toolchain at the prefix is moved aside, never deleted: on
+    # 2026-10-23 a run of this script for Orca alone found 6.4.1 there, took it
+    # for a mismatch against its 6.4.0 default, and removed it with rm -rf --
+    # the toolchain the other sessions on this machine were building with.
+    # 前綴位置上的其他工具鏈會被移到一旁，絕不刪除:2026-10-23 只為了裝 Orca 而執行本腳本時，它在那裡看到
+    # 6.4.1,與預設的 6.4.0 比對不符，就用 rm -rf 刪掉了——那正是本機其他 session 正在用來建置的工具鏈。
+    if [ -e "$SWIFT_PREFIX" ]; then
+        old_tag="$("$SWIFT_PREFIX/usr/bin/swift" --version 2>/dev/null \
+            | sed -n 's/.*(\(swift-[^)]*\)).*/\1/p' | head -1 || true)"
+        aside="$SWIFT_PREFIX-${old_tag:-previous-$(date +%Y%m%d%H%M%S)}"
+        if [ -e "$aside" ]; then
+            aside="$aside-$(date +%Y%m%d%H%M%S)"
+        fi
+        printf '  WARNING: %s holds %s, not %s; moving it to %s\n' \
+            "$SWIFT_PREFIX" "${old_tag:-an unknown toolchain}" "$SWIFT_VERSION" "$aside" >&2
+        mv "$SWIFT_PREFIX" "$aside"
+    fi
     mkdir -p "$SWIFT_PREFIX"
     tar -xzf "$tmp/$archive" -C "$SWIFT_PREFIX" --strip-components=1
     rm -rf "$tmp"
