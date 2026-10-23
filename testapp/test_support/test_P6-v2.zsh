@@ -43,7 +43,20 @@ export TEST_MARKER="RENDER COMPLETE"
 # 不傳 -i。P6-v2 會顯示「Pass -i <file>」並繪製視窗，因此 marker 仍會出現，框架的啟動檢查
 # 在沒有媒體檔的機器上依然有效。真正要量測的執行需要 -i，那由 measure_p6v2 負責；本 wrapper
 # 檢查的是 app 能否正常啟動。
-export TEST_APP_ARGS="-autoplay -seconds 12 --debug"
+#
+# With --actionfile the steps take their own time, and 12 s ended the app before
+# the final capture: actions/wsl/P6-v2-transport-toggles.actions takes about 12 s
+# (2 s settle, the toggles and drop-downs, 1.5 s hold), so every capture after it
+# found no window, with GTK_CSD on and off alike (queue.md, WSL sweep of
+# 2026-10-22; cause found 2026-10-23). 40 s leaves the replay and its capture room.
+# 帶 --actionfile 時，步驟自己會花時間,12 秒讓 app 在最後截圖之前就結束了:actions/wsl/P6-v2-transport-toggles.actions
+# 約需 12 秒(安定 2 秒、開關與下拉選單、停留 1.5 秒),因此之後的截圖都找不到視窗,GTK_CSD 開關皆然(queue.md,2026-10-22
+# 的 WSL sweep;2026-10-23 找到原因)。40 秒讓重放與其截圖都有餘裕。
+run_seconds=12
+if (( ${@[(Ie)--actionfile]} )); then
+    run_seconds=40
+fi
+export TEST_APP_ARGS="-autoplay -seconds $run_seconds --debug"
 
 # `SUMMARY` carries the whole measurement in one line; `hwaccels reported` and
 # `fell back` explain a decode path that is not the expected one, which is the

@@ -142,7 +142,7 @@ entry is closed.
     clicks 1 by `taplabel` and by coordinates.
     **2026-10-22 已修正:** WinUIBackend.setColor 對完全透明的顏色不給筆刷(null 背景),XAML 便讓指標穿過。WinUI 上的 P10:
     `taplabel` 與座標點擊的 Covered 都是 1。
-  - [ ] **WSL sweep of 2026-10-22, three leftovers (P81 and P26 fixed; P6-v2 open).** All 134 WSL action files ran
+  - [x] **WSL sweep of 2026-10-22, three leftovers (P81 and P26 fixed; P6-v2 fixed 2026-10-23).** All 134 WSL action files ran
     under X11 with `GTK_CSD=1` (`sweep_drive_wsl.zsh`, adaptive showtime and
     `# expect:` checks); all replayed to the end except one P81 run (below), and
     of the 14 that declare an expectation, the 13 the sweep can judge were met (P54's is `expect: screenshot`, judged by eye). Three need a look:
@@ -150,6 +150,13 @@ entry is closed.
       capture finds no window, with `GTK_CSD=0` and `=1` alike, and the 1 s
       capture is 0-4% non-black. A plain run's final capture is fine (87.8%),
       so the deck is unaffected; something after the drop-down rows.
+      **FIXED 2026-10-23: not the display.** test_P6-v2.zsh starts the app with
+      `-seconds 12`, and the action file takes about 12 s, so the app had exited
+      before the final capture. With --actionfile it now runs 40 s: final capture
+      87.8%, Speed 2x, FPS 30, Frame drop on (Sound stays disabled with no -i file).
+      **2026-10-23 已修正：不是顯示的問題。** test_P6-v2.zsh 以 `-seconds 12` 啟動 app,而動作檔約需 12 秒，
+      因此最後截圖前 app 已經結束。帶 --actionfile 時改為 40 秒：最後截圖 87.8%,Speed 2x、FPS 30、Frame drop 開啟
+      (沒有 -i 檔案時 Sound 維持停用)。
     - P81-sheet-from-window-b: failed once in the sweep ("no visible window of
       this process has title P81 window B") while Windows was building P75,
       then replayed to the end twice. Window B can take longer than the file's
