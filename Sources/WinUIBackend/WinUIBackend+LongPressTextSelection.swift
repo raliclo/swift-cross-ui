@@ -130,6 +130,25 @@ final class LongPressTextBox: TextBox {
         try super.onPointerCaptureLost(e)
     }
 
+    /// Ctrl+Shift+Z redoes, as Ctrl+Y does. TextBox knows only Ctrl+Y, so
+    /// P94's Ctrl+Shift+Z did nothing here while GtkBackend redid on it.
+    /// Ctrl+Shift+Z 與 Ctrl+Y 一樣是重做。TextBox 只認得 Ctrl+Y,所以 P94 的 Ctrl+Shift+Z 在這裡沒有作用，
+    /// 而 GtkBackend 會重做。
+    override func onKeyDown(_ e: KeyRoutedEventArgs!) throws {
+        // 0x5A is VK_Z. 0x5A 是 VK_Z。
+        if let e, e.key.rawValue == 0x5A {
+            let modifiers = MainActor.assumeIsolated { WinUIBackend.currentModifiers() }
+            if modifiers.contains(.control), modifiers.contains(.shift),
+               !modifiers.contains(.option)
+            {
+                try redo()
+                e.handled = true
+                return
+            }
+        }
+        try super.onKeyDown(e)
+    }
+
     /// Returns whether the event was the selection's, and so not the template's.
     /// 回傳這個事件是否屬於選取、因此不屬於 template。
     private func handle(_ event: LongPressSelectionTracker.Event, pointer e: PointerRoutedEventArgs!) -> Bool {

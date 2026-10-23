@@ -132,11 +132,17 @@ final class TextUndoHistory {
         let keys = EventControllerKey()
         gtk_event_controller_set_propagation_phase(keys.opaquePointer, GTK_PHASE_CAPTURE)
         keys.keyPressed = { [weak self] _, keyval, _, state in
+            let redoKey = (Int32(keyval) == GDK_KEY_y || Int32(keyval) == GDK_KEY_Y)
+                && state.rawValue & GDK_CONTROL_MASK.rawValue != 0
             guard let self,
                   state.rawValue & (GDK_CONTROL_MASK.rawValue | GDK_META_MASK.rawValue) != 0,
-                  Int32(keyval) == GDK_KEY_z || Int32(keyval) == GDK_KEY_Z
+                  Int32(keyval) == GDK_KEY_z || Int32(keyval) == GDK_KEY_Z || redoKey
             else { return false }
-            if state.rawValue & GDK_SHIFT_MASK.rawValue != 0 {
+            // Ctrl+Y redoes as well, the Windows key; WinUI takes Ctrl+Shift+Z the same way.
+            // Control only: on macOS META is Command, and Command-Y is not redo there.
+            // Ctrl+Y 也是重做(Windows 的按鍵);WinUI 也同樣接受 Ctrl+Shift+Z。只認 Control:macOS 上 META 是
+            // Command,而 Command-Y 在那裡不是重做。
+            if state.rawValue & GDK_SHIFT_MASK.rawValue != 0 || redoKey {
                 self.redo()
             } else {
                 self.undo()

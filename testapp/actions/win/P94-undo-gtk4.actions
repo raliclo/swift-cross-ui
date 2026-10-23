@@ -1,6 +1,8 @@
 action,x,y,origin,button,key,micros,note,platform
 # P94 on Windows (GtkBackend, TEST_BACKEND=gtk4): GTK's own undo is off, the framework's history is used.
 #   TEST_BACKEND=gtk4 zsh testapp/test.zsh P94 --windows --actionfile testapp/actions/win/P94-undo-gtk4.actions
+# Replayed 2026-10-23 on this platform: passes (matrix_coverage/results.csv2). The DRAFT note below is kept as written. The Tab below became a click: GTK on Windows focuses the editor at start, so the Tab was typed into it.
+# 2026-10-23 已在此平台重播：通過(matrix_coverage/results.csv2)。下方「草稿」說明保留原文。下方的 Tab 改成點擊:Windows 上的 GTK 一開始就聚焦編輯器，Tab 會被打進文字裡。
 # DRAFT, written on the Mac 2026-10-14 from testapp/actions/mac/P94-undo-gtk4.actions and NOT
 # replayed: nothing here has run on this platform. Focus goes to the editor by Tab, the only
 # control in the window, so no coordinate is needed; if Tab does not reach it, measure the
@@ -15,7 +17,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 的位置改用點擊。按鍵是 Ctrl。編輯器起始為 hello;會用到剪貼簿，結束時內容是 hello。p94-undo.log 的 editor 各行
 # 應依序如上;第四次 Undo 不得多出一行，兩次 Redo 給出最後兩行。
 sleep,,,,,,2500000,let the window settle and take the foreground,windows
-key,,,,,tab,,focus the text editor -- see the header if it does not,windows
+click,223,230,frame,left,,,focus the text editor by a click: Windows GTK focuses it at start and a Tab would be typed into it,windows
 sleep,,,,,,500000,,windows
 keydown,,,,,control,,,windows
 key,,,,,a,,select all,windows

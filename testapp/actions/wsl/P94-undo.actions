@@ -1,6 +1,8 @@
 action,x,y,origin,button,key,micros,note,platform
 # P94 on WSL (GtkBackend): GTK's own undo is off, the framework's history is used.
 #   zsh testapp/test.zsh P94 --wsl --actionfile testapp/actions/wsl/P94-undo.actions
+# Replayed 2026-10-23 on this platform: passes (matrix_coverage/results.csv2). The DRAFT note below is kept as written.
+# 2026-10-23 已在此平台重播：通過(matrix_coverage/results.csv2)。下方「草稿」說明保留原文。
 # DRAFT, written on the Mac 2026-10-14 from testapp/actions/mac/P94-undo-gtk4.actions and NOT
 # replayed: nothing here has run on this platform. Focus goes to the editor by Tab, the only
 # control in the window, so no coordinate is needed; if Tab does not reach it, measure the

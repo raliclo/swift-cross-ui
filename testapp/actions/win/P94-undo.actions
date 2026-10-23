@@ -1,6 +1,8 @@
 action,x,y,origin,button,key,micros,note,platform
 # P94 on Windows (WinUIBackend): a TextEditor undoes one change at a time.
-#   zsh testapp/test.zsh P94 --windows --actionfile testapp/actions/win/P94-undo.actions
+#   TEST_BACKEND=WinUI zsh testapp/test.zsh P94 --windows --actionfile testapp/actions/win/P94-undo.actions
+# Replayed 2026-10-23 on this platform: passes (matrix_coverage/results.csv2). The DRAFT note below is kept as written. It found that WinUI did not redo on Ctrl+Shift+Z (fixed in LongPressTextBox).
+# 2026-10-23 已在此平台重播：通過(matrix_coverage/results.csv2)。下方「草稿」說明保留原文。它找出 WinUI 不認 Ctrl+Shift+Z 重做(已在 LongPressTextBox 修正)。
 # DRAFT, written on the Mac 2026-10-14 from testapp/actions/mac/P94-undo-gtk4.actions and NOT
 # replayed: nothing here has run on this platform. Focus goes to the editor by Tab, the only
 # control in the window, so no coordinate is needed; if Tab does not reach it, measure the
