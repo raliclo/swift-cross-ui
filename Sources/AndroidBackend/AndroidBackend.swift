@@ -1018,7 +1018,7 @@ public final class AndroidBackend: BaseAppBackend {
     ) -> EnvironmentValues {
         var environment = rootEnvironment
         environment
-            .windowScaleFactor = Double(window.content!.getResources().getDisplayMetrics().density)
+            .windowScaleFactor = Double(AndroidBackend.density { window.content!.getResources().getDisplayMetrics().density })
         return environment
     }
 
@@ -1063,7 +1063,7 @@ public final class AndroidBackend: BaseAppBackend {
         if known[index] == position { return }
         known[index] = position
         Self.childPositions.set(known, for: container)
-        let density = container.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { container.getResources().getDisplayMetrics().density }
 
         let container = container.as(CustomContainer.self)!
         let child = container.getChildAt(Int32(index))!
@@ -1105,7 +1105,7 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func naturalSize(of widget: Widget) -> SIMD2<Int> {
-        let density = widget.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { widget.getResources().getDisplayMetrics().density }
 
         let measureSpecClass = try! JavaClass<AndroidKit.View.MeasureSpec>(
             environment: Self.env
@@ -1126,7 +1126,7 @@ public final class AndroidBackend: BaseAppBackend {
         // params yet nothing was set, and the next call must try again.
         // 只在真正套用之後才記下：還沒有 layout params 時什麼都沒設，下一次呼叫必須再試。
         Self.widgetSizes.set(size, for: widget)
-        let density = widget.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { widget.getResources().getDisplayMetrics().density }
         let width = Self.layoutLength(size.x, density: density)
         let height = Self.layoutLength(size.y, density: density)
         // Unchanged sizes skipped, for the reason `setPosition` gives.
@@ -1455,7 +1455,7 @@ public final class AndroidBackend: BaseAppBackend {
     // 被切斷，而它自己的狀態列卻寫著「sidebar: 288」。繪製本身是自洽的，那正是它看起來像裁切問題
     // 而非單位問題的原因。
     public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
-        let density = splitView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { splitView.getResources().getDisplayMetrics().density }
         let pixels = splitView.as(SplitContainer.self)!.resolvedSidebarWidth()
         return Int((Double(pixels) / Double(density)).rounded())
     }
@@ -1465,7 +1465,7 @@ public final class AndroidBackend: BaseAppBackend {
         minimum minimumWidth: Int,
         maximum maximumWidth: Int
     ) {
-        let density = splitView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { splitView.getResources().getDisplayMetrics().density }
 
         // Clamped before the multiply. A maximum of `Int.max` means "no upper
         // bound" and is what the layout system sends when the app has not set

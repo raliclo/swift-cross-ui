@@ -25,7 +25,7 @@ extension AndroidBackend: BackendFeatures.CornerRadius {
     }
 
     public func setCornerRadius(of widget: Widget, to radius: Int) {
-        let density = widget.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { widget.getResources().getDisplayMetrics().density }
 
         let scaledRadius = Float(radius) * density
 

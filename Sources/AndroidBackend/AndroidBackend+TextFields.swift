@@ -248,7 +248,7 @@ extension AndroidBackend {
                 textField.setMinHeight(0)
                 textField.setMinimumHeight(0)
             case .roundedBorder, .squareBorder:
-                let density = textField.getResources().getDisplayMetrics().density
+                let density = AndroidBackend.density { textField.getResources().getDisplayMetrics().density }
 
                 var strokeColor = environment.suggestedForegroundColor
                     .resolve(in: environment)

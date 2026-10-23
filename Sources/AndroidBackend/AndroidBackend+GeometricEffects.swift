@@ -75,7 +75,7 @@ extension AndroidBackend: BackendFeatures.GeometricEffects {
         // conversion `setSize` does.
         // 只有平移量需要乘上密度。線性部分是純比值——1.6 倍的縮放在任何螢幕上都是 1.6——而平移量是
         // 以點為單位的長度，必須換算為像素，與 `setSize` 所做的是同一種換算。
-        let density = widget.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { widget.getResources().getDisplayMetrics().density }
 
         container.setAffineTransform(
             Float(m.x),

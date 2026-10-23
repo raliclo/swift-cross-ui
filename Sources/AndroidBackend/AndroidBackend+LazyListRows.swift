@@ -62,7 +62,7 @@ extension AndroidBackend: BackendFeatures.LazyListRows {
             return
         }
 
-        let density = listView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { listView.getResources().getDisplayMetrics().density }
         let id = LazyListProviders.register(
             { row in
                 guard let built = provider(row) else { return nil }

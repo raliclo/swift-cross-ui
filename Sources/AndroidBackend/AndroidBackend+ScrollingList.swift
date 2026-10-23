@@ -51,7 +51,7 @@ extension AndroidBackend: BackendFeatures.ScrollingLists {
     /// 而那正是 AppKit 的前後量測所釘住的同一個運算式。
     public func setViewportHeight(ofSelectableListView listView: Widget, to height: Int) {
         guard let layoutParams = listView.getLayoutParams() else { return }
-        let density = listView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { listView.getResources().getDisplayMetrics().density }
         layoutParams.height = Self.layoutLength(height, density: density)
         listView.setLayoutParams(layoutParams)
     }

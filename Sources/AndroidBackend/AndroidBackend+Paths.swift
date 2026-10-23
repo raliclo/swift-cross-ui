@@ -65,7 +65,7 @@ extension AndroidBackend: BackendFeatures.Paths {
         if let overrideStrokeStyle {
             apply(
                 strokeStyle: overrideStrokeStyle,
-                density: Double(container.getResources().getDisplayMetrics().density),
+                density: Double(AndroidBackend.density { container.getResources().getDisplayMetrics().density }),
                 to: path
             )
         }

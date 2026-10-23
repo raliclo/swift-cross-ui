@@ -165,7 +165,7 @@ extension AndroidBackend {
     }
 
     public func baseItemPadding(ofSelectableListView listView: Widget) -> EdgeInsets {
-        let density = listView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { listView.getResources().getDisplayMetrics().density }
 
         let dividerHeightPx = listView.as(AndroidKit.ListView.self)!.getDividerHeight()
 
@@ -188,7 +188,7 @@ extension AndroidBackend {
         to items: [Widget],
         withRowHeights rowHeights: [Int]
     ) {
-        let density = listView.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { listView.getResources().getDisplayMetrics().density }
 
         listView.as(AndroidKit.AdapterView.self)!
             .getAdapter()!

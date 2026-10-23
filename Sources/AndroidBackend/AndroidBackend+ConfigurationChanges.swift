@@ -59,6 +59,7 @@ extension AndroidBackend {
     }
 
     func configurationDidChange() {
+        Self.cachedDensity = nil
         helpers.clearTextSizeCache()
         Self.rootEnvironmentChangeHandler?()
         for window in Self.windows.compactMap(\.window) {

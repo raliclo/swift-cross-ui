@@ -65,7 +65,7 @@ extension AndroidBackend: BackendFeatures.VisualEffects {
         // 中 `setSize` 與 `setCornerRadius` 已在做的是同一種換算。飽和度、亮度、對比、灰階與色相
         // 都不含長度量綱，因此對其中任何一個做縮放，都會造成「隨密度而變的顏色」——那正是只會在某一種
         // 裝置上才顯現的那類缺陷。
-        let density = widget.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { widget.getResources().getDisplayMetrics().density }
 
         container.setVisualEffect(
             Float(effect.opacity),

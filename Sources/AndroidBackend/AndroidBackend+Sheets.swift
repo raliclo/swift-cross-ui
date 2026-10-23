@@ -13,7 +13,7 @@ extension AndroidBackend: BackendFeatures.Sheets {
             let width = helpers.getSafeWindowWidth(Self.activity)
             let widthMeasureSpec = (width & 0x3FFFFFFF) | 0x40000000
             content.measure(widthMeasureSpec, 0x3FFFFFFF)
-            let density = content.getResources().getDisplayMetrics().density
+            let density = AndroidBackend.density { content.getResources().getDisplayMetrics().density }
             let height = Float(content.getMeasuredHeight()) / density
             return SIMD2(Int(width), Int(height.rounded(.up)))
         } else {

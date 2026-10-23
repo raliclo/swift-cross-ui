@@ -36,7 +36,7 @@ extension AndroidBackend: BackendFeatures.Tables {
 
     public func createTable() -> Widget {
         let table = TableContainer(Self.activity, environment: Self.env)
-        let density = Self.activity.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { Self.activity.getResources().getDisplayMetrics().density }
         table.setHeaderHeight(Int32(Float(Self.headerHeightInPoints) * density))
         return table.as(AndroidKit.View.self)!
     }
@@ -82,7 +82,7 @@ extension AndroidBackend: BackendFeatures.Tables {
         withRowHeights rowHeights: [Int]
     ) {
         let table = table.as(TableContainer.self)!
-        let density = Self.activity.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { Self.activity.getResources().getDisplayMetrics().density }
         table.clearCells()
         for height in rowHeights {
             table.addRowHeight(Int32(Float(height) * density))

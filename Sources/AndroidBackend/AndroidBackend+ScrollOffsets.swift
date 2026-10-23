@@ -14,7 +14,7 @@ import SwiftJava
 extension AndroidBackend: BackendFeatures.ScrollOffsetReporting {
     public func contentOffset(ofScrollContainer scrollView: Widget) -> SIMD2<Double> {
         guard let container = scrollView.as(ScrollContainer.self) else { return .zero }
-        let density = Double(container.getResources().getDisplayMetrics().density)
+        let density = Double(AndroidBackend.density { container.getResources().getDisplayMetrics().density })
         guard density > 0 else { return .zero }
         return SIMD2(
             Double(container.contentOffsetX()) / density,

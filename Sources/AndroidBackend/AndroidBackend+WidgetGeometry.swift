@@ -76,7 +76,7 @@ extension AndroidBackend: BackendFeatures.WidgetGeometry {
             }
             hops += 1
         }
-        let density = view.getResources().getDisplayMetrics().density
+        let density = AndroidBackend.density { view.getResources().getDisplayMetrics().density }
         return SIMD2(
             Int((Float(x) / density).rounded()),
             Int((Float(y) / density).rounded())
