@@ -281,6 +281,9 @@ extension GtkBackend: BackendFeatures.KeyEvents {
         let target = GtkFeatureTarget(child)
         gtk_widget_set_focusable(target.widgetPointer, 1)
         target.addEventController(EventControllerKey())
+        #if os(Windows)
+            GtkWindowsPacketKeys.install()
+        #endif
         // Focus when shown, as AppKitBackend claims first responder: a key
         // handler that waits for a click before it hears anything looks
         // like one that never works.
@@ -321,15 +324,19 @@ extension GtkBackend: BackendFeatures.KeyEvents {
         target.keyEventsEnabled = environment.isEnabled
         let controller =
             target.eventControllers.first { $0 is EventControllerKey } as! EventControllerKey
-        controller.keyPressed = { [weak target] _, keyval, keycode, state in
+        controller.keyPressed = { [weak target] controller, keyval, keycode, state in
             guard let target, target.keyEventsEnabled else { return false }
             let isRepeat = !target.pressedKeycodes.insert(keycode).inserted
-            return Self.report(keyval, state, phase: isRepeat ? .repeat : .down, onKey)
+            return Self.report(
+                Self.packetKeyval(keyval, keycode, down: true, of: controller), state,
+                phase: isRepeat ? .repeat : .down, onKey)
         }
-        controller.keyReleased = { [weak target] _, keyval, keycode, state in
+        controller.keyReleased = { [weak target] controller, keyval, keycode, state in
             guard let target, target.keyEventsEnabled else { return }
             target.pressedKeycodes.remove(keycode)
-            _ = Self.report(keyval, state, phase: .up, onKey)
+            _ = Self.report(
+                Self.packetKeyval(keyval, keycode, down: false, of: controller), state,
+                phase: .up, onKey)
         }
     }
 
@@ -338,6 +345,27 @@ extension GtkBackend: BackendFeatures.KeyEvents {
     /// `flagsChanged` does; GDK hands over the state from before it.
     /// 把一個按鍵事件轉成 `KeyPress`。單獨的修飾鍵回報 `key: nil`,修飾鍵狀態為事件之後的狀態，與 AppKit
     /// 的 `flagsChanged` 相同;GDK 交來的是事件之前的狀態。
+    /// The keyval of a `VK_PACKET` key on Windows, which GDK leaves as
+    /// `GDK_KEY_VoidSymbol` (see GtkWindowsPacketKeys); any other key as it is.
+    /// Windows 上 `VK_PACKET` 按鍵的 keyval——GDK 把它留成 `GDK_KEY_VoidSymbol`(見 GtkWindowsPacketKeys);
+    /// 其他按鍵原樣回傳。
+    static func packetKeyval(
+        _ keyval: UInt, _ keycode: UInt, down: Bool, of controller: EventControllerKey
+    ) -> UInt {
+        #if os(Windows)
+            guard Int32(keyval) == GDK_KEY_VoidSymbol, keycode == UInt(GtkWindowsPacketKeys.keycode) else {
+                return keyval
+            }
+            return down
+                ? GtkWindowsPacketKeys.takeKeyval(
+                    time: gtk_event_controller_get_current_event_time(controller.opaquePointer))
+                    ?? keyval
+                : GtkWindowsPacketKeys.lastKeyval
+        #else
+            return keyval
+        #endif
+    }
+
     static func report(
         _ keyval: UInt,
         _ state: GdkModifierType,

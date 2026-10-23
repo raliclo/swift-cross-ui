@@ -31,8 +31,22 @@
         /// 保存，而 display 共用該 context,所以之後的視窗幾乎不花成本。`SCUI_GTK_WARMUP=0` 可關閉，供量測用。
         func warmUpRenderer(of window: Gtk.Window) {
             guard ProcessInfo.processInfo.environment["SCUI_GTK_WARMUP"] != "0" else { return }
-            gtk_widget_realize(window.widgetPointer)
-            guard let native = gtk_widget_get_native(window.widgetPointer),
+            // A window of its own, never `window`: realizing the app's window this
+            // early fixed things GTK decides at realization. P92 on Windows GTK had
+            // no menu bar from this function's first version (d93cd3ce,
+            // 2026-10-21) until 2026-10-23 and passed with SCUI_GTK_WARMUP=0;
+            // unrealizing the window afterwards brought the menu bar back but lost
+            // GTK's own title bar. The programs are kept for the display, so a
+            // throwaway window warms the app's as well.
+            // 用自己的視窗，絕不用 `window`:這麼早 realize app 的視窗，會把 GTK 在 realize 時決定的事定下來。Windows GTK
+            // 上的 P92 從本函式第一版(d93cd3ce,2026-10-21)到 2026-10-23 都沒有選單列，加上 SCUI_GTK_WARMUP=0 則通過;
+            // 事後 unrealize 視窗能讓選單列回來，卻失去 GTK 自己的標題列。程式依 display 保存，所以用完即丟的視窗也能
+            // 替 app 的視窗預熱。
+            _ = window
+            guard let probe = gtk_window_new() else { return }
+            defer { gtk_window_destroy(UnsafeMutableRawPointer(probe).assumingMemoryBound(to: GtkWindow.self)) }
+            gtk_widget_realize(probe)
+            guard let native = gtk_widget_get_native(probe),
                 let renderer = gtk_native_get_renderer(native)
             else { return }
 
@@ -62,7 +76,7 @@
             var colors = [grey, grey, grey, grey]
             gtk_snapshot_append_border(snapshot, &rounded, &widths, &colors)
             gtk_snapshot_append_outset_shadow(snapshot, &rounded, &grey, 0, 2, 0, 4)
-            let layout = gtk_widget_create_pango_layout(window.widgetPointer, "Ag 0.1")
+            let layout = gtk_widget_create_pango_layout(probe, "Ag 0.1")
             gtk_snapshot_append_layout(snapshot, layout, &grey)
             g_object_unref(UnsafeMutableRawPointer(layout))
 

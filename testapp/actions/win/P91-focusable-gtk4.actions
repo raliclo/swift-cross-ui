@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P91 on Windows, GtkBackend (TEST_BACKEND=gtk4): .focusable() on plain colour panels -- the steps of
+# actions/win/P91-focusable.actions, re-measured for GTK.
+#   TEST_BACKEND=gtk4 zsh testapp/test.zsh P91 --windows --showtime 14 --actionfile testapp/actions/win/P91-focusable-gtk4.actions
+# Positions from the test.zsh capture on 2026-10-23 (origin=frame: the capture's own pixels, CSD shadow included).
+# With the WinUI file nothing was heard: its DIP positions miss GTK's panels and buttons.
+# Panels A (100,208), B (224,208), off (348,208); buttons focus A (83,373), focus B (168,373),
+# focus none (262,373), focus off (87,414).
+# Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
+# "refusal check: refused (correct)", and the focus on A with its ring drawn.
+# P91(Windows,GtkBackend):步驟同 actions/win/P91-focusable.actions,座標為 GTK 重新量測(2026-10-23,origin=frame
+# 即截圖像素，含 CSD 陰影)。用 WinUI 檔時什麼都沒聽到：它的 DIP 座標點不到 GTK 的色塊與按鈕。結束時應為 A heard: ab、
+# B heard: cde、off heard: 空白、refusal check: refused (correct),焦點在 A 且畫出外框。
+sleep,,,,,,1500000,let the window settle,windows
+click,262,373,frame,left,,,focus none first,windows
+sleep,,,,,,300000,,windows
+click,100,208,frame,left,,,press panel A -- focused: a,windows
+sleep,,,,,,500000,,windows
+key,,,,,a,,,windows
+key,,,,,b,,A heard: ab,windows
+sleep,,,,,,300000,,windows
+click,224,208,frame,left,,,press panel B -- focused: b,windows
+sleep,,,,,,500000,,windows
+key,,,,,c,,B heard: c,windows
+sleep,,,,,,300000,,windows
+click,83,373,frame,left,,,the focus A button -- from code,windows
+sleep,,,,,,500000,,windows
+key,,,,,tab,,Tab from A must reach B,windows
+sleep,,,,,,500000,,windows
+key,,,,,d,,B heard: cd,windows
+sleep,,,,,,300000,,windows
+click,262,373,frame,left,,,focus none,windows
+sleep,,,,,,500000,,windows
+key,,,,,y,,no panel is focused -- nobody may hear this,windows
+sleep,,,,,,300000,,windows
+click,168,373,frame,left,,,the focus B button,windows
+sleep,,,,,,500000,,windows
+key,,,,,e,,B heard: cde,windows
+sleep,,,,,,300000,,windows
+click,87,414,frame,left,,,focus off -- must be refused,windows
+sleep,,,,,,700000,,windows
+key,,,,,z,,the off panel must not hear this,windows
+sleep,,,,,,300000,,windows
+click,348,208,frame,left,,,press the off panel itself -- still no focus,windows
+sleep,,,,,,500000,,windows
+key,,,,,z,,,windows
+sleep,,,,,,300000,,windows
+click,83,373,frame,left,,,end on A so the focus ring is in the capture,windows
+sleep,,,,,,3000000,let the capture land,windows

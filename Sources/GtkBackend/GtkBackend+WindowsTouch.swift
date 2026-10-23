@@ -1,4 +1,5 @@
 #if os(Windows)
+    import CGtk
     import Foundation
     import WinSDK
 
@@ -73,6 +74,80 @@
         }
     }
 
+    /// The characters of `VK_PACKET` keys, for GtkBackend's key events on Windows.
+    ///
+    /// A character sent with `KEYEVENTF_UNICODE` -- as the touch keyboard, the
+    /// emoji panel and Win32Synthesiser send it -- reaches GDK as a key with
+    /// keyval `GDK_KEY_VoidSymbol` and keycode 231 (`VK_PACKET`), so
+    /// `.onKeyPress` heard nothing: P91 on Windows GTK, 2026-10-23, five
+    /// presses traced, all `keyval=0xffffff keycode=231`, and "A heard" stayed
+    /// empty where WSL heard "ab". The character itself comes in the `WM_CHAR`
+    /// that `TranslateMessage` makes from the `VK_PACKET` key-down; GDK pumps
+    /// every waiting message before it hands its key events on, so the hook has
+    /// read that `WM_CHAR` by the time the key-pressed handler asks.
+    ///
+    /// `VK_PACKET` 按鍵的字元，供 GtkBackend 在 Windows 上的按鍵事件使用。以 `KEYEVENTF_UNICODE` 送出的字元——
+    /// 觸控鍵盤、表情符號面板與 Win32Synthesiser 都這樣送——到 GDK 時是 keyval `GDK_KEY_VoidSymbol`、keycode 231
+    /// (`VK_PACKET`)的按鍵，因此 `.onKeyPress` 什麼都沒聽到:2026-10-23 Windows GTK 上的 P91,追蹤五次按下全是
+    /// `keyval=0xffffff keycode=231`,「A heard」維持空白，而 WSL 聽到了「ab」。字元本身在 `TranslateMessage` 由
+    /// `VK_PACKET` 按下所產生的 `WM_CHAR` 裡;GDK 在交出按鍵事件之前會先抽完所有等待中的訊息，因此 key-pressed
+    /// handler 詢問時,hook 已讀到那則 `WM_CHAR`。
+    @MainActor
+    enum GtkWindowsPacketKeys {
+        static let keycode: UInt32 = 0xE7  // VK_PACKET
+        /// Milliseconds a character may lie before its key event. / 字元可早於其按鍵事件的毫秒數。
+        private static let window: UInt32 = 50
+        /// The time of the last VK_PACKET key-down, while its WM_CHAR is awaited.
+        /// 上一個 VK_PACKET 按下的時間，於等待其 WM_CHAR 期間。
+        private static var packetDownTime: UInt32?
+        /// Characters by the time of their key-down. A plain queue matched them
+        /// in order and went one off as soon as a packet key reached a widget
+        /// that does not ask (a button): P91 heard "cdy" for "cde" (2026-10-23).
+        /// 依按下時間記錄的字元。單純的佇列依序配對，只要有一個 packet 按鍵送到不會來取的 widget(按鈕)就整個
+        /// 錯位一格:P91 把「cde」聽成「cdy」(2026-10-23)。
+        private static var pending: [(time: UInt32, scalar: UInt32)] = []
+        /// The keyval of the last packet key pressed, for its release.
+        /// 上一個按下的 packet 按鍵的 keyval,供其放開時使用。
+        private(set) static var lastKeyval: UInt = 0
+
+        /// The same hook as GtkWindowsTouch's. / 與 GtkWindowsTouch 相同的 hook。
+        static func install() {
+            GtkWindowsTouch.install()
+        }
+
+        /// The keyval for the packet key whose event has `time`, or nil if its
+        /// character was not seen; characters of earlier keys are dropped.
+        /// 事件時間為 `time` 的 packet 按鍵的 keyval;若未見到其字元則為 nil;較早按鍵的字元一併丟棄。
+        static func takeKeyval(time: UInt32) -> UInt? {
+            // GDK makes event times strictly increasing, adding a millisecond to
+            // a key that shares its message time with the one before: "ab" typed
+            // together lost the b to an exact match (2026-10-23). So a character
+            // matches within `window` before the event; older ones are a key that
+            // went elsewhere.
+            // GDK 讓事件時間嚴格遞增，與前一個按鍵同一訊息時間的按鍵會被加上一毫秒：一起打的「ab」以完全相符比對時
+            // 丟了 b(2026-10-23)。因此字元在事件之前 `window` 以內即算相符;更早的是送到別處的按鍵。
+            pending.removeAll { $0.time &+ window < time }
+            guard let first = pending.first, first.time <= time else { return nil }
+            let keyval = UInt(gdk_unicode_to_keyval(pending.removeFirst().scalar))
+            lastKeyval = keyval
+            return keyval
+        }
+
+        fileprivate static func received(_ message: MSG) {
+            switch message.message {
+                case UINT(WM_KEYDOWN):
+                    packetDownTime = message.wParam == WPARAM(keycode) ? UInt32(message.time) : nil
+                case UINT(WM_CHAR):
+                    if let time = packetDownTime {
+                        pending.append((time, UInt32(truncatingIfNeeded: message.wParam)))
+                        packetDownTime = nil
+                    }
+                default:
+                    break
+            }
+        }
+    }
+
     private let gtkWindowsTouchHook: HOOKPROC = { nCode, wParam, lParam in
         // Only messages taken off the queue: a PM_NOREMOVE peek sees the same one again.
         // 只看真正從佇列取出的訊息:PM_NOREMOVE 的窺看會再看到同一則。
@@ -82,6 +157,7 @@
         {
             MainActor.assumeIsolated {
                 GtkWindowsTouch.received(message)
+                GtkWindowsPacketKeys.received(message)
             }
         }
         return CallNextHookEx(nil, nCode, wParam, lParam)
