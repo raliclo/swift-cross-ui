@@ -318,6 +318,16 @@ case "$(uname -s)" in
             # 測試的建議，不該變成所有測試的閘門。
             zsh "$script_dir/enable_input.zsh" --check 2>&1 | sed 's/^/!! /' >&2 || true
         fi
+        # The Windows side of a WSL run: vhdx sparse, C: free, .wslconfig memory
+        # settings. Warnings only, printed only when something is wrong; see
+        # test_support/check_wsl_host.zsh for why each matters (2026-10-23).
+        # WSL 執行在 Windows 這一側的狀態:vhdx 是否稀疏、C: 剩餘空間、.wslconfig 的記憶體設定。只發警告，
+        # 只在有問題時印出；各項的理由見 test_support/check_wsl_host.zsh(2026-10-23)。
+        case " $* " in
+            *" --wsl "*|*" --both "*)
+                zsh "$script_dir/test_support/check_wsl_host.zsh" --quiet || true
+                ;;
+        esac
         ;;
 esac
 

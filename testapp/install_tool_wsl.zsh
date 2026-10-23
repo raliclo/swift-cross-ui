@@ -222,6 +222,59 @@ apt-get install -y --no-install-recommends orca speech-dispatcher
 # 2026-10-23)。用於 WSLg 下 P96 第一幀的等待(queue.md 第 27 列)。
 apt-get install -y --no-install-recommends linux-perf
 
+section "Disk: fstrim and a sparse vhdx"
+# The distribution's ext4.vhdx on C: only grows: files deleted here stay
+# allocated there (79 GB in use inside was 82 GB on C:, 2026-10-23). Two halves:
+# fstrim here tells the vhdx which blocks are free, and the vhdx must be sparse
+# on the Windows side to give them back -- which only Windows can set, with WSL
+# stopped, so this prints the command rather than running it.
+# test_support/check_wsl_host.zsh checks the same from Windows before WSL runs.
+# 發行版在 C: 上的 ext4.vhdx 只會變大：這裡刪掉的檔案在那邊照樣佔著(2026-10-23,裡面用 79 GB,C: 上是 82 GB)。
+# 分兩半：這裡的 fstrim 告訴 vhdx 哪些區塊已空出，而 vhdx 必須在 Windows 那一側設為稀疏才會交還——只有
+# Windows 能設定、且 WSL 必須停止，所以這裡只印出指令而不執行。test_support/check_wsl_host.zsh 會在 WSL
+# 執行前從 Windows 檢查同一件事。
+if [ "$(ps -p 1 -o comm= 2>/dev/null)" = systemd ]; then
+    # Both units carry ConditionVirtualization=!container, and systemd counts
+    # WSL as a container, so enabling the timer alone left it "inactive (dead)
+    # ... start condition unmet" (2026-10-24). An empty ConditionVirtualization=
+    # in a drop-in clears the condition.
+    # 兩個 unit 都帶有 ConditionVirtualization=!container,而 systemd 把 WSL 算成容器，所以光是啟用計時器，
+    # 它仍是「inactive (dead) ... start condition unmet」(2026-10-24)。drop-in 中空白的
+    # ConditionVirtualization= 會清掉這個條件。
+    for unit in fstrim.timer fstrim.service; do
+        mkdir -p "/etc/systemd/system/$unit.d"
+        printf '%s\n' '# WSL counts as a container; see install_tool_wsl.zsh.' '[Unit]' \
+            'ConditionVirtualization=' > "/etc/systemd/system/$unit.d/wsl.conf"
+    done
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    systemctl enable --now fstrim.timer >/dev/null 2>&1 || true
+    printf '  fstrim.timer: %s\n' "$(systemctl is-active fstrim.timer 2>/dev/null || true)"
+else
+    printf '  no systemd: fstrim.timer cannot run; set [boot] systemd=true in /etc/wsl.conf\n'
+fi
+fstrim -v / 2>/dev/null | sed 's/^/  /' || true
+reg_exe=/mnt/c/Windows/System32/reg.exe
+fsutil_exe=/mnt/c/Windows/System32/fsutil.exe
+if [ -n "${WSL_DISTRO_NAME:-}" ] && [ -x "$reg_exe" ] && [ -x "$fsutil_exe" ]; then
+    lxss='HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss'
+    distro_key="$("$reg_exe" query "$lxss" /s /v DistributionName 2>/dev/null | tr -d '\r' \
+        | awk -v name="$WSL_DISTRO_NAME" '/^HKEY/ { key = $0 } $1 == "DistributionName" && $3 == name { print key }' || true)"
+    base="$([ -n "$distro_key" ] && "$reg_exe" query "$distro_key" /v BasePath 2>/dev/null | tr -d '\r' \
+        | awk -F'REG_SZ' '/BasePath/ { sub(/^[ \t]+/, "", $2); print $2 }' || true)"
+    base="${base#\\\\?\\}"
+    if [ -z "$base" ]; then
+        printf '  sparse vhdx: could not find %s in the registry\n' "$WSL_DISTRO_NAME"
+    elif "$fsutil_exe" sparse queryflag "$base\\ext4.vhdx" 2>/dev/null | tr -d '\r' | grep -q 'is set as sparse'; then
+        printf '  sparse vhdx: yes (%s\\ext4.vhdx)\n' "$base"
+    else
+        printf '  WARNING: %s\\ext4.vhdx is not sparse; space freed here stays used on C:.\n' "$base"
+        printf '  Run in PowerShell on Windows (it stops WSL): wsl --shutdown; wsl --manage %s --set-sparse true\n' \
+            "$WSL_DISTRO_NAME"
+    fi
+else
+    printf '  sparse vhdx: not checked (no WSL interop here)\n'
+fi
+
 # WebKitGTK 6.0, the engine behind GtkBackend's WebView on Linux (P38). The
 # RUNTIME package only: gtk_webkit.c loads libwebkitgtk-6.0.so.4 with dlopen, so
 # no headers are needed to build, and a machine without it still builds and
