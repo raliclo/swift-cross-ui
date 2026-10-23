@@ -344,11 +344,20 @@ extension WinUIBackend: BackendFeatures.KeyEvents {
 /// A modifier pressed while the pointer rests is reported at the next move, not at once -- the
 /// same limit as GtkBackend; only AppKitBackend reports it without a move.
 ///
+/// A finger hovers once it has rested for `touchHoverDelay` within `touchHoverSlop`, and from then
+/// until it lifts, as GtkBackend, UIKit and Android do (queue item 10). Before this (2026-10-23)
+/// every touch move was a hover at once: a quick touch drag across P88's panel reported 20 hovers,
+/// measured with `touch_gesture.zsh drag`; `hold` drives the rest-then-move case.
+///
 /// 2026-10-10 在 macOS 上寫成，2026-10-20 在 Windows 以 P88 建置並驅動；重放須用 `hover` 列——沒按鍵的 `move` 是 SetCursorPos
 /// 跳躍，不會觸發 PointerMoved。指標位置來自 `PointerMoved`，修飾鍵取當下的按鍵狀態，讀法與按鍵事件相同：Control 是
 /// `.control`、Windows 鍵是 `.command`。想表示「這個平台的 command 鍵」的 app 在這裡得接受 `.control`，
 /// SoftPCB 就是這樣。指標不動時按下修飾鍵，要到下一次移動才回報——與 GtkBackend 相同的限制，只有
 /// AppKitBackend 不必移動就回報。
+///
+/// 手指在 `touchHoverSlop` 內靜止 `touchHoverDelay` 後開始 hover,直到抬起，與 GtkBackend、UIKit、Android 相同
+/// (queue 第 10 項)。在此之前(2026-10-23)每次觸控移動都立即算 hover:用 `touch_gesture.zsh drag` 量到，快速觸控
+/// 拖過 P88 的面板回報了 20 次;`hold` 驅動先靜止再移動的情形。
 extension WinUIBackend: BackendFeatures.PointerHover {
     public func createPointerHoverTarget(wrapping child: Widget) -> Widget {
         let target = featureTarget(wrapping: child)
@@ -368,13 +377,49 @@ extension WinUIBackend: BackendFeatures.PointerHover {
                 DebugFeatures.log("WinUIBackend.PointerHover: a move arrived without a position")
                 return
             }
+            let location = SIMD2(Double(position.x), Double(position.y))
+            // A finger hovers only once it has rested; before that a move
+            // past the slop makes it a drag, not a hover.
+            // 手指要先靜止才算 hover;在那之前移動超過容許距離就是拖曳，不是 hover。
+            if args.pointer.pointerDeviceType == .touch {
+                guard target.touchHoverPointer == args.pointer.pointerId else { return }
+                if target.touchHovering {
+                    action(.active(location: location, modifiers: []))
+                } else if Self.distance(location, target.touchHoverStart) > Self.touchHoverSlop {
+                    target.touchHoverPointer = nil
+                }
+                return
+            }
             action(
                 .active(
                     location: SIMD2(Double(position.x), Double(position.y)),
                     modifiers: Self.currentModifiers()))
         }
-        target.pointerExited.addHandler { [weak target] _, _ in
-            target?.onPointerHover?(.ended)
+        target.pointerPressed.addHandler { [weak target] _, args in
+            guard let target, let args, args.pointer.pointerDeviceType == .touch,
+                let position = try? args.getCurrentPoint(target)?.position
+            else { return }
+            Self.touchHoverPressed(
+                on: target, pointer: args.pointer.pointerId,
+                at: SIMD2(Double(position.x), Double(position.y)))
+        }
+        target.pointerReleased.addHandler { [weak target] _, args in
+            guard let target, let args, args.pointer.pointerDeviceType == .touch else { return }
+            Self.touchHoverLifted(on: target, pointer: args.pointer.pointerId)
+        }
+        target.pointerCanceled.addHandler { [weak target] _, args in
+            guard let target, let args, args.pointer.pointerDeviceType == .touch else { return }
+            Self.touchHoverLifted(on: target, pointer: args.pointer.pointerId)
+        }
+        target.pointerCaptureLost.addHandler { [weak target] _, args in
+            guard let target, let args, args.pointer.pointerDeviceType == .touch else { return }
+            Self.touchHoverLifted(on: target, pointer: args.pointer.pointerId)
+        }
+        target.pointerExited.addHandler { [weak target] _, args in
+            // A lifted finger exits too; touch ends through touchHoverLifted.
+            // 抬起的手指也會觸發 exited;觸控改由 touchHoverLifted 結束。
+            guard let target, args?.pointer.pointerDeviceType != .touch else { return }
+            target.onPointerHover?(.ended)
         }
         return target
     }
@@ -386,6 +431,53 @@ extension WinUIBackend: BackendFeatures.PointerHover {
     ) {
         let target = target as! WinUIFeatureTarget
         target.onPointerHover = environment.isEnabled ? action : nil
+    }
+
+    /// How long a finger rests before it hovers, and how far it may move
+    /// meanwhile: 0.5 s and 10 DIPs, as UIKit's long press and GTK's
+    /// `gtk-long-press-time` (queue item 10, 2026-10-15). A finger that moves
+    /// further first is a drag and never hovers.
+    /// 手指靜止多久才 hover,以及其間可移動多遠:0.5 秒與 10 DIP,同 UIKit 的長按與 GTK 的
+    /// `gtk-long-press-time`(queue 第 10 項,2026-10-15)。先移得更遠的手指是拖曳，永不 hover。
+    static let touchHoverDelay = 0.5
+    static let touchHoverSlop = 10.0
+
+    static func distance(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> Double {
+        let d = a - b
+        return (d.x * d.x + d.y * d.y).squareRoot()
+    }
+
+    /// A finger went down: it hovers if it is still there, within the slop,
+    /// after `touchHoverDelay`.
+    /// 手指按下：若 `touchHoverDelay` 之後仍在容許距離內，即開始 hover。
+    static func touchHoverPressed(on target: WinUIFeatureTarget, pointer: UInt32, at location: SIMD2<Double>) {
+        target.touchHoverGeneration += 1
+        let generation = target.touchHoverGeneration
+        target.touchHoverPointer = pointer
+        target.touchHoverStart = location
+        target.touchHovering = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + touchHoverDelay) { [weak target] in
+            MainActor.assumeIsolated {
+                guard let target, target.touchHoverGeneration == generation,
+                    target.touchHoverPointer == pointer
+                else { return }
+                target.touchHovering = true
+                target.onPointerHover?(.active(location: target.touchHoverStart, modifiers: []))
+            }
+        }
+    }
+
+    /// The finger lifted or was cancelled: a hover it started ends.
+    /// 手指抬起或被取消：它開始的 hover 隨之結束。
+    static func touchHoverLifted(on target: WinUIFeatureTarget, pointer: UInt32) {
+        guard target.touchHoverPointer == pointer else { return }
+        let wasHovering = target.touchHovering
+        target.touchHoverPointer = nil
+        target.touchHovering = false
+        target.touchHoverGeneration += 1
+        if wasHovering {
+            target.onPointerHover?(.ended)
+        }
     }
 }
 
@@ -650,6 +742,13 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var onScrollChange: ((ScrollGestureValue) -> Void)?
     var onScrollEnd: ((ScrollGestureValue) -> Void)?
     var onPointerHover: ((PointerHoverPhase) -> Void)?
+    /// The touch that may become a hover: its pointer, where it went down,
+    /// whether it has rested long enough, and which hold timer is current.
+    /// 可能成為 hover 的那次觸控：它的 pointer、按下的位置、是否已靜止夠久，以及哪個按住計時器有效。
+    var touchHoverPointer: UInt32?
+    var touchHoverStart = SIMD2<Double>(0, 0)
+    var touchHovering = false
+    var touchHoverGeneration = 0
     /// Set by `createFocusableTarget`: whether this target is one, whether it
     /// may hold the focus now, and the ring drawn while it does.
     /// 由 `createFocusableTarget` 設定：本 target 是否為可聚焦 target、此刻能否持有焦點，以及持有時畫出的外框。

@@ -3,6 +3,7 @@
 //   touch_gesture.exe <title> pinch  <cx> <cy> <startGap> <endGap>        [steps] [ms]
 //   touch_gesture.exe <title> rotate <cx> <cy> <radius>  <startDeg> <endDeg> [steps] [ms]
 //   touch_gesture.exe <title> drag   <x0> <y0> <x1> <y1>                   [steps] [ms]
+//   touch_gesture.exe <title> hold   <x0> <y0> <x1> <y1> <holdMs>          [steps] [ms]
 //
 // `drag` is ONE contact. It exists as the reachability control: if a one-finger
 // touch drag does not move WinUIBackend's drag target either, the problem is
@@ -10,6 +11,13 @@
 // debugging the two-finger path first would be debugging the wrong thing.
 // `drag` 只有**一個**接觸點。它是可達性的對照組:若單指觸控拖曳連 WinUIBackend 的拖曳目標都移不動,
 // 問題就在縮放與旋轉的上游——觸控根本沒進到 app——那時先去除錯兩指路徑,就是在除錯錯的東西。
+//
+// `hold` is one contact too: down at <x0> <y0>, resting there for <holdMs> (an
+// update every [ms]), then moved to <x1> <y1> and lifted. It drives the
+// touch-hold hover of onContinuousHover (queue item 10): a finger that rests
+// for the long-press time hovers from then on.
+// `hold` 也是單一接觸點：在 <x0> <y0> 按下、原地停留 <holdMs>(每 [ms] 一次更新),再移到 <x1> <y1> 後抬起。
+// 它用來驅動 onContinuousHover 的觸控長按 hover(queue 第 10 項):手指靜止超過長按時間後即開始 hover。
 //
 // <title> is a substring of a visible top-level window's title. <cx> <cy> are
 // PHYSICAL pixels relative to that window's frame (GetWindowRect), the same
@@ -106,6 +114,7 @@ static int usage(void) {
         "usage: touch_gesture <title> pinch  <cx> <cy> <startGap> <endGap> [steps] [ms]\n"
         "       touch_gesture <title> rotate <cx> <cy> <radius> <startDeg> <endDeg> [steps] [ms]\n"
         "       touch_gesture <title> drag   <x0> <y0> <x1> <y1> [steps] [ms]\n"
+        "       touch_gesture <title> hold   <x0> <y0> <x1> <y1> <holdMs> [steps] [ms]\n"
         "coordinates are physical pixels relative to the window frame\n");
     return 2;
 }
@@ -123,7 +132,8 @@ int wmain(int argc, wchar_t **argv) {
     int isPinch = wcscmp(mode, L"pinch") == 0;
     int isRotate = wcscmp(mode, L"rotate") == 0;
     int isDrag = wcscmp(mode, L"drag") == 0;
-    if (!isPinch && !isRotate && !isDrag) {
+    int isHold = wcscmp(mode, L"hold") == 0;
+    if (!isPinch && !isRotate && !isDrag && !isHold) {
         return usage();
     }
     // Only ROTATE has a fifth number. `drag x0 y0 x1 y1` has four, like pinch.
@@ -138,7 +148,7 @@ int wmain(int argc, wchar_t **argv) {
     // 以預設 16 ms 跑 30 步——約 500 ms 的**長按**,不是點擊。WebView2 把它當成長按而從不開連結
     // (0/4),而旗標與時序相同的 scratch 工具 4/4 點得開;XAML 的 ComboBox 接受長按,這就是先前在那裡
     // 的「點擊」看起來正常的原因。
-    if ((isRotate && argc < 8) || argc < 7) {
+    if (((isRotate || isHold) && argc < 8) || argc < 7) {
         return usage();
     }
 
@@ -147,8 +157,9 @@ int wmain(int argc, wchar_t **argv) {
     double a = _wtof(argv[5]);
     double b = _wtof(argv[6]);
     double c = isRotate ? _wtof(argv[7]) : 0;
-    int nextArg = isRotate ? 8 : 7;
-    UINT32 contactCount = isDrag ? 1 : 2;
+    int nextArg = (isRotate || isHold) ? 8 : 7;
+    UINT32 contactCount = (isDrag || isHold) ? 1 : 2;
+    int holdMs = isHold ? _wtoi(argv[7]) : 0;
     int steps = argc > nextArg ? _wtoi(argv[nextArg]) : 20;
     int ms = argc > nextArg + 1 ? _wtoi(argv[nextArg + 1]) : 16;
     if (steps < 1) {
@@ -193,7 +204,7 @@ int wmain(int argc, wchar_t **argv) {
         int moveIndex = step == 0 ? 0 : (step > steps ? steps : step);
         double t = (double)moveIndex / steps;
         double x0, y0, x1, y1;
-        if (isDrag) {
+        if (isDrag || isHold) {
             // cx,cy is the start and a,b... is not: for a drag the four numbers
             // are x0 y0 x1 y1, read positionally as cx cy a b.
             // 拖曳時四個數字依序是 x0 y0 x1 y1,依位置讀成 cx cy a b。
@@ -242,6 +253,31 @@ int wmain(int argc, wchar_t **argv) {
             printf("  error %lu\n", error);
         }
         Sleep(ms);
+        // `hold`: the contact stays where it went down for <holdMs>, sending an
+        // update every <ms> as a resting finger does, before it moves.
+        // `hold`:接觸點在按下處停留 <holdMs>,每 <ms> 送一次更新(靜止的手指也是如此),之後才移動。
+        if (isHold && step == 0) {
+            int held = 0;
+            int holdFailures = 0;
+            // Timed by the clock, not by counting sleeps: Sleep(16) sleeps about
+            // 31 ms (the timer runs in 15.6 ms ticks), so 18 sleeps "of 16 ms" held
+            // 0.5 s and a 300 ms hold became a hover (2026-10-23, P88 on WinUI).
+            // 以時鐘計時，而不是累加睡眠次數:Sleep(16) 實際約睡 31 毫秒(計時器以 15.6 毫秒為一格),18 次「16 毫秒」
+            // 其實按住了 0.5 秒，300 毫秒的按住因此變成 hover(2026-10-23,WinUI 上的 P88)。
+            ULONGLONG holdStart = GetTickCount64();
+            while (GetTickCount64() - holdStart < (ULONGLONG)holdMs) {
+                fill_contact(&contacts[0], 0, (LONG)lround(x0), (LONG)lround(y0),
+                    POINTER_FLAG_UPDATE | POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT);
+                if (!InjectSyntheticPointerInput(device, contacts, contactCount)) {
+                    holdFailures++;
+                }
+                held++;
+                Sleep(ms);
+            }
+            failures += holdFailures;
+            printf("hold %d update(s) at (%ld,%ld) over %llu ms (asked %d) -> %d failed\n", held,
+                (long)lround(x0), (long)lround(y0), GetTickCount64() - holdStart, holdMs, holdFailures);
+        }
     }
 
     DestroySyntheticPointerDevice(device);

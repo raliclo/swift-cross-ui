@@ -4,6 +4,7 @@
 #   zsh testapp/touch_gesture.zsh "P65" pinch  <cx> <cy> <startGap> <endGap> [steps] [ms]
 #   zsh testapp/touch_gesture.zsh "P65" rotate <cx> <cy> <radius> <startDeg> <endDeg> [steps] [ms]
 #   zsh testapp/touch_gesture.zsh "P65" drag   <x0> <y0> <x1> <y1> [steps] [ms]   one contact
+#   zsh testapp/touch_gesture.zsh "P88" hold   <x0> <y0> <x1> <y1> <holdMs> [steps] [ms]   one contact, rests first
 #   zsh testapp/touch_gesture.zsh --help
 #
 # Coordinates are physical pixels relative to the window frame, the same origin
@@ -23,7 +24,7 @@ script_path="${0:A}"
 script_dir="${script_path:h}"
 
 if [[ $# -eq 0 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    sed -n '2,19p' "$script_path" | sed 's/^# \{0,1\}//'
+    sed -n '2,20p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 
