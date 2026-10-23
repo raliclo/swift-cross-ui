@@ -388,8 +388,8 @@
   "zh": "一致——AppKit 現在也畫出三個欄位的說明文字；裁切結果原本就相同。"
  },
  "P105": {
-  "en": "noted -- AppKit is left with three ForEach rows and a half-faded row offset to the leading edge after the remove-and-reinsert step; GTK shows the four rows the step ends with (rows.remove(at: 1), then id 9 inserted at 1). A second AppKit capture (20261023-135436) shows the same. The self-test lines agree apart from frame counts (62 vs 60).",
-  "zh": "有差異——在先移除再插入的步驟之後，AppKit 留下三列 ForEach,外加一列半透明、往前端偏移的列;GTK 顯示該步驟結束時應有的四列(rows.remove(at: 1),接著在 1 插入 id 9)。第二次 AppKit 擷圖(20261023-135436)也一樣。自我測試的數字除了影格數(62 對 60)之外都相同。"
+  "en": "aligned -- both end with the four ForEach rows, and EACH REMOVE and EACH INSERT read err=0.00 pt on both. This corrects the noted row of the same day: its AppKit captures fell inside the EACH step, with row 2 still sliding out, not on a fault.",
+  "zh": "一致——兩邊最後都是四列 ForEach,EACH REMOVE 與 EACH INSERT 兩邊都是 err=0.00 pt。這更正了同一天那筆「有差異」的紀錄：當時的 AppKit 擷圖落在 EACH 步驟中，第 2 列還在滑出，並不是錯誤。"
  },
  "P106": {
   "en": "aligned -- the same keyframe timeline on both: KEYS DONE err=0.000 pt over 313 checks, 122 frames, end (240.00, 20.00, 1.000).",
