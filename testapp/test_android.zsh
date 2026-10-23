@@ -222,6 +222,7 @@ emulator="$android_root/emulator/emulator"
 # Gradle project are shared, so a second run waits here (test_support/platform_lock.zsh).
 # 一次只跑一個 Android:emulator、.compile-work-android 與那一個 Gradle 專案是共用的，所以第二次執行在此等待。
 source "$script_dir/test_support/platform_lock.zsh" android
+source "$script_dir/test_support/avd_host_io.zsh"
 zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
 [ -x "$adb" ] || die "Missing adb: $adb"
 
@@ -268,6 +269,7 @@ fi
 # 啟動一個 AVD,等到 adb 列出它為止；設定 \$serial。
 boot_emulator() {
     print "==> Booting Android AVD: $1"
+    avd_host_io "$1" || true
     # `-no-metrics`, or the emulator can block before it ever boots.
     #
     # Measured 2026-09-05: `emulator -avd ... -no-snapshot -no-boot-anim` logged
@@ -388,6 +390,19 @@ if [[ "$serial" == emulator-* ]]; then
     if is_software "$gles"; then
         die "the emulator is not rendering on the host GPU (${gles:-no GLES line})"
     fi
+fi
+
+# The host keyboard and sound (test_support/avd_host_io.zsh). boot_emulator sets the AVD up before it
+# boots; an emulator that was already running keeps what it booted with, so a change here applies from
+# its next boot. The on-screen keyboard stays up with the host keyboard attached, as the tests tap it.
+# 主機鍵盤與聲音(test_support/avd_host_io.zsh)。boot_emulator 在開機前設好 AVD;已在執行中的模擬器保留它開機時的
+# 設定，因此這裡的變更從下次開機生效。接著主機鍵盤時螢幕鍵盤仍會顯示，因為測試要點它。
+if [[ "$serial" == emulator-* ]]; then
+    running_avd="$(ANDROID_SERIAL="$serial" "$adb" emu avd name 2>/dev/null | head -n 1 | tr -d '\r')" || true
+    if avd_host_io "$running_avd"; then
+        print "==> $serial keeps its old keyboard and sound settings until it is restarted"
+    fi
+    ime_with_hard_keyboard "$adb" -s "$serial"
 fi
 
 
