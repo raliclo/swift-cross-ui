@@ -134,5 +134,30 @@ document.addEventListener('click', function (e) {
   var n = e.target.closest ? e.target.closest('.note, .cmp') : null;
   if (n) n.classList.toggle('open');
 });
+// A side with no screenshot shows a box the size of one, saying why, instead of an empty gap that reads
+// as a picture that failed to load. The reason comes from the "Not expected" list on the last slide when
+// the side is listed there, otherwise from the caption.
+function missingZh(w) {
+  if (w === 'no screenshot (exit not run)') return '未執行，沒有截圖';
+  var m = /^no screenshot \(exit (.*)\)$/.exec(w); if (m) return '沒有截圖(exit ' + m[1] + ')';
+  if (w === 'not in the GTK / macOS deck') return '不在 GTK / macOS 簡報中';
+  return w;
+}
+var notExpected = {};
+document.querySelectorAll('.todo .known li').forEach(function (li) { notExpected[li.dataset.app + '/' + li.dataset.side] = li; });
+document.querySelectorAll('.slides > section[data-app] .pair figure').forEach(function (fig) {
+  if (fig.querySelector('img')) return;
+  var cap = fig.querySelector('figcaption'), b = cap && cap.querySelector('b');
+  if (!b) return;
+  var app = fig.closest('section').dataset.app, li = notExpected[app + '/' + b.textContent];
+  var t = cap.textContent, why = t.slice(t.lastIndexOf(' · ') + 3);
+  var box = document.createElement('div'), en = document.createElement('span'), zh = document.createElement('span');
+  box.className = 'missing' + (li ? ' known' : '');
+  en.textContent = li ? 'Not expected: ' + li.dataset.en : 'Missing: ' + why;
+  zh.className = 'zh'; zh.lang = 'zh-Hant-TW';
+  zh.textContent = li ? '預期沒有：' + li.dataset.zh : '缺少：' + missingZh(why);
+  box.appendChild(en); box.appendChild(zh);
+  fig.insertBefore(box, cap);
+});
 </script>
 

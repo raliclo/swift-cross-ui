@@ -41,7 +41,7 @@ zh_load() {
 
 zh_escape() {
     local s=$1
-    s=${s//&/&amp;}; s=${s//</&lt;}; s=${s//>/&gt;}
+    s=${s//&/&amp;}; s=${s//</&lt;}; s=${s//>/&gt;}; s=${s//\"/&quot;}
     printf '%s' $s
 }
 
@@ -85,7 +85,7 @@ todo_collect() {
         why=${${line##* · }%%</figcaption>*}
         reason=${todo_by_design[$todo_deck $app $label]:-}
         if [[ -n $reason ]]; then
-            todo_known+=("$app"$'\t'"$label: ${reason%%|*}"$'\t'"$label:${reason#*|}")
+            todo_known+=("$app"$'\t'"$label"$'\t'"${reason%%|*}"$'\t'"${reason#*|}")
             continue
         fi
         en+=("$label: $why")
@@ -123,8 +123,10 @@ todo_section() {
         printf '%s\n' '<p class="zh" lang="zh-Hant-TW">預期沒有：刻意不建置，或不在該機器的範圍內</p>'
         printf '%s\n' '<ul class="known">'
         for item in $todo_known; do
-            IFS=$'\t' read -r app en zh <<< $item
-            printf '%s\n' "<li><b>$app</b> $(zh_escape $en)<span class=\"zh\" lang=\"zh-Hant-TW\">$(zh_escape $zh)</span></li>"
+            IFS=$'\t' read -r app side en zh <<< $item
+            # data-* carry the reason to the slide, whose empty side shows it in place of the screenshot.
+            # data-* 把原因帶到該頁，空著的那一邊會在截圖的位置顯示它。
+            printf '%s\n' "<li data-app=\"$app\" data-side=\"$side\" data-en=\"$(zh_escape $en)\" data-zh=\"$(zh_escape $zh)\"><b>$app</b> $side: $(zh_escape $en)<span class=\"zh\" lang=\"zh-Hant-TW\">$side:$(zh_escape $zh)</span></li>"
         done
         printf '%s\n' '</ul>'
     fi
