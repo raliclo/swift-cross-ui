@@ -8,6 +8,9 @@ extension GtkBackend: BackendFeatures.PointerHover {
         motion.name = "scui-pointer-hover"
         child.addEventController(motion)
         GtkTouchHold.install(on: child)
+        #if os(Windows)
+            GtkWindowsTouch.install()
+        #endif
         return child
     }
 
@@ -26,6 +29,11 @@ extension GtkBackend: BackendFeatures.PointerHover {
         let isEnabled = environment.isEnabled
         let report: (EventControllerMotion, Double, Double) -> Void = { controller, x, y in
             guard isEnabled else { return }
+            #if os(Windows)
+                // A finger also arrives as an emulated mouse; GtkTouchHold reports it.
+                // 手指也會以模擬滑鼠的身分抵達;由 GtkTouchHold 回報它。
+                if GtkWindowsTouch.active { return }
+            #endif
             // The modifiers held with this motion. / 這次移動時按住的修飾鍵。
             let state = gtk_event_controller_get_current_event_state(
                 controller.opaquePointer)
