@@ -559,7 +559,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
   (`…lert A`、`Show Alert C (stacks o…`)。擷圖 `p5-ios-final-20260918-082215.png`(前)
   對 `-081830.png`(後)。
 - **更正:那張 23 支 app 的量測表就在 repo 裡**(`testapp/measurements/window-sizes-winui-sta-20260917.csv2`
-  與 `-20260918.csv2`),我先前寫「在你們手上、不在我這」是錯的。以 multissh 連上 Ralic-W11 查過:
+  與 `-20260918.csv2`),我先前寫「在你們手上、不在我這」是錯的。以 multissh 連上 Win11 查過:
   HEAD 相同(`3cbf45a9`)、工作區乾淨、measurements 目錄裡也只有那三份,沒有更新的東西。
 - **兩張表逐支比對:23 支裡有 3 支動了。** `P5` 寬 +44(482→526)、`P36` 高 +65(732→797)、
   `P50` 高 +14(918→932);其餘 20 支完全相同。
