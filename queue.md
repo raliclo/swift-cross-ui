@@ -337,8 +337,8 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 - [x] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07). -> completed.md (archived 2026-10-18)
 
-- [ ] **PENDING by the user (2026-10-13: "it is ok, put this in pending") -- not to be worked on until asked.**
-  使用者 2026-10-13 指示擱置,未被要求前不處理。
+- [x] **PENDING by the user (2026-10-13: "it is ok, put this in pending") -- not to be worked on until asked.** **Closed 2026-10-23: the user keeps it as the desired design ("Leave it as desired-design"); not a defect to fix. The record below is kept as written.**
+  使用者 2026-10-13 指示擱置,未被要求前不處理。**2026-10-23 結案：使用者決定維持現狀，視為預期的設計("Leave it as desired-design");以下紀錄保留原文。**
   **Android: everything a test app draws comes out at 92.5% brightness** (found
   2026-10-09, SoftPCB-mac on P85). Every channel is multiplied by ~0.9255:
   P85's SVG background #fffbe6 shows as (236,232,213), the decor view's white
