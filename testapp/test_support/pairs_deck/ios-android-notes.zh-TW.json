@@ -380,8 +380,8 @@
   "zh": "一致——三個漸層色塊與兩個藍色標題相同，兩邊顏色誤差皆為 0。"
  },
  "P110": {
-  "en": "noted -- the fourth shape, a gradient-stroked capsule that is green to blue on iOS, draws on Android as two broken arrow-like pieces; the gradient text, the other three shapes and the VALUE bar match, colour errors 0.",
-  "zh": "有差異——第四個圖形是以漸層描邊的膠囊，在 iOS 上由綠到藍，在 Android 上卻畫成兩段破碎的箭頭狀圖形；漸層文字、其餘三個圖形與 VALUE 條相同，顏色誤差為 0。"
+  "en": "aligned -- after c7961de5 (Android arcs continue the path) the gradient-stroked capsule is whole on Android, green to blue as on iOS; the gradient text, the other three shapes and the VALUE bar match, colour errors 0.",
+  "zh": "一致——c7961de5(Android 的圓弧改為接續路徑)之後，漸層描邊的膠囊在 Android 上是完整的，與 iOS 一樣由綠到藍；漸層文字、其餘三個圖形與 VALUE 條相同，顏色誤差為 0。"
  },
  "P111": {
   "en": "aligned -- every timeline and draw number is the same, DRAW DONE err=0.0000 pt.",

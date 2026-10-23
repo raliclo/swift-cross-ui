@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2785**
+**Runs recorded / 已記錄的執行筆數: 2786**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL                 | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | macos_gtk4<br>macOS·gtk4 | note<br>備註 |
 |---------------|------------------------------|--------------------------------|----------------------------|------------------------------|------------------------|--------------------|--------------------------|--------------|
@@ -146,6 +146,6 @@ zsh matrix_coverage/coverage.zsh
 | P107          | capture log 2026-10-23       | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-19              | pass 2026-10-23        | pass 2026-10-19    | pass 2026-10-23          |              |
 | P108          | pass 2026-10-20              | pass 2026-10-20                | pass 2026-10-22            | pass 2026-10-19              | pass 2026-10-23        | pass 2026-10-19    | pass 2026-10-23          |              |
 | P109          | pass 2026-10-23              | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-19              | pass 2026-10-23        | pass 2026-10-19    | pass 2026-10-23          |              |
-| P110          | capture log 2026-10-19       | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-22              | pass 2026-10-23        | pass 2026-10-24    | pass 2026-10-23          |              |
+| P110          | capture log 2026-10-19       | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-22              | pass 2026-10-24        | pass 2026-10-24    | pass 2026-10-23          |              |
 | P111          | capture log 2026-10-19       | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-22              | pass 2026-10-23        | pass 2026-10-22    | pass 2026-10-23          |              |
 | P112          | pass 2026-10-20              | pass 2026-10-20                | pass 2026-10-22            | pass 2026-10-20              | pass 2026-10-23        | pass 2026-10-20    | pass 2026-10-23          |              |
