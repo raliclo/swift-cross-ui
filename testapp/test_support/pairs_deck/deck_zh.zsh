@@ -22,6 +22,8 @@ typeset -g todo_deck=
 typeset -gA todo_by_design=(
     'three P6 Windows' 'P6 imports the WinUI products, which a GTK build on Windows removes (compile.zsh); P6-v2 is its GTK counterpart|P6 import 了 WinUI 的 product,Windows 上的 GTK 建置會移除它們(compile.zsh);它的 GTK 版是 P6-v2'
     'mac P6-v2 macOS' 'P6-v2 imports Gtk itself, so AppKit cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 AppKit 無法建置；它是 P6 的 GTK 版'
+    'ios P6-v2 iOS' 'P6-v2 imports Gtk itself, so UIKitBackend and AndroidBackend cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 UIKitBackend 與 AndroidBackend 無法建置；它是 P6 的 GTK 版'
+    'ios P6-v2 Android' 'P6-v2 imports Gtk itself, so UIKitBackend and AndroidBackend cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 UIKitBackend 與 AndroidBackend 無法建置；它是 P6 的 GTK 版'
 )
 
 # FILE: load the translations; a missing file loads none.

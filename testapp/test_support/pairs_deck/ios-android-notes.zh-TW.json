@@ -1,0 +1,402 @@
+{
+ "P10": {
+  "en": "Android: Action file now taplabel 'Hidden button' (new verb on Android): the root scrolled to the button and Hidden clicks read 1.",
+  "zh": "Android: 動作檔現在使用 taplabel 'Hidden button'（Android 上的新動詞）：根層捲動到該按鈕，Hidden 點擊數讀到 1。"
+ },
+ "P16": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Sidebar list on iOS's systemGroupedBackground (#F2F2F7 light, black dark, by the window's scheme) instead of the Material drawer grey. Pane readouts 244x22 / 596x22 match iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 側邊欄清單改用 iOS 的 systemGroupedBackground（淺色為 #F2F2F7、深色為黑色，依視窗的配色方案），取代 Material 抽屜的灰色。窗格讀數 244x22 / 596x22 與 iOS 相符。"
+ },
+ "P17": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Every Text line is one line height, the last included, as UIKit (minimum = maximum line height): one line 22 dp like iOS, was 20, so the readouts cover the 22 dp views under them. Menu picker 27x22 like iOS (--debug), readout 'pi...' as on iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 每一行 Text 都是一個行高，最後一行也是，與 UIKit 相同（最小行高 = 最大行高）：單行 22 dp，與 iOS 相同，原為 20，因此讀數會蓋住其下方 22 dp 的 view。選單 picker 27x22，與 iOS 相同（--debug），讀數 'pi...'，與 iOS 相同。"
+ },
+ "P18": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; the description wraps one word earlier on iOS (SF wider than Roboto).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；說明文字在 iOS 上提早一個字換行（SF 比 Roboto 寬）。"
+ },
+ "P19": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Menu button drawn as UIKit's plain UIButton: tinted label, no box, 6 dp above and below (34 pt tall like iOS); was black on a grey box. Tapped: the menu opens with all four item kinds.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 選單按鈕改畫成 UIKit 的 plain UIButton：著色的標籤、無外框、上下各 6 dp（高 34 pt，與 iOS 相同）；原本是灰色方框上的黑字。點擊後：選單開啟，四種項目類型俱全。"
+ },
+ "P20": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS (menu button as UIButton since c0175d93).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致（自 c0175d93 起選單按鈕為 UIButton）。"
+ },
+ "P21": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Disabled Text without a chosen colour now at 30% as UIKit's resolvedForegroundColor: the disabled checkbox's label is grey like iOS (was black).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 未指定顏色的停用 Text 現在依 UIKit 的 resolvedForegroundColor 以 30% 呈現：停用核取方塊的標籤與 iOS 一樣是灰色（原為黑色）。"
+ },
+ "P22": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS: sizes and line heights match; the 300 pt paragraph wraps one word later on Android and so is not centred in its frame (SF wider than Roboto).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致：尺寸與行高相符；300 pt 的段落在 Android 上晚一個字換行，因此未在其框內置中（SF 比 Roboto 寬）。"
+ },
+ "P23": {
+  "en": "iOS: Table clips to its frame (rows 7-8 were drawn over the paragraph below) and the long header ends in an ellipsis (was cut at 'tha' into the next column). / Android: Rows at their measured height as on iOS (-1/-1; were 32 dp against 22 pt): five rows visible on both, header ellipsized on both.",
+  "zh": "iOS: Table 裁切至其框內（第 7-8 列原本畫在下方段落上），過長的標頭以省略號結尾（原本在 'tha' 處截斷並延伸到下一欄）。 / Android: 列採用量測高度，與 iOS 相同（-1/-1；原為 32 dp，iOS 為 22 pt）：兩邊都看得到五列，兩邊的標頭都以省略號結尾。"
+ },
+ "P24": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。"
+ },
+ "P25": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。"
+ },
+ "P26": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; the tab bar's divider is drawn on both (212 on Android = 230 x 0.9255).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；分頁列的分隔線在兩邊都有畫出（Android 上的 212 = 230 x 0.9255）。"
+ },
+ "P27": {
+  "en": "iOS: iOS/Android comparison: reference (scrolled right with an action file to see the third column). / Android: Radial and angular gradients use adjustedStops as UIKit: 'Ring (start 30)', 'Ring reversed' and 'Sweep reversed' now match iOS (were drawn as a plain radial / full-circle sweep).",
+  "zh": "iOS: iOS/Android 比較:基準（以動作檔向右捲動以看到第三欄）。 / Android: 放射狀與角度漸層比照 UIKit 使用 adjustedStops：'Ring (start 30)'、'Ring reversed' 與 'Sweep reversed' 現在與 iOS 相符（原本畫成單純的放射狀 / 整圈 sweep）。"
+ },
+ "P28": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; content 14 dp further right because it is centred and SF is wider than Roboto.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；內容往右多 14 dp，因為內容置中，而 SF 比 Roboto 寬。"
+ },
+ "P29": {
+  "en": "iOS: Indeterminate progress bar now draws a sliding tint segment (drew nothing: updateProgressBar returned early without a value). / Android: Progress bar drawn as UIProgressView .bar: 3 dp tint over a clear track, sliding segment when indeterminate (was the framework's thick yellow bar and grey barber-pole). Disabled text field / editor text at 30% like iOS (was black).",
+  "zh": "iOS: 不確定進度列現在會畫出滑動的著色區段（原本什麼都沒畫：updateProgressBar 在沒有值時提早返回）。 / Android: 進度列畫成 UIProgressView .bar：透明軌道上 3 dp 的著色條，不確定時為滑動區段（原本是框架的粗黃色條與灰色理髮店旋轉條紋）。停用的文字欄位 / 編輯器文字以 30% 呈現，與 iOS 相同（原為黑色）。"
+ },
+ "P30": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS. The first launch after a from-scratch rebuild drew under the status bar once; not reproduced on the second run.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。從頭重建後的第一次啟動曾有一次畫到狀態列底下；第二次執行未重現。"
+ },
+ "P31": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Unstyled TextField drawn as UIKit's (.automatic = .plain = no border): no theme underline, flush left, 24 dp tall (was 45 dp, measured before the style removed the underline). Tapped and typed 'abc'.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 未套用樣式的 TextField 比照 UIKit 繪製（.automatic = .plain = 無邊框）：沒有主題底線、靠左對齊、高 24 dp（原為 45 dp，是在樣式移除底線之前量測的）。已點擊並輸入 'abc'。"
+ },
+ "P32": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS except the slider, left as Material's by the user's decision.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 除滑桿外與 iOS 一致；滑桿依使用者決定保留 Material 的樣式。"
+ },
+ "P33": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。"
+ },
+ "P34": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。"
+ },
+ "P35": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。"
+ },
+ "P36": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Rounded text field 32 dp tall and enclosing its text (was 24 dp, border through the text); plain fields 20 dp. P31 re-run: unchanged look, typed 'abc'.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 圓角文字欄位高 32 dp，並包住其文字（原為 24 dp，邊框穿過文字）；plain 欄位 20 dp。P31 重新執行：外觀不變，輸入了 'abc'。"
+ },
+ "P37": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: CJK lines one line height each (last Chinese line was half clipped); wrapped Text as wide as its widest line. Remaining 10 pt of left offset is the fonts: Roboto fits one more word on line 3, so the centred column is wider.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: CJK 每行各為一個行高（最後一行中文原本被裁掉一半）；換行的 Text 寬度等於其最寬的一行。剩下 10 pt 的左側偏移來自字型：Roboto 在第 3 行多容納一個字，因此置中的欄較寬。"
+ },
+ "P38": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; the page itself is each platform's web engine.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；頁面本身由各平台的網頁引擎繪製。"
+ },
+ "P39": {
+  "en": "iOS: Filters now computed on sRGB values (CIContext without a working colour space): saturation 0 of (0,158,254) is 131 (Rec.709 on gamma values; was 152 in linear light), brightness 0.4 lifts black to 103 (was 170). / Android: Layout aligned; saturation and brightness follow the same arithmetic as iOS now. The whole Android screen is x0.925 (white = 236), cause not found -- open.",
+  "zh": "iOS: 濾鏡現在以 sRGB 值計算（CIContext 不設定 working colour space）：(0,158,254) 的 saturation 0 為 131（在 gamma 值上套用 Rec.709；原本在線性光下為 152），brightness 0.4 將黑色提升到 103（原為 170）。 / Android: 版面一致；saturation 與 brightness 現在採用與 iOS 相同的算法。整個 Android 螢幕為 x0.925（白色 = 236），原因未查明——待解。"
+ },
+ "P40": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS: scale, rotation and shear tiles match.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致：縮放、旋轉與錯切的圖塊相符。"
+ },
+ "P41": {
+  "en": "iOS: References for the wheel time, wheel date+time, month-and-year wheel (title tapped) and dark states; a day tapped in the column past the window's edge is selected (four action files under actions/ios/P41-*). / Android: Dark: neighbours (87,87,87) and middle row (230,230,232) now equal to iOS by measurement. en-GB against iOS en_GB: date wheels ordered day, month, year (24 | August | 2025); date-and-time wheel in 24-hour reads Sun 24 Aug | 09 | 46 at iOS's positions. Not measured on iOS: a year-first locale's wheel order.",
+  "zh": "iOS: 滾輪時間、滾輪日期+時間、月份與年份滾輪（點擊標題）及深色狀態的基準畫面；在超出視窗邊緣的那一欄中點擊某一天，該天會被選取（actions/ios/P41-* 下有四個動作檔）。 / Android: 深色：相鄰列 (87,87,87) 與中間列 (230,230,232) 經量測現在與 iOS 相等。en-GB 對照 iOS 的 en_GB：日期滾輪依日、月、年排列（24 | August | 2025）；24 小時制的日期時間滾輪在 iOS 的相同位置讀到 Sun 24 Aug | 09 | 46。未在 iOS 上量測：年份在前之地區設定的滾輪順序。"
+ },
+ "P42": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; the English sentence wraps to two lines in SF and fits one in Roboto.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；英文句子在 SF 下換成兩行，在 Roboto 下一行放得下。"
+ },
+ "P43": {
+  "en": "iOS: iOS/Android comparison: reference. iOS 27 draws .red/.green/.blue as about (250,82,80)/(58,205,108)/(0,156,255). / Android: Layout aligned with iOS (circles 119.6 dp against 119.7 pt). Colours differ: Android draws (255,56,60)/(52,199,89)/(0,136,255); left for the user to decide.",
+  "zh": "iOS: iOS/Android 比較:基準。iOS 27 將 .red/.green/.blue 畫成約 (250,82,80)/(58,205,108)/(0,156,255)。 / Android: 版面與 iOS 一致（圓形 119.6 dp，iOS 為 119.7 pt）。顏色不同：Android 畫成 (255,56,60)/(52,199,89)/(0,136,255)；留待使用者決定。"
+ },
+ "P44": {
+  "en": "iOS: P44 given room for the spill: labels, left edge and the text below are clear on both platforms; title clear of the view-mode control. / Android: Same layout as iOS after P44 was given room for the spill; nothing covered.",
+  "zh": "iOS: 為 P44 留出溢出空間：兩個平台上的標籤、左緣與下方文字都未被遮擋；標題不與檢視模式控制項重疊。 / Android: 為 P44 留出溢出空間後，版面與 iOS 相同；沒有任何東西被遮住。"
+ },
+ "P45": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS; the off mark is the font's own glyph on each.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致；關閉標記在兩邊都是字型本身的字符。"
+ },
+ "P46": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS: stepper, gauge, labeled content, disclosure group, link.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致：步進器、量表、帶標籤內容、展開群組、連結。"
+ },
+ "P47": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Symbols now Material Symbols Outlined weight 300 drawn as vectors in the label colour, 21 dp at 17-point text: all 36 are outlines of a stroke weight close to SF Symbols'. The artwork is Material's, so shapes differ in detail (battery upright, rotate, sync, save). Row pitch 48.9 dp against 47.8 pt.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 符號現在使用 Material Symbols Outlined weight 300，以向量並以標籤顏色繪製，在 17 點文字下為 21 dp：全部 36 個都是外框線條，筆畫粗細接近 SF Symbols。圖稿是 Material 的，因此形狀在細節上不同（battery 直立、rotate、sync、save）。列距 48.9 dp，iOS 為 47.8 pt。"
+ },
+ "P48": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS: the five grids place the same cells in the same lanes.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致：五個格線將相同的格子放在相同的軌道上。"
+ },
+ "P49": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS. Status-bar clock and icons now dark on the light window (were white on white).",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致。狀態列的時鐘與圖示現在在淺色視窗上為深色（原本是白底白色）。"
+ },
+ "P50": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Navigation title now a bar under the status bar -- centred, semibold 17, 44 high -- as UIKit's; it was small grey text inside the status bar. Content laid out below it.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 導覽標題現在是狀態列下方的一條列——置中、semibold 17、高 44——與 UIKit 相同；原本是狀態列內的灰色小字。內容排在其下方。"
+ },
+ "P51": {
+  "en": "iOS: iOS/Android comparison: reference. / Android: Aligned with iOS: LazyVGrid three columns, Grid 3x3 with the spanning row.",
+  "zh": "iOS: iOS/Android 比較:基準。 / Android: 與 iOS 一致：LazyVGrid 三欄，Grid 3x3 含跨欄的列。"
+ },
+ "P52": {
+  "en": "aligned -- same grid, wraps and rows.",
+  "zh": "一致——相同的格線、換行與列。"
+ },
+ "P53": {
+  "en": "toolbar. Android's row sat at y 0 under the status bar; the root stack now carries the inset. Open: Android shows text buttons (Add, Info, Delete) in a row, iOS shows symbols in the navigation bar.",
+  "zh": "toolbar。Android 的列原本位於 y 0、在狀態列底下；現在由根 stack 承接 inset。待解：Android 以一列文字按鈕（Add、Info、Delete）顯示，iOS 則在導覽列顯示符號。"
+ },
+ "P54": {
+  "en": "refreshable. Android's Refresh row sat under the status bar; fixed with P53. The affordance differs by design (pull on iOS, a row on Android).",
+  "zh": "refreshable。Android 的 Refresh 列原本在狀態列底下；已隨 P53 修正。觸發方式依設計而不同（iOS 為下拉，Android 為一列）。"
+ },
+ "P55": {
+  "en": "aligned. total draws differs (18 iOS, 2 Android) -- a count, not a layout.",
+  "zh": "一致。total draws 不同（iOS 18、Android 2）——這是計數，不是版面。"
+ },
+ "P56": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P57": {
+  "en": "aligned after a fix: a root that fills the layout lost its 16 dp padding on Android under the new origin rule. Open: rows built/held reads 4/4 on iOS and 0/0 on Android.",
+  "zh": "修正後一致：在新的原點規則下，填滿版面的根元素在 Android 上失去了 16 dp 的內距。待解：rows built/held 在 iOS 上顯示 4/4，在 Android 上顯示 0/0。"
+ },
+ "P58": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P59": {
+  "en": "aligned. iOS has no second-window button and says so; its stored drafts were AAA from an earlier run.",
+  "zh": "一致。iOS 沒有開第二個視窗的按鈕，畫面上也如此說明；其儲存的草稿是先前一次執行留下的 AAA。"
+ },
+ "P60": {
+  "en": "aligned; settings is a sheet on iOS and a window on Android, as the page states.",
+  "zh": "一致；設定在 iOS 上是 sheet，在 Android 上是視窗，與頁面所述相同。"
+ },
+ "P61": {
+  "en": "aligned; the slider is Material on Android (accepted).",
+  "zh": "一致；Android 上的滑桿是 Material 樣式（已接受）。"
+ },
+ "P62": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P63": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P64": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P65": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P66": {
+  "en": "aligned in layout; the capture caught the animation at offset 134 on iOS and 20 on Android.",
+  "zh": "版面一致；截圖擷取到的動畫位移在 iOS 上是 134，在 Android 上是 20。"
+ },
+ "P67": {
+  "en": "aligned in layout. iOS shows the names line at launch, Android says 'not dumped yet'.",
+  "zh": "版面一致。iOS 在啟動時就顯示名稱那一行，Android 則顯示「not dumped yet」。"
+ },
+ "P68": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P69": {
+  "en": "aligned in layout. iOS shows the read-back line at launch, Android says 'not read yet'.",
+  "zh": "版面一致。iOS 在啟動時就顯示讀回那一行，Android 則顯示「not read yet」。"
+ },
+ "P70": {
+  "en": "aligned; the disabled button is paler on Android.",
+  "zh": "一致；停用的按鈕在 Android 上顏色較淡。"
+ },
+ "P71": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P72": {
+  "en": "aligned; the cube was caught at a different angle.",
+  "zh": "一致；立方體是在不同角度下擷取的。"
+ },
+ "P73": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P74": {
+  "en": "aligned in layout. Segmented and radio controls are each platform's own. Open: the wheel is about 50 dp wide on Android and about 220 pt on iOS.",
+  "zh": "版面一致。分段控制項與單選按鈕各採該平台自己的樣式。待解：滾輪在 Android 上寬約 50 dp，在 iOS 上約 220 pt。"
+ },
+ "P75": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P76": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P77": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P78": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P79": {
+  "en": "aligned; iOS carries one more line of app text (the dismantle note).",
+  "zh": "一致；iOS 多一行 app 文字（dismantle 說明）。"
+ },
+ "P80": {
+  "en": "aligned; the cursor arrows are drawn by each platform's emoji font.",
+  "zh": "一致；游標箭頭由各平台的 emoji 字型繪製。"
+ },
+ "P81": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P82": {
+  "en": "aligned; iOS carries a 'keyboard toolbar check' line; the bordered destructive button is a pill on iOS and a rectangle on Android.",
+  "zh": "一致；iOS 多一行「keyboard toolbar check」；有邊框的 destructive 按鈕在 iOS 上是膠囊形，在 Android 上是矩形。"
+ },
+ "P83": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P84": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P85": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P86": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P87": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P88": {
+  "en": "2026-10-15: a held finger is hover on both (iOS 0.5 s, Android the long-press timeout); captured after the lift: \"last active\" kept, \"pointer: ended\", panel blue again.",
+  "zh": "2026-10-15：按住不放的手指在兩邊都視為 hover（iOS 為 0.5 s，Android 為長按逾時）；放開後擷取：「last active」保留、「pointer: ended」、面板恢復藍色。"
+ },
+ "P89": {
+  "en": "same content, different leading edge: 40 pt on iOS, 16 dp on Android. The layout asks for 440 wide, which fits the iPhone (440 pt, so it stays centred) and not the Android screen (411 dp, so it starts at the padding).",
+  "zh": "內容相同，起始邊緣不同：iOS 上是 40 pt，Android 上是 16 dp。版面要求 440 寬，iPhone 放得下（440 pt，因此維持置中），Android 螢幕放不下（411 dp，因此從內距處開始）。"
+ },
+ "P90": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P91": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P92": {
+  "en": "aligned. Android shows one more line of the menu layout (Edit > Undo) because its text is smaller; the lines are the same.",
+  "zh": "一致。Android 多顯示一行選單版面（Edit > Undo），因為其文字較小；各行內容相同。"
+ },
+ "P93": {
+  "en": "aligned.",
+  "zh": "一致。"
+ },
+ "P94": {
+  "en": "aligned (at launch: editor hello, changes 0).",
+  "zh": "一致（啟動時：editor hello，changes 0）。"
+ },
+ "P95": {
+  "en": "noted -- the third segment of the strip, a LinearGradient of (0.8, 0.3, 0.25) to itself, reads 216 104 88 on iOS where Android and macOS read the swatch colour (colour_bbox --sample; the plain swatch is 200 72 72 in its 8-step bins on all three). UIKitBackend draws the gradient in a different colour space (queue.md item 20). The rest matches; the Android 1-px seam is item 19.",
+  "zh": "有差異——色條的第三段是從 (0.8, 0.3, 0.25) 到其自身的 LinearGradient，在 iOS 上讀值為 216 104 88，而 Android 與 macOS 讀到的是色塊顏色（colour_bbox --sample；單純色塊在三者上以 8 階分箱皆為 200 72 72）。UIKitBackend 以不同的色彩空間繪製漸層（queue.md 第 20 項）。其餘相符；Android 的 1-px 接縫是第 19 項。"
+ },
+ "P96": {
+  "en": "noted -- Android reads back.out peak 0.0000 distinct 1 final 0.0000 and bounce.out the same, where iOS reads back.out peak 1.1000 distinct 35 final 1.0441 and bounce.out peak 1.0000 distinct 44 final 1.0000; steps(4) and bouncy agree.",
+  "zh": "有差異——Android 的 back.out 讀到 peak 0.0000 distinct 1 final 0.0000,bounce.out 也一樣；iOS 的 back.out 是 peak 1.1000 distinct 35 final 1.0441,bounce.out 是 peak 1.0000 distinct 44 final 1.0000。steps(4) 與 bouncy 兩邊一致。"
+ },
+ "P97": {
+  "en": "noted -- every iOS row still reads \"running\" at the capture, while Android has a start / reach / turns line for each; the bars themselves sit alike.",
+  "zh": "有差異——擷圖時 iOS 每一列都還顯示「running」,Android 則每一列都有 start / reach / turns 那一行；長條本身的位置兩邊相同。"
+ },
+ "P98": {
+  "en": "aligned -- the callback bars, the replaced bar and the stagger column match, stagger order 3 4 2 5 1 6 0 7 on both.",
+  "zh": "一致——回呼長條、被取代的長條與 stagger 欄都相同，兩邊的 stagger 順序都是 3 4 2 5 1 6 0 7。"
+ },
+ "P99": {
+  "en": "aligned -- the timeline bars and readouts match (PLAY ENDED, SEEK, REVERSE AT START, FAST ENDED); the slider is each platform's own.",
+  "zh": "一致——時間軸長條與讀數相同(PLAY ENDED、SEEK、REVERSE AT START、FAST ENDED);滑桿是各平台自己的樣式。"
+ },
+ "P100": {
+  "en": "aligned -- REVERSE and HERO pass on both (err 0.00); the block order and the selected tab differ only because the captures fell at different points of the shuffle and tab steps.",
+  "zh": "一致——兩邊 REVERSE 與 HERO 都通過(err 0.00);方塊順序與選中的分頁不同，只是因為擷圖落在洗牌與分頁步驟的不同時刻。"
+ },
+ "P101": {
+  "en": "aligned -- START, TO10 and CENTER3 read err 0.000 on both; TO10 offset 500.0 on iOS and 499.8 on Android.",
+  "zh": "一致——兩邊 START、TO10、CENTER3 的 err 都是 0.000;TO10 的位移在 iOS 為 500.0,Android 為 499.8。"
+ },
+ "P102": {
+  "en": "aligned -- the field, editor and control rows match, all waiting for a long press.",
+  "zh": "一致——文字欄位、編輯器與對照列都相同，都在等待長按。"
+ },
+ "P103": {
+  "en": "aligned -- the Places list, SOLO row and emoji picker match apart from each platform's emoji glyphs.",
+  "zh": "一致——Places 清單、SOLO 列與表情符號選擇器相同，只有各平台自己的表情符號字形不同。"
+ },
+ "P104": {
+  "en": "aligned -- WITH MID and WITH DONE pass on both; Android was captured further on (its VALUE, NIL and JUMP lines are up), which is why its colour view and circle read blue where iOS reads red.",
+  "zh": "一致——兩邊 WITH MID 與 WITH DONE 都通過;Android 擷圖時已跑得更後面(VALUE、NIL、JUMP 那幾行已出現),所以它的色塊與圓形是藍色，而 iOS 是紅色。"
+ },
+ "P105": {
+  "en": "aligned -- the transition rows and the default-fade row match; iOS was captured earlier in the self-test (its readout stops at REMOVE DONE, Android's reaches EACH INSERT).",
+  "zh": "一致——轉場各列與預設淡出那一列相同;iOS 擷圖時自我測試還在較前面(讀數停在 REMOVE DONE,Android 已到 EACH INSERT)。"
+ },
+ "P106": {
+  "en": "aligned -- the keyframe squares match; iOS was captured before KEYS DONE, Android after it and LOOP DONE.",
+  "zh": "一致——關鍵影格的方塊相同;iOS 擷圖在 KEYS DONE 之前,Android 則在它與 LOOP DONE 之後。"
+ },
+ "P107": {
+  "en": "aligned as far as both got -- iOS was captured with its steps still running and the marker at the start; Android had finished (RUN DONE err=0.000 pt, track length 588.495).",
+  "zh": "就兩邊都跑到的部分而言一致——iOS 擷圖時步驟還在進行，標記停在起點;Android 已完成(RUN DONE err=0.000 pt,路徑長度 588.495)。"
+ },
+ "P108": {
+  "en": "aligned as far as both got -- iOS was captured with its steps still running (card mid-track); Android had finished FREE (end 199.80, coast 3.800 s) and set the bound offset (300.0, 0.0).",
+  "zh": "就兩邊都跑到的部分而言一致——iOS 擷圖時步驟還在進行(卡片在軌道中段);Android 已完成 FREE(終點 199.80,滑行 3.800 秒)並設定了邊界位移 (300.0, 0.0)。"
+ },
+ "P109": {
+  "en": "aligned -- the three gradient swatches and the two blue captions match; colour errors 0 on both.",
+  "zh": "一致——三個漸層色塊與兩個藍色標題相同，兩邊顏色誤差皆為 0。"
+ },
+ "P110": {
+  "en": "noted -- the fourth shape, a gradient-stroked capsule that is green to blue on iOS, draws on Android as two broken arrow-like pieces; the gradient text, the other three shapes and the VALUE bar match, colour errors 0.",
+  "zh": "有差異——第四個圖形是以漸層描邊的膠囊，在 iOS 上由綠到藍，在 Android 上卻畫成兩段破碎的箭頭狀圖形；漸層文字、其餘三個圖形與 VALUE 條相同，顏色誤差為 0。"
+ },
+ "P111": {
+  "en": "aligned -- every timeline and draw number is the same, DRAW DONE err=0.0000 pt.",
+  "zh": "一致——所有時間軸與繪製數字都相同,DRAW DONE err=0.0000 pt。"
+ },
+ "P112": {
+  "en": "aligned -- the red disc is the same size in every shape and in the RADIAL text, and the angular gradients match.",
+  "zh": "一致——每個圖形與 RADIAL 文字中的紅色圓盤大小都相同，角度漸層也相同。"
+ },
+ "P15-DARK": {
+  "en": "aligned -- both windows are dark and read \"Requested: dark  Resolved: dark\".",
+  "zh": "一致——兩個視窗都是深色，並顯示「Requested: dark  Resolved: dark」。"
+ },
+ "P17-DOE": {
+  "en": "aligned -- the control and cornerRadius(0) columns match; the title and caption run past the right edge on both.",
+  "zh": "一致——對照欄與 cornerRadius(0) 欄相同；標題與說明在兩邊都超出右緣。"
+ }
+}
