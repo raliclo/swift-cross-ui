@@ -249,7 +249,19 @@ renderer=default
 # `unrecorded`. Never left out, for the same reason as `renderer`.
 # `device` 欄，於 2026-10-22 加入 results.csv2,位於 `note` 之前:app 執行所在的機器。在此之前只有部分備註寫了
 # 用哪台 AVD、模擬器或主機，沒有讀取者能依它篩選。之前的列填 `unrecorded`。與 `renderer` 同理，不可省略。
-device="${COMPUTERNAME:-$(hostname)}"
+# The Windows release, never the computer name: COMPUTERNAME and hostname carry
+# the owner's name (164 rows carried it until 2026-10-23), which the device
+# column must not, as on the Mac. uname -s reads MINGW64_NT-10.0-26300; build
+# 22000 and later is Windows 11.
+# 寫 Windows 版本，絕不寫電腦名稱:COMPUTERNAME 與 hostname 帶有擁有者的名字(到 2026-10-23 為止有 164 列帶著它)，
+# device 欄不可如此，與 Mac 相同。uname -s 讀到 MINGW64_NT-10.0-26300;組建 22000 起為 Windows 11。
+windows_build="${$(uname -s)##*-}"
+if [[ "$windows_build" == <-> ]]; then
+    device=Win10
+    if (( windows_build >= 22000 )); then device=Win11; fi
+else
+    device="$(uname -s)"
+fi
 device="${device//,/ }"
 
 if [ ! -f "$results" ]; then
