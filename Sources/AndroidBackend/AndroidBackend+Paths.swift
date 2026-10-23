@@ -177,14 +177,32 @@ extension AndroidBackend: BackendFeatures.Paths {
                         }
                     }
 
-                    path.addArc(
-                        Float((center.x - radius) * density),
-                        Float((center.y - radius) * density),
-                        Float((center.x + radius) * density),
-                        Float((center.y + radius) * density),
-                        Float(startAngle * 180 / .pi),
-                        Float(sweepAngle * 180 / .pi)
-                    )
+                    // arcTo with forceMoveTo false continues the current contour, as
+                    // CoreGraphics' addArc does. Path.addArc starts a new contour, so a
+                    // RoundedRectangle drawn with arcs (a Capsule, any corner radius
+                    // over ~44% of a side) came apart into wedges, each closed on its
+                    // own when filled: P110's capsule drew as a "<" and a sliver on
+                    // Android (2026-10-24). arcTo takes the sweep modulo 360 degrees,
+                    // so a full turn goes in two halves.
+                    // forceMoveTo 為 false 的 arcTo 接續目前的輪廓，與 CoreGraphics 的 addArc 相同。Path.addArc 會另起
+                    // 一個輪廓，於是以圓弧畫成的 RoundedRectangle(Capsule,以及圓角超過邊長約 44% 者)會散成數塊楔形，
+                    // 填色時各自封閉:P110 的膠囊在 Android 上畫成一個「<」和一條細片(2026-10-24)。arcTo 把掃過的
+                    // 角度取 360 度的餘數，所以整圈分成兩半畫。
+                    let left = Float((center.x - radius) * density)
+                    let top = Float((center.y - radius) * density)
+                    let right = Float((center.x + radius) * density)
+                    let bottom = Float((center.y + radius) * density)
+                    let startDegrees = startAngle * 180 / .pi
+                    let sweepDegrees = sweepAngle * 180 / .pi
+                    if abs(sweepDegrees) >= 359.999 {
+                        path.arcTo(left, top, right, bottom, Float(startDegrees), Float(sweepDegrees / 2), false)
+                        path.arcTo(
+                            left, top, right, bottom,
+                            Float(startDegrees + sweepDegrees / 2), Float(sweepDegrees / 2), false
+                        )
+                    } else {
+                        path.arcTo(left, top, right, bottom, Float(startDegrees), Float(sweepDegrees), false)
+                    }
                 case .transform(let transform):
                     let matrix = AndroidKit.Matrix(environment: Self.env)
                     matrix.setValues([
