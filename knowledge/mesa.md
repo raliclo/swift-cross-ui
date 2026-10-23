@@ -94,17 +94,33 @@ enumerate.
 
 ## Steps to reproduce
 
-Our measurements come from our own test app; we have not yet reduced them to a
-standalone GTK program. What should show the same pattern (not yet run in this
-form):
+A standalone GTK 4 program, `first-frame-stall.c` (attached, about 100 lines,
+public GTK API only): a window with a label and a button; after 0.5 s it adds a
+rounded, shadowed label under a rotating `GtkFixed` child transform and moves it
+every frame. It prints every frame longer than 30 ms (frame clock
+`before-paint` to `after-paint`) and quits after 3 s.
 
-1. On WSLg with an NVIDIA GPU, set `GALLIUM_DRIVER=d3d12
-   MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GDK_BACKEND=x11`.
-2. Start any GTK 4 application that animates something after start-up, for
-   example `gtk4-widget-factory`, and time the frame clock's `layout` to
-   `paint` interval of the first animated frame (or watch for the visible
-   hitch).
-3. Quit and start it again: the stall is the same length every time.
+```sh
+cc first-frame-stall.c -o first-frame-stall $(pkg-config --cflags --libs gtk4)
+GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GDK_BACKEND=x11 ./first-frame-stall
+LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe GDK_BACKEND=x11 ./first-frame-stall
+```
+
+Measured 2026-10-23 on the system above, three d3d12 runs in a row and one
+llvmpipe run:
+
+| run | first frame with the new state | frames over 30 ms |
+|---|---|---|
+| d3d12 1 | 63.3 ms | 2 |
+| d3d12 2 | 63.8 ms | 2 |
+| d3d12 3 | 76.2 ms | 2 |
+| llvmpipe | under 30 ms | 1 |
+
+The first frame with the new state is slow in every process on d3d12 and not on
+llvmpipe. The other slow frame, at about 1.4 s, appears on llvmpipe too (160 ms)
+and is not part of this report. This program uses few node types, so its stall
+is short; our application, which draws more kinds of nodes in its first moving
+frame, waits 870 ms the same way.
 
 ## Expected behaviour
 
@@ -126,8 +142,25 @@ for the DXIL variants, or by storing the blob from
 - Share the PSO cache across contexts of a screen, which would also help
   applications with a GL context per window within a single process.
 
-We have not looked for an existing issue on this beyond reading the source, and
-are happy to test a branch.
+We are happy to test a branch.
+
+## Related issues and current main
+
+Searched 2026-10-23: the 147 issues labelled `d3d12` (open and closed), the
+issue search for "d3d12 shader cache", "d3d12 PSO cache", "CachedPSO" and
+"get_disk_shader_cache", and merge requests labelled `d3d12` matching "cache",
+"pso" and "pipeline". None asks for or adds a persistent cache in the d3d12
+gallium driver. Related:
+
+- #7681 *Add shader cache support on windows and macos* (open) -- the disk
+  cache itself on those platforms. On WSL/Linux the disk cache works; the d3d12
+  driver does not use it.
+- !21610 *d3d12: Cache varying info to reduce compare/copy cost* (merged) -- an
+  in-memory cache, not across processes.
+
+`main` at 01237de5 (2026-10-23) is unchanged in this respect:
+`d3d12_screen.cpp` has no `disk_cache`, `d3d12_pipeline_state.cpp` still sets
+`pCachedBlob = NULL` in both places, and nothing calls `GetCachedBlob`.
 
 ## Regression
 
