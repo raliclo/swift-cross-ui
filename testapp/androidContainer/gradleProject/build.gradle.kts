@@ -68,12 +68,29 @@ android {
             // 函式庫照建置結果打包;.swift_ast 由 package_android.zsh 移除，而 Gradle 自己的 strip
             // 會把當機報告需要的其餘符號也拿掉。
             keepDebugSymbols += "arm64-v8a/*.so"
+            // -PscuiCompressNativeLibs=true (with SCUI_ANDROID_RELEASE=1): the .so files
+            // go in compressed and are extracted at install, as before API 23, so the
+            // APK is about a third of its size; uncompressed they load in place.
+            // -PscuiCompressNativeLibs=true(搭配 SCUI_ANDROID_RELEASE=1):.so 壓縮放入、安裝時解出，如 API 23 之前，
+            // APK 約為原本的三分之一；不壓縮時則原地載入。
+            useLegacyPackaging = (project.findProperty("scuiCompressNativeLibs") as String?) == "true"
         }
     }
 
     buildTypes {
+        // SCUI_ANDROID_RELEASE=1 in package_android.zsh builds this instead of
+        // debug: R8 shrinks the Java side (AndroidX and Material are most of the
+        // dex) and the APK is not debuggable, so ART runs without CheckJNI and
+        // the interpreter that debuggable apps get. Signed with the debug key so
+        // it installs on the emulator; nothing here is meant for a store.
+        // package_android.zsh 設 SCUI_ANDROID_RELEASE=1 時建置這個而非 debug:R8 縮減 Java 端(dex 大多是 AndroidX
+        // 與 Material),且 APK 不可除錯，於是 ART 不必跑 CheckJNI 與可除錯 app 才有的直譯器。用 debug 金鑰簽章以便
+        // 裝上模擬器；這裡沒有任何東西是給商店用的。
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

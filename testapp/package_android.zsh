@@ -129,7 +129,12 @@ EOF
 # the next app reuses them. local.properties is per machine.
 # 範本覆蓋到工作副本上，保留 Gradle 的 build/ 與 .gradle/,讓下一支 app 重用它們。local.properties 依機器而定。
 mkdir -p "$project"
-rsync -a --exclude build --exclude .gradle --exclude .kotlin \
+# --delete: a file renamed or removed in the template goes from the working copy
+# too. Without it the old name stayed, and icon.png beside its successor
+# icon.webp was the same resource twice. The excluded paths are never deleted.
+# --delete:範本中改名或移除的檔案，也從工作副本移除。少了它舊名稱會留下，icon.png 與取代它的 icon.webp
+# 便成了重複的同一個資源。被排除的路徑永遠不會被刪除。
+rsync -a --delete --exclude build --exclude .gradle --exclude .kotlin \
     --exclude src/main/kotlin --exclude src/main/jniLibs --exclude src/main/AndroidManifest.xml \
     "$template/" "$project/"
 print -r -- "sdk.dir=$ANDROID_HOME" > "$project/local.properties"
@@ -263,20 +268,33 @@ EOF
 application_id="dev.swiftcrossui.testapp.${${app//-/}:l}"
 version_code="$(git -C "$repo_root" rev-list --count HEAD)"
 
-print "==> Gradle: $application_id"
+# SCUI_ANDROID_RELEASE=1: the release build -- R8-shrunk, not debuggable, native
+# libraries compressed -- instead of debug. Opt-in while its size and speed are
+# measured against debug (2026-10-24); debug stays the default until then.
+# SCUI_ANDROID_RELEASE=1:改建 release(R8 縮減、不可除錯、原生函式庫壓縮)而非 debug。在與 debug 比較大小與速度
+# 期間(2026-10-24)為選用，在那之前預設仍是 debug。
+if [[ ${SCUI_ANDROID_RELEASE:-0} == 1 ]]; then
+    build_type=release
+    gradle_props+=(-PscuiCompressNativeLibs=true)
+else
+    build_type=debug
+fi
+gradle_task=assemble${(C)build_type}
+
+print "==> Gradle: $application_id ($build_type)"
 (
     cd "$project"
     # stdin closed: with it open gradlew can hang after the build has finished,
     # which the bundler worked around the same way.
     # 關閉 stdin:開著時 gradlew 可能在建置完成後仍掛住,bundler 也是這樣繞過的。
-    ./gradlew assembleDebug --console=plain \
+    ./gradlew $gradle_task --console=plain \
         "${gradle_props[@]}" \
         -PscuiApplicationId="$application_id" \
         -PscuiAppName="$app" \
         -PscuiVersionCode="$version_code" </dev/null
 )
 
-built="$project/build/outputs/apk/debug/TestApps-debug.apk"
+built="$project/build/outputs/apk/$build_type/TestApps-$build_type.apk"
 [ -f "$built" ] || die "Gradle finished but $built is missing"
 mkdir -p "${output_apk:h}"
 cp "$built" "$output_apk"
