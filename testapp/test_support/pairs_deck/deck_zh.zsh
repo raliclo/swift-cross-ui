@@ -23,9 +23,9 @@ typeset -gA todo_by_design=(
     'three P6 Windows' 'P6 imports the WinUI products, which a GTK build on Windows removes (compile.zsh); P6-v2 is its GTK counterpart|P6 import 了 WinUI 的 product,Windows 上的 GTK 建置會移除它們(compile.zsh);它的 GTK 版是 P6-v2'
     'mac P6-v2 macOS' 'P6-v2 imports Gtk itself, so AppKit cannot build it; it is the GTK counterpart of P6|P6-v2 自己 import 了 Gtk,所以 AppKit 無法建置；它是 P6 的 GTK 版'
     'three P12 Windows' 'P12 is the AndroidBackend repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P12 是 AndroidBackend 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
-    'three P12 WSL' 'P12 is the AndroidBackend repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P12 是 AndroidBackend 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
+    'three P12 WSL' 'P12 is the AndroidBackend repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md); the two WSLg runs that were made (2026-10-21, 2026-10-22) exited 7, every capture failed|P12 是 AndroidBackend 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md);實際跑過的兩次 WSLg(2026-10-21、2026-10-22)都以 exit 7 結束，每張擷圖都失敗'
     'three P14 Windows' 'P14 is the UIKitBackend (iOS) repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P14 是 UIKitBackend(iOS)的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
-    'three P14 WSL' 'P14 is the UIKitBackend (iOS) repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md)|P14 是 UIKitBackend(iOS)的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md)'
+    'three P14 WSL' 'P14 is the UIKitBackend (iOS) repro app, out of scope on the Windows/WSL machine (gtk-test-plan-findings.md); the two WSLg runs that were made (2026-10-21, 2026-10-22) exited 7, every capture failed|P14 是 UIKitBackend(iOS) 的重現 app,不在 Windows/WSL 這台機器的範圍內(gtk-test-plan-findings.md);實際跑過的兩次 WSLg(2026-10-21、2026-10-22)都以 exit 7 結束，每張擷圖都失敗'
 )
 
 # FILE: load the translations; a missing file loads none.
