@@ -42,11 +42,8 @@ extension AppKitBackend: BackendFeatures.ScrollingLists {
         // `NSScrollView` re-tile even when the value is identical. Skipping the
         // no-op is worth doing on its own.
         //
-        // **It is NOT what fixed wheel scrolling, and the first version of this
-        // comment said it was.** That claim was a hypothesis written before it
-        // was tested: a scrolled list really was snapping back to the top, and
-        // this looked like the cause. It was not -- the list still snapped back
-        // with this guard in place. The cause was two defects in the test
+        // **It has nothing to do with wheel scrolling working.** A scrolled list
+        // snapping back to the top came from two defects in the test
         // synthesiser, an inverted wheel delta and a fallback that hid it; see
         // `AppKitSynthesiser.postScroll`.
         //
@@ -55,9 +52,7 @@ extension AppKitBackend: BackendFeatures.ScrollingLists {
         // `setViewportHeight` 每一次 commit 都會執行,而指派 `frame` 會讓 `NSScrollView` 重新 tile
         // ——即使值完全相同。省掉這個空操作,本身就值得做。
         //
-        // **它**不是**修好滾輪捲動的原因,而本註解的第一版曾經這麼宣稱。** 那個宣稱是一個「在被測試
-        // 之前就寫下的假設」:當時確實有一份被捲動的清單會彈回頂端,而這看起來像是原因。它不是
-        // ——加上這道防護之後,那份清單照樣彈回去。真正的原因是測試合成器裡的兩個缺陷:一個反了的
+        // **它與滾輪捲動是否正常無關。** 被捲動的清單彈回頂端,成因是測試合成器裡的兩個缺陷:一個反了的
         // 滾輪 delta,以及一道把它蓋住的退路;見 `AppKitSynthesiser.postScroll`。
         guard scrollView.frame.size.height != CGFloat(height) else { return }
         var frame = scrollView.frame

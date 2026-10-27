@@ -4,17 +4,15 @@ import Gtk
 import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
-// Five optional features GTK did not declare until 2026-10-06 -- `Cursors`,
-// `ContextMenus`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` -- while
-// AppKit, UIKit and Android had all five. Each target is a `Fixed` with the
+// Five optional features -- `Cursors`, `ContextMenus`, `KeyEvents`,
+// `ScrollGestures`, `WidgetSnapshots`. Each target is a `Fixed` with the
 // child at the origin, the shape `TooltipContainer` already uses, so the
 // feature's controller or cursor belongs to the target and two modifiers on
 // one view do not overwrite each other on a shared child.
 //
-// GTK 在 2026-10-06 之前沒有宣告的五項選用功能——`Cursors`、`ContextMenus`、`KeyEvents`、
-// `ScrollGestures`、`WidgetSnapshots`——而 AppKit、UIKit 與 Android 五項都有。每個 target 都是一個把子
-// widget 放在原點的 `Fixed`,與 `TooltipContainer` 的形狀相同；如此功能的 controller 或游標屬於 target,
-// 同一個 view 上的兩個 modifier 不會在共用的子 widget 上互相覆寫。
+// 五項選用功能——`Cursors`、`ContextMenus`、`KeyEvents`、`ScrollGestures`、`WidgetSnapshots`。每個
+// target 都是一個把子 widget 放在原點的 `Fixed`,與 `TooltipContainer` 的形狀相同；如此功能的 controller
+// 或游標屬於 target,同一個 view 上的兩個 modifier 不會在共用的子 widget 上互相覆寫。
 
 // MARK: Cursors
 

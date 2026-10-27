@@ -30,7 +30,7 @@
         /// 啟動時 750 毫秒),起點移到 0.19 且沒有跳躍。成本不是新增的，只是改在內容出現之前付。程式依 GL context
         /// 保存，而 display 共用該 context,所以之後的視窗幾乎不花成本。`SCUI_GTK_WARMUP=0` 可關閉，供量測用。
         ///
-        /// Linux too since 2026-10-23. Under WSLg Mesa's d3d12 driver and the NVIDIA driver
+        /// Linux too. Under WSLg Mesa's d3d12 driver and the NVIDIA driver
         /// behind it redo their shader work in each process (perf, whole run: 29% Mesa,
         /// 17% the NVIDIA compiler; in the wait itself 51% Mesa, 21% the NVIDIA user-mode
         /// driver and 5% its compiler, the rest off the CPU -- Mesa's disk cache keeps
@@ -39,7 +39,7 @@
         /// this warm-up, which now also draws a filled and a stroked path and a
         /// transformed fill, it waits about 560 ms, and P96 draws 48.3-49.0 fps in
         /// its first 3 s against 41.0-41.7 without (interleaved, two rounds).
-        /// 自 2026-10-23 起 Linux 也執行。WSLg 下,Mesa 的 d3d12 驅動與其背後的 NVIDIA 驅動在每個行程都重做 shader 的工作(perf,
+        /// Linux 也執行。WSLg 下,Mesa 的 d3d12 驅動與其背後的 NVIDIA 驅動在每個行程都重做 shader 的工作(perf,
         /// 整段執行：Mesa 29%、NVIDIA 編譯器 17%;等待期間本身:Mesa 51%、NVIDIA 使用者模式驅動 21%、其編譯器 5%,其餘不在 CPU
         /// 上——Mesa 的磁碟快取保存 GLSL,卻不保存它依繪圖狀態產生的 d3d12 版本),P96 第一個移動的幀為此
         /// 等了 870 毫秒。有了本預熱(現在也畫一條填色路徑、一條描邊路徑與一個變換後的填色)後約等 560 毫秒，P96 前 3 秒
@@ -47,16 +47,14 @@
         func warmUpRenderer(of window: Gtk.Window) {
             guard ProcessInfo.processInfo.environment["SCUI_GTK_WARMUP"] != "0" else { return }
             // A window of its own, never `window`: realizing the app's window this
-            // early fixed things GTK decides at realization. P92 on Windows GTK had
-            // no menu bar from this function's first version (d93cd3ce,
-            // 2026-10-21) until 2026-10-23 and passed with SCUI_GTK_WARMUP=0;
-            // unrealizing the window afterwards brought the menu bar back but lost
-            // GTK's own title bar. The programs are kept for the display, so a
-            // throwaway window warms the app's as well.
-            // 用自己的視窗，絕不用 `window`:這麼早 realize app 的視窗，會把 GTK 在 realize 時決定的事定下來。Windows GTK
-            // 上的 P92 從本函式第一版(d93cd3ce,2026-10-21)到 2026-10-23 都沒有選單列，加上 SCUI_GTK_WARMUP=0 則通過;
-            // 事後 unrealize 視窗能讓選單列回來，卻失去 GTK 自己的標題列。程式依 display 保存，所以用完即丟的視窗也能
-            // 替 app 的視窗預熱。
+            // early fixes things GTK decides at realization -- P92 on Windows GTK
+            // had no menu bar that way, and unrealizing the window afterwards
+            // brought the menu bar back but lost GTK's own title bar. The programs
+            // are kept for the display, so a throwaway window warms the app's as
+            // well.
+            // 用自己的視窗，絕不用 `window`:這麼早 realize app 的視窗，會把 GTK 在 realize 時決定的事定下來——Windows
+            // GTK 上的 P92 因此沒有選單列，而事後 unrealize 視窗能讓選單列回來，卻失去 GTK 自己的標題列。程式依 display
+            // 保存，所以用完即丟的視窗也能替 app 的視窗預熱。
             _ = window
             guard let probe = gtk_window_new() else { return }
             defer { gtk_window_destroy(UnsafeMutableRawPointer(probe).assumingMemoryBound(to: GtkWindow.self)) }
@@ -95,9 +93,10 @@
             gtk_snapshot_append_layout(snapshot, layout, &grey)
             g_object_unref(UnsafeMutableRawPointer(layout))
 
-            // A filled and a stroked path, as GtkBackend draws every Shape since
-            // f84ee359, and a fill under the transform Fixed.setChildMatrix builds.
-            // 填色與描邊的路徑(自 f84ee359 起 GtkBackend 以此繪製每個 Shape),以及 Fixed.setChildMatrix
+            // A filled and a stroked path, as GtkBackend draws Shapes with GSK
+            // path nodes, and a fill under the transform Fixed.setChildMatrix
+            // builds.
+            // 填色與描邊的路徑(GtkBackend 以 GSK 路徑節點繪製 Shape),以及 Fixed.setChildMatrix
             // 所建變換下的填色。
             let builder = gsk_path_builder_new()
             gsk_path_builder_add_rect(builder, &bounds)

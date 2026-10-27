@@ -10,15 +10,14 @@
     /// **One target, two backends, and that is the point.** `MTKView` is the same
     /// MetalKit class on macOS and iOS, so the shaders, the buffer packing and the
     /// camera arithmetic are written once. Writing them twice is how two backends
-    /// start disagreeing about what a mesh looks like, which is the divergence this
-    /// tree spent the week of 2026-09-17 removing from popovers, accessibility
-    /// names and gesture placement.
+    /// start disagreeing about what a mesh looks like, as popovers,
+    /// accessibility names and gesture placement once did.
     ///
     /// AppKit 與 UIKit 上 ``BackendFeatures/Mesh3DViews`` 背後的 renderer。
     ///
     /// **一個 target、兩個 backend,而那正是重點。** `MTKView` 在 macOS 與 iOS 上是 MetalKit 的同一個類別,
     /// 因此著色器、buffer 打包與相機運算只寫一次。寫兩次正是兩個 backend 開始對「一個 mesh 該長什麼樣」
-    /// 各說各話的起點——而那正是 2026-09-17 那一週,這棵樹從 popover、無障礙名稱與手勢位置上移除的分歧。
+    /// 各說各話的起點——popover、無障礙名稱與手勢位置都曾經這樣分歧。
     public final class Mesh3DMetalView: MTKView {
         private var commandQueue: MTLCommandQueue?
         private var pipeline: MTLRenderPipelineState?
@@ -47,14 +46,14 @@
         /// uniform、不是頂點資料。另一條路——在上傳前把各自的變換烘進頂點——會變成「只要有東西動,
         /// 每一幀都要重傳每一個 mesh」,而那正是這個設計要避開的代價。
         ///
-        /// **Each range names its mesh.** Until 2026-10-05 a range was matched to
-        /// `scene.meshes` by its position in this array, while a mesh with no whole
-        /// triangle got no range -- so one empty mesh shifted every later mesh onto
-        /// its predecessor's transform. Line and point meshes made that case
+        /// **Each range names its mesh.** Matching a range to `scene.meshes` by
+        /// its position in this array breaks as soon as a mesh with no whole
+        /// triangle gets no range -- one empty mesh shifts every later mesh onto
+        /// its predecessor's transform. Line and point meshes make that case
         /// ordinary rather than rare: they have no indices at all.
         ///
-        /// **每一段都記著自己屬於哪個 mesh。** 2026-10-05 之前,一段是以「它在此陣列中的位置」對到
-        /// `scene.meshes` 的,而一個沒有完整三角形的 mesh 不會產生任何一段——於是一個空 mesh 會讓之後
+        /// **每一段都記著自己屬於哪個 mesh。** 若以「它在此陣列中的位置」對到 `scene.meshes`,
+        /// 一旦某個沒有完整三角形的 mesh 不產生任何一段就會出錯——一個空 mesh 會讓之後
         /// 每個 mesh 都套上前一個的變換。線段與點的 mesh 根本沒有索引,讓這種情況從罕見變成常態。
         private var meshRanges: [DrawRange] = []
 
@@ -137,9 +136,6 @@
             //   isPaused = false, enableSetNeedsDisplay = true   ->  1 frame
             //   isPaused = false, enableSetNeedsDisplay = false  ->  90 frames
             //
-            // The first of those was run expecting it to fail and it did not,
-            // which is the only reason the right line is named here.
-            //
             // 由外部要求時才畫,而不是由這個 view 自己的計時器驅動。框架本來就有 `FrameClocks`,
             // 而兩個時鐘互相競速,正是一支 app 拿到「它沒有要求過的幀」的原因。
             //
@@ -150,8 +146,6 @@
             //
             //   isPaused = false、enableSetNeedsDisplay = true   ->  1 幀
             //   isPaused = false、enableSetNeedsDisplay = false  ->  90 幀
-            //
-            // 上面第一項是「預期它會失敗」而跑的,結果它沒有失敗——那正是此處寫得出正確那一行的唯一理由。
             isPaused = true
             enableSetNeedsDisplay = true
             delegate = self
@@ -738,14 +732,14 @@
         }
     }
 
-    // MARK: - The three matrices, which no longer live here
+    // MARK: - Conversion from the shared matrices
 
-    /// `Mesh3DMatrix4` to Metal's own type, and this conversion is the whole of what is left.
+    /// `Mesh3DMatrix4` to Metal's own type.
     ///
-    /// **The four matrix functions moved to `SwiftCrossUI/Views/Mesh3DMatrix.swift` on 2026-09-22,
-    /// because AndroidBackend needed the same four.** They each carried a comment recording a
+    /// **The matrix functions live in `SwiftCrossUI/Views/Mesh3DMatrix.swift`,
+    /// because AndroidBackend needs the same ones.** Each records a
     /// convention -- the Z-then-Y-then-X Euler order, the right-handed look-at, the depth range --
-    /// and writing a second set for a second renderer is four more chances to choose differently.
+    /// and writing a second set for a second renderer is more chances to choose differently.
     /// A cube that is subtly wrong on one platform is not something a screenshot comparison
     /// reliably catches.
     ///
@@ -753,11 +747,11 @@
     /// re-label rather than a copy; `simd` itself is Apple-only, which is why the shared type
     /// could not simply be it.
     ///
-    /// `Mesh3DMatrix4` 轉成 Metal 自己的型別,而剩下的就只有這個轉換。
+    /// `Mesh3DMatrix4` 轉成 Metal 自己的型別。
     ///
-    /// **那四個矩陣函式已於 2026-09-22 移到 `SwiftCrossUI/Views/Mesh3DMatrix.swift`,因為
-    /// AndroidBackend 需要同樣的四個。** 它們各自帶著一段記錄慣例的註解——Z 再 Y 再 X 的 Euler 順序、
-    /// 右手系 look-at、深度範圍——而為第二個 renderer 再寫一組,就是多四次「可以選得不一樣」的機會。
+    /// **矩陣函式放在 `SwiftCrossUI/Views/Mesh3DMatrix.swift`,因為
+    /// AndroidBackend 需要同樣的那些。** 它們各自記錄一項慣例——Z 再 Y 再 X 的 Euler 順序、
+    /// 右手系 look-at、深度範圍——而為第二個 renderer 再寫一組,就是多幾次「可以選得不一樣」的機會。
     /// 一個「在某個平台上細微地錯了」的立方體,並不是擷圖比對可靠抓得到的東西。
     ///
     /// `simd_float4x4` 與 `Mesh3DMatrix4` 都是四個 `SIMD4<Float>` column,因此這是換個名字、不是複製;

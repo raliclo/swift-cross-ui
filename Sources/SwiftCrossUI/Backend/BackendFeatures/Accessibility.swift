@@ -6,12 +6,13 @@ extension BackendFeatures {
     /// changes it and nothing has to be reported back. Focus is the opposite:
     /// asking for it can be refused, and it moves for reasons the app did not
     /// cause. Putting both in one protocol would force a backend that only
-    /// wants labels to implement focus reporting, so they are separate and this
-    /// half could land first. That split was agreed in
+    /// wants labels to implement focus reporting, so they are separate. That
+    /// split is recorded in
     /// `testapp/plan/plan-focus-protocol.md` §4.
     ///
     /// **Conformance-checked, not required**, the same way ``ScrollingLists``
-    /// and ``LazyListRows`` are, so the five backends convert one at a time. A
+    /// and ``LazyListRows`` are, so a backend outside the shipped five keeps
+    /// compiling; all five shipped backends conform. A
     /// backend that does not conform warns once per modifier rather than
     /// failing: a screen reader saying the wrong thing is invisible from the
     /// outside, so the one thing this must not do is stay quiet about it.
@@ -21,12 +22,12 @@ extension BackendFeatures {
     /// **這些是屬性,不是「一個動作加一個事件」——這正是它不屬於 ``FocusableViews`` 的原因。**
     /// 標籤設下去就在那裡;沒有別人會改動它,也不需要回報任何東西。焦點恰好相反:去要它可能被拒絕,
     /// 而且它會因為 app 沒有造成的原因而移動。把兩者放進同一個協定,會迫使「只想加標籤」的 backend
-    /// 去實作焦點回報,因此它們是分開的,而這一半得以先落地。該切分在
-    /// `testapp/plan/plan-focus-protocol.md` §4 議定。
+    /// 去實作焦點回報,因此它們是分開的。該切分記錄在
+    /// `testapp/plan/plan-focus-protocol.md` §4。
     ///
-    /// **採 conformance 檢查而非要求實作**,與 ``ScrollingLists``、``LazyListRows`` 相同,好讓五個
-    /// backend 一次轉一個。未 conform 的 backend 會每個 modifier 警告一次,而不是失敗:「螢幕閱讀器
-    /// 說錯話」從外面完全看不出來,因此這件事**唯一**不能做的就是保持沉默。
+    /// **採 conformance 檢查而非要求實作**,與 ``ScrollingLists``、``LazyListRows`` 相同,所以已發布集合
+    /// 以外的 backend 仍能編譯;五個已發布的 backend 全都 conform。未 conform 的 backend 會每個 modifier
+    /// 警告一次,而不是失敗:「螢幕閱讀器說錯話」從外面完全看不出來,因此這件事**唯一**不能做的就是保持沉默。
     @MainActor
     public protocol Accessibility: Core {
         /// The name a screen reader reads for this widget.

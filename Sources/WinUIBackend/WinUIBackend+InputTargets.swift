@@ -7,16 +7,16 @@ import WinSDK
 import WinUI
 @preconcurrency import WindowsFoundation
 
-// Five optional features WinUI did not declare until 2026-10-07 -- `Cursors`,
-// `ContextMenus`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` -- while
-// AppKit, UIKit, Android and (since 2026-10-06) GTK had all five. Each target is
-// a `Canvas` with the child at the origin and a transparent background, the
-// shape `TapGestureTarget` and `HoverGestureTarget` use: the background makes
-// the whole area hit-testable, and the feature belongs to the target, so two
-// modifiers on one view do not overwrite each other on a shared child.
+// Five optional features -- `Cursors`, `ContextMenus`, `KeyEvents`,
+// `ScrollGestures`, `WidgetSnapshots` -- that AppKit, UIKit, Android and GTK
+// implement too. Each target is a `Canvas` with the child at the origin and a
+// transparent background, the shape `TapGestureTarget` and
+// `HoverGestureTarget` use: the background makes the whole area
+// hit-testable, and the feature belongs to the target, so two modifiers on
+// one view do not overwrite each other on a shared child.
 //
-// WinUI 在 2026-10-07 之前沒有宣告的五項選用功能——`Cursors`、`ContextMenus`、`KeyEvents`、
-// `ScrollGestures`、`WidgetSnapshots`——而 AppKit、UIKit、Android 與(自 2026-10-06 起)GTK 五項都有。
+// 五項選用功能——`Cursors`、`ContextMenus`、`KeyEvents`、`ScrollGestures`、`WidgetSnapshots`——AppKit、
+// UIKit、Android 與 GTK 也都有實作。
 // 每個 target 都是一個子 widget 在原點、背景透明的 `Canvas`,與 `TapGestureTarget`、`HoverGestureTarget`
 // 的形狀相同：背景讓整個區域都能被 hit test,而功能屬於 target,同一個 view 上的兩個 modifier 不會在
 // 共用的子 widget 上互相覆寫。
@@ -335,8 +335,8 @@ extension WinUIBackend: BackendFeatures.KeyEvents {
 
 // MARK: Pointer hover
 
-/// Written on macOS 2026-10-10; built and driven on Windows 2026-10-20 with P88, whose replay must
-/// use `hover` rows: a `move` without a button is a SetCursorPos jump and raises no PointerMoved.
+/// P88's replay must use `hover` rows: a `move` without a button is a SetCursorPos jump and raises
+/// no PointerMoved.
 ///
 /// The pointer's place comes from `PointerMoved` and the modifiers from the key state at that
 /// moment, read the way key events read them: Control is `.control` and the Windows key `.command`.
@@ -345,18 +345,18 @@ extension WinUIBackend: BackendFeatures.KeyEvents {
 /// same limit as GtkBackend; only AppKitBackend reports it without a move.
 ///
 /// A finger hovers once it has rested for `touchHoverDelay` within `touchHoverSlop`, and from then
-/// until it lifts, as GtkBackend, UIKit and Android do (queue item 10). Before this (2026-10-23)
-/// every touch move was a hover at once: a quick touch drag across P88's panel reported 20 hovers,
+/// until it lifts, as GtkBackend, UIKit and Android do (queue item 10). Without the delay every
+/// touch move is a hover at once: a quick touch drag across P88's panel reported 20 hovers,
 /// measured with `touch_gesture.zsh drag`; `hold` drives the rest-then-move case.
 ///
-/// 2026-10-10 在 macOS 上寫成，2026-10-20 在 Windows 以 P88 建置並驅動；重放須用 `hover` 列——沒按鍵的 `move` 是 SetCursorPos
+/// P88 的重放須用 `hover` 列——沒按鍵的 `move` 是 SetCursorPos
 /// 跳躍，不會觸發 PointerMoved。指標位置來自 `PointerMoved`，修飾鍵取當下的按鍵狀態，讀法與按鍵事件相同：Control 是
 /// `.control`、Windows 鍵是 `.command`。想表示「這個平台的 command 鍵」的 app 在這裡得接受 `.control`，
 /// SoftPCB 就是這樣。指標不動時按下修飾鍵，要到下一次移動才回報——與 GtkBackend 相同的限制，只有
 /// AppKitBackend 不必移動就回報。
 ///
 /// 手指在 `touchHoverSlop` 內靜止 `touchHoverDelay` 後開始 hover,直到抬起，與 GtkBackend、UIKit、Android 相同
-/// (queue 第 10 項)。在此之前(2026-10-23)每次觸控移動都立即算 hover:用 `touch_gesture.zsh drag` 量到，快速觸控
+/// (queue 第 10 項)。少了這段延遲，每次觸控移動都立即算 hover:用 `touch_gesture.zsh drag` 量到，快速觸控
 /// 拖過 P88 的面板回報了 20 次;`hold` 驅動先靜止再移動的情形。
 extension WinUIBackend: BackendFeatures.PointerHover {
     public func createPointerHoverTarget(wrapping child: Widget) -> Widget {

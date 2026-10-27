@@ -49,11 +49,9 @@ class _App<AppRoot: App> {
 
     /// Selects the graphics adapter the user asked for, and says what happened.
     ///
-    /// This is the caller ``BackendFeatures/GraphicsAdapters`` did not have. Its
-    /// own documentation recorded the hole on 2026-09-02 -- "there is no such
-    /// caller ... nothing aborts today, because nothing asks" -- and a protocol
+    /// This is the caller of ``BackendFeatures/GraphicsAdapters``. A protocol
     /// nothing asks is a protocol whose conformances are never exercised, so a
-    /// backend can conform incorrectly and no run will show it.
+    /// backend could conform incorrectly and no run would show it.
     ///
     /// Called before the scene graph is built, because ``applyAdapter(_:)`` is
     /// documented as running once before anything renders, and on Windows the
@@ -69,10 +67,8 @@ class _App<AppRoot: App> {
     ///
     /// 選定使用者所要求的繪圖介面卡，並說明結果。
     ///
-    /// 這正是 ``BackendFeatures/GraphicsAdapters`` 一直缺少的呼叫端。它自己的文件在 2026-09-02
-    /// 記下了這個缺口——「並不存在那樣的呼叫端……今天不會有任何東西中止，因為根本沒有東西在問」
-    /// ——而一個沒有人詢問的協定，其 conformance 永遠不會被執行到，因此某個 backend 可以實作錯誤
-    /// 而沒有任何一次執行會顯示出來。
+    /// 這是 ``BackendFeatures/GraphicsAdapters`` 的呼叫端。一個沒有人詢問的協定，其 conformance 永遠不會被
+    /// 執行到，因此某個 backend 可以實作錯誤而沒有任何一次執行會顯示出來。
     ///
     /// 在建立 scene graph 之前呼叫，因為 ``applyAdapter(_:)`` 的文件載明它「在任何繪製之前執行
     /// 一次」；而在 Windows 上，答案可能是 ``AdapterOutcome/needsRestart(reason:)``——那個答案

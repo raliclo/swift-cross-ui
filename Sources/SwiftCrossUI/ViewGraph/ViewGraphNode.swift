@@ -247,9 +247,9 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             _ = self.commit()
 
             // A state change that does not resize anything can still change what
-            // the WINDOW draws, and before this nothing carried that upwards.
-            // `.navigationTitle(someState)` wrote its first value at launch and
-            // every later one was computed, stored and never read -- P50 showed
+            // the WINDOW draws, and that has to be carried upwards. Otherwise
+            // `.navigationTitle(someState)` writes its first value at launch and
+            // every later one is computed, stored and never read -- P50 showed
             // "TITLE B" in its body and "TITLE A" in its title bar, in one
             // screenshot, on 2026-09-10.
             //
@@ -259,8 +259,8 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             // signature covers exactly what `WindowReference` applies from
             // preferences -- the title and the toolbar's labels.
             //
-            // 一次不改變尺寸的狀態改變，仍然可能改變**視窗**所繪製的東西，而在此之前沒有任何東西
-            // 把那件事往上帶。`.navigationTitle(某個狀態)` 在啟動時寫入了它的第一個值，其後每一個
+            // 一次不改變尺寸的狀態改變，仍然可能改變**視窗**所繪製的東西，而那件事必須被往上帶。
+            // 否則 `.navigationTitle(某個狀態)` 只會在啟動時寫入它的第一個值，其後每一個
             // 都被算出、被存下、從未被讀取——2026-09-10，P50 在同一張截圖裡內容顯示「TITLE B」、
             // 標題列顯示「TITLE A」。
             //

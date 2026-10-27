@@ -29,10 +29,10 @@ extension GtkBackend: BackendFeatures.StandardCommands {
     public func hasStandardCommand(_ command: StandardCommand) -> Bool {
         switch command {
             // Hide Others needs the other apps' windows, which GTK cannot reach; on macOS the
-            // application object can. Elsewhere it is left out -- for the Windows side to add
-            // with the platform's own calls.
-            // 「Hide Others」需要碰到其他 app 的視窗，GTK 做不到;macOS 上 application 物件可以。其他系統上不提供，
-            // 留給 Windows 端用平台自己的呼叫補上。
+            // application object can. Elsewhere it is left out: on Windows it would need the
+            // platform's own calls, which are not written.
+            // 「Hide Others」需要碰到其他 app 的視窗，GTK 做不到;macOS 上 application 物件可以。其他系統上不提供:
+            // Windows 上需要平台自己的呼叫，而那尚未實作。
             case .hideOthers: Self.isDarwin
             default: true
         }

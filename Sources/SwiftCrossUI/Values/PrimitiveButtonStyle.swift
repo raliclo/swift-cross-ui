@@ -1,26 +1,22 @@
 /// One of the built-in button appearances, which own their own interaction
 /// behaviour.
 ///
-/// **Renamed from `ButtonStyle` on 2026-09-08, and the name it gave up now
-/// belongs to a protocol.** Upstream's #590 introduced this as a struct called
-/// `ButtonStyle` with a closed set of three cases, carrying SwiftUI's doc
-/// comment for the *protocol* of that name -- "applies standard interaction
-/// behavior **and a custom appearance** to all buttons within a view
-/// hierarchy". A struct with three static members cannot do the
-/// custom-appearance half at all: `.buttonStyle(.bordered)` compiled, and
+/// **Not named `ButtonStyle`: that name belongs to the protocol.** SwiftUI's
+/// `ButtonStyle` "applies standard interaction behavior **and a custom
+/// appearance** to all buttons within a view hierarchy", and a struct with
+/// three static members cannot do the custom-appearance half at all: with the
+/// name on a struct, `.buttonStyle(.bordered)` compiles and
 ///
 ///     struct MyStyle: ButtonStyle {
 ///         func makeBody(configuration: Configuration) -> some View { ... }
 ///     }
 ///
-/// could not, and could not be made to, for as long as the name referred to a
-/// struct. `PrimitiveButtonStyle` is SwiftUI's own name for exactly this thing:
-/// a style that owns the button's interaction rather than restyling it. The
-/// doc comment above is written for what this type actually is.
+/// cannot. `PrimitiveButtonStyle` is SwiftUI's own name for exactly this thing:
+/// a style that owns the button's interaction rather than restyling it.
+/// (Upstream's #590 named this struct `ButtonStyle`.)
 ///
-/// The three cases are unchanged, and `.bordered` / `.plain` / `.borderless`
-/// still spell the same appearances they did before the rename. Every backend
-/// keeps switching on ``Kind``.
+/// `.bordered` / `.plain` / `.borderless` spell the three appearances, and
+/// every backend switches on ``Kind``.
 ///
 /// This is deliberately *not* a conformer of ``ButtonStyle``. A `ButtonStyle`
 /// draws itself out of ordinary views and is handed `isPressed`; these three
@@ -30,21 +26,18 @@
 ///
 /// 三種內建按鈕外觀之一，它們自行掌管互動行為。
 ///
-/// **2026-09-08 由 `ButtonStyle` 更名而來，而它讓出的名字現在屬於一個 protocol。** upstream 的 #590
-/// 以名為 `ButtonStyle` 的 struct 引入了這個封閉的三元集合，並沿用了 SwiftUI 中**同名 protocol** 的
-/// 文件註解——「對某個 view 階層中的所有按鈕套用標準互動行為**與自訂外觀**」。一個只有三個靜態成員的
-/// struct 根本做不到「自訂外觀」那一半：`.buttonStyle(.bordered)` 編得過，而
+/// **不叫 `ButtonStyle`:那個名字屬於 protocol。** SwiftUI 的 `ButtonStyle`「對某個 view 階層中的所有按鈕
+/// 套用標準互動行為**與自訂外觀**」,而一個只有三個靜態成員的 struct 根本做不到「自訂外觀」那一半：只要那個
+/// 名字指向一個 struct,`.buttonStyle(.bordered)` 編得過，而
 ///
 ///     struct MyStyle: ButtonStyle {
 ///         func makeBody(configuration: Configuration) -> some View { ... }
 ///     }
 ///
-/// 編不過，而且只要那個名字仍指向一個 struct，就永遠無法讓它編得過。`PrimitiveButtonStyle` 正是
-/// SwiftUI 自己給這種東西的名字：一個掌管按鈕互動、而非替它重新繪製外觀的樣式。上方的文件註解，寫的
-/// 是這個型別實際上是什麼。
+/// 編不過。`PrimitiveButtonStyle` 正是 SwiftUI 自己給這種東西的名字：一個掌管按鈕互動、而非替它重新繪製
+/// 外觀的樣式。(upstream 的 #590 把這個 struct 命名為 `ButtonStyle`。)
 ///
-/// 三個 case 沒有改變，`.bordered` / `.plain` / `.borderless` 仍然代表更名前的同一批外觀。所有
-/// backend 依舊是對 ``Kind`` 做 switch。
+/// `.bordered` / `.plain` / `.borderless` 代表三種外觀，所有 backend 都對 ``Kind`` 做 switch。
 ///
 /// 它刻意**不**遵從 ``ButtonStyle``。一個 `ButtonStyle` 是以一般 view 自行繪製、並會收到 `isPressed`；
 /// 而這三者是由平台繪製的，平台自行追蹤按下狀態，從不為此回呼 Swift。若要它遵從，就得憑空造出一個

@@ -14,16 +14,10 @@ import SwiftJava
 /// passed its own `ActivityDelegate`. URLs that arrive before the view graph
 /// sets its handler are queued and replayed, as UIKitBackend does.
 ///
-/// Until 2026-10-06 Android was the one shipped backend without this: the
-/// conformance was absent and `setIncomingURLHandler` was upstream's commented
-/// stub, so `.onOpenURL` never fired.
-///
 /// `BackendFeatures.IncomingURLs`:app 被開啟時帶的 URL,以及執行中送給它的每一個 URL。來源有兩個，因為
 /// Android 有兩個：被連結**啟動**的 app,從啟動 activity 的那個 intent 的 data 取得，於第一次設定處理器時讀一次；
 /// **已在執行**的 app 收到 `onNewIntent`,經由本檔安裝的 `ActivityListener` 到達 Swift——不論 app 有沒有傳入自己的
 /// `ActivityDelegate`。在 view graph 設定處理器之前抵達的 URL 會先排隊、之後重播，與 UIKitBackend 相同。
-/// 2026-10-06 之前 Android 是唯一沒有此功能的已發布 backend:沒有 conformance,`setIncomingURLHandler` 是上游
-/// 註解掉的樁，所以 `.onOpenURL` 從未觸發。
 extension AndroidBackend: BackendFeatures.IncomingURLs {
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
         Self.installIncomingURLListener(helpers: helpers)

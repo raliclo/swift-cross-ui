@@ -1,12 +1,9 @@
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
-// GtkBackend's half of `TextFieldStyle`. Kept in its own file rather than added
-// to the ~5500-line `GtkBackend.swift`, which is under concurrent edit for the
-// toolbar work.
+// GtkBackend's half of `TextFieldStyle`.
 //
-// GtkBackend 對應 `TextFieldStyle` 的部分。獨立成一個檔案，而非加進約 5500 行的
-// `GtkBackend.swift`——後者正因 toolbar 的工作而被同時編輯中。
+// GtkBackend 對應 `TextFieldStyle` 的部分。
 extension GtkBackend {
     /// Applies a text field shape to a `GtkEntry`, returning the CSS the shape
     /// needs on top of what `cssProperties(for:isControl:)` already produced.

@@ -2,7 +2,7 @@ import Foundation
 
 // `.datePickerStyle(.clock)` and `.datePickerStyle(.rows)`: the two ways P41
 // showed the same `.hourAndMinute` picker, given names so an app asks for one
-// and gets it on every backend (2026-10-18). `.clock` is what AppKit draws, an
+// and gets it on every backend. `.clock` is what AppKit draws, an
 // analogue face with hands; `.rows` is what GtkBackend draws, hour, minute and
 // second fields with minus and plus. Where the backend's own picker already
 // draws the one asked for (``BackendFeatures/DatePickers/nativeTimePresentation``)
@@ -10,7 +10,7 @@ import Foundation
 // views, so a `.clock` on GTK looks like a `.clock` on AppKit.
 //
 // `.datePickerStyle(.clock)` 與 `.datePickerStyle(.rows)`:P41 顯示同一個 `.hourAndMinute` 選擇器的兩種方式，取了名字，
-// 讓 app 要哪一種就在每個 backend 上拿到哪一種(2026-10-18)。`.clock` 是 AppKit 畫的，有指針的類比鐘面;`.rows` 是
+// 讓 app 要哪一種就在每個 backend 上拿到哪一種。`.clock` 是 AppKit 畫的，有指針的類比鐘面;`.rows` 是
 // GtkBackend 畫的，時、分、秒欄位加上減號與加號。backend 自己的選擇器已經畫出所要的那一種時
 // (``BackendFeatures/DatePickers/nativeTimePresentation``)就用它;其他地方以 SwiftCrossUI 的 view 組出鐘面或列，所以
 // GTK 上的 `.clock` 看起來跟 AppKit 上的一樣。

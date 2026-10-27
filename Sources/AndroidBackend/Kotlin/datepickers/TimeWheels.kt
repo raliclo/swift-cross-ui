@@ -153,6 +153,7 @@ class TimeWheels(context: Context) : FrameLayout(context) {
         // It also throws ArrayIndexOutOfBounds for regions it has no hour list for
         // (sv_SE, fi_FI and ru_RU on API 36), which took the app down (2026-10-10).
         // `C` 問的是該地區偏好的小時寫法，連同它所寫的日間時段(B);沒有它的 ICU 會丟例外,`j` 是不含時段的同一個問題。
+        // 對於它沒有小時清單的地區(API 36 上的 sv_SE、fi_FI 與 ru_RU),它也會丟 ArrayIndexOutOfBounds,曾讓 app 當掉(2026-10-10)。
         val pattern =
             try {
                 generator.getBestPattern("Cm")
@@ -285,7 +286,7 @@ class TimeWheels(context: Context) : FrameLayout(context) {
                 .let {
                     // Hebrew and Arabic have the weekday after the date on UIKit (24 באוג׳ יום א׳,
                     // ٢٤ أغسطس أحد), where the pattern has it first. By language: it is what was measured.
-                    // 希伯來文在 UIKit 上把星期放在日期之後(24 באוג׳ יום א׳),樣式卻把它放在前面。依語言決定：這是量到的結果。
+                    // 希伯來文與阿拉伯文在 UIKit 上把星期放在日期之後(24 באוג׳ יום א׳、٢٤ أغسطس أحد),樣式卻把它放在前面。依語言決定：這是量到的結果。
                     val weekday = Regex("^[Ec]+ ").find(it)
                     if (locale.language in setOf("he", "iw", "ar") && weekday != null) {
                         it.substring(weekday.value.length) + " " + weekday.value.trim()

@@ -9,7 +9,7 @@ extension View {
     /// Composed rather than given a backend protocol of its own: an overlaid
     /// stroked ``Rectangle`` is exactly what a border is, and every backend that
     /// can draw a path already draws it. Adding
-    /// `BackendFeatures.Borders` would give six backends a new method to
+    /// `BackendFeatures.Borders` would give every backend a new method to
     /// implement for something they can all already express.
     ///
     /// - Parameters:
@@ -24,7 +24,7 @@ extension View {
     ///
     /// 此處以組合實作，而非為它另立 backend protocol：一個疊加其上、帶描邊的 ``Rectangle`` 本身就是
     /// 邊框的定義，而任何能繪製 path 的 backend 都早已畫得出來。若新增
-    /// `BackendFeatures.Borders`，等於要六個 backend 為一件它們全都已能表達的事各實作一個新方法。
+    /// `BackendFeatures.Borders`，等於要每個 backend 為一件它們全都已能表達的事各實作一個新方法。
     public func border(_ color: Color, width: Double = 1) -> some View {
         overlay {
             // Inset by half the width, because a stroke straddles the path it

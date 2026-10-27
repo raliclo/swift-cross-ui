@@ -15,11 +15,6 @@ extension App {
     }
 }
 
-/// ## Features conformed to but not implemented
-///
-/// - ``BackendFeatures/HitTesting``: see `AppKitBackend+HitTesting.swift`. The
-///   conformance is real and the method does nothing, which is what the protocol
-///   asks a backend in this position to do.
 public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public typealias Window = NSCustomWindow
     public typealias Widget = NSView
@@ -42,7 +37,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         .menu,
         .segmented,
         .radioGroup,
-        // From 2026-09-29: `WheelPicker`. 自 2026-09-29 起:`WheelPicker`。
+        // Drawn by `WheelPicker`. 由 `WheelPicker` 繪製。
         .wheel,
     ]
     public let canOverrideWindowColorScheme = true
@@ -399,11 +394,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             case .button(let label, let action):
                 // The shortcut arrives in the ENVIRONMENT, on the same line as
                 // `isEnabled` and for the same reason -- see
-                // `EnvironmentValues.keyboardShortcut`. It was briefly a third
-                // associated value on `.button` here instead, which forced
-                // every backend's switch to stop compiling until it was
-                // handled; the environment is what GTK and WinUI already read,
-                // and two mechanisms for one feature is worse than either.
+                // `EnvironmentValues.keyboardShortcut`. The environment is what
+                // GTK and WinUI read too, and two mechanisms for one feature is
+                // worse than either.
                 //
                 // Custom subclass is used to keep strong reference to action
                 // wrapper.
@@ -416,10 +409,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
                 // Cmd-E nor Cmd-Shift-E reliably.
                 //
                 // 快捷鍵是從 **environment** 來的,與 `isEnabled` 在同一行、基於同一個理由——見
-                // `EnvironmentValues.keyboardShortcut`。它一度在此處改成 `.button` 上的第三個
-                // associated value,那會強迫每一個 backend 的 switch 編不過、直到它被處理;而
-                // environment 正是 GTK 與 WinUI 已經在讀的東西,而「一個功能兩套機制」比其中任何
-                // 一套都糟。
+                // `EnvironmentValues.keyboardShortcut`。GTK 與 WinUI 讀的也是 environment,而「一個功能
+                // 兩套機制」比其中任何一套都糟。
                 //
                 // key equivalent 以**小寫**放入,Shift 單獨由 modifier mask 承載。**對 AppKit 來說,
                 // 大寫的 `keyEquivalent` 本身就意謂 Shift**,因此為
@@ -633,33 +624,18 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         let container = AppKitHitTestingContainer()
         container.translatesAutoresizingMaskIntoConstraints = false
 
-        // Explicitly not clipping, because the platform default changed
-        // underneath this code and nothing said so.
+        // Explicitly not clipping: on a modern macOS SDK `NSView.clipsToBounds`
+        // defaults to true, so without this every container would be a clipped
+        // container and the two would be indistinguishable. A dump of a running
+        // app showed 199 of 199 `AppKitHitTestingContainer`s with
+        // `clipsToBounds == true`, none of them asked to be; P44's control cell,
+        // which must let an oversized child spill, came out the frame's size on
+        // macOS while iOS and Android both spilled.
         //
-        // `NSView.clipsToBounds` used to be false, which is why
-        // `createClippedContainer` could be nothing but setting it to true and
-        // why its comment says "an NSView does not clip its subviews by
-        // default". On a modern macOS SDK that default is true, so every
-        // container this backend made was a clipped container and the two were
-        // indistinguishable.
-        //
-        // Measured 2026-09-04 by dumping the view tree of a running app: 199 of
-        // 199 `AppKitHitTestingContainer`s reported `clipsToBounds == true`,
-        // and none of them had been asked to. P44 is the app that made it
-        // visible -- its control cell, which must let an oversized child spill,
-        // came out the frame's size on macOS while iOS and Android both
-        // spilled.
-        //
-        // 明確地不裁切，因為平台預設在這段程式碼底下改變了，而沒有任何東西說出這件事。
-        //
-        // `NSView.clipsToBounds` 過去是 false，那正是 `createClippedContainer` 可以只做「把它設為
-        // true」這一件事的原因，也是它的註解寫著「NSView 預設不會裁切其子 view」的原因。在現代的
-        // macOS SDK 上，該預設值是 true，因此這個 backend 所建立的每一個容器都是「已裁切的容器」，
-        // 兩者無從區分。
-        //
-        // 2026-09-04 以傾印執行中 app 的 view tree 實測：199 個 `AppKitHitTestingContainer` 中
-        // 有 199 個回報 `clipsToBounds == true`，而它們都沒有被要求這麼做。P44 是讓這件事顯現出來的
-        // app——它那個「必須讓過大的子元件溢出」的對照格，在 macOS 上量得等於 frame 的尺寸，而
+        // 明確地不裁切：在現代的 macOS SDK 上，`NSView.clipsToBounds` 預設是 true,少了這一步，這個
+        // backend 所建立的每一個容器都會是「已裁切的容器」，兩者無從區分。傾印執行中 app 的 view tree 時,
+        // 199 個 `AppKitHitTestingContainer` 中有 199 個回報 `clipsToBounds == true`,而它們都沒有被要求
+        // 這麼做;P44 那個「必須讓過大的子元件溢出」的對照格，在 macOS 上量得等於 frame 的尺寸，而
         // iOS 與 Android 都會溢出。
         container.clipsToBounds = false
         container.layer?.masksToBounds = false
@@ -1062,10 +1038,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         slider.onAction = { [weak slider] control in
             let control = control as! NSCustomSlider
             // Rounded to `decimalPlaces` before it is reported, as UIKit and
-            // Android do (GTK sets `digits`). Until 2026-10-06 this backend
-            // ignored the argument and reported the raw `doubleValue`.
+            // Android do (GTK sets `digits`).
             // 回報前先依 `decimalPlaces` 四捨五入，與 UIKit、Android 相同(GTK 設定 `digits`)。
-            // 2026-10-06 之前本 backend 忽略這個參數，直接回報原始的 `doubleValue`。
             let places = Double(max(0, min(decimalPlaces, 17)))
             onChange(
                 (control.doubleValue * pow(10.0, places)).rounded(.toNearestOrEven)
@@ -1797,17 +1771,15 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         //
         // NSAlert binds Escape only to a button titled Cancel, so an alert whose
         // sole button is OK -- the shape `.alert` gives when an app lists no
-        // actions -- could not be dismissed from the keyboard at all. Measured
-        // with P31 ("Open alert for Escape test"): in every macOS capture back to
-        // 2026-09-01 the alert was still up after the file's Escape. WinUI's
+        // actions -- could not be dismissed from the keyboard at all (P31, "Open
+        // alert for Escape test"). WinUI's
         // ContentDialog closes on Escape, and a single button has no other
         // meaning than "acknowledged", so Escape presses it. Alerts with more
         // than one button keep NSAlert's own rule.
         //
         // Escape 回應只有一顆按鈕的 alert,與其他 backend 一致。NSAlert 只把 Escape 綁到標題為 Cancel 的
         // 按鈕,因此唯一按鈕是 OK 的 alert——app 沒列出任何動作時 `.alert` 給的就是這個形狀——完全無法用
-        // 鍵盤關閉。以 P31("Open alert for Escape test")實測:回溯到 2026-09-01 的每一張 macOS 擷圖中,
-        // 動作檔按下 Escape 之後 alert 都還在。WinUI 的 ContentDialog 按 Escape 會關閉,而單一按鈕除了
+        // 鍵盤關閉(P31,"Open alert for Escape test")。WinUI 的 ContentDialog 按 Escape 會關閉,而單一按鈕除了
         // 「知道了」之外沒有別的意思,所以 Escape 就按下它。多於一顆按鈕的 alert 保留 NSAlert 自己的規則。
         var escapeMonitor: Any?
         if alert.buttons.count == 1 {
@@ -1888,10 +1860,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
         // Only the allowed types are selectable. `allowsOtherFileTypes` above is
         // a save-panel setting that an open panel ignores, so "others allowed"
-        // means not restricting at all. Ignored until 2026-10-06, so every open
-        // panel offered every file.
+        // means not restricting at all.
         // 只有允許的型別可以選。上方的 `allowsOtherFileTypes` 是儲存面板的設定，開啟面板不理會它，
-        // 因此「允許其他型別」就是完全不限制。2026-10-06 之前被忽略，所以每個開啟面板都提供所有檔案。
+        // 因此「允許其他型別」就是完全不限制。
         if !fileDialogOptions.allowOtherContentTypes {
             panel.allowedContentTypes = fileDialogOptions.allowedContentTypes.flatMap(\.utTypes)
         }
@@ -1934,10 +1905,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         panel.allowsOtherFileTypes = fileDialogOptions.allowOtherContentTypes
 
         // The types the file may be saved as; `allowsOtherFileTypes` above
-        // decides whether the user may type another extension. Ignored until
-        // 2026-10-06, so every save panel accepted any name.
+        // decides whether the user may type another extension.
         // 檔案可儲存成的型別；上方的 `allowsOtherFileTypes` 決定使用者能否打其他副檔名。
-        // 2026-10-06 之前被忽略，所以每個儲存面板都接受任何檔名。
         panel.allowedContentTypes = fileDialogOptions.allowedContentTypes.flatMap(\.utTypes)
 
         panel.nameFieldLabel = saveDialogOptions.nameFieldLabel ?? panel.nameFieldLabel
@@ -2078,13 +2047,12 @@ final class NSCustomToggleButton: NSButton {
 
     /// The colour actually painted when this toggle is on.
     ///
-    /// **`nil` used to mean "paint nothing", and that made the on state
-    /// invisible for every app that does not set a toggle colour** -- which is
-    /// most of them. Measured 2026-09-10 with P32 on AppKit: clicking the
-    /// toggle changed exactly one 2x16 region of the window, and that region was
-    /// the text field's caret blinking. Nothing about the toggle moved, and the
-    /// only way to tell a toggle that changed nothing visible from one that was
-    /// never clicked is to compare two captures, which is why it survived.
+    /// **`nil` must not mean "paint nothing"**: that makes the on state
+    /// invisible for every app that does not set a toggle colour, which is most
+    /// of them. Measured 2026-09-10 with P32: clicking the toggle changed only
+    /// the text field's blinking caret, and a toggle that changes nothing
+    /// visible cannot be told from one that was never clicked without comparing
+    /// two captures.
     ///
     /// The accent colour rather than an invented one: it is what the user chose
     /// in System Settings and what every other control on the platform uses to
@@ -2093,10 +2061,9 @@ final class NSCustomToggleButton: NSButton {
     ///
     /// 這個 toggle 在「開」的狀態下實際被畫上的顏色。
     ///
-    /// **`nil` 過去代表「什麼都不畫」，而那讓「開」的狀態對每一個沒有設定 toggle 顏色的 app 都不可見**
-    /// ——而那是絕大多數。2026-09-10 於 AppKit 以 P32 實測：點擊該 toggle 後，整個視窗只有一塊 2x16
-    /// 的區域改變，而那塊是文字欄位的游標在閃。toggle 本身毫無變化；而「一個看不出變化的 toggle」與
-    /// 「一個根本沒被點到的 toggle」唯一的分辨方式是比較兩張擷圖——這正是它一直沒被發現的原因。
+    /// **`nil` 不能代表「什麼都不畫」**:那會讓「開」的狀態對每一個沒有設定 toggle 顏色的 app 都不可見,
+    /// 而那是絕大多數。2026-09-10 以 P32 實測:點擊該 toggle 後只有文字欄位的游標在閃;一個看不出變化的
+    /// toggle,不比較兩張擷圖就無法與一個根本沒被點到的 toggle 分辨。
     ///
     /// 採用 accent 顏色而非自行發明一個：那是使用者在系統設定中選的顏色，也是這個平台上其他每一個
     /// 控制項用來表示「開」的顏色，因此一個跟隨它的 toggle 看起來像這個平台，而不像這個框架。
@@ -2142,13 +2109,12 @@ class NSCustomTableView: NSTableView {
     /// left at its own defaults made every column about 234 pt in P23 and P26
     /// while the cells were measured at about 392 pt, so text ran into the
     /// next column and a wrapped cell lost its second line under a row height
-    /// measured for one (queue item 17 c, 2026-10-16).
+    /// measured for one.
     ///
     /// `Table` 量測儲存格時所用的寬度：固定寬度，或 nil 代表平分固定欄剩下的空間。`Table` 給每個儲存格的
     /// 提議是 `(寬度 - 固定) / 彈性欄數`,所以欄必須正好那麼寬，欄與欄之間沒有間距，與 GtkBackend 的
     /// grid 相同。維持 AppKit 自己的預設值時,P23 與 P26 的每一欄約 234 pt,而儲存格是以約 392 pt
-    /// 量測的，於是文字跑進下一欄，換行的儲存格在依一行量出的列高之下失去第二行(queue 第 17 項 c,
-    /// 2026-10-16)。
+    /// 量測的，於是文字跑進下一欄，換行的儲存格在依一行量出的列高之下失去第二行。
     var columnWidthSpecification: [Double?] = [] {
         didSet { applyColumnWidths() }
     }
@@ -2224,31 +2190,25 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     /// `sortDescriptors` as well as a user's click on a header, and it cannot
     /// tell them apart.
     ///
-    /// **It covers the whole of a framework call, not just `setSortOrder`, and
-    /// the first version covering only `setSortOrder` was wrong in a way that
-    /// looked like a working feature.** `setColumnLabels` removes and re-adds
-    /// every `NSTableColumn` on every commit, and removing the sorted column
-    /// drops its descriptor -- so the table announced an empty sort that no
-    /// user had asked for. The binding went to nil, the next commit wrote it
-    /// back, and P23's log read
+    /// **It covers the whole of a framework call, not just `setSortOrder`.**
+    /// `setColumnLabels` removes and re-adds every `NSTableColumn` on every
+    /// commit, and removing the sorted column drops its descriptor -- so the
+    /// table would announce an empty sort that no user had asked for. The
+    /// binding goes to nil, the next commit writes it back, and P23's log reads
     /// `SORT now column 3 ascending / SORT now none / SORT now column 3
-    /// ascending / SORT now none`: a table that sorted, unsorted itself, and
-    /// sorted again, forever. It was only visible because the action file
-    /// printed the transitions; a screenshot of either end of that loop is a
-    /// screenshot of a table working.
+    /// ascending / SORT now none` forever; a screenshot of either end of that
+    /// loop is a screenshot of a table working.
     ///
     /// 為 ``SwiftCrossUI/BackendFeatures/TableColumnSorting`` 而設的欄位排序。
     ///
     /// `isApplyingFrameworkChange` 是用來擋住回音的。`NSTableView` 對「程式對 `sortDescriptors`
     /// 的修改」與「使用者點擊標題」都會呼叫 `tableView(_:sortDescriptorsDidChange:)`,而它分不出兩者。
     ///
-    /// **它涵蓋的是整個框架呼叫,不只是 `setSortOrder`;而第一版只涵蓋 `setSortOrder`,其錯誤的樣子
-    /// 看起來像是一個正常運作的功能。** `setColumnLabels` 每一次 commit 都會把每一個 `NSTableColumn`
-    /// 移除再加回去,而移除被排序的那一欄會丟掉它的 descriptor——於是這個表格宣告了一次「沒有任何
-    /// 使用者要求過」的空排序。binding 被設為 nil、下一次 commit 又把它寫回去,而 P23 的 log 讀起來是
-    /// `SORT now column 3 ascending / SORT now none / SORT now column 3 ascending / SORT now none`:
-    /// 一個排了序、又自己取消、再排一次,如此永遠下去的表格。它之所以現形,只因為那個動作檔把這些
-    /// **轉換**印了出來;那個迴圈任何一端的截圖,都是一張「表格正常運作」的截圖。
+    /// **它涵蓋的是整個框架呼叫,不只是 `setSortOrder`。** `setColumnLabels` 每一次 commit 都會把每一個
+    /// `NSTableColumn` 移除再加回去,而移除被排序的那一欄會丟掉它的 descriptor——於是表格會宣告一次
+    /// 「沒有任何使用者要求過」的空排序。binding 被設為 nil、下一次 commit 又把它寫回去,P23 的 log 會是
+    /// `SORT now column 3 ascending / SORT now none / SORT now column 3 ascending / SORT now none`,
+    /// 永遠循環下去;那個迴圈任何一端的截圖,看起來都是一張「表格正常運作」的截圖。
     var sortHandler: ((Int) -> Void)?
     var isApplyingFrameworkChange = false
 
@@ -2312,13 +2272,9 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     ) -> IndexSet {
         guard allowSelections else { return [] }
 
-        // `first`, not `first!`. The force-unwrap was safe while the only
-        // caller was a selectable list, which never proposes an empty set;
-        // a table proposes one every time the user clicks below the last row,
-        // and that crash would have been the feature's first press.
-        // 用 `first`,不是 `first!`。當唯一的呼叫者是可選取清單時,強制解包是安全的——那種清單
-        // 從不提出空集合;而表格在使用者每一次點到最後一列下方時都會提出一個,那次崩潰會正好
-        // 發生在這項功能的第一次按下。
+        // `first`, not `first!`: a table proposes an empty set every time the
+        // user clicks below the last row.
+        // 用 `first`,不是 `first!`:表格在使用者每一次點到最後一列下方時都會提出一個空集合。
         if let first = proposedSelectionIndexes.first {
             selectionHandler?(first)
         }
@@ -2432,27 +2388,15 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        // **Asked for from the reuse queue first, and this is a real leak fix
-        // rather than a tidy-up.**
+        // **Asked for from the reuse queue first; without it the row views
+        // leak.** `NSTableView` only recycles a view it can identify, so a
+        // plain `NSTableRowView()` is created fresh for every row and kept:
+        // scrolling a ten-thousand-row list took `NSTableRowView` from 30 live
+        // objects to 1,745, and the process from 104 MB to 225 MB.
         //
-        // This used to be `NSTableRowView()` every time. `NSTableView` only
-        // recycles a view it can identify, so an unidentified one is created
-        // fresh for every row and kept: scrolling a ten-thousand-row list took
-        // `NSTableRowView` from 30 live objects to 1,745, and the process from
-        // 104 MB to 225 MB.
-        //
-        // It was there before rows became lazy, and the eager path hid it --
-        // at 423 MB for the same list, another 120 MB of row views was not
-        // something anyone was going to notice.
-        //
-        // **先向回收佇列索取，而這是修掉一個真正的洩漏，不是整理門面。**
-        //
-        // 此處原本每次都是 `NSTableRowView()`。`NSTableView` 只會回收「它認得出來」的 view，因此一個
-        // 沒有識別碼的 view 會為每一列重新建立、而且被留著:捲動一份一萬列的清單，會讓 `NSTableRowView`
-        // 的存活物件數從 30 變成 1,745，行程從 104 MB 變成 225 MB。
-        //
-        // 它在「列變成延遲建立」之前就存在，而 eager 路徑把它藏住了——同一份清單本來就要 423 MB，
-        // 另外那 120 MB 的 row view 不會有人注意到。
+        // **先向回收佇列索取;少了這一步,row view 會洩漏。**`NSTableView` 只會回收「它認得出來」的
+        // view,因此一個普通的 `NSTableRowView()` 會為每一列重新建立、而且被留著:捲動一份一萬列的清單,
+        // 會讓 `NSTableRowView` 的存活物件數從 30 變成 1,745,行程從 104 MB 變成 225 MB。
         if let recycled = tableView.makeView(
             withIdentifier: Self.rowViewIdentifier,
             owner: self
@@ -2875,16 +2819,12 @@ final class RadioGroup: NSStackView {
 
 /// `.wheel` on AppKit: a short scrolling list with one row selected.
 ///
-/// **Implemented rather than refused.** AppKit has no spinning wheel and this
-/// style was `fatalError("unsupported picker style wheel")` -- an app that asked
-/// for it on macOS never opened a window -- while the modifier had already
-/// downgraded it to `.automatic` for anyone who went through `.pickerStyle`. A
+/// **Implemented rather than refused.** AppKit has no spinning wheel. A
 /// wheel is a visible run of options that scrolls, with the chosen one marked;
 /// on the Mac that is a small single-column table, which is what Mac Catalyst's
 /// UIKit shows for the same style (`UITableViewPicker`).
 ///
-/// `.wheel` 在 AppKit 上:一段會捲動的短清單,選中一列。**是實作,不是拒絕。**AppKit 沒有旋轉滾輪,而這個樣式原本是
-/// `fatalError`——在 macOS 上要求它的 app 永遠開不出視窗——走 `.pickerStyle` 的則早已被 modifier 降級為 `.automatic`。
+/// `.wheel` 在 AppKit 上:一段會捲動的短清單,選中一列。**是實作,不是拒絕。**AppKit 沒有旋轉滾輪。
 /// 滾輪就是一段看得見、會捲動、選中者被標出的選項;在 Mac 上那就是一個小的單欄表格,也正是 Mac Catalyst 的 UIKit
 /// 對同一樣式顯示的東西(`UITableViewPicker`)。
 final class WheelPicker: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
@@ -3004,9 +2944,8 @@ extension AppKitBackend {
 ///
 /// That matters because static text is announced from its value. A
 /// `.accessibilityLabel` that only sets the description leaves the words on
-/// screen sitting in the attribute a reader takes for text, which is how this
-/// backend ended up the only one of four to keep saying `12:30` where GTK and
-/// WinUI report the label alone.
+/// screen sitting in the attribute a reader takes for text, and AppKit then
+/// keeps saying `12:30` where GTK and WinUI report the label alone.
 ///
 /// The shape is the one ``NSCustomButton`` already uses for its label: hold the
 /// override, answer with it when it is there, and defer to AppKit when it is
@@ -3019,8 +2958,8 @@ extension AppKitBackend {
 /// 讀到 `AXStaticText '12:30'`。一個 control 的值來自它的 cell,而 view 層級的覆寫抵達不了那個屬性。
 ///
 /// 這件事要緊,是因為靜態文字是**由它的值**被宣讀的。一個只設了 description 的 `.accessibilityLabel`,
-/// 會讓畫面上那串字仍留在「閱讀器讀文字時所取的那個屬性」裡——而這正是本 backend 成為四者中唯一
-/// 仍然說著 `12:30`(GTK 與 WinUI 只回報標籤)的原因。
+/// 會讓畫面上那串字仍留在「閱讀器讀文字時所取的那個屬性」裡——少了這個覆寫,本 backend 會
+/// 仍然說著 `12:30`(GTK 與 WinUI 只回報標籤)。
 ///
 /// 形狀與 ``NSCustomButton`` 對它的標籤所用的相同:持有覆寫值、有值時以它作答、沒有時交還給 AppKit。
 public final class NSCustomTextField: NSTextField {

@@ -16,23 +16,20 @@
     /// motion while a finger is down and for `afterLift` after it lifts. The
     /// mouse cursor that Windows puts back where it was after a touch came
     /// 1.9 s after the lift, and is a real mouse hover.
-    ///
-    /// The first version of this file stated that GDK never sees a touch on
-    /// Windows and drove the whole touch hover from the hook. It was wrong: a
-    /// trace showed 30 GDK_TOUCH_UPDATE, one GDK_TOUCH_END and GTK's long press,
-    /// and the two paths reported the same finger twice (90 reports for a
-    /// 0.8 s hold). The earlier failures were the emulated mouse, not a
-    /// missing touch.
-    ///
-    /// GtkBackend 在 Windows 上：此刻 pointer 的移動是否來自手指。Windows 把一次觸控交給 GDK 兩次：一次是 GDK
-    /// 觸控事件(`GtkTouchHold` 讀取：長按、更新、結束),一次是模擬的滑鼠輸入，被 motion 控制器當成滑鼠 hover。
-    /// 2026-10-23 以 `testapp/touch_gesture.zsh` 在 P88 量到：快速觸控拖曳單靠模擬滑鼠就回報了 23 次 hover;
-    /// 由 GDK_TOUCH_END 結束的按住，又在同一毫秒被一次模擬移動設回 active。執行緒訊息 hook 讀取觸控自己的
-    /// `WM_POINTERDOWN`/`WM_POINTERUP`,motion 控制器在手指按下期間與抬起後 `afterLift` 內忽略移動。觸控結束後
-    /// Windows 把滑鼠游標放回原處，那次在抬起 1.9 秒後到來，是真正的滑鼠 hover。
-    /// 本檔第一版寫著「Windows 上 GDK 從未見過觸控」，並完全由 hook 驅動觸控 hover。那是錯的：追蹤顯示有 30 個
-    /// GDK_TOUCH_UPDATE、一個 GDK_TOUCH_END 與 GTK 的長按，兩條路徑把同一根手指回報了兩次(按住 0.8 秒回報 90 次)。
-    /// 先前的失敗來自模擬的滑鼠，而不是缺少觸控。
+///
+/// GDK does see the touch on Windows: a trace showed 30 GDK_TOUCH_UPDATE, one
+/// GDK_TOUCH_END and GTK's long press. Driving touch hover from the hook as
+/// well reported the same finger twice (90 reports for a 0.8 s hold); what
+/// needs filtering is the emulated mouse.
+///
+/// GtkBackend 在 Windows 上：此刻 pointer 的移動是否來自手指。Windows 把一次觸控交給 GDK 兩次：一次是 GDK
+/// 觸控事件(`GtkTouchHold` 讀取：長按、更新、結束),一次是模擬的滑鼠輸入，被 motion 控制器當成滑鼠 hover。
+/// 2026-10-23 以 `testapp/touch_gesture.zsh` 在 P88 量到：快速觸控拖曳單靠模擬滑鼠就回報了 23 次 hover;
+/// 由 GDK_TOUCH_END 結束的按住，又在同一毫秒被一次模擬移動設回 active。執行緒訊息 hook 讀取觸控自己的
+/// `WM_POINTERDOWN`/`WM_POINTERUP`,motion 控制器在手指按下期間與抬起後 `afterLift` 內忽略移動。觸控結束後
+/// Windows 把滑鼠游標放回原處，那次在抬起 1.9 秒後到來，是真正的滑鼠 hover。
+/// Windows 上 GDK 確實看得到觸控：追蹤顯示有 30 個 GDK_TOUCH_UPDATE、一個 GDK_TOUCH_END 與 GTK 的長按。若也由 hook
+/// 驅動觸控 hover,同一根手指會被回報兩次(按住 0.8 秒回報 90 次);需要過濾的是模擬的滑鼠。
     @MainActor
     enum GtkWindowsTouch {
         /// The touch pointers down now. / 此刻按下的觸控 pointer。

@@ -19,10 +19,9 @@ final class RootViewController: UIViewController {
     /// The size the app is laid out at. actualView lays an app out at the size
     /// it asked for, as on a desktop, not at the phone's -- a layout that
     /// depends on the screen width is not its actual view, and Android (411 dp)
-    /// wrapped differently from iOS (440 pt) (user, 2026-10-09: "Actual View
-    /// 不應該有 screen width 問題"). Test builds only, where the mode control
-    /// exists: a shipped app sizes to the screen, as SwiftUI ignores
-    /// defaultSize on a phone. rwdView keeps the screen size and scales.
+    /// would wrap differently from iOS (440 pt). Test builds only, where the
+    /// mode control exists: a shipped app sizes to the screen, as SwiftUI
+    /// ignores defaultSize on a phone. rwdView keeps the screen size and scales.
     /// App 排版所用的尺寸。actualView 以 app 要求的尺寸排版(如同桌面),而非手機的尺寸。只在有模式控制項的測試建置中;
     /// 正式 app 依螢幕排版。rwdView 維持螢幕尺寸並縮放。
     func layoutSize(for screen: CGSize) -> CGSize {
@@ -125,7 +124,7 @@ final class RootViewController: UIViewController {
         let childController = child.controller
         // Hosted in a scroll view rather than added to `view` directly.
         //
-        // Fourteen of the forty-six test apps are wider than a phone and were
+        // Many test apps are wider than a phone, and without this they are
         // clipped at both edges -- content that cannot be reached cannot be
         // tested. RootScrollHost keeps the content at its natural size and
         // scrolls to it, and carries the rwdView mode that scales it to fit
@@ -133,7 +132,7 @@ final class RootViewController: UIViewController {
         //
         // 放進捲動視圖中，而非直接加到 `view` 上。
         //
-        // 四十六支測試 app 中有十四支比手機寬，並在左右兩側被裁切——碰不到的內容就是測不到的內容。
+        // 許多測試 app 比手機寬，少了這一步就會在左右兩側被裁切——碰不到的內容就是測不到的內容。
         // RootScrollHost 讓內容保持自然尺寸並以捲動觸及，同時帶有「改為縮放以塞入」的 rwdView 模式。
         // 為何「縮放」不等於「重新排版」，見該檔案的說明。
         if scrollHost.superview == nil {
@@ -348,16 +347,15 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
-        // `preferredColorScheme`, for the whole window. Until 2026-10-06 only
-        // the background followed it; views set `overrideUserInterfaceStyle`
-        // one at a time (symbols, passive views), so system controls in
-        // between -- switches, date pickers, menus -- kept the system's
-        // scheme. `.unspecified` when the scheme IS the system's: an
-        // overridden window gets no trait change when the system flips, so
-        // the override is set only while it differs.
-        // 整個 window 套用 `preferredColorScheme`。2026-10-06 之前只有背景跟著它；view 一個一個設定
-        // `overrideUserInterfaceStyle`(符號、passive view),其間的系統控制項——開關、日期選擇器、選單——
-        // 仍用系統配色。配色與系統相同時設為 `.unspecified`:被 override 的 window 在系統切換時收不到
+        // `preferredColorScheme`, for the whole window. Setting
+        // `overrideUserInterfaceStyle` view by view (symbols, passive views)
+        // leaves system controls in between -- switches, date pickers, menus --
+        // on the system's scheme. `.unspecified` when the scheme IS the
+        // system's: an overridden window gets no trait change when the system
+        // flips, so the override is set only while it differs.
+        // 整個 window 套用 `preferredColorScheme`。若由 view 一個一個設定 `overrideUserInterfaceStyle`
+        // (符號、passive view),其間的系統控制項——開關、日期選擇器、選單——仍會用系統配色。
+        // 配色與系統相同時設為 `.unspecified`:被 override 的 window 在系統切換時收不到
         // trait 變更，所以只在兩者不同時才 override。
         let style = environment.colorScheme.userInterfaceStyle
         window.overrideUserInterfaceStyle =

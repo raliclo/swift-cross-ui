@@ -1,12 +1,12 @@
 import Foundation
 
-// `<pattern>` paint (2026-10-10), in the core rasteriser like the gradients.
+// `<pattern>` paint, in the core rasteriser like the gradients.
 // The tile's content is built once per shape, in tile space; when the shape is
 // drawn the tile is rendered at the device's resolution into a small canvas,
 // and each pixel of the shape maps back into pattern space, wraps into the
 // tile and samples it.
 //
-// `<pattern>` 塗料(2026-10-10),與漸層一樣在核心點陣化器中。圖塊內容為每個形狀在圖塊空間中建構一次；
+// `<pattern>` 塗料,與漸層一樣在核心點陣化器中。圖塊內容為每個形狀在圖塊空間中建構一次；
 // 繪製形狀時，圖塊以裝置解析度畫進一張小畫布，形狀的每個像素映射回圖樣空間、在圖塊內取模後取樣。
 
 /// A `<pattern>`, resolved for one shape. / 為一個形狀解析好的 `<pattern>`。

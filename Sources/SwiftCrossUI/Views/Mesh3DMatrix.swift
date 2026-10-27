@@ -140,13 +140,13 @@ extension Mesh3DMatrix4 {
     /// The turns go through `Double`, for the reason `quaternion(fromEulerZYX:)` in
     /// `Mesh3DExport.swift` records: `sin(Float)` is a Darwin overload and Bionic does not have
     /// one, so a bare `sin(euler.x)` here would build on macOS and stop the whole package building
-    /// for Android. That cost this tree two days once already.
+    /// for Android.
     ///
     /// 只有旋轉,以 Euler 角依 Z、Y、X 之序套用。
     ///
     /// 這些角度走 `Double`,理由記在 `Mesh3DExport.swift` 的 `quaternion(fromEulerZYX:)`:
     /// `sin(Float)` 是 Darwin 的多載,Bionic 沒有;因此此處一句光禿禿的 `sin(euler.x)` 會在 macOS 上
-    /// 建得過,並讓**整個套件**在 Android 上建不起來。那件事已經讓這棵樹付出過兩天的代價。
+    /// 建得過,並讓**整個套件**在 Android 上建不起來。
     public static func rotation(_ euler: SIMD3<Float>) -> Mesh3DMatrix4 {
         let x = Double(euler.x)
         let y = Double(euler.y)

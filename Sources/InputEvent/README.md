@@ -64,7 +64,8 @@ window before replaying anything.
 ## File format
 
 RFC 4180 CSV, one header row, LF line endings. Nine columns, always in this
-order. Unused columns are left empty rather than omitted.
+order, plus an optional tenth (`target`) that only `focus` reads. Unused
+columns are left empty rather than omitted.
 
 ```
 action,x,y,origin,button,key,micros,note,platform
@@ -74,12 +75,13 @@ action,x,y,origin,button,key,micros,note,platform
 |---|---|
 | `action` | one of the verbs below |
 | `x`, `y` | window-relative; see Coordinates |
-| `origin` | `client` (default, may be left empty) or `frame` |
+| `origin` | `client` (default, may be left empty), `frame` or `popover` |
 | `button` | `left`, `right` or `middle` |
 | `key` | a key name from the table below |
 | `micros` | microseconds |
 | `note` | free text, ignored; write down what the step is checking |
 | `platform` | `any`, `macos`, `windows`, `gtk`, `ios` or `android`; use `|` for multiple platforms; blank means `any` |
+| `target` | optional tenth column, read only by `focus`: a window title |
 
 ### Verbs
 
@@ -88,8 +90,8 @@ action,x,y,origin,button,key,micros,note,platform
 | `move` | `x`, `y` | move the pointer, no button change |
 | `click` | `button`, optional `x`, `y` | press and release once; moves first if a position is given |
 | `doubleclick` | `button`, optional `x`, `y` | two press-release pairs inside the platform's double-click time |
-| `longpress` | `micros`, optional `x`, `y` | hold for `micros`; **iOS only** -- the desktop synthesisers refuse it, because a long press is not how a context menu is raised there and `click ... right` is |
-| `hover` | `x`, `y` | move the POINTER there and report the cursor the platform draws, as `-actionfile: cursor at (x, y) is <name>`. macOS reads `NSCursor.currentSystem`; Android posts an ACTION_HOVER_MOVE from SOURCE_MOUSE and reads `View.onResolvePointerIcon`, which is a null -- reported as `none` -- when no view under the point claims an icon. **The second row is the assertion**: one inside the view and one outside is what shows a cursor is confined to the view that asked for it, and no capture can show that. Refused on iOS (no pointer) and not implemented yet on Windows or Linux |
+| `longpress` | `micros`, optional `x`, `y` | hold for `micros`; **iOS and Android only** -- the desktop synthesisers refuse it, because a long press is not how a context menu is raised there and `click ... right` is |
+| `hover` | `x`, `y` | move the POINTER there and report the cursor the platform draws, as `-actionfile: cursor at (x, y) is <name>`. macOS reads `NSCursor.currentSystem`; Android posts an ACTION_HOVER_MOVE from SOURCE_MOUSE and reads `View.onResolvePointerIcon`, which is a null -- reported as `none` -- when no view under the point claims an icon. **The second row is the assertion**: one inside the view and one outside is what shows a cursor is confined to the view that asked for it, and no capture can show that. Windows names the cursor from `GetCursorInfo` and Linux from XFixes. Refused on iOS (no pointer) |
 | `mousedown` | `button`, optional `x`, `y` | press and hold |
 | `mouseup` | `button`, optional `x`, `y` | release |
 | `scroll` | `x`, `y` as **wheel notches** | turn the wheel where the pointer is |
@@ -97,6 +99,11 @@ action,x,y,origin,button,key,micros,note,platform
 | `keyup` | `key` | release |
 | `key` | `key` | press and release once |
 | `sleep` | `micros` | wait |
+| `pinch` | `x` = scale × 100, `y` = velocity × 100 (0 = default) | two-finger pinch around the last pointer position; refused on Windows (use `testapp/touch_gesture.zsh`) and Linux |
+| `rotate` | `x` = degrees clockwise, `y` = degrees per second (0 = default) | two-finger rotation; same platforms as `pinch` |
+| `orient` | `key` = `portrait`, `portraitUpsideDown`, `landscapeLeft` or `landscapeRight` | turn the device; phone and tablet only |
+| `taplabel` | `key` = the text | tap the view showing that text, wherever it is laid out |
+| `focus` | `target` = the window title, matched exactly | bring that window to the front; later coordinates resolve against it |
 
 ### `scroll` reads `x` and `y` as a delta, not a position
 

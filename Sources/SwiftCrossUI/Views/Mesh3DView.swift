@@ -322,12 +322,11 @@ public struct Mesh3DScene: Equatable, Sendable {
     /// costs something:** "how long" means until the GPU has finished the frame,
     /// so the backend waits for it (Metal `waitUntilCompleted`, GLES `glFinish`)
     /// instead of letting the next frame overlap -- which is what a user waits
-    /// for, and what slows the view slightly while it is on (2026-10-05).
+    /// for, and what slows the view slightly while it is on.
     ///
     /// 每一幀是否在 ``Mesh3DFrameInfo/renderMicros`` 回報算繪花了多久。**預設關閉,因為量測本身有代價:**
     /// 「多久」指的是到 GPU 完成這一幀為止,因此 backend 會等它(Metal `waitUntilCompleted`、GLES
-    /// `glFinish`),而不讓下一幀重疊——那是使用者實際等待的時間,也是開啟期間讓這個 view 稍慢一點的原因
-    /// (2026-10-05)。
+    /// `glFinish`),而不讓下一幀重疊——那是使用者實際等待的時間,也是開啟期間讓這個 view 稍慢一點的原因。
     public var measuresRenderTime: Bool
 
     public init(
@@ -432,22 +431,19 @@ public final class Mesh3DSnapshotter {
 
 /// A view that shows a ``Mesh3DScene``.
 ///
-/// **What a backend that has not implemented this does, and why it is not a
-/// `fatalError`.** `@CastBackend` -- the macro behind ``WebView`` and the shapes
-/// -- expands to `fatalError` when the backend does not conform, and `CLAUDE.md`
-/// records what that cost once already: three test apps with no window at all on
-/// macOS because two effects went through it. M10 lands on AppKit and UIKit
-/// first by the user's decision of 2026-09-19, so three backends would meet that
-/// `fatalError` on the day it landed. This checks conformance instead, draws an
-/// empty container, and says so once per backend.
+/// **What a backend without this does, and why it is not a `fatalError`.**
+/// `@CastBackend` -- the macro behind ``WebView`` and the shapes -- expands to
+/// `fatalError` when the backend does not conform, which takes the whole app
+/// down for one view. All five shipped backends implement
+/// ``BackendFeatures/Mesh3DViews``; for any other backend this checks
+/// conformance instead, draws an empty container, and says so once per backend.
 ///
 /// 一個顯示 ``Mesh3DScene`` 的 view。
 ///
-/// **尚未實作的 backend 會怎樣,以及為何不是 `fatalError`。** `@CastBackend`——``WebView`` 與各種形狀
-/// 背後的那個 macro——在 backend 不 conform 時會展開為 `fatalError`,而 `CLAUDE.md` 記載過那一次的代價:
-/// 兩個效果走了它,結果三支測試 app 在 macOS 上根本開不出視窗。依使用者 2026-09-19 的決定,M10 先落在
-/// AppKit 與 UIKit,因此落地當天會有三個 backend 撞上那個 `fatalError`。此處改為檢查 conformance、
-/// 畫一個空容器,並且每個 backend 說一次。
+/// **未實作的 backend 會怎樣,以及為何不是 `fatalError`。** `@CastBackend`——``WebView`` 與各種形狀
+/// 背後的那個 macro——在 backend 不 conform 時會展開為 `fatalError`,為了一個 view 拖垮整個 app。
+/// 五個已發布的 backend 都實作了 ``BackendFeatures/Mesh3DViews``;對其他 backend,此處改為檢查
+/// conformance、畫一個空容器,並且每個 backend 說一次。
 public struct Mesh3DView: ElementaryView {
     private static let idealSize = ViewSize(320, 240)
 
@@ -500,23 +496,20 @@ public struct Mesh3DView: ElementaryView {
         backend.setSize(of: widget, to: layout.size.vector)
         // **Bound here rather than inside `update`, because the two conformances are
         // independent and binding them together made one of them untestable.**
-        // Until 2026-09-22 this lived in `update`, which only runs when the backend implements
-        // ``BackendFeatures/Mesh3DViews``. AndroidBackend implements ``BackendFeatures/WidgetSnapshots``
-        // and not that, so the snapshotter stayed nil and P72 reported
-        // `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance` on a backend that HAD the
-        // conformance. The message was wrong and there was no way to tell from the app.
+        // `update` only runs when the backend implements ``BackendFeatures/Mesh3DViews``; a
+        // backend with ``BackendFeatures/WidgetSnapshots`` but not that would keep a nil
+        // snapshotter and report `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance`
+        // while HAVING the conformance, with no way to tell from the app.
         //
         // A snapshot of the degraded view is a snapshot of an empty box, and that is a true
         // answer: it says the backend can rasterise a widget. `mesh view supported: NO` is printed
         // next to it, so nobody reads the empty box as a scene.
         //
         // **綁在此處而不是 `update` 裡,因為那兩個 conformance 互相獨立,而把它們綁在一起讓其中一個
-        // 變得無法測試。** 在 2026-09-22 之前,這段住在 `update` 裡,而 `update` 只有在 backend 實作了
-        // ``BackendFeatures/Mesh3DViews`` 時才會執行。AndroidBackend 實作了
-        // ``BackendFeatures/WidgetSnapshots`` 而沒有實作前者,於是 snapshotter 一直是 nil,
-        // P72 就在一個**確實有**該 conformance 的 backend 上印出
-        // `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance`。那句話是錯的,而從 app 這一側
-        // 看不出來。
+        // 變得無法測試。** `update` 只有在 backend 實作了 ``BackendFeatures/Mesh3DViews`` 時才會執行;
+        // 一個實作了 ``BackendFeatures/WidgetSnapshots`` 卻沒有實作前者的 backend,snapshotter 會一直是
+        // nil,並在**確實有**該 conformance 的情況下印出
+        // `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance`,而從 app 這一側看不出來。
         //
         // 對降級後的 view 取快照,得到的是一個空盒子的快照,而那是一個真實的答案:它說明這個 backend
         // 有能力把一個 widget 光柵化。它旁邊就印著 `mesh view supported: NO`,因此沒有人會把那個空盒子

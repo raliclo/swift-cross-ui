@@ -64,17 +64,12 @@ extension BackendFeatures {
         /// Draw a path filled and stroked with something that need not be a flat
         /// colour.
         ///
-        /// Additive on purpose. Changing the signature above would break five
-        /// backends at once, and two of them -- AppKit and UIKit -- cannot be
-        /// compiled without a Mac, so the change would be written blind for 40%
-        /// of the implementations and land as a build break for whoever pulled
-        /// next. A backend opts in by overriding this; until it does, the
-        /// default below keeps it compiling and drawing.
+        /// Additive on purpose: changing the signature above would break every
+        /// conformer at once. A backend opts in by overriding this; until it
+        /// does, the default below keeps it compiling and drawing.
         ///
-        /// 刻意採加法式。改動上方的簽章會同時破壞五個 backend，而其中兩個——AppKit 與 UIKit
-        /// ——沒有 Mac 就無法編譯，因此那樣的改動等於為其中 40% 的實作盲寫，並讓下一個 pull
-        /// 的人拿到建置失敗。backend 以覆寫本方法的方式選擇加入；在它這麼做之前，下方的預設
-        /// 實作會讓它繼續編譯、繼續繪製。
+        /// 刻意採加法式:改動上方的簽章會同時破壞每一個 conformer。backend 以覆寫本方法的方式選擇加入;
+        /// 在它這麼做之前，下方的預設實作會讓它繼續編譯、繼續繪製。
         func renderPath(
             _ path: Path,
             container: Widget,

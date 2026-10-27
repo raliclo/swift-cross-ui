@@ -1,7 +1,6 @@
 /// A cluster of related controls, presented together as one unit.
 ///
 /// Composed from `VStack` and `HStack`, so it needs nothing from any backend.
-/// See ``Stepper`` for why this batch was chosen.
 ///
 /// **This is the grouping, not the segmented control.** SwiftUI's
 /// `ControlGroup` hands its children to the platform's own segmented container:
@@ -23,8 +22,7 @@
 ///
 /// 一組相關的控制項，作為單一單位一併呈現。
 ///
-/// 由 `VStack` 與 `HStack` 組合而成，不需要任何 backend 支援。本批工作為何如此挑選，見
-/// ``Stepper``。
+/// 由 `VStack` 與 `HStack` 組合而成，不需要任何 backend 支援。
 ///
 /// **這是那個分組，而不是分段控制項（segmented control）。** SwiftUI 的 `ControlGroup` 會把子項交給
 /// 平台自身的分段容器：在 macOS 與 iOS 上，按鈕會失去各自的邊框，成為單一長條的一個個區段；而在

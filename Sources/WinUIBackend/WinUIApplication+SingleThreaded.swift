@@ -88,7 +88,7 @@ extension WinUIApplication {
 ///
 /// A copy of swift-winui's `MainRunLoopTickler` (`Sources/WinUI/Application/
 /// MainRunLoopTickler.swift` at 0.2.1), which is `internal` and therefore
-/// unreachable from here. Kept behaviourally identical on purpose -- the
+/// unreachable from here. Kept close to upstream on purpose -- the
 /// point of ``WinUIApplication/runSingleThreaded()`` is to change the apartment
 /// and nothing else, so any difference in when the run loop is serviced would
 /// be a second variable in every comparison against the old path.
@@ -96,17 +96,17 @@ extension WinUIApplication {
 /// 在 UI 執行緒的 Win32 訊息迴圈內抽取 `RunLoop.main`。
 ///
 /// 這是 swift-winui 的 `MainRunLoopTickler`(0.2.1 的 `Sources/WinUI/Application/
-/// MainRunLoopTickler.swift`)的副本,原版為 `internal`,此處無法取用。**刻意保持行為完全一致**——
+/// MainRunLoopTickler.swift`)的副本,原版為 `internal`,此處無法取用。**刻意盡量貼近上游**——
 /// ``WinUIApplication/runSingleThreaded()`` 的目的是只改變 apartment、其他什麼都不動,因此 run loop
 /// 何時被服務的任何差異,都會在每一次與舊路徑的比較中成為第二個變數。
 ///
-/// **No longer identical, since 2026-10-19.** Upstream re-arms its timer on
+/// **The one deliberate difference.** Upstream re-arms its timer on
 /// every window message, which postpones it for as long as messages keep
 /// coming, and raises every wait to 50 ms; `DispatchQueue.main` then stalled
 /// for the whole of an animation (P66). See `scheduleDelayedWork(after:)` and `watchMainQueue()`.
 /// `SCUI_WINUI_MTA=1` still runs upstream's copy, bug included.
 ///
-/// **自 2026-10-19 起不再完全一致。** 上游在每一則視窗訊息上重設計時器——只要訊息不斷就一直被往後推——
+/// **唯一刻意的差異。** 上游在每一則視窗訊息上重設計時器——只要訊息不斷就一直被往後推——
 /// 並把每次等待墊到 50 ms;於是整段動畫期間 `DispatchQueue.main` 都停住(P66)。見
 /// `scheduleDelayedWork(after:)` 與 `watchMainQueue()`。`SCUI_WINUI_MTA=1` 仍跑上游的版本，連同這個問題。
 final class WinUIRunLoopTickler {
@@ -253,9 +253,9 @@ final class WinUIRunLoopTickler {
         let nextDate = RunLoop.main.limitDate(forMode: .default)
         // nil and distantFuture both mean "try again promptly", which is the
         // idle poll. A real date -- an `asyncAfter`, a Timer -- is kept as it
-        // is, never shorter than `shortestDelay`; it used to be raised to 50 ms.
+        // is, never shorter than `shortestDelay`.
         // nil 與 distantFuture 都代表「盡快再試一次」，也就是閒置輪詢。真正的日期——`asyncAfter`、Timer——
-        // 照原值排程，不短於 `shortestDelay`;過去會被墊到 50 ms。
+        // 照原值排程，不短於 `shortestDelay`。
         if let nextDate, nextDate != .distantFuture {
             scheduleDelayedWork(after: max(nextDate.timeIntervalSinceNow, Self.shortestDelay))
         } else {

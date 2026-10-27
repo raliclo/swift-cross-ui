@@ -18,32 +18,29 @@ public class ScrolledWindow: Widget {
     /// pull-to-refresh gesture.
     ///
     /// **This exists because the signal cannot be connected from `GtkBackend`.**
-    /// `GtkBackend+Refreshable.swift` arrived from the macOS side calling
-    /// `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }`,
-    /// which fails twice over: `addSignal` is internal to this module, and the
+    /// `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }`
+    /// fails twice over there: `addSignal` is internal to this module, and the
     /// overload that takes no marshaller takes a NO-ARGUMENT callback, so the
-    /// edge could not have been received even if the access level allowed it.
-    /// Neither error could be seen from a Mac, where GtkBackend is not built.
+    /// edge could not be received even if the access level allowed it. Neither
+    /// error shows on a Mac, where GtkBackend is not built.
     ///
-    /// It is the same layering the toolbar hit hours earlier with
-    /// `castedPointer`: raw GTK belongs in this module, and a backend gets a
-    /// typed API. The compiler is pointing at the boundary rather than at an
-    /// obstacle.
+    /// Raw GTK belongs in this module, and a backend gets a typed API, the same
+    /// layering as `castedPointer` and the toolbar. The compiler is pointing at
+    /// the boundary rather than at an obstacle.
     ///
     /// 當捲動越過某個邊緣時觸發，並攜帶越過的是哪一個邊緣。
     ///
     /// 該值是 `GtkPositionType`：0 左、1 右、2 上、3 下。這正是 `.refreshable` 所監看的東西——越過上緣
     /// 就是 GTK 的下拉重新整理手勢。
     ///
-    /// **它之所以存在，是因為該訊號無法從 `GtkBackend` 連接。** 由 macOS 側送來的
-    /// `GtkBackend+Refreshable.swift` 寫的是
-    /// `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }`，而那有兩重錯誤：
+    /// **它之所以存在，是因為該訊號無法從 `GtkBackend` 連接。** 在那裡寫
+    /// `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }` 有兩重錯誤：
     /// `addSignal` 對本模組而言是 internal，且「不帶 marshaller」的那個多載收的是**無參數**的 callback
     /// ——因此即使存取層級允許，那個 edge 值也接收不到。這兩個錯誤在 Mac 上都看不見，因為那裡不會建置
     /// GtkBackend。
     ///
-    /// 這與數小時前工具列在 `castedPointer` 上撞到的是同一個分層：原始 GTK 呼叫屬於本模組，backend 拿到
-    /// 的是帶型別的 API。編譯器指出的是邊界，不是障礙。
+    /// 原始 GTK 呼叫屬於本模組,backend 拿到的是帶型別的 API,與 `castedPointer` 和工具列是同一個分層。
+    /// 編譯器指出的是邊界，不是障礙。
     public var edgeOvershot: ((ScrolledWindow, Int) -> Void)?
 
     open override func registerSignals() {
@@ -99,7 +96,7 @@ public class ScrolledWindow: Widget {
     /// Scrolls so that `child` is visible, optionally placing it at `anchor`.
     ///
     /// **Not `gtk_viewport_scroll_to`, which is GTK 4.12 and this package builds
-    /// against < 4.10** -- the same floor that makes `GtkBackend.swift:2009` use
+    /// against < 4.10** -- the same floor that makes `GtkBackend` use
     /// `gtk_show_uri` rather than `gtk_uri_launcher_launch`. What is available
     /// is `gtk_widget_compute_point`, which has been there since 4.0, so the
     /// child's position is computed here and the adjustment is set directly.
@@ -116,7 +113,7 @@ public class ScrolledWindow: Widget {
     /// 捲動使 `child` 可見,並可選擇性地把它放在 `anchor` 的位置。
     ///
     /// **不是 `gtk_viewport_scroll_to`,那需要 GTK 4.12,而本套件建置於 < 4.10 之上**——正是那個下限
-    /// 使得 `GtkBackend.swift:2009` 採用 `gtk_show_uri` 而非 `gtk_uri_launcher_launch`。可用的是
+    /// 使得 `GtkBackend` 採用 `gtk_show_uri` 而非 `gtk_uri_launcher_launch`。可用的是
     /// `gtk_widget_compute_point`,它自 4.0 就存在,因此子元件的位置在此處計算,並直接設定 adjustment。
     ///
     /// 那意味著沒有動畫。`gtk_adjustment_set_value` 是瞬時的,而 GTK 4 的慣性捲動是由輸入驅動、而非
@@ -156,27 +153,18 @@ public class ScrolledWindow: Widget {
     /// GtkAdjustment 會靜默地夾限落在 `[lower, upper - page]` 之外的值,因此一次超出範圍的寫入不會
     /// 失敗——它只是落在別的地方。此處先做夾限,好讓「被設定的值」就是「原本想要的值」。
     /// - Note: The parameter is `UnsafeMutablePointer<GtkAdjustment>?`, NOT
-    ///   `OpaquePointer?`. `gtk_scrolled_window_get_vadjustment` returns the
-    ///   former, and this arrived declaring the latter -- written on a machine
-    ///   that cannot build GtkBackend, so nothing there could have caught it.
+    ///   `OpaquePointer?`, because `gtk_scrolled_window_get_vadjustment` returns
+    ///   the former. Declared the other way, `gtk_adjustment_get_upper(adjustment)`
+    ///   no longer resolves to the C function and Swift reports errors elsewhere
+    ///   -- sixteen of them, including `cannot convert value of type 'Duration'
+    ///   to expected argument type 'Double'` on the arithmetic below, although
+    ///   there is no `Duration` in this file. The pointer type is the cause.
     ///
-    ///   It produced SIXTEEN errors from ONE cause. With the parameter wrong,
-    ///   `gtk_adjustment_get_upper(adjustment)` no longer resolves to the C
-    ///   function, so Swift went looking elsewhere and reported `cannot convert
-    ///   value of type 'Duration' to expected argument type 'Double'` on the
-    ///   arithmetic below. There is no `Duration` in this file. Fixing the two
-    ///   pointer types fixes all sixteen; chasing the `Duration` message would
-    ///   have been chasing a symptom two frames from its cause.
-    ///
-    /// - Note: 參數型別是 `UnsafeMutablePointer<GtkAdjustment>?`，**不是** `OpaquePointer?`。
-    ///   `gtk_scrolled_window_get_vadjustment` 回傳的是前者，而此處送來時宣告的是後者——它寫於一台
-    ///   無法建置 GtkBackend 的機器上，因此那裡不可能發現這件事。
-    ///
-    ///   它由**一個**成因產生了**十六個**錯誤。參數型別一錯，`gtk_adjustment_get_upper(adjustment)`
-    ///   就不再解析到那個 C 函式，於是 Swift 轉而尋找別處，並在下方的算術上回報
-    ///   `cannot convert value of type 'Duration' to expected argument type 'Double'`。本檔中根本沒有
-    ///   `Duration`。修正這兩個指標型別即可修掉全部十六個；去追那則 `Duration` 訊息，等於在距離成因
-    ///   兩層之外追一個症狀。
+    /// - Note: 參數型別是 `UnsafeMutablePointer<GtkAdjustment>?`，**不是** `OpaquePointer?`，因為
+    ///   `gtk_scrolled_window_get_vadjustment` 回傳的是前者。若宣告成後者,`gtk_adjustment_get_upper(adjustment)`
+    ///   就不再解析到那個 C 函式，於是 Swift 在別處回報錯誤——共十六個，包括下方算術上的
+    ///   `cannot convert value of type 'Duration' to expected argument type 'Double'`,即使本檔中根本沒有
+    ///   `Duration`。成因是那個指標型別。
     private func setAdjustment(
         _ adjustment: UnsafeMutablePointer<GtkAdjustment>?,
         childStart: Double,

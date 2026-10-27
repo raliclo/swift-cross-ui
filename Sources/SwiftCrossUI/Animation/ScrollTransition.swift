@@ -817,11 +817,11 @@ struct ScrollTrackingModifier<Content: View>: TypeSafeView {
     /// could still find the rows unplaced. P101's START read 0 of 20 rows on
     /// WinUI (2026-10-19 and 2026-10-21) and the rows were measured only when
     /// a scroll committed them again. The first retry is the next main-thread
-    /// turn, as before; the rest are 50 ms apart, for up to two seconds.
+    /// turn; the rest are 50 ms apart, for up to two seconds.
     ///
     /// 重新量測，直到 view 有了位置:WinUI 以自己的一輪排版，在執行 `commit` 的那一輪 dispatcher 之後，
     /// 所以只重試一次仍可能找不到列的位置。P101 的 START 在 WinUI 上 20 列只量到 0 列(2026-10-19 與
-    /// 2026-10-21),要等一次捲動讓它們重新 commit 才量到。第一次重試仍是下一輪主執行緒;其餘間隔 50 毫秒，
+    /// 2026-10-21),要等一次捲動讓它們重新 commit 才量到。第一次重試是下一輪主執行緒;其餘間隔 50 毫秒，
     /// 最多兩秒。
     @MainActor
     static func retry<Backend: BaseAppBackend>(

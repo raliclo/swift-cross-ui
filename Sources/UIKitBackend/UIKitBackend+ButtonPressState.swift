@@ -13,17 +13,17 @@ import UIKit
 /// nothing because the value is already `false`.
 ///
 /// `addTarget(_:action:for:)` is the mechanism the backend's own button already
-/// uses for its tap (`UIKitBackend+CustomButton.swift:165,167` and
-/// `UIKitBackend+Control.swift:10`), and a control keeps a list of targets
+/// uses for its tap (`UIKitBackend+CustomButton.swift` and
+/// `UIKitBackend+Control.swift`), and a control keeps a list of targets
 /// rather than a single one, so registering here cannot displace that.
 ///
 /// **Why not the existing `isHighlighted`.** `UICustomButton` overrides it at
-/// `UIKitBackend+CustomButton.swift:139` and that override is where the
+/// `UIKitBackend+CustomButton.swift` and that override is where the
 /// highlight animation lives -- but the hook is a `didSet` on a Swift property,
 /// which nothing outside the file can observe, and adding a callback to it means
 /// editing that file. It would also have covered only the buttons built by
 /// `createButton(wrapping:)`: `createSimpleButton()` returns a `ButtonWidget`
-/// wrapping a plain `UIButton` (`UIKitBackend+Control.swift:4,269`), which has
+/// wrapping a plain `UIButton` (`UIKitBackend+Control.swift`), which has
 /// no `UICustomButton` in it. Control events cover both, because both are
 /// `UIControl`s.
 ///
@@ -41,14 +41,14 @@ import UIKit
 /// 而最後的放開不再增添任何東西，因為值已經是 `false` 了。
 ///
 /// `addTarget(_:action:for:)` 正是這個 backend 自己的按鈕用來處理點擊的機制
-/// （`UIKitBackend+CustomButton.swift:165,167` 與 `UIKitBackend+Control.swift:10`），而一個 control
+/// （`UIKitBackend+CustomButton.swift` 與 `UIKitBackend+Control.swift`），而一個 control
 /// 保存的是一份 target 清單而非單一 target，因此在此註冊不可能把那個擠掉。
 ///
 /// **為何不用既有的 `isHighlighted`。** `UICustomButton` 於
-/// `UIKitBackend+CustomButton.swift:139` 覆寫了它，高亮動畫也就住在那個覆寫裡——但那個掛勾是一個
+/// `UIKitBackend+CustomButton.swift` 覆寫了它，高亮動畫也就住在那個覆寫裡——但那個掛勾是一個
 /// Swift 屬性的 `didSet`，檔案之外沒有任何東西觀察得到它，而要在其中加上 callback 就等於編輯該檔。
 /// 而且它也只會涵蓋由 `createButton(wrapping:)` 建立的按鈕：`createSimpleButton()` 回傳的是一個包住
-/// 純 `UIButton` 的 `ButtonWidget`（`UIKitBackend+Control.swift:4,269`），其中沒有任何
+/// 純 `UIButton` 的 `ButtonWidget`（`UIKitBackend+Control.swift`），其中沒有任何
 /// `UICustomButton`。control event 兩者皆能涵蓋，因為兩者都是 `UIControl`。
 ///
 /// **tvOS。** 在該平台上，`UIButton` 針對遙控器的選取鍵所送出的正是同一組 control event，因此一顆
@@ -56,11 +56,11 @@ import UIKit
 /// 不是缺口。
 ///
 /// **A bare extension, deliberately.** The conformance is declared on the class
-/// itself at `UIKitBackend.swift:32`; naming `BackendFeatures.ButtonPressState`
+/// itself at `UIKitBackend.swift`; naming `BackendFeatures.ButtonPressState`
 /// again here would be a redundant conformance and would not compile.
 ///
 /// **刻意採用不帶 conformance 的 extension。** 該 conformance 已宣告於類別本身
-/// （`UIKitBackend.swift:32`）；在此再次寫出 `BackendFeatures.ButtonPressState` 會構成重複
+/// （`UIKitBackend.swift`）；在此再次寫出 `BackendFeatures.ButtonPressState` 會構成重複
 /// conformance 而無法編譯。
 extension UIKitBackend {
     public func updateButtonPressHandler(
@@ -74,18 +74,18 @@ extension UIKitBackend {
     /// Finds the `UIControl` inside a widget from either button factory.
     ///
     /// `createButton(wrapping:)` returns a `CustomButtonWidget`
-    /// (`UIKitBackend+CustomButton.swift:13`) and `createSimpleButton()` a
-    /// `ButtonWidget` (`UIKitBackend+Control.swift:270`); both are
+    /// (`UIKitBackend+CustomButton.swift`) and `createSimpleButton()` a
+    /// `ButtonWidget` (`UIKitBackend+Control.swift`); both are
     /// `WrapperWidget`s, whose single child is the control
-    /// (`Widget.swift:411,429`). The direct `as?` first, so a widget that is
+    /// (`Widget.swift`). The direct `as?` first, so a widget that is
     /// itself a control needs no search.
     ///
     /// 在來自任一按鈕工廠方法的 widget 中找出其 `UIControl`。
     ///
     /// `createButton(wrapping:)` 回傳 `CustomButtonWidget`
-    /// （`UIKitBackend+CustomButton.swift:13`），`createSimpleButton()` 回傳 `ButtonWidget`
-    /// （`UIKitBackend+Control.swift:270`）；兩者都是 `WrapperWidget`，其唯一的子元件就是該 control
-    /// （`Widget.swift:411,429`）。先做直接的 `as?`，讓「本身就是 control」的 widget 不必搜尋。
+    /// （`UIKitBackend+CustomButton.swift`），`createSimpleButton()` 回傳 `ButtonWidget`
+    /// （`UIKitBackend+Control.swift`）；兩者都是 `WrapperWidget`，其唯一的子元件就是該 control
+    /// （`Widget.swift`）。先做直接的 `as?`，讓「本身就是 control」的 widget 不必搜尋。
     private static func control(in widget: Widget) -> UIControl? {
         if let control = widget.view as? UIControl {
             return control
@@ -99,14 +99,14 @@ extension UIKitBackend {
 /// A `UIControl` holds its targets weakly, so the target has to be owned here.
 /// Keyed by the control's object identity, and swapped rather than replaced on
 /// reinstall: `Button.commit` reinstalls the handler on every update
-/// (`Sources/SwiftCrossUI/Views/Button.swift:349`), and adding a second target
+/// (`Sources/SwiftCrossUI/Views/Button.swift`), and adding a second target
 /// each time would fire the handler once per commit that had ever happened.
 ///
 /// control event 所投遞到的那個 target 物件。
 ///
 /// `UIControl` 對其 target 是弱持有，因此該 target 必須由此處擁有。以 control 的物件識別為鍵，
 /// 且在重新安裝時是替換 closure 而非替換整個物件：`Button.commit` 每次更新都會重新安裝 handler
-/// （`Sources/SwiftCrossUI/Views/Button.swift:349`），若每次都再加一個 target，handler 就會依照
+/// （`Sources/SwiftCrossUI/Views/Button.swift`），若每次都再加一個 target，handler 就會依照
 /// 歷來發生過的 commit 次數被重複觸發。
 @MainActor
 final class UIKitButtonPressTarget: NSObject {

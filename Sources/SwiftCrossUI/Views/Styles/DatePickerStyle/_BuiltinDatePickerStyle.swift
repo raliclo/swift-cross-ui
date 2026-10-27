@@ -46,11 +46,11 @@ extension DatePickerStyle where Self: _BuiltinDatePickerStyle {
         // Not shadowing `backend` with the cast result: the existential does
         // not satisfy `BaseAppBackend`, which is a composition of every feature
         // protocol, so `_asBackendDatePickerStyle` must still receive the
-        // generic parameter. Shadowing it asked the compiler for twenty
-        // conformances at once.
+        // generic parameter. Shadowing it would ask the compiler for every
+        // feature conformance at once.
         // 不用 cast 的結果去遮蔽 `backend`：該 existential 並不滿足 `BaseAppBackend`——後者是所有
         // feature protocol 的組合——因此 `_asBackendDatePickerStyle` 仍必須收到原本的泛型參數。
-        // 遮蔽它會讓編譯器一口氣要求二十個 conformance。
+        // 遮蔽它會讓編譯器一口氣要求所有 feature 的 conformance。
         guard let datePickers = backend as? any BackendFeatures.DatePickers else {
             return false
         }

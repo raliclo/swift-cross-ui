@@ -69,7 +69,7 @@ extension AndroidBackend: BackendFeatures.ButtonPressState {
     ) {
         // A fresh listener per call, rather than a table that finds and mutates
         // the previous one. `Button.commit` reinstalls on every update
-        // (`Sources/SwiftCrossUI/Views/Button.swift:349`), so a table would be
+        // (`Button.installPressHandler`), so a table would be
         // the cheaper shape -- but keying it would mean keying on a Swift
         // wrapper whose identity is not the JVM object's, and `setOnTouchListener`
         // already replaces rather than appends, so nothing accumulates.
@@ -82,7 +82,7 @@ extension AndroidBackend: BackendFeatures.ButtonPressState {
         // off the button still reports `false`.
         //
         // 每次呼叫都建立一個全新的 listener，而不是用一張表去找出並修改前一個。`Button.commit` 每次
-        // 更新都會重新安裝（`Sources/SwiftCrossUI/Views/Button.swift:349`），因此用表會是比較省的
+        // 更新都會重新安裝（`Button.installPressHandler`），因此用表會是比較省的
         // 形狀——但為它建鍵，就等於以一個「識別並非 JVM 物件識別」的 Swift wrapper 為鍵；而
         // `setOnTouchListener` 本來就是替換而非附加，所以不會累積任何東西。
         // `AndroidBackend+HoverGestures.swift:89` 出於同樣的理由，每次更新都建立新的 `SwiftAction`。

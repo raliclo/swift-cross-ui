@@ -1,7 +1,7 @@
 /// Content that can be shown or hidden by its own header row.
 ///
 /// Composed from `Button`, `VStack` and a conditional, so it needs nothing from
-/// any backend. See ``Stepper`` for why that decided the order of this work.
+/// any backend.
 ///
 /// The expansion state can be owned here or by the caller. Both initialisers
 /// exist because SwiftUI has both, and because the difference is not
@@ -11,8 +11,7 @@
 ///
 /// 一段可由自身標題列展開或收合的內容。
 ///
-/// 由 `Button`、`VStack` 與一個條件式組合而成，不需要任何 backend 支援。這為何決定了本批工作的
-/// 順序，見 ``Stepper``。
+/// 由 `Button`、`VStack` 與一個條件式組合而成，不需要任何 backend 支援。
 ///
 /// 展開狀態可以由它自己擁有，也可以由呼叫端擁有。兩種初始化器都提供，因為 SwiftUI 兩種都有，
 /// 也因為兩者的差別**不是外觀問題**：一個自己持有狀態的 group，會在 view identity 改變時再次

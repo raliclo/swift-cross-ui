@@ -1,13 +1,13 @@
 import Foundation
 
-// The rest of SVG 1.1's filter primitives (2026-10-10): feMorphology,
+// The rest of SVG 1.1's filter primitives: feMorphology,
 // feConvolveMatrix, feTile, feDisplacementMap, feTurbulence,
 // feDiffuseLighting, feSpecularLighting and feImage. Each works on
 // premultiplied pixels in the filter's pixel grid -- the device layer, or
 // filter space for a rotated element (see SVGFilters.swift) -- and follows the
 // formulas SVG 1.1 chapter 15 gives, feTurbulence its reference code.
 //
-// SVG 1.1 其餘的濾鏡 primitive(2026-10-10):feMorphology、feConvolveMatrix、feTile、
+// SVG 1.1 其餘的濾鏡 primitive:feMorphology、feConvolveMatrix、feTile、
 // feDisplacementMap、feTurbulence、feDiffuseLighting、feSpecularLighting 與 feImage。每一個都在濾鏡的
 // 像素格上處理預乘像素——裝置圖層，或旋轉元素的濾鏡空間(見 SVGFilters.swift)——並依 SVG 1.1 第 15 章的
 // 公式計算，feTurbulence 依其參考程式碼。

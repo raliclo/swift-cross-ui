@@ -3,8 +3,8 @@ import DebugFeatures
 /// Holds the once-per-process flag for ``ForEach``'s eager-children warning.
 ///
 /// A separate non-generic type because `ForEach` is generic and Swift does not
-/// allow static stored properties in generic types -- the first attempt put the
-/// flag on `ForEach` itself and got `static stored properties not supported in
+/// allow static stored properties in generic types -- a flag on `ForEach` itself
+/// fails with `static stored properties not supported in
 /// generic types`. Putting it here also makes the "once" correct rather than
 /// accidental: a static on a generic type would be one flag PER SPECIALISATION,
 /// so `ForEach<[Int], Int, Text>` and `ForEach<[String], String, Text>` would
@@ -13,7 +13,7 @@ import DebugFeatures
 /// 存放 ``ForEach`` 積極求值警告的「每個行程一次」旗標。
 ///
 /// 之所以是獨立的非泛型型別：`ForEach` 是泛型，而 Swift 不允許泛型型別具有 static stored property
-/// ——第一次嘗試把旗標放在 `ForEach` 上，得到 `static stored properties not supported in generic
+/// ——把旗標放在 `ForEach` 上會得到 `static stored properties not supported in generic
 /// types`。放在此處也讓那個「一次」成為正確的語意、而非湊巧：泛型型別上的 static 會是**每個特化
 /// 各一份**，於是 `ForEach<[Int], Int, Text>` 與 `ForEach<[String], String, Text>` 會各警告一次，
 /// 而那則訊息重複出現時不會帶有任何新資訊。
@@ -317,35 +317,6 @@ extension ForEach: TypeSafeView, View where Child: View {
             }
         }
 
-        // Overlapping, when the enclosing stack overlaps -- the same branch
-        // `Group` has, and for the same reason.
-        //
-        // `ForEach` is meant to be invisible to the layout system and can only
-        // manage that by arranging its children the way its parent would have.
-        // It inherits orientation, alignment and spacing for exactly that, but
-        // a `ZStack` sets no orientation, so without this branch a `ForEach`
-        // inside one fell back to whatever axis the *grandparent* used. Three
-        // squares that should have overlapped appeared in a column, and the
-        // enclosing frame did not even contain them.
-        //
-        // `layoutOverlapsChildren` was added when this was fixed for `Group`
-        // (#158), and its own documentation says it exists so that "`Group` and
-        // `ForEach`" can be transparent -- but only `Group` was ever wired up.
-        // Found 2026-08-27 while trying to build a z-order test out of a
-        // `ForEach` inside a `ZStack`, which could not work while the two were
-        // not overlapping in the first place.
-        //
-        // 當外層 stack 為重疊式時走重疊排版——與 `Group` 相同的分支，理由也相同。
-        //
-        // `ForEach` 本應對排版系統隱形，而它做到這件事的唯一方式，就是「以父層原本會採用的方式」
-        // 安排自己的子元件。它之所以繼承 orientation、alignment 與 spacing 正是為此；但 `ZStack`
-        // 不設定 orientation，因此少了這個分支，`ZStack` 中的 `ForEach` 會退而採用**祖父層**所用的
-        // 軸向。三個本應重疊的方塊變成排成一欄，甚至撐出了外層 frame。
-        //
-        // `layoutOverlapsChildren` 是在為 `Group` 修復此問題（#158）時加入的，其自身文件明寫此旗標
-        // 的存在是為了讓「`Group` 與 `ForEach`」保持透明——但實際接上的只有 `Group`。此事於
-        // 2026-08-27 被發現：當時正試圖以「`ZStack` 中的 `ForEach`」建立一項 z 順序測試，而在兩者
-        // 根本沒有重疊的情況下，那項測試不可能成立。
         // Before the overlap branch, and for the same reason it exists: a
         // ForEach has to arrange its own children the way its parent would.
         // A LazyVGrid whose content is a ForEach -- nearly every one -- sees a
@@ -375,22 +346,29 @@ extension ForEach: TypeSafeView, View where Child: View {
             return result
         }
 
-        // Upstream's mechanism, taken in place of this tree's own.
+        // Overlapping, when the enclosing stack is a `ZStack` -- the same branch
+        // `Group` has, and for the same reason.
         //
-        // `layoutOverlapsChildren` was ours (e90a2b8d, for `Group` inside a
-        // `ZStack`); upstream solved the same problem independently in #728 with
-        // `usesZStackLayout` and a real ZStack layout rather than a plain
-        // overlap. Two flags for one question is one too many, so ours goes and
-        // theirs stays -- it also carries `zStackContentAlignment`, which the
-        // overlap path could not, and this file used to say so as a known
-        // limitation.
+        // `ForEach` is meant to be invisible to the layout system and can only
+        // manage that by arranging its children the way its parent would have.
+        // A `ZStack` sets no orientation, so without this branch a `ForEach`
+        // inside one falls back to whatever axis the *grandparent* used: squares
+        // that should overlap appear in a column, outside the enclosing frame.
         //
-        // 採用 upstream 的機制,取代本樹自有的那一套。
+        // Upstream's `usesZStackLayout` (#728) rather than the fork's earlier
+        // `layoutOverlapsChildren` flag (e90a2b8d): two flags for one question is
+        // one too many, and upstream's also carries `zStackContentAlignment`,
+        // which a plain overlap could not.
         //
-        // `layoutOverlapsChildren` 是我們的(e90a2b8d,為了 `ZStack` 內的 `Group`);upstream 在
-        // #728 中獨立地解了同一個問題,用的是 `usesZStackLayout` 與一套真正的 ZStack 版面,而非
-        // 單純的重疊。同一個問題有兩個旗標就是多了一個,因此我們的移除、他們的保留——而且他們那套
-        // 還帶著 `zStackContentAlignment`,那是重疊路徑做不到的,本檔過去正是把它記為一項已知限制。
+        // 當外層 stack 是 `ZStack` 時走重疊排版——與 `Group` 相同的分支，理由也相同。
+        //
+        // `ForEach` 本應對排版系統隱形，而它做到這件事的唯一方式，就是「以父層原本會採用的方式」
+        // 安排自己的子元件。`ZStack` 不設定 orientation，因此少了這個分支，`ZStack` 中的 `ForEach`
+        // 會退而採用**祖父層**所用的軸向：本應重疊的方塊排成一欄，落在外層 frame 之外。
+        //
+        // 採用 upstream 的 `usesZStackLayout`(#728),而非本 fork 先前的 `layoutOverlapsChildren`
+        // 旗標(e90a2b8d):同一個問題有兩個旗標就是多了一個，而 upstream 那套還帶著
+        // `zStackContentAlignment`,那是單純的重疊做不到的。
         if environment.usesZStackLayout {
             let result = children.withStackLayoutCache { cache in
                 LayoutSystem.computeZStackLayout(
@@ -555,18 +533,8 @@ extension ForEach: TypeSafeView, View where Child: View {
         // would size the children as though they overlapped and then place them
         // in a column.
         //
-        // `.center`, matching `Group`'s note on the same call: `layoutAlignment`
-        // is a `StackAlignment` and describes one axis, so the parent's
-        // alignment is not available here. A `ZStack` with a non-default
-        // alignment therefore aligns a direct child correctly and one inside a
-        // `ForEach` to the centre. Stated rather than left implicit.
-        //
         // `computeLayout` 中重疊分支的 commit 那一半。兩者缺一不可：以重疊方式計算版面、卻以 stack
         // 方式 commit，會得到「子元件依重疊計算尺寸、卻被排成一欄」的結果。
-        //
-        // 使用 `.center`，與 `Group` 在同一個呼叫處的註記一致：`layoutAlignment` 的型別是
-        // `StackAlignment`，只描述單一軸向，因此此處取不到父層的對齊方式。帶有非預設對齊的
-        // `ZStack`，對直接子元件會正確對齊，對包在 `ForEach` 內的則會置中。此處明言，不使其隱含。
         if let plan = environment.layoutGridPlan {
             LayoutSystem.commitGridLayout(
                 container: widget,

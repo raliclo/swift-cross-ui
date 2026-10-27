@@ -13,15 +13,15 @@ extension AppKitBackend: BackendFeatures.Accessibility {
     /// where the `AXButton` and the label's `AXStaticText` came back as
     /// SIBLINGS. The element is the inner `NSButtonBackground`.
     ///
-    /// Two earlier attempts to reach it from out here both failed, and both
-    /// failed quietly:
+    /// Two ways of reaching it from out here do not work, and both fail
+    /// quietly:
     ///
-    /// | attempt | what `ax_dump` said |
+    /// | approach | what `ax_dump` said |
     /// | --- | --- |
     /// | the unique subview with `isAccessibilityElement()` | `desc='X'` -- the flag is `false` by default on every `NSView`, `NSButton` included, so there was no candidate |
     /// | the unique `NSControl` descendant | `desc='X'` -- there are two, the inner button and the label's `NSTextField`, so "unique" found neither |
     ///
-    /// Even reaching it would not have held: `refreshAccessibilityLabel` runs
+    /// Even reaching it would not hold: `refreshAccessibilityLabel` runs
     /// from `updateButton` on every layout pass and rewrites the label from the
     /// button's own text. So the override is HANDED to the button and consulted
     /// by that derivation, which removes the race rather than winning it.
@@ -34,9 +34,9 @@ extension AppKitBackend: BackendFeatures.Accessibility {
     /// `AppKitBackend+Button.swift` 已從傾印 P28 記錄下來:那裡的 `AXButton` 與標籤的
     /// `AXStaticText` 回報為**兄弟**。真正的元素是內層的 `NSButtonBackground`。
     ///
-    /// 從外面伸手去抓它的兩次嘗試都失敗了,而且都是靜默地失敗:
+    /// 從外面伸手去抓它的兩種做法都行不通,而且都是靜默地失敗:
     ///
-    /// | 嘗試 | `ax_dump` 說了什麼 |
+    /// | 做法 | `ax_dump` 說了什麼 |
     /// | --- | --- |
     /// | 唯一一個 `isAccessibilityElement()` 為真的子 view | `desc='X'`——該旗標在每一個 `NSView` 上的預設值都是 `false`(`NSButton` 也不例外),因此根本沒有候選 |
     /// | 唯一一個 `NSControl` 後代 | `desc='X'`——有**兩個**(內層按鈕與標籤的 `NSTextField`),因此「唯一」兩個都沒找到 |
@@ -60,8 +60,8 @@ extension AppKitBackend: BackendFeatures.Accessibility {
             // arrived, and `12:30` was still sitting in the attribute a screen
             // reader reads for text. GTK over AT-SPI and WinUI over UIA both
             // report the label and NOT the original words, and P69's own
-            // on-screen expectation says `'12:30' does not appear`, so this is
-            // the one backend of the four that would have disagreed.
+            // on-screen expectation says `'12:30' does not appear`, so
+            // without this AppKit would be the one backend of the four to disagree.
             //
             // `nil` puts the value back: an `NSTextField` with no explicit
             // accessibility value answers with its `stringValue`, which is the
@@ -73,8 +73,8 @@ extension AppKitBackend: BackendFeatures.Accessibility {
             // 2026-09-17 以 P69 的 `Text("12:30").accessibilityLabel("Half past twelve")` 實測:
             // `ax_dump` 讀到 `AXStaticText '12:30' desc='Half past twelve'`——標籤確實抵達了,
             // 而 `12:30` 仍坐在「螢幕閱讀器讀文字時會讀的那個屬性」裡。GTK 經 AT-SPI 與 WinUI 經 UIA
-            // 都只回報標籤、不回報原文,而 P69 畫面上的預期也寫著「`12:30` 不出現」——因此四者之中,
-            // 這是唯一一個原本會不一致的 backend。
+            // 都只回報標籤、不回報原文,而 P69 畫面上的預期也寫著「`12:30` 不出現」——
+            // 少了這一步,本 backend 會是四者之中唯一不一致的一個。
             //
             // `nil` 會把值放回去:一個沒有明確無障礙值的 `NSTextField`,會以它的 `stringValue` 作答,
             // 那就是那段文字本身。

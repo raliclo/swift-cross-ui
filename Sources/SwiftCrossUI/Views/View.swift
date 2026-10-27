@@ -198,19 +198,17 @@ extension View {
     ///
     /// It compiles, the body runs, and the view is silently absent.
     ///
-    /// **`EmptyViewChildren` is on the wrong side of this test, and that is
-    /// deliberate.** ``Text`` is an ``ElementaryView``, whose `Content` is
-    /// `EmptyView`, so a `body` that returns a `Text` produces
-    /// `EmptyViewChildren` -- the same children a genuinely empty builder body
-    /// produces. Treating those as builder-produced was the first attempt at
-    /// this fix and it changed nothing, because that is exactly the case that
-    /// breaks. Only a `TupleViewChildren` means the builder ran, and delegating
-    /// to `body` is right for everything else: an `EmptyView` body draws
-    /// nothing either way.
+    /// **`EmptyViewChildren` cannot decide this either way.** ``Text`` is an
+    /// ``ElementaryView``, whose `Content` is `EmptyView`, so a `body` that
+    /// returns a `Text` produces `EmptyViewChildren` -- the same children a
+    /// genuinely empty builder body produces -- and that is exactly the case
+    /// that breaks. Only a `TupleViewN` body means the builder ran, and
+    /// delegating to `body` is right for everything else: an `EmptyView` body
+    /// draws nothing either way.
     ///
     /// Recorded in testapp/plan/explicit-return-body.md.
     ///
-    /// **The test is on `body`'s type, not on the children's (2026-10-18).**
+    /// **The test is on `body`'s type, not on the children's.**
     /// A modifier built on `View` -- `.onAppear`, whose own `body` is a
     /// `TupleView1` -- hands back `TupleViewChildren` too, so asking the
     /// children took `return VStack { ... }.onAppear { ... }` for builder output,
@@ -218,18 +216,17 @@ extension View {
     /// view drew and the action never ran (P104's first runs, and a DummyBackend
     /// test in BodyReturnTests). Only a `TupleViewN` body means the builder ran.
     ///
-    /// **判斷的是 `body` 的型別，而不是 children 的(2026-10-18)。** 以 `View` 寫成的 modifier——`.onAppear`,
+    /// **判斷的是 `body` 的型別，而不是 children 的。** 以 `View` 寫成的 modifier——`.onAppear`,
     /// 它自己的 `body` 是 `TupleView1`——交回的也是 `TupleViewChildren`,所以問 children 會把
     /// `return VStack { ... }.onAppear { ... }` 當成 builder 的產物，把 modifier 包進 `VStack`,永遠不呼叫它的
     /// `asWidget`:view 畫出來了，動作卻從未執行(P104 最初幾次執行，以及 BodyReturnTests 中的 DummyBackend 測試)。
     /// 只有 `TupleViewN` 的 body 才代表 builder 執行過。
     ///
-    /// **`EmptyViewChildren` 被歸在這項判斷的另一側，而那是刻意的。** ``Text`` 是一個
-    /// ``ElementaryView``，其 `Content` 為 `EmptyView`，因此一個回傳 `Text` 的 `body` 產生的正是
-    /// `EmptyViewChildren`——與一個真正空白的 builder body 所產生的相同。把它們當成 builder 產生的，
-    /// 是本次修正的第一次嘗試，而它什麼都沒有改變，因為那恰恰就是會壞掉的那一種。只有
-    /// `TupleViewChildren` 才代表 builder 執行過;至於其餘各種情況，委派給 `body` 都是對的:一個
-    /// `EmptyView` 的 body 無論走哪一條路都不會畫出任何東西。
+    /// **`EmptyViewChildren` 無法用來判斷這件事。** ``Text`` 是一個 ``ElementaryView``，其 `Content` 為
+    /// `EmptyView`，因此一個回傳 `Text` 的 `body` 產生的正是 `EmptyViewChildren`——與一個真正空白的
+    /// builder body 所產生的相同——而那恰恰就是會壞掉的那一種。只有 `TupleViewN` 的 body 才代表 builder
+    /// 執行過;至於其餘各種情況，委派給 `body` 都是對的:一個 `EmptyView` 的 body 無論走哪一條路都不會
+    /// 畫出任何東西。
     ///
     /// 預設實作是否可以繞道 ``VStack``。
     ///

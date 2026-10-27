@@ -141,13 +141,11 @@ extension AsyncImage {
     /// wraps at every level: the `if`/`else` becomes an `EitherView` of the two
     /// branches, each branch is itself wrapped, and the whole closure result is
     /// wrapped once more. Writing `EitherView<I, P>` -- the shape one would
-    /// expect -- does not compile, and the error names the real type, which is
-    /// how this was arrived at rather than guessed.
+    /// expect -- does not compile, and the error names the real type.
     ///
     /// 此泛型由外而內逐層寫出，因為 `ViewBuilder` 在每一層都會包裝：`if`/`else` 成為兩個分支的
     /// `EitherView`，每個分支自身再被包裝一次，而整個 closure 的結果又被包裝一次。寫成一般人會
-    /// 預期的 `EitherView<I, P>` 無法通過編譯，而編譯錯誤會直接指出真正的型別——此處的寫法即由此
-    /// 得來，而非猜測。
+    /// 預期的 `EitherView<I, P>` 無法通過編譯，而編譯錯誤會直接指出真正的型別。
     public init<I: View, P: View>(
         url: URL?,
         policy: AppCache.CachePolicy = .useProtocolCachePolicy,

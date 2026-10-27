@@ -38,10 +38,9 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         // worked. AppKit refuses the same case by checking
         // `acceptsFirstResponder` first; `sensitive` is GTK's spelling of it.
         //
-        // The bug was mine and it was introduced by the line below it. Setting
-        // `can-focus` unconditionally is what makes a container focusable, which
-        // this needs, and it is also what silences the one refusal the protocol
-        // has to get right.
+        // Setting `can-focus` unconditionally, below, is what makes a container
+        // focusable, which this needs, and it is also what would silence the one
+        // refusal the protocol has to get right.
         //
         // **不敏感(insensitive)的 widget 會被拒絕,而這道防護放在此處,是因為下方那行授予
         // `can-focus` 的程式碼否則會覆寫掉 GTK 自己的拒絕。** 2026-09-16 由 P70 量到:少了它,
@@ -49,15 +48,14 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         // 被停用的按鈕,並告訴 `@FocusState` 這件事成功了。AppKit 以先檢查 `acceptsFirstResponder`
         // 拒絕同一個情形;而 `sensitive` 就是 GTK 對它的寫法。
         //
-        // 這個缺陷是我自己造成的,而且正是由它下面那一行引入的。無條件設定 `can-focus` 是「讓容器
-        // 可以取得焦點」所必需的——而它同時也讓本協定唯一必須答對的那次拒絕失聲。
+        // 下方無條件設定 `can-focus` 是「讓容器可以取得焦點」所必需的——而它同時也會讓本協定唯一
+        // 必須答對的那次拒絕失聲。
         guard gtk_widget_get_sensitive(pointer) != 0 else { return false }
 
         // Raw `gboolean` rather than the `toGBoolean()` / `toBool()` helpers:
         // those are internal to the Gtk module and not visible from GtkBackend.
-        // Caught by building.
         // 使用原生的 `gboolean`,而非 `toGBoolean()` / `toBool()` 兩個輔助函式:它們是 Gtk 模組的
-        // internal,從 GtkBackend 看不到。以建置抓到。
+        // internal,從 GtkBackend 看不到。
         gtk_widget_set_can_focus(pointer, 1)
         return gtk_widget_grab_focus(pointer) != 0
     }

@@ -12,7 +12,7 @@ extension BackendFeatures {
     /// A list that asks for a row when it needs one, instead of being handed
     /// every row up front.
     ///
-    /// **This reverses the direction, and that is the whole feature.** Today
+    /// **This reverses the direction, and that is the whole feature.**
     /// ``SelectableListViews/setItems(ofSelectableListView:to:withRowHeights:)``
     /// takes an array: the framework builds one view-graph node per row and
     /// hands the lot over. Measured on P57 with AppKit -- 400 rows 113 MB,
@@ -25,12 +25,11 @@ extension BackendFeatures {
     /// it.
     ///
     /// **Conformance-checked, not required**, the same way ``ScrollingLists``
-    /// was, so the five backends convert one at a time and a backend that does
-    /// not conform keeps exactly the behaviour it has.
+    /// is: a backend that does not conform keeps handing over every row.
     ///
     /// 一個「需要某一列時才去要它」的清單，而不是把每一列都預先交給它。
     ///
-    /// **這是把方向反轉過來，而那就是這項功能的全部。** 今天的
+    /// **這是把方向反轉過來，而那就是這項功能的全部。**
     /// ``SelectableListViews/setItems(ofSelectableListView:to:withRowHeights:)`` 收的是一個陣列:
     /// 框架為每一列建一個 view-graph 節點，然後整批交出去。在 AppKit 上以 P57 量過——400 列 113 MB、
     /// 10,000 列 423 MB，約每列 31 KB——而其中沒有一點是 backend 的 widget，因為 `NSTableView` 本來
@@ -40,22 +39,21 @@ extension BackendFeatures {
     /// `UITableViewDataSource`、帶 factory 的 `GtkListView`、`ItemsRepeater`。這個協定就是框架伸手去
     /// 拿它的方式。
     ///
-    /// **採 conformance 檢查而非要求實作**，與 ``ScrollingLists`` 當初相同——好讓五個 backend 一次
-    /// 轉一個，而未 conform 的 backend 行為與現在完全一致。
+    /// **採 conformance 檢查而非要求實作**,與 ``ScrollingLists`` 相同:未 conform 的 backend 維持
+    /// 整批交出的行為。
     @MainActor
     public protocol LazyListRows: SelectableListViews {
         /// Hands the list a row count and a way to get one row.
         ///
-        /// **One method rather than the three an earlier sketch had**
-        /// (`setRowCount`, `setRowProvider`, `setRowRecycler`). They are never
+        /// **One method rather than three** (a row count, a provider and a
+        /// recycler set separately). They are never
         /// useful apart: a count without a provider is a list of blanks, and a
         /// provider without a count is never called. Passing them together also
         /// means a backend cannot observe a half-updated pair.
         ///
-        /// The recycler is gone for a different reason. It was there to stop
-        /// memory growing as rows are visited, and the framework does that
-        /// itself now with a bounded cache -- which needs no protocol surface
-        /// and works the same on every backend. See ``List``'s row cache.
+        /// No recycler is needed: the framework stops memory growing as rows
+        /// are visited with its own bounded cache -- which needs no protocol
+        /// surface and works the same on every backend. See ``List``'s row cache.
         ///
         /// - Parameters:
         ///   - count: How many rows exist. The list sizes its scrollbar from
@@ -71,13 +69,12 @@ extension BackendFeatures {
         ///
         /// 把「列數」與「取得某一列的方式」交給這個清單。
         ///
-        /// **一個方法，而不是先前草稿裡的三個**(`setRowCount`、`setRowProvider`、`setRowRecycler`)。
+        /// **一個方法,而不是三個**(列數、provider、recycler 各一)。
         /// 它們分開沒有用處:有列數而無 provider 是一份空白清單，有 provider 而無列數則永遠不會被呼叫。
         /// 一起傳遞也意味著 backend 不會觀察到「只更新了一半」的組合。
         ///
-        /// 至於 recycler 消失，理由不同。它原本是為了阻止「記憶體隨著被造訪的列而成長」，而現在框架
-        /// 自己以一個有上限的快取做到了——那不需要任何協定表面，而且在每個 backend 上行為相同。
-        /// 見 ``List`` 的列快取。
+        /// 不需要 recycler:阻止「記憶體隨著被造訪的列而成長」的是框架自己的有上限快取——那不需要任何
+        /// 協定表面，而且在每個 backend 上行為相同。見 ``List`` 的列快取。
         ///
         /// - Parameters:
         ///   - count: 共有幾列。清單以它與 `estimatedRowHeight` 決定捲軸長度，過程中不建立任何東西。

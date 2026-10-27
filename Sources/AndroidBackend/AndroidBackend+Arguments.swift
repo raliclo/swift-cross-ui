@@ -9,7 +9,7 @@ import SwiftJava
 ///
 /// **The obsoletion is a COMPILE-TIME gate, not a removal.** `swift 6.0`
 /// obsoleted the setter, and the symbol is still exported by the runtime --
-/// checked on the Android SDK actually used here, not assumed:
+/// verified against the Android SDK this package builds with:
 ///
 ///     nm -D libswiftCore.so | grep 11CommandLineO9arguments
 ///     $ss11CommandLineO9argumentsSaySSGvsZ  ->  static CommandLine.arguments.setter
@@ -22,7 +22,7 @@ import SwiftJava
 ///
 /// **WHAT THIS BUYS, so the risk is weighed against something.** Without it
 /// `AndroidBackend` cannot move to Swift 6, because a language mode is per
-/// TARGET and this one statement is the only thing in forty files that Swift 6
+/// TARGET and this one statement is the only thing in the target that Swift 6
 /// rejects. The alternative tried first -- a one-file target still on v5 --
 /// builds under `swift build` and vanishes under `swift build --product`, which
 /// is what swift-bundler runs.
@@ -37,14 +37,14 @@ import SwiftJava
 /// **符號**抵達它。
 ///
 /// **那個廢除是一道編譯期的閘門,不是移除。** Swift 6.0 廢除了該 setter,而 runtime 仍然匯出那個符號
-/// ——這是在此處實際使用的 Android SDK 上**查過**的,不是假設的(指令與輸出見上)。
+/// ——這是在本套件建置所用的 Android SDK 上**查證**過的(指令與輸出見上)。
 ///
 /// **`__owned` 是非對不可的那一部分。** Swift 函式參數預設以 `@guaranteed` 傳遞;而一個 property
 /// setter 取得它的值是 `@owned`。少了它,那個陣列會少釋放一次而洩漏、或多釋放一次而崩潰——而兩者都
 /// **不會**表現為建置錯誤。此處明寫而不依賴預設,正是為了這個理由。
 ///
 /// **它換到什麼,好讓風險有東西可以權衡。** 少了它,`AndroidBackend` 無法遷到 Swift 6,因為語言模式
-/// 是以 **target** 為單位的,而這一個陳述句是四十個檔案裡唯一被 Swift 6 拒絕的東西。先前試過的替代
+/// 是以 **target** 為單位的,而這一個陳述句是整個 target 裡唯一被 Swift 6 拒絕的東西。先前試過的替代
 /// 方案——一個仍停留在 v5 的單檔 target——在 `swift build` 下建得起來,而在 `swift build --product`
 /// 下消失,後者正是 swift-bundler 所執行的。
 ///
@@ -56,16 +56,14 @@ private func setCommandLineArguments(_ arguments: __owned [String])
 
 /// Command-line arguments for a platform that has no command line.
 ///
-/// `entrypoint` used to call `main(0, argv)` with `argv[0] = nil`: no arguments
-/// at all. Everything downstream reads `CommandLine.arguments`, so on Android
-/// `--debug` was never seen, ``DebugFeatures/isEnabled`` was always false, and
-/// `-actionfile` could not be delivered even though `test_android.zsh` accepted
-/// the flag and every other platform honours it. The script parsed the flag and
-/// dropped it, which is the shape of failure this file exists to remove: an
-/// option that is accepted and does nothing.
+/// Without this, `entrypoint` would call `main` with no arguments at all.
+/// Everything downstream reads `CommandLine.arguments`, so on Android
+/// `--debug` would never be seen, ``DebugFeatures/isEnabled`` would always be
+/// false, and `-actionfile` could not be delivered even though every other
+/// platform honours it: an option that is accepted and does nothing.
 ///
 /// An Android activity is started with an `Intent`, and an intent carries
-/// extras. `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.actions"`
+/// extras. `adb shell am start ... --es scui_args "--debug -actionfile /data/local/tmp/x.actions"`
 /// puts a string there, and this turns that string into argv before `main` runs,
 /// so nothing downstream needs to know Android is different.
 ///
@@ -77,14 +75,12 @@ private func setCommandLineArguments(_ arguments: __owned [String])
 ///
 /// 給一個沒有命令列的平台的命令列引數。
 ///
-/// `entrypoint` 原本呼叫的是 `main(0, argv)`，且 `argv[0] = nil`：完全沒有任何引數。而下游的一切
-/// 都讀取 `CommandLine.arguments`，因此在 Android 上 `--debug` 從未被看見、
-/// ``DebugFeatures/isEnabled`` 恆為 false，而 `-actionfile` 即使 `test_android.zsh` 接受了該旗標、
-/// 其他每個平台也都遵守它，仍然無法送達。該腳本解析了那個旗標然後丟掉——而「一個被接受卻什麼都不做
-/// 的選項」，正是本檔存在所要消除的那種失敗形狀。
+/// 少了它，`entrypoint` 呼叫 `main` 時完全沒有任何引數。而下游的一切都讀取 `CommandLine.arguments`，
+/// 因此在 Android 上 `--debug` 永遠不會被看見、``DebugFeatures/isEnabled`` 恆為 false，而
+/// `-actionfile` 即使其他每個平台都遵守它，仍然無法送達——一個被接受卻什麼都不做的選項。
 ///
 /// Android 的 activity 是由 `Intent` 啟動的，而 intent 可攜帶 extra。
-/// `adb shell am start ... --es scui_args "--debug -actionfile /sdcard/x.actions"` 會在其中放進一個
+/// `adb shell am start ... --es scui_args "--debug -actionfile /data/local/tmp/x.actions"` 會在其中放進一個
 /// 字串，本檔則在 `main` 執行之前把該字串轉成 argv，使下游完全不需要知道 Android 有何不同。
 ///
 /// **以空白切分，而那是一個真實的限制。** 含有空白的路徑無法以此方式傳遞。要支援它就需要在此處寫一個

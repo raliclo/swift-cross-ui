@@ -4,12 +4,9 @@ import SwiftJava
 
 /// `onHover(perform:)` on Android.
 ///
-/// Before this file `AndroidBackend` conformed to `BackendFeatures.TapGestures`
-/// and not to `BackendFeatures.HoverGestures`, and `OnHoverModifier` reaches the
-/// backend through `@CastBackend`, which expands to `fatalError`
-/// (`CastBackendMacro.swift:115`). So `.onHover` did not go unhandled on
-/// Android, it killed the process -- the same shape as the `HitTesting` gap next
-/// door, and the outcome this repository's rules exist to prevent.
+/// Without this conformance `OnHoverModifier`'s `@CastBackend` expands to
+/// `fatalError`, so `.onHover` would kill the process on Android rather than
+/// go unhandled.
 ///
 /// The work is in `HoverContainer.kt`; that file records which `MotionEvent`
 /// actions carry hover, why the wrapper overrides `dispatchHoverEvent` instead
@@ -24,11 +21,8 @@ import SwiftJava
 ///
 /// Android 上的 `onHover(perform:)`。
 ///
-/// 在本檔存在之前，`AndroidBackend` 實作了 `BackendFeatures.TapGestures` 而未實作
-/// `BackendFeatures.HoverGestures`，而 `OnHoverModifier` 是透過 `@CastBackend` 抵達 backend 的，
-/// 該 macro 會展開為 `fatalError`（`CastBackendMacro.swift:115`）。因此 `.onHover` 在 Android 上
-/// 並不是「未被處理」，而是直接殺掉行程——與隔壁 `HitTesting` 的缺口是同一種形狀，也正是本倉庫規則
-/// 所要防止的結果。
+/// 少了此 conformance,`OnHoverModifier` 的 `@CastBackend` 會展開為 `fatalError`,因此 `.onHover` 在
+/// Android 上不會只是「未被處理」,而是直接殺掉行程。
 ///
 /// 實作位於 `HoverContainer.kt`；該檔記錄了哪些 `MotionEvent` action 承載懸停、為何該外層選擇覆寫
 /// `dispatchHoverEvent` 而非使用已繫結且可用的 `View.OnHoverListener`，以及一台既無滑鼠也無觸控筆

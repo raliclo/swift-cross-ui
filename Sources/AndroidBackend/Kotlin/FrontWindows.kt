@@ -56,24 +56,23 @@ object FrontWindows {
      * could open P92's menu and choose nothing from it ("no shown view has the
      * text Edit", 2026-10-21).
      *
-     * Only [activity]'s decor is left out, compared by identity. The first version
-     * tried to leave out every activity's own window by walking each root's
-     * context up to an Activity; that walk never matched, so the target activity's
-     * window counted as a front window too, every key went straight to its decor,
-     * AndroidSynthesiser's Control-shortcut offer never ran, and P94's editor read
-     * "changes: 0" again (2026-10-22). Leaving out every window of type
-     * TYPE_BASE_APPLICATION instead fixed P94 and lost P60's settings window, an
-     * activity of its own ("no shown view has the text +1", the same day).
+     * Only [activity]'s decor is left out, compared by identity. Two broader rules
+     * fail. Walking each root's context up to an Activity never matches, so the
+     * target activity's window counts as a front window too, every key goes
+     * straight to its decor, AndroidSynthesiser's Control-shortcut offer never
+     * runs, and P94's editor reads "changes: 0". Leaving out every window of type
+     * TYPE_BASE_APPLICATION loses P60's settings window, an activity of its own
+     * ("no shown view has the text +1").
      *
      * 有焦點的前景視窗;[activity] 自己的視窗有焦點時為 null。先找登記過的 sheet 或 popover;否則找本行程中
      * 除了 [activity] 自己(synthesiser 本來就送進去的那個視窗)以外任何有焦點的視窗:PopupMenu、Spinner 的下拉、
      * alert,或另一個 activity,例如 P60 的設定視窗。選單與下拉由平台建立並保持私有，從不登記;
-     * `WindowInspector.getGlobalWindowViews`(API 29,公開，不需權限)列出本行程每個視窗的根，包括它們。
-     * 只排除 [activity] 的 decor,以同一物件比較。第一版想沿每個根的 context 找到 Activity,藉此排除所有 activity
-     * 自己的視窗，但那樣從未比對成功，目標 activity 的視窗也被當成前景視窗，按鍵全部直接送進它的 decor,
-     * AndroidSynthesiser 補送 Control 快捷鍵的那一步從未執行,P94 的編輯器又回到「changes: 0」(2026-10-22)。
-     * 改成排除所有 TYPE_BASE_APPLICATION 視窗，修好了 P94,卻失去 P60 的設定視窗——它本身是個 activity
-     * (同日，「no shown view has the text +1」)。
+     * `WindowInspector.getGlobalWindowViews`(API 29,公開，不需權限)列出本行程每個視窗的根，包括它們。少了它，
+     * 重放能打開 P92 的選單卻選不到任何東西(「no shown view has the text Edit」,2026-10-21)。
+     * 只排除 [activity] 的 decor,以同一物件比較。兩種較寬的規則都不行。沿每個根的 context 找到 Activity 從不會比對成功,
+     * 於是目標 activity 的視窗也被當成前景視窗，按鍵全部直接送進它的 decor,AndroidSynthesiser 補送 Control 快捷鍵的
+     * 那一步不會執行,P94 的編輯器讀作「changes: 0」。排除所有 TYPE_BASE_APPLICATION 視窗，則會失去 P60 的設定視窗
+     * ——它本身是個 activity(「no shown view has the text +1」)。
      */
     @JvmStatic
     fun focused(activity: Activity?): View? {

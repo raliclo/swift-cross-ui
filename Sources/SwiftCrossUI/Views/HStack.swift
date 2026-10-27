@@ -56,9 +56,9 @@ public struct HStack<Content: View>: View {
             proposedSize: proposedSize,
             environment: environment
                 .with(\.layoutOrientation, .horizontal)
-                // Cleared, not merely left alone: this stack arranges along an
-                // axis, so a `Group` below it must too even when a `ZStack`
-                // further up set the flag.
+                // Cleared, not merely left alone (`layoutGridPlan` here and
+                // `usesZStackLayout` below): this stack arranges along an axis, so a
+                // `Group` below it must too even when a `ZStack` or grid further up set them.
                 .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing)
@@ -84,9 +84,9 @@ public struct HStack<Content: View>: View {
             layout: layout,
             environment: environment
                 .with(\.layoutOrientation, .horizontal)
-                // Cleared, not merely left alone: this stack arranges along an
-                // axis, so a `Group` below it must too even when a `ZStack`
-                // further up set the flag.
+                // Cleared, not merely left alone (`layoutGridPlan` here and
+                // `usesZStackLayout` below): this stack arranges along an axis, so a
+                // `Group` below it must too even when a `ZStack` or grid further up set them.
                 .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing)

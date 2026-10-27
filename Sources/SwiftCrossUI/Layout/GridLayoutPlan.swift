@@ -5,28 +5,25 @@
 /// than being flattened away, so a `LazyVGrid` whose content is a `ForEach` --
 /// which is nearly every one -- sees exactly one child. Arranging that one child
 /// in a grid puts every cell in the first column and the `ForEach` then lays its
-/// own children out along whatever axis it inherited, which is a vertical list.
-/// That is what the first version of this did, and the screenshot showed eight
-/// cells stacked one above another with the numbers in the right order, which
-/// reads as a grid whose columns are wrong rather than as a grid that never ran.
+/// own children out along whatever axis it inherited, which is a vertical list:
+/// eight cells stacked one above another with the numbers in the right order,
+/// which reads as a grid whose columns are wrong rather than as a grid that
+/// never ran.
 ///
-/// The fix is the one the tree already reached for twice: tell `ForEach` how its
-/// parent arranges things and let it do the arranging. `layoutOrientation` was
-/// the first, `layoutOverlapsChildren` the second when `ZStack` hit the same
-/// wall, and this is the third.
+/// So `ForEach` is told how its parent arranges things and does the arranging
+/// itself, the same approach as `layoutOrientation` and as
+/// `layoutOverlapsChildren` for `ZStack`.
 ///
 /// 解析完成的欄位,交給真正負責排列儲存格的那一方。
 ///
 /// **它之所以隨 environment 傳遞,理由與 ``EnvironmentValues/layoutOverlapsChildren`` 完全相同。**
 /// ``ForEach`` 會建立一個真正的容器,而不是被攤平消去,因此一個「內容是 `ForEach`」的 `LazyVGrid`
 /// ——而那幾乎是全部——只會看到**一個**子節點。把那一個子節點排進格線,會讓每一格都落在第一欄,
-/// 接著 `ForEach` 再依它所繼承到的軸向安排自己的子元件,也就是一個垂直清單。本實作的第一版正是如此,
-/// 而截圖顯示八格由上而下排成一列、編號順序正確——那讀起來像是「一個欄位算錯的格線」,而不像是
-/// 「一個從未執行的格線」。
+/// 接著 `ForEach` 再依它所繼承到的軸向安排自己的子元件，也就是一個垂直清單：截圖會顯示八格由上而下
+/// 排成一列、編號順序正確——那讀起來像是「一個欄位算錯的格線」,而不像是「一個從未執行的格線」。
 ///
-/// 修法就是這棵樹已經採用過兩次的那一個:告訴 `ForEach` 它的父層是怎麼排的,然後讓它自己去排。
-/// 第一次是 `layoutOrientation`,第二次是 `ZStack` 撞上同一堵牆時的 `layoutOverlapsChildren`,
-/// 而這是第三次。它現在也帶著軸向（見下方 `axis`）。
+/// 因此要告訴 `ForEach` 它的父層是怎麼排的，然後讓它自己去排，與 `layoutOrientation` 以及
+/// `ZStack` 所用的 `layoutOverlapsChildren` 同一個做法。它也帶著軸向（見下方 `axis`）。
 ///
 /// **It stayed integral when ``GridItem/Size`` widened to `Double` (task #108),
 /// and that is a decision rather than an oversight.** A `GridItem` is what the
@@ -231,11 +228,10 @@ extension GridLayoutPlan {
         // precondition (those print).
         //
         // `.infinity` is a real value here, not a theoretical one. The layout
-        // system probes children with it deliberately: `LayoutSystem.swift:605`
-        // is `let specialSizes: [Double?] = [nil, .infinity]`, `:284` assigns
-        // `.infinity` to a proposal component, and `ProposedViewSize.swift:6`
-        // declares `.infinity` as a whole size. So any grid inside an ordinary
-        // stack gets asked this.
+        // system probes children with it deliberately: `LayoutSystem.swift` has
+        // `let specialSizes: [Double?] = [nil, .infinity]` and assigns
+        // `.infinity` to a proposal component, and `ProposedViewSize.infinity`
+        // is a whole size. So any grid inside an ordinary stack gets asked this.
         //
         // Measured 2026-09-08: P51 died 1881 ms after launch, exit 132, with an
         // empty replay log -- it never reached its first log line. P50, the same
@@ -261,9 +257,9 @@ extension GridLayoutPlan {
         // trap，不是 Swift 的 precondition（後者會印出訊息）。
         //
         // `.infinity` 在此是真實存在的值，不是理論上的：版面系統會刻意用它來探測子節點——
-        // `LayoutSystem.swift:605` 是 `let specialSizes: [Double?] = [nil, .infinity]`、
-        // `:284` 會把 `.infinity` 指派給某個提案分量，而 `ProposedViewSize.swift:6` 更把
-        // `.infinity` 宣告為一個完整的尺寸。因此任何位於一般 stack 之中的格線都會被這樣詢問。
+        // `LayoutSystem.swift` 有 `let specialSizes: [Double?] = [nil, .infinity]`,也會把 `.infinity`
+        // 指派給某個提案分量，而 `ProposedViewSize.infinity` 更是一個完整的尺寸。因此任何位於一般 stack
+        // 之中的格線都會被這樣詢問。
         //
         // 2026-09-08 實測：P51 於啟動後 1881 毫秒死亡，退出碼 132，replay log 為空——它從未抵達
         // 自己的第一行 log。P50 在同一個啟動器與同一條 PATH 下，直到 25 秒上限才被砍掉；而 P50
@@ -308,13 +304,12 @@ extension GridLayoutPlan {
         // What an adaptive lane may divide is what is LEFT, not the whole
         // container.
         //
-        // This used to divide `available`, so a fixed lane's width was
-        // counted twice -- once by the fixed lane and once by the adaptive
-        // one filling the same space. Measured by a reviewer against the
-        // resolver: 420 pt available, one `.fixed(200)` and one
-        // `.adaptive(minimum: 100)` produced 530 pt of lanes in a 420 pt
-        // container. Nothing overflowed loudly; the last lane simply ran off
-        // the edge.
+        // Dividing `available` instead would count a fixed lane's width
+        // twice -- once by the fixed lane and once by the adaptive one
+        // filling the same space. Measured against the resolver: 420 pt
+        // available, one `.fixed(200)` and one `.adaptive(minimum: 100)`
+        // produced 530 pt of lanes in a 420 pt container. Nothing overflowed
+        // loudly; the last lane simply ran off the edge.
         //
         // The gap reserve is one per item rather than one per resulting lane,
         // because the adaptive counts are not known yet -- that is the
@@ -325,9 +320,9 @@ extension GridLayoutPlan {
         //
         // adaptive lane 能夠瓜分的,是**剩下**的部分,不是整個容器。
         //
-        // 它原本瓜分的是 `available`,因此一個固定 lane 的寬度被計算了兩次——一次由該固定 lane、一次由填滿
-        // 同一片空間的 adaptive lane。某位審查者對照解析器實測:420 點可用寬度、一個 `.fixed(200)` 與
-        // 一個 `.adaptive(minimum: 100)`,在一個 420 點的容器中產出了 530 點的 lane。沒有任何東西大聲
+        // 若瓜分的是 `available`,一個固定 lane 的寬度就會被計算兩次——一次由該固定 lane、一次由填滿
+        // 同一片空間的 adaptive lane。對照解析器實測:420 點可用寬度、一個 `.fixed(200)` 與
+        // 一個 `.adaptive(minimum: 100)`,在一個 420 點的容器中會產出 530 點的 lane。沒有任何東西大聲
         // 溢位;只是最後一 lane 跑出了邊緣。
         //
         // 間距的預留是「每個項目一份」而非「每個最終 lane 一份」,因為此時 adaptive 的 lane 數尚未得知——

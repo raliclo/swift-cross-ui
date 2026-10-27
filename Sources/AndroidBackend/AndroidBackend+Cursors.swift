@@ -32,10 +32,7 @@ import SwiftJava
 /// 沒有自己的圖示時才退回自己的。因此設在容器上的圖示,會覆蓋每一個未曾認領圖示的後代——那恰好就是
 /// AppKit 從 tracking area 得到的那塊區域。多包一層 view 只會白白多一級排版。
 ///
-/// **VERIFIED a different way on 2026-09-22, and Android is the platform that allows it.**
-/// (The day before, this file said NOT VERIFIED and offered only that the conformance was taken:
-/// `CursorDegradation`'s warning had stopped appearing in logcat while the ones for `Mesh3DViews`,
-/// `ScrollGestures` and `KeyEvents` were still there. True, and not an answer about the cursor.)
+/// **Verified through Android's own resolution, and Android is the platform that allows it.**
 /// `View.onResolvePointerIcon(MotionEvent, pointerIndex)` is public, and it is the method Android
 /// itself calls to decide. `ViewGroup`'s implementation hit-tests down to the child under the
 /// coordinates, asks it, and only then falls back to its own icon -- so posting an
@@ -51,10 +48,7 @@ import SwiftJava
 /// is nothing to ask and nothing to compare against. That asymmetry is why Android's cursor row
 /// in the coverage matrix can move and UIKit's cannot.
 ///
-/// **2026-09-22 以另一種方式驗證了,而 Android 是允許這麼做的那個平台。**
-/// (前一天,本檔寫的是「未驗證」,能提出的只有「這個 conformance 有被採用」:`CursorDegradation`
-/// 的警告已從 logcat 消失,而 `Mesh3DViews`、`ScrollGestures`、`KeyEvents` 的警告仍在。那是真的,
-/// 但不是一個關於**游標**的答案。)
+/// **以 Android 自己的解析來驗證,而 Android 是允許這麼做的那個平台。**
 /// `View.onResolvePointerIcon(MotionEvent, pointerIndex)` 是公開的,而那正是 Android **自己**用來
 /// 決定的方法。`ViewGroup` 的實作會往下 hit-test 到座標底下的子 view、問它,之後才退回自己的圖示
 /// ——因此投遞一個來自 SOURCE_MOUSE 的 ACTION_HOVER_MOVE 並讀取答案,同時檢驗了**區域**與形狀,

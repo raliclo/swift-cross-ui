@@ -4,14 +4,12 @@ import Foundation
 
 /// Handing a URL or a file to another app: `openURL` and `revealFile`.
 ///
-/// Both were absent until 2026-09-30, so `openURL` and `revealFile` warned once
-/// and did nothing on Android. Each is one Intent, started from the activity;
+/// Each is one Intent, started from the activity;
 /// the helpers return nil on success and a sentence on failure, which is
 /// thrown here as a `HandoffError` so a caller learns why rather than only
 /// that it did not happen.
 ///
-/// 把一個 URL 或一個檔案交給另一個 app：`openURL` 與 `revealFile`。2026-09-30 之前兩者都不存在，
-/// 因此在 Android 上 `openURL` 與 `revealFile` 只會警告一次、什麼也不做。兩者各是一個從 activity
+/// 把一個 URL 或一個檔案交給另一個 app：`openURL` 與 `revealFile`。兩者各是一個從 activity
 /// 啟動的 Intent；helper 成功時回傳 nil、失敗時回傳一句話，在此以 `HandoffError` 拋出，讓呼叫端知道
 /// **為什麼**，而不只是「沒發生」。
 /// Closing the window: the activity is the window on Android, so closing it is

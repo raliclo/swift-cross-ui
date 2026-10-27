@@ -682,9 +682,9 @@ enum TransitionLookup {
 
     /// The node that takes the default fade. A view with a `matchedGeometryEffect`
     /// fades too, as in SwiftUI: an inserted one while it flies from the frame its
-    /// id had, a removed one while it flies to the view that takes its id (2026-10-20).
+    /// id had, a removed one while it flies to the view that takes its id.
     /// 接受預設淡入淡出的節點。帶 `matchedGeometryEffect` 的 view 也淡入淡出，同 SwiftUI:插入的一邊從其 id 原本的 frame 飛來，
-    /// 移除的一邊飛向接手其 id 的 view(2026-10-20)。
+    /// 移除的一邊飛向接手其 id 的 view。
     static func defaultTransitionHost(
         for node: ErasedViewGraphNode,
         inserting: Bool

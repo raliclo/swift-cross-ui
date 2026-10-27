@@ -12,10 +12,9 @@ import Foundation
 /// `first_ms` is the first update after launch on its own, and `rest_median_ms` the
 /// median of every other one, so a cost paid once at start-up (first-run JIT, class
 /// loading, the first views created) can be told apart from a steady per-update
-/// cost. Added 2026-10-05 because Android's gap to iOS sat in apps with few updates.
+/// cost.
 /// `first_ms` 是啟動後的第一次更新本身,`rest_median_ms` 是其餘每一次的中位數,好把只在啟動時付一次
-/// 的代價(首次 JIT、類別載入、最早建立的 view)與每次更新都要付的代價分開。2026-10-05 加入，因為
-/// Android 與 iOS 的差距集中在更新次數少的 app。
+/// 的代價(首次 JIT、類別載入、最早建立的 view)與每次更新都要付的代價分開。
 ///
 /// Cumulative, so the last such line in a run's log is the run's total; the
 /// sweeps read that one. Printed on quiet rather than at exit because Android
@@ -24,15 +23,11 @@ import Foundation
 /// AndroidBackend routes it to logcat, iOS runs read the app's pty, macOS logs
 /// it beside the replay.
 ///
-/// Until this existed only P52, P64 and P66 reported numbers, each its own
-/// way, so a regression in any other app could only be seen, not measured.
-///
 /// 用來在各平台之間比較同一支 app 的每次更新耗時。除非 `SCUI_UPDATE_STATS=1`,否則關閉。開啟時，
 /// ``Publisher/observeAsUIUpdater(backend:action:)`` 執行的每一次 UI 更新都會計時，更新安靜 1.5 秒後在
 /// stderr 印出一行累計值。是累計值，所以一次執行的 log 中最後一行就是該次總計；sweep 讀的就是它。在安靜時
 /// 印、而不是在結束時印，因為受測的 Android 與 iOS app 是被殺掉而非正常結束，結束掛勾不會執行。用 stderr,
-/// 因為那是每個 backend 本來就帶得出來的管道。在這之前只有 P52、P64、P66 會回報數字，各用各的方式，因此
-/// 其他 app 的退化只能用看的，量不出來。
+/// 因為那是每個 backend 本來就帶得出來的管道。
 enum UpdateTimings {
     /// `SCUI_UPDATE_STATS=1`, or `--update-stats` among the arguments for the
     /// platforms where the environment does not reach the app: an Android app

@@ -11,12 +11,10 @@ import SwiftJava
 /// that implemented one and not the other would otherwise share a registration
 /// whose other half is never filled in.
 ///
-/// **What is NOT here is the toggle rule.** An earlier version of this file
-/// kept the current sort order so it could work out what a second tap on the
-/// same header meant. The published protocol reports the column and lets
-/// ``TableSortOrder/toggled(byClicking:)`` decide once, in the framework -- so
-/// the rule exists in one place rather than once per backend that had to
-/// hand-roll its header.
+/// **What is NOT here is the toggle rule.** The published protocol reports
+/// the column and lets ``TableSortOrder/toggled(byClicking:)`` decide once, in
+/// the framework -- so the rule exists in one place rather than once per
+/// backend that had to hand-roll its header.
 ///
 /// 表格排序 handler 在 Swift 這一側的部分,放在這裡是因為 `SwiftAction` 是一個 `() -> Void`,
 /// 帶不動欄位索引。
@@ -24,8 +22,7 @@ import SwiftJava
 /// 與 `TableSelectionHandlers` 是同一種安排,而且是刻意重複、沒有與它合併:那兩條通道是分開的協定,
 /// 一個只實作其中之一的表格,否則會共用一份「另一半永遠填不上」的註冊。
 ///
-/// **不在這裡的,是那條切換規則。** 本檔較早的版本會保存當下的排序狀態,好算出「在同一個標題上點
-/// 第二次」代表什麼。已發布的協定回報的是欄位,並讓 ``TableSortOrder/toggled(byClicking:)``
+/// **不在這裡的,是那條切換規則。** 已發布的協定回報的是欄位,並讓 ``TableSortOrder/toggled(byClicking:)``
 /// 在框架裡決定一次——於是那條規則只存在於一個地方,而不是「每一個必須自行實作標題的 backend 各一份」。
 enum TableSortHandlers {
     final class Watch {

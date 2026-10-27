@@ -154,16 +154,15 @@ public struct KeyboardShortcut: Hashable, Sendable {
 }
 
 /// The modifier lives in this file rather than under `Views/Modifiers/` so that
-/// the API sits next to the type it carries -- and for one practical reason:
-/// a NEW source file is not picked up by an incremental build here, and the
-/// symptom is a completely clean compile followed by a LINKER error naming the
-/// new function. `mistakes.md` entry 2 has the measurement. This file is already
-/// in the target, so the whole class of problem does not arise.
+/// the API sits next to the type it carries -- and because a NEW source file is
+/// not always picked up by an incremental build: the symptom is a completely
+/// clean compile followed by a LINKER error naming the new function
+/// (`mistakes.md` entry 2). This file is already in the target, so that class
+/// of problem does not arise.
 ///
-/// 這個 modifier 放在本檔而非 `Views/Modifiers/` 之下,是為了讓 API 緊鄰它所攜帶的型別——以及一個
-/// 實務上的理由:此處**新增的原始檔不會被增量建置採納**,而其症狀是一次完全乾淨的編譯,之後在
-/// **連結期**出現一個點名那個新函式的錯誤。量測見 `mistakes.md` 第 2 條。本檔已經在該 target 裡,
-/// 因此整個問題類別根本不會發生。
+/// 這個 modifier 放在本檔而非 `Views/Modifiers/` 之下，是為了讓 API 緊鄰它所攜帶的型別——也因為
+/// **新增的原始檔不一定會被增量建置採納**,其症狀是一次完全乾淨的編譯，之後在**連結期**出現一個
+/// 點名那個新函式的錯誤(見 `mistakes.md` 第 2 條)。本檔已經在該 target 裡，因此不會發生這類問題。
 extension View {
     /// Gives this view a keyboard shortcut.
     ///

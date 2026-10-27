@@ -6,15 +6,12 @@ import WinUI
 /// `.segmented` on WinUI: a row of mutually exclusive `ToggleButton`s.
 ///
 /// WinUI 3 ships no segmented control (the Community Toolkit's `Segmented` is
-/// not a dependency here), and this style used to reach the `fatalError` in
-/// `createPicker` -- or, through `.pickerStyle`, be downgraded to `.menu`
-/// without a word. A segmented control is a row of buttons of which exactly the
+/// not a dependency here). A segmented control is a row of buttons of which exactly the
 /// chosen one stays pressed; `ToggleButton` already draws "pressed" in the
 /// accent colour, so the row only has to keep the presses exclusive.
 ///
 /// `.segmented` 在 WinUI 上：一列互斥的 `ToggleButton`。WinUI 3 沒有 segmented 控制項(Community
-/// Toolkit 的 `Segmented` 不是此處的相依套件)，這個樣式原本會走到 `createPicker` 的 `fatalError`——
-/// 或經 `.pickerStyle` 被無聲降級為 `.menu`。segmented 控制項就是一列按鈕，只有選中的那顆保持按下；
+/// Toolkit 的 `Segmented` 不是此處的相依套件)。segmented 控制項就是一列按鈕，只有選中的那顆保持按下；
 /// `ToggleButton` 本來就以強調色畫出「按下」，所以這一列只需讓按下互斥。
 final class SegmentedPicker: WinUI.StackPanel {
     var onChangeSelection: ((Int?) -> Void)?
@@ -80,11 +77,11 @@ final class SegmentedPicker: WinUI.StackPanel {
 /// The same shape AppKit (`WheelPicker`, a small single-column table) and GTK
 /// (`GtkBackend/WheelPicker.swift`, a five-row ListBox) use, since none of
 /// the three has a spinning wheel; Mac Catalyst's UIKit shows a table for this
-/// style too. Before this it was the `fatalError` in `createPicker`.
+/// style too.
 ///
 /// `.wheel` 在 WinUI 上：一段五列高、會捲動、選中一列的清單。與 AppKit(`WheelPicker`,小的單欄表格)
 /// 和 GTK(`GtkBackend/WheelPicker.swift`,五列的 ListBox)同一形狀，因為三者都沒有旋轉滾輪；Mac Catalyst
-/// 的 UIKit 對這個樣式也顯示表格。在此之前它是 `createPicker` 裡的 `fatalError`。
+/// 的 UIKit 對這個樣式也顯示表格。
 final class WheelPicker: WinUI.ListView {
     var onChangeSelection: ((Int?) -> Void)?
     private(set) var options: [String] = []

@@ -10,25 +10,16 @@ import WinSDK
 extension WinUIBackend: BackendFeatures.Sheets {
     /// A `ContentDialog` plus the bookkeeping WinUI does not do for us.
     ///
-    /// A field used to live here -- `isProgrammaticDismissal`, recording which
-    /// path a `showAsync` completion came from so that `dismissSheet` could
-    /// suppress the caller's `onDismiss:`. It is gone, for the same reason the
-    /// identical flag left `Popover` in `6ec976b2`: SwiftUI runs `onDismiss:`
-    /// when the presentation ends however it ended, and keeping the flag meant
-    /// `sheet(isPresented:onDismiss:)` fired on one of its two paths. The
-    /// asymmetry it produced was visible from inside this file --
-    /// `dismissSheet` had to call `nestedSheet.dismissHandler?()` by hand,
-    /// because the suppressed completion would not -- so a nested sheet got its
-    /// callback while the sheet the caller actually dismissed did not.
+    /// There is deliberately no flag recording whether a dismissal was
+    /// programmatic: SwiftUI runs `onDismiss:` when the presentation ends
+    /// however it ended, so `sheet(isPresented:onDismiss:)` fires on both
+    /// paths (the same rule as `Popover`, `6ec976b2`).
     ///
     /// 一個 `ContentDialog`，外加 WinUI 不會替我們做的記帳工作。
     ///
-    /// 此處原本有一個欄位——`isProgrammaticDismissal`，用來記錄某次 `showAsync` 完成是從哪一條路來的，
-    /// 好讓 `dismissSheet` 能壓住呼叫端的 `onDismiss:`。它已經被移除，理由與同一個旗標在 `6ec976b2`
-    /// 離開 `Popover` 時完全相同：無論 presentation 以何種方式結束，SwiftUI 都會執行 `onDismiss:`，
-    /// 而保留該旗標意味著 `sheet(isPresented:onDismiss:)` 只在它兩條路中的其中一條上觸發。它所造成的
-    /// 偏差在本檔案內部就看得見——`dismissSheet` 必須手動呼叫 `nestedSheet.dismissHandler?()`，因為
-    /// 被壓住的完成處理不會呼叫它——於是巢狀 sheet 拿得到回呼，而呼叫端真正關閉的那個 sheet 拿不到。
+    /// 刻意不設旗標記錄某次關閉是否為程式發起：無論 presentation 以何種方式結束,SwiftUI 都會執行
+    /// `onDismiss:`,因此 `sheet(isPresented:onDismiss:)` 在兩條路上都會觸發(與 `Popover` 相同的規則,
+    /// `6ec976b2`)。
     public class Sheet: ContentDialog {
         var dismissHandler: (() -> Void)?
         var nestedSheet: Sheet?
@@ -192,12 +183,9 @@ extension WinUIBackend: BackendFeatures.Sheets {
                     }
                 }
 
-                // Unconditional. There used to be a
-                // `guard !wasProgrammaticDismissal else { return }` here, and it
-                // was the whole of issue #104 on this backend: the completion
-                // arrives for a `hide()` whoever called it, so the callback was
-                // reachable the entire time and was being thrown away on the one
-                // path `SheetModifier` uses. Deleting the guard is the fix.
+                // Unconditional: the completion arrives for a `hide()` whoever
+                // called it, including the programmatic path `SheetModifier`
+                // uses, and the caller's callback has to run there too (#104).
                 //
                 // It cannot fire twice for one dismissal. Every closed sheet has
                 // exactly one completed `showAsync` promise, this is the only
@@ -210,10 +198,8 @@ extension WinUIBackend: BackendFeatures.Sheets {
                 // entered when `isPresented` is already false and nils
                 // `children.sheet` immediately, so it does not re-enter either.
                 //
-                // 無條件執行。此處原本有一個 `guard !wasProgrammaticDismissal else { return }`，
-                // 而它就是 issue #104 在本 backend 上的全部：無論是誰呼叫 `hide()`，完成處理都會送達，
-                // 因此該回呼從頭到尾都抵達得了，只是在 `SheetModifier` 所使用的那唯一一條路上被丟棄。
-                // 刪掉那個 guard 就是修正。
+                // 無條件執行：無論是誰呼叫 `hide()`,完成處理都會送達——包括 `SheetModifier` 所使用的程式化
+                // 那條路——而呼叫端的回呼在那裡也必須執行(#104)。
                 //
                 // 它不可能為同一次關閉觸發兩次。每一個被關閉的 sheet 恰好有一個已完成的 `showAsync`
                 // promise，其上只有這一個 handler，而 `dismissSheet` 只有在 sheet 沒有未完成的 promise
@@ -251,14 +237,11 @@ extension WinUIBackend: BackendFeatures.Sheets {
             // 關閉，那樣做會把它直接放回畫面上。
             nestedSheet.parentSheet = nil
             dismissSheet(nestedSheet, window: window, parentSheet: nil)
-            // No `nestedSheet.dismissHandler?()` here any more. It was needed
-            // only because the child's own completion was suppressed by
-            // `isProgrammaticDismissal`; with that flag gone the completion runs
-            // the handler itself, and calling it here as well would be the
-            // double fire the fix has to avoid.
-            // 此處不再有 `nestedSheet.dismissHandler?()`。它之所以曾經必要，只是因為子 sheet 自身的
-            // 完成處理被 `isProgrammaticDismissal` 壓住了；該旗標消失後，完成處理會自行執行該
-            // handler，而若此處再呼叫一次，正好就是本次修正必須避免的重複觸發。
+            // No `nestedSheet.dismissHandler?()` here: the child's own
+            // completion runs the handler, and calling it here as well would
+            // fire it twice.
+            // 此處不呼叫 `nestedSheet.dismissHandler?()`:子 sheet 自身的完成處理會執行該 handler,
+            // 若此處再呼叫一次就會重複觸發。
         }
 
         sheet.isSuspendedForNestedSheet = false
@@ -272,14 +255,13 @@ extension WinUIBackend: BackendFeatures.Sheets {
             // `showAsync` promise completed at that moment, and `hide()` on a
             // `ContentDialog` that is not showing is a no-op. Without this
             // branch, dismissing a sheet that has a child open would notify the
-            // child and stay silent about the sheet itself -- which is the
-            // original bug wearing a different hat.
+            // child and stay silent about the sheet itself.
             //
             // 沒有東西可隱藏，就不會有任何完成，也就不會有別的東西去執行那個 handler。這說的是巢狀
             // sheet 那個被暫停的 parent：`presentSheet` 為了讓出空間給子 sheet 而隱藏了它，它的
             // `showAsync` promise 在那一刻就已完成，而對一個並未顯示的 `ContentDialog` 呼叫 `hide()`
             // 是一次空操作。少了這個分支，關閉一個開著子 sheet 的 sheet 會通知子 sheet，卻對該 sheet
-            // 自身保持沉默——那正是同一個 bug 換了頂帽子。
+            // 自身保持沉默。
             notifyDismissed(sheet)
             return
         }

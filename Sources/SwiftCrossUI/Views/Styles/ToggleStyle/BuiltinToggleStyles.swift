@@ -1,9 +1,9 @@
 /// The three built-in toggle styles, and the view that draws them.
 ///
 /// The `where Self == …` extensions keep `.toggleStyle(.checkbox)` reading
-/// exactly as it did when these were static members on a struct. That is the
-/// point: no call site changes, and a call site that could not be written
-/// before -- a style of the author's own -- becomes possible.
+/// like a static member. That is the
+/// point: a call site reads the same as it does against
+/// SwiftUI, and a style of the author's own is possible as well.
 
 /// A toggle switch.
 public struct SwitchToggleStyle: ToggleStyle, _BuiltinToggleStyle {
@@ -57,12 +57,12 @@ extension ToggleStyle where Self == CheckboxToggleStyle {
 
 /// What the three built-in styles draw.
 ///
-/// This is `Toggle`'s old body, moved rather than rewritten. It stays one view
+/// It is one view
 /// switching on three cases instead of three views, because the two `HStack`
 /// arms differ only in what sits after the label, and splitting them would
 /// duplicate the label handling three ways.
 ///
-/// 這是 `Toggle` 原本的 body，是搬移而非重寫。它維持為「一個 view 依三個 case 分支」而非三個
+/// 它是「一個 view 依三個 case 分支」而非三個
 /// view，因為兩個 `HStack` 分支之間的差別只在標籤之後放什麼，拆開會讓標籤的處理重複三次。
 public struct _BuiltinToggleImplementation: View {
     @Environment(\.backend) var backend

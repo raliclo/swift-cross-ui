@@ -17,28 +17,17 @@ extension WinUIBackend: BackendFeatures.FrameClocks {
     /// `CompositionTarget.Rendering`, which fires once per composed frame.
     ///
     /// It is an app-level event rather than a per-window one, which is what the
-    /// protocol wants, and it carries no timestamp of its own -- the argument is
-    /// an `IInspectable` that has to be queried for `RenderingEventArgs`. This
-    /// uses the process uptime instead, because the protocol asks for monotonic
-    /// seconds and not for the compositor's own origin.
-    ///
-    /// **NOT COMPILED HERE (2026-09-10).** This machine cannot build
-    /// WinUIBackend. What to check, in order: that `CompositionTarget.rendering`
-    /// is spelled that way by swift-winui rather than as an `add_Rendering`
-    /// method, and that the token it returns is what `removeRendering` takes.
-    /// The shape -- subscribe, keep the token, unsubscribe -- is the one every
-    /// WinRT event uses, so if the names are wrong the fix is a rename.
+    /// protocol wants, and it carries no usable timestamp -- its argument is an
+    /// `Any?`, since `RenderingEventArgs` is not bound. The timestamp comes from
+    /// the hardware performance counter instead (`monotonicSeconds()`), because
+    /// the protocol asks for monotonic seconds and not for the compositor's own
+    /// origin.
     ///
     /// `CompositionTarget.Rendering`，每合成一幀觸發一次。
     ///
-    /// 它是一個 app 層級的事件，而不是逐視窗的——那正是本協定所要的;而它自身不帶時間戳記,那個引數是
-    /// 一個必須再查詢為 `RenderingEventArgs` 的 `IInspectable`。此處改用行程的 uptime，因為協定要的是
-    /// 單調秒數，而不是合成器自己的原點。
-    ///
-    /// **此處未編譯(2026-09-10)。** 這台機器建不了 WinUIBackend。依序要查的是:swift-winui 是否把
-    /// `CompositionTarget.rendering` 寫成這個樣子(而不是一個 `add_Rendering` 方法)，以及它回傳的
-    /// token 是不是 `removeRendering` 所接受的那一個。至於形狀——訂閱、留住 token、取消訂閱——那是每一個
-    /// WinRT 事件都在用的;因此若名字錯了，修法是改名。
+    /// 它是一個 app 層級的事件，而不是逐視窗的——那正是本協定所要的；而它不帶可用的時間戳記：其引數是
+    /// `Any?`,因為 `RenderingEventArgs` 沒有被綁定。此處改用硬體效能計數器(`monotonicSeconds()`),因為
+    /// 協定要的是單調秒數，而不是合成器自己的原點。
     public func startFrameClock(handler: @escaping @MainActor (Double) -> Void) {
         stopFrameClock()
         Self.currentFrameClockHandler = handler
@@ -61,78 +50,38 @@ extension WinUIBackend: BackendFeatures.FrameClocks {
         // process clock -- and not from the event either, because the binding
         // for that does not exist.**
         //
-        // THE DIAGNOSIS THIS RESTS ON WAS THE MAC SIDE'S AND IT IS CORRECT.
-        // Measured on Win-WinUI (`fd9efe32`): 262 ticks in 1.86s = 140.4 Hz with
-        // a MEDIAN GAP OF ZERO. A median of zero means many ticks share a
-        // timestamp, which is a statement about the CLOCK BEING READ rather than
-        // about how often the event fires. `ProcessInfo.systemUptime` on Windows
-        // is backed by a tick count coarser than a frame, so several composed
-        // frames land on the same number and count-over-span comes out high.
+        // `ProcessInfo.systemUptime` on Windows is backed by a tick count
+        // coarser than a frame: measured on Win-WinUI (`fd9efe32`), 262 ticks in
+        // 1.86 s with a MEDIAN GAP OF ZERO, so many ticks shared a timestamp.
+        // `RenderingEventArgs.renderingTime` would carry the compositor's time,
+        // but that type is not bound: 0 hits across swift-winui's generated
+        // sources, against 3 for `CompositionTarget`. The event is
+        // `Event<EventHandler<Any?>>`, so the second parameter is `Any?` with
+        // nothing to cast it to. `QueryPerformanceCounter` is monotonic and
+        // ticks with a hardware counter rather than the scheduler.
         //
-        // THE PROPOSED FIX WAS `RenderingEventArgs.renderingTime`, AND THAT TYPE
-        // IS NOT BOUND. Checked with a control: `RenderingEventArgs` has 0 hits
-        // across swift-winui's generated sources, against 3 for
-        // `CompositionTarget`. The event is `Event<EventHandler<Any?>>`, so the
-        // second parameter is `Any?` with nothing to cast it to.
+        // With it (2026-09-11): 265 ticks in 1.86 s = 141.6 Hz, gap min 3.4 ms,
+        // MEDIAN 7.0 ms, max 43.2 ms, on a 144 Hz display (`dxdiag /t`: "1920 x
+        // 1080 (32 bit) (144Hz)"). One frame is 6.94 ms, so the median gap is
+        // one frame: `CompositionTarget.Rendering` fires once per composed
+        // frame, and nothing needs coalescing. The ~140 Hz rate that looked
+        // suspicious had been compared against an assumed 60 Hz that was never
+        // measured.
         //
-        // `QueryPerformanceCounter` answers the same need and needs no event
-        // argument: monotonic, and its period is a hardware counter tick rather
-        // than a scheduler tick.
-        //
-        // MEASURED AFTER THE CHANGE, 2026-09-11: 265 ticks in 1.86s = 141.6 Hz,
-        // gap min 3.4ms MEDIAN 7.0ms max 43.2ms.
-        //
-        // **AND THIS DISPLAY RUNS AT 144 Hz** -- `dxdiag /t` reports
-        // "Current Mode: 1920 x 1080 (32 bit) (144Hz)". One frame is 6.94ms, so
-        // the median gap IS one frame and the rate is the refresh rate less a
-        // few dropped frames. `CompositionTarget.Rendering` fires once per
-        // composed frame and always did.
-        //
-        // **BOTH OF THE THINGS THIS COMMENT PREVIOUSLY EXPECTED WERE WRONG, and
-        // they are left here rather than deleted because the error was in the
-        // question, not the answer.** It read: "if the rate falls to ~60 Hz the
-        // clock was the whole problem; if 140 Hz survives, the event really does
-        // fire more than once per composed frame and the fix is to coalesce."
-        // Neither branch happened. The rate stayed at ~141 Hz and nothing needs
-        // coalescing, because 60 Hz was ASSUMED and never measured -- a
-        // measurement compared against a constant nobody checked. The clock was
-        // still worth fixing: at `systemUptime`'s resolution the median gap was
-        // 0.0ms, which is not a usable per-frame timestamp for an animation
-        // whatever the rate happens to be.
-        //
-        // 改完之後量到(2026-09-11):1.86 秒 265 次 = 141.6 Hz,間隔 min 3.4ms、**中位數 7.0ms**、
-        // max 43.2ms。
-        //
-        // **而這台顯示器跑的是 144 Hz**——`dxdiag /t` 回報「Current Mode: 1920 x 1080 (32 bit)
-        // (144Hz)」。一幀是 6.94ms,因此那個中位數**就是一幀**,而該速率就是「更新率減去少數掉幀」。
-        // `CompositionTarget.Rendering` 每合成一幀觸發一次,而且一直都是如此。
-        //
-        // **本註解先前所預期的兩個分支都是錯的;它們被保留而非刪除,因為錯的是問題、不是答案。**
-        // 原文為:「若頻率降到約 60 Hz,那時鐘就是全部的問題;若 140 Hz 依然存在,那該事件確實每合成幀
-        // 觸發不只一次,而修法會變成做合併。」兩個分支都沒有發生。頻率維持在約 141 Hz,而且沒有任何
-        // 東西需要合併——因為 60 Hz 是被**假定**的、從未被量過:一次拿去和「沒有人查證過的常數」相比的
-        // 量測。而那個時鐘仍然值得修:在 `systemUptime` 的解析度下,間隔中位數是 0.0ms,無論速率是多少,
-        // 那都不是一個動畫可用的逐幀時間戳記。
-        //
-        // **時間戳記取自 `QueryPerformanceCounter`——不是行程時鐘,也不是那個事件,因為後者的
+        // **時間戳記取自 `QueryPerformanceCounter`——不是行程時鐘，也不是那個事件，因為後者的
         // 綁定並不存在。**
         //
-        // **本修法所依據的診斷來自 Mac 端,而那個診斷是對的。** 在 Win-WinUI 上量到
-        // (`fd9efe32`):1.86 秒 262 次 = 140.4 Hz,而**間隔中位數為零**。中位數為零代表許多次
-        // tick 共用同一個時間戳記——那是一句關於**被讀取的那個時鐘**的陳述,而不是關於事件觸發得
-        // 多頻繁。Windows 上的 `ProcessInfo.systemUptime` 背後是一個比一幀還粗的 tick 計數。
+        // Windows 上的 `ProcessInfo.systemUptime` 背後是一個比一幀還粗的 tick 計數：在 Win-WinUI 上量到
+        // (`fd9efe32`)1.86 秒 262 次，而**間隔中位數為零**,許多次 tick 共用同一個時間戳記。
+        // `RenderingEventArgs.renderingTime` 會帶著合成器的時間，但那個型別沒有被綁定：在 swift-winui 產生的
+        // 原始碼中零命中，而對照的 `CompositionTarget` 有 3 個。該事件是 `Event<EventHandler<Any?>>`,第二個
+        // 參數是 `Any?`,沒有任何東西可以轉型過去。`QueryPerformanceCounter` 是單調的，其週期是硬體計數器的
+        // tick,不是排程器的 tick。
         //
-        // **但所提議的修法用的是 `RenderingEventArgs.renderingTime`,而那個型別沒有被綁定。**
-        // 以對照組查證:`RenderingEventArgs` 在 swift-winui 產生的原始碼中**零命中**,而對照的
-        // `CompositionTarget` 有 3 個檔案。該事件是 `Event<EventHandler<Any?>>`,因此第二個參數
-        // 是 `Any?`,沒有任何東西可以轉型過去。
-        //
-        // `QueryPerformanceCounter` 滿足同一個需求,且**不需要事件參數**:它是單調的,而其週期是
-        // 硬體計數器的一個 tick,不是排程器的一個 tick。
-        //
-        // **而且它無論結果如何都能了結那個未決問題**,這正是它值得做、而非用猜的原因:若頻率降到
-        // 約 60 Hz,那時鐘就是全部的問題;若 140 Hz 依然存在,那該事件確實每合成幀觸發不只一次,
-        // 而修法會變成做合併。
+        // 改用它之後(2026-09-11):1.86 秒 265 次 = 141.6 Hz,間隔 min 3.4ms、**中位數 7.0ms**、max 43.2ms,
+        // 顯示器為 144 Hz(`dxdiag /t`:「1920 x 1080 (32 bit) (144Hz)」)。一幀是 6.94ms,因此中位數**就是一幀**:
+        // `CompositionTarget.Rendering` 每合成一幀觸發一次，沒有任何東西需要合併。看似可疑的約 140 Hz,
+        // 是拿去和一個從未量過、被假定的 60 Hz 相比。
         frameClockToken = CompositionTarget.rendering.addHandler { _, _ in
             MainActor.assumeIsolated {
                 WinUIBackend.currentFrameClockHandler?(monotonicSeconds())
@@ -185,8 +134,7 @@ private let performanceCounterFrequency: Double = {
 /// **This exists because `ProcessInfo.systemUptime` is too coarse to time frames
 /// with on Windows.** Measured on Win-WinUI (`fd9efe32`): 262 frame-clock ticks
 /// across 1.86s, and the MEDIAN gap between consecutive ticks was 0.0ms -- so
-/// most consecutive frames read the same timestamp and the derived rate came out
-/// at 140.4 Hz on a 60 Hz display.
+/// most consecutive frames read the same timestamp.
 ///
 /// GTK's own Windows backend reaches for the same counter for the same reason
 /// (`gdksurface-win32.c:170` calls `QueryPerformanceFrequency`), which is worth
@@ -200,8 +148,7 @@ private let performanceCounterFrequency: Double = {
 ///
 /// **它之所以存在,是因為 `ProcessInfo.systemUptime` 在 Windows 上太粗、無法用來為畫面計時。**
 /// 在 Win-WinUI 上量到(`fd9efe32`):1.86 秒內 262 次 frame-clock tick,而相鄰兩次之間的間隔
-/// **中位數為 0.0 毫秒**——也就是說大多數相鄰的幀讀到同一個時間戳記,於是在一個 60 Hz 的顯示器上
-/// 推導出的頻率成了 140.4 Hz。
+/// **中位數為 0.0 毫秒**——也就是說大多數相鄰的幀讀到同一個時間戳記。
 ///
 /// GTK 自己的 Windows backend 基於同樣的理由伸手拿同一個計數器(`gdksurface-win32.c:170` 呼叫
 /// `QueryPerformanceFrequency`),這點值得記下:它是**這個平台在此處的答案**,而不是為了本套件

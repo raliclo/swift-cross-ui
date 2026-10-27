@@ -231,11 +231,10 @@ struct FocusModifier<Content: View>: TypeSafeView {
         )
 
         // A conformance check rather than `@CastBackend`, which expands to
-        // `fatalError`. The five backends convert one at a time, and taking an
-        // app down because the keyboard could not be moved would be far worse
-        // than the keyboard not moving.
-        // 使用 conformance 檢查,而不是 `@CastBackend`——後者會展開成 `fatalError`。五個 backend 是
-        // 一次轉一個的,而「因為移動不了鍵盤就把 app 拖垮」會遠比「鍵盤沒有移動」更糟。
+        // `fatalError`: taking an app down because the keyboard could not be
+        // moved would be far worse than the keyboard not moving.
+        // 使用 conformance 檢查，而不是 `@CastBackend`——後者會展開成 `fatalError`:「因為移動不了鍵盤就把
+        // app 拖垮」會遠比「鍵盤沒有移動」更糟。
         guard let focusable = backend as? any BackendFeatures.FocusableViews else {
             logger.warnOnce("\(type(of: backend)) does not support focus")
             return result

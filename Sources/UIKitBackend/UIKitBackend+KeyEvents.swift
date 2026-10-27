@@ -65,19 +65,16 @@ final class KeyEventWidget: ContainerWidget {
 
     /// `viewDidAppear`, not `didMoveToWindow`.
     ///
-    /// **A `ContainerWidget` is a view CONTROLLER, and the first version of this
-    /// file overrode a `UIView` method on it.** It never compiled -- and it was
-    /// committed saying it did, because UIKitBackend is not built by a plain
-    /// `swift build` on a macOS host and I never ran `compile.zsh -ios` after
-    /// writing it. That is mistakes.md entry 10 exactly: verified on the one
-    /// platform where the defect was impossible.
+    /// **A `ContainerWidget` is a view CONTROLLER**, so a `UIView` method such
+    /// as `didMoveToWindow` cannot be overridden on it. UIKitBackend is not
+    /// built by a plain `swift build` on a macOS host; a change here is
+    /// verified only by `compile.zsh -ios` (mistakes.md entry 10).
     ///
     /// 用 `viewDidAppear`,不是 `didMoveToWindow`。
     ///
-    /// **`ContainerWidget` 是一個 view **controller**,而本檔的第一版在它上面覆寫了一個 `UIView` 的方法。**
-    /// 它從來沒有編譯過——而它被提交時還說它編得過,因為在 macOS 主機上,一個單純的 `swift build`
-    /// 不會建 UIKitBackend,而我寫完之後沒有跑過 `compile.zsh -ios`。那正是 mistakes.md 第 10 條:
-    /// 在「那個缺陷不可能發生」的唯一平台上驗證。
+    /// **`ContainerWidget` 是一個 view controller,** 因此不能在它上面覆寫 `didMoveToWindow` 這類
+    /// `UIView` 的方法。在 macOS 主機上,一個單純的 `swift build` 不會建 UIKitBackend;這裡的改動只有
+    /// `compile.zsh -ios` 才能驗證(mistakes.md 第 10 條)。
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard view.window != nil else { return }
@@ -113,25 +110,21 @@ final class KeyEventWidget: ContainerWidget {
             handled = true
             var modifiers = Self.modifiers(from: key.modifierFlags)
             if let own = Self.modifierBit(for: key.keyCode) {
-                // **A modifier's own RELEASE still reports itself as held, and this is the third
-                // backend where that was true.**
+                // **A modifier's own RELEASE still reports itself as held.**
                 //
                 // `UIKey.modifierFlags` on `pressesEnded` for the Shift key still contains
                 // `.shift`, so a caller watching `press.modifiers` sees Shift go down and never
                 // come up -- a stuck modifier, which reads as the app being wrong rather than the
-                // backend. Measured on 2026-09-22: P72 printed `MODIFIERS up shift=true`.
-                // AppKitSynthesiser had it on 2026-09-19 and AndroidSynthesiser on 2026-09-22;
-                // this is the same shape a third time, here in a backend rather than a
-                // synthesiser. AppKit's `flagsChanged` reports the state AFTER the change, which
-                // is the behaviour being matched.
+                // backend. Measured: P72 printed `MODIFIERS up shift=true`. AppKitSynthesiser
+                // and AndroidSynthesiser have the same shape. AppKit's `flagsChanged` reports
+                // the state AFTER the change, which is the behaviour being matched.
                 //
-                // **一個修飾鍵自己的**放開**仍然回報自己被按住,而這已經是第三個出現這件事的 backend。**
+                // **一個修飾鍵自己的**放開**仍然回報自己被按住。**
                 //
                 // Shift 的 `pressesEnded` 上,`UIKey.modifierFlags` 仍然含有 `.shift`;因此一個觀察
                 // `press.modifiers` 的呼叫端會看到 Shift 按下去、而且永遠沒有放開——一個卡住的修飾鍵,
-                // 讀起來像是 app 錯了、而不是 backend 錯了。2026-09-22 實測:P72 印出
-                // `MODIFIERS up shift=true`。AppKitSynthesiser 在 2026-09-19、AndroidSynthesiser 在
-                // 2026-09-22 各有一次;這是同一個形狀的第三次,而這次在 backend 裡、不在 synthesiser 裡。
+                // 讀起來像是 app 錯了、而不是 backend 錯了。實測:P72 印出 `MODIFIERS up shift=true`。
+                // AppKitSynthesiser 與 AndroidSynthesiser 也有同樣的形狀。
                 // AppKit 的 `flagsChanged` 回報的是變化**之後**的狀態,而此處要對齊的就是那個行為。
                 if phase == .up { modifiers.remove(own) }
                 onKey?(
@@ -152,9 +145,9 @@ final class KeyEventWidget: ContainerWidget {
     }
 
     /// **`charactersIgnoringModifiers` is a WORD for an arrow key on iOS, and taking its first
-    /// character silently produced the letter U.**
+    /// character silently produces the letter U.**
     ///
-    /// That is what this file did until 2026-09-22. AppKit hands back a single scalar in the
+    /// AppKit hands back a single scalar in the
     /// private-use block -- U+F700 for the up arrow -- and the obvious transliteration,
     /// `bare.first.map(KeyEquivalent.init)`, reads correctly and is wrong here: UIKit returns
     /// `UIKeyCommand.inputUpArrow`, whose value is the eighteen-character string
@@ -174,7 +167,7 @@ final class KeyEventWidget: ContainerWidget {
     /// **在 iOS 上,方向鍵的 `charactersIgnoringModifiers` 是一個**單字**,而取它的第一個字元會
     /// 靜默地產生字母 U。**
     ///
-    /// 那正是本檔在 2026-09-22 之前所做的事。AppKit 交回的是私有使用區的單一 scalar——上方向鍵是
+    /// AppKit 交回的是私有使用區的單一 scalar——上方向鍵是
     /// U+F700——而那個看起來理所當然的音譯 `bare.first.map(KeyEquivalent.init)` 讀起來沒問題,在此處卻是
     /// 錯的:UIKit 回傳的是 `UIKeyCommand.inputUpArrow`,其值是十八個字元的字串
     /// `"UIKeyInputUpArrow"`。它的第一個字元是 `U`,而那是一個**完全不同的按鍵**的合法 ``KeyEquivalent``。
@@ -218,15 +211,15 @@ final class KeyEventWidget: ContainerWidget {
 
     /// Which modifier a key IS, or nil if it is not one.
     ///
-    /// Replaces the flat `modifierKeyCodes` set this file used to carry: the set could say "this
-    /// is a modifier" and not which, and the release fix above needs which. Left and right map to
+    /// The modifier is needed, not just "is a modifier", because the release
+    /// fix above removes that one modifier. Left and right map to
     /// the same ``EventModifiers`` case because that is all this package's modifier set can
     /// express -- the same collapse `AndroidSynthesiser.modifierBit(for:)` makes.
     ///
     /// 一個按鍵**是**哪一個修飾鍵;若它不是修飾鍵則為 nil。
     ///
-    /// 取代本檔原本那個扁平的 `modifierKeyCodes` 集合:那個集合說得出「這是一個修飾鍵」、說不出是哪一個,
-    /// 而上面那個「放開」的修法需要知道是哪一個。左右兩側對到同一個 ``EventModifiers`` case,因為那是
+    /// 需要知道是哪一個修飾鍵,而不只是「這是一個修飾鍵」,因為上面那個「放開」的修法要移除的就是那一個。
+    /// 左右兩側對到同一個 ``EventModifiers`` case,因為那是
     /// 本套件的修飾鍵集合所能表達的全部——與 `AndroidSynthesiser.modifierBit(for:)` 所做的是同一種塌縮。
     private static func modifierBit(for keyCode: UIKeyboardHIDUsage) -> EventModifiers? {
         switch keyCode {

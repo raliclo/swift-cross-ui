@@ -75,77 +75,15 @@ extension AndroidBackend: BackendFeatures.Popovers {
         backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
-        // WRITTEN ON WINDOWS 2026-09-09, NOT RUN, AND NOT EVEN TYPE-CHECKED.
-        // ANDROID_HOME is unset on that machine and there is no SDK, so
-        // `compile.zsh -android` cannot run there -- this file is never handed
-        // to a compiler on the Windows side at all.
+        // The colour goes on the CONTENT VIEW, which is a `View` and binds
+        // `setBackgroundColor(Int32)`. A `PopupWindow` is not a View, and
+        // AndroidKit's `PopupWindow` binding has no `setBackgroundDrawable`
+        // (checked by listing the binding's own methods, 2026-09-10).
         //
-        // TWO SPECIFIC ASSUMPTIONS TO CHECK FIRST, named rather than left for
-        // the compiler to find, because the same shape broke the Mac build
-        // earlier the same day (`2d4010d4` put a `try` inside a non-throwing
-        // function in AppKitSynthesiser, invisible on Windows, fixed in
-        // `76b9d8e7`):
-        //
-        //   1. that AndroidKit exposes `setBackgroundDrawable` on
-        //      `PopupWindow`. A grep for it across `Sources/AndroidBackend/`
-        //      returns ONLY this file -- there is no precedent anywhere in the
-        //      tree, so nothing here proves the binding exists.
-        //   2. that `ColorDrawable.init` accepts the `Int32` that
-        //      `asColorInt()` returns (`AndroidBackend+Colors.swift:5`). The
-        //      one existing call passes an untyped literal
-        //      (`AndroidBackend+List.swift:76`), which would infer whatever the
-        //      initialiser wants and therefore proves nothing about `Int32`.
-        //
-        // **2026-09-09 於 Windows 上寫成,未曾執行,甚至未曾通過型別檢查。** 那台機器上
-        // `ANDROID_HOME` 未設定、亦無 SDK,因此 `compile.zsh -android` 在該處無法執行——本檔在
-        // Windows 側**根本不會被交給任何編譯器**。
-        //
-        // **有兩項具體假設必須先查**,此處明白指名而不是留給編譯器去找,因為同一天稍早正是這個形狀
-        // 弄壞了 Mac 的建置(`2d4010d4` 在 AppKitSynthesiser 中把 `try` 放進一個非 throwing 的函式,
-        // 在 Windows 上完全看不見,已由 `76b9d8e7` 修復):
-        //
-        //   1. AndroidKit 是否在 `PopupWindow` 上暴露了 `setBackgroundDrawable`。在
-        //      `Sources/AndroidBackend/` 中 grep 它**只會命中本檔**——樹中沒有任何先例,
-        //      因此此處沒有任何東西能證明該 binding 存在。
-        //   2. `ColorDrawable.init` 是否接受 `asColorInt()` 所回傳的 `Int32`
-        //      (`AndroidBackend+Colors.swift:5`)。唯一既有的呼叫傳的是無型別字面量
-        //      (`AndroidBackend+List.swift:76`),它會推導成 initialiser 想要的任何型別,
-        //      因此對 `Int32` 一事什麼都證明不了。
-        //
-        // `setBackgroundDrawable` rather than `setBackgroundColor`: the latter
-        // is a `View` method and a `PopupWindow` is not a View. A `ColorDrawable`
-        // is the shape this backend already uses for a flat fill --
-        // `AndroidBackend+List.swift:76` sets its selector the same way.
-        //
-        // Passing nil restores the platform's own background, which is what
-        // "leave it to the platform" means in this protocol. That is NOT merely
-        // cosmetic on Android and is worth knowing before anyone "simplifies" it
-        // away: a PopupWindow with a null background historically does not
-        // dismiss on an outside touch, so clearing it to nothing would silently
-        // break light dismissal rather than only change a colour.
-        //
-        // **本段於 2026-09-09 在 Windows 上寫成,未曾執行。** Mac 那側有模擬器,由他們驗證,與 #117
-        // 相同的交接方式。
-        //
-        // 用 `setBackgroundDrawable` 而非 `setBackgroundColor`:後者是 `View` 的方法,而
-        // `PopupWindow` 並不是 View。`ColorDrawable` 是本 backend 既有的「平塗填色」形狀——
-        // `AndroidBackend+List.swift:76` 設定其 selector 時用的就是它。
-        //
-        // 傳入 nil 會還原平台自己的背景,那正是本 protocol 中「交給平台」的意思。**在 Android 上那
-        // 不只是外觀問題**,在有人想「順手簡化掉它」之前值得知道:一個背景為 null 的 PopupWindow
-        // 在歷史上**不會**因外部觸控而關閉,因此把它清成「沒有」會靜默地弄壞 light dismiss,
-        // 而不只是改變一個顏色。
-        // **ASSUMPTION 1 ABOVE WAS WRONG, AND CHECKING IT WAS THE RIGHT CALL.**
-        // AndroidKit's `PopupWindow` binds 45 methods and
-        // `setBackgroundDrawable` is not among them, so the line that used to
-        // stand here did not compile on the one machine that can build this
-        // file. Verified 2026-09-10 by listing the binding's own methods rather
-        // than by grepping this tree, which had no precedent either way.
-        //
-        // The colour goes on the CONTENT VIEW instead, which is a `View` and
-        // does bind `setBackgroundColor(Int32)`. That also sidesteps the hazard
-        // the note below describes: the popup's own background is never
-        // cleared, so light dismissal keeps working whatever the app asks for.
+        // The popup's own background is never cleared, and that is NOT merely
+        // cosmetic on Android: a PopupWindow with a null background
+        // historically does not dismiss on an outside touch, so clearing it
+        // would silently break light dismissal rather than only change a colour.
         //
         // `nil` paints transparent rather than restoring a platform default,
         // and that IS a difference from the other four backends: there is no
@@ -153,14 +91,13 @@ extension AndroidBackend: BackendFeatures.Popovers {
         // beneath still supplies the popup's own background, so the panel does
         // not become a hole.
         //
-        // **上述第 1 項假設是錯的，而「先去查證」是對的判斷。** AndroidKit 的 `PopupWindow` 綁定了
-        // 45 個方法，其中沒有 `setBackgroundDrawable`；因此原本站在這裡的那一行，在唯一建得了本檔的
-        // 那台機器上編不過。2026-09-10 以「列出該 binding 自身的方法」查證，而非在本樹中 grep
-        // ——本樹在這件事上兩個方向都沒有先例。
+        // 顏色設在**內容 view** 上:那是一個 `View`,而它綁定了 `setBackgroundColor(Int32)`。
+        // `PopupWindow` 不是 View,而 AndroidKit 的 `PopupWindow` 綁定中沒有 `setBackgroundDrawable`
+        // (2026-09-10 以列出該 binding 自身的方法查證)。
         //
-        // 改為把顏色設在**內容 view** 上：那是一個 `View`，而它確實綁定了 `setBackgroundColor(Int32)`。
-        // 這同時繞開了下方註解所描述的危險：popup 自身的背景從未被清掉，因此無論 app 要求什麼，
-        // light dismiss 都繼續有效。
+        // popup 自身的背景從不被清掉，而**在 Android 上那不只是外觀問題**:一個背景為 null 的
+        // PopupWindow 在歷史上**不會**因外部觸控而關閉，因此把它清掉會靜默地弄壞 light dismiss,
+        // 而不只是改變一個顏色。
         //
         // `nil` 會畫成透明，而不是還原平台預設值；這**確實**是與另外四個 backend 的差異：一個 view 的
         // 背景色沒有「未設定」這種狀態，只有顏色。其下的視窗仍然提供 popup 自身的背景，因此這塊面板
@@ -233,21 +170,20 @@ extension AndroidBackend: BackendFeatures.Popovers {
         // as given, and the tail is drawn before anything is measured.**
         //
         // Both of those are alignments with the other backends rather than
-        // Android's own behaviour, and both were asked for after looking at the
-        // captures. `showAsDropDown` SHIFTS a popup that does not fit until it
-        // clears the screen edge, which can leave the panel covering the
-        // control it was opened from; UIKit was changed the same day to measure
-        // the room and take the opposite side instead, and `resolveEdge` is
-        // that same measurement. And Android draws no arrow on a `PopupWindow`
+        // Android's own behaviour. `showAsDropDown` SHIFTS a popup that does
+        // not fit until it clears the screen edge, which can leave the panel
+        // covering the control it was opened from; UIKitBackend measures the
+        // room and takes the opposite side instead, and `resolveEdge` is that
+        // same measurement. And Android draws no arrow on a `PopupWindow`
         // at all, where the other four point at the anchor -- so
         // `applyArrow` draws one and grows the popup to hold it, which is why
         // the sizes are read AFTER it rather than before.
         //
         // **那一側是對著錨點四周的空間解析出來的,不是照單全收;而尾巴在任何量測之前就已畫好。**
         //
-        // 這兩件都是向其他 backend 對齊、而非 Android 自己的行為,而且兩件都是看過擷圖之後才被要求的。
+        // 這兩件都是向其他 backend 對齊、而非 Android 自己的行為。
         // `showAsDropDown` 會把放不下的 popup **推**到離開螢幕邊緣為止,那可能讓面板蓋住當初開啟它的
-        // 那個控制項;UIKit 已在同一天改為「量出空間、改取相反的一側」,而 `resolveEdge` 就是同一個量測。
+        // 那個控制項;UIKitBackend 則是「量出空間、改取相反的一側」,而 `resolveEdge` 就是同一個量測。
         // 至於 Android,它根本不會在 `PopupWindow` 上畫任何箭頭,而另外四個都會指向錨點——因此
         // `applyArrow` 會畫一條,並把 popup 放大以容納它;這正是尺寸要在它**之後**才讀取的原因。
         // 8dp of tail, in pixels. Read here rather than passed in: this method

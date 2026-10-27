@@ -58,10 +58,10 @@ final class ScrollGestureWidget: ContainerWidget {
         super.init(child: child)
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleScroll(_:)))
-        // **One finger, not two, and the first version had it wrong.** Two
+        // **One finger, not two.** Two
         // fingers is the macOS trackpad idea of a scroll; on a touch screen a
         // scroll view scrolls with one finger, and that is what a person does.
-        // This tree's own iOS runner agrees without having been consulted: it
+        // This tree's own iOS runner does the same: it
         // turns a `scroll` row into a one-finger `press(forDuration:thenDragTo:)`,
         // so a two-finger requirement meant every scroll row in an iOS action
         // file was delivered and silently ignored -- the app reported nothing
@@ -73,9 +73,9 @@ final class ScrollGestureWidget: ContainerWidget {
         // one gesture per view and no more, because there is no recogniser
         // graph to arbitrate between two.
         //
-        // **一指,不是兩指,而第一版寫錯了。** 兩指是 macOS 觸控板對「捲動」的想法;在觸控螢幕上,
-        // 一個 scroll view 是用**一**指捲動的,而人也是那樣做的。這棵樹自己的 iOS runner 在沒有被徵詢的
-        // 情況下也同意這一點:它把一列 `scroll` 轉成一次一指的 `press(forDuration:thenDragTo:)`——
+        // **一指,不是兩指。** 兩指是 macOS 觸控板對「捲動」的想法;在觸控螢幕上,
+        // 一個 scroll view 是用**一**指捲動的,而人也是那樣做的。這棵樹自己的 iOS runner 也一樣:
+        // 它把一列 `scroll` 轉成一次一指的 `press(forDuration:thenDragTo:)`——
         // 因此「最少兩指」的要求,等於讓 iOS 動作檔裡的每一列 scroll 都被送達、然後被靜默忽略:
         // app 什麼都沒回報,而也沒有任何東西回報為什麼。
         //

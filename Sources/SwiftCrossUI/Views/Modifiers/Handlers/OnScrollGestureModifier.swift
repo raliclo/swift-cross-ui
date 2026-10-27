@@ -42,15 +42,15 @@ struct OnScrollGestureModifier<Content: View>: TypeSafeView {
     /// child straight back when it cannot.
     ///
     /// **The unwrapped case is why this is not `@CastBackend`.** That macro
-    /// expands to `fatalError`, and on 2026-09-02 that cost three test apps
-    /// their windows on macOS for one missing conformance. Returning the child
+    /// expands to `fatalError`, and a single missing conformance has already
+    /// cost three test apps their windows on macOS. Returning the child
     /// means the view still renders, still lays out, and simply reports no
     /// scrolls.
     ///
     /// 當 backend 送得出捲動時把子 view 包起來;送不出時就把子 view 原樣交回。
     ///
     /// **「不包起來」的那條路徑,正是這裡不用 `@CastBackend` 的理由。** 那個 macro 會展開為
-    /// `fatalError`,而 2026-09-02 那一次,一個缺失的 conformance 讓三支測試 app 在 macOS 上沒有視窗。
+    /// `fatalError`,而一個缺失的 conformance 曾經讓三支測試 app 在 macOS 上沒有視窗。
     /// 交回子 view,代表那個 view 照常繪製、照常排版,只是不回報任何捲動。
     func asWidget<Backend: BaseAppBackend>(
         _ children: Children,

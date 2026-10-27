@@ -115,10 +115,9 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // across 21 replayed actions on 2026-09-23, and it is the same reason an app-menu shortcut
         // needs the unhandled-key manager in the first place.
         //
-        // `FOCUS_AFTER_DESCENDANTS` is what keeps this from taking focus away from anything that
-        // wants it: a text field, a button, anything focusable inside gets first refusal, and this
-        // view holds focus only when the alternative is nobody holding it. `KeyEventContainer`
-        // uses the same pair for the same reason.
+        // `isFocusable` lets this view hold focus when nothing inside it does, so the window always
+        // has a focused view for a key to reach. A text field still takes focus when it is tapped or
+        // focused from code; `descendantFocusability` below says why it is BEFORE.
         //
         // **一個按鍵事件跟著**焦點鏈**走,而少了這一段,下面那個覆寫根本不會被呼叫。**
         //
@@ -129,9 +128,9 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // 儀器的版本,在 21 個重放動作之間**一行都沒有印出來**;而那也正是「app 選單快捷鍵一開始就需要
         // unhandled-key manager」的同一個理由。
         //
-        // `FOCUS_AFTER_DESCENDANTS` 是讓它不會把焦點從「想要焦點的東西」手上搶走的關鍵:文字欄位、按鈕、
-        // 任何在裡面可聚焦的東西都有優先權;而這個 view 只在「否則就沒有人持有焦點」時才持有它。
-        // `KeyEventContainer` 基於同樣的理由使用同一組設定。
+        // `isFocusable` 讓本 view 在內部沒有任何東西持有焦點時自己持有焦點,因此視窗永遠有一個按鍵
+        // 到得了的聚焦 view。文字欄位被點擊或由程式碼聚焦時仍會取得焦點;為何用 BEFORE,見下方的
+        // `descendantFocusability`。
         isFocusable = true
         isFocusableInTouchMode = true
         // No default focus highlight: this view is the whole window and takes focus
@@ -141,7 +140,7 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // 不要預設的焦點高亮：這個 view 就是整個視窗，裝置不在觸控模式(adb、鍵盤)時一啟動就取得焦點，框架便在 app 的
         // 每個像素上蓋一層 7.5% 的黑——第一次觸碰之前，每張 Android 截圖裡的白都是 236(2026-10-10)。
         defaultFocusHighlightEnabled = false
-        // BEFORE, not AFTER, from 2026-10-02. AFTER made the window's DEFAULT
+        // BEFORE, not AFTER. AFTER made the window's DEFAULT
         // focus -- the one Android assigns on the first layout, which no
         // field asked for -- go to the first text field. The soft keyboard
         // rose over every app that had one (P2 P15 P21 P36), and when a
@@ -150,7 +149,7 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // gives the default focus to this view; a field that is tapped, or
         // focused from code (`FocusState`), calls requestFocus() on itself,
         // which BEFORE does not block, so it still gets focus.
-        // 自 2026-10-02 起用 BEFORE 而非 AFTER。AFTER 讓視窗的**預設**焦點(Android 在第一次排版時指派、
+        // 用 BEFORE 而非 AFTER。AFTER 讓視窗的**預設**焦點(Android 在第一次排版時指派、
         // 沒有任何欄位要求過的那個)落在第一個文字欄位：每一支有文字欄位的 app 都彈出軟體鍵盤(P2 P15 P21
         // P36),而按鈕觸發重新排版時，根 ScrollView 會把有焦點的欄位捲進畫面，把 P21 的按鈕捲出畫面。
         // BEFORE 讓預設焦點給本 view;被點擊、或由程式碼(`FocusState`)聚焦的欄位，是對自己呼叫

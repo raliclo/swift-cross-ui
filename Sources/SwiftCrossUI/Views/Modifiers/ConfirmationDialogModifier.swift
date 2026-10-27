@@ -5,8 +5,7 @@ extension View {
     /// supplies exactly what a confirmation dialog needs: a title, a list of
     /// button labels, and the index of the one chosen. **No backend gains a new
     /// requirement from this modifier**, so it works on all five the moment it
-    /// compiles -- the same property that decided the order of the parity views
-    /// added alongside it. See ``Stepper``.
+    /// compiles.
     ///
     /// Two things differ from ``View/alert(_:isPresented:actions:)``, and both
     /// are real rather than cosmetic:
@@ -27,8 +26,7 @@ extension View {
     ///
     /// 建構於既有的 ``BackendFeatures/Alerts`` protocol 之上，而該 protocol 恰好已提供確認對話框
     /// 所需的一切：一個標題、一串按鈕標籤，以及被選中者的索引。**沒有任何 backend 因這個 modifier
-    /// 而多出新的要求**，因此它一旦編譯通過就在五個 backend 上同時成立——這正是與它一同新增的那批
-    /// parity view 之所以被排在前面的性質。見 ``Stepper``。
+    /// 而多出新的要求**，因此它一旦編譯通過就在五個 backend 上同時成立。
     ///
     /// 它與 ``View/alert(_:isPresented:actions:)`` 有兩點不同，且兩點都是實質差異而非外觀差異：
     ///

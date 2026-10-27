@@ -6,18 +6,15 @@ import UIKit
 /// Compositing effects, rendered through Core Image because iOS will not
 /// composite them.
 ///
-/// The first version of this file was AppKitBackend's implementation with
-/// `alpha` substituted for `alphaValue`: build a `[CIFilter]` and assign it to
-/// `view.layer.filters`. That is the documented route on macOS and it does
-/// nothing on iOS -- `CALayer.filters` exists in the headers on both platforms
-/// and only the AppKit compositor reads it.
-///
-/// **That was measured twice rather than looked up.** P39 draws the same
-/// angular gradient nine times and applies one effect to each, so a cell
-/// identical to the control means the effect did nothing. On the iPhone 16
-/// simulator, 2026-09-02: `opacity 0.35` was visibly faded and `blur 3`,
-/// `saturation 2.5`, `brightness 0.4`, `grayscale 1` and `hueRotation 120` were
-/// pixel-identical to the control. One of seven.
+/// Assigning a `[CIFilter]` to `view.layer.filters`, the documented route on
+/// macOS and AppKitBackend's implementation, does nothing on iOS --
+/// `CALayer.filters` exists in the headers on both platforms and only the
+/// AppKit compositor reads it. P39 draws the same angular gradient nine times
+/// and applies one effect to each, so a cell identical to the control means
+/// the effect did nothing. On the iPhone 16 simulator, through `layer.filters`,
+/// `opacity 0.35` was visibly faded and `blur 3`, `saturation 2.5`,
+/// `brightness 0.4`, `grayscale 1` and `hueRotation 120` were pixel-identical
+/// to the control.
 ///
 /// So the effects are applied to a rendering of the subtree instead:
 ///
@@ -41,16 +38,13 @@ import UIKit
 /// layer with no content is transparent everywhere, so the child draws nothing
 /// and hit testing does not know the difference.
 ///
-/// 合成效果，透過 Core Image 算繪，因為 iOS 不會為我們合成它們。
+/// 合成效果，透過 Core Image 算繪，因為 iOS 不會合成它們。
 ///
-/// 本檔的第一版是 AppKitBackend 的實作，僅把 `alphaValue` 換成 `alpha`：建構一個 `[CIFilter]`
-/// 並指派給 `view.layer.filters`。那在 macOS 上是有文件依據的做法，而在 iOS 上什麼都不會發生
-/// ——`CALayer.filters` 在兩個平台的標頭檔中都存在，但只有 AppKit 的合成器會讀取它。
-///
-/// **這是量出來的，量了兩次，不是查來的。** P39 把同一張角度漸層畫了九次，每一格套用一種效果，
-/// 因此某一格與對照格完全相同，就代表該效果沒有作用。2026-09-02 於 iPhone 16 模擬器上：
-/// `opacity 0.35` 明顯變淡，而 `blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1`
-/// 與 `hueRotation 120` 與對照格逐像素相同。七項中只有一項有效。
+/// 把 `[CIFilter]` 指派給 `view.layer.filters`——macOS 上有文件依據的做法，也是 AppKitBackend
+/// 的實作——在 iOS 上什麼都不會發生：`CALayer.filters` 在兩個平台的標頭檔中都存在，但只有 AppKit
+/// 的合成器會讀取它。P39 把同一張角度漸層畫了九次，每一格套用一種效果，因此某一格與對照格完全相同，
+/// 就代表該效果沒有作用。在 iPhone 16 模擬器上透過 `layer.filters`:`opacity 0.35` 明顯變淡，而
+/// `blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格逐像素相同。
 ///
 /// 因此改為把效果套用在「子樹的算繪結果」上：
 ///
@@ -172,8 +166,8 @@ final class VisualEffectWidget: BaseViewWidget {
         //
         // And in linear light, unlike the filters around it, because that is
         // the grey AppKitBackend draws -- its layer filters run in Core Image's
-        // linear working space -- and the user chose AppKit's (P39,
-        // 2026-10-16). This context has no working space, so the filter is
+        // linear working space -- and AppKit's is the reference (P39). This
+        // context has no working space, so the filter is
         // wrapped in the sRGB curves by hand, and the tint is 0.5 grey already
         // in linear (0.214). Checked against CIColorMonochrome in a linear
         // context: (255, 103, 49) -> 102, mid grey 127 -> 85, both identical.
@@ -181,7 +175,7 @@ final class VisualEffectWidget: BaseViewWidget {
         // 灰階與飽和度分開處理，因為 SwiftUI 的 .grayscale(_:) 接受一個程度值，必須能停在中途。
         //
         // 而且與周圍的濾鏡不同，它在線性光中運算，因為那是 AppKitBackend 畫出的灰——它的 layer filter
-        // 在 Core Image 的線性工作空間中執行——而使用者選擇以 AppKit 為準(P39,2026-10-16)。本 context
+        // 在 Core Image 的線性工作空間中執行——而以 AppKit 為準(P39)。本 context
         // 沒有工作空間，所以手動以 sRGB 曲線包住濾鏡，上色值則直接給線性的 0.5 灰(0.214)。已對照線性
         // context 中的 CIColorMonochrome:(255, 103, 49) -> 102、中灰 127 -> 85,兩者完全相同。
         if effect.grayscale != 0 {
@@ -228,9 +222,9 @@ final class VisualEffectWidget: BaseViewWidget {
 
         guard let child = childHost, bounds.width > 0, bounds.height > 0 else { return }
 
-        // Laid out before it is drawn. Our `layoutSubviews` can run before the
-        // child's, and rendering first would capture the previous pass.
-        // 先排版再繪製。我們的 `layoutSubviews` 可能早於子元件的執行，先算繪會捕捉到上一輪的結果。
+        // Laid out before it is drawn. This view's `layoutSubviews` can run
+        // before the child's, and rendering first would capture the previous pass.
+        // 先排版再繪製。本 view 的 `layoutSubviews` 可能早於子元件的執行，先算繪會捕捉到上一輪的結果。
         child.layer.mask = nil
         child.layoutIfNeeded()
 

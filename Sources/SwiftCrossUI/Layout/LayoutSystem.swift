@@ -184,28 +184,23 @@ public enum LayoutSystem {
             cache = StackLayoutCache(
                 priorityGroups: [group],
                 isHidden: results.map(\.participatesInStackLayouts).map(!),
-                // A TODO stood here asking how SwiftUI handles space reservation
-                // during relayouts, and guessing that it probably does not use
-                // minimum lengths. The guess was right, and the question no
-                // longer arises: computeLayouts reserves only the spacing, so
-                // there is no reservation for a relayout to be inconsistent
-                // about. See the note at the share calculation.
-                // 此處原有一則 TODO，詢問 SwiftUI 在重新佈局時如何處理空間保留，並推測它多半
-                // 不使用 minimum 長度。該推測是對的，而這個問題也已不復存在：computeLayouts
-                // 只保留 spacing，因此不存在任何可能在重新佈局時前後不一致的保留量。
-                // 詳見份額計算處的說明。
+                // No minimum lengths are reserved for relayouts: computeLayouts
+                // reserves only the spacing, so there is no reservation for a
+                // relayout to be inconsistent about. See the note at the share
+                // calculation.
+                // 重新佈局時不保留任何 minimum 長度:computeLayouts 只保留 spacing,因此不存在任何
+                // 可能在重新佈局時前後不一致的保留量。詳見份額計算處的說明。
                 totalSpacing: totalSpacing,
                 // Empty here on purpose. This branch is the degenerate one --
                 // the stack was proposed zero, infinity or nothing, or it has a
                 // single child -- and the sizes above were chosen against that
                 // proposal rather than measured as minimums. Handing them over
                 // as a floor would stop a later redistribution from compressing
-                // anything. `computeLayouts` treats an empty array as no floor,
-                // which is what this path did before minimums were kept at all.
+                // anything. `computeLayouts` treats an empty array as no floor.
                 // 此處刻意留空。本分支是退化情況——stack 被提議的是零、無限大或未指定，或它只有
                 // 一個子元件——而上方那些尺寸是「針對該提議所選擇的結果」，並非量測而得的最小值。
                 // 把它們當作下限交出去，會使後續的重新分配無法壓縮任何東西。`computeLayouts` 會把
-                // 空陣列視為「沒有下限」，那正是本路徑在「保留最小值」這件事存在之前的行為。
+                // 空陣列視為「沒有下限」。
                 minimumLengths: [],
                 redistributeSpaceOnCommit: shouldRedistributeSpaceOnCommit(
                     proposedSize: proposedSize,
@@ -507,18 +502,19 @@ public enum LayoutSystem {
                 // proposal minus the fixed spacing and minus what earlier
                 // children took -- and nothing else.
                 //
-                // It used to also subtract the *minimum lengths* of the children
-                // not yet placed. That double-reserved: the children are already
+                // Subtracting the *minimum lengths* of the children not yet
+                // placed as well would double-reserve: the children are already
                 // sorted least-flexible first, so a rigid child takes its small
                 // natural size and leaves the rest, and a flexible child last
                 // absorbs the leftover -- there is no need to hold back space for
                 // a minimum a later child will claim anyway. Reserving it as well
-                // shrank every child's share, and the first (least flexible) one
-                // was pushed below its own natural width and truncated while a
-                // later child rendered in full. Measured on P21: an outer HStack
+                // shrinks every child's share, and the first (least flexible) one
+                // is pushed below its own natural width and truncated while a
+                // later child renders in full. Measured on P21: an outer HStack
                 // of two toggle switches, proposed 172, offered its first child
-                // 60.5 against a natural of 79 -- the "Enabled" label became "...".
-                // Reserving only the spacing offers 81 instead, and it renders.
+                // 60.5 against a natural of 79 with that reservation -- the
+                // "Enabled" label became "...". Reserving only the spacing offers
+                // 81 instead, and it renders.
                 //
                 // This matches the algorithm the ordering is taken from:
                 // https://www.objc.io/blog/2020/11/10/hstacks-child-ordering/
@@ -528,13 +524,13 @@ public enum LayoutSystem {
                 // 每個子元件的份額，是「留給子元件的空間」除以「尚未放置的子元件數」。「留給子元件的
                 // 空間」是提議寬度減去固定的 spacing、再減去先前子元件已取用的量——僅此而已。
                 //
-                // 此處原本還會扣掉「尚未放置之子元件的 minimum 長度」。那是雙重保留：子元件早已依
+                // 若還扣掉「尚未放置之子元件的 minimum 長度」,就是雙重保留：子元件早已依
                 // 「最不彈性優先」排序，因此剛性元件取其較小的自然尺寸後即讓出其餘，而最後的彈性元件
                 // 會吸收剩餘空間——無需為某個後續元件反正會取用的 minimum 預留空間。額外保留它會縮減
                 // 每個子元件的份額，使排在最前（最不彈性）的那個被壓到低於自身自然寬度而遭截斷，後面
-                // 的元件卻完整呈現。於 P21 實測：一個包含兩個 toggle switch 的外層 HStack，提議寬度
-                // 172，其第一個子元件在自然寬度為 79 的情況下只被提議 60.5——「Enabled」標籤變成
-                // 「...」。改為只保留 spacing 後，該子元件被提議 81，得以完整呈現。
+                // 的元件卻完整呈現。於 P21 實測：一個包含兩個 toggle switch 的外層 HStack,提議寬度
+                // 172,額外保留時其第一個子元件在自然寬度為 79 的情況下只被提議 60.5——「Enabled」標籤
+                // 變成「...」。只保留 spacing 時，該子元件被提議 81,得以完整呈現。
                 //
                 // 這與排序所依據的演算法一致（如上連結）。確實放不下的子元件仍會以回傳自身 minimum 的
                 // 方式強制其下限，因此此處無需為其預留。
@@ -863,7 +859,7 @@ public enum LayoutSystem {
 /// points. A phone's window is whatever the device is, so the content is
 /// proposed less than its minimum and the shortfall lands on the last child.
 ///
-/// Nothing said so before. The layout was not wrong and it was not explicable
+/// Without this report the layout is not wrong, and it is not explicable
 /// either: a stack silently running out of room looks like a rendering bug in
 /// whichever child happens to be last. This follows the policy
 /// `ResolvedFillStyleDegradation` sets -- something that draws *plausible and
@@ -887,7 +883,7 @@ public enum LayoutSystem {
 /// 推導出來的，因此 AppKit 拒絕把視窗縮得比 stack 所需更小：P43 的視窗低於 568 點就縮不下去了。而
 /// 手機的視窗就是裝置本身的尺寸，因此內容被提議的空間少於其最小需求，短缺便落在最後一個子元件身上。
 ///
-/// 先前沒有任何東西說出這件事。該版面並沒有算錯，卻也無從解釋：一個默默把空間用完的 stack，看起來
+/// 沒有這則報告時，該版面並沒有算錯，卻也無從解釋：一個默默把空間用完的 stack,看起來
 /// 就像「剛好排在最後的那個子元件」有算繪 bug。此處遵循 `ResolvedFillStyleDegradation` 所確立的
 /// 政策——會畫出「看似合理但其實不對」之物者必須自報身分，否則它會讓人把缺陷歸咎到錯誤的地方。
 @MainActor
@@ -952,11 +948,11 @@ enum StackOverflowReport {
         ) else { return }
 
         // **And only when the stack actually ran out, which is what this message
-        // says and what it did not check.** A child offered zero is normal when
+        // says.** A child offered zero is normal when
         // there is simply nothing left over: a `Spacer` with no slack takes
         // zero, correctly, and every child still got the share it asked for.
         //
-        // Reported 2026-09-10 from P44: "9 children were offered 643 and took
+        // Without this check P44 reported (2026-09-10): "9 children were offered 643 and took
         // 643 ... firstStarvedChild=Spacer". Offered and took are EQUAL there --
         // nothing ran out, nothing was squeezed, and the line accuses a `Spacer`
         // of starving while it is doing exactly what a `Spacer` is for.
@@ -970,11 +966,11 @@ enum StackOverflowReport {
         // accumulated across children, and a stack that fits can land a
         // hair over.
         //
-        // **而且僅在該 stack 確實不夠用時才回報——那正是這則訊息所宣稱、卻沒有檢查的事。**
+        // **而且僅在該 stack 確實不夠用時才回報——那正是這則訊息所宣稱的事。**
         // 當單純只是「沒有剩餘」時，一個子元件被分到零是正常的：沒有餘裕的 `Spacer` 正確地拿到零，
         // 而每一個子元件仍然拿到了它所要求的份額。
         //
-        // 2026-09-10 由 P44 回報:「9 children were offered 643 and took 643 …
+        // 少了這項檢查時，P44 於 2026-09-10 回報:「9 children were offered 643 and took 643 …
         // firstStarvedChild=Spacer」。此處 offered 與 took **相等**——沒有東西不夠用、沒有東西被擠壓，
         // 而那一行卻在指控一個 `Spacer` 挨餓，儘管它做的正是 `Spacer` 存在的目的。
         //
@@ -990,19 +986,17 @@ enum StackOverflowReport {
 
         // Assembled rather than written as a multi-line literal. A `"""` block
         // with backslash continuations keeps each line's indentation, so the
-        // message reached the log with runs of spaces inside it -- measured on
-        // the simulator before this was changed.
+        // message reached the log with runs of spaces inside it (measured on
+        // the simulator).
         // 以組裝方式產生，而非寫成多行字面值。帶有反斜線續行的 `"""` 區塊會保留每一行的縮排，
-        // 使訊息抵達 log 時夾帶著連續空白——這是在改成現在這樣之前於模擬器上量到的。
+        // 使訊息抵達 log 時夾帶著連續空白(於模擬器上量到)。
         // **Say what it is, what it looks like, and what to change -- in that
         // order, and say the severity out loud.**
         //
-        // The line this replaced said only what the arithmetic was, and a
-        // reader who met it in a log had three questions it did not answer: is
-        // this fatal, is it MY app's doing, and what do I do about it. Asked on
-        // 2026-09-18 after the same message turned up in a sweep of every test
-        // app: the sweep could tell that P27 was affected and P21 was not, but
-        // only because whoever read it already knew what the words meant.
+        // A reader who meets it in a log has three questions: is this fatal,
+        // is it my app's doing, and what do I do about it. A line that states
+        // only the arithmetic answers none of them; only a reader who already
+        // knows what the words mean can tell that P27 is affected and P21 is not.
         //
         // The starved child is named in the sentence as well as in the
         // metadata: the metadata is what a structured log can filter on, and
@@ -1012,9 +1006,8 @@ enum StackOverflowReport {
         //
         // **說清楚它是什麼、看起來會怎樣、要改什麼——依這個順序,並且把嚴重程度直接講出來。**
         //
-        // 被取代的那一行只說了算術,而一個在 log 裡遇到它的人有三個它答不出的問題:這會不會當掉、
-        // 是不是我的 app 造成的、我該做什麼。2026-09-18 在掃過每一支測試 app 之後被問到:那次掃描
-        // 之所以分得出 P27 有事、P21 沒事,只是因為讀它的人本來就知道那些字的意思。
+        // 一個在 log 裡遇到它的人會有三個問題:這會不會當掉、是不是我的 app 造成的、我該做什麼。只說算術
+        // 的訊息一個也答不出——只有本來就知道那些字意思的人，才分得出 P27 有事、P21 沒事。
         //
         // 那個被餓到的子節點在句子裡與 metadata 裡各出現一次:metadata 是結構化 log 能過濾的東西,
         // 而句子是人在終端機裡看到的——在終端機上 SwiftLog 會把 metadata 印在訊息**之前**,
@@ -1071,11 +1064,11 @@ extension LayoutSystem {
     /// ARE the cells, and a `ForEach` nested inside one of them describes a
     /// different set of rows that this plan says nothing about.
     ///
-    /// Getting this backwards is what the first working version did -- the plan
-    /// resolved correctly, `LazyVGrid` ran, `ForEach` ran immediately after it,
-    /// and the plan it saw was nil. The screenshot was a vertical list with the
-    /// cells in the right order, which reads as a grid that computed one column
-    /// rather than as a plan that was thrown away in transit.
+    /// Getting this backwards fails quietly: the plan resolves correctly,
+    /// `LazyVGrid` runs, `ForEach` runs immediately after it, and the plan it
+    /// sees is nil. The result is a vertical list with the cells in the right
+    /// order, which reads as a grid that computed one column rather than as a
+    /// plan that was thrown away in transit.
     ///
     /// `clearsPlanForChildren` 表示「此處正在佈局的子節點是否就是那些儲存格本身」。
     ///
@@ -1083,9 +1076,9 @@ extension LayoutSystem {
     /// 該計畫,恰恰就是讓格線永遠不會發生的做法。``ForEach`` 傳入 `true`:它的子節點**就是**儲存格,
     /// 而巢狀於某一格之內的 `ForEach` 描述的是另一組列,與此計畫無關。
     ///
-    /// 把這件事弄反,正是第一個「可運作版本」所做的事——計畫解析正確、`LazyVGrid` 執行了、`ForEach`
-    /// 緊接著執行,而它看到的計畫是 nil。截圖是一個儲存格順序正確的垂直清單,那讀起來像是「一個算出
-    /// 單一欄的格線」,而不像是「一份在傳遞途中被丟掉的計畫」。
+    /// 把這件事弄反時，計畫解析正確、`LazyVGrid` 執行了、`ForEach` 緊接著執行，而它看到的計畫是
+    /// nil。結果是一個儲存格順序正確的垂直清單，那讀起來像是「一個算出單一欄的格線」,而不像是
+    /// 「一份在傳遞途中被丟掉的計畫」。
     @MainActor
     static func computeGridLayout(
         children: [LayoutableChild],

@@ -156,18 +156,12 @@ public final class NSCustomButton: NSView {
         // like. Setting it here alone changed nothing; ``refreshAccessibilityLabel``
         // is what makes it visible, and this stays so the two cannot disagree.
         //
-        // It reads the first text field ANYWHERE below, not `subviews.first`.
-        // `setupButton` adds the `NSButton` first and `addAndSetupLabel` adds the
-        // label after it, so `subviews.first` is the button and the cast to
-        // `NSTextField` always failed -- this returned nil for every button in the
-        // package. Dumped the accessibility tree of P17, P28 and P34 on
-        // 2026-09-10: every `AXButton` had `title=''` and `desc=''`, so a screen
-        // reader had nothing at all to announce. `button.title` is set to `""` a
-        // few lines above, which is why the empty title is not a second bug.
-        //
-        // A ViewBuilder label made of several views is still not covered: the
-        // first text field is a guess about which one names the button, and a
-        // guess is what `.accessibilityLabel(_:)` (#123) exists to replace.
+        // It reads every text field below, not `subviews.first`. `setupButton`
+        // adds the `NSButton` first and `addAndSetupLabel` adds the label after
+        // it, so `subviews.first` is the button and a cast to `NSTextField`
+        // fails, leaving every `AXButton` with `title=''` and `desc=''` and a
+        // screen reader with nothing to announce. `button.title` is set to `""`
+        // a few lines above, which is why the empty title is not a second bug.
         //
         // **標籤必須送達**內層**的 `NSButton`——那才是 accessibility 真正看見的元素。**
         // `NSCustomButton` 是一個單純的 `NSView`，因此它在 accessibility 樹中是透明的，這個
@@ -175,15 +169,10 @@ public final class NSCustomButton: NSView {
         // 而那正是「父節點透明」的樣子。只改這裡毫無作用；讓它現身的是 ``refreshAccessibilityLabel``，
         // 而此處保留下來，是為了讓兩者不會各說各話。
         //
-        // 它讀的是「底下任何一層的第一個文字欄位」，而不是 `subviews.first`。
-        // `setupButton` 先加入 `NSButton`，`addAndSetupLabel` 之後才加入標籤，因此
-        // `subviews.first` 是那顆按鈕，而轉型為 `NSTextField` 永遠失敗——本套件中的每一顆按鈕
-        // 在此都回傳 nil。2026-09-10 傾印了 P17、P28、P34 的 accessibility 樹：每一個
-        // `AXButton` 的 `title` 與 `desc` 都是空的，螢幕閱讀器沒有任何東西可念。上方數行處
-        // 將 `button.title` 設為 `""`，因此「標題為空」不是第二個錯誤。
-        //
-        // 由多個 view 組成的 ViewBuilder 標籤仍未涵蓋：「第一個文字欄位」是對「哪一個才是這顆
-        // 按鈕的名字」的一種猜測，而 `.accessibilityLabel(_:)`(#123)存在的目的正是取代猜測。
+        // 它讀的是底下的每一個文字欄位，而不是 `subviews.first`。`setupButton` 先加入 `NSButton`，
+        // `addAndSetupLabel` 之後才加入標籤，因此 `subviews.first` 是那顆按鈕，轉型為 `NSTextField`
+        // 會失敗，每一個 `AXButton` 的 `title` 與 `desc` 都是空的，螢幕閱讀器沒有任何東西可念。
+        // 上方數行處將 `button.title` 設為 `""`，因此「標題為空」不是第二個錯誤。
         firstTextFieldValue(in: self)
     }
 
@@ -240,11 +229,10 @@ public final class NSCustomButton: NSView {
         // Expose ONLY the inner button, so the name is announced once.
         //
         // **`setAccessibilityElement(false)` does not remove a view from the
-        // tree, which is what the loop below used to rely on.** Dumped on
-        // 2026-09-16: every button appeared as an `AXButton` AND an
+        // tree.** A dump showed every button as an `AXButton` AND an
         // `AXStaticText` carrying the same words, so a screen reader read each
-        // button's name twice -- on a view this code had already called
-        // `setAccessibilityElement(false)` on. The flag declines to BE an
+        // button's name twice, although the text field had
+        // `setAccessibilityElement(false)`. The flag declines to BE an
         // element; it does not stop AppKit deriving one, and for `NSTextField`
         // it derives one.
         //
@@ -254,11 +242,10 @@ public final class NSCustomButton: NSView {
         //
         // 只暴露內層那顆按鈕,好讓名字只被唸一次。
         //
-        // **`setAccessibilityElement(false)` 不會把一個 view 從樹上移除,而下方那個迴圈原本正是
-        // 依賴這件事。** 2026-09-16 傾印:每一顆按鈕都同時以 `AXButton` 與一個帶著相同文字的
-        // `AXStaticText` 出現,於是螢幕閱讀器把每顆按鈕的名字唸了兩次——而那個 view,這段程式早就
-        // 對它呼叫過 `setAccessibilityElement(false)` 了。那個旗標拒絕**成為**一個元素;它並不會
-        // 阻止 AppKit 推導出一個,而對 `NSTextField` 來說,它就是會推導出一個。
+        // **`setAccessibilityElement(false)` 不會把一個 view 從樹上移除。** 傾印顯示每一顆按鈕都同時以
+        // `AXButton` 與一個帶著相同文字的 `AXStaticText` 出現,於是螢幕閱讀器把每顆按鈕的名字唸了兩次
+        // ——儘管那個文字欄位已經設了 `setAccessibilityElement(false)`。那個旗標拒絕**成為**一個元素;
+        // 它並不會阻止 AppKit 推導出一個,而對 `NSTextField` 來說,它就是會推導出一個。
         //
         // 真正站得住的是指名子元件。旗標仍然留在那些文字欄位上,因為兩者回答的是不同的問題,而
         // 未來若有某個父節點確實暴露了它們,它們仍應被發現是拒絕的。
@@ -278,33 +265,25 @@ public final class NSCustomButton: NSView {
     }
 
     /// **Every text in the label, in order, joined by spaces -- not just the
-    /// first one.**
+    /// first one.** A button labelled with two `Text`s (P67's second button)
+    /// would otherwise announce itself as "two", dropping the word "texts"
+    /// sitting beside it on screen.
     ///
-    /// It used to be the first: `firstTextFieldValue`. That was not a decision
-    /// so much as the first thing that worked, and P67's second button is
-    /// exactly the case it got wrong -- a button labelled with two `Text`s
-    /// announced itself as "two", dropping the word "texts" that was sitting
-    /// beside it on screen.
-    ///
-    /// Settled on 2026-09-17 by comparing three readings rather than reasoning
-    /// from one: GtkBackend under WSLg, read externally over AT-SPI, names it
-    /// `two texts`; SwiftUI's VoiceOver reads both texts; WinUIBackend now
-    /// joins them the same way. The first-text rule was the odd one out, and it
-    /// was the truncated one. P67's on-screen expectation reads `two texts`.
+    /// The rule matches the other readings compared on 2026-09-17: GtkBackend
+    /// under WSLg, read externally over AT-SPI, names it `two texts`; SwiftUI's
+    /// VoiceOver reads both texts; WinUIBackend joins them the same way. P67's
+    /// on-screen expectation reads `two texts`.
     ///
     /// `.accessibilityLabel(_:)` (#123) still overrides all of this, which is
     /// what an author reaches for when the joined text is not the name they
     /// want.
     ///
-    /// **標籤中的每一段文字,依序、以空白串接——而不是只取第一段。**
+    /// **標籤中的每一段文字,依序、以空白串接——而不是只取第一段。** 否則一顆以兩個 `Text` 標示的按鈕
+    /// (P67 的第二顆按鈕)會把自己宣告為「two」,丟掉畫面上就在旁邊的「texts」。
     ///
-    /// 它原本取的是第一段(`firstTextFieldValue`)。那與其說是一個決定,不如說是「第一個能動的做法」,
-    /// 而 P67 的第二顆按鈕正是它答錯的那個情況:一顆以兩個 `Text` 標示的按鈕,把自己宣告為「two」,
-    /// 丟掉了畫面上就在旁邊的「texts」。
-    ///
-    /// 2026-09-17 以「比對三份讀數」而非「從一份推論」定案:WSLg 上的 GtkBackend 經 AT-SPI 由外部讀到的是
-    /// `two texts`;SwiftUI 的 VoiceOver 會唸出兩段;WinUIBackend 現在也以同樣方式串接。取第一段的那條
-    /// 規則是唯一不同的一個,而且是被截斷的那一個。P67 畫面上的預期現在寫著 `two texts`。
+    /// 這條規則與 2026-09-17 比對的其他讀數一致:WSLg 上的 GtkBackend 經 AT-SPI 由外部讀到的是
+    /// `two texts`;SwiftUI 的 VoiceOver 會唸出兩段;WinUIBackend 也以同樣方式串接。P67 畫面上的預期
+    /// 寫著 `two texts`。
     ///
     /// `.accessibilityLabel(_:)`(#123)仍然覆蓋這一切——當串接出來的文字不是作者要的名字時,
     /// 那才是他要用的東西。

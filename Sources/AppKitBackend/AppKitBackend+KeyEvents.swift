@@ -58,8 +58,8 @@ final class NSKeyEventTarget: NSView {
     override var isFlipped: Bool { true }
 
     // Not around a `.focusable()` view: that view is the Tab stop and the first responder, and
-    // this target hears its keys through the responder chain. As a key view of its own it was
-    // where Tab from panel A landed (P91, 2026-10-13).
+    // this target hears its keys through the responder chain. As a key view of its own it is
+    // where Tab from panel A lands (P91).
     // 包著 `.focusable()` 的 view 時不接受:那個 view 才是 Tab 停駐點與 first responder,這個 target 經由
     // responder chain 聽它的按鍵。它自己若也是 key view,從色塊 A 按 Tab 就會落在它身上。
     override var acceptsFirstResponder: Bool { isEnabled && !NSFocusableTarget.isHeld(by: self) }
@@ -69,8 +69,7 @@ final class NSKeyEventTarget: NSView {
         guard let window else { return }
 
         // **Claimed when the window BECOMES KEY, not once when the view is
-        // added, and the difference is the whole of why the first version
-        // reported no keys at all.** Traced on 2026-09-19: the view reaches its
+        // added; claiming once reports no keys at all.** The view reaches its
         // window and `viewDidMoveToWindow` runs, but at that moment
         // `window.isKeyWindow` is false and `window.firstResponder` is nil --
         // the window has not been activated yet. `makeFirstResponder` there
@@ -81,8 +80,8 @@ final class NSKeyEventTarget: NSView {
         // The notification fires every activation, so the claim also survives
         // the user switching to another app and back.
         //
-        // **在 window **成為 key** 時才搶,而不是在這個 view 被加入時搶一次;而那個差別,就是第一版
-        // 完全收不到任何按鍵的全部原因。** 2026-09-19 追蹤所得:這個 view 確實到達了它的 window、
+        // **在 window **成為 key** 時才搶,而不是在這個 view 被加入時搶一次;只搶一次的話,完全收不到
+        // 任何按鍵。** 這個 view 確實到達了它的 window、
         // `viewDidMoveToWindow` 確實執行,但在那個時刻 `window.isKeyWindow` 是 false、
         // `window.firstResponder` 是 nil——那個 window 還沒有被啟用。在那裡呼叫 `makeFirstResponder`
         // 不是失敗、就是在啟用完成時被撤銷;而一個「不是 key window 之 first responder」的 view

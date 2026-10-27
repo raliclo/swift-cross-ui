@@ -6,18 +6,11 @@
 /// that is only a rearrangement of existing primitives cannot be "implemented
 /// on GTK but not on Android".
 ///
-/// `testapp/P33.swift` built this shape by hand -- two buttons and a label in an
-/// `HStack` -- under a comment calling `Stepper` a compile-time gap. The
-/// approximation was correct; it was just in the wrong place.
-///
 /// 一個用來遞增與遞減數值的控制項。
 ///
 /// 由 `Button` 與 `Text` 組合而成，因此不需要任何 backend 的支援，一旦編譯通過就在五個 backend
 /// 上同時成立。這正是它與它的鄰居先於協定層級的 parity 項目被實作的全部理由：一個「只是把既有
 /// 原語重新排列」的 view，不可能發生「在 GTK 上實作了、在 Android 上沒有」的情況。
-///
-/// `testapp/P33.swift` 曾以手工搭出這個形狀——`HStack` 裡兩顆按鈕加一個標籤——並在註解中把
-/// `Stepper` 列為編譯期的缺口。那個近似做法本身是對的，只是放錯了地方。
 public struct Stepper<Label: View>: View {
     /// Bound so the caller sees every change, which is what separates this from
     /// two buttons that each mutate their own copy.

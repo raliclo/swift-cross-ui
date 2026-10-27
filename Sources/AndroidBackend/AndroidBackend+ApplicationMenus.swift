@@ -190,25 +190,23 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
 
         let id = ApplicationShortcuts.setTable(entries, reusing: Self.applicationShortcutID)
 
-        // **The content view is attached on every call, the decor listener only on the first, and
-        // that asymmetry is a bug this file had for one build.**
+        // **The content view gets the listener on every call, the decor view only on the first.**
         //
         // `setApplicationMenu` runs from the scene graph, which reaches it BEFORE the window's
-        // content view exists on the first pass -- so a one-shot install left
-        // `Self.shortcutHost` nil for the life of the app and the action-file path never worked.
-        // The symptom was the one this whole change exists to remove: a replay that completes
-        // with the counters at zero. The decor listener must still be added once, because
-        // `addOnUnhandledKeyEventListener` appends and a listener per refresh would run every
-        // action as many times as the scene graph had been rebuilt; `setShortcutListener`
-        // replaces, so calling it every time is free.
+        // content view exists on the first pass -- so a one-shot install would leave
+        // `Self.shortcutHost` nil for the life of the app, and an action-file replay would
+        // finish with every shortcut counter at zero. The decor listener must still be added
+        // once, because `addOnUnhandledKeyEventListener` appends and a listener per refresh would
+        // run every action as many times as the scene graph had been rebuilt;
+        // `setShortcutListener` replaces, so calling it every time is free.
         //
-        // **content view 每次呼叫都掛,decor 的 listener 只掛第一次;而那個不對稱,是本檔有過一個版本的臭蟲。**
+        // **content view 每次呼叫都掛上 listener,decor view 只掛第一次。**
         //
         // `setApplicationMenu` 由場景圖呼叫,而它在第一輪抵達此處時,視窗的 content view 還不存在
-        // ——因此「只裝一次」會讓 `Self.shortcutHost` 在這支 app 的餘生都是 nil,動作檔那條路從來沒有通過。
-        // 症狀正是這整個改動所要消除的那一個:一次「跑完而計數器是零」的重放。decor 的 listener 仍然只能
-        // 加一次,因為 `addOnUnhandledKeyEventListener` 是**附加**的,每次刷新加一個會讓每個動作執行
-        // 「場景圖被重建過幾次」那麼多次;而 `setShortcutListener` 是**替換**,因此每次都呼叫不花什麼。
+        // ——因此「只裝一次」會讓 `Self.shortcutHost` 在這支 app 的餘生都是 nil,動作檔的重放跑完時
+        // 每個快捷鍵計數器都是零。decor 的 listener 仍然只能加一次,因為 `addOnUnhandledKeyEventListener`
+        // 是**附加**的,每次刷新加一個會讓每個動作執行「場景圖被重建過幾次」那麼多次;而
+        // `setShortcutListener` 是**替換**,因此每次都呼叫不花什麼。
         let listener = SwiftUnhandledKeyListener(id, environment: Self.env)
         // **And the same listener on the content view, which is the half an action file can
         // reach.** The decor listener is what a real keyboard uses; it runs from `ViewRootImpl`,
@@ -230,7 +228,7 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
         guard Self.applicationShortcutID == nil else { return }
         Self.applicationShortcutID = id
 
-        // Added once, to the activity's content view.
+        // Added once, to the window's decor view.
         //
         // Adding it on every call would attach a new listener per scene-graph
         // refresh while every previous one stayed on the view, so a single key
@@ -238,7 +236,7 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
         // The table behind the id is replaced above instead, which is the part
         // that actually changes.
         //
-        // 只加一次,加在 activity 的 content view 上。
+        // 只加一次,加在視窗的 decor view 上。
         //
         // 每次呼叫都加,會在每一次 scene graph 更新時掛上一個新的 listener,而先前每一個都還留在那個
         // view 上——於是單獨一次按鍵,會把它的動作執行「更新過幾次」那麼多遍。改為在上方**取代**那個 id

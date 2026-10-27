@@ -26,8 +26,8 @@ import FoundationNetworking
 /// ```
 ///
 /// `<caches>` is `Library/Caches` on Apple's platforms, `~/.cache` on Linux and
-/// `%LOCALAPPDATA%` on Windows. **Not beside the executable**, which was the
-/// first design and does not work on iOS at all: an app bundle is signed and
+/// `%LOCALAPPDATA%` on Windows. **Not beside the executable**, which does not
+/// work on iOS at all: an app bundle is signed and
 /// read-only, so writing into it fails and would break the signature even if it
 /// did not. Apple's storage guidelines also require regenerable data to live
 /// here, and put it outside the device backup.
@@ -46,13 +46,12 @@ import FoundationNetworking
 ///
 /// 網路資源的磁碟快取。
 ///
-/// 在應用程式呼叫 ``enable()`` 之前不啟用。一個 UI 框架若只因某個 view 收到 `https` URL 就開始
-/// 寫入使用者的磁碟，等於做了作者從未同意的事。
+/// 預設開啟，於第一次遠端抓取時建立目錄，以 ``disable()`` 關閉。
 ///
 /// 位置為平台的快取目錄，並以執行檔名稱作為子目錄（如上）。
 ///
 /// `<caches>` 在 Apple 平台為 `Library/Caches`，Linux 為 `~/.cache`，Windows 為
-/// `%LOCALAPPDATA%`。**不放在執行檔旁邊**——那是最初的設計，而它在 iOS 上根本行不通：app bundle
+/// `%LOCALAPPDATA%`。**不放在執行檔旁邊**——那在 iOS 上根本行不通：app bundle
 /// 已簽章且唯讀，寫入會失敗；即使寫得進去也會破壞簽章。Apple 的儲存指引亦要求可重新產生的資料放在
 /// 此處，並將其排除於裝置備份之外。
 ///
@@ -66,40 +65,38 @@ import FoundationNetworking
 public actor AppCache {
     public static let shared = AppCache()
 
-    /// How long an entry may live. After this it is deleted, payload and row
-    /// together, on the next time the index is opened.
+    /// How long an entry may be served without a successful round trip. Past
+    /// it the entry is fetched again; its payload and row are replaced only once
+    /// that succeeds, so an expired entry survives while offline (see
+    /// `prune(in:)`).
     ///
     /// A ceiling rather than a freshness window. Freshness is decided per
     /// request by revalidating against the server -- see ``data(for:)`` -- so
-    /// this is the point past which an entry is not kept at all, even if the
-    /// resource has not changed.
+    /// this is the point past which an entry is not served without a successful
+    /// round trip, even if the resource has not changed.
     ///
-    /// 一筆項目可存活多久。逾期後，其內容與索引列會在下一次開啟索引時一併刪除。
+    /// 一筆項目在未經一次成功往返的情況下可被提供多久。逾期後會重新抓取；其內容與索引列只在抓取成功後
+    /// 才被取代，因此離線時過期項目仍會保留(見 `prune(in:)`)。
     ///
     /// 這是上限而非新鮮度視窗。新鮮度由每次請求向伺服器重新驗證決定（見 ``data(for:)``），因此
-    /// 此處是「即使資源未變更也不再保留」的界線。
+    /// 此處是「即使資源未變更，未經成功往返也不再提供」的界線。
     public static let maximumAge: TimeInterval = 7 * 24 * 60 * 60
 
     private var index: [String: Entry]?
     private var directory: URL?
     /// On by default. The directory is created on the first remote fetch.
     ///
-    /// Two earlier designs made this opt-in -- a directory the developer
-    /// created by hand, then an explicit call -- on the grounds that a UI
-    /// framework should not write to the user's disk unbidden. That argument
-    /// held while the cache lived beside the executable. It does not hold here:
-    /// the platform's cache directory exists for exactly this, the operating
-    /// system manages and purges it, and an application that fetches a remote
-    /// image has already asked for the network.
+    /// Not opt-in: the platform's cache directory exists for exactly this, the
+    /// operating system manages and purges it, and an application that fetches
+    /// a remote image has already asked for the network.
     ///
     /// ``disable()`` is still there for a test that wants a cold fetch every
     /// time, or an application that would rather not keep anything.
     ///
     /// 預設開啟。目錄於第一次遠端抓取時建立。
     ///
-    /// 先前兩版設計都是 opt-in——先是由開發者手動建立目錄，後是顯式呼叫——理由是「UI 框架不應不問
-    /// 自明地寫入使用者的磁碟」。當快取位於執行檔旁時，該理由成立；在此處則否：平台的快取目錄正是
-    /// 為此而存在，由作業系統管理與清除，而一個會去抓取遠端影像的應用程式，本來就已經要求了網路。
+    /// 預設開啟，而不是 opt-in:平台的快取目錄正是為此而存在，由作業系統管理與清除，而一個會去抓取
+    /// 遠端影像的應用程式，本來就已經要求了網路。
     ///
     /// ``disable()`` 仍然保留，供「每次都要冷抓取」的測試，或不願保留任何東西的應用程式使用。
     private var isEnabled = true
@@ -133,13 +130,13 @@ public actor AppCache {
         ///
         /// Decides what ``AppCache/maximumAge`` does to this entry: an entry
         /// that can be revalidated is re-checked past the ceiling, and one that
-        /// cannot is deleted, because there is no other way to tell whether it
-        /// is still right.
+        /// cannot is fetched again in full, because there is no other way to tell
+        /// whether it is still right.
         ///
         /// 伺服器是否給了我們任何可據以詢問的依據。
         ///
         /// 這決定了 ``AppCache/maximumAge`` 對此項目的作用：可重新驗證者在超過上限後會被重新
-        /// 檢查，不可者則刪除——因為除此之外，沒有任何方式能判斷它是否仍然正確。
+        /// 檢查，不可者則整個重新抓取——因為除此之外，沒有任何方式能判斷它是否仍然正確。
         var canBeRevalidated: Bool {
             !etag.isEmpty || !lastModified.isEmpty
         }
@@ -284,7 +281,7 @@ public actor AppCache {
         // This is where ``maximumAge`` earns its name. Within it, an
         // uncheckable entry is treated as current -- the same heuristic a
         // browser applies to a response with no validators and no
-        // `Cache-Control` -- and past it the entry is gone, pruned on open. The
+        // `Cache-Control` -- and past it the entry is fetched again. The
         // cost is that a resource which changes inside the window, on a server
         // that offers no way to notice, is not noticed.
         //
@@ -295,9 +292,8 @@ public actor AppCache {
         // artifact，快取因此付出了一次請求卻毫無節省。
         //
         // 這正是 ``maximumAge`` 名副其實之處。在該期限內，無法檢查的項目視為最新——這與瀏覽器對
-        // 「沒有驗證標頭也沒有 `Cache-Control` 的回應」所採用的啟發式相同——超過期限則該項目已在
-        // 開啟時被清除。代價是：若某資源在此期限內變更，而其伺服器又不提供任何察覺的方式，便無從
-        // 察覺。
+        // 「沒有驗證標頭也沒有 `Cache-Control` 的回應」所採用的啟發式相同——超過期限則重新抓取。
+        // 代價是：若某資源在此期限內變更，而其伺服器又不提供任何察覺的方式，便無從察覺。
         if policy == .useProtocolCachePolicy,
             let existing, !existing.canBeRevalidated, !existing.isExpired,
             let artifactURL, let data = try? Data(contentsOf: artifactURL)
@@ -384,11 +380,12 @@ public actor AppCache {
 
     // MARK: - Directory and index
 
-    /// The cache directory, or a thrown error when the application has not
-    /// created one. Creates `appCache.csv2` and `artifacts/` inside it, and
-    /// prunes anything past ``maximumAge`` on the way.
-    /// 快取目錄；若應用程式未建立則擲出錯誤。會在其中建立 `appCache.csv2` 與 `artifacts/`，並在
-    /// 過程中清除所有超過 ``maximumAge`` 的項目。
+    /// The cache directory, created if needed, or a thrown error when the cache
+    /// is disabled or the platform's cache directory is unknown. Creates
+    /// `appCache.csv2` and `artifacts/` inside it, and removes orphaned
+    /// artifacts on the way (see `prune(in:)`).
+    /// 快取目錄，必要時建立；快取被關閉或平台快取目錄未知時擲出錯誤。會在其中建立 `appCache.csv2` 與
+    /// `artifacts/`,並在過程中清除孤兒 artifact(見 `prune(in:)`)。
     private func openDirectory() throws -> URL {
         guard isEnabled else { throw AppCacheError.disabled }
         if let directory, index != nil { return directory }
@@ -783,8 +780,7 @@ public actor AppCache {
 }
 
 public enum AppCacheError: Error, CustomStringConvertible {
-    /// No `appCache` directory beside the executable, so caching is off. Not a
-    /// failure: it is how the cache stays opt-in.
+    /// The cache was switched off with ``AppCache/disable()``.
     case disabled
     case locationUnknown
     case httpStatus(Int)

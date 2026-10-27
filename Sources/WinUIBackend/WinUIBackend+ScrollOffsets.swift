@@ -7,16 +7,15 @@ import WinUI
 /// keyboard and `StartBringIntoView` (which is how `scrollContainer` scrolls).
 /// Effective pixels, the units layout uses here.
 ///
-/// **Not compiled on the Mac that wrote it (2026-10-17)**; WinUIBackend does
-/// not build there (queue item 25). The names are the generated bindings' in
-/// swift-winui: `ScrollViewer.horizontalOffset`, `.verticalOffset`, and the
-/// `viewChanged` event with `addHandler`, the shape
-/// `WinUIBackend+Refreshable.swift` uses for `click`.
+/// The names are the generated bindings' in swift-winui:
+/// `ScrollViewer.horizontalOffset`, `.verticalOffset`, and the `viewChanged`
+/// event with `addHandler`, the shape `WinUIBackend+Refreshable.swift` uses
+/// for `click`.
 ///
 /// 從 ScrollViewer 的 `HorizontalOffset`/`VerticalOffset` 取得捲動位移，以 `ViewChanged` 作為每次移動時的
 /// 呼叫：它在捲動途中(`IsIntermediate`)與結束時都會觸發——觸控、滾輪、捲軸、鍵盤與 `StartBringIntoView`
-/// (`scrollContainer` 就是這樣捲動的)皆然。單位是 effective pixel,即這裡排版所用的單位。**撰寫它的 Mac
-/// 上未編譯(2026-10-17)**;WinUIBackend 在那裡建不起來(queue 第 25 項)。名稱取自 swift-winui 產生的繫結:
+/// (`scrollContainer` 就是這樣捲動的)皆然。單位是 effective pixel,即這裡排版所用的單位。
+/// 名稱取自 swift-winui 產生的繫結:
 /// `ScrollViewer.horizontalOffset`、`.verticalOffset`,以及以 `addHandler` 訂閱的 `viewChanged` 事件,
 /// 與 `WinUIBackend+Refreshable.swift` 訂閱 `click` 的形狀相同。
 extension WinUIBackend: BackendFeatures.ScrollOffsetReporting {

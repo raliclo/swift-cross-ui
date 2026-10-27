@@ -19,7 +19,7 @@
 /// The reason to diverge is that a closed protocol is the one thing this
 /// package's style tree does not do. Every other style here is open, for the
 /// same reason recorded on ``DatePickerStyle``: `struct MyStyle: DatePickerStyle`
-/// compiles against SwiftUI and, until it was opened, did not compile here.
+/// compiles against SwiftUI, so it has to compile here too.
 /// `TextFieldStyle` is the inverse case -- it does not usefully compile against
 /// SwiftUI either -- and matching that limitation would have been the only
 /// place in the tree where an application is told "no".
@@ -37,7 +37,7 @@
 ///
 /// 之所以要偏離，是因為「封閉的 protocol」正是本套件樣式樹唯一不做的事。此處其他每一個 style 都是
 /// 開放的，理由記於 ``DatePickerStyle``：`struct MyStyle: DatePickerStyle` 在 SwiftUI 下可編譯，
-/// 而在被開放之前，於此處不可編譯。`TextFieldStyle` 是相反的案例——它在 SwiftUI 下也不能有意義地被
+/// 因此在此處也必須可編譯。`TextFieldStyle` 是相反的案例——它在 SwiftUI 下也不能有意義地被
 /// 實作——若照抄該限制，這裡就會成為整棵樹中唯一對應用程式說「不行」的地方。
 @MainActor
 public protocol TextFieldStyle: Sendable {

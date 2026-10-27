@@ -428,8 +428,8 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
         // A backend that scrolls its own list gets a VIEWPORT; one that does
         // not keeps the full content height, which is the behaviour it has.
         //
-        // Conformance-checked rather than required, so converting the five
-        // backends one at a time is possible. A backend that ignored a viewport
+        // Conformance-checked rather than required, because
+        // backends outside the shipped five need not implement it. A backend that ignored a viewport
         // height would clip instead of scrolling, and missing rows read as a
         // layout fault rather than as an unimplemented method -- which is why
         // this asks rather than assumes.
@@ -439,7 +439,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
         //
         // 會自行捲動清單的 backend 得到的是一個**視口**;不會的則保留完整內容高度,也就是它現有的行為。
         //
-        // 此處採 conformance 檢查而非要求實作,好讓五個 backend 能一次轉換一個。一個忽略視口高度的
+        // 此處採 conformance 檢查而非要求實作,因為五個已發布 backend 以外的 backend 不一定實作它。一個忽略視口高度的
         // backend 會變成裁切而不是捲動,而少掉的列讀起來像是版面問題、不像一個未實作的方法——
         // 這正是此處「詢問」而非「假定」的理由。
         //
@@ -515,11 +515,11 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             to: children.widgets.map { $0.into() },
             withRowHeights: childResults.map(\.size.height).map { height in
                 // Rounded ONCE, after the padding is added, rather than
-                // rounding the height and then adding. With `EdgeInsets` now
-                // `Double`, the old order would have dropped the fraction of a
+                // rounding the height and then adding. Since `EdgeInsets` is
+                // `Double`, rounding first would drop the fraction of a
                 // fractional base padding on every row.
-                // **加上 padding 之後才取整一次**,而不是先把高度取整再相加。既然
-                // `EdgeInsets` 現在是 `Double`,舊的順序會在**每一列**都丟掉「帶分數的
+                // **加上 padding 之後才取整一次**,而不是先把高度取整再相加。因為
+                // `EdgeInsets` 是 `Double`,先取整的順序會在**每一列**都丟掉「帶分數的
                 // base padding」的那個分數。
                 LayoutSystem.roundSize(height + verticalBasePadding)
             }
@@ -597,30 +597,21 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// Least-recently-used first. A plain array because the cap is in the
     /// hundreds: an `O(n)` remove on a 200-entry array is not worth an index.
     ///
-    /// **Evicting here did not return the memory at first, and the reason was
-    /// not this cache.** Scrolling a ten-thousand-row list grew RSS from 104 MB
-    /// to 225 MB -- about 30 KB per row visited, so nothing was being freed --
-    /// and changing this cap made no difference to that number at all. The heap
-    /// said why: live `NSTableRowView` objects went from 30 to 1,745, because
-    /// AppKit's delegate built one per row with no identifier and a table only
-    /// recycles a view it can identify. Fixed there, and scrolling the whole
-    /// list now settles at 134 MB.
+    /// **This cap bounds the framework's own nodes, not the platform's row
+    /// views.** Those are recycled only if the backend lets the toolkit
+    /// identify them: an AppKit delegate that built each `NSTableRowView`
+    /// without an identifier grew RSS by about 30 KB per row visited (104 MB to
+    /// 225 MB over ten thousand rows) whatever this cap was set to -- 50 and
+    /// 200 both gave 143 MB. With identifiers, scrolling the whole list settles
+    /// at 134 MB. Look at the backend's view recycling before this cap when
+    /// memory grows with scrolling.
     ///
-    /// The cap stays, and it is worth knowing what it is actually for: it bounds
-    /// the framework's own nodes, which is a smaller number than the views were.
-    /// The lesson is the one this tree keeps relearning -- the cap was the
-    /// obvious suspect, and testing it (50 against 200, same 143 MB) is what
-    /// pointed at the real one.
+    /// **這個上限界住的是框架自己的節點，而不是平台的列 view。** 後者只有在 backend 讓 toolkit
+    /// 認得出它們時才會被回收:一個為每一列建立沒有識別碼之 `NSTableRowView` 的 AppKit delegate,
+    /// 每造訪一列 RSS 約增 30 KB(一萬列從 104 MB 到 225 MB),不論這個上限設為多少——50 與 200
+    /// 都是 143 MB。有了識別碼之後，把整份清單捲完會停在 134 MB。記憶體隨捲動成長時，先查 backend
+    /// 的 view 回收，再看這個上限。
     ///
-    /// **起初這裡的逐出並沒有把記憶體還回來，而原因不在這個快取。** 把一份一萬列的清單捲下去，RSS 從
-    /// 104 MB 長到 225 MB——約等於每造訪一列 30 KB，因此什麼都沒被釋放——而改動這個上限對那個數字
-    /// **毫無影響**。heap 說出了理由:存活的 `NSTableRowView` 物件從 30 個變成 1,745 個，因為 AppKit 的
-    /// delegate 為每一列建一個沒有識別碼的 view，而表格只回收「它認得出來」的 view。已在該處修好，
-    /// 現在把整份清單捲完會停在 134 MB。
-    ///
-    /// 這個上限保留下來，而值得知道它**實際上**是為了什麼:它界住的是框架自己的節點，而那個數目比
-    /// 那些 view 小得多。教訓是這棵樹一再重學的那一個——上限是最顯眼的嫌疑犯，而**去測試它**
-    /// (50 對 200，同樣是 143 MB)才是指出真兇的那一步。
     /// 最久未使用者在前。使用單純的陣列，因為上限只有數百:對一個 200 筆的陣列做 `O(n)` 移除，
     /// 不值得為它多維護一份索引。
     var lazyOrder: [Int] = []
@@ -643,7 +634,7 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// But relying on the release callback ALONE means one missed callback grows
     /// this dictionary for ever, with nothing to catch it -- and a leak whose
     /// only symptom is memory is exactly the shape that gets found by a user
-    /// rather than by us. So the LRU stays, with a cap far above any real
+    /// rather than by the framework's own tests. So the LRU stays, with a cap far above any real
     /// overscan: it never fires in normal operation, and it bounds the damage
     /// when the callback does not arrive.
     ///
@@ -655,7 +646,7 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// 被重建。
     ///
     /// 但**只**依賴那個 release callback,意謂著少收到一次回呼就會讓這個字典永遠成長,而且沒有任何東西
-    /// 會攔下它——一個「唯一症狀是記憶體」的洩漏,正是那種由使用者、而非由我們發現的形狀。因此 LRU
+    /// 會攔下它——一個「唯一症狀是記憶體」的洩漏,正是那種由使用者、而非由框架自身的測試發現的形狀。因此 LRU
     /// 保留下來,並採用一個遠高於任何真實 overscan 的上限:它在正常運作下永遠不會觸發,而當那個回呼
     /// 沒有到達時,它會把損害界住。
     static var lazyLifetimeBackstopLimit: Int { 4000 }

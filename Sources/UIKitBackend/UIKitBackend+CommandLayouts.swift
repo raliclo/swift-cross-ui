@@ -13,18 +13,18 @@ import UIKit
     /// shortcuts still work, as before. With ``Scene/enableMenu(_:)`` a menu
     /// button appears at the top left, and opens the standard menus as submenus;
     /// that button is this framework's own design -- SwiftUI shows nothing on an
-    /// iPhone -- and was agreed with the user on 2026-10-14.
+    /// iPhone.
     ///
-    /// NOT compared with SwiftUI on iPad: a SwiftUI reference app runs there but
-    /// its menu could not be read (queue.md, 2026-10-13). `windowList` and
+    /// Compared with SwiftUI on iPad through the reference app's menu dumps in
+    /// `testapp/reference/swiftui-commands/ipad/`. `windowList` and
     /// `singleWindowList` do not exist on iOS in SwiftUI; here they go to the end
     /// of the Window menu.
     ///
     /// UIKit 上的 ``CommandGroup``。有選單列的地方(iPad、Mac Catalyst)保留系統的選單，app 的群組放進去——在系統自己的
     /// 群組之前、之後或取代它;每個位置對應 UIKit 的一個選單識別碼，所以 `replacing:` 拿掉的正是系統放在那裡的東西。
     /// 手機沒有選單列:預設什麼都不顯示，項目的快捷鍵照舊有效;``Scene/enableMenu(_:)`` 打開後左上角出現選單按鈕，點開是各個
-    /// 標準選單的子選單。那個按鈕是本框架自己的設計(SwiftUI 在 iPhone 上什麼都不顯示),2026-10-14 與使用者確認過。
-    /// iPad 上**尚未**與 SwiftUI 比對:參考 app 跑得起來，但讀不到它的選單。SwiftUI 在 iOS 上沒有 `windowList` 與
+    /// 標準選單的子選單。那個按鈕是本框架自己的設計(SwiftUI 在 iPhone 上什麼都不顯示)。
+    /// iPad 上已透過 `testapp/reference/swiftui-commands/ipad/` 中參考 app 的選單傾印與 SwiftUI 比對。SwiftUI 在 iOS 上沒有 `windowList` 與
     /// `singleWindowList`;這裡把它們放在 Window 選單的尾端。
     extension UIKitBackend: BackendFeatures.CommandLayouts {
         public func setApplicationCommands(
@@ -167,10 +167,10 @@ import UIKit
                         case "textFormatting":
                             // SwiftUI shows no Format menu on iPad and drops whatever the app
                             // put in this group (ipad-after.txt has no AFTER-textFormatting),
-                            // so the entries go nowhere here too (user, 2026-10-20: follow
-                            // SwiftUI). The menu itself is removed below.
+                            // so the entries go nowhere here too, following SwiftUI.
+                            // The menu itself is removed below.
                             // SwiftUI 在 iPad 上不顯示 Format 選單，app 放在這個群組的東西也一併丟掉(ipad-after.txt 沒有
-                            // AFTER-textFormatting),所以這裡也不放(使用者,2026-10-20:照 SwiftUI)。選單本身在下方移除。
+                            // AFTER-textFormatting),所以這裡照 SwiftUI 也不放。選單本身在下方移除。
                             continue
                         case "importExport":
                             let inline = UIMenu(
@@ -317,9 +317,9 @@ import UIKit
                 var menu = menu
                 menu.sections = menu.sections.compactMap { section in
                     // No Format menu on the phone either, as on the iPad and as SwiftUI's iPad
-                    // bar (user, 2026-10-20): the textFormatting group is dropped, and with it
+                    // bar: the textFormatting group is dropped, and with it
                     // the menu it was the only part of.
-                    // 手機上也沒有 Format 選單，與 iPad 及 SwiftUI 的 iPad 選單列相同(使用者,2026-10-20):丟掉 textFormatting
+                    // 手機上也沒有 Format 選單，與 iPad 及 SwiftUI 的 iPad 選單列相同:丟掉 textFormatting
                     // 群組，只由它組成的那個選單也就一併消失。
                     if section.placement?.name == "textFormatting" { return nil }
                     var section = section

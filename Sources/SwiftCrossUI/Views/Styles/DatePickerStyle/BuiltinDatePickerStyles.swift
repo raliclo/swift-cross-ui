@@ -7,9 +7,9 @@ import Foundation
 /// between them. They are worth reading side by side for that reason.
 ///
 /// The `where Self == …` extensions are what make `.datePickerStyle(.compact)`
-/// read the same as it did when these were enum cases. That is the whole point
-/// of the shape: existing call sites do not change, and a call site that could
-/// never have been written -- a style of the author's own -- becomes possible.
+/// read like an enum case. That is the whole point
+/// of the shape: a call site reads the same as it does against
+/// SwiftUI, and a style of the author's own is possible as well.
 
 /// A date input that adapts to the current platform and context.
 ///
@@ -80,12 +80,11 @@ extension DatePickerStyle where Self == CompactDatePickerStyle {
 /// (where its API level has the spinner) draw their own wheel; AppKitBackend
 /// and GtkBackend, which have no wheel control, draw ``_SwiftWheelDatePicker``,
 /// built from SwiftCrossUI views. Available on macOS, unlike SwiftUI's, for that
-/// reason: the project's rule is that a feature works on every shipped backend
-/// (P90 said "unavailable on macOS" until 2026-10-18).
+/// reason: the project's rule is that a feature works on every shipped backend.
 ///
 /// 每個 backend 都支援。UIKitBackend、WinUIBackend 與 AndroidBackend(API 層級有 spinner 時)畫自己的滾輪;沒有滾輪控制項的
 /// AppKitBackend 與 GtkBackend 畫 ``_SwiftWheelDatePicker``,以 SwiftCrossUI 的 view 組成。因此與 SwiftUI 不同，在 macOS 上
-/// 也可用：本專案的規則是功能在每個已發布的 backend 上都要能用(P90 直到 2026-10-18 都顯示「macOS 上不可用」)。
+/// 也可用：本專案的規則是功能在每個已發布的 backend 上都要能用。
 @available(iOS 13.4, macCatalyst 13.4, *)
 public struct WheelDatePickerStyle: DatePickerStyle {
     public nonisolated init() {}

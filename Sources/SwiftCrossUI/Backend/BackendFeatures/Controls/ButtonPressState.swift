@@ -16,12 +16,9 @@ extension BackendFeatures {
     ///
     /// **Unlike `HoverGestures` there is no `create` half.** Hover has to wrap a
     /// view that knows nothing about pointers; a button already exists, already
-    /// tracks whether it is held down in order to draw its own highlight, and on
-    /// three of the five backends that state was already there and merely
-    /// private. Measured 2026-09-08: `isPressed`/`isHighlighted` exist in
-    /// `AppKitBackend+Button.swift:97,106`, `WinUIBackend+Button.swift:82,83`
-    /// and `UIKitBackend+CustomButton.swift:139`; GtkBackend and AndroidBackend
-    /// had nothing, so those two are the real work.
+    /// tracks whether it is held down in order to draw its own highlight (a
+    /// private `isPressed`/`isHighlighted` in AppKitBackend's `NSCustomButton`
+    /// and in the custom buttons of WinUIBackend and UIKitBackend).
     ///
     /// The handler is called on **every** transition, including the one to
     /// `false` when a press is abandoned by dragging off the button. A style that
@@ -39,10 +36,8 @@ extension BackendFeatures {
     /// 回答的是同一個問題：「當這個 widget 的某個布林值改變時通知我」。
     ///
     /// **與 `HoverGestures` 不同的是，此處沒有 `create` 那一半。** hover 必須包裝一個對指標一無所知的
-    /// view；而按鈕本來就已存在，也本來就為了繪製自身的高亮而追蹤自己是否被按住。2026-09-08 實測：
-    /// 五個 backend 中有三個早已具備該狀態，只是宣告為私有——`AppKitBackend+Button.swift:97,106`、
-    /// `WinUIBackend+Button.swift:82,83`、`UIKitBackend+CustomButton.swift:139`；GtkBackend 與
-    /// AndroidBackend 則完全沒有，那兩個才是真正的工作。
+    /// view；而按鈕本來就已存在，也本來就為了繪製自身的高亮而追蹤自己是否被按住(AppKitBackend 的
+    /// `NSCustomButton`、WinUIBackend 與 UIKitBackend 的自訂按鈕都有一個私有的 `isPressed`/`isHighlighted`)。
     ///
     /// handler 會在**每一次**轉換時被呼叫，包含「按住之後把指標拖離按鈕而放棄」所產生的那一次
     /// `false`。一個只看得到 `true` 的樣式會卡在按下狀態。

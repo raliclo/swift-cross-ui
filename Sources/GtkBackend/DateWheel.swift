@@ -6,12 +6,9 @@ import Gtk
 ///
 /// This is what SwiftUI's `.wheel` style is. Its documentation describes the
 /// style as displaying "each component as columns in a scrollable wheel", and on
-/// iOS it is a `UIPickerView` -- itself N columns of scrollable text. That
-/// matters here because GtkBackend used to decline `.wheel` outright, with a
-/// comment saying GTK "has no wheel widget of any kind, and faking one out of a
-/// scrolled list would be a worse lie than the fallback". The premise was wrong:
-/// a scrolled list per component is not a fake of the wheel, it is the wheel.
-/// Neither AppKit nor UIKit has a single "wheel widget" either.
+/// iOS it is a `UIPickerView` -- itself N columns of scrollable text. A scrolled
+/// list per component is not a fake of the wheel, it is the wheel. Neither
+/// AppKit nor UIKit has a single "wheel widget" either.
 ///
 /// Two differences from the iOS wheel remain, and both are behavioural rather
 /// than a different control:
@@ -37,15 +34,8 @@ import Gtk
 /// 日期以三個可捲動的欄位呈現，每個組成部分一欄。
 ///
 /// 這正是 SwiftUI `.wheel` 樣式的本質。其文件將該樣式描述為「將每個組成部分顯示為可捲動滾輪中的
-/// 欄位」，而在 iOS 上它就是 `UIPickerView`——本身即為 N 欄可捲動文字。這一點在此處很重要，因為
-/// GtkBackend 過去直接拒絕 `.wheel`，並附上一則註解說 GTK「沒有任何形式的滾輪 widget，而用捲動
-/// 清單假造一個，會是比退回預設更糟的謊言」。該前提是錯的：每個組成部分一個捲動清單並非滾輪的
-/// 贗品，它就是滾輪本身。AppKit 與 UIKit 同樣沒有單一的「滾輪 widget」。
-///
-/// GTK 真正缺少的是**慣性與吸附**——GTK 4 沒有 scroll-snap，因此此處的欄位會停在被放開的位置，而
-/// 不會喀噠一聲對齊最近的一列；且選取項是以高亮顯示，而非位於固定的中央橫條之下。那是同一個
-/// 控制項上的外觀差異，而非不同的控制項；此處予以記錄而非隱瞞，因為跨 backend 比對截圖的人一定
-/// 會看見它。
+/// 欄位」，而在 iOS 上它就是 `UIPickerView`——本身即為 N 欄可捲動文字。每個組成部分一個捲動清單
+/// 並非滾輪的贗品，它就是滾輪本身。AppKit 與 UIKit 同樣沒有單一的「滾輪 widget」。
 final class DateWheel: Box {
     /// Reports a date the user picked.
     ///
@@ -297,17 +287,15 @@ final class DateWheel: Box {
         // viewport's worth, still in whole rows.
         //
         // This does not snap a drag: dragging the scrollbar or a touch flick
-        // moves the adjustment directly and can stop anywhere. Saying so matters
-        // because "we added snapping" would otherwise read as covering both, and
-        // the wheel is the input this actually fixes.
+        // moves the adjustment directly and can stop anywhere. Only the wheel
+        // input snaps.
         //
         // 在 GTK 允許的範圍內做吸附。GTK 4 沒有 scroll-snap，但滾輪是依 adjustment 的 step
         // increment 移動的，因此把它設為一列的高度，每一個刻度就會在結構上對齊列——不需要計時器、
         // 不需要偵測停止、也就沒有什麼會出錯。翻頁則移動一個可視高度，同樣以整列為單位。
         //
         // 這並不會吸附「拖曳」：拖動捲軸或觸控滑動是直接改變 adjustment 的，可以停在任何位置。
-        // 此處明說是必要的，否則「我們加了吸附」會被讀成兩者皆涵蓋，而滾輪才是這項改動真正解決的
-        // 輸入方式。
+        // 只有滾輪輸入會吸附。
         gtk_adjustment_set_step_increment(adjustment, rowHeight)
         gtk_adjustment_set_page_increment(adjustment, rowHeight * Double(visibleRows))
 

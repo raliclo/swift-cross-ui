@@ -7,11 +7,7 @@ extension View {
     ///
     /// `onDismiss` runs when the presentation ends, however it ended -- the user
     /// closing the sheet, and `isPresented` being set to `false`. That is
-    /// SwiftUI's rule, and until 2026-09-08 this modifier only had the first
-    /// half of it. The doc comment here said so in as many words: *"`onDismiss`
-    /// isn't called when the sheet gets dismissed programmatically"*. It was an
-    /// accurate description of a defect, which is not the same as a design.
-    /// `.popover` had the identical shape and was fixed first, in `6ec976b2`.
+    /// SwiftUI's rule.
     ///
     /// The callback is the backends' to run, not this modifier's. `commit`
     /// hands `handleDismiss` to `updateSheet(onDismiss:)`, and each backend
@@ -28,10 +24,7 @@ extension View {
     /// that ordering is meaningful there.
     ///
     /// 無論 presentation 以何種方式結束，`onDismiss` 都會執行——使用者關閉 sheet，以及 `isPresented`
-    /// 被設為 `false`。那是 SwiftUI 的規則，而在 2026-09-08 之前，本 modifier 只做到了其中的前半。
-    /// 此處的文件註解也把話說得很白：*「以程式方式關閉 sheet 時不會呼叫 `onDismiss`」*。那是對一項
-    /// 缺陷的如實描述，而如實描述一項缺陷與一項設計並不是同一回事。`.popover` 有著完全相同的形狀，
-    /// 並已於 `6ec976b2` 先行修正。
+    /// 被設為 `false`。那是 SwiftUI 的規則。
     ///
     /// 這個回呼歸各 backend 執行，而非歸本 modifier。`commit` 把 `handleDismiss` 交給
     /// `updateSheet(onDismiss:)`，而每個 backend 都只在「sheet 真正被拆除」的那唯一一處執行它，
@@ -202,22 +195,18 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             // The detents are a PREFERENCE, so they are not known until the
             // content has been laid out once -- and the first pass proposes
             // `.unspecified`, which is the content's ideal size. That is right
-            // for a sheet and wrong for anything asking to fill, and it is why
-            // `.fraction(1)` had no effect on ANY backend rather than on one of
-            // them: nothing was ever proposed the larger size, so no backend
-            // ever received it. AppKitBackend was blamed first, and sizing its
-            // NSWindow directly changed nothing, because the sheet's content
-            // view is pinned to its content by constraints and the constraints
-            // win.
+            // for a sheet and wrong for anything asking to fill: without this pass
+            // `.fraction(1)` has no effect on ANY backend, because nothing is
+            // proposed the larger size. Sizing AppKit's NSWindow directly does not
+            // help either: the sheet's content view is pinned to its content by
+            // constraints, and the constraints win.
             //
             // 第二輪,而且僅在內容要求填滿呈現空間時才發生。
             //
             // detents 是一項 preference,因此在內容被佈局過一次之前無從得知——而第一輪提議的是
-            // `.unspecified`,也就是內容的理想尺寸。那對 sheet 是對的,對任何要求填滿的東西則是錯的;
-            // 這也正是 `.fraction(1)` 在**每一個** backend 上都無效、而非只在其中一個上無效的原因:
-            // 從來沒有任何東西被提議過那個較大的尺寸,因此沒有任何 backend 收到過它。最初被歸咎的是
-            // AppKitBackend,而直接設定它的 NSWindow 尺寸什麼都沒有改變,因為 sheet 的 content view
-            // 是以約束釘在其內容上的,而約束會贏。
+            // `.unspecified`,也就是內容的理想尺寸。那對 sheet 是對的,對任何要求填滿的東西則是錯的:
+            // 少了這一輪,`.fraction(1)` 在**每一個** backend 上都無效,因為沒有任何東西被提議那個較大的尺寸。
+            // 直接設定 AppKit 的 NSWindow 尺寸也沒有用:sheet 的 content view 是以約束釘在其內容上的,而約束會贏。
             if Self.fillsPresentation(result.preferences.presentationDetents) {
                 let windowSize = backend.size(ofWindow: window as! NewBackend.Window)
                 _ = children.sheetContentNode!.computeLayout(
@@ -305,7 +294,7 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             //   branch.
             // - State updates are asynchronous, so `handleDismiss` cannot
             //   re-enter `commit` part-way through this branch:
-            //   `Publisher.observeAsUIUpdater` (`Publisher.swift:97`) queues the
+            //   `Publisher.observeAsUIUpdater` queues the
             //   update on `serialUpdateHandlingQueue` and then hops through
             //   `backend.runInMainThread`.
             //
@@ -313,8 +302,8 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             // `GtkBackend+Popovers.swift` argues it from "writes `false` over a
             // `false` -- no state change, so no further update", and that part
             // is not true of this codebase: `StateImpl.wrappedValue`'s setter
-            // calls `postSet()` unconditionally (`StateImpl.swift:36-41`) and
-            // `postSet` ends in a bare `didChange.send()` (`:92`). There is no
+            // calls `postSet()` unconditionally and
+            // `postSet` ends in a bare `didChange.send()`. There is no
             // equality check anywhere on the path -- `Value` is not even
             // constrained to `Equatable` -- so the write DOES publish, and one
             // extra update is scheduled per dismissal. It terminates on the
@@ -329,14 +318,14 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             //   ——並且是在它動到 `isPresented` 之前。第二輪會發現 `children.sheet == nil`，
             //   於是兩個分支都不進入。
             // - state 更新是非同步的，因此 `handleDismiss` 無法在本分支執行到一半時重入
-            //   `commit`：`Publisher.observeAsUIUpdater`（`Publisher.swift:97`）會把更新排入
+            //   `commit`：`Publisher.observeAsUIUpdater` 會把更新排入
             //   `serialUpdateHandlingQueue`，再經由 `backend.runInMainThread` 轉手。
             //
             // 值得把話說精確，因為 `GtkBackend+Popovers.swift` 中對應的註記是以「在一個 `false`
             // 上寫入 `false`——沒有狀態改變，也就不會再引發下一輪 update」來論證的，而那一段在本
-            // 專案裡並不成立：`StateImpl.wrappedValue` 的 setter 無條件呼叫 `postSet()`
-            //（`StateImpl.swift:36-41`），而 `postSet` 以一個純粹的 `didChange.send()` 收尾
-            //（`:92`）。整條路徑上沒有任何相等性檢查——`Value` 甚至沒有被約束為 `Equatable`
+            // 專案裡並不成立：`StateImpl.wrappedValue` 的 setter 無條件呼叫 `postSet()`，
+            // 而 `postSet` 以一個純粹的 `didChange.send()` 收尾。
+            // 整條路徑上沒有任何相等性檢查——`Value` 甚至沒有被約束為 `Equatable`
             // ——所以該次寫入**確實**會發佈，每次關閉都會多排一輪更新。真正讓它停下來的是上述第二點
             // 與第三點，而不是第一點。
             backend.dismissSheet(

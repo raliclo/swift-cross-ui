@@ -51,12 +51,9 @@ extension GtkBackend {
         // button that stops being destructive has to stop looking destructive;
         // only adding would make the styling a one-way door.
         //
-        // CARRIED ACROSS 2026-09-08, when upstream's #590 moved this method into
-        // this file. Upstream's `updateSimpleButton` does not have this block,
-        // and taking the new file wholesale would have deleted the role styling
-        // without failing anything -- a button would simply have stopped turning
-        // red. It surfaced only because both copies existed at once and the
-        // redeclaration would not compile.
+        // Upstream's `updateSimpleButton` does not have this block. Keep it when
+        // merging upstream changes to this method: without it a destructive
+        // button simply stops turning red, and nothing fails.
         //
         // 使用 GTK 自有的「破壞性動作」樣式類別，如此該按鈕便會採用當前主題用來示警的樣式——在
         // Adwaita 上是紅色——而非由本 backend 自行挑選的顏色。`.cancel` 則不套用任何東西：GTK 沒有
@@ -65,9 +62,8 @@ extension GtkBackend {
         // 此處會「移除」而不只是「加入」。widget 會在多次更新之間被重複使用，因此一個不再具有破壞性
         // 的按鈕，也必須不再看起來具有破壞性；只加不移會讓這個樣式變成一扇單向門。
         //
-        // 於 2026-09-08 一併搬移過來，當時 upstream 的 #590 把本方法移進了這個檔案。upstream 版的
-        // `updateSimpleButton` 沒有這一段，而直接整份採用新檔會在不讓任何東西失敗的情況下刪掉這項
-        // role 樣式：按鈕只會單純不再變紅。它之所以被發現，只是因為兩份副本同時存在，而重複宣告編不過。
+        // upstream 版的 `updateSimpleButton` 沒有這一段。合併 upstream 對本方法的修改時要保留它：少了它，
+        // 破壞性按鈕只會單純不再變紅，而沒有任何東西失敗。
         if environment.buttonRole == .destructive {
             gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
         } else {
@@ -126,19 +122,19 @@ extension GtkBackend {
     /// (`suggestedForegroundColor.opacity(0.3)`). `resolveAdaptiveColor` picks
     /// GNOME's Red 3 (#E01B24) on light and Red 2 (#ED333B) on dark.
     ///
-    /// Until 2026-10-23 this read the colour from an unshown probe button with
-    /// the theme's `.flat.destructive-action` class. On Windows and under WSLg the
-    /// probe answered the light variant's dark red even in dark mode, and P82's
-    /// "destructive, bordered" was dark red on a dark grey bezel, hard to read
-    /// beside AppKit's bright system red on the same bezel.
-    ///
-    /// 系統紅色，與 AppKitBackend 回傳的相同：危險按鈕保留一般外框，只有標籤變紅；停用時，core 會像對任何有顏色的標籤一樣
-    /// 把這個紅色變淡(`suggestedForegroundColor.opacity(0.3)`)。`resolveAdaptiveColor` 在淺色選 GNOME 的 Red 3(#E01B24),
-    /// 深色選 Red 2(#ED333B)。
-    ///
-    /// 2026-10-23 之前，這裡從一顆不顯示、帶主題 `.flat.destructive-action` 類別的探針按鈕讀顏色。在 Windows 與 WSLg 上，
-    /// 即使是深色模式，探針回答的仍是淺色變體的深紅，P82 的「destructive, bordered」成了深灰外框上的深紅字，與 AppKit 在同樣
-    /// 外框上的亮系統紅相比難以閱讀。
+/// Not read from an unshown probe button with the theme's
+/// `.flat.destructive-action` class: on Windows and under WSLg such a probe
+/// answered the light variant's dark red even in dark mode, and P82's
+/// "destructive, bordered" was dark red on a dark grey bezel, hard to read
+/// beside AppKit's bright system red on the same bezel (2026-10-23).
+///
+/// 系統紅色，與 AppKitBackend 回傳的相同：危險按鈕保留一般外框，只有標籤變紅；停用時，core 會像對任何有顏色的標籤一樣
+/// 把這個紅色變淡(`suggestedForegroundColor.opacity(0.3)`)。`resolveAdaptiveColor` 在淺色選 GNOME 的 Red 3(#E01B24),
+/// 深色選 Red 2(#ED333B)。
+///
+/// 不從一顆不顯示、帶主題 `.flat.destructive-action` 類別的探針按鈕讀顏色：在 Windows 與 WSLg 上，即使是深色模式，
+/// 那樣的探針回答的仍是淺色變體的深紅，P82 的「destructive, bordered」成了深灰外框上的深紅字，與 AppKit 在同樣
+/// 外框上的亮系統紅相比難以閱讀(2026-10-23)。
     public func destructiveButtonLabelColor(
         in environment: EnvironmentValues
     ) -> SwiftCrossUI.Color? {
@@ -226,13 +222,13 @@ fileprivate final class GtkCustomButton: Gtk.Button {
     @MainActor
     func loadCSS(environment: EnvironmentValues) {
         // The button's own rules and the app's `css` share one provider, and
-        // `loadCss` replaces what a provider holds. Until 2026-10-06 each update
-        // replaced the other, so `.inspect { button.css.set(...) }` lost to the
-        // next `updateButton` -- AdvancedCustomizationExample's red `+` stayed
-        // grey on GtkBackend. `reloadCSS` below writes both.
-        // 按鈕自己的規則與 app 的 `css` 共用一個 provider,而 `loadCss` 會取代 provider 的內容。2026-10-06
-        // 之前兩者每次更新都互相取代，所以 `.inspect { button.css.set(...) }` 輸給下一次 `updateButton`——
-        // AdvancedCustomizationExample 的紅色 `+` 在 GtkBackend 上一直是灰的。下方的 `reloadCSS` 兩者都寫。
+        // `loadCss` replaces what a provider holds. Writing either set alone
+        // would replace the other, so `.inspect { button.css.set(...) }` would
+        // lose to the next `updateButton` -- AdvancedCustomizationExample's red
+        // `+` stayed grey on GtkBackend that way. `reloadCSS` below writes both.
+        // 按鈕自己的規則與 app 的 `css` 共用一個 provider,而 `loadCss` 會取代 provider 的內容。只寫其中一組就會
+        // 取代另一組，於是 `.inspect { button.css.set(...) }` 會輸給下一次 `updateButton`——AdvancedCustomizationExample
+        // 的紅色 `+` 在 GtkBackend 上就曾因此一直是灰的。下方的 `reloadCSS` 兩者都寫。
         let backgroundColor = GtkBackend.controlBackgroundColor(for: environment)
         // Every button, destructive or not, gets the ordinary background: a
         // destructive one is marked by its label's colour alone, as AppKit

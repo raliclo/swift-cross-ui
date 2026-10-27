@@ -6,7 +6,7 @@ import Foundation
 /// Shaped after ``PickerStyle``, which is shaped after SwiftUI. The point of
 /// the protocol, rather than an enum of the built-in cases, is that a style can
 /// be written outside this module: `struct MyStyle: DatePickerStyle` compiles
-/// against SwiftUI and until 2026-08-27 did not compile here.
+/// against SwiftUI and here alike.
 ///
 /// A style that maps onto a widget the backend already has should also conform
 /// to ``_BuiltinDatePickerStyle``, which supplies ``makeView(selection:range:components:environment:)``

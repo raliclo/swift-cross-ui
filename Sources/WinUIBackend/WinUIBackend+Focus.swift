@@ -57,29 +57,18 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         // hands out is a `Canvas`, and a `Canvas` accepts focus unconditionally:
         // instrumented on 2026-09-16, `focus(Canvas) enabled=not-a-Control
         // took=true` appeared 51 times in one run, including for the disabled
-        // button. So `focus` was returning true for everything, and an earlier
-        // `isEnabled` guard on the widget never even ran, because the cast to
-        // `Control` failed on the wrapper.
+        // button. An `isEnabled` check on the widget itself never runs, because
+        // the cast to `Control` fails on the wrapper. AppKit refuses the
+        // identical case: its `responder(in:)` falls back to the widget, and
+        // handing that wrapper to `makeFirstResponder` is what its comment warns
+        // against.
         //
-        // That made the one answer this protocol has to get right -- did the
-        // widget take the focus -- always yes, which makes every reader of
-        // `@FocusState` wrong about where the keyboard is.
-        //
-        // AppKit refuses the identical case and says so: its `responder(in:)`
-        // falls back to the widget, and handing that wrapper to
-        // `makeFirstResponder` is what its comment warns against.
-        //
-        // **要的是裡面那個控制項,絕不是那層 wrapper。** 本 backend 交出去的每一個 widget 都是一個
-        // `Canvas`,而 `Canvas` 會無條件接受焦點:2026-09-16 加上儀器後,單次執行中
+        // **要的是裡面那個控制項，絕不是那層 wrapper。** 本 backend 交出去的每一個 widget 都是一個
+        // `Canvas`,而 `Canvas` 會無條件接受焦點:2026-09-16 加上儀器後，單次執行中
         // `focus(Canvas) enabled=not-a-Control took=true` 出現了 51 次,**包含那個被停用的按鈕**。
-        // 於是 `focus` 對任何東西都回傳 true,而先前那道加在 widget 上的 `isEnabled` 防護根本沒執行過,
-        // 因為對 wrapper 的 `Control` 轉型失敗了。
-        //
-        // 那讓本協定唯一必須答對的答案——「該 widget 有沒有接受焦點」——永遠是「有」,而那會讓每一個
-        // 讀取 `@FocusState` 的人對「鍵盤在哪裡」判斷錯誤。
-        //
-        // AppKit 拒絕的是完全相同的情形,而且它寫明了:它的 `responder(in:)` 會退回該 widget,
-        // 而「把那層 wrapper 交給 `makeFirstResponder`」正是它的註解所警告的事。
+        // 加在 widget 本身的 `isEnabled` 檢查根本不會執行，因為對 wrapper 的 `Control` 轉型會失敗。
+        // AppKit 拒絕的是完全相同的情形：它的 `responder(in:)` 會退回該 widget,而「把那層 wrapper 交給
+        // `makeFirstResponder`」正是它的註解所警告的事。
         if let target = Self.focusableTarget(in: widget) {
             // A `.focusable(false)` or disabled target is refused, as a
             // disabled control is above. / `.focusable(false)` 或停用的 target 會被拒絕，與上面停用的控制項相同。

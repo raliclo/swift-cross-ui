@@ -51,10 +51,8 @@ public struct OpenDocumentAction {
 
     /// What the `DocumentGroup`'s document can read: the
     /// `allowedContentTypes` for the open dialog that comes before this call.
-    /// Until 2026-10-06 nothing carried these to a dialog, so an app had to
-    /// repeat its document's types or offer every file.
     /// `DocumentGroup` 的文件能讀取的型別：在這個呼叫之前的那個開啟對話框所用的
-    /// `allowedContentTypes`。2026-10-06 之前沒有東西把它們帶到對話框，app 只能重抄文件的型別或提供所有檔案。
+    /// `allowedContentTypes`。
     public var readableContentTypes: [ContentType] {
         environment.documentRegistry.readableContentTypes
     }
@@ -90,16 +88,12 @@ final class DocumentSaveStore {
 
 /// Saves the document of the window this environment belongs to.
 ///
-/// **Added 2026-10-06, because `DocumentGroup` said it did this and did not.**
-/// Its documentation promised "writes them back through the save dialog";
-/// nothing in the tree wrote a document anywhere. To the file it was opened
-/// from, or -- untitled, or `saveAs: true` -- to wherever the save dialog
-/// returns, offering the document's `writableContentTypes`. The window then
-/// takes the file's name.
+/// To the file it was opened from, or -- untitled, or `saveAs: true` -- to
+/// wherever the save dialog returns, offering the document's
+/// `writableContentTypes`. The window then takes the file's name.
 ///
-/// 儲存此 environment 所屬視窗的文件。**2026-10-06 加入，因為 `DocumentGroup` 說它做了這件事、卻沒有做。**
-/// 它的文件承諾「經由儲存對話框寫回」;整棵樹裡沒有任何東西把文件寫到任何地方。存回它被開啟的檔案；未命名、
-/// 或 `saveAs: true` 時，存到儲存對話框回傳的位置，並提供文件的 `writableContentTypes`。之後視窗改用該檔名。
+/// 儲存此 environment 所屬視窗的文件：存回它被開啟的檔案；未命名、或 `saveAs: true` 時，存到儲存對話框回傳的位置，
+/// 並提供文件的 `writableContentTypes`。之後視窗改用該檔名。
 @MainActor
 public struct SaveDocumentAction {
     let environment: EnvironmentValues

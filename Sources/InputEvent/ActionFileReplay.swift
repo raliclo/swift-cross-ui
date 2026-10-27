@@ -4,13 +4,10 @@ import Foundation
 ///
 /// Lives here rather than in each backend because none of it is
 /// backend-specific. It parses a command-line flag, picks the platform's
-/// synthesiser, and replays a file off the main thread -- and a backend that
-/// wanted this used to have to reimplement all three. Two of them did, in
-/// `GtkBackend/ActionFileReplay.swift` and `AppKitBackend/ActionFileReplay.swift`,
-/// as near-identical copies that had already begun to disagree in their
-/// documentation about a delay both of them set to one second.
+/// synthesiser, and replays a file off the main thread; copies of that in
+/// each backend would drift apart.
 ///
-/// A backend now calls ``replayIfRequested()`` from wherever it shows a window,
+/// A backend calls ``replayIfRequested()`` from wherever it shows a window,
 /// and that is the whole integration.
 ///
 /// The format is documented in this module's README.
@@ -18,12 +15,9 @@ import Foundation
 /// `-actionfile` 旗標：以 CSV 檔驅動的合成輸入。
 ///
 /// 置於此處而非各個 backend 之中，因為其中沒有任何一部分是 backend 特有的。它解析一個命令列旗標、
-/// 挑選該平台的 synthesiser，並在非主執行緒上重放檔案——而想要此功能的 backend 過去必須把這三件事
-/// 全部重新實作一遍。其中兩個確實這麼做了（`GtkBackend/ActionFileReplay.swift` 與
-/// `AppKitBackend/ActionFileReplay.swift`），成為兩份幾乎相同的副本，且其文件對於「延遲」的敘述已
-/// 開始互相矛盾——儘管兩者都設為一秒。
+/// 挑選該平台的 synthesiser，並在非主執行緒上重放檔案；在每個 backend 各放一份副本，副本之間會漸行漸遠。
 ///
-/// 現在 backend 只需在其顯示視窗之處呼叫 ``replayIfRequested()``，整合工作到此為止。
+/// backend 只需在其顯示視窗之處呼叫 ``replayIfRequested()``，整合工作到此為止。
 public enum ActionFileReplay {
     /// The file named by `-actionfile`, if the flag was passed.
     public static var requestedFile: URL? {
@@ -41,34 +35,34 @@ public enum ActionFileReplay {
     /// This is what makes `taplabel` work on the desktop. The synthesisers there
     /// post events to the system and know no views, so the row is turned into a
     /// click at the place the backend reports (``Synthesiser/replay(_:in:)``).
-    /// AppKitBackend and GtkBackend set it (2026-10-10), WinUIBackend since 2026-10-22; AndroidSynthesiser
+    /// AppKitBackend, GtkBackend and WinUIBackend set it; AndroidSynthesiser
     /// answers `taplabel` itself and the iOS runner does so through XCUITest.
     ///
     /// 顯示某段文字的 view 在哪裡：它的中心，以距視窗 client 原點的點數表示；沒有 view 顯示它時為 `nil`。由能搜尋自己
     /// view 樹的 backend 設定；從重放執行緒呼叫。這就是讓 `taplabel` 在桌面上可用的東西：那裡的合成器把事件送給系統、
-    /// 不認識 view,所以這一列會被換成在 backend 回報之處的一次點擊(``Synthesiser/replay(_:in:)``)。AppKitBackend 與
-    /// GtkBackend 會設定它(2026-10-10),WinUIBackend 自 2026-10-22 起也會;AndroidSynthesiser 自己回應 `taplabel`,iOS runner 則透過 XCUITest。
+    /// 不認識 view,所以這一列會被換成在 backend 回報之處的一次點擊(``Synthesiser/replay(_:in:)``)。AppKitBackend、
+    /// GtkBackend 與 WinUIBackend 會設定它;AndroidSynthesiser 自己回應 `taplabel`,iOS runner 則透過 XCUITest。
     public nonisolated(unsafe) static var locateLabel: (@Sendable (String) -> (x: Double, y: Double)?)?
 
     /// How far the window's content sits from the synthesiser's client origin,
     /// in points, asked before each row; `nil` or `(0, 0)` leaves rows as they are.
     ///
     /// Set by GtkBackend on Linux. WSL runs are launched under X11 with
-    /// `GTK_CSD=1` (2026-10-22), so the title bar is GTK's own dark header bar,
-    /// as on Windows, rather than the light frame WSLg's window manager drew.
-    /// That bar is inside the X window, so xdotool's client origin is now its
+    /// `GTK_CSD=1`, so the title bar is GTK's own dark header bar, as on
+    /// Windows, rather than the light frame WSLg's window manager draws.
+    /// That bar is inside the X window, so xdotool's client origin is its
     /// top-left and the content starts about 39 points lower. Measured on P10:
     /// `click,74,232` from actions/wsl/P10-hit-testing.actions hit nothing under
-    /// `GTK_CSD=1` until this offset was added, and 346 `client` rows in
-    /// actions/wsl were written against the content. Only `client` rows move
+    /// `GTK_CSD=1` without this offset, and the 346 `client` rows in
+    /// actions/wsl are written against the content. Only `client` rows move
     /// (``InputAction/shiftingClientPoint(dx:dy:)``); `taplabel` does not, as
     /// ``locateLabel`` already answers from the surface's top-left.
     ///
     /// 視窗內容距合成器的 client 原點多遠(點數),每一列之前詢問；`nil` 或 `(0, 0)` 表示不動。由 Linux 上的
-    /// GtkBackend 設定。自 2026-10-22 起 WSL 以 X11 加 `GTK_CSD=1` 啟動，標題列是 GTK 自己的深色 header bar,
+    /// GtkBackend 設定。WSL 以 X11 加 `GTK_CSD=1` 啟動，標題列是 GTK 自己的深色 header bar,
     /// 與 Windows 相同，而不是 WSLg 視窗管理員畫的淺色框。那條標題列在 X 視窗之內，所以 xdotool 的 client 原點
-    /// 變成它的左上角，內容往下約 39 點。P10 實測:actions/wsl/P10-hit-testing.actions 的 `click,74,232` 在
-    /// `GTK_CSD=1` 下什麼都沒點到，直到加上這個位移；actions/wsl 裡有 346 列 `client` 座標是對內容量的。只有
+    /// 是它的左上角，內容往下約 39 點。P10 實測:actions/wsl/P10-hit-testing.actions 的 `click,74,232` 在
+    /// `GTK_CSD=1` 下若沒有這個位移就什麼都點不到；actions/wsl 裡的 346 列 `client` 座標是對內容量的。只有
     /// `client` 列會移動(``InputAction/shiftingClientPoint(dx:dy:)``);`taplabel` 不動，因為 ``locateLabel``
     /// 本來就以 surface 左上角作答。
     public nonisolated(unsafe) static var clientContentOffset: (@Sendable () -> (x: Double, y: Double))?
@@ -253,19 +247,18 @@ public enum ActionFileReplay {
                 // mistyped column heading is enough. A file cut short by the
                 // process being killed prints no line at all, which is only
                 // visible if someone counts `replaying` against `replayed`
-                // rather than looking for `failed` -- a peer's driver captured
-                // and killed 97 replays mid-flight on 2026-09-07 and every one
-                // of them was silent, because nothing had gone wrong. And a
-                // replay of the wrong file reads identically unless the name and
-                // the count are together.
+                // rather than looking for `failed` -- a driver that captured and
+                // killed 97 replays mid-flight left every one of them silent,
+                // because nothing had gone wrong. And a replay of the wrong file
+                // reads identically unless the name and the count are together.
                 //
                 // 加上動作數,因為單憑「replayed」無法分辨三件事,而那三件事螢幕截圖同樣分辨不了。
                 //
                 // 一個解析出零個動作的檔案會成功重放且什麼都不做;這些檔案是手寫的 CSV,一個打錯的
                 // 欄位標題就夠了。一個因行程被殺而中斷的重放則完全不會印出這一行,而那只有在有人把
-                // `replaying` 與 `replayed` 成對計數、而不是去找 `failed` 時才看得見——2026-09-07
-                // 某位同事的驅動在中途拍照並殺掉了 97 次重放,而它們每一次都是靜默的,因為並沒有任何
-                // 東西出錯。至於重放了錯的檔案,除非名稱與數量同時出現,否則讀起來一模一樣。
+                // `replaying` 與 `replayed` 成對計數、而不是去找 `failed` 時才看得見——一個在中途
+                // 拍照並殺掉了 97 次重放的驅動，每一次都是靜默的，因為並沒有任何東西出錯。至於重放了
+                // 錯的檔案，除非名稱與數量同時出現，否則讀起來一模一樣。
                 //
                 // Parenthesised rather than comma-separated, because the count
                 // is being added to a line that already has readers.
@@ -295,38 +288,34 @@ public enum ActionFileReplay {
     /// Always, not behind a `--debug` flag. A replay that failed leaves a window
     /// that looks untouched, which is indistinguishable from the application
     /// ignoring the input -- and that is exactly the wrong bug to go looking
-    /// for. ~~The line is one per run~~ **a handful of lines per run**: what
-    /// makes the exemption defensible is the volume, so anything that fires per
-    /// event belongs behind `--debug` instead and calls in through here rather
-    /// than around it. `Win32Synthesiser.reportMouseMove` is the case that
-    /// prompted saying so; the "one per run" claim was already false when it was
-    /// read, having been outgrown by the same change that added the second line.
+    /// for. It is a handful of lines per run: what makes the exemption
+    /// defensible is the volume, so anything that fires per event (such as
+    /// `Win32Synthesiser.reportMouseMove`) belongs behind `--debug` instead and
+    /// calls in through here rather than around it.
     ///
     /// 一律輸出，不受 `--debug` 旗標控制。失敗的重放會留下一個看似未被觸碰的視窗，這與「應用程式
-    /// 忽略了輸入」無法區分——而那正是最不該去追查的方向。~~此訊息每次執行僅一行~~**每次執行為
-    /// 數行**：讓這個豁免站得住腳的是「量」，因此任何逐事件觸發的輸出都應改放在 `--debug` 之後，
-    /// 並且經由此處輸出、而非繞過它。`Win32Synthesiser.reportMouseMove` 正是促使寫下這段的案例；
-    /// 而「每次執行僅一行」在被讀到時就已經是假的——讓它過時的，正是同一次加入第二行的改動。
-    /// `public` since 2026-09-22, because `AndroidSynthesiser` lives in AndroidBackend rather
+    /// 忽略了輸入」無法區分——而那正是最不該去追查的方向。每次執行只有數行：讓這個豁免站得住腳的
+    /// 是「量」，因此任何逐事件觸發的輸出(例如 `Win32Synthesiser.reportMouseMove`)都應改放在
+    /// `--debug` 之後，並且經由此處輸出、而非繞過它。
+    ///
+    /// `public` because `AndroidSynthesiser` lives in AndroidBackend rather
     /// than in this module and the `hover` verb reports from there. The alternative was a second
     /// stderr writer with the same `-actionfile:` prefix, which is exactly the drift this
     /// function's own note asks callers to avoid.
-    /// 自 2026-09-22 起改為 `public`,因為 `AndroidSynthesiser` 住在 AndroidBackend 而不是本模組,
+    ///
+    /// 設為 `public`,因為 `AndroidSynthesiser` 住在 AndroidBackend 而不是本模組,
     /// 而 `hover` 這個動作是從那裡回報的。另一個選項是再寫一個帶著相同 `-actionfile:` 前綴的 stderr
     /// 輸出點,而那正是本函式自己的註記要求呼叫端避免的漂移。
     public static func report(_ message: String) {
         let line = "-actionfile: \(message)\n"
         FileHandle.standardError.write(Data(line.utf8))
 
-        // Append, or create -- but never replace. The earlier form fell back to
-        // `write(to:)` whenever the handle could not be opened, and `write(to:)`
-        // truncates: a file that existed but was momentarily unopenable, held by
-        // a reader or locked, lost every line already in it. Silently, and to
-        // the code whose only job is to record what happened.
-        // 附加，或建立——但絕不取代。先前的寫法在無法取得 handle 時一律退回 `write(to:)`，
-        // 而 `write(to:)` 會截斷檔案：一個確實存在、只是當下開不起來（正被讀取或遭鎖定）的檔案，
-        // 會失去其中已有的每一行。而且是無聲地失去，發生在一段「唯一職責就是記錄事情經過」的
-        // 程式碼裡。
+        // Append, or create -- but never replace. `write(to:)` is not a
+        // fallback for a handle that cannot be opened, because it truncates: a
+        // file that existed but was momentarily unopenable, held by a reader or
+        // locked, would silently lose every line already in it.
+        // 附加，或建立——但絕不取代。`write(to:)` 不能當作「取不到 handle」時的退路，因為它會截斷
+        // 檔案：一個確實存在、只是當下開不起來(正被讀取或遭鎖定)的檔案，會無聲地失去其中已有的每一行。
         let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("actionfile-replay.log")
         if let handle = try? FileHandle(forWritingTo: url) {

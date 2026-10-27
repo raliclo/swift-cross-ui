@@ -75,16 +75,16 @@ struct TextUndoSteps {
 /// take one (P92, 2026-10-13). The rule is in `gtktexthistory.c`
 /// (`action_chain`) and the barrier that would stop it is not public for a
 /// `GtkText`. So the history is kept here instead (`TextUndoSteps`) and GTK's is
-/// switched off: for a `GtkEntry` since 2026-10-13, and for a `GtkTextView` --
-/// whose buffer uses the same `gtktexthistory.c` -- since 2026-10-14.
+/// switched off, for a `GtkEntry` and for a `GtkTextView`, whose buffer uses
+/// the same `gtktexthistory.c`.
 ///
 /// Control-Z and Control-Shift-Z (Command on macOS) go to this history too, since
 /// GTK's own binding has nothing left to undo.
 ///
 /// 由框架保存的文字欄位與文字編輯器的復原與重做。GTK 自己的歷史會把彼此相接、中間沒有空白的插入合併:貼上兩次「hello」,
 /// 一次 Undo 就把兩次都拿掉，而 macOS 與 Android 只拿掉一次。規則在 `gtktexthistory.c`(`action_chain`),能阻止合併的
-/// barrier 對 `GtkText` 並不公開。所以歷史改存在這裡(`TextUndoSteps`),並關掉 GTK 自己的:`GtkEntry` 自 2026-10-13 起，
-/// `GtkTextView`(它的 buffer 用的是同一份 `gtktexthistory.c`)自 2026-10-14 起。
+/// barrier 對 `GtkText` 並不公開。所以歷史改存在這裡(`TextUndoSteps`),並關掉 GTK 自己的,`GtkEntry` 與
+/// `GtkTextView`(它的 buffer 用的是同一份 `gtktexthistory.c`)皆然。
 /// Control-Z 與 Control-Shift-Z(macOS 上是 Command)也交給這份歷史，因為 GTK 自己的綁定已經沒有東西可復原。
 @MainActor
 final class TextUndoHistory {

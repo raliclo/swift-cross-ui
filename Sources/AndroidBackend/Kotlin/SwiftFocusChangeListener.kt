@@ -42,9 +42,9 @@ class SwiftFocusChangeListener(private val id: Int) :
 
     override fun onGlobalFocusChanged(oldFocus: View?, newFocus: View?) {
         // No view is passed on. Swift re-asks its own widget `hasFocus()` instead, because the
-        // question is "does the widget I am watching, or anything inside it, have the focus" --
+        // question is "does the watched widget, or anything inside it, have the focus" --
         // and neither `oldFocus` nor `newFocus` answers that without walking the tree here.
-        // 不傳遞任何 view。Swift 改為重新去問它自己的 widget `hasFocus()`,因為問題是「我在看的那個
+        // 不傳遞任何 view。Swift 改為重新去問它自己的 widget `hasFocus()`,因為問題是「被觀察的那個
         // widget、或它裡面的任何東西,有沒有焦點」——而 `oldFocus` 與 `newFocus` 都無法在不於此處
         // 走訪整棵樹的情況下回答它。
         swiftFocusChanged(id)

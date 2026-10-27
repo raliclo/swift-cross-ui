@@ -16,23 +16,18 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// they ask for. Asking for only the mode that is wanted matters: with
     /// `.all`, a one-finger drag also produces scale noise.
     ///
-    /// ~~**NOT COMPILED HERE (2026-09-10).**~~ Compiled since, and DRIVEN
-    /// 2026-09-17 with real synthetic touch (`testapp/touch_gesture.zsh`)
+    /// Driven 2026-09-17 with synthetic touch (`testapp/touch_gesture.zsh`)
     /// against P65: drag (180, 20) reported translation (173, 23); a pinch from
     /// a 40 px gap to 160 px reported magnification 3.478; a 90-degree rotate
-    /// reported 1.531 rad. Manipulations need touch or pen -- a mouse never
-    /// raises them -- which is why the earlier mouse-only action files could
-    /// not have driven any of this.
+    /// reported 1.531 rad.
     ///
-    /// **"A mouse never raises them" is wrong (2026-10-19).** A mouse drag sent as
-    /// SendInput moves raises ManipulationDelta like a finger: P108's card was
-    /// thrown with the mouse, translation 2.5 ... 47.2 over ten moves. What raised
-    /// nothing was Win32Synthesiser moving with `SetCursorPos` while the button
-    /// was down, which places the cursor without any pointer input. It now moves
-    /// with SendInput while a button is held.
-    /// **「滑鼠永遠不會觸發」是錯的(2026-10-19)。** 以 SendInput 移動送出的滑鼠拖曳會像手指一樣觸發
-    /// ManipulationDelta:P108 的卡片用滑鼠拋出,十次移動 translation 由 2.5 到 47.2。什麼都沒觸發的,是
-    /// Win32Synthesiser 在按住時用 `SetCursorPos` 移動——那只擺放游標，不產生任何指標輸入。現在按住時改用 SendInput。
+    /// A mouse raises manipulations too when the input is real: a mouse drag
+    /// sent as SendInput moves raises ManipulationDelta like a finger (P108's
+    /// card, translation 2.5 ... 47.2 over ten moves, 2026-10-19).
+    /// `SetCursorPos` while a button is down raises nothing, because it places
+    /// the cursor without any pointer input; Win32Synthesiser moves with
+    /// SendInput while a button is held for that reason. Mouse drags are still
+    /// taken from pointer events; see the note in the target's `init` below.
     ///
     /// WinUI 的 manipulation 事件，它一次回報全部三者。
     ///
@@ -41,10 +36,13 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// 差別只在於各自讀哪個欄位、以及要求哪一種模式。只要求「所要的那個模式」是有意義的:若用
     /// `.all`，一次單指拖曳也會產生縮放的雜訊。
     ///
-    /// ~~**此處未編譯(2026-09-10)。**~~ 之後已編譯,並於 2026-09-17 以真實的合成觸控
-    /// (`testapp/touch_gesture.zsh`)對 P65 **驅動**:拖曳 (180, 20) 回報 translation (173, 23);
-    /// 間距 40 px → 160 px 的捏合回報 magnification 3.478;90 度旋轉回報 1.531 rad。manipulation 需要
-    /// 觸控或筆——滑鼠從不觸發——這就是先前那些只用滑鼠的動作檔不可能驅動其中任何一項的原因。
+    /// 2026-09-17 以真實的合成觸控(`testapp/touch_gesture.zsh`)對 P65 **驅動**:拖曳 (180, 20) 回報
+    /// translation (173, 23);間距 40 px → 160 px 的捏合回報 magnification 3.478;90 度旋轉回報 1.531 rad。
+    ///
+    /// 滑鼠在輸入是真的時也會觸發 manipulation:以 SendInput 移動送出的滑鼠拖曳會像手指一樣觸發
+    /// ManipulationDelta(P108 的卡片，十次移動 translation 由 2.5 到 47.2,2026-10-19)。按住時用
+    /// `SetCursorPos` 移動則什麼都不觸發——那只擺放游標，不產生任何指標輸入；Win32Synthesiser 因此在按住時
+    /// 改用 SendInput。不過滑鼠拖曳仍取自 pointer 事件，見下方目標 `init` 中的註記。
     public func createDragGestureTarget(wrapping child: Widget) -> Widget {
         // `ManipulationModes` is a `typealias` to a C enum with `static var`
         // members bolted on -- not a Swift `OptionSet` -- so `.union` does not
@@ -147,38 +145,31 @@ extension WinUIBackend: BackendFeatures.DragGestures,
 }
 
 /// A `Grid` that owns its manipulation handlers, registered exactly once.
-/// (A `Grid` rather than the `Border` this used to wrap with, because `Border`
-/// is `final` in the binding and a subclass is what holds the state.)
-/// (用 `Grid` 而不是原本包裹用的 `Border`,因為 `Border` 在綁定中是 `final`,而持有狀態需要子類別。)
+/// (A `Grid` rather than a `Border`, because `Border` is `final` in the
+/// binding and a subclass is what holds the state.)
+/// (用 `Grid` 而不是 `Border`,因為 `Border` 在綁定中是 `final`,而持有狀態需要子類別。)
 ///
-/// **The handlers used to be added in `update*GestureTarget`, which runs on
-/// every update, and nothing ever removed them.** Measured 2026-09-17 on P65
-/// with synthetic touch: ONE drag logged `drag ended` 12 times, the pinch after
-/// it logged `magnify ENDED` 18 times, and the rotate after that 23 times -- the
-/// count growing with each gesture because each gesture's own updates added
-/// more. Same shape as the slider that reported `began=5`. Now the events are
-/// subscribed in `init` and `update` only swaps the closures they call.
+/// **The handlers are subscribed in `init`, and `update` only swaps the
+/// closures they call.** Adding them in `update*GestureTarget`, which runs on
+/// every update, stacks them: measured 2026-09-17 on P65 with synthetic touch,
+/// ONE drag logged `drag ended` 12 times, the pinch after it `magnify ENDED`
+/// 18 times, and the rotate after that 23 times -- the same shape as the
+/// slider that reported `began=5`.
 ///
-/// Disabling also clears the closures. Before, the `isEnabled` guard returned
-/// early and left every previously added handler live, so a disabled gesture
-/// kept firing.
+/// Disabling clears the closures, so a disabled gesture does not keep firing.
 ///
-/// **`startLocation` was hard-coded to zero**, and `location` was the raw
-/// translation, so WinUI reported "start (0, 0)" for every drag while AppKit
-/// reports where the finger went down. The start now comes from
-/// `ManipulationStarted.position`.
+/// `startLocation` comes from `ManipulationStarted.position`, so a drag
+/// reports where the finger went down, as AppKit does.
 ///
-/// 一個自己持有 manipulation handler、且**只註冊一次**的 `Border`。
+/// 一個自己持有 manipulation handler、且**只註冊一次**的 `Grid`。
 ///
-/// **handler 以前是在 `update*GestureTarget` 裡加上的——那個方法每次更新都會執行——而且沒有任何東西
-/// 移除它們。** 2026-09-17 以合成觸控在 P65 實測:**一次**拖曳印了 12 次 `drag ended`,之後的捏合印了
-/// 18 次 `magnify ENDED`,再之後的旋轉印了 23 次——次數隨每個手勢遞增,因為每個手勢自己的更新又加掛了
-/// 更多。與回報 `began=5` 的 slider 同一個形狀。現在事件在 `init` 中訂閱,`update` 只替換它們呼叫的
-/// 閉包。停用時也會清掉閉包;以前 `isEnabled` 的 guard 提早 return,讓先前加上的 handler 全部保持
-/// 有效,於是被停用的手勢仍會觸發。
+/// **事件在 `init` 中訂閱,`update` 只替換它們呼叫的閉包。** 若在每次更新都會執行的 `update*GestureTarget`
+/// 裡加上,handler 會層層累積:2026-09-17 以合成觸控在 P65 實測,**一次**拖曳印了 12 次 `drag ended`,之後的捏合
+/// 印了 18 次 `magnify ENDED`,再之後的旋轉印了 23 次——與回報 `began=5` 的 slider 同一個形狀。
 ///
-/// **`startLocation` 以前寫死為零**,`location` 則是原始的位移量,所以 WinUI 對每次拖曳都回報
-/// 「start (0, 0)」,而 AppKit 回報的是手指按下的位置。起點現在取自 `ManipulationStarted.position`。
+/// 停用時會清掉閉包，讓被停用的手勢不再觸發。
+///
+/// `startLocation` 取自 `ManipulationStarted.position`,因此拖曳回報的是手指按下的位置，與 AppKit 相同。
 final class ManipulationTarget: WinUI.Grid {
     typealias Handler = (WinAppSDK.ManipulationDelta, SIMD2<Double>) -> Void
 

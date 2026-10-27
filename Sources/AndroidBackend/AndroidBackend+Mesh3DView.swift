@@ -19,7 +19,7 @@ import AndroidKit
 /// bytes where the shader expects 36, and what that produces is scattered stretched triangles
 /// rather than an error. The Metal renderer carries the same note at its upload.
 ///
-/// **Indices go across as 32 bits (2026-10-05).** They used to narrow to 16, which refused any
+/// **Indices go across as 32 bits.** Narrowing them to 16 would refuse any
 /// scene past 32,767 vertices in total -- every mesh shares one index space. GLES 2.0 draws
 /// `GL_UNSIGNED_INT` elements when `OES_element_index_uint` is present (core in GLES 3); the Kotlin
 /// side checks for it and, on a device without it, refuses triangles whose indices exceed 65,535
@@ -27,9 +27,9 @@ import AndroidKit
 ///
 /// **Lines and points are drawn from the vertex array, never lit; any mesh may skip the depth
 /// test.** The same rules as `Mesh3DMetalView`, carried per mesh in `modes`, `pointSizes` and
-/// `flags`. Every mesh gets an entry, empty ones included, so the per-mesh matrices line up: the
-/// version that skipped meshes it could not draw still sent a matrix for each of them, shifting
-/// every later mesh onto its predecessor's transform.
+/// `flags`. Every mesh gets an entry, empty ones included, so the per-mesh matrices line up:
+/// skipping a mesh that cannot be drawn while still sending its matrix would shift every later
+/// mesh onto its predecessor's transform.
 ///
 /// Android 上的 M10:框架描述一個場景,由 OpenGL ES 2.0 畫出它。
 ///
@@ -45,14 +45,14 @@ import AndroidKit
 /// 是 16 位元組而不是 12;每個頂點放三個就是 48 位元組,而 shader 期待的是 36——那產生的是四散拉長的
 /// 三角形,不是一個錯誤。Metal renderer 在它的上傳處帶著同一段註記。
 ///
-/// **索引以 32 位元送過去(2026-10-05)。** 原本收窄為 16 位元,於是整個場景超過 32,767 個頂點就被拒絕
+/// **索引以 32 位元送過去。** 收窄為 16 位元會讓整個場景超過 32,767 個頂點就被拒絕
 /// ——所有 mesh 共用一個索引空間。GLES 2.0 在有 `OES_element_index_uint`(GLES 3 的核心功能)時可畫
 /// `GL_UNSIGNED_INT` 元素;Kotlin 端會檢查它,在沒有它的裝置上,索引超過 65,535 的三角形會被拒絕並警告,
 /// 而不是被截斷——被截斷的索引畫出的是一個錯的三角形。
 ///
 /// **線段與點依頂點陣列繪製、永不打光;任何 mesh 都可以略過深度測試。** 規則與 `Mesh3DMetalView` 相同,
 /// 以 `modes`、`pointSizes`、`flags` 逐 mesh 帶過去。每個 mesh 都有一筆,空的也算,好讓逐 mesh 的矩陣
-/// 對齊:先前那個略過畫不了的 mesh 的版本,仍為每一個送出矩陣,於是後面每個 mesh 都套上了前一個的變換。
+/// 對齊:略過畫不了的 mesh 卻仍為每一個送出矩陣,會讓後面每個 mesh 都套上前一個的變換。
 extension AndroidBackend: BackendFeatures.Mesh3DViews {
     public func createMesh3DView() -> Widget {
         Mesh3DSurfaceView(context: Self.activity).as(AndroidKit.View.self)!

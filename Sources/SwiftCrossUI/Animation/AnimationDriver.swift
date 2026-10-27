@@ -59,13 +59,13 @@ public final class AnimationDriver: @unchecked Sendable {
     /// finishes the moment it starts, and nothing that happens to a tween in
     /// flight -- cancelling it, replacing it, its view going away -- can be
     /// reached. Giving DummyBackend a clock instead would change every test that
-    /// relies on that instant finish. Added 2026-10-22 for the review findings
-    /// on `cancel` and on `repeatForever` outliving its view.
+    /// relies on that instant finish. It is what lets tests reach `cancel` and
+    /// `repeatForever` outliving its view.
     ///
     /// 僅供測試：由測試手動推進的時鐘，取代 backend 的時鐘。測試目標中沒有任何 backend 有 frame clock,因此那裡的
     /// 每個動畫一開始就結束，飛行中的補間會遇到的事——被取消、被取代、它的 view 消失——都測不到。改給 DummyBackend
-    /// 一個時鐘，會改變所有依賴「立即結束」的測試。2026-10-22 為 `cancel` 與「`repeatForever` 比 view 活得久」
-    /// 的審查發現而加入。
+    /// 一個時鐘，會改變所有依賴「立即結束」的測試。有了它，測試才觸及得到 `cancel` 與「`repeatForever` 比 view 活得久」
+    /// 這兩種情況。
     final class ManualClock {
         fileprivate var handler: ((Double) -> Void)?
 
@@ -161,11 +161,11 @@ public final class AnimationDriver: @unchecked Sendable {
     /// Removes the tween BEFORE its group is told it ended. `tweenEnded` can run
     /// the `withAnimation` completion synchronously, and a completion that
     /// animates the same value again starts a new tween under this key; ending
-    /// first and removing second deleted that new tween, so it never ran and its
-    /// own completion never came (review, 2026-10-22).
+    /// first and removing second would delete that new tween, so it would never run and its
+    /// own completion would never come.
     /// 先移除補間，再告知它的群組已結束。`tweenEnded` 可能同步執行 `withAnimation` 的 completion,而一個再次對
-    /// 同一個值做動畫的 completion 會在這個 key 下啟動新的補間；先結束、後移除會把那個新補間刪掉，它因而從未執行，
-    /// 它自己的 completion 也永遠不來(審查，2026-10-22)。
+    /// 同一個值做動畫的 completion 會在這個 key 下啟動新的補間；先結束、後移除會把那個新補間刪掉，它因而永遠不會執行，
+    /// 它自己的 completion 也永遠不會來。
     func cancel(key: UUID) {
         let cancelled = tweens.removeValue(forKey: key)
         cancelled?.group?.tweenEnded()

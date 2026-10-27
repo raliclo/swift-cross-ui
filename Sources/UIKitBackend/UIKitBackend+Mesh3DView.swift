@@ -3,21 +3,21 @@ import Metal
 import SwiftCrossUIMetal
 import UIKit
 
-/// M10's second backend, and the reason the renderer lives in its own target.
+/// `Mesh3DView` on UIKit, and the reason the renderer lives in its own target.
 ///
 /// **Everything below the `WrapperWidget` is the same code AppKitBackend runs.**
 /// `MTKView` is the same MetalKit class on both, so `Mesh3DMetalView`, the
 /// shaders and the camera arithmetic are shared verbatim; what differs is only
-/// the widget wrapper each backend needs. Popovers, accessibility names and
-/// gesture placement each cost a week this month because two Apple backends had
-/// been written twice and drifted -- this one is written once on purpose.
+/// the widget wrapper each backend needs. Two Apple backends written twice
+/// drift apart, as popovers, accessibility names and gesture placement did --
+/// this one is written once on purpose.
 ///
-/// M10 的第二個 backend,也正是 renderer 自成一個 target 的理由。
+/// UIKit 上的 `Mesh3DView`,也正是 renderer 自成一個 target 的理由。
 ///
 /// **`WrapperWidget` 以下的每一行,都是 AppKitBackend 所執行的同一份程式碼。** `MTKView` 在兩邊是
 /// MetalKit 的同一個類別,因此 `Mesh3DMetalView`、著色器與相機運算是逐字共用的;不同的只有各
-/// backend 所需的那層 widget 包裝。本月 popover、無障礙名稱與手勢位置各花掉一週,正是因為兩個
-/// Apple backend 被寫了兩次而後分歧——這一個是刻意只寫一次。
+/// backend 所需的那層 widget 包裝。寫了兩次的兩個 Apple backend 會分歧,popover、無障礙名稱與
+/// 手勢位置都是如此——這一個是刻意只寫一次。
 extension UIKitBackend: BackendFeatures.Mesh3DViews {
     public func createMesh3DView() -> Widget {
         // nil here is a simulator whose host has no usable Metal device, and on

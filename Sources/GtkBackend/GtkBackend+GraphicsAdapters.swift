@@ -63,10 +63,9 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
             return adapters
         #elseif os(macOS)
             // The same list AppKitBackend reports, from Metal, system default first:
-            // the GPUs exist whichever toolkit draws the window. Until 2026-10-16 this
-            // branch was the Linux one and P68 read "adapters: 0" on a Mac with one.
+            // the GPUs exist whichever toolkit draws the window.
             // 與 AppKitBackend 回報的是同一份清單，取自 Metal,系統預設排第一：不論由哪個工具組繪製視窗，
-            // GPU 都在那裡。2026-10-16 之前這裡走的是 Linux 分支,P68 在有一張卡的 Mac 上顯示 adapters: 0。
+            // GPU 都在那裡。
             let systemDefault = MTLCreateSystemDefaultDevice()
             let ordered = MTLCopyAllDevices().sorted { first, _ in
                 first.registryID == systemDefault?.registryID
@@ -204,11 +203,10 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
     #if !os(Windows) && !os(macOS)
         /// The GPUs DXCore lists, for WSL, which has no /sys/class/drm: its GPUs
         /// reach Linux through /dev/dxg and Mesa's d3d12 driver draws on them
-        /// (gtk_dxcore.c). Empty outside WSL. P68 read "adapters: 0" under WSL
-        /// until this, on a machine with two (2026-10-19).
+        /// (gtk_dxcore.c). Empty outside WSL. Inside WSL, /sys/class/drm lists
+        /// only the virtual vgem device.
         /// DXCore 所列的 GPU,給沒有 /sys/class/drm 的 WSL 用：它的 GPU 經 /dev/dxg 進入 Linux,
-        /// 由 Mesa 的 d3d12 驅動繪製(gtk_dxcore.c)。WSL 以外為空。在此之前,P68 在有兩張卡的機器上
-        /// 於 WSL 讀到 "adapters: 0"(2026-10-19)。
+        /// 由 Mesa 的 d3d12 驅動繪製(gtk_dxcore.c)。WSL 以外為空；在 WSL 中 /sys/class/drm 只列出虛擬的 vgem 裝置。
         static func dxcoreAdapters() -> [GraphicsAdapter] {
             var entries = [scui_dxcore_adapter](repeating: scui_dxcore_adapter(), count: 8)
             let count = Int(scui_dxcore_adapters(&entries, Int32(entries.count)))

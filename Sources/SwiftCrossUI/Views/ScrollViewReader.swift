@@ -73,24 +73,23 @@ public struct ScrollViewReader<Content: View>: View {
     }
 
     // **Held in `@State`, so it lives as long as the view-graph node, not as long
-    // as this struct.** Until 2026-10-05 the registry was created in `init`, "once
-    // per reader" -- but a reader is a value, rebuilt every time its parent's body
-    // runs, so every update brought a new registry. The node laid out with the
-    // newest one, so the ScrollView and every `.id` registered there, while a
-    // proxy captured earlier -- by `onAppear`, or by a closure dispatched a moment
-    // later -- kept looking in the one before: measured, `0 anchors, 0 scrollers`
-    // in the registry the proxy held, with 500 rows on screen. `scrollTo` then did
-    // nothing and nothing failed. The registry sits in a struct because `@State`
-    // deprecates a bare non-observable class; it needs no change notification,
-    // only to survive.
+    // as this struct.** A reader is a value, rebuilt every time its parent's body
+    // runs, so a registry created in `init` would be replaced on every update. The
+    // node lays out with the newest one, so the ScrollView and every `.id`
+    // register there, while a proxy captured earlier -- by `onAppear`, or by a
+    // closure dispatched a moment later -- keeps looking in the one before:
+    // measured, `0 anchors, 0 scrollers` in the registry the proxy held, with 500
+    // rows on screen. `scrollTo` then does nothing and nothing fails. The registry
+    // sits in a struct because `@State` deprecates a bare non-observable class; it
+    // needs no change notification, only to survive.
     //
     // **放在 `@State` 裡,讓它活得跟 view graph 的節點一樣久,而不是跟這個 struct 一樣久。**
-    // 2026-10-05 之前,registry 在 `init` 中建立,「每個 reader 一個」——但 reader 是一個值,父層的
-    // body 每執行一次就重建一次,所以每次更新都帶來一個新的 registry。節點以最新的那個排版,ScrollView
-    // 與每一個 `.id` 都登記在那裡;而較早被捕捉的 proxy——被 `onAppear`,或被稍後才派送的閉包——仍在
-    // 前一個裡面找:實測 proxy 手上的 registry 是 `0 anchors, 0 scrollers`,而畫面上有 500 列。
-    // `scrollTo` 因此什麼都沒做,也沒有任何東西失敗。registry 包在 struct 裡,是因為 `@State` 不建議
-    // 直接放非 observable 的 class;它不需要變更通知,只需要存活。
+    // reader 是一個值,父層的 body 每執行一次就重建一次,所以在 `init` 中建立的 registry 每次更新都會
+    // 被換掉。節點以最新的那個排版,ScrollView 與每一個 `.id` 都登記在那裡;而較早被捕捉的 proxy——被
+    // `onAppear`,或被稍後才派送的閉包——仍在前一個裡面找:實測 proxy 手上的 registry 是
+    // `0 anchors, 0 scrollers`,而畫面上有 500 列。`scrollTo` 因此什麼都不做,也沒有任何東西失敗。
+    // registry 包在 struct 裡,是因為 `@State` 不建議直接放非 observable 的 class;它不需要變更通知,
+    // 只需要存活。
     @State private var holder = RegistryHolder()
     private let content: (ScrollViewProxy) -> Content
 

@@ -65,13 +65,13 @@ class PointerHoverContainer(activity: Activity) : FrameLayout(activity) {
      * A finger hovers by holding still for the system's long-press timeout
      * (`ViewConfiguration.getLongPressTimeout()`: 400 ms by default, longer when the user sets
      * the touch-and-hold delay in Accessibility); from then on, until it lifts, every move is
-     * reported, and the lift ends it. The user's choice for queue item 10 (2026-10-15), the same
-     * as the iPhone's 0.5 s hold. A mouse is left to `dispatchHoverEvent`, which already
+     * reported, and the lift ends it. This matches the iPhone's 0.5 s hold, the same
+     * gesture on both phones. A mouse is left to `dispatchHoverEvent`, which already
      * reports it. The touch still goes to the children first; the hold only watches.
      *
      * 手指靜止按住系統的長按逾時(`ViewConfiguration.getLongPressTimeout()`:預設 400 毫秒，使用者在無障礙設定裡
-     * 調整「觸控並按住的延遲」時會更長)即開始 hover;此後到放開為止，每次移動都回報，放開即結束。這是使用者對
-     * queue 第 10 項的選擇(2026-10-15),與 iPhone 的 0.5 秒按住相同。滑鼠交給 `dispatchHoverEvent`,它已經會回報。
+     * 調整「觸控並按住的延遲」時會更長)即開始 hover;此後到放開為止，每次移動都回報，放開即結束。這與
+     * iPhone 的 0.5 秒按住相對應，兩支手機上是同一個手勢。滑鼠交給 `dispatchHoverEvent`,它已經會回報。
      * 觸控仍先送到子元件;按住只是在旁觀察。
      */
     private var holding = false

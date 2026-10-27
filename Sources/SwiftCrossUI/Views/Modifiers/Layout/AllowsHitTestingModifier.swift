@@ -12,9 +12,9 @@ extension View {
     /// re-enabling below it would mean walking the subtree and remembering each
     /// widget's own setting.
     ///
-    /// A backend without a way to express this ignores it, leaving the view
-    /// interactive when it was asked not to be. That is visible and reportable,
-    /// which no other fallback would be.
+    /// Every shipped backend implements ``BackendFeatures/HitTesting``. `commit`
+    /// goes through `@CastBackend`, so a backend without that conformance stops
+    /// with a `fatalError` rather than ignoring the modifier.
     ///
     /// 控制此 view 及其子元件是否能接收指標事件。
     ///
@@ -26,8 +26,8 @@ extension View {
     /// 各 toolkit 都以 widget 上的單一旗標表達此語意，而要在其下重新啟用，就必須走訪整個子樹並
     /// 記住每一個 widget 自身的設定。
     ///
-    /// 無法表達此語意的 backend 會忽略它，使該 view 在被要求不可互動時仍可互動。這是看得見、也
-    /// 回報得出來的結果，而其他任何 fallback 都做不到這一點。
+    /// 五個已發布的 backend 都實作了 ``BackendFeatures/HitTesting``。`commit` 經由 `@CastBackend`,
+    /// 因此不具該 conformance 的 backend 會以 `fatalError` 終止,而不是忽略它。
     ///
     /// - Parameter allowsHitTesting: Whether the view can be hit.
     public func allowsHitTesting(_ allowsHitTesting: Bool = true) -> some View {

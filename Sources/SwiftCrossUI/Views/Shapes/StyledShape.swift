@@ -104,10 +104,8 @@ extension Shape {
 
     /// Fills the shape with a gradient, clipped to the shape.
     ///
-    /// Overloads rather than a `ShapeStyle` protocol: the protocol is #31 and
-    /// should arrive once something concrete is behind it, the way
-    /// `DatePickerStyle` and `ListStyle` became protocols only after they did
-    /// something.
+    /// Overloads that take a `Gradient` and its geometry directly; the generic
+    /// `fill(_:)` below takes any ``ShapeStyle``.
     ///
     /// The points are in the shape's own unit space, which is what distinguishes
     /// this from the gradient *views* -- those fill a rectangle they own and
@@ -115,8 +113,7 @@ extension Shape {
     ///
     /// 以漸層填充此形狀，並裁切至形狀範圍。
     ///
-    /// 使用多載而非 `ShapeStyle` protocol：該 protocol 是 #31，應在其後有具體實作之後才引入
-    /// ——正如 `DatePickerStyle` 與 `ListStyle` 都是在真的做了事之後才成為 protocol。
+    /// 直接接收 `Gradient` 與其幾何參數的多載；下方的泛型 `fill(_:)` 則接受任何 ``ShapeStyle``。
     ///
     /// 這些點位於形狀自身的單位空間中，這正是它與漸層**視圖**的區別——後者填滿的是它自己擁有
     /// 的矩形，無法被裁進一個圓形。
@@ -184,8 +181,7 @@ extension Shape {
     /// Fills the shape with any ``ShapeStyle``.
     ///
     /// The generic that makes the protocol load-bearing. Without a caller, a
-    /// conformance can be wrong and still compile -- which is what the three
-    /// conformances in ShapeStyle.swift were until this existed.
+    /// conformance can be wrong and still compile.
     ///
     /// The concrete `fill(_ color: Color)` above stays and wins for a `Color`
     /// by overload resolution. It is not redundant: it is the flat path every
@@ -194,8 +190,7 @@ extension Shape {
     ///
     /// 以任意 ``ShapeStyle`` 填充此形狀。
     ///
-    /// 這個泛型才讓該 protocol 真的承重。少了呼叫端，一個 conformance 就算寫錯也照樣能編譯
-    /// ——在此之前 ShapeStyle.swift 中那三個 conformance 正是如此。
+    /// 這個泛型才讓該 protocol 真的承重。少了呼叫端，一個 conformance 就算寫錯也照樣能編譯。
     ///
     /// 上方具體的 `fill(_ color: Color)` 保留，且對 `Color` 會依多載解析勝出。它並不多餘：那是
     /// 每一支現有 app 都在走的平面色路徑，把一條可運作的路徑放到新泛型之後，毫無所得。

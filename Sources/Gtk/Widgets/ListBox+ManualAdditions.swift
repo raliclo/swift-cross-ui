@@ -42,11 +42,11 @@ extension ListBox {
 
     /// The index of the selected row, or `nil` when nothing is selected.
     ///
-    /// The counterpart to ``selectRow(at:)``, which had no way to ask what the
-    /// answer currently is. GTK returns the row widget rather than an index, and
+    /// The counterpart to ``selectRow(at:)``, for asking what the answer
+    /// currently is. GTK returns the row widget rather than an index, and
     /// the index lives on the row.
     ///
-    /// ``selectRow(at:)`` 的對應項——先前無從詢問「目前的答案是什麼」。GTK 回傳的是那一列的
+    /// ``selectRow(at:)`` 的對應項，用來詢問「目前的答案是什麼」。GTK 回傳的是那一列的
     /// widget 而非索引，而索引位於該列之上。
     public var selectedRowIndex: Int? {
         guard let row = gtk_list_box_get_selected_row(opaquePointer) else { return nil }

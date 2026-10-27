@@ -57,13 +57,12 @@ public protocol AndroidViewRepresentable: SwiftCrossUI.View where Content == Nev
     /// Run when the view graph node holding the view is released, the same
     /// moment UIKitBackend calls `dismantleUIView` -- not from an Android View
     /// lifecycle callback, which has no single "this view is done" event (a
-    /// detach also happens on every scroll-out). Upstream left this as a TODO
-    /// for that reason; added 2026-10-06.
+    /// detach also happens on every scroll-out).
     ///
     /// view 離開 view graph 時呼叫，用來撤銷 `makeAndroidView` 所設定的東西(觀察者、計時器、監聽器)。
     /// 預設什麼都不做。在持有該 view 的 view graph 節點被釋放時執行，與 UIKitBackend 呼叫
     /// `dismantleUIView` 的時機相同——而不是來自 Android View 的生命週期回呼，那裡沒有單一的「這個 view
-    /// 結束了」事件(每次捲出畫面也會 detach)。上游因此留下 TODO;2026-10-06 加入。
+    /// 結束了」事件(每次捲出畫面也會 detach)。
     @MainActor
     static func dismantleAndroidView(_ view: ViewType, coordinator: Coordinator)
 }

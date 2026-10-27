@@ -151,9 +151,8 @@ struct GtkCodeGen {
             "GestureLongPress",
             // #32's three. `DragGesture`, `MagnificationGesture` and
             // `RotationGesture` have no SwiftCrossUI equivalent, and unlike
-            // `onEditingChanged` -- where an earlier note of mine claimed a new
-            // binding was needed and `GestureClick` turned out to be enough --
-            // these three genuinely have no stand-in. A drag needs offsets from
+            // `onEditingChanged` -- for which `GestureClick` is enough -- these
+            // three genuinely have no stand-in. A drag needs offsets from
             // a start point, and zoom and rotate need a second touch point;
             // press/release carries none of that.
             //
@@ -163,8 +162,8 @@ struct GtkCodeGen {
             // GestureDrag extends GestureSingle, the other two extend Gesture.
             //
             // #32 的那三個。`DragGesture`、`MagnificationGesture` 與 `RotationGesture` 在
-            // SwiftCrossUI 中沒有對應物,而與 `onEditingChanged` 不同——我先前的一則記錄聲稱那需要
-            // 新的 binding,結果 `GestureClick` 就夠了——**這三個是真的沒有替代品**。拖曳需要相對於
+            // SwiftCrossUI 中沒有對應物,而與 `onEditingChanged` 不同(它用 `GestureClick` 就夠了),
+            // **這三個是真的沒有替代品**。拖曳需要相對於
             // 起點的位移,縮放與旋轉需要第二個觸點,而按下/放開不攜帶其中任何一項。
             //
             // 列入前已查證它們存在於 gir 中:GestureDrag、GestureZoom、GestureRotate 皆出現於
@@ -596,15 +595,15 @@ struct GtkCodeGen {
     /// The Swift type a signal's handler should return, or `nil` for the void
     /// signals, which are most of them.
     ///
-    /// Emitting `-> Void` for a signal that returns a value -- which is all this
-    /// generator used to do -- means GTK reads whatever the ABI left behind, so a
-    /// `gboolean` handler can never report "handled, stop propagating". That is
-    /// issue #594; see `ReturningSignalBox0` in the Gtk target.
+    /// Emitting `-> Void` for a signal that returns a value means GTK reads
+    /// whatever the ABI left behind, so a `gboolean` handler can never report
+    /// "handled, stop propagating". That is issue #594; see
+    /// `ReturningSignalBox0` in the Gtk target.
     ///
     /// signal 的處理常式應回傳的 Swift 型別；對多數的 void signal 則為 `nil`。
     ///
-    /// 對「有回傳值」的 signal 輸出 `-> Void`——那正是本產生器過去的唯一行為——會使 GTK 讀到 ABI
-    /// 遺留的內容，因此 `gboolean` 的處理常式永遠無法回報「已處理、停止傳播」。此即 issue #594；
+    /// 對「有回傳值」的 signal 輸出 `-> Void` 會使 GTK 讀到 ABI 遺留的內容，因此 `gboolean`
+    /// 的處理常式永遠無法回報「已處理、停止傳播」。此即 issue #594；
     /// 參見 Gtk target 中的 `ReturningSignalBox0`。
     static func signalReturnType(_ signal: Signal, namespace: Namespace) -> String? {
         // `notify::` signals are synthesised from properties by this generator
@@ -628,21 +627,20 @@ struct GtkCodeGen {
 
             // Only types with an obvious "no answer" value, because a signal
             // that returns something has to return it even when the app set no
-            // handler. `false` and `0` are what GTK saw before any of this
-            // existed, so they change nothing for an unhandled signal. A pointer
+            // handler. `false` and `0` are what a void handler effectively gave
+            // GTK, so they change nothing for an unhandled signal. A pointer
             // return (GLArea's `create-context`) has no such value -- null would
-            // be a claim, not an absence -- so it keeps the void form it always
-            // had rather than inventing an answer.
-            // **Not "no worse" for create-context, it turned out:** the void form
-            // replaced GTK's own context with garbage and crashed P72 on Windows;
-            // that signal is now in `excludedSignals` (2026-10-07).
-            // **對 create-context 而言其實並非「不會更差」:**void 形式以垃圾值取代了 GTK 自己的 context,在 Windows
-            // 上讓 P72 崩潰;該 signal 現已列入 `excludedSignals`(2026-10-07)。
+            // be a claim, not an absence -- so it keeps the void form rather than
+            // inventing an answer. For `create-context` the void form replaces
+            // GTK's own context with garbage (it crashed P72 on Windows), which
+            // is why that signal is in `excludedSignals`.
             //
             // 僅限具有明確「無答案」值的型別，因為有回傳值的 signal 即使 app 未設定處理常式也必須
-            // 回傳一個值。`false` 與 `0` 正是此機制存在之前 GTK 所讀到的內容，因此對未處理的 signal
+            // 回傳一個值。`false` 與 `0` 實際上就是 void 處理常式交給 GTK 的值，因此對未處理的 signal
             // 而言毫無改變。回傳指標者（GLArea 的 `create-context`）沒有這樣的值——null 是一種
-            // 主張而非「沒有答案」——因此維持它原本就有的 void 形式，而不憑空給出一個答案。
+            // 主張而非「沒有答案」——因此維持 void 形式，而不憑空給出一個答案。對 `create-context` 而言,
+            // void 形式會以垃圾值取代 GTK 自己的 context(在 Windows 上讓 P72 崩潰),所以該 signal 列於
+            // `excludedSignals`。
             let hasUnhandledValue = ["Bool", "Int", "UInt", "Int32", "UInt32"].contains(type)
             return hasUnhandledValue ? type : nil
         }
@@ -693,21 +691,21 @@ struct GtkCodeGen {
             let arguments = (["self"] + extraArguments).joined(separator: ", ")
 
             // Signals that return a value get a handler that actually returns
-            // it. Emitting `-> Void` for these -- which is all the generator used
-            // to do -- meant GTK read whatever the ABI left behind, so a
-            // `gboolean` handler could never report "handled, stop propagating".
-            // That is issue #594; see ReturningSignalBox0 in the Gtk target.
+            // it. Emitting `-> Void` for these means GTK reads whatever the ABI
+            // left behind, so a `gboolean` handler could never report "handled,
+            // stop propagating". That is issue #594; see ReturningSignalBox0 in
+            // the Gtk target.
             //
             // Only where a returning box exists for the arity (0-3, which covers
             // every returning signal in the allow-listed classes). Anything else
-            // keeps the void form, which is no worse than before.
+            // keeps the void form.
             //
-            // 有回傳值的 signal 會取得真正回傳該值的處理常式。過去產生器一律輸出 `-> Void`，
-            // 使 GTK 讀到 ABI 遺留的內容，因此 `gboolean` 的處理常式永遠無法回報「已處理、停止
-            // 傳播」。此即 issue #594；參見 Gtk target 中的 ReturningSignalBox0。
+            // 有回傳值的 signal 會取得真正回傳該值的處理常式。輸出 `-> Void` 會使 GTK 讀到 ABI
+            // 遺留的內容，因此 `gboolean` 的處理常式永遠無法回報「已處理、停止傳播」。此即
+            // issue #594；參見 Gtk target 中的 ReturningSignalBox0。
             //
             // 僅在該 arity 存在對應的 returning box 時採用（0-3，已涵蓋 allow-list 類別中每一個
-            // 有回傳值的 signal）。其餘情況維持 void 形式，不會比先前更差。
+            // 有回傳值的 signal）。其餘情況維持 void 形式。
             let returnType = signalReturnType(signal, namespace: namespace)
             let returnsValue = returnType != nil && parameterCount <= 3
 

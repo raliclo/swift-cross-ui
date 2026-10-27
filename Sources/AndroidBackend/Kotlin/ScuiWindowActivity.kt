@@ -12,15 +12,12 @@ import androidx.appcompat.app.AppCompatActivity
 // split screen (FLAG_ACTIVITY_LAUNCH_ADJACENT), and on a desktop-mode device it
 // is a separate resizable window. AndroidBackend builds the window's content
 // in Swift, leaves it in ScuiWindows under a token, and starts this activity
-// with that token; the activity takes the content as its own. Added
-// 2026-10-06 -- before, every createWindow returned a placeholder and a second
-// window replaced the first's content.
+// with that token; the activity takes the content as its own.
 //
 // 第一個之後的 SwiftCrossUI 視窗，以獨立的 activity 呈現。Android 的「視窗」單位就是 activity:在手機上每個都是
 // 「最近使用」裡的一個獨立工作，在平板或折疊機上可在分割畫面中與第一個並排(FLAG_ACTIVITY_LAUNCH_ADJACENT),在桌面
 // 模式的裝置上則是可縮放的獨立視窗。AndroidBackend 在 Swift 中建好視窗內容，以 token 放進 ScuiWindows,再帶著
-// 該 token 啟動此 activity;activity 把內容據為己有。2026-10-06 加入——之前每次 createWindow 都回傳佔位物件，
-// 第二個視窗會取代第一個的內容。
+// 該 token 啟動此 activity;activity 把內容據為己有。
 class ScuiWindowActivity : AppCompatActivity() {
     private var token: String? = null
 

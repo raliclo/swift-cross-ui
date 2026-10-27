@@ -3,9 +3,9 @@
 /// The transpose of ``LazyVGrid``, and deliberately not a copy of it: the two
 /// share ``GridLayoutPlan/resolve(items:axis:alignment:spacing:proposedCrossExtent:)``
 /// and the whole of `LayoutSystem`'s grid arithmetic, and differ only in which
-/// axis they pin. That sharing is what task #118 was actually about -- the plan
-/// used to be written in terms of `columnWidths`, and a horizontal grid built on
-/// it would have had to store a row's height in a field called a width.
+/// axis they pin. The plan is written in axis-neutral terms for that reason:
+/// in terms of `columnWidths`, a horizontal grid built on it would have had to
+/// store a row's height in a field called a width.
 ///
 /// ```swift
 /// LazyHGrid(rows: [GridItem(.fixed(40)), GridItem(.fixed(40))]) {
@@ -22,9 +22,8 @@
 ///
 /// 它是 ``LazyVGrid`` 的轉置，而且刻意**不是**它的複製品:兩者共用
 /// ``GridLayoutPlan/resolve(items:axis:alignment:spacing:proposedCrossExtent:)``
-/// 以及 `LayoutSystem` 中全部的格線算式，差別只在於它們釘住哪一個軸。這份共用正是任務 #118 真正
-/// 的內容——該計畫過去是以 `columnWidths` 的詞彙書寫的，而一個建立於其上的水平格線，將不得不把
-/// 「一列的高度」存進一個名為「寬度」的欄位裡。
+/// 以及 `LayoutSystem` 中全部的格線算式，差別只在於它們釘住哪一個軸。若該計畫以 `columnWidths` 的
+/// 詞彙書寫，建立於其上的水平格線將不得不把「一列的高度」存進一個名為「寬度」的欄位裡。
 ///
 /// **「Lazy」是 SwiftUI 的拼法，不是對本實作的宣稱**——完整的理由見 ``LazyVGrid``，該段原封不動
 /// 地適用於此。

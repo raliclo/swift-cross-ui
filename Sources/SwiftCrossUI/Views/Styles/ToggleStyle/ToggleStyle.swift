@@ -6,15 +6,12 @@
 /// ``_BuiltinToggleStyle``, which supplies both requirements; the three built-in
 /// styles do.
 ///
-/// The label is a `String` rather than a view, which is not this protocol's
-/// choice: ``Toggle`` takes one, as ``Button`` does. SwiftUI hands a style its
-/// label as a view, and matching that needs arbitrary labels on the control
-/// first -- `Button` carries a `_buttonWidth` workaround whose comment says as
-/// much.
+/// The label is a `String` rather than a view because ``Toggle`` takes a
+/// string label. SwiftUI hands a style its label as a view; matching that
+/// needs arbitrary labels on ``Toggle`` first, as ``Button`` already has.
 ///
-/// 標籤是 `String` 而非 view，這並非本 protocol 的選擇：``Toggle`` 收到的就是字串，``Button``
-/// 亦然。SwiftUI 交給 style 的標籤是一個 view，要與之對齊，得先讓這些控制項支援任意標籤——
-/// `Button` 上那個 `_buttonWidth` 暫解的註解正說明了這件事。
+/// 標籤是 `String` 而非 view，因為 ``Toggle`` 接收的是字串標籤。SwiftUI 交給 style 的標籤是一個
+/// view,要與之對齊，得先讓 ``Toggle`` 支援任意標籤——``Button`` 已經支援。
 @MainActor
 public protocol ToggleStyle: Sendable {
     associatedtype Body: View

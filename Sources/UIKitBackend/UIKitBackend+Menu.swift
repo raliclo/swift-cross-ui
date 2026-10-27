@@ -18,8 +18,7 @@ extension UIKitBackend {
                 // otherwise, because on UIKit those are different TYPES rather
                 // than one type with an optional key.
                 //
-                // **`UIKeyCommand` takes a selector, not a closure**, and that
-                // is the whole reason this took a detour. The selector is
+                // **`UIKeyCommand` takes a selector, not a closure.** The selector is
                 // dispatched through the responder chain, so an object holding
                 // the closure is not enough -- something already IN the chain
                 // has to implement it. `ApplicationDelegate` is a `UIResponder`
@@ -30,7 +29,7 @@ extension UIKitBackend {
                 // 有快捷鍵時用 `UIKeyCommand`,沒有時用 `UIAction`;因為在 UIKit 上,那是兩個**不同的
                 // 型別**,而不是同一個型別加一個 optional 的按鍵。
                 //
-                // **`UIKeyCommand` 收的是 selector,不是 closure**,而那正是這件事繞了一圈的全部原因。
+                // **`UIKeyCommand` 收的是 selector,不是 closure**。
                 // 那個 selector 經由 responder chain 派送,因此「一個持有該 closure 的物件」還不夠——
                 // 必須有**已經在 chain 上**的東西實作它。`ApplicationDelegate` 是一個 `UIResponder`,
                 // 而且它就是建出這個選單的那個物件,所以它就是那個東西;`propertyList` 負責攜帶
@@ -172,43 +171,34 @@ extension UIKitBackend: BackendFeatures.AttachedMenus {
     }
 }
 
-// The condition this `#if` was waiting for, met.
+// iOS and iPadOS as well as Mac Catalyst: shortcuts are implemented through
+// `UIKeyCommand` and the responder chain (see `UIKitBackend+MenuShortcuts.swift`).
 //
-// It used to read "Once keyboard shortcuts are implemented, it might be possible
-// to do them on more platforms than just Mac Catalyst" and admit only Catalyst.
-// Shortcuts are implemented now -- `UIKeyCommand` through the responder chain,
-// see `UIKitBackend+MenuShortcuts.swift` -- so iOS and iPadOS come in.
-//
-// **What compiling this out actually did was remove the whole application menu,
-// not just its shortcuts.** Without the conformance the framework's
+// **Compiling this out removes the whole application menu, not just its
+// shortcuts.** Without the conformance the framework's
 // `backend as? any BackendFeatures.ApplicationMenus` in `_App.swift` fails,
 // `setApplicationMenu` is never called, and the app delegate's submenu list
-// stays empty. Traced on an iPad on 2026-09-16 by making `buildMenu` write what
-// it saw:
+// stays empty. `buildMenu` then reports
 //
 //     buildMenu system==main: true submenus=0
 //
-// Nothing failed anywhere along that path. The menu system was built, correctly,
-// out of an empty list -- so `.commands` and `CommandMenu` did nothing at all on
-// iOS, and P71's shortcut counters read zero while the keys were arriving.
+// and nothing fails anywhere along that path. The menu system is built,
+// correctly, out of an empty list -- so `.commands` and `CommandMenu` do
+// nothing on iOS, and P71's shortcut counters read zero while the keys arrive.
 //
 // tvOS stays out: it has no menu bar and no keyboard to press.
 //
-// 這個 `#if` 當初在等的條件,已經成立。
+// 除了 Mac Catalyst,也包括 iOS 與 iPadOS:快捷鍵經由 `UIKeyCommand` 與 responder chain 實作
+// (見 `UIKitBackend+MenuShortcuts.swift`)。
 //
-// 它原本寫著「等鍵盤快捷鍵實作出來,或許就能推廣到 Mac Catalyst 以外的平台」,並且只放行 Catalyst。
-// 快捷鍵現在實作好了——`UIKeyCommand` 經由 responder chain,見 `UIKitBackend+MenuShortcuts.swift`
-// ——因此 iOS 與 iPadOS 一併納入。
-//
-// **把這段編譯掉,實際移除的是整個應用程式選單,而不只是它的快捷鍵。** 少了這個 conformance,
+// **把這段編譯掉,移除的是整個應用程式選單,而不只是它的快捷鍵。** 少了這個 conformance,
 // `_App.swift` 裡的 `backend as? any BackendFeatures.ApplicationMenus` 就失敗,`setApplicationMenu`
-// 永遠不會被呼叫,而 app delegate 的 submenu 清單一直是空的。2026-09-16 在一台 iPad 上,讓
-// `buildMenu` 寫出它所看到的東西而追出來:
+// 永遠不會被呼叫,而 app delegate 的 submenu 清單一直是空的。此時 `buildMenu` 回報
 //
 //     buildMenu system==main: true submenus=0
 //
-// 那條路徑上沒有任何東西失敗過。選單系統**正確地**從一份空清單建了出來——於是 `.commands` 與
-// `CommandMenu` 在 iOS 上完全沒有作用,而 P71 的快捷鍵計數是零,儘管那些按鍵確實抵達了。
+// 而那條路徑上沒有任何東西失敗。選單系統**正確地**從一份空清單建了出來——於是 `.commands` 與
+// `CommandMenu` 在 iOS 上沒有作用,而 P71 的快捷鍵計數是零,儘管那些按鍵確實抵達了。
 //
 // tvOS 不納入:它沒有選單列,也沒有鍵盤可按。
 #if targetEnvironment(macCatalyst) || os(iOS)

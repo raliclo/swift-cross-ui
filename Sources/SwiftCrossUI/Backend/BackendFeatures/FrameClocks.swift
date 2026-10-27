@@ -1,13 +1,10 @@
 extension BackendFeatures {
     /// A callback that fires once per displayed frame.
     ///
-    /// **The requirement animation (#28) was missing, and the reason it is a
-    /// backend requirement is that nothing in the framework can invent one.**
-    /// Checked 2026-09-10: `CADisplayLink`, `CVDisplayLink` and
-    /// `Timer.scheduled` are zero hits across all of `Sources/`, so no backend
-    /// had any per-frame signal at all. An animation needs to be told when a
-    /// frame is about to be drawn; a timer that guesses will tear on one
-    /// display and stutter on another.
+    /// **Animation (#28) needs this, and it is a backend requirement because
+    /// nothing in the framework can invent a per-frame signal.** An animation
+    /// needs to be told when a frame is about to be drawn; a timer that guesses
+    /// will tear on one display and stutter on another.
     ///
     /// **One clock per backend, not one per widget.** GTK's is per widget
     /// (`gtk_widget_add_tick_callback`) and everyone else's is per app or per
@@ -18,10 +15,9 @@ extension BackendFeatures {
     ///
     /// 一個「每顯示一幀就觸發一次」的回呼。
     ///
-    /// **動畫(#28)缺的就是這個 requirement,而它之所以是 backend requirement,是因為框架裡沒有任何
-    /// 東西能憑空造出一個。** 2026-09-10 查證:`CADisplayLink`、`CVDisplayLink` 與 `Timer.scheduled`
-    /// 在整個 `Sources/` 是零命中,也就是說沒有任何一個 backend 有任何逐幀訊號。動畫需要被告知
-    /// 「一幀即將被繪製」;一個用猜的計時器,會在某台顯示器上撕裂、在另一台上頓挫。
+    /// **動畫(#28)需要這個 requirement,而它之所以是 backend requirement,是因為框架裡沒有任何東西能
+    /// 憑空造出一個逐幀訊號。** 動畫需要被告知「一幀即將被繪製」;一個用猜的計時器,會在某台顯示器上撕裂、
+    /// 在另一台上頓挫。
     ///
     /// **一個 backend 一個時鐘,而不是一個 widget 一個。** GTK 的是逐 widget 的
     /// (`gtk_widget_add_tick_callback`),其餘每一個都是逐 app 或逐顯示器;因此「逐 widget」的形狀

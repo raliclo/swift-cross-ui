@@ -110,13 +110,6 @@ import UIKit
         /// `UISplitViewController` where it can show two columns, and
         /// ``PhoneSplitWidget`` where it cannot.
         ///
-        /// This was a `precondition` that the idiom is not `.phone`, with the
-        /// message "NavigationSplitView is currently unsupported on iPhone and
-        /// iPod touch." Measured on the simulator 2026-09-02: P13 died within a
-        /// second of launch on every run, before drawing anything, and the
-        /// crash carried no app-level log line -- the trap fires inside
-        /// `createSplitView`, so nothing the app itself prints ever runs.
-        ///
         /// A compact-width `UISplitViewController` collapses to a navigation
         /// stack no matter what `preferredDisplayMode` asks for, so making it
         /// show two columns on a phone is not available. Laying the two panes
@@ -125,11 +118,6 @@ import UIKit
         /// trailing pane the rest.
         ///
         /// 能顯示兩欄的地方使用 `UISplitViewController`，不能的地方使用 ``PhoneSplitWidget``。
-        ///
-        /// 此處原本是一個「idiom 不是 `.phone`」的 `precondition`，訊息為「NavigationSplitView is
-        /// currently unsupported on iPhone and iPod touch.」。2026-09-02 於模擬器上實測：P13 每一次
-        /// 都在啟動一秒內死亡、什麼都還沒畫出來，而該次崩潰沒有任何 app 層級的 log——trap 發生在
-        /// `createSplitView` 之內，因此 app 自己要印的東西根本沒機會執行。
         ///
         /// 緊湊寬度下的 `UISplitViewController` 無論 `preferredDisplayMode` 要求什麼都會收合成一個
         /// navigation stack，所以「讓它在手機上顯示兩欄」這條路並不存在。「把兩個窗格並排放置」則存在，

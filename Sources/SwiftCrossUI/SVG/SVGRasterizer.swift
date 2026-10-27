@@ -252,11 +252,10 @@ struct SVGCanvas {
         }
         guard !edges.isEmpty else { return nil }
         // Clipped to the canvas in floating point, THEN converted. Converting
-        // first trapped on any finite coordinate past Int's range -- `1e20` is
-        // enough -- and took the app down for one SVG (todo.md review item,
-        // 2026-10-14; SVGExtremeCoordinateTests).
-        // 先以浮點數裁切到畫布，**再**轉換。先轉換時，任何超出 Int 範圍的有限座標——`1e20` 就夠了——都會
-        // 中止，一份 SVG 就拖垮整個 app(todo.md 審查項目,2026-10-14;SVGExtremeCoordinateTests)。
+        // first traps on any finite coordinate past Int's range -- `1e20` is
+        // enough -- and takes the app down for one SVG (SVGExtremeCoordinateTests).
+        // 先以浮點數裁切到畫布，**再**轉換。先轉換的話，任何超出 Int 範圍的有限座標——`1e20` 就夠了——都會
+        // 中止，一份 SVG 就拖垮整個 app(SVGExtremeCoordinateTests)。
         let firstRow = Int(min(max(minY.rounded(.down), 0), Double(height)))
         let endRow = Int(min(max(maxY.rounded(.up), 0), Double(height)))
         let firstColumn = Int(min(max(minX.rounded(.down), 0), Double(width)))

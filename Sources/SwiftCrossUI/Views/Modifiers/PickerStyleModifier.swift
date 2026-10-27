@@ -28,21 +28,17 @@ extension View {
         EnvironmentModifier(self) { environment in
             if !style.isSupported(backend: environment.backend) {
                 // `assertionFailure` alone is compiled out of a release build,
-                // and release is what this project builds by default (see the
-                // `testapp/compile.zsh` policy in CLAUDE.md), so a picker style
-                // the backend cannot honour was downgraded to `.automatic` in
-                // silence: an author who asked for a segmented control got a
-                // dropdown with no way to find out why. That is #38's defect,
-                // and `DatePickerStyleModifier` recorded it as waiting here.
-                // The style that is unsupported is a property of the backend,
-                // not of the moment, so saying it once is saying it.
+                // and release is what this project builds by default, so
+                // without this warning a picker style the backend cannot honour
+                // would be downgraded to `.automatic` in silence: an author who
+                // asked for a segmented control would get a dropdown with no way
+                // to find out why. The style that is unsupported is a property
+                // of the backend, not of the moment, so saying it once is saying it.
                 //
                 // `assertionFailure` 在 release 建置中會被編譯掉，而 release 正是本專案的預設
-                // 建置方式（見 CLAUDE.md 中的 `testapp/compile.zsh` 政策），因此 backend 無法
-                // 支援的 picker style 會被默默降級為 `.automatic`：作者要的是分段控制項，拿到
-                // 的卻是下拉選單，且無從得知原因。這正是 #38 的缺陷，而
-                // `DatePickerStyleModifier` 早已記下它潛伏在此處。style 不被支援是 backend 的
-                // 屬性、而非某個時刻的屬性，因此說一次就等於說了。
+                // 建置方式，因此少了這則警告，backend 無法支援的 picker style 會被默默降級為
+                // `.automatic`：作者要的是分段控制項，拿到的卻是下拉選單，且無從得知原因。
+                // style 不被支援是 backend 的屬性、而非某個時刻的屬性，因此說一次就等於說了。
                 let resolved = (style as? any _BuiltinPickerStyle)?
                     ._asBackendPickerStyle(backend: environment.backend)
                 if warnedPickerStyles.insert(resolved).inserted {

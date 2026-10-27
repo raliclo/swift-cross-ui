@@ -75,7 +75,7 @@ final class NSFocusableTarget: NSView {
             return
         }
         // The window keeps no key view loop of its own here, so `selectNextKeyView`
-        // from this view found nothing and Tab stayed put (P91, 2026-10-13).
+        // from this view finds nothing and Tab stays put (P91).
         // 這裡的視窗沒有自己維護 key view loop,所以從這個 view 呼叫 `selectNextKeyView` 找不到東西，Tab 原地不動。
         window.recalculateKeyViewLoop()
         if event.modifierFlags.contains(.shift) {

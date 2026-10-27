@@ -193,14 +193,13 @@ extension Mesh3DScene {
         while binaryChunk.count % 4 != 0 { binaryChunk.append(0x00) }
 
         var glb = Data()
-        // 0x4654_6C67 little-endian is 67 6C 54 46 -- 'g' 'l' 'T' 'F'. Written as
-        // 0x4674_6C67 first, which is 'g' 'l' 't' 'F': a lowercase t, one bit
-        // different, and the only thing that rejected it was three.js. Nothing
-        // here could: the file's length, chunk headers, JSON and buffer were all
-        // correct, so every check written on this side passed.
-        // 0x4654_6C67 以 little-endian 排出來是 67 6C 54 46——'g' 'l' 'T' 'F'。一開始寫成 0x4674_6C67,
-        // 那是 'g' 'l' 't' 'F':一個小寫 t、差一個位元,而唯一拒絕它的是 three.js。這一側沒有任何東西能
-        // 發現:檔案長度、chunk 標頭、JSON 與 buffer 全都是對的,因此這邊寫的每一項檢查都通過了。
+        // 0x4654_6C67 little-endian is 67 6C 54 46 -- 'g' 'l' 'T' 'F'. The one-bit
+        // slip 0x4674_6C67 ('g' 'l' 't' 'F', a lowercase t) passes every check on
+        // this side -- length, chunk headers, JSON and buffer are all correct --
+        // and is rejected only by an outside reader such as three.js.
+        // 0x4654_6C67 以 little-endian 排出來是 67 6C 54 46——'g' 'l' 'T' 'F'。差一個位元的
+        // 0x4674_6C67('g' 'l' 't' 'F',小寫 t)能通過這一側的每一項檢查——檔案長度、chunk 標頭、
+        // JSON 與 buffer 全都是對的——只有外部的 reader(例如 three.js)會拒絕它。
         glb.append(littleEndian: UInt32(0x4654_6C67)) // "glTF"
         glb.append(littleEndian: UInt32(2))
         glb.append(littleEndian: UInt32(12 + 8 + jsonChunk.count + 8 + binaryChunk.count))
@@ -390,12 +389,11 @@ private func quaternion(
     }
 }
 
-// `normalized` and `cross` used to be file-private here. They now live beside the matrices in
-// `Mesh3DMatrix.swift`, which needs the same two and would otherwise have been a second copy --
-// and a second copy of `cross` is a sign error waiting to disagree with this file's quaternion.
-// `normalized` 與 `cross` 原本是本檔的 file-private 函式。它們現在與各矩陣一同住在
-// `Mesh3DMatrix.swift`——那邊需要同樣這兩個,否則就會是第二份;而第二份 `cross` 是一個
-// 「等著與本檔四元數對不上的正負號錯誤」。
+// `normalized` and `cross` live beside the matrices in `Mesh3DMatrix.swift`, which needs
+// the same two; one copy is shared, because a second copy of `cross` is a sign error waiting
+// to disagree with this file's quaternion.
+// `normalized` 與 `cross` 與各矩陣一同住在 `Mesh3DMatrix.swift`——那邊需要同樣這兩個;兩邊共用
+// 一份,因為第二份 `cross` 是一個「等著與本檔四元數對不上的正負號錯誤」。
 
 extension Data {
     /// glTF is little-endian everywhere, on every platform, whatever the host is.

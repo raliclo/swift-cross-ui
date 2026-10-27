@@ -170,11 +170,11 @@ extension AndroidBackend {
     }
 
     public func defaultButtonStyle() -> PrimitiveButtonStyle {
-        // Borderless, as UIKit's default on a phone (user, 2026-10-09: Android
-        // should line up with iOS). A Material bordered button's padding made
+        // Borderless, as UIKit's default on a phone (Android lines up with
+        // iOS here). A Material bordered button's padding made
         // every row of buttons wider and taller than on iOS -- P4's top row
         // wrapped "Fe/wer rows" and showed 7 callback rows to iOS's 9.
-        // 無框，與手機上 UIKit 的預設相同(使用者,2026-10-09:Android 要與 iOS 對齊)。Material 有框按鈕的內距讓每一排
+        // 無框，與手機上 UIKit 的預設相同(Android 在此與 iOS 對齊)。Material 有框按鈕的內距讓每一排
         // 按鈕都比 iOS 寬且高——P4 頂端那排斷成「Fe/wer rows」,只顯示 7 列 callback,iOS 是 9 列。
         .borderless
     }

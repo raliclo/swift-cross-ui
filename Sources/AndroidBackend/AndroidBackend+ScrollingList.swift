@@ -2,8 +2,8 @@ import AndroidKit
 @_spi(Backends) import SwiftCrossUI
 
 extension AndroidBackend: BackendFeatures.ScrollingLists {
-    /// An Android `ListView` scrolls and recycles by itself; it was being given
-    /// a height equal to all of its rows.
+    /// An Android `ListView` scrolls and recycles by itself; without a viewport
+    /// it would be given a height equal to all of its rows.
     ///
     /// **This one is nearly a no-op, and saying so is the point.** `setSize` --
     /// which `List.commit` calls immediately after this -- already writes
@@ -20,7 +20,7 @@ extension AndroidBackend: BackendFeatures.ScrollingLists {
     /// sentinels living in the same field as a length, and scaling one by the
     /// display density turns it into the other.
     ///
-    /// Android 的 `ListView` 自己會捲動、也自己回收;它先前拿到的是一個等於其所有列總和的高度。
+    /// Android 的 `ListView` 自己會捲動、也自己回收;少了視口,它會拿到一個等於其所有列總和的高度。
     ///
     /// **這一個幾乎是空操作,而「說出這件事」正是重點。** `setSize`——`List.commit` 緊接在此之後就會
     /// 呼叫它——本來就會寫入 `layoutParams.height`,因此在這個 backend 上,真正起作用的是「conformance

@@ -205,14 +205,11 @@ extension App {
         // Say so when `-actionfile` was passed to a binary that cannot replay.
         //
         // Without SCUI_DEBUG every backend compiles its
-        // `ActionFileReplay.replayIfRequested()` call away, and the result was
+        // `ActionFileReplay.replayIfRequested()` call away, and the result is
         // indistinguishable from a replay that ran and did nothing: the flag is
         // accepted by the shell, it is in `CommandLine.arguments`, the window
         // opens, and not one line is printed -- no error, no warning, not even
-        // the `replaying ...` the replay itself would emit. That silence cost
-        // most of an afternoon on 2026-09-03 and three conclusions about a
-        // synthesiser change that had never once executed; `testapp/compile.zsh`
-        // records both.
+        // the `replaying ...` the replay itself would emit.
         //
         // Here rather than in the backends, because it is the same sentence for
         // all five of them and it is not a backend's question. One `#if` on the
@@ -231,8 +228,6 @@ extension App {
         // `ActionFileReplay.replayIfRequested()` 編譯掉，而其結果與「重放跑了但什麼都沒做」
         // 完全無法區分：shell 接受了該旗標、它也在 `CommandLine.arguments` 裡、視窗照常開啟，
         // 而一行都不印——沒有錯誤、沒有警告，連重放本身會輸出的 `replaying ...` 都沒有。
-        // 這份沉默在 2026-09-03 花掉了大半個下午，並造就三個關於「某項從未被執行過的
-        // synthesiser 改動」的結論；`testapp/compile.zsh` 對這兩件事都有記載。
         //
         // 放在此處而非各 backend 中，因為對五個 backend 而言這是同一句話，而且它並不是
         // backend 該回答的問題。把呼叫端推到這個處境的，正是函式庫這一側的一個 `#if`；

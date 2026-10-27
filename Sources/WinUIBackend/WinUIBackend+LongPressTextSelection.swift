@@ -11,17 +11,15 @@ extension WinUIBackend: BackendFeatures.LongPressTextSelection {
     /// is not used, because this backend has measured it calling nothing (see
     /// the slider note in WinUIBackend.swift).
     ///
-    /// **NOT COMPILED OR RUN (2026-10-17): WinUIBackend does not build on the
-    /// Mac it was written on.** Read from the generated bindings in
-    /// swift-winui: `Control.onPointerPressed(_:)` and friends are `open`,
-    /// `TextBox.getRectFromCharacterIndex(_:_:)` and `select(_:_:)` exist with
-    /// those shapes, `UIElement.capturePointer(_:)` returns `Bool`.
+    /// Written against swift-winui's generated bindings and first built on
+    /// Windows on 2026-10-19: `Control.onPointerPressed(_:)` and friends are
+    /// `open`, `TextBox.getRectFromCharacterIndex(_:_:)` and `select(_:_:)`
+    /// exist with those shapes, `UIElement.capturePointer(_:)` returns `Bool`.
     ///
     /// 在 `TextBox` 裡按住再拖曳，透過 `TextBox` 自己的覆寫:`createTextField` 與 `createTextEditor` 建立
     /// ``LongPressTextBox``,它的 `onPointerPressed`/`Moved`/`Released` 在 template 處理之前執行——不用
     /// `addHandler(_:_:handledEventsToo:)`,因為本 backend 已量到它什麼都不呼叫(見 WinUIBackend.swift 的 slider
-    /// 註解)。**未編譯、未執行(2026-10-17):撰寫它的 Mac 建不了 WinUIBackend。** 依 swift-winui 產生的 binding
-    /// 閱讀寫成。
+    /// 註解)。依 swift-winui 產生的 binding 寫成,2026-10-19 首次在 Windows 上建置。
     public func setLongPressTextSelection(
         ofTextInput textInput: Widget,
         enabled: Bool,
@@ -236,12 +234,11 @@ final class LongPressTextBox: TextBox {
         // The handler is taken out of `self` first. Passing the closure
         // `{ longPressSelection?(...) }` sent `self` -- a TextBox, not Sendable --
         // into assumeIsolated, which Swift 6.4 refuses ("sending 'self' risks
-        // causing data races"); this file was written on the Mac, which cannot
-        // compile WinUIBackend, and first built on Windows on 2026-10-19. Every
-        // event that reaches here is raised on the UI thread.
+        // causing data races"). Every event that reaches here is raised on
+        // the UI thread.
         // 先把 handler 從 `self` 取出。原本的閉包 `{ longPressSelection?(...) }` 把 `self`(TextBox,非 Sendable)
-        // 送進 assumeIsolated,Swift 6.4 拒絕(「sending 'self' risks causing data races」);本檔是在編不到
-        // WinUIBackend 的 Mac 上寫的，2026-10-19 才第一次在 Windows 上建置。抵達此處的每個事件都在 UI 執行緒上引發。
+        // 送進 assumeIsolated,Swift 6.4 拒絕(「sending 'self' risks causing data races」)。抵達此處的每個事件都在
+        // UI 執行緒上引發。
         nonisolated(unsafe) let handler = longPressSelection
         MainActor.assumeIsolated { handler?(reported, phase) }
     }

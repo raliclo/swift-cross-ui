@@ -72,9 +72,9 @@ class KeyEventContainer(context: Context) : ViewGroup(context) {
         // See ShortcutHostLayout. 見 ShortcutHostLayout。
         defaultFocusHighlightEnabled = false
         // Descendants keep their own focus; this container only takes it when nothing else wants
-        // it. FOCUS_BEFORE_DESCENDANTS is the default and would put a text field behind us.
+        // it. FOCUS_BEFORE_DESCENDANTS is the default and would put a text field behind this container.
         // 後代保有它們自己的焦點;只有在沒有別的東西要它時,這個容器才拿走。
-        // 預設的 FOCUS_BEFORE_DESCENDANTS 會把文字欄位排在我們後面。
+        // 預設的 FOCUS_BEFORE_DESCENDANTS 會把文字欄位排在這個容器後面。
         descendantFocusability = FOCUS_AFTER_DESCENDANTS
     }
 

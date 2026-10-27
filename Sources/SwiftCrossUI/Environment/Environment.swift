@@ -42,7 +42,7 @@
 /// `@Environment(Model.self)` reads an object that an ancestor placed with
 /// ``View/environmentObject(_:)`` or ``Scene/environmentObject(_:)``, and
 /// **redraws the view whenever that object publishes**. It is the modern
-/// SwiftUI spelling of ``EnvironmentObject``, and since 2026-09-08 the two
+/// SwiftUI spelling of ``EnvironmentObject``, and the two
 /// behave identically; the older wrapper stays because
 /// `@EnvironmentObject var model: Model` is still valid SwiftUI and is still
 /// what a lot of existing code says.
@@ -57,11 +57,11 @@
 /// }
 /// ```
 ///
-/// **Why the observation had to be added rather than documented away.** Until
-/// 2026-09-08 this wrapper was only a ``DynamicProperty``. ``ViewGraphNode``
-/// subscribes to every field that is an ``ObservableProperty`` and to nothing
-/// else, so there was nothing here for it to subscribe to: the view rendered
-/// once with correct data and then stayed stale for the rest of the process,
+/// **Why the observation is implemented rather than documented away.**
+/// ``ViewGraphNode`` subscribes to every field that is an
+/// ``ObservableProperty`` and to nothing else. As a plain ``DynamicProperty``
+/// this wrapper would give it nothing to subscribe to: the view would render
+/// once with correct data and then stay stale for the rest of the process,
 /// with no error at any layer. That is exactly the failure ``ObservedObject``
 /// describes for a plain stored property, reached by a different route --
 /// and a stale view is indistinguishable from a correct one until the moment
@@ -74,35 +74,31 @@
 /// repository's `CLAUDE.md` rule about shipped backends -- is written out on
 /// ``EnvironmentObject``, which reaches the same slot and makes the same
 /// choice. What matters here is that the message **names the type and the
-/// modifier that was forgotten**. It did not until 2026-09-08: the lookup was
-/// force-cast with `as!` inside ``update(with:previousValue:)``, so a missing
-/// object aborted the process before ``wrappedValue`` was ever reached, with
-/// whatever the runtime says about an unexpected `nil` and not one word about
-/// `Model` or `.environmentObject(_:)`.
+/// modifier that was forgotten**, which a force-cast with `as!` could not do:
+/// a missing object would abort the process before ``wrappedValue`` was
+/// reached, naming neither `Model` nor `.environmentObject(_:)`.
 ///
 /// ## 以型別讀取一個物件
 ///
 /// `@Environment(Model.self)` 會讀取由祖先以 ``View/environmentObject(_:)`` 或
 /// ``Scene/environmentObject(_:)`` 放入的物件，並在**該物件每次發佈變更時重繪該 view**。
-/// 這是 ``EnvironmentObject`` 在 SwiftUI 中較新的寫法；自 2026-09-08 起兩者行為完全一致。
+/// 這是 ``EnvironmentObject`` 在 SwiftUI 中較新的寫法；兩者行為完全一致。
 /// 舊的包裝器仍然保留，因為 `@EnvironmentObject var model: Model` 在 SwiftUI 中依然合法，
 /// 也依然是大量既有程式碼的寫法。
 ///
-/// **為何必須把觀察實作出來，而不是用文件把它說過去。** 在 2026-09-08 之前，本包裝器只是一個
-/// ``DynamicProperty``。``ViewGraphNode`` 只訂閱身為 ``ObservableProperty`` 的欄位，其餘一律不訂閱，
-/// 因此此處根本沒有東西可供它訂閱：view 會以正確資料繪出一次，然後在該行程的剩餘生命中永遠停滯，
-/// 而任何一層都不會產生錯誤。這正是 ``ObservedObject`` 針對「一般儲存屬性」所描述的那種失敗，只是
-/// 經由另一條路徑抵達——而一個停滯的 view 與一個正確的 view，在資料本該變動的那一刻之前完全無法
-/// 分辨。
+/// **為何必須觀察，而不是用文件把它說過去。** ``ViewGraphNode`` 只訂閱身為 ``ObservableProperty``
+/// 的欄位，其餘一律不訂閱。若本包裝器只是一個 ``DynamicProperty``,就沒有東西可供它訂閱：view 會以
+/// 正確資料繪出一次，然後在該行程的剩餘生命中永遠停滯，而任何一層都不會產生錯誤。這正是
+/// ``ObservedObject`` 針對「一般儲存屬性」所描述的那種失敗，只是經由另一條路徑抵達——而一個停滯的
+/// view 與一個正確的 view,在資料本該變動的那一刻之前完全無法分辨。
 ///
 /// ## 當沒有任何人提供該物件時
 ///
 /// 讀取該屬性會先記錄型別與修正方式，然後中止。「為何中止而非降級」，以及「為何這不牴觸本專案
 /// `CLAUDE.md` 對已發布 backend 的規則」，完整理由寫在 ``EnvironmentObject`` 上——它讀的是同一個
 /// 位置，也做了同樣的選擇。此處真正的重點是：那則訊息會**指名型別與被遺忘的那個 modifier**。
-/// 在 2026-09-08 之前並非如此：查找結果在 ``update(with:previousValue:)`` 裡被 `as!` 強制轉型，
-/// 因此物件不存在時，行程會在 ``wrappedValue`` 被觸及之前就中止，只留下執行期對「非預期的 `nil`」
-/// 的說法，而關於 `Model` 或 `.environmentObject(_:)` 則一個字也沒有。
+/// 以 `as!` 強制轉型做不到這一點：物件不存在時，行程會在 ``wrappedValue`` 被觸及之前就中止，
+/// 既不提 `Model`,也不提 `.environmentObject(_:)`。
 @propertyWrapper
 public struct Environment<Value>: DynamicProperty {
     private let mode: Mode
@@ -244,20 +240,18 @@ public struct Environment<Value>: DynamicProperty {
             case .keyPath(let keyPath):
                 box.value.adopt(environment[keyPath: keyPath])
             case .observableObject:
-                // `as?`, never `as!`. This line read
-                // `(environment[observable: type] as! Value)` until 2026-09-08,
-                // and with nothing in the environment that is a force-cast of
-                // `nil`: the process died here, before ``wrappedValue`` was ever
+                // `as?`, never `as!`. With nothing in the environment,
+                // `(environment[observable: type] as! Value)` is a force-cast of
+                // `nil`: the process would die here, before ``wrappedValue`` is
                 // reached, naming neither the type nor the modifier that was
                 // forgotten. Absence is recorded instead and reported by
                 // ``wrappedValue``, which is the only place that knows a value
                 // was actually required.
                 //
-                // 用 `as?`，絕不用 `as!`。此行在 2026-09-08 之前是
-                // `(environment[observable: type] as! Value)`，而當 environment 中什麼都沒有時，
-                // 那就是一次對 `nil` 的強制轉型：行程在此處死去，``wrappedValue`` 根本不會被觸及，
-                // 既沒指出型別，也沒指出被遺忘的那個 modifier。此處改為記下「不存在」，交由
-                // ``wrappedValue`` 回報，因為只有它知道「這次真的需要一個值」。
+                // 用 `as?`,絕不用 `as!`。當 environment 中什麼都沒有時，
+                // `(environment[observable: type] as! Value)` 就是一次對 `nil` 的強制轉型：行程會在此處死去，
+                // ``wrappedValue`` 根本不會被觸及，既沒指出型別，也沒指出被遺忘的那個 modifier。此處改為記下
+                // 「不存在」,交由 ``wrappedValue`` 回報，因為只有它知道「這次真的需要一個值」。
                 if let type = Value.self as? any ObservableObject.Type {
                     box.value.adopt(environment[observable: type] as? Value)
                 }

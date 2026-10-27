@@ -122,18 +122,18 @@ public class Application: GObject, GActionMap {
     public func run(_ windowCallback: @escaping (ApplicationWindow) -> Void) -> Int {
         self.windowCallback = windowCallback
 
-        // Only the arguments that are URLs, after argv[0]. With argc 0, as this
-        // was, GApplication never saw the command line, so the URL an app was
-        // launched with never became an `open` -- and neither did the one a
-        // second launch forwards, which is the same path in the other process.
-        // P78 read "received 0" on Windows GTK (2026-10-20). Not the whole argv:
+        // Only the arguments that are URLs, after argv[0]. With argc 0,
+        // GApplication never sees the command line, so the URL an app is
+        // launched with never becomes an `open` -- and neither does the one a
+        // second launch forwards, which is the same path in the other process
+        // (P78 read "received 0" on Windows GTK). Not the whole argv:
         // GApplication parses options itself, and an app's own flag such as
         // `--debug` would make it fail with "Unknown option" before any window.
         // A URL needs a scheme of two letters or more, so `C:/x` stays a path.
         //
-        // 只傳 argv[0] 之後屬於 URL 的引數。原本 argc 為 0,GApplication 從未看到命令列，因此 app 啟動時帶的
-        // URL 從未成為 `open`——第二次啟動所轉交的也一樣，那是另一個行程裡的同一條路徑。P78 在 Windows GTK 上讀到
-        // 「received 0」(2026-10-20)。不傳整個 argv:GApplication 會自行解析選項,app 自己的旗標(例如 `--debug`)
+        // 只傳 argv[0] 之後屬於 URL 的引數。argc 為 0 時,GApplication 看不到命令列，因此 app 啟動時帶的
+        // URL 不會成為 `open`——第二次啟動所轉交的也一樣，那是另一個行程裡的同一條路徑(P78 在 Windows GTK 上讀到
+        // 「received 0」)。不傳整個 argv:GApplication 會自行解析選項,app 自己的旗標(例如 `--debug`)
         // 會讓它在任何視窗出現前以「Unknown option」失敗。URL 的 scheme 須至少兩個字母，因此 `C:/x` 仍是路徑。
         let urls = CommandLine.arguments.dropFirst().filter { argument in
             guard !argument.hasPrefix("-"), let url = URL(string: argument),

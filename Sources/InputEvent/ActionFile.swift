@@ -3,7 +3,8 @@ import Foundation
 /// Reads an action file into ``InputAction`` values.
 ///
 /// The format is in this module's README: RFC 4180 CSV, one header row, nine
-/// columns `action,x,y,origin,button,key,micros,note,platform`.
+/// columns `action,x,y,origin,button,key,micros,note,platform`, plus an
+/// optional tenth, `target`, read only by `focus`.
 public enum ActionFile {
     public static func load(contentsOf url: URL) throws -> [InputAction] {
         let text = try String(contentsOf: url, encoding: .utf8)
@@ -17,8 +18,7 @@ public enum ActionFile {
         // Split on `isNewline` rather than the literal "\n". Swift treats
         // "\r\n" as a single extended grapheme cluster, so it is one Character
         // and it is not equal to "\n" -- a CRLF file split on the literal
-        // returns one enormous element and every row silently disappears. This
-        // has cost this project two separate debugging sessions.
+        // returns one enormous element and every row silently disappears.
         //
         // `omittingEmptySubsequences: false` because the offset is the line
         // number reported in errors. Dropping blank lines shifted every number

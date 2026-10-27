@@ -7,18 +7,14 @@ public struct TableColumn<RowValue, Content: View> {
     /// A fixed width in points, or nil to share the table's width evenly with
     /// the other unsized columns.
     ///
-    /// **nil is not "no opinion", it is the CURRENT behaviour made explicit.**
-    /// Before this existed, ``Table/computeLayout`` gave every column
-    /// `proposedWidth / columnCount` -- a flat average with no way to say
-    /// otherwise, so a column of dates and a column of one-word names got the
-    /// same space. A nil column still gets an even share; the difference is
-    /// that it now shares what the sized columns left behind.
+    /// **nil is an even share, not "no opinion".** A nil column shares what the
+    /// sized columns leave behind; with every column nil that is the flat
+    /// `proposedWidth / columnCount`.
     ///
     /// 固定寬度(單位為 point);nil 表示與其他未指定寬度的欄平均分配表格寬度。
     ///
-    /// **nil 不是「沒有意見」,而是把既有行為明說出來。** 在此之前,``Table/computeLayout`` 給每一欄
-    /// 的都是 `proposedWidth / columnCount` ——一個沒有辦法改變的平均值,因此一欄日期與一欄單字姓名
-    /// 得到相同的空間。nil 的欄位現在仍然平分,差別在於**它平分的是那些已指定寬度的欄所剩下的部分**。
+    /// **nil 是平分,不是「沒有意見」。** nil 的欄位平分的是那些已指定寬度的欄所剩下的部分;若所有欄都是 nil,
+    /// 就與單純的 `proposedWidth / columnCount` 相同。
     public var width: Double?
 }
 

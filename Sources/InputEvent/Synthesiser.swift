@@ -21,26 +21,23 @@ public struct WindowGeometry: Equatable, Sendable {
     /// Action files are written in points so they survive being replayed at a
     /// different display scale; the conversion happens here, at the last moment.
     ///
-    /// Measured 2026-08-27, from this repository's own history rather than from
-    /// a fresh run. When this machine went from 125% to 100%, every Windows
+    /// Evidence: when the Windows display went from 125% to 100%, every Windows
     /// action file had to be re-measured, and all 13 y coordinates changed by
     /// exactly 1.25 -- P21 195 -> 244, P8 300 -> 375, P19 180 -> 225, without
     /// one exception. So the widgets had not moved in *physical* pixels at all:
     /// GTK 4 on Windows rounds the scale to an integer and laid out at 1 at both
-    /// DPIs. The synthesiser multiplied by 1.25 regardless, and the files
-    /// absorbed the error -- which is why a format meant to be scale
-    /// independent was not.
+    /// DPIs. Multiplying by the display's 1.25 made the files absorb the error,
+    /// which is why a format meant to be scale independent was not.
     ///
     /// 每個邏輯點所對應的實體像素數——以**該 toolkit 實際排版時所用的比例**為準，而非顯示器所
     /// 回報的比例。兩者未必相同，而在兩者不同之處，座標所依據的是 toolkit 的那一個。
     ///
     /// 動作檔以「點」書寫，如此才能在不同的顯示縮放下重放；換算就發生在此處，且是最後一刻。
     ///
-    /// 於 2026-08-27 自本專案自身的歷史量得，而非來自一次新的執行。這台機器由 125% 改為 100%
-    /// 時，所有 Windows 動作檔都必須重新測量，而 13 個 y 座標**無一例外**恰好變動 1.25 倍——
-    /// P21 195 -> 244、P8 300 -> 375、P19 180 -> 225。也就是說，widget 的**實體**像素位置根本
-    /// 沒有移動：Windows 上的 GTK 4 會將比例取整為整數，兩種 DPI 下都以 1 排版。而 synthesiser
-    /// 仍然照乘 1.25，誤差便由動作檔吸收了——這正是一個「本應與縮放無關」的格式並非如此的原因。
+    /// 證據：Windows 顯示縮放由 125% 改為 100% 時，所有 Windows 動作檔都必須重新測量，而 13 個
+    /// y 座標**無一例外**恰好變動 1.25 倍——P21 195 -> 244、P8 300 -> 375、P19 180 -> 225。也就是說，
+    /// widget 的**實體**像素位置根本沒有移動：Windows 上的 GTK 4 會將比例取整為整數，兩種 DPI 下
+    /// 都以 1 排版。以顯示器的 1.25 去乘，誤差便由動作檔吸收，使一個「本應與縮放無關」的格式並非如此。
     public var scale: Double
 
     /// Top-left of the popover, menu or modal currently open over this window,
@@ -71,12 +68,9 @@ public struct WindowGeometry: Equatable, Sendable {
 
     /// `popoverOrigin` is compared too, for consistency with the other fields.
     ///
-    /// **This operator decides nothing today, and an earlier version of this
-    /// comment claimed it decided the mid-replay re-measure.** It does not:
-    /// `replay(_:in:)` keys that off `currentWindowIdentity()`, and a grep for
-    /// `geometry ==` across `Sources/` returns nothing. The claim was written
-    /// from the type's shape rather than from its callers -- the same mistake
-    /// this file's neighbours keep recording, made here while fixing one.
+    /// **This operator decides nothing today.** The mid-replay re-measure is
+    /// keyed off `currentWindowIdentity()` in `replay(_:in:)`, and nothing in
+    /// `Sources/` compares two geometries.
     ///
     /// Included anyway so that a future caller comparing two geometries gets an
     /// answer that accounts for every field, rather than one that silently
@@ -84,10 +78,8 @@ public struct WindowGeometry: Equatable, Sendable {
     ///
     /// `popoverOrigin` 也參與比較,以與其他欄位保持一致。
     ///
-    /// **這個運算子今天什麼都沒決定,而本註解的前一個版本聲稱它決定了「重放途中的重新量測」。**
-    /// 並非如此:`replay(_:in:)` 是以 `currentWindowIdentity()` 為鍵,而在 `Sources/` 中 grep
-    /// `geometry ==` 一個命中也沒有。那個說法是**從型別的形狀**寫出來的,而不是從它的呼叫端
-    /// ——正是本檔鄰近程式碼一再記錄的那個錯誤,而這次是在修正其中一個時犯下的。
+    /// **這個運算子目前不決定任何事。** 「重放途中的重新量測」由 `replay(_:in:)` 以
+    /// `currentWindowIdentity()` 為鍵來決定,而 `Sources/` 中沒有任何地方比較兩份 geometry。
     ///
     /// 仍然納入它,是為了讓未來某個比較兩份 geometry 的呼叫端得到一個「涵蓋每個欄位」的答案,
     /// 而不是一個悄悄忽略最新欄位的答案。
@@ -283,8 +275,8 @@ extension Synthesiser {
     public func finishReplay() {}
 
     /// Unknown, which keeps every platform that does not implement it on the
-    /// pre-2026-09-04 behaviour: geometry read once and never revisited.
-    /// 未知；這讓每一個未實作它的平台維持 2026-09-04 之前的行為：幾何只讀一次，之後不再重讀。
+    /// original behaviour: geometry read once and never revisited.
+    /// 未知；這讓每一個未實作它的平台維持原本的行為：幾何只讀一次，之後不再重讀。
     public func currentWindowIdentity() -> Int { 0 }
 
     /// Loud by default: a synthesiser that has not implemented this cannot do it.
@@ -327,29 +319,21 @@ extension Synthesiser {
                 // `replay(_:)` uses and for the same reason: preparing is what
                 // raises the window on the platforms that need raising.
                 //
-                // It is also a fix in its own right, and a confirmation.
-                // `prepareForReplay` pins its window HWND_TOPMOST; a dialog
-                // opened afterwards is NOT pinned, so the app's own main window
-                // covers its own modal. MEASURED 2026-09-04: P1's sheet existed
-                // at 428x174@162,239 -- Win32 reported it, `GW_ENABLEDPOPUP`
-                // named it -- and a desktop capture taken at that moment shows
-                // no sheet at all, only the main window's buttons in that
-                // rectangle. `testapp/actions/win/P5-stacked-alerts.actions` has
-                // listed this as a suspicion since 2026-09-03 and said to
-                // suspect it first if a capture shows no alert; it was right,
-                // and this is the run that turned it into a measurement.
+                // It is also a fix in its own right. `prepareForReplay` pins its
+                // window HWND_TOPMOST; a dialog opened afterwards is NOT pinned,
+                // so the app's own main window covers its own modal: P1's sheet
+                // existed at 428x174@162,239 -- Win32 reported it,
+                // `GW_ENABLEDPOPUP` named it -- while a desktop capture of that
+                // rectangle showed only the main window's buttons. Preparing
+                // again pins the new window.
                 //
                 // 先 prepare 再量測，與檔案層級的 `replay(_:)` 採用相同的配對，理由也相同：
                 // 在需要抬升視窗的平台上，正是 prepare 這一步把視窗帶到前面。
                 //
-                // 它本身也是一項修正，同時是一次確認。`prepareForReplay` 會把它的視窗釘為
-                // HWND_TOPMOST；而其後才開啟的對話框**不會**被釘，於是 app 自己的主視窗蓋住了
-                // 自己的 modal。**2026-09-04 實測**：P1 的 sheet 確實存在於 428x174@162,239
-                // ——Win32 這麼回報，`GW_ENABLEDPOPUP` 也指名了它——而同一時刻的桌面擷圖中完全
-                // 看不到任何 sheet，那個矩形裡只有主視窗的按鈕。
-                // `testapp/actions/win/P5-stacked-alerts.actions` 自 2026-09-03 起就把這件事列為
-                // 懷疑，並寫明「若擷圖看不到 alert，這是第一個該懷疑的東西」；它是對的，而這一次
-                // 執行把那個懷疑變成了量測。
+                // 它本身也是一項修正。`prepareForReplay` 會把它的視窗釘為 HWND_TOPMOST；而其後
+                // 才開啟的對話框**不會**被釘，於是 app 自己的主視窗蓋住了自己的 modal:P1 的 sheet
+                // 確實存在於 428x174@162,239(Win32 這麼回報，`GW_ENABLEDPOPUP` 也指名了它),
+                // 而同一時刻的桌面擷圖中那個矩形裡只有主視窗的按鈕。重新 prepare 會把新的視窗釘上去。
                 try prepareForReplay(actions)
                 geometry = try currentWindowGeometry()
                 ActionFileReplay.report(
@@ -360,13 +344,10 @@ extension Synthesiser {
                 )
             }
             // A popover does not change the driven window's identity, so the
-            // check above never fires for one. MEASURED 2026-09-09 and this is
-            // the run that found it: the first `origin=popover` file failed with
-            // "no popover is open" while the replay's own dump, printed in the
-            // same second, listed `291x221@289,577` owned by the very window
-            // being driven. The geometry had been read once, before the anchor
-            // click, when there genuinely was no popover -- and nothing asked
-            // again.
+            // check above never fires for one. Without this re-measure the
+            // geometry is the one read before the anchor click, when there was
+            // genuinely no popover, and the first `origin=popover` row fails with
+            // "no popover is open" although one is open on the driven window.
             //
             // Re-measured for THESE ROWS ONLY, which is what keeps the design
             // above intact: a file that drags a window by its title bar and then
@@ -378,11 +359,9 @@ extension Synthesiser {
             // FIRST popover's corner -- a plausible wrong place, which is the
             // failure `origin=popover` exists to remove.
             //
-            // popover 不會改變被驅動視窗的識別值,因此上方那個檢查對它從不觸發。**2026-09-09 實測**,
-            // 而這正是發現它的那一次執行:第一個 `origin=popover` 檔案以「沒有 popover 開著」失敗,
-            // 而重放自己的傾印在同一秒印出了 `291x221@289,577`,其 owner 正是那個被驅動的視窗。
-            // geometry 只在錨點點擊**之前**讀過一次,當時確實沒有 popover——而之後沒有任何東西再問
-            // 一次。
+            // popover 不會改變被驅動視窗的識別值,因此上方那個檢查對它從不觸發。若不在此重測,
+            // geometry 只在錨點點擊**之前**讀過一次,當時確實沒有 popover,於是第一個
+            // `origin=popover` 列會以「沒有 popover 開著」失敗,即使該 popover 已經開在被驅動的視窗上。
             //
             // **只為這類資料列**重新量測,而那正是讓上方設計維持完整的關鍵:一份「以標題列拖曳視窗
             // 後再點擊」的檔案用的是 `frame` 或 `client`,完全不會進入本分支。
@@ -467,10 +446,7 @@ extension Synthesiser {
 /// The synthesiser for the platform this was built for.
 ///
 /// One place, and it is this module -- the one that has all three
-/// implementations. The choice used to be written inside `GtkBackend`, which
-/// meant the Windows synthesiser was reachable only through the GTK backend,
-/// and any other backend wanting a replay had to restate the same `#if` and get
-/// it right again. `AppKitBackend` restated it and then hard-coded one answer.
+/// implementations -- so no backend has to restate the platform `#if`.
 ///
 /// A platform with no implementation throws rather than returning something
 /// that quietly does nothing. iOS is that platform today: `UIKitBackend` has no
@@ -479,9 +455,8 @@ extension Synthesiser {
 ///
 /// 此建置所對應之平台的 synthesiser。
 ///
-/// 只有一處，且就在本模組——擁有全部三個實作的那一個。此項選擇過去寫在 `GtkBackend` 內，導致
-/// Windows 的 synthesiser 只能透過 GTK backend 取得；而任何其他想要重放功能的 backend，都必須重述
-/// 同一組 `#if` 並再次把它寫對。`AppKitBackend` 重述了它，然後寫死了單一答案。
+/// 只有一處，且就在本模組——擁有全部三個實作的那一個——因此沒有任何 backend 需要重述這組平台
+/// `#if`。
 ///
 /// 沒有實作的平台會拋出錯誤，而非回傳一個安靜地什麼也不做的東西。iOS 目前正是這樣的平台：
 /// `UIKitBackend` 沒有 synthesiser，因此在該處執行 `-actionfile` 會於 stderr 明說，而不是留下一個

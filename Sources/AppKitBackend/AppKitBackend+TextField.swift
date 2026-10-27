@@ -79,10 +79,6 @@ extension AppKitBackend {
     /// where they are, and `focusRingType = .none` would take that away in
     /// exchange for a slightly cleaner still image.
     ///
-    /// - Note: Unrun. This backend cannot be built or executed on the Windows
-    ///   machine this was written on, so it is implemented by reading AppKit's
-    ///   interface rather than by observing it.
-    ///
     /// AppKit 是唯一四種外形都是一等公民且各有其名的 backend：`NSTextField.bezelStyle` 是一個 enum，
     /// 其兩個 case 正是 `.roundedBezel` 與 `.squareBezel`——SwiftUI 的 `roundedBorder` 與僅限 macOS 的
     /// `squareBorder` 本來就是從這裡來的。此處不必像其餘四個 backend 那樣，用邊框寬度加圓角半徑去
@@ -99,9 +95,6 @@ extension AppKitBackend {
     ///
     /// 焦點環在所有情況下都刻意不動。它不屬於 `plain` 所要處理的那種外框裝飾；它是鍵盤使用者賴以
     /// 知道自己身在何處的東西，而 `focusRingType = .none` 是拿它去換一張略為乾淨的靜態畫面。
-    ///
-    /// - Note: 未實際執行。撰寫本程式碼的 Windows 機器無法建置或執行此 backend，因此它是靠閱讀
-    ///   AppKit 的介面實作的，而非靠觀察其行為。
     static func apply(_ style: BackendTextFieldStyle, to textField: NSTextField) {
         switch style {
             case .automatic, .squareBorder:

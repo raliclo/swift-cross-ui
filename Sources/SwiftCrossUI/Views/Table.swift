@@ -51,8 +51,8 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     ///
     /// Without it a table takes whatever height it is offered, and the last
     /// row in view is cut wherever that height happens to end -- by a different
-    /// amount on each backend, since row heights follow the font (user,
-    /// 2026-10-12, from P22 and P23: Android showed more of a sixth row than
+    /// amount on each backend, since row heights follow the font (from
+    /// P22 and P23: Android showed more of a sixth row than
     /// iOS did). With fewer rows than `count` the table keeps the height of
     /// `count` rows, so adding a row does not move what is below it. `nil`
     /// restores the offered height.
@@ -60,7 +60,7 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     /// 讓表格的高度剛好等於標題列加上 `count` 列。
     ///
     /// 沒有它時，表格會佔用被給予的高度，而畫面上最後一列被切在那個高度剛好結束的地方——每個 backend 切掉的量
-    /// 不同，因為列高跟著字型走(使用者,2026-10-12,起因是 P22 與 P23:Android 露出的第六列比 iOS 多)。
+    /// 不同，因為列高跟著字型走(P22 與 P23:Android 露出的第六列比 iOS 多)。
     /// 列數少於 `count` 時，表格仍保持 `count` 列的高度，所以新增一列不會移動它下方的東西。傳 `nil` 則恢復
     /// 為被給予的高度。
     public func visibleRowCount(_ count: Int?) -> Self {
@@ -227,21 +227,11 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
 
         // TODO: Compute a proper ideal size for tables. Look to SwiftUI to see what it does.
         //
-        // ~~`let columnWidth = (proposedSize.width ?? 0) / Double(columnCount)`~~
-        // -- a flat average, kept struck through because it is what
-        // `TableColumn.width` exists to replace and because a reader comparing
-        // against SwiftUI should see what this used to do. Every column got the
-        // same space whatever it held, and there was no way to say otherwise.
-        //
         // Sized columns take what they asked for; the rest divide the REMAINDER.
         // `max(0,)` on the remainder, because a table narrower than the sum of
         // its fixed widths would otherwise hand the flexible columns a negative
         // proposal, and a negative proposed width is not a smaller cell -- it is
         // a value the layout system has no meaning for.
-        //
-        // 此處原為 `(proposedSize.width ?? 0) / Double(columnCount)` ——一個平均值,劃線保留,
-        // 因為那正是 `TableColumn.width` 要取代的東西,也因為對照 SwiftUI 的讀者應該看得到它
-        // 原本的行為:無論欄裡裝什麼,每一欄都拿到相同的空間,而且沒有辦法改變。
         //
         // **有指定寬度的欄拿走它所要求的,其餘的瓜分剩下的部分。** 剩餘量取 `max(0,)`,因為當表格
         // 比其固定寬度總和還窄時,彈性欄會拿到一個**負的**提議寬度——而負的提議寬度並不是一個更小的
@@ -365,8 +355,8 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
 
         backend.setSize(of: widget, to: layout.size.vector)
 
-        // **After the cells, and that ordering is load-bearing on both backends
-        // implemented so far.** Both rebuild their whole grid in `setCells`, so
+        // **After the cells, and that ordering is load-bearing.**
+        // A backend may rebuild its whole grid in `setCells`, so
         // a highlight applied before it is applied to cells that are about to be
         // thrown away. Selecting last means the backend is placing the highlight
         // on the cells the user will actually see.
@@ -375,8 +365,8 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         // `List`. That puts the requirement on the backend -- replace the stored
         // closure, never add a subscription -- and the protocol says so.
         //
-        // **在儲存格之後,而這個順序在目前已實作的兩個 backend 上都是關鍵。** 兩者都在 `setCells`
-        // 裡整份重建自己的 grid,因此在它之前套用的高亮,會被套在「即將被丟掉」的儲存格上。
+        // **在儲存格之後,而這個順序是關鍵。** backend 可以在 `setCells`
+        // 裡整份重建 grid,因此在它之前套用的高亮,會被套在「即將被丟掉」的儲存格上。
         // 放在最後,才是把高亮放在使用者真正會看到的那些儲存格上。
         //
         // handler 每次 commit 都重新安裝、而非只裝一次,與 `List` 一致。這把要求放到 backend 身上

@@ -10,12 +10,12 @@ import SwiftJava
 /// submenus of one `PopupMenu` -- the layout the framework makes in Swift for
 /// every backend, with the standard commands this backend has.
 ///
-/// The button is this framework's design, agreed with the user on 2026-10-14;
+/// The button is this framework's own design;
 /// there is no SwiftUI on Android to copy.
 ///
 /// Android 上的 ``CommandGroup``。手機沒有選單列:預設什麼都不顯示，項目的快捷鍵照舊有效;``Scene/enableMenu(_:)``
 /// 打開後左上角出現選單按鈕，以一個 `PopupMenu` 的子選單打開各個標準選單——版面是框架以 Swift 為每個 backend 排出的，
-/// 加上本 backend 具備的標準指令。那個按鈕是本框架自己的設計，2026-10-14 與使用者確認;Android 上沒有 SwiftUI 可以照抄。
+/// 加上本 backend 具備的標準指令。那個按鈕是本框架自己的設計;Android 上沒有 SwiftUI 可以照抄。
 extension AndroidBackend: BackendFeatures.CommandLayouts {
     nonisolated(unsafe) static var scrollHosts: [RootScrollHost] = []
     nonisolated(unsafe) static var commandLayout: CommandLayout?
@@ -71,9 +71,9 @@ extension AndroidBackend: BackendFeatures.CommandLayouts {
         layout.menus = layout.menus.compactMap { menu in
             var menu = menu
             menu.sections = menu.sections.compactMap { section in
-                // No Format menu, as in the iPhone's menu button (89793ac1, user 2026-10-20): the textFormatting
+                // No Format menu, as in the iPhone's menu button (89793ac1): the textFormatting
                 // group is dropped, and with it the menu it was the only part of.
-                // 與 iPhone 的選單按鈕相同(89793ac1,使用者 2026-10-20):沒有 Format 選單。丟掉 textFormatting 群組，只由它組成的那個選單也就一併消失。
+                // 與 iPhone 的選單按鈕相同(89793ac1):沒有 Format 選單。丟掉 textFormatting 群組，只由它組成的那個選單也就一併消失。
                 if section.placement?.name == "textFormatting" { return nil }
                 var section = section
                 section.entries = section.entries.filter { entry in

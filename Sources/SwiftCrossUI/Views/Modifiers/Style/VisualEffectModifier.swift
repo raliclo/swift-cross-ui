@@ -95,12 +95,10 @@ struct VisualEffectModifier<Content: View>: View, TypeSafeView {
     // case. It changes what pixels look like and never what they mean, so a
     // backend without one can show the view plainly and the app keeps working.
     //
-    // Measured 2026-09-01: AppKitBackend implements neither this nor
-    // `GeometricEffects`, so P30 and P39 aborted at launch and had no window on
-    // macOS at all. The abort was doing more damage than the missing feature --
-    // one `.blur` anywhere in an app took the whole app down on a backend that
-    // had not implemented it yet, and the app could not fall back to anything
-    // because it never got to run.
+    // All five shipped backends implement this, so the degraded path is for
+    // backends outside that set. Aborting there would do more damage than the
+    // missing feature -- one `.blur` anywhere in an app would take the whole
+    // app down, and the app could not fall back to anything because it never got to run.
     //
     // This is what the rest of the tree already does. `dismissWindow`,
     // `openURL` and the file dialogs all warn once and carry on;
@@ -112,10 +110,9 @@ struct VisualEffectModifier<Content: View>: View, TypeSafeView {
     // 那是對的——GtkBackend 的 WebView 與 AngularGradient 都倚賴它。合成效果不屬於那種情況。它改變
     // 的是像素的外觀，從不改變其意義，因此沒有該功能的 backend 可以平實地顯示該 view，而 app 仍能繼續運作。
     //
-    // 2026-09-01 量測：AppKitBackend 既未實作本項、也未實作 `GeometricEffects`，因此 P30 與 P39 在
-    // 啟動時即中止，在 macOS 上根本沒有視窗。那次中止造成的損害大於缺失功能本身——app 中任何一處的
-    // 一個 `.blur`，就會在尚未實作它的 backend 上拖垮整個 app，而 app 也無從退回任何替代方案，
-    // 因為它根本沒有機會執行。
+    // 五個已發布的 backend 都實作了本項，因此降級路徑是給該集合以外的 backend 用的。在那裡中止所造成的
+    // 損害會大於缺失功能本身——app 中任何一處的一個 `.blur` 就會拖垮整個 app,而 app 也無從退回任何
+    // 替代方案，因為它根本沒有機會執行。
     //
     // 這也正是這棵樹其餘部分已經在做的事。`dismissWindow`、`openURL` 與各個檔案對話框都是警告一次
     // 後繼續；`datePickerStyle(_:)` 則把不支援的樣式降級為 `.automatic`。

@@ -11,18 +11,18 @@ import java.util.Locale
  * are [TimeWheels] with its day column, because that is one wheel on UIKit -- "Sun Aug 24"
  * beside the hours -- and not the date wheels next to the time wheels.
  *
- * Until 2026-10-10 both were the platform's Holo spinners, chosen so that this repository
- * would not own month lengths and leap years. Those now come from `java.time`, and what
- * the Holo pickers drew -- three flat rows between blue rules, abbreviated months, a month
- * calendar beside them -- was not the wheel the other backends show (P41).
+ * Drawn here rather than with the platform's Holo spinners. Month lengths and leap years come
+ * from `java.time`, and what the Holo pickers draw -- three flat rows between blue rules,
+ * abbreviated months, a month calendar beside them -- is not the wheel the other backends
+ * show (P41).
  *
  * Android 上的 `.wheel` 日期選擇器樣式，依 UIDatePicker 的尺寸繪製。
  *
  * 只有日期時是 [DateWheels];只有時間時是 [TimeWheels];日期與時間都有時是帶「日」欄的 [TimeWheels],因為在 UIKit 上
  * 那是一個滾輪(「Sun Aug 24」在小時旁邊),而不是日期滾輪旁邊再放時間滾輪。
  *
- * 2026-10-10 之前兩者都是平台的 Holo 滾輪，當時的理由是不讓本倉庫自己負責月份天數與閏年。那些現在來自 `java.time`,
- * 而 Holo 畫出來的——兩條藍線之間三列平的、縮寫月份、旁邊還有一個月曆——並不是其他 backend 顯示的那種滾輪(P41)。
+ * 不用平台的 Holo 滾輪：月份天數與閏年來自 `java.time`,而 Holo 畫出來的——兩條藍線之間三列平的、縮寫月份、
+ * 旁邊還有一個月曆——並不是其他 backend 顯示的那種滾輪(P41)。
  */
 class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
     private var locale: Locale? = null

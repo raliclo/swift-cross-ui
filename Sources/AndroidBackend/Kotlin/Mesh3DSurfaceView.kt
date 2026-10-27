@@ -29,7 +29,7 @@ import javax.microedition.khronos.opengles.GL10
  * fixed 0.25 ambient. Keeping the constants identical is what makes a cube look the same on both,
  * and a difference here would show up as "Android's cube is darker" with nothing to point at.
  *
- * **Per mesh, the same choices as Metal (2026-10-05).** Indexed triangles, or lines and points
+ * **Per mesh, the same choices as Metal.** Indexed triangles, or lines and points
  * drawn straight from the vertex array; lines and points are never lit; `lit == false` draws the
  * vertex colour as is; `depthTested == false` always passes and writes no depth. Indices are 32
  * bits: `GL_UNSIGNED_INT` needs `OES_element_index_uint` on GLES 2.0 (core in 3.0), and a device
@@ -48,7 +48,7 @@ import javax.microedition.khronos.opengles.GL10
  * **著色器是 Metal 那一份的音譯。** 一盞方向光的 Lambert 加上固定的 0.25 環境光。常數保持一致, 才讓同一個立方體在兩邊看起來一樣;此處的差異會表現為「Android
  * 的立方體比較暗」,而且無從指認。
  *
- * **逐 mesh 的選擇與 Metal 相同(2026-10-05)。** 帶索引的三角形,或直接依頂點陣列畫的線段與點;線段與點
+ * **逐 mesh 的選擇與 Metal 相同。** 帶索引的三角形,或直接依頂點陣列畫的線段與點;線段與點
  * 永不打光;`lit == false` 原樣畫出頂點顏色;`depthTested == false` 一律通過、不寫深度。索引為 32 位元:
  * GLES 2.0 上 `GL_UNSIGNED_INT` 需要 `OES_element_index_uint`(3.0 為核心功能);沒有它的裝置會拒絕索引
  * 超過 65,535 的三角形並警告,而不是截斷它們。

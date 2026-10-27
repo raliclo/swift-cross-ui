@@ -3,13 +3,11 @@ import Gtk
 
 /// The first widget of the requested type at or below `widget`.
 ///
-/// **The same defect queue M8 recorded for AppKit, UIKit and WinUI, on a fourth
-/// backend M8 did not list.** Measured 2026-09-17 on Windows -gtk4: P4 died at
-/// launch with "AnyWidget used with incompatible widget type Entry; actual
-/// widget type is PassthroughFixed" (exit 132), from a `TextField(...).inspect`
-/// whose closure body is empty on this backend. `TextField` renders through
-/// `TextFieldStyle`, so the widget on its node is a container and the Entry is
-/// inside it.
+/// **Searched, not cast.** The widget on a view's node is often a container:
+/// `TextField` renders through `TextFieldStyle`, so its node holds a
+/// PassthroughFixed with the Entry inside, and a direct cast killed P4 at
+/// launch on Windows -gtk4 ("AnyWidget used with incompatible widget type
+/// Entry; actual widget type is PassthroughFixed", exit 132, 2026-09-17).
 ///
 /// Walked through the child records the Gtk module keeps on the Swift side --
 /// `Fixed.children`, `Box.children`, the single child of ScrolledWindow and
@@ -19,11 +17,10 @@ import Gtk
 ///
 /// 在 `widget` 或其子樹中,第一個屬於所要求型別的 widget。
 ///
-/// **這是 queue M8 為 AppKit、UIKit、WinUI 記下的同一個缺陷,出現在 M8 沒有列到的第四個 backend。**
-/// 2026-09-17 於 Windows -gtk4 實測:P4 一啟動就死於「AnyWidget used with incompatible widget type
-/// Entry; actual widget type is PassthroughFixed」(exit 132),來源是一個在本 backend 上 closure 內容為
-/// **空**的 `TextField(...).inspect`。`TextField` 經由 `TextFieldStyle` 繪製,因此節點上的 widget 是
-/// 容器,Entry 在它裡面。
+/// **以搜尋取得，而非轉型。** view 節點上的 widget 常是一個容器:`TextField` 經由 `TextFieldStyle` 繪製,
+/// 因此節點上是一個 PassthroughFixed,Entry 在它裡面；直接轉型曾讓 P4 在 Windows -gtk4 一啟動就死於
+/// 「AnyWidget used with incompatible widget type Entry; actual widget type is PassthroughFixed」
+/// (exit 132,2026-09-17)。
 ///
 /// 走訪的是 Gtk 模組在 Swift 端保存的子節點紀錄——`Fixed.children`、`Box.children`、ScrolledWindow 與
 /// Viewport 的單一子節點、Paned 的兩側——而不是 GTK 自己的 first-child/next-sibling 清單。那些是 Swift
@@ -150,12 +147,11 @@ extension Slider {
 // `Gtk.Widget` for `.segmented` and `.radioGroup`, whose controls are this
 // backend's own boxes.
 // Asking for a type the picker's style does not create stops with the widget
-// tree, as every other `.inspect` here does. Restored 2026-10-06.
+// tree, as every other `.inspect` here does.
 //
 // 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
 // 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
 // 給其他樣式用——`.segmented` 與 `.radioGroup` 用 `Gtk.Widget`,它們是本 backend 自己的 box。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
-// 2026-10-06 恢復。
 extension Picker {
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,
@@ -192,28 +188,15 @@ extension ScrollView {
 }
 
 extension List {
-    /// `Gtk.ListView`, not `Gtk.ListBox`, and the old signature TRAPPED.
+    /// `Gtk.ListView`, the native lazy list #117 put inside the
+    /// `ScrolledWindow`; there is no `Gtk.ListBox` to hand over. Searched rather
+    /// than unwrapped with a forced cast, which trapped at launch ("Could not
+    /// cast value of type 'Gtk.ListView' to 'Gtk.ListBox'", `P4
+    /// --inspect-containers`, 2026-09-18) once the wrapper changed.
     ///
-    /// It used to hand over a `Gtk.ListBox`, unwrapped from a `ScrolledWindow`
-    /// with a forced cast, under a comment saying "the widget changed, the
-    /// inspection contract did not". #117 then replaced the list box with GTK's
-    /// native lazy `GtkListView`, and nothing ran this overload afterwards.
-    /// Driven for the first time on 2026-09-18 by `P4 --inspect-containers`, it
-    /// died at launch with "Could not cast value of type 'Gtk.ListView' to
-    /// 'Gtk.ListBox'". A contract that cannot be honoured is not a contract:
-    /// there is no list box to hand over any more.
-    ///
-    /// The search shape is the one queue M8 gave every other overload, so a
-    /// later change of wrapper does not trap again.
-    ///
-    /// 交出的是 `Gtk.ListView` 而不是 `Gtk.ListBox`,而舊的簽章會**trap**。
-    ///
-    /// 它原本以強制轉型從 `ScrolledWindow` 拆出一個 `Gtk.ListBox`,並在註解裡寫著「改變的是 widget,不是這份
-    /// inspection 的約定」。其後 #117 以 GTK 原生的 lazy `GtkListView` 取代了 list box,而此後沒有任何東西跑過
-    /// 這個 overload。2026-09-18 首次以 `P4 --inspect-containers` 驅動,它一啟動就死於「Could not cast value of
-    /// type 'Gtk.ListView' to 'Gtk.ListBox'」。**一個無法被遵守的約定不是約定**:那個 list box 已經不存在了。
-    ///
-    /// 搜尋的形狀與 queue M8 給其他所有 overload 的相同,好讓外包層日後再變也不會再 trap。
+    /// 交出的是 `Gtk.ListView`,即 #117 放進 `ScrolledWindow` 的原生 lazy 清單;沒有 `Gtk.ListBox` 可交。以搜尋
+    /// 取得，而非以強制轉型拆出——外包層一改變，那種轉型就在啟動時 trap(「Could not cast value of type
+    /// 'Gtk.ListView' to 'Gtk.ListBox'」,`P4 --inspect-containers`,2026-09-18)。
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,
         _ action: @escaping @MainActor @Sendable (Gtk.ListView) -> Void

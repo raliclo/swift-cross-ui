@@ -4,8 +4,7 @@ import Foundation
 // AndroidBackend (on API levels with the spinner) draw their own wheel; the
 // others -- AppKit has no wheel control and GTK 4 has no spinning widget of any
 // kind -- draw this one, built from SwiftCrossUI views, so the style is the same
-// everywhere it is asked for rather than "unavailable on macOS" (P90 on AppKit
-// and GTK until 2026-10-18).
+// everywhere it is asked for rather than "unavailable on macOS".
 //
 // What a wheel shows follows UIDatePicker, which P90 compares against: one
 // column per field, in the order the region writes a date (August | 24 | 2025
@@ -17,7 +16,7 @@ import Foundation
 //
 // 每個 backend 上的 `.datePickerStyle(.wheel)`。UIKitBackend、WinUIBackend 與 AndroidBackend(在有 spinner 的 API
 // 層級)畫它們自己的滾輪;其他的——AppKit 沒有滾輪控制項,GTK 4 根本沒有會轉的 widget——畫這一個，以 SwiftCrossUI
-// 的 view 組成，讓這個樣式在每個要求它的地方都一樣，而不是「macOS 上不可用」(P90 在 AppKit 與 GTK 上，直到 2026-10-18)。
+// 的 view 組成，讓這個樣式在每個要求它的地方都一樣，而不是「macOS 上不可用」。
 // 滾輪顯示什麼跟隨 UIDatePicker(P90 拿它比對):每個欄位一欄，依地區書寫日期的順序排列，用地區的曆法(th_TH 為佛曆),
 // 依地區寫時間的方式用 12 或 24 小時，上午/下午放在地區放的那一側。每欄把選中的值放在一條帶子裡，上下各兩個鄰居;
 // 滾輪或拖曳轉動它，點鄰居就選中它。
@@ -284,10 +283,10 @@ struct _WheelColumn: View {
     static let rowHeight = 24.0
     /// Scroll travel per row: one wheel notch, 16 pt on GtkBackend (and WinUIBackend's
     /// pointsPerScrollLine), where each notch is a gesture of its own. At the row height (24 pt)
-    /// a notch ended short of a row and its travel was dropped, so the wheel never
-    /// turned under a mouse wheel on GTK (P41, 2026-10-20). A drag still moves by rows.
+    /// a notch would end short of a row and its travel be dropped, so a mouse wheel would
+    /// never turn the column on GTK. A drag still moves by rows.
     /// 每列的捲動量：滾輪一格,GtkBackend 上是 16 pt(WinUIBackend 的 pointsPerScrollLine 也是),且在 GTK 上每格是獨立的一次手勢。用列高(24 pt)時一格到不了
-    /// 一列，其捲動量就被丟掉，所以在 GTK 上用滑鼠滾輪轉不動(P41,2026-10-20)。拖曳仍以列為單位。
+    /// 一列，其捲動量會被丟掉，在 GTK 上用滑鼠滾輪就轉不動。拖曳仍以列為單位。
     static let scrollStep = 16.0
     static let neighbours = 2
 

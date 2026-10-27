@@ -1,11 +1,8 @@
 /// The text field shapes a backend can be asked for directly.
 ///
-/// The fourth of these, after ``BackendPickerStyle``, ``BackendDatePickerStyle``
-/// and ``BackendToggleStyle``, and the first that had no predecessor at all:
-/// `TextFieldStyle` did not exist in this package in any form, so unlike
-/// `ToggleStyle` -- which was already a struct with a nested
-/// `@_spi(Backends) enum Style` -- there was no existing split between "what an
-/// application writes" and "what a backend implements" to inherit.
+/// Like ``BackendPickerStyle``, ``BackendDatePickerStyle`` and
+/// ``BackendToggleStyle``, it is the vocabulary a backend implements;
+/// ``TextFieldStyle`` is the protocol an application writes against.
 ///
 /// The four cases are SwiftUI's set: `automatic`, `plain`, `roundedBorder`, and
 /// `squareBorder` (which SwiftUI marks macOS-only). They are all available on

@@ -1,10 +1,10 @@
 import Foundation
 
-// Paint servers: linear and radial gradients (2026-10-10). A gradient is a
+// Paint servers: linear and radial gradients. A gradient is a
 // colour per point, so the canvas evaluates it at each covered pixel's centre,
 // mapped back from device pixels to the gradient's own space.
 //
-// 塗料伺服器：線性與放射漸層(2026-10-10)。漸層是逐點的顏色，因此畫布在每一個被覆蓋像素的中心求值，
+// 塗料伺服器：線性與放射漸層。漸層是逐點的顏色，因此畫布在每一個被覆蓋像素的中心求值，
 // 該點由裝置像素映射回漸層自己的空間。
 
 /// An axis-aligned rectangle in some user space.

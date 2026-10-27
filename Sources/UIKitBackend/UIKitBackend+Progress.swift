@@ -10,17 +10,14 @@ final class ProgressSpinner: WrapperWidget<UIActivityIndicatorView> {
 
 /// A UIProgressView that also draws the indeterminate state.
 ///
-/// UIProgressView has no indeterminate mode, and `updateProgressBar` used to
-/// return early without a value, so an indeterminate bar drew nothing at all:
-/// P29's "indeterminate bar" was an empty strip under its label (2026-10-10).
-/// Without a value it now shows a segment in the tint, a third of the width,
-/// sliding back and forth along the bar at the bar's own thickness --
-/// AndroidBackend draws the same (user, 2026-10-10).
+/// UIProgressView has no indeterminate mode, so without a value it would draw
+/// an empty strip (P29's "indeterminate bar"). Instead it shows a segment in
+/// the tint, a third of the width, sliding back and forth along the bar at the
+/// bar's own thickness -- AndroidBackend draws the same.
 ///
-/// 也畫出不確定狀態的 UIProgressView。UIProgressView 沒有不確定模式，而 `updateProgressBar` 原本在沒有數值時
-/// 直接返回，所以不確定的進度條什麼都沒畫:P29 的 "indeterminate bar" 在標籤底下是一片空白(2026-10-10)。
-/// 現在沒有數值時，會顯示一段 tint 色、寬度三分之一、與進度條同粗的色段，沿著進度條來回滑動——
-/// AndroidBackend 畫的是同一個(使用者,2026-10-10)。
+/// 也畫出不確定狀態的 UIProgressView。UIProgressView 沒有不確定模式，所以沒有數值時只會畫出一片空白
+/// (P29 的 "indeterminate bar")。因此沒有數值時，會顯示一段 tint 色、寬度三分之一、與進度條同粗的色段，
+/// 沿著進度條來回滑動——AndroidBackend 畫的是同一個。
 final class ProgressBarWidget: WrapperWidget<UIProgressView> {
     private let segment = CALayer()
 

@@ -39,26 +39,21 @@ import SwiftJava
 /// 取決於哪個 modifier 最後 commit。次要點擊的插槽沒有這個問題——`.onTapGesture(.secondary)` 走的是
 /// `setOnTouchListener`,不是這一個。
 ///
-/// **Driven on emulator-5554, 2026-09-21, in two halves because one tool cannot
-/// reach both windows.** `testapp/actions/android/P72-context-menu.actions` long-
-/// presses the mesh view and the capture taken afterwards
-/// (`p72-android-final-20260921-181017.png`) shows a popup carrying **Reset the
-/// camera** and **Snapshot**. Pressing the item is the other half: an action
-/// file cannot, because `Activity.dispatchTouchEvent` reaches this activity's
-/// window and a `PopupMenu` is a separate one, so `adb shell input tap 254 1063`
-/// injects at system level instead -- and P72 then logged
-/// `CONTEXT MENU reset the camera: dist 3.40 high 1.30`, which is the item's
-/// action having actually run. The check can fail: the same file with the long
-/// press moved to the title text produces no popup at all
-/// (negative control, same session).
+/// **Verified in two halves, because the popup is a separate window.**
+/// `testapp/actions/android/P72-context-menu.actions` long-presses the mesh view,
+/// and the popup shows **Reset the camera** and **Snapshot**. Pressing an item
+/// was checked with a system-level `adb shell input tap`, because `Activity.dispatchTouchEvent`
+/// reaches only this activity's window and a `PopupMenu` is a separate one (the
+/// synthesiser has since reached popups through `FrontWindows`); P72
+/// then logs `CONTEXT MENU reset the camera: dist 3.40 high 1.30`, the item's
+/// action having run. The check can fail: with the long press moved to the title
+/// text, no popup appears.
 ///
-/// **2026-09-21 於 emulator-5554 實際驅動,分成兩半——因為沒有一個工具同時抵達得了兩個視窗。**
-/// `testapp/actions/android/P72-context-menu.actions` 會長按 mesh view,而其後拍下的擷圖
-/// (`p72-android-final-20260921-181017.png`)顯示一個帶有 **Reset the camera** 與 **Snapshot** 的
-/// 彈出選單。按下該項目是另一半:動作檔做不到,因為 `Activity.dispatchTouchEvent` 只抵達本 activity 的
-/// 視窗,而 `PopupMenu` 是另一個;因此改由 `adb shell input tap 254 1063` 在系統層級注入——接著 P72 印出
-/// `CONTEXT MENU reset the camera: dist 3.40 high 1.30`,那就是該項目的動作真的跑過了。
-/// 這項檢查會失敗:同一份檔案把長按移到標題文字上,完全不會有彈出選單(同一次 session 的反向對照)。
+/// **分成兩半驗證,因為彈出選單是另一個視窗。**
+/// `testapp/actions/android/P72-context-menu.actions` 會長按 mesh view,彈出選單顯示 **Reset the camera**
+/// 與 **Snapshot**。按下項目是以系統層級的 `adb shell input tap` 查證的,因為 `Activity.dispatchTouchEvent` 只抵達
+/// 本 activity 的視窗,而 `PopupMenu` 是另一個(合成器後來已能經由 `FrontWindows` 抵達彈出視窗);接著 P72 印出 `CONTEXT MENU reset the camera: dist 3.40 high 1.30`,
+/// 那就是該項目的動作真的跑過了。這項檢查會失敗:把長按移到標題文字上,完全不會有彈出選單。
 extension AndroidBackend: BackendFeatures.ContextMenus {
     public func createContextMenuTarget(wrapping child: Widget) -> Widget {
         child

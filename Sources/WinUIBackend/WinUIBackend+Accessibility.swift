@@ -71,8 +71,7 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     /// the element it is set on, and UIA promotes that element's children into
     /// the control view. Measured 2026-09-17 on P69: the in-process readback
     /// showed the hidden Canvas as `raw`, and the out-of-process dump still had
-    /// `text 'decorative'` in the control and content views. The earlier
-    /// verification read only the first of those two.
+    /// `text 'decorative'` in the control and content views.
     ///
     /// This runs on every layout pass, so a child added later is covered on the
     /// next pass. Unhiding CLEARS the value rather than writing `.content`. Some
@@ -82,7 +81,7 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     ///
     /// **整個子樹,而不是那一個元素。** `AccessibilityView` 只作用於被設定的那個元素,而 UIA 會把
     /// 它的子節點提升進 control view。2026-09-17 以 P69 實測:行程內讀回顯示被隱藏的 Canvas 為 `raw`,
-    /// 而行程外的 dump 在 control 與 content view 裡仍有 `text 'decorative'`。先前的驗證只讀了前者。
+    /// 而行程外的 dump 在 control 與 content view 裡仍有 `text 'decorative'`。
     ///
     /// 這在每一次 layout pass 都會執行,所以之後加入的子節點會在下一次 pass 被涵蓋。取消隱藏時是
     /// **清除**該值,而不是寫入 `.content`:有些元素預設就是 raw(本樹的 ContentPresenter 沒有被任何

@@ -143,10 +143,9 @@ extension WinUIBackend {
 
         // File types: one entry per content type, then "All files" when there
         // are none or others are allowed. Not for folders, which have no type.
-        // `*.*` is the pattern Windows itself uses for "All files"; the WinRT
-        // save picker needed the unverified spelling `"."` for the same thing.
+        // `*.*` is the pattern Windows itself uses for "All files".
         // 檔案型別:每個內容型別一項,沒有指定或也允許其他型別時再加「All files」。資料夾沒有型別,不加。
-        // `*.*` 是 Windows 自己用來表示「All files」的樣式;WinRT 的存檔 picker 為此用的是未經驗證的 `"."`。
+        // `*.*` 是 Windows 自己用來表示「All files」的樣式。
         if case .openFolders = kind {} else {
             var specs: [COMDLG_FILTERSPEC] = []
             var firstExtension: String?

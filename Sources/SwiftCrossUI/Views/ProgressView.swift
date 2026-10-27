@@ -22,18 +22,18 @@ public struct ProgressView<Label: View>: View {
 
     /// The style decides, and the initialiser only supplies the default.
     ///
-    /// `kind` used to decide alone, which made `ProgressView(value:)` a bar and
+    /// `kind` alone would make `ProgressView(value:)` a bar and
     /// `ProgressView(_:)` a spinner with no way to say otherwise -- SwiftUI
     /// spells that override `.progressViewStyle(.circular)`. The initialiser's
-    /// choice survives as ``ProgressViewStyle/automatic``'s rule, so nothing
-    /// that did not set a style changes behaviour.
+    /// choice is ``ProgressViewStyle/automatic``'s rule, so code
+    /// that sets no style gets the initialiser's choice.
     ///
     /// 由樣式決定，而建構式只提供預設值。
     ///
-    /// 過去是由 `kind` 獨自決定的，那使得 `ProgressView(value:)` 必為長條、`ProgressView(_:)` 必為
+    /// 若只由 `kind` 決定，`ProgressView(value:)` 必為長條、`ProgressView(_:)` 必為
     /// 轉圈，且無從表達其他意圖——而 SwiftUI 表達該覆寫的寫法是 `.progressViewStyle(.circular)`。
-    /// 建構式原本的選擇以 ``ProgressViewStyle/automatic`` 的規則存續下來，因此任何未設定樣式的程式碼
-    /// 行為都不會改變。
+    /// 建構式的選擇就是 ``ProgressViewStyle/automatic`` 的規則，因此任何未設定樣式的
+    /// 程式碼得到的就是建構式的選擇。
     private var progressIndicator: some View {
         StyledProgressIndicator(
             progress: progress,

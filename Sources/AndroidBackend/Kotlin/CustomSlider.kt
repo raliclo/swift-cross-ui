@@ -58,7 +58,7 @@ class CustomSlider(activity: Activity) : Slider(activity) {
     ///
     /// Measured on 2026-09-17, emulator-5554, with
     /// `actions/android/P11-drag-the-first-slider.actions`: press on the first
-    /// thumb, drag 160 points right. Before this, the readout still said
+    /// thumb, drag 160 points right. Without it, the readout still said
     /// `minimum 20`, `uiautomator` put the thumb at 319..445 against a track
     /// starting at 368 -- the very start, unmoved -- and the PAGE had scrolled
     /// right instead. The root is a `HorizontalScrollView`; it takes any
@@ -69,8 +69,7 @@ class CustomSlider(activity: Activity) : Slider(activity) {
     /// Material's `BaseSlider` does call `requestDisallowInterceptTouchEvent`
     /// itself, and it was not enough: its own call comes after it decides the
     /// drag is horizontal, by which time a horizontally scrolling parent has
-    /// already taken it. That is the difference between reading the library and
-    /// driving it.
+    /// already taken it.
     ///
     /// **Handed back when the drag turns out to be vertical**, so a list that
     /// scrolls under a slider still scrolls when the finger starts on one. That
@@ -79,14 +78,13 @@ class CustomSlider(activity: Activity) : Slider(activity) {
     /// **從會捲動的祖先手中把手勢要回來,否則這個滑桿根本不會動。**
     ///
     /// 2026-09-17 於 emulator-5554 以 `actions/android/P11-drag-the-first-slider.actions` 實測:
-    /// 按在第一個滑塊上,向右拖 160 點。在此修正之前,讀數仍是 `minimum 20`,`uiautomator` 給出滑塊
+    /// 按在第一個滑塊上,向右拖 160 點。少了它,讀數仍是 `minimum 20`,`uiautomator` 給出滑塊
     /// 位於 319..445、而軌道起於 368——也就是最起點、完全沒動——而**整頁**反而向右捲了。根部是一個
     /// `HorizontalScrollView`;任何水平移動達一個 touch slop 的手勢它都會拿走,而那正是同一天把縮放與
     /// 旋轉從 `ContinuousGestureContainer` 手中拿走的那個 8dp 奪取。
     ///
     /// Material 的 `BaseSlider` 確實會自己呼叫 `requestDisallowInterceptTouchEvent`,而那不夠:
     /// 它那次呼叫發生在它判定這是一次水平拖曳**之後**,而那時水平捲動的父節點已經把手勢拿走了。
-    /// 這就是「讀那個函式庫」與「驅動它」之間的差別。
     ///
     /// **當這次拖曳最後看起來是垂直的,就把手勢還回去**,如此「滑桿底下會捲動的清單」在手指起於滑桿上
     /// 時仍然捲得動。這正是此處不在 ACTION_DOWN 無條件 disallow 的理由。

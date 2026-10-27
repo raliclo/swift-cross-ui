@@ -141,18 +141,18 @@ struct StateImpl<Storage: StateStorageProtocol> {
     ///
     /// The storage is held weakly, and a tween whose storage is gone cancels
     /// itself on its next frame. Held strongly, a tween that never ends --
-    /// `repeatForever()` -- kept the state of a view that had been removed alive
-    /// and kept the frame clock running for it, since nothing cancels a tween
-    /// when its view goes away (review, 2026-10-22).
+    /// `repeatForever()` -- would keep the state of a removed view alive and
+    /// keep the frame clock running for it, since nothing cancels a tween
+    /// when its view goes away.
     ///
     /// A function of its own so a test can hold the very closure the driver
     /// gets: on Linux, Swift Testing runs main-actor tests off the main thread,
     /// where assigning `wrappedValue` does not animate at all (measured
     /// 2026-10-22, `Thread.isMainThread` false inside a `@MainActor` test).
     ///
-    /// 補間每一幀的寫入。storage 以弱參照持有，storage 已不在的補間會在下一幀自行取消。以強參照持有時，一個永不結束的
+    /// 補間每一幀的寫入。storage 以弱參照持有，storage 已不在的補間會在下一幀自行取消。若以強參照持有，一個永不結束的
     /// 補間——`repeatForever()`——會讓已被移除之 view 的狀態一直存活，並為它持續驅動 frame clock,因為 view 消失時
-    /// 沒有任何東西會取消它的補間(審查，2026-10-22)。獨立成函式，好讓測試能拿到 driver 拿到的同一個閉包：在 Linux 上,
+    /// 沒有任何東西會取消它的補間。獨立成函式，好讓測試能拿到 driver 拿到的同一個閉包：在 Linux 上,
     /// Swift Testing 在主執行緒之外執行 main-actor 測試，而在那裡對 `wrappedValue` 賦值完全不會做動畫(2026-10-22
     /// 實測：`@MainActor` 測試內 `Thread.isMainThread` 為 false)。
     static func tweenApply<V: AnimatableValue>(

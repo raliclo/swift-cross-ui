@@ -6,8 +6,8 @@ extension BackendFeatures {
     /// A label is set and then it is there; nobody else changes it. Focus is the
     /// opposite: asking for it can be REFUSED, and it moves for reasons the app
     /// did not cause -- Tab, a click, a screen reader, a directional pad. The
-    /// split was agreed in `testapp/plan/plan-focus-protocol.md` §4, and one
-    /// protocol for both would have forced a backend that only wanted labels to
+    /// split is recorded in `testapp/plan/plan-focus-protocol.md` §4; one
+    /// protocol for both would force a backend that only wanted labels to
     /// implement focus reporting.
     ///
     /// **The five platforms differ in semantics, not just in spelling**, and
@@ -26,14 +26,14 @@ extension BackendFeatures {
     /// is the fact that decides ``focus(_:)``'s return type.
     ///
     /// **Conformance-checked, not required**, the arrangement ``ScrollingLists``,
-    /// ``LazyListRows`` and ``Accessibility`` are under, so the five backends
-    /// convert one at a time.
+    /// ``LazyListRows`` and ``Accessibility`` are under; all five shipped
+    /// backends conform.
     ///
     /// 鍵盤正在對哪一個 widget 說話,以及在那件事改變時被告知。
     ///
     /// **一個動作加一個事件——這正是它不屬於 ``Accessibility`` 的原因。** 標籤設下去就在那裡,沒有
     /// 別人會改動它。焦點恰好相反:去要它可能**被拒絕**,而且它會因為 app 沒有造成的原因而移動——
-    /// Tab、點擊、螢幕閱讀器、方向鍵。這個切分在 `testapp/plan/plan-focus-protocol.md` §4 議定;
+    /// Tab、點擊、螢幕閱讀器、方向鍵。這個切分記錄在 `testapp/plan/plan-focus-protocol.md` §4;
     /// 把兩者合成一個協定,會迫使「只想加標籤」的 backend 去實作焦點回報。
     ///
     /// **五個平台的差異在語意,不只在名字**,而三個問題就能把差異分完(見上表)。
@@ -43,7 +43,7 @@ extension BackendFeatures {
     /// 平台上,被拒絕多半代表呼叫者搞錯了——而那正是決定 ``focus(_:)`` 回傳型別的那個事實。
     ///
     /// **採 conformance 檢查而非要求實作**,與 ``ScrollingLists``、``LazyListRows``、``Accessibility``
-    /// 同一種安排,好讓五個 backend 一次轉一個。
+    /// 同一種安排;五個已發布的 backend 全都 conform。
     @MainActor
     public protocol FocusableViews: Core {
         /// Gives this widget the focus within its window.

@@ -5,10 +5,9 @@ import AppKit
 /// Painting a gradient into a shape, rather than flattening it to one colour.
 ///
 /// `BackendFeatures.Paths` carries a default `renderPath(…fillStyle:)` that
-/// flattens both styles to the gradient's midpoint colour and warns once. That
-/// default was written on a machine with no Mac, and it says so: implementing
-/// AppKit and UIKit blind would have landed as a build break for whoever pulled
-/// next. This is that implementation, written and measured on a Mac.
+/// flattens both styles to the gradient's midpoint colour and warns once, as
+/// a safety net for backends outside the shipped set. This is the AppKit
+/// implementation, measured on a Mac.
 ///
 /// **The unit points are in the path's own space, and that is the feature.**
 /// A gradient *view* fills a rectangle it owns; this fills the shape, so a
@@ -26,8 +25,7 @@ import AppKit
 /// 把漸層畫進形狀裡，而不是把它壓成單一顏色。
 ///
 /// `BackendFeatures.Paths` 帶有一個預設的 `renderPath(…fillStyle:)`，它會把兩個樣式都壓成漸層的
-/// 中點顏色並警告一次。那個預設是在一台沒有 Mac 的機器上寫的，而它自己也說明了這一點：盲寫 AppKit
-/// 與 UIKit 會讓下一個 pull 的人拿到建置失敗。此處就是那份實作，在 Mac 上寫成並量測。
+/// 中點顏色並警告一次;那是給已發布集合以外之 backend 的兜底。此處是 AppKit 的實作,在 Mac 上量測過。
 ///
 /// **單位座標位於路徑自身的空間中，而那正是這項功能的重點。** 漸層**視圖**填滿的是它自己擁有的
 /// 矩形；此處填的是形狀，因此圓形中的漸層會被裁進該圓形。所用的方框是 `path.bounds`——路徑自身的
@@ -299,13 +297,10 @@ func cgPath(of path: NSBezierPath) -> CGPath {
                 // emits quadratics instead of converting them to cubics -- so
                 // this arm runs on every current Mac rather than on none.
                 //
-                // Named rather than assumed. This was `@unknown default` with an
-                // unconditional `addQuadCurve`, which was right only because
-                // `.curveTo` above already absorbs the cubic case; had it not,
-                // every cubic would have been rebuilt as a quadratic through
-                // points[0] and points[1] and the stroke outline would have been
-                // quietly wrong. A future element type now falls through
-                // untouched instead of being bent into a quadratic.
+                // Named rather than assumed: a quadratic is added only when the
+                // element is `.quadraticCurveTo`, so a future element type falls
+                // through untouched instead of being bent into a quadratic
+                // through points[0] and points[1].
                 //
                 // `default` and not `@unknown default`, because the case this
                 // arm is for is a known one that cannot be spelled at this
@@ -315,10 +310,8 @@ func cgPath(of path: NSBezierPath) -> CGPath {
                 // `.quadraticCurveTo`，macOS 14 起。在該版本上 `applyActions` 會直接輸出二次曲線
                 // 而不再轉成三次——因此這個分支在現今每一台 Mac 上都會走到，而非永不執行。
                 //
-                // 這裡是指名，而非假設。此處原本是 `@unknown default` 加上無條件的 `addQuadCurve`；
-                // 那之所以正確，只是因為上方的 `.curveTo` 已經吸收了三次曲線那個 case——若不然，
-                // 每一條三次曲線都會被以 points[0] 與 points[1] 重建成二次曲線，描邊外框會靜默地
-                // 出錯。現在，未來新增的 element 型別會原樣通過，而不是被硬掰成二次曲線。
+                // 這裡是指名,而非假設:只在元素確實是 `.quadraticCurveTo` 時才加二次曲線,所以未來新增的
+                // element 型別會原樣通過,而不是被以 points[0] 與 points[1] 硬掰成二次曲線。
                 //
                 // 使用 `default` 而非 `@unknown default`，因為本分支所服務的是一個「已知但在此
                 // 部署目標下無法寫出名字」的 case；`@unknown default` 會要求編譯器對「恰好就是那些

@@ -1,10 +1,8 @@
 /// A labelled control for choosing a colour.
 ///
 /// Composed from ``HStack``, ``Slider``, ``Button`` and a filled rectangle, so it
-/// needs nothing from any backend and behaves identically on all five. That is
-/// the same reason ``Stepper``, ``Gauge`` and ``LabeledContent`` were done
-/// before the protocol-level parity items, and it is the reason this one is not
-/// waiting for a native colour panel on each platform.
+/// needs nothing from any backend and behaves identically on all five, and
+/// does not have to wait for a native colour panel on each platform.
 ///
 /// **It is not the system colour panel, and that is a deliberate trade rather
 /// than a stand-in.** SwiftUI's `ColorPicker` opens the platform's own picker:
@@ -24,8 +22,7 @@
 /// 一個用來選擇顏色的、帶標籤的控制項。
 ///
 /// 由 ``HStack``、``Slider``、``Button`` 與一個填色矩形組合而成，因此不需要任何 backend 支援，在五個
-/// backend 上的行為也完全相同。這與 ``Stepper``、``Gauge`` 與 ``LabeledContent`` 先於協定層級的
-/// parity 項目被完成是同一個理由，也是它不必等待各平台原生調色盤的理由。
+/// backend 上的行為也完全相同，也因此不必等待各平台原生調色盤。
 ///
 /// **它不是系統的調色盤，而那是一項刻意的取捨，不是一個代用品。** SwiftUI 的 `ColorPicker` 會開啟
 /// 平台自身的選擇器:macOS 的 `NSColorPanel`、iOS 的 `UIColorPickerViewController`、GTK 的

@@ -77,12 +77,11 @@ public class Mesh3DGLView: GLArea {
     /// another window, gives it a new one. So the objects are deleted here,
     /// while the old context is still current (this handler runs before
     /// GtkGLArea's own), the renderer is marked unrealised, and the last
-    /// geometry is queued again for the next context. Until 2026-10-07 the
-    /// renderer kept the dead handles (review, Codex).
+    /// geometry is queued again for the next context, rather than keeping
+    /// handles that died with the old one.
     /// GL 物件屬於 area 的 context,而 GTK 在 unrealize 時會銷毀它——移除再加回 view、或移到另一個視窗，都會拿到
     /// 新的 context。所以在這裡、舊 context 仍為 current 時(此處理器在 GtkGLArea 自己的之前執行)刪除物件，把
-    /// renderer 標為未初始化，並把最後的幾何重新排入，給下一個 context。2026-10-07 之前 renderer 會沿用失效的
-    /// handle(review,Codex)。
+    /// renderer 標為未初始化，並把最後的幾何重新排入，給下一個 context,而不是沿用隨舊 context 失效的 handle。
     private var unrealizeHandlerID: gulong = 0
 
     /// Connected with `g_signal_connect_data` and no AFTER flag, not through
@@ -193,11 +192,9 @@ public class Mesh3DGLView: GLArea {
         // The projection follows the size drawn into NOW, not the size the
         // widget had when the scene was last committed: GTK can reallocate the
         // area without SwiftCrossUI updating it, and a matrix baked at update
-        // time then draws a non-square scene stretched (todo.md review item,
-        // 2026-10-14).
+        // time then draws a non-square scene stretched.
         // 投影跟隨**此刻**繪製的尺寸，而不是場景上次 commit 時 widget 的尺寸:GTK 可以在 SwiftCrossUI
-        // 沒有更新它的情況下重新配置 area,而在更新時就烘好的矩陣，會把非正方形的場景畫成拉伸的(todo.md
-        // 審查項目,2026-10-14)。
+        // 沒有更新它的情況下重新配置 area,而在更新時就烘好的矩陣，會把非正方形的場景畫成拉伸的。
         if let mvps = frame.mvpsForAspect, drawableSize.x > 0, drawableSize.y > 0 {
             frame.mvps = mvps(Float(drawableSize.x) / Float(drawableSize.y))
         }

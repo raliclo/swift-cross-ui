@@ -81,8 +81,8 @@ extension ActivityDelegate {
 /// 為兩個「JNI 進入點會收到」的 AndroidKit 型別做追溯性的 `Sendable` 宣告。
 ///
 /// **「追溯性」這個詞是精準的,也正是要小心的理由**:這兩個型別屬於 AndroidKit,而若它日後自行宣告
-/// 了同樣的 conformance,這幾行就會變成「重複 conformance」的錯誤。那是一次建置失敗——而那正是我們
-/// 想要的失敗方式:它很大聲,而且它代表這個標註已經不再需要了。
+/// 了同樣的 conformance,這幾行就會變成「重複 conformance」的錯誤。那是一次建置失敗——而那正是應有的
+/// 失敗方式:它很大聲,而且它代表這個標註已經不再需要了。
 ///
 /// 它們在此的理由與 ``ActivityListener`` 需要它的理由相同:swift-java 的 `@JavaMethod` 展開會把
 /// **每一個參數**送過一個隔離邊界,而 `Intent` 與 `Configuration` 都是 Java handle。兩者都是由框架
@@ -119,7 +119,7 @@ extension AndroidContent.Configuration: @unchecked Sendable {}
 /// touched on exactly one thread either way. A JNI call arriving on some other
 /// thread would already have been a bug before this annotation existed.
 ///
-/// It is on this class alone. The other five `@JavaImplementation` types in
+/// It is on this class alone. The other six `@JavaImplementation` types in
 /// this module compile without it, which is the check that keeps the annotation
 /// from spreading on habit.
 ///
@@ -135,7 +135,7 @@ extension AndroidContent.Configuration: @unchecked Sendable {}
 /// 方法都立刻進入 `MainActor.assumeIsolated`,因此無論如何,那個 handle 都只會被單一執行緒碰到。
 /// 一個從其他執行緒抵達的 JNI 呼叫,在這個標註存在之前就已經是一個 bug 了。
 ///
-/// 它只加在這一個類別上。本模組中另外五個 `@JavaImplementation` 型別不需要它就編得過,而那正是
+/// 它只加在這一個類別上。本模組中另外六個 `@JavaImplementation` 型別不需要它就編得過,而那正是
 /// 「阻止這個標註因習慣而擴散」的那道檢查。
 class ActivityListener: JavaObject, @unchecked Sendable {
     @JavaMethod

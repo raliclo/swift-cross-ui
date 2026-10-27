@@ -338,14 +338,11 @@ extension UIKitBackend {
 
 /// `.radioGroup` on UIKit: one row per option, each a button with a radio mark.
 ///
-/// **Implemented rather than refused.** This style used to be
-/// `preconditionFailure("radioGroup is unsupported in UIKitBackend")`, so any app
-/// that asked for it on iOS terminated at launch. UIKit has no radio control of its
-/// own, and iOS apps draw the same thing this does: a column of choices, the
-/// chosen one marked -- the shape of Settings' single-choice lists.
+/// UIKit has no radio control of its own, and iOS apps draw the same thing
+/// this does: a column of choices, the chosen one marked -- the shape of
+/// Settings' single-choice lists.
 ///
-/// `.radioGroup` 在 UIKit 上:每個選項一列,每列是一顆帶圓形選取記號的按鈕。**是實作,不是拒絕。**這個樣式原本是
-/// `preconditionFailure("radioGroup is unsupported in UIKitBackend")`,所以任何在 iOS 上要求它的 app 一啟動就被終止。
+/// `.radioGroup` 在 UIKit 上:每個選項一列,每列是一顆帶圓形選取記號的按鈕。
 /// UIKit 沒有自己的 radio 控制項,而 iOS app 畫的就是這樣的東西:一欄選項、被選中的那一個加上記號——正是「設定」裡
 /// 單選清單的樣子。
 final class UIRadioGroupPicker: WrapperWidget<UIStackView>, Picker {

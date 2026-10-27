@@ -5,47 +5,36 @@ import WinUI
 ///
 /// WinUI has `RefreshContainer` and `RefreshVisualizer`, which are the right
 /// answer on paper: a pull gesture with the platform's own spinner. They are
-/// not used here, for a reason this project has already paid for once. A
-/// `RefreshContainer` has to WRAP the scroll viewer, so reaching for it changes
-/// what `createScrollContainer(for:)` returns, and every cast of the form
-/// `scrollView as! WinUI.ScrollViewer` in `updateScrollContainer` would then
-/// trap at runtime on a backend nobody here can run.
+/// not used here: a `RefreshContainer` has to WRAP the scroll viewer, so
+/// reaching for it changes what `createScrollContainer(for:)` returns, and
+/// every cast of the form `scrollView as! WinUI.ScrollViewer` in
+/// `updateScrollContainer` would then trap at runtime.
 ///
 /// So the action gets a button, placed in the scroll viewer's own top-left
 /// corner. It costs no structural change, it works with a mouse -- which is
 /// what a Windows desktop has -- and it is the same shape AppKitBackend and
 /// AndroidBackend use.
 ///
-/// ~~**Written on macOS and NOT verified.**~~ **VERIFIED BY RUNNING on
-/// Win-WinUI, 2026-09-10.** `actions/win/P54-press-the-refresh.actions` presses the
-/// button twice and P54 reports `refreshes: 2` with `last refresh added rows up
-/// to: 10` -- rows 0-5 before, 0-9 after. That is the same pair of numbers the
-/// AppKit and UIKit runs recorded on 2026-09-09, so the three agree.
-///
-/// Both of the things this header said to check first turned out fine: a `Grid`
-/// hosts the button correctly, and it does not need its own row -- it does not
-/// scroll away with the content.
-///
-/// **Why this note is longer than "verified":** the commit that made this file
-/// compile (`66725261`) ended with "COMPILE-VERIFIED ONLY", and
-/// `matrix_coverage/results.csv2` had no `windows,winui,P54` row at all. A
-/// control that appears and does nothing is indistinguishable, in a screenshot,
-/// from one that works -- which is P54's own on-screen warning. Pressing it is
-/// the only thing that separates them.
+/// Verified by running on Win-WinUI, 2026-09-10:
+/// `actions/win/P54-press-the-refresh.actions` presses the button twice and
+/// P54 reports `refreshes: 2` with `last refresh added rows up to: 10` -- rows
+/// 0-5 before, 0-9 after, the same pair AppKit and UIKit recorded. A `Grid`
+/// hosts the button correctly, and it does not need its own row -- it does
+/// not scroll away with the content.
 ///
 /// 給 `ScrollViewer` 使用的重新整理操作方式。
 ///
 /// WinUI 有 `RefreshContainer` 與 `RefreshVisualizer`,在紙面上那是正確答案:一個下拉手勢,配上該平台
-/// 自己的轉圈。此處沒有採用它們,理由是本專案已經為此付過一次代價。`RefreshContainer` 必須**包住**
-/// scroll viewer,因此伸手去拿它會改變 `createScrollContainer(for:)` 的回傳值,而
-/// `updateScrollContainer` 中每一個 `scrollView as! WinUI.ScrollViewer` 形式的轉型,都會在一個
-/// 「此地無人跑得起來」的 backend 上於執行期崩潰。
+/// 自己的轉圈。此處沒有採用它們:`RefreshContainer` 必須**包住** scroll viewer,因此伸手去拿它會改變
+/// `createScrollContainer(for:)` 的回傳值,而 `updateScrollContainer` 中每一個 `scrollView as! WinUI.ScrollViewer`
+/// 形式的轉型，都會在執行期崩潰。
 ///
 /// 所以這個動作得到的是一顆按鈕,放在 scroll viewer 自己的左上角。它不需要任何結構性改動、用滑鼠
 /// 就能操作——而那正是 Windows 桌面所擁有的——並且與 AppKitBackend 及 AndroidBackend 採用的形狀相同。
 ///
-/// **在 macOS 上寫成,且未經驗證。** WinUIBackend 是在 Windows 機器上建置與執行的。應優先檢查的是:
-/// `Grid` 是否為這顆按鈕的正確宿主,以及該按鈕是否需要自己的一列,好讓它不會隨內容一起捲走。
+/// 2026-09-10 於 Win-WinUI 實際執行驗證:`actions/win/P54-press-the-refresh.actions` 按兩次按鈕,P54 回報
+/// `refreshes: 2` 與 `last refresh added rows up to: 10`——之前是第 0-5 列，之後是 0-9 列，與 AppKit、UIKit
+/// 記錄的數字相同。`Grid` 能正確承載這顆按鈕，而且它不需要自己的一列——不會隨內容一起捲走。
 extension WinUIBackend {
     public func setRefreshHandler(
         ofScrollContainer scrollView: Widget,
@@ -54,34 +43,27 @@ extension WinUIBackend {
         guard let scrollViewer = scrollView as? WinUI.ScrollViewer else { return }
         let key = ObjectIdentifier(scrollViewer)
 
-        // REMOVING THE HANDLER NOW REMOVES THE BUTTON. Until 2026-09-09 this
-        // branch deleted the dictionary entry and nothing else, which left two
-        // defects that a compiler cannot see and a screenshot reads as fine:
+        // REMOVING THE HANDLER REMOVES THE BUTTON. Deleting only the
+        // dictionary entry leaves two defects that a compiler cannot see and a
+        // screenshot reads as fine:
         //
-        //   1. a "Refresh" button stayed on screen with nothing behind it. Its
+        //   1. a "Refresh" button stays on screen with nothing behind it. Its
         //      click handler looks up `refreshHandlers[key]`, which is now nil,
-        //      so pressing it did nothing AND reported nothing -- a control
+        //      so pressing it does nothing AND reports nothing -- a control
         //      that is present, enabled, and inert.
-        //   2. re-enabling wrapped AGAIN. `isFirst` was true once more, so a
-        //      second Grid was built, and the `scrollViewer.content as?
-        //      UIElement` below picked up the FIRST Grid and nested it inside
+        //   2. re-enabling wraps AGAIN. `isFirst` is true once more, so a
+        //      second Grid is built, and the `scrollViewer.content as?
+        //      UIElement` below picks up the FIRST Grid and nests it inside
         //      the second. Toggle `.refreshable` n times and the tree carries n
         //      Grids and n buttons, n-1 of them dead.
         //
-        // Found by a code review on 2026-09-09, in a file whose own header says
-        // it was "written on macOS and NOT verified" -- the review could not run
-        // it either, which is why it was handed to the Windows side to check.
-        //
-        // **移除 handler 現在會一併移除按鈕。** 在 2026-09-09 之前，這個分支只刪掉字典項目而不做別的，
+        // **移除 handler 會一併移除按鈕。** 若只刪掉字典項目而不做別的，會
         // 留下兩個編譯器看不見、截圖也讀不出來的缺陷：(1) 一顆「Refresh」按鈕留在畫面上，背後卻空無
         // 一物——它的 click handler 查的是 `refreshHandlers[key]`，而那已是 nil，因此按下去**既不做事
         // 也不回報**，是一個存在、啟用、卻毫無作用的控制項；(2) 重新啟用時會**再包一次**——`isFirst`
         // 又變成 true，於是第二個 Grid 被建立，而下方的 `scrollViewer.content as? UIElement` 會抓到
         // **第一個** Grid 並把它巢狀進去。把 `.refreshable` 開關 n 次，樹裡就有 n 個 Grid 與 n 顆按鈕，
         // 其中 n-1 顆是死的。
-        //
-        // 由 2026-09-09 的一次程式碼審查發現；而本檔自己的標頭寫著它「在 macOS 上寫成，且未經驗證」
-        // ——審查方同樣跑不動它，這正是它被交給 Windows 側查證的原因。
         guard let handler else {
             Self.refreshHandlers[key] = nil
             if let wrap = Self.refreshWraps[key] {
@@ -98,14 +80,13 @@ extension WinUIBackend {
         }
 
         Self.refreshHandlers[key] = handler
-        // Keyed off the WRAP, not off whether a handler existed. Those two
-        // answered the same question until removal started unwrapping; now they
-        // do not, and the wrap is the one that says whether the button is
-        // already in the tree. The existing button keeps working because its
+        // Keyed off the WRAP, not off whether a handler existed: removal
+        // unwraps, so only the wrap says whether the button is already in the
+        // tree. The existing button keeps working because its
         // click handler reads `refreshHandlers[key]` at press time rather than
         // capturing the closure.
-        // 判斷依據是**包裝狀態**，而不是「先前是否存在 handler」。在移除開始會還原之前，這兩者回答的是
-        // 同一個問題；現在不是了，而能說明「按鈕是否已在樹中」的是包裝狀態。既有的按鈕仍然有效，因為
+        // 判斷依據是**包裝狀態**，而不是「先前是否存在 handler」:移除時會還原包裝，所以只有包裝狀態能說明
+        // 「按鈕是否已在樹中」。既有的按鈕仍然有效，因為
         // 它的 click handler 是在**按下當時**去讀 `refreshHandlers[key]`，而不是把 closure 捕獲起來。
         guard Self.refreshWraps[key] == nil else { return }
 
@@ -163,11 +144,10 @@ extension WinUIBackend {
     /// Keyed by the scroll viewer, like ``refreshHandlers``. Both share the same
     /// known limitation: an entry outlives a scroll viewer that goes away, so
     /// the tables grow with the number of scroll viewers ever created rather
-    /// than the number alive. Pre-existing, not introduced here, and stated so
-    /// it is not rediscovered as new.
+    /// than the number alive. Stated so it is not rediscovered as new.
     ///
     /// 與 ``refreshHandlers`` 同樣以 scroll viewer 為鍵。兩者共有同一項已知限制：當某個 scroll viewer
     /// 消失時，其項目仍會留存，因此這兩張表的成長量取決於「曾經被建立過的 scroll viewer 數量」，而非
-    /// 「當前存活的數量」。此限制既有，非本次引入；寫明於此，以免日後被當成新問題重新發現。
+    /// 「當前存活的數量」。寫明於此，以免日後被當成新問題重新發現。
     nonisolated(unsafe) static var refreshWraps: [ObjectIdentifier: RefreshWrap] = [:]
 }

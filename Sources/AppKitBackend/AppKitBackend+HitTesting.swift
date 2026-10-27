@@ -6,14 +6,14 @@ import SwiftCrossUI
 // `#if SCUI_DEBUG`, matching AppKitBackend.swift, because `InputEvent` is not a
 // dependency of this target in a release build. Package.swift builds the list as
 // `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])`, so a plain
-// `import InputEvent` compiles on this machine -- where the flag happens to be
-// on -- and fails for anyone building without it. The condition is the same one
-// that decides the dependency, so the two cannot drift apart.
+// `import InputEvent` compiles wherever the flag is on and fails for anyone
+// building without it. The condition is the same one that decides the
+// dependency, so the two cannot drift apart.
 //
 // 使用 `#if SCUI_DEBUG`,與 AppKitBackend.swift 一致,因為在 release 建置中 `InputEvent` 並不是
 // 本 target 的相依。Package.swift 是以
 // `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])` 建構那份清單的,因此一個沒有
-// 條件的 `import InputEvent` 在這台機器上(旗標剛好是開的)編得過,而對任何未開啟它的人則會失敗。
+// 條件的 `import InputEvent` 在旗標開啟時編得過,而對任何未開啟它的人則會失敗。
 // 此處的條件與「決定該相依是否存在」的是同一個,因此兩者不會漂移開來。
 #if SCUI_DEBUG
     import InputEvent
@@ -55,34 +55,6 @@ private enum AppKitHitTestingRegistry {
     }
 }
 
-/// **This was reverted once, on 2026-08-27, and had to be restored.**
-/// `e25b3a65 Fix AppKit hit testing and Swift 6 replay build` replaced the
-/// implementation below with the one it describes as previous -- treating
-/// `point` as though it were already in this view's space, and converting it
-/// into each child's -- and rewrote the comment to assert that AppKit "supplies
-/// `point` in this view's own coordinate system". It does not; the header for
-/// `hitTest(_:)` says "a point that is in the coordinate system of the
-/// receiver's superview". The commit message claimed a fix, so for five days
-/// the tree carried a wrong implementation under a comment stating the wrong
-/// premise, and a todo entry recording it as fixed.
-///
-/// Measured again 2026-09-01 with that version in the tree: P21's button
-/// reported `clicks: 0` for a click at its own centre, P28's counter stayed at
-/// 0, and P26's tab strip still worked -- the same split as before the first
-/// fix, because the container-at-superview-origin case is the one both wrong
-/// versions get right.
-///
-/// **此處曾於 2026-08-27 被反轉一次，必須重新還原。**
-/// `e25b3a65 Fix AppKit hit testing and Swift 6 replay build` 把下方的實作換成了它自己稱為「舊實作」
-/// 的那一個——把 `point` 當成已位於本 view 的座標系，再轉換進每個 child 的座標系——並改寫註解，
-/// 斷言 AppKit「傳入的 `point` 已位於本 view 自身的座標系」。並非如此；`hitTest(_:)` 的標頭寫的是
-/// 「位於接收者之 superview 座標系中的點」。由於該 commit 訊息宣稱這是一次修復，這棵樹在五天之內
-/// 帶著一個錯誤的實作、一段陳述錯誤前提的註解，以及一則記錄「已修復」的 todo 條目。
-///
-/// 2026-09-01 在該版本仍在樹中的情況下再次量測：P21 的按鈕對其自身中心的點擊回報 `clicks: 0`、
-/// P28 的計數器停留在 0，而 P26 的分頁列仍然可用——與第一次修復之前完全相同的分界，因為
-/// 「container 恰好位於 superview 原點」正是兩個錯誤版本都會答對的那個情況。
-///
 /// A backend-owned container that can skip a disabled topmost sibling.
 /// Returning nil after calling `super.hitTest` is insufficient: AppKit would
 /// stop searching and never reach a clickable sibling underneath. Searching
@@ -91,48 +63,45 @@ private enum AppKitHitTestingRegistry {
 /// 這是 backend 自己擁有、能略過上層停用 sibling 的 container。只呼叫
 /// `super.hitTest` 後回傳 nil 並不足夠：AppKit 會停止搜尋，永遠不會抵達
 /// 下方可點擊的 sibling。由前到後搜尋 children，才能讓停用 overlay 穿透。
-/// `point` arrives in this view's **superview** coordinate space, and
-/// `child.hitTest(_:)` wants a point in the *child's* superview space -- which
-/// is this view's own space. So exactly one conversion is needed, at the top,
-/// and the same converted point then goes to every child unchanged.
 ///
-/// This had two frame-of-reference errors at once, which is why fixing either
-/// one alone made it fail differently rather than work. It converted `point`
-/// into each child's own space, having first treated it as though it were
-/// already in this view's space:
+/// `point` arrives in this view's **superview** coordinate space (the header
+/// for `hitTest(_:)` says "a point that is in the coordinate system of the
+/// receiver's superview"), and `child.hitTest(_:)` wants a point in the
+/// *child's* superview space -- which is this view's own space. So exactly one
+/// conversion is needed, at the top, and the same converted point then goes to
+/// every child unchanged.
+///
+/// Two wrong versions are easy to write, and each is right only while this
+/// container sits at its superview's origin, which is why fixing one error
+/// alone makes it fail differently rather than work:
 ///
 ///     let childPoint = convert(point, to: child)      // wrong source space
 ///     child.hitTest(childPoint)                       // wrong argument space
 ///
-/// Measured on macOS 2026-08-27: `hitTest` returned nil for an NSButton and an
-/// NSScrollView at their exact centres, while a text field still resolved. Work
-/// it through for the button at frame (114, 212, 52, 27) and point (140, 225):
-/// `childPoint` is (26, 13), which *is* inside the button's bounds, so the
-/// containment check passed -- and then `button.hitTest((26, 13))` read (26, 13)
-/// as a point in this container's space, compared it against the button's own
-/// frame at x 114...166, y 212...239, and correctly answered nil.
+/// With that version `hitTest` returned nil for an NSButton and an NSScrollView
+/// at their exact centres while a text field still resolved. For the button at
+/// frame (114, 212, 52, 27) and point (140, 225): `childPoint` is (26, 13),
+/// inside the button's bounds, and then `button.hitTest((26, 13))` reads it as
+/// a point in this container's space, compares it against the frame at
+/// x 114...166, y 212...239, and correctly answers nil. Passing `point`
+/// unconverted to `child.hitTest` instead makes the text field stop resolving
+/// too. Commit e25b3a65 once replaced this implementation with the first wrong
+/// version; P21's button then reported `clicks: 0` for a click at its centre
+/// and P28's counter stayed at 0, while P26's tab strip still worked.
 ///
-/// Passing `point` straight to `child.hitTest` was tried on the Mac and made
-/// the text field stop resolving too. That is consistent rather than
-/// contradictory: it corrects the second error and leaves the first, so it is
-/// right only while this container sits at its superview's origin.
+/// `point` 抵達時位於本 view 的 **superview** 座標系(`hitTest(_:)` 的標頭寫的是「位於接收者之
+/// superview 座標系中的點」),而 `child.hitTest(_:)` 要的是 child 的 superview 座標系——也就是
+/// 本 view 自己的座標系。因此只需要在最上方做一次轉換，之後同一個轉換後的點原封不動交給每一個 child。
 ///
-/// `point` 抵達時位於本 view 的 **superview** 座標系，而 `child.hitTest(_:)` 要的是 child 的
-/// superview 座標系——也就是本 view 自己的座標系。因此只需要在最上方做一次轉換，之後同一個轉換
-/// 後的點原封不動交給每一個 child。
+/// 有兩個很容易寫出來的錯誤版本，而每一個都只在本 container 恰好位於其 superview 原點時才對，這正是
+/// 「只修其中一個錯誤」會換一種方式壞掉、而非修好的原因(見上方程式片段)。
 ///
-/// 此處原本同時存在兩個座標系錯誤，這正是「只修其中一個」會換一種方式壞掉、而非修好的原因。它把
-/// `point` 當成已經位於本 view 的座標系，再轉換進每個 child 自己的座標系。
-///
-/// 於 2026-08-27 在 macOS 上實測：對 NSButton 與 NSScrollView 的正中心，`hitTest` 回傳 nil，而文字
-/// 欄位仍可解析。以 frame 為 (114, 212, 52, 27) 的按鈕、點 (140, 225) 推算：`childPoint` 為
-/// (26, 13)，它**確實**落在該按鈕的 bounds 內，因此第二道 containment 檢查通過——接著
-/// `button.hitTest((26, 13))` 把 (26, 13) 讀作 container 座標系中的點，拿去與自己位於
-/// x 114...166、y 212...239 的 frame 比對，於是正確地回答了 nil。
-///
-/// Mac 端試過把 `point` 直接傳給 `child.hitTest`，結果連文字欄位也無法解析。這與上述並不矛盾，
-/// 反而一致：那修正了第二個錯誤卻留下第一個，因此只有在本 container 恰好位於其 superview 原點時
-/// 才會是對的。
+/// 在那個版本下，對 NSButton 與 NSScrollView 的正中心，`hitTest` 回傳 nil，而文字欄位仍可解析。以
+/// frame 為 (114, 212, 52, 27) 的按鈕、點 (140, 225) 推算：`childPoint` 為 (26, 13)，落在該按鈕的
+/// bounds 內，接著 `button.hitTest((26, 13))` 把它讀作 container 座標系中的點，拿去與位於
+/// x 114...166、y 212...239 的 frame 比對，於是正確地回答了 nil。改為把未轉換的 `point` 直接傳給
+/// `child.hitTest`,則連文字欄位也無法解析。commit e25b3a65 曾把本實作換成第一個錯誤版本；當時 P21
+/// 的按鈕對其中心的點擊回報 `clicks: 0`、P28 的計數器停在 0,而 P26 的分頁列仍然可用。
 final class AppKitHitTestingContainer: NSView {
     /// The transform `setGeometricEffect` last gave this container; nil for one that carries no
     /// effect. Setting it starts watching the frame, because a new frame is when AppKit resets the
@@ -172,9 +141,9 @@ final class AppKitHitTestingContainer: NSView {
     ///
     /// A click that resolves to nothing and a click that lands beside a control
     /// produce the same screen: nothing happens. Working out which, from
-    /// outside, means scanning a control's edges one run at a time -- a peer
-    /// spent half an hour on 2026-09-07 recovering the shape of a live region
-    /// that way, and the geometry dump could not help because it lists
+    /// outside, means scanning a control's edges one run at a time to
+    /// recover the shape of a live region, and the geometry dump cannot help
+    /// because it lists
     /// `NSTextField`, `NSButton`, `NSButtonTextField` and `NSScroller` and no
     /// containers, so it cannot show what sits above a control or where a hit
     /// test went.
@@ -211,8 +180,8 @@ final class AppKitHitTestingContainer: NSView {
     /// 在 debug 功能開啟時,說出某一點落到了哪裡。
     ///
     /// 「解析到空無一物的點擊」與「落在控制項旁邊的點擊」會產生相同的畫面:什麼都沒發生。要從外部
-    /// 分辨兩者,只能一次一輪地掃描控制項的邊緣——2026-09-07 有一位同事就是這樣花了半小時,才反推出
-    /// 一個活區的形狀;而幾何傾印幫不上忙,因為它只列 `NSTextField`、`NSButton`、
+    /// 分辨兩者,只能一次一輪地掃描控制項的邊緣,才反推出一個活區的形狀;而幾何傾印幫不上忙,
+    /// 因為它只列 `NSTextField`、`NSButton`、
     /// `NSButtonTextField` 與 `NSScroller`,不列容器,因此看不出控制項上方壓著什麼,也看不出命中
     /// 測試走到哪裡。
     ///
@@ -292,15 +261,13 @@ final class AppKitHitTestingContainer: NSView {
                 // is what `hitTest` compared against, in this container's space;
                 // `click` is where an action file must aim, in the space action
                 // files are written in. A dump that prints one and labels it the
-                // other is how a peer spent four rounds clicking outside a
-                // control on 2026-09-07 -- the numbers were right and the label
-                // was wrong, and a click that lands on nothing raises nothing.
+                // other sends action files outside the control, and a click that
+                // lands on nothing raises nothing.
                 //
                 // 除了本地 frame 之外也印出 `actionFileRect`,因為兩者回答的是不同的問題,而讀者
                 // 兩個都需要。frame 是 `hitTest` 用來比對的東西,位於本 container 的座標系;而
                 // `click` 是動作檔應該瞄準的位置,位於動作檔所使用的那個座標系。一份「印了其中一個、
-                // 卻標上另一個名字」的傾印,正是某位同事在 2026-09-07 連續四輪點在控制項外面的原因
-                // ——數字是對的,標籤是錯的,而點在空處不會引發任何錯誤。
+                // 卻標上另一個名字」的傾印,會讓動作檔點在控制項外面,而點在空處不會引發任何錯誤。
                 var aim = ""
                 #if SCUI_DEBUG
                     // The two window origins go out beside the rect, because the
@@ -316,30 +283,14 @@ final class AppKitHitTestingContainer: NSView {
                     // 減去其中之一,而那次相減正是「讀者」與「本函式」可能靜默地各說各話的地方——
                     // 因此兩者都印出來,誰也不必用猜的。
                     // `rect` for the origin and `click` for the centre, each
-                    // named, because one of them was labelled the other and a
-                    // reader followed the label.
+                    // named. A name is more reliable than a format: a pair of
+                    // numbers followed by a size reads as an origin whatever it
+                    // is, and an origin used as a click target aims at the
+                    // top-left corner, outside the drawn bezel.
                     //
-                    // This line printed `click x,y size wxh` where `x,y` was the
-                    // rect's origin. Used literally that aims at the top-left
-                    // corner, outside the drawn bezel. It is the mirror of the
-                    // bug this whole exchange was about -- a peer's dump printed
-                    // a centre and formatted it as an origin, and four rounds of
-                    // action files clicked outside the control -- and I shipped
-                    // the same shape reversed while helping fix it.
-                    //
-                    // Both go out. A name is more reliable than a format: a pair
-                    // of numbers followed by a size reads as an origin whatever
-                    // it is.
-                    //
-                    // `rect` 表示原點、`click` 表示中心,各自具名,因為其中一個曾被標上另一個的名字,
-                    // 而讀者照著那個名字用了它。
-                    //
-                    // 這一行原本印的是 `click x,y size wxh`,而其中的 `x,y` 是矩形的原點。照字面使用
-                    // 它,瞄準的會是左上角,落在畫出來的 bezel 之外。這正是這整段往返所處理的那個錯誤的
-                    // 鏡像——某位同事的傾印印出中心卻以原點的格式呈現,導致四輪動作檔都點在控制項外面
-                    // ——而我在協助修正它的同時,出貨了同一個形狀的反面。
-                    //
-                    // 兩者都輸出。名字比格式可靠:一對數字後面接著尺寸,無論它是什麼,讀起來都像原點。
+                    // `rect` 表示原點、`click` 表示中心,各自具名。名字比格式可靠:一對數字後面接著尺寸,
+                    // 無論它是什麼,讀起來都像原點;而把原點當成點擊目標,瞄準的會是左上角,落在畫出來的
+                    // bezel 之外。
                     let rect = AppKitSynthesiser.actionFileRect(of: candidate)
                     aim = " rect \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
                         + " size \(Int(rect.width.rounded()))x\(Int(rect.height.rounded()))"

@@ -6,9 +6,8 @@ import SwiftJava
 /// A row of buttons above the content.
 ///
 /// **Not `android.widget.Toolbar`, and that was measured rather than assumed.**
-/// The first implementation re-bound that class as a `ViewGroup` subclass and
-/// populated it through `getMenu()`. It compiled, the APK built, and the app
-/// died on launch:
+/// Re-binding that class as a `ViewGroup` subclass and populating it through
+/// `getMenu()` compiles and builds an APK, and the app dies on launch:
 ///
 ///     Fatal error: 'try!' expression unexpectedly raised an error:
 ///     java.lang.ClassNotFoundException: Didn't find class
@@ -17,7 +16,7 @@ import SwiftJava
 /// The class is not reachable from the app's class loader on this image, so the
 /// only way that route could report success is by never being run. A row built
 /// from `LinearLayout` and `Button` uses the two classes this backend already
-/// creates for every app, which is why it can be verified today.
+/// creates for every app, which is why it can be verified.
 ///
 /// What is given up is the overflow: a real toolbar collapses items it cannot
 /// fit into a "..." menu, and this row lets them run off the edge instead. The
@@ -27,8 +26,8 @@ import SwiftJava
 ///
 /// 一列位於內容上方的按鈕。
 ///
-/// **不是 `android.widget.Toolbar`,而這是實測出來的、不是假設的。** 最初的實作把該類別重新綁定為
-/// `ViewGroup` 的子類別,並透過 `getMenu()` 填入內容。它編譯過了、APK 也建起來了,而 app 一啟動就死:
+/// **不是 `android.widget.Toolbar`,而這是實測出來的、不是假設的。** 把該類別重新綁定為 `ViewGroup` 的子類別、
+/// 並透過 `getMenu()` 填入內容,可以編譯、APK 也建得起來,而 app 一啟動就死:
 ///
 ///     Fatal error: 'try!' expression unexpectedly raised an error:
 ///     java.lang.ClassNotFoundException: Didn't find class
@@ -36,7 +35,7 @@ import SwiftJava
 ///
 /// 在這個映像上,該類別從 app 的 class loader 觸及不到,因此那條路線唯一能回報成功的方式,就是永遠
 /// 不被執行。以 `LinearLayout` 與 `Button` 組成的一列,用的是本 backend 每支 app 都會建立的那兩個
-/// 類別,這正是它今天就驗得起來的原因。
+/// 類別,這正是它驗得起來的原因。
 ///
 /// 放棄掉的是 overflow:真正的工具列會把塞不下的項目收進「⋯」選單,而這一列則會讓它們跑出邊緣。
 /// 這一列與內容位於同一段水平空間中,而 P53 宣告三個項目,因此實務上不會溢出——但那是一項差異,
@@ -95,11 +94,10 @@ extension AndroidBackend: BackendFeatures.Toolbars {
         }
 
         // Leading items on the left, the rest on the right, as UIKit's bar places
-        // them; within a side the order is the one the other backends use. Until
-        // 2026-10-12 every item was a text button packed from the left (P53). The
+        // them; within a side the order is the one the other backends use. The
         // symbol goes through the same table `Image(systemName:)` uses.
-        // 前導項目靠左、其餘靠右，與 UIKit 的導覽列相同；同一側之內的順序沿用其他 backend 的順序。2026-10-12 之前每個項目
-        // 都是從左排起的文字按鈕(P53)。符號走的是與 `Image(systemName:)` 相同的那張表。
+        // 前導項目靠左、其餘靠右，與 UIKit 的導覽列相同；同一側之內的順序沿用其他 backend 的順序。符號走的是
+        // 與 `Image(systemName:)` 相同的那張表。
         helpers.styleToolbar(Self.activity, bar)
         var placedSpacer = false
         for item in items.sorted(by: { Self.order(of: $0.placement) < Self.order(of: $1.placement) })
@@ -132,8 +130,7 @@ extension AndroidBackend: BackendFeatures.Toolbars {
     /// The heading `.navigationTitle` asked for, as a row above the content.
     ///
     /// A `TextView` in the root stack rather than an ActionBar. This backend's
-    /// activity has no ActionBar to set a title on -- `setTitle(ofWindow:to:)`
-    /// was an empty `TODO(stackotter)` for exactly that reason -- and the root
+    /// activity has no ActionBar to set a title on, and the root
     /// stack is where `.toolbar` and `.refreshable` already put their rows, so
     /// a third one costs nothing new.
     ///
@@ -144,7 +141,7 @@ extension AndroidBackend: BackendFeatures.Toolbars {
     /// `.navigationTitle` 所要求的標題,以一列的形式置於內容之上。
     ///
     /// 使用 root stack 中的一個 `TextView`,而不是 ActionBar。本 backend 的 activity 沒有可供設定標題的
-    /// ActionBar——`setTitle(ofWindow:to:)` 之所以是一個空的 `TODO(stackotter)`,正是這個原因——而
+    /// ActionBar,而
     /// root stack 已經是 `.toolbar` 與 `.refreshable` 擺放它們那幾列的地方,因此第三列不會多付出任何代價。
     ///
     /// 放在索引 0,好讓標題位於工具列那一列**之上**而非其旁。那是 Android 自家 app bar 所採用的順序,

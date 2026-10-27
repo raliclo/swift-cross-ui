@@ -1,32 +1,30 @@
 import SwiftCrossUI
 import UIKit
 
-/// **Driven on 2026-10-13, on the iPad Pro 11-inch (M5) simulator, iOS 27.0.**
+/// **Verified on the iPad Pro 11-inch (M5) simulator, iOS 27.0.**
 ///
 /// `testapp/actions/ios/P72-cursor-ipad.actions` rests a synthesized pointer over P72's mesh view
 /// and then over the text below it; the runner captures the screen during each rest. Over the
-/// mesh view the system asked for a style once ("-cursor: pointer style requested for
-/// crosshair") and the capture shows the drawn cross at the point; over the text it did not ask
+/// mesh view the system asks for a style once ("-cursor: pointer style requested for
+/// crosshair") and the capture shows the drawn cross at the point; over the text it does not ask
 /// again and the capture shows the system pointer. iPadOS draws its pointer into the frame
 /// buffer, so a plain capture contains it.
 ///
 /// Only `crosshair` has been seen this way: the other drawn shapes and the two system styles
 /// have not. A physical iPad with a trackpad has not been tried either.
 ///
-/// The notes of 2026-09-22 that stood here said nothing could drive this without a pointer
-/// device. `XCUICoordinate.hover()` does not do it reliably; a synthesized pointer path does
+/// `XCUICoordinate.hover()` does not drive the pointer reliably; a synthesized pointer path does
 /// (the `hover` verb in ActionFileUITests.swift).
 ///
-/// **2026-10-13 已在 iPad Pro 11 吋 (M5) 模擬器、iOS 27.0 上驅動。**
+/// **已在 iPad Pro 11 吋 (M5) 模擬器、iOS 27.0 上驗證。**
 ///
 /// `testapp/actions/ios/P72-cursor-ipad.actions` 讓合成的指標先停在 P72 的 mesh view 上、再停在其下方的文字上;
-/// runner 在每次停留時擷取畫面。在 mesh view 上系統要求了一次樣式，擷圖在該點是畫出來的十字;在文字上沒有再要求，
+/// runner 在每次停留時擷取畫面。在 mesh view 上系統要求一次樣式，擷圖在該點是畫出來的十字;在文字上沒有再要求，
 /// 擷圖是系統指標。iPadOS 把指標畫進 frame buffer,所以普通的擷圖就含有它。
 ///
 /// 這樣看過的只有 `crosshair`:其餘畫出來的形狀與兩種系統樣式還沒有。接觸控板的實體 iPad 也還沒試過。
 ///
-/// 原本在此的 2026-09-22 註記說沒有指標裝置就無法驅動。`XCUICoordinate.hover()` 確實不可靠;合成的指標路徑可以
-/// (ActionFileUITests.swift 的 `hover`)。
+/// `XCUICoordinate.hover()` 無法可靠地驅動指標;合成的指標路徑可以(ActionFileUITests.swift 的 `hover`)。
 extension UIKitBackend: BackendFeatures.Cursors {
     public func createCursorTarget(wrapping child: Widget) -> Widget {
         CursorWidget(child: child)

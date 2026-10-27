@@ -291,13 +291,12 @@ public final class CustomSheet: UIViewController {
     }
 
     /// `onDismiss` runs however the sheet went away -- a swipe, Escape, or
-    /// `isPresented = false` -- as in SwiftUI. Until 2026-10-20 a flag skipped
-    /// it on the programmatic path (todo.md, "Six divergences", item 1). It runs
+    /// `isPresented = false` -- as in SwiftUI. It runs
     /// once, and only when the sheet is being dismissed, itself or with the
     /// sheet that presented it: a full-screen cover presented over this one also
     /// takes it off screen without ending it.
-    /// `onDismiss` 無論 sheet 怎麼離開都會執行——滑掉、Escape 或 `isPresented = false`——與 SwiftUI 相同。2026-10-20
-    /// 之前有個旗標在程式關閉時跳過它(todo.md「六項分歧」第 1 項)。它只執行一次，而且只在 sheet 正被關閉時(它自己，或連同
+    /// `onDismiss` 無論 sheet 怎麼離開都會執行——滑掉、Escape 或 `isPresented = false`——與 SwiftUI 相同。
+    /// 它只執行一次，而且只在 sheet 正被關閉時(它自己，或連同
     /// 呈現它的那個 sheet)執行：蓋在它上面的全螢幕 cover 也會讓它離開畫面，但那不是結束。
     public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)

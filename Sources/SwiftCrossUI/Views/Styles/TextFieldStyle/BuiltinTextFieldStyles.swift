@@ -86,14 +86,13 @@ extension TextFieldStyle where Self == SquareBorderTextFieldStyle {
 /// What the four built-in styles draw: the backend's own text field, told which
 /// border to use.
 ///
-/// This is ``TextField``'s old body, moved rather than rewritten -- the widget
-/// creation, the layout, the binding write-back and the `SCUI_DEBUG` check are
-/// all unchanged. The one addition is the line that puts ``style`` into the
-/// environment handed to `updateTextField`.
+/// The widget creation, the layout, the binding write-back and the
+/// `SCUI_DEBUG` check are shared by all four; the style-specific part is the
+/// line that puts ``style`` into the environment handed to `updateTextField`.
 ///
 /// **Why the environment and not a new parameter.** `updateTextField` already
 /// receives `EnvironmentValues`, so the style can reach a backend without
-/// changing a signature that seven backends implement. That is the same channel
+/// changing a signature that every backend implements. That is the same channel
 /// ``EnvironmentValues/backendListStyle`` and
 /// ``EnvironmentValues/backendDatePickerStyle`` use, and for the same reason.
 ///
@@ -106,7 +105,7 @@ extension TextFieldStyle where Self == SquareBorderTextFieldStyle {
 /// subtree, which is harmless today only because nothing else reads it.
 ///
 /// **為何走 environment 而非新增參數。** `updateTextField` 本來就會收到 `EnvironmentValues`，
-/// 因此 style 不必更動一個有七個 backend 實作的簽章就能抵達 backend。這與
+/// 因此 style 不必更動一個每個 backend 都實作的簽章就能抵達 backend。這與
 /// ``EnvironmentValues/backendListStyle``、``EnvironmentValues/backendDatePickerStyle`` 使用的是
 /// 同一條通道，理由也相同。
 ///
@@ -166,10 +165,9 @@ public struct _BuiltinTextFieldImplementation: ElementaryView, View {
                 // keystroke is often more expensive than the extra write it
                 // detects, so it is not done unconditionally.
                 //
-                // It was `#if DEBUG`, which put it in no configuration this
-                // project builds: `testapp/compile.zsh` builds release, so the
-                // very backends the check exists to catch were never checked.
-                // `DebugFeatures.isEnabled` keeps the cost argument intact -- it
+                // Not `#if DEBUG`: `testapp/compile.zsh` builds release, so a
+                // DEBUG-only check would never run on the backends it exists to
+                // catch. `DebugFeatures.isEnabled` keeps the cost argument intact -- it
                 // is a `static let` that is `false` and foldable in a build
                 // without `SCUI_DEBUG` -- while making the check reachable in a
                 // release binary built and run with the flag.
@@ -178,9 +176,8 @@ public struct _BuiltinTextFieldImplementation: ElementaryView, View {
                 // backend.setContent(ofTextField:to:) 而反過來觸發了 handler。每次按鍵都比較
                 // 文字，往往比它所偵測到的那次多餘寫入還昂貴，因此不無條件執行。
                 //
-                // 它原本是 `#if DEBUG`，而那讓它不存在於本專案建置的任何組態中：
-                // `testapp/compile.zsh` 建置的是 release，於是此檢查存在的目的——揪出有問題的
-                // backend——從來沒有被執行過。`DebugFeatures.isEnabled` 保留了原本的成本論證
+                // 不用 `#if DEBUG`:`testapp/compile.zsh` 建置的是 release,只在 DEBUG 存在的檢查
+                // 永遠不會在它要揪出的 backend 上執行。`DebugFeatures.isEnabled` 保留了原本的成本論證
                 // ——在未設定 `SCUI_DEBUG` 的建置中，它是一個為 `false` 且可被摺除的
                 // `static let`——同時使該檢查在「以該旗標建置並執行」的 release 執行檔中可觸及。
                 if DebugFeatures.isEnabled, self.text.wrappedValue == newValue {

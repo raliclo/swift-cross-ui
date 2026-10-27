@@ -181,16 +181,13 @@ private extension VisualEffect {
 
     /// The non-default components, for a diagnostic that names the effect.
     ///
-    /// The log used to carry only the widget key, which is a pointer value: it
-    /// proved that two of P39's nine cells failed but not which two, and the
-    /// answer had to be inferred from the order the cells happened to lay out
-    /// in. A failure that cannot say what it was given costs a whole run to
-    /// re-derive.
+    /// The widget key alone is a pointer value: it can prove that two of
+    /// P39's nine cells failed but not which two. A failure that cannot say
+    /// what it was given costs a whole run to re-derive.
     /// 列出非預設的成分，使診斷能指名是哪一個效果。
     ///
-    /// 這份記錄過去只帶著 widget key，而那是一個指標值：它足以證明 P39 九格中有兩格失敗，
-    /// 卻無法指出是哪兩格，只能從各格恰好的版面順序去推斷。一個說不出自己收到什麼的失敗，
-    /// 要花掉一整輪執行才能重新推導出來。
+    /// 只有 widget key 時，那是一個指標值：足以證明 P39 九格中有兩格失敗，卻無法指出是哪兩格。
+    /// 一個說不出自己收到什麼的失敗，要花掉一整輪執行才能重新推導出來。
     var debugSummary: String {
         var parts: [String] = []
         if blurRadius != 0 { parts.append("blur \(blurRadius)") }
@@ -350,15 +347,15 @@ private struct Win2DEffectGraph {
 
         if effect.contrast != 1 {
             // SwiftUI's contrast is linear about mid grey, c' = (c - 0.5) * k + 0.5,
-            // done here as a colour matrix like brightness above. Win2D's
-            // ContrastEffect was used until 2026-10-19 with `k - 1`; Direct2D's
-            // contrast is its own curve, and P39's contrast 0.3 cell came out
-            // nearly the control: (11, 160, 215) -> (16, 147, 200), where the
-            // formula gives (93, 137, 154) and GtkBackend draws it washed out.
+            // done here as a colour matrix like brightness above. Not Win2D's
+            // ContrastEffect: Direct2D's contrast is its own curve, and with
+            // `k - 1` P39's contrast 0.3 cell came out nearly the control: (11,
+            // 160, 215) -> (16, 147, 200), where the formula gives (93, 137,
+            // 154) and GtkBackend draws it washed out.
             // SwiftUI 的 contrast 以中灰為中心呈線性,c' = (c - 0.5) * k + 0.5,此處與上面的 brightness 一樣用
-            // 顏色矩陣實作。2026-10-19 之前用的是 Win2D 的 ContrastEffect 並傳入 `k - 1`;Direct2D 的 contrast
-            // 是它自己的曲線,P39 的 contrast 0.3 那格幾乎等於對照格:(11, 160, 215) -> (16, 147, 200),公式給的
-            // 是 (93, 137, 154),GtkBackend 畫出來也是褪色的。
+            // 顏色矩陣實作。不用 Win2D 的 ContrastEffect:Direct2D 的 contrast 是它自己的曲線，傳入 `k - 1` 時
+            // P39 的 contrast 0.3 那格幾乎等於對照格:(11, 160, 215) -> (16, 147, 200),公式給的是 (93, 137, 154),
+            // GtkBackend 畫出來也是褪色的。
             let k = FLOAT(max(effect.contrast, 0))
             let offset = FLOAT(0.5) * (1 - k)
             let contrast = try Win2DGpuEffect(
@@ -388,12 +385,11 @@ private struct Win2DEffectGraph {
         }
 
         if effect.grayscale != 0 {
-            // AppKit's grey, which the user chose for P39 on 2026-10-16 and
-            // which GtkBackend, UIKitBackend and AndroidBackend draw:
-            // CIColorMonochrome tinted with 0.5 grey, in linear light. Win2D's
-            // GrayscaleEffect was used until 2026-10-19; it is the sRGB-luma
-            // grey (the same as saturation 0, lighter than AppKit's) and has no
-            // amount, so grayscale(0.5) drew fully grey.
+            // AppKit's grey, the reference for P39, which GtkBackend,
+            // UIKitBackend and AndroidBackend draw too: CIColorMonochrome tinted
+            // with 0.5 grey, in linear light. Not Win2D's GrayscaleEffect: it is
+            // the sRGB-luma grey (the same as saturation 0, lighter than
+            // AppKit's) and has no amount, so grayscale(0.5) drew fully grey.
             //
             //   decode   sRGB to linear, (v + 0.055) / 1.055 then the power 2.4
             //   L        linear luminance with CIColorMonochrome's weights
@@ -409,10 +405,9 @@ private struct Win2DEffectGraph {
             // decode and encode drop sRGB's short linear segment near black,
             // as GtkBackend's curves do: at most 3 of 255 levels, below 15.
             //
-            // AppKit 的灰，使用者於 2026-10-16 為 P39 選定，GtkBackend、UIKitBackend 與 AndroidBackend
-            // 也都這樣畫：以 0.5 灰上色的 CIColorMonochrome，在線性光中進行。2026-10-19 之前用的是
-            // Win2D 的 GrayscaleEffect——那是 sRGB 亮度的灰(與 saturation 0 相同，比 AppKit 的亮)，
-            // 而且沒有強度，所以 grayscale(0.5) 畫成全灰。
+            // AppKit 的灰，是 P39 的基準,GtkBackend、UIKitBackend 與 AndroidBackend 也都這樣畫：以 0.5 灰上色的
+            // CIColorMonochrome,在線性光中進行。不用 Win2D 的 GrayscaleEffect:那是 sRGB 亮度的灰(與 saturation 0
+            // 相同，比 AppKit 的亮),而且沒有強度，所以 grayscale(0.5) 畫成全灰。
             //
             //   decode   sRGB 轉線性:(v + 0.055) / 1.055，再取 2.4 次方
             //   L        線性亮度，權重同 CIColorMonochrome

@@ -3,16 +3,6 @@ import Logging
 import Metal
 import UIKit
 
-/// ## Features deliberately not conformed to
-///
-/// - ``BackendFeatures/WindowLevels``: there is no level for a UIKit app to be
-///   at. `UIWindow.windowLevel` orders an app's own windows against each other,
-///   not against another application's, and this backend reports
-///   `supportsMultipleWindows == false` anyway, so the only levels it could
-///   honestly list are ``WindowLevel/automatic`` and ``WindowLevel/normal`` --
-///   which is exactly what SwiftCrossUI already assumes for a backend that does
-///   not conform. Conforming would add a method that changes nothing and a list
-///   that says nothing.
 public final class UIKitBackend:
     BaseAppBackend,
     BackendFeatures.ExternalURLs,
@@ -76,13 +66,13 @@ public final class UIKitBackend:
     /// The platform's answer, not a constant. On iPad, Mac Catalyst and
     /// visionOS an app that declares `UIApplicationSupportsMultipleScenes` can
     /// open a window per scene (see `show(window:)`); on iPhone it cannot.
-    /// This was `false` everywhere until 2026-09-30, so on iPad `openWindow`
-    /// logged "the backend doesn't support multi-window, ignoring" and P5's
-    /// second window never appeared.
+    /// A constant `false` would make `openWindow` on iPad log "the backend
+    /// doesn't support multi-window, ignoring" and drop P5's second window.
     ///
     /// 平台自己的答案，而不是常數。在 iPad、Mac Catalyst 與 visionOS 上，宣告了
     /// `UIApplicationSupportsMultipleScenes` 的 app 可以每個 scene 開一個視窗（見 `show(window:)`）;
-    /// 在 iPhone 上不行。2026-09-30 之前這在所有地方都是 `false`，所以在 iPad 上 `openWindow` 會記下
+    /// 在 iPhone 上不行。若固定為 `false`，iPad 上的 `openWindow` 會記下
+    /// 「the backend doesn't support multi-window, ignoring」，P5 的第二個視窗就不會出現。
     /// 「the backend doesn't support multi-window, ignoring」，P5 的第二個視窗從未出現。
     public var supportsMultipleWindows: Bool {
         UIApplication.shared.supportsMultipleScenes
@@ -131,11 +121,8 @@ public final class UIKitBackend:
                 [.segmented]
             }
         #else
-            // `.radioGroup` from 2026-09-29: `UIRadioGroupPicker`. Until then an
-            // app asking for it was downgraded to `.automatic`, and one that
-            // reached `createPicker` with it terminated.
-            // `.radioGroup` 自 2026-09-29 起:`UIRadioGroupPicker`。在那之前要求它的 app 會被降級為 `.automatic`,
-            // 而以它抵達 `createPicker` 的則會被終止。
+            // `.radioGroup` is `UIRadioGroupPicker`.
+            // `.radioGroup` 由 `UIRadioGroupPicker` 實作。
             if #available(iOS 14, macCatalyst 14, *) {
                 [.menu, .segmented, .wheel, .radioGroup]
             } else {
@@ -289,33 +276,24 @@ public final class UIKitBackend:
         window: Window,
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
-        // A `// TODO: Record window scale factor in here` stood here, and the
-        // cost of leaving it was that `windowScaleFactor` kept the environment
-        // default of 1 on every iOS device. AppKitBackend supplies
-        // `backingScaleFactor`, WinUIBackend derives it from the DPI and
-        // AndroidBackend from the display metrics; only this one answered 1.
-        //
-        // P42 exists to catch exactly this and caught it on its first iOS run:
-        // "current: 1.0" on an iPhone 16 simulator, whose display scale is 3.
-        // Nothing else would have noticed. `Image` re-renders on this value, so
-        // a wrong answer produces art rendered for the wrong scale rather than
-        // an error, and P42's own header makes the point that a window showing
-        // a number tells you nothing about whether the number is right.
+        // `windowScaleFactor` is the window's display scale. Left at the
+        // environment default of 1, every iOS device would report 1 while
+        // AppKitBackend supplies `backingScaleFactor`, WinUIBackend derives it
+        // from the DPI and AndroidBackend from the display metrics. P42 checks
+        // it: "current: 1.0" on an iPhone 16 simulator, whose display scale is
+        // 3, is the failure. `Image` re-renders on this value, so a wrong
+        // answer produces art rendered for the wrong scale rather than an error.
         //
         // `traitCollection.displayScale` and not `screen.scale`: the trait is
         // what the view hierarchy is actually laid out and drawn against, and
         // it is the value that changes under Display Zoom. `UIScreen.scale`
         // reports the physical panel and does not follow it.
         //
-        // 此處原本是一行 `// TODO: Record window scale factor in here`，而留著它的代價是：
-        // `windowScaleFactor` 在每一台 iOS 裝置上都停在環境預設值 1。AppKitBackend 提供
-        // `backingScaleFactor`、WinUIBackend 由 DPI 推導、AndroidBackend 由 display metrics 取得；
-        // 只有這一個回答 1。
-        //
-        // P42 的存在就是為了抓這件事，而它在 iOS 上的第一次執行就抓到了：在顯示縮放為 3 的
-        // iPhone 16 模擬器上顯示「current: 1.0」。不會有別的東西注意到。`Image` 會依這個值重新算繪，
-        // 因此錯誤的答案產生的是「以錯誤縮放算繪的圖像」，而不是一個錯誤；而 P42 自己的檔頭正是要
-        // 說明：一個顯示著某個數字的視窗，並不能告訴你那個數字是不是對的。
+        // `windowScaleFactor` 是視窗的顯示縮放。若停在環境預設值 1，每一台 iOS 裝置都會回報 1，
+        // 而 AppKitBackend 提供 `backingScaleFactor`、WinUIBackend 由 DPI 推導、AndroidBackend 由
+        // display metrics 取得。P42 會檢查它：在顯示縮放為 3 的 iPhone 16 模擬器上顯示「current: 1.0」
+        // 就是失敗。`Image` 會依這個值重新算繪，因此錯誤的答案產生的是「以錯誤縮放算繪的圖像」，
+        // 而不是一個錯誤。
         //
         // 使用 `traitCollection.displayScale` 而非 `screen.scale`：trait 才是 view 階層實際據以
         // 排版與繪製的值，也是會隨 Display Zoom 改變的那一個。`UIScreen.scale` 回報的是實體面板，
@@ -332,12 +310,11 @@ public final class UIKitBackend:
     ) {
         Self.onWindowEnvironmentChange = action
 
-        // The other half of the TODO above: the value was never recomputed
-        // either, so a window whose display scale changed under it kept
-        // whatever it started with. That is the whole subject of P42 -- its
-        // header says the current value alone cannot be the test, because a
-        // window showing 2.0 tells you nothing about whether it would still say
-        // 2.0 after a change.
+        // The value is recomputed when the display scale changes, not only read
+        // once: a window whose display scale changed under it would otherwise
+        // keep whatever it started with. P42 tests exactly that -- the current
+        // value alone cannot be the test, because a window showing 2.0 tells
+        // you nothing about whether it would still say 2.0 after a change.
         //
         // `registerForTraitChanges` is iOS 17, and this package deploys to
         // iOS 13, so the older path observes the screen instead. Neither is a
@@ -345,8 +322,8 @@ public final class UIKitBackend:
         // `UIScreen.modeDidChangeNotification` is what fires when the display
         // the window is on changes mode.
         //
-        // 上方那個 TODO 的另一半：該值也從未被重新計算，因此一個「顯示縮放在其底下改變了」的視窗，
-        // 會一直保留它最初取得的值。那正是 P42 的全部主題——它的檔頭寫著「單憑當前值無法作為測試」，
+        // 顯示縮放改變時會重新計算該值，而不只是讀一次：否則一個「顯示縮放在其底下改變了」的視窗，
+        // 會一直保留它最初取得的值。P42 測的正是這件事——單憑當前值無法作為測試，
         // 因為一個顯示著 2.0 的視窗，並不能告訴你它在一次改變之後是否仍會顯示 2.0。
         //
         // `registerForTraitChanges` 需要 iOS 17，而本套件的部署目標是 iOS 13，因此較舊的路徑改為
@@ -395,13 +372,6 @@ public final class UIKitBackend:
         UIApplication.shared.open(url)
     }
 
-    // The "Unimplemented Features" section that used to be here held
-    // createToggle, updateToggle and setState(ofToggle:), all three
-    // fatalError. They are implemented in UIKitBackend+Toggle.swift as of
-    // 2026-09-02; the heading is gone with them rather than left empty.
-    // 此處原本的「Unimplemented Features」一節包含 createToggle、updateToggle 與
-    // setState(ofToggle:) 三者，全為 fatalError。自 2026-09-02 起，它們已於
-    // UIKitBackend+Toggle.swift 中實作；該標題隨之移除，而非留下一個空的區段。
 }
 
 extension App {
@@ -656,14 +626,12 @@ open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// scene was requested by `show(window:)` for a window SwiftCrossUI had
     /// already created -- a second `WindowGroup` window, or `openWindow` -- and
     /// takes that window rather than making a new one. That is how a
-    /// SwiftCrossUI window becomes an iPad window: before 2026-09-30 every
-    /// window after the first was a sceneless `UIWindow()`, and this delegate
-    /// was never installed at all.
+    /// SwiftCrossUI window becomes an iPad window; a sceneless `UIWindow()` is
+    /// never drawn.
     ///
     /// 第一個 scene 取得 app 的主視窗並啟動 app。之後的 scene 是 `show(window:)` 為 SwiftCrossUI
     /// 已經建立的視窗所請求的——第二個 `WindowGroup` 視窗,或 `openWindow`——它接手那個視窗,而不是
-    /// 另建一個。SwiftCrossUI 的視窗就是這樣成為 iPad 視窗的:2026-09-30 之前,第一個之後的每個視窗都
-    /// 是沒有 scene 的 `UIWindow()`,而這個 delegate 根本從未被安裝。
+    /// 另建一個。SwiftCrossUI 的視窗就是這樣成為 iPad 視窗的；沒有 scene 的 `UIWindow()` 永遠不會被繪製。
     ///
     /// - Important: If you override this method in a subclass, you must call
     /// `super.scene(scene, willConnectTo: session, options: connectionOptions)`

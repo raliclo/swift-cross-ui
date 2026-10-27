@@ -31,22 +31,19 @@ import SwiftJava
 extension AndroidBackend {
     /// The text on the button, and also how it is found again.
     ///
-    /// The first version kept the buttons in a Swift dictionary keyed by
-    /// `container.javaHolder.object!.hashValue`. That looks like an identity
-    /// and is not one: the pointer is a JNI local reference and can differ
-    /// between two calls about the same Java object, so the lookup missed, a
-    /// new button was added on EVERY update, and the emulator went from
-    /// "Pixel Launcher isn't responding" to "System UI isn't responding" while
-    /// the app itself never crashed. Nothing in the Swift code failed; the view
-    /// tree simply grew without bound.
+    /// Not a Swift dictionary keyed by `container.javaHolder.object!.hashValue`.
+    /// That looks like an identity and is not one: the pointer is a JNI local
+    /// reference and can differ between two calls about the same Java object,
+    /// so the lookup misses, a new button is added on EVERY update, and the view
+    /// tree grows without bound -- the emulator reaches "System UI isn't
+    /// responding" while the app itself never crashes.
     ///
     /// 按鈕上的文字,同時也是「再次找到它」的方式。
     ///
-    /// 第一版把那些按鈕放在一個 Swift 字典裡,以 `container.javaHolder.object!.hashValue` 為索引鍵。
-    /// 那看起來像是一個身分,但它不是:該指標是一個 JNI local reference,對同一個 Java 物件的兩次呼叫
-    /// 可能不同,因此查找落空、**每一次**更新都新增一顆按鈕,而模擬器就從「Pixel Launcher isn't
-    /// responding」一路走到「System UI isn't responding」——而 app 本身從未當掉。Swift 這一側沒有任何
-    /// 東西失敗;只是那棵 view 樹無上限地長大。
+    /// 不是以 `container.javaHolder.object!.hashValue` 為鍵的 Swift 字典。那看起來像是一個身分,但它不是:
+    /// 該指標是一個 JNI local reference,對同一個 Java 物件的兩次呼叫可能不同,因此查找會落空、**每一次**
+    /// 更新都新增一顆按鈕,而 view 樹無上限地長大——模擬器一路走到「System UI isn't responding」,app 本身
+    /// 卻從未當掉。
     private static let refreshButtonText = "Refresh"
 
     /// The button goes in the window's root stack, not inside the scroll
@@ -101,12 +98,12 @@ extension AndroidBackend {
             button.setText(Self.charSequence(from: Self.refreshButtonText))
             button.setAllCaps(false)
             // Inserted above the scroll host, with the LinearLayout's own
-            // default params rather than params of our making. A vertical
+            // default params rather than params made here. A vertical
             // LinearLayout generates MATCH_PARENT x WRAP_CONTENT for a child,
             // which is a full-width button one line tall -- the shape a bar
             // across the top of a screen has on this platform.
             //
-            // 插入在 scroll host 之上,並使用 LinearLayout 自己的預設 params,而不是我們自製的。
+            // 插入在 scroll host 之上,並使用 LinearLayout 自己的預設 params,而不是此處自製的。
             // 垂直的 LinearLayout 會為子項產生 MATCH_PARENT x WRAP_CONTENT,那是一顆佔滿寬度、
             // 一行高的按鈕——也就是這個平台上「橫跨畫面頂端的一條」所具有的形狀。
             stack.addView(button, stack.getChildCount() - 1)

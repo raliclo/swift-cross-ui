@@ -1,7 +1,7 @@
 /// How a ``ProgressView`` presents its progress.
 ///
-/// Shaped like ``ToggleStyle`` rather than like ``ButtonStyle``, and the two
-/// shapes in this tree are not interchangeable: `ButtonStyle` is a concrete
+/// Shaped like ``ToggleStyle`` rather than like ``PrimitiveButtonStyle``, and the two
+/// shapes in this tree are not interchangeable: `PrimitiveButtonStyle` is a concrete
 /// value naming three appearances a backend already knows how to draw, while a
 /// style protocol lets an application supply its own view. SwiftUI's
 /// `ProgressViewStyle` is the second kind, so this is too.
@@ -15,7 +15,7 @@
 ///
 /// ``ProgressView`` 如何呈現它的進度。
 ///
-/// 形狀比照 ``ToggleStyle`` 而非 ``ButtonStyle``,而這棵樹裡的這兩種形狀並不可互換:`ButtonStyle`
+/// 形狀比照 ``ToggleStyle`` 而非 ``PrimitiveButtonStyle``,而這棵樹裡的這兩種形狀並不可互換:`PrimitiveButtonStyle`
 /// 是一個具體的值，指名三種 backend 本來就知道怎麼畫的外觀;而樣式**協定**則讓應用程式能提供自己的
 /// view。SwiftUI 的 `ProgressViewStyle` 屬於後者，因此此處亦然。
 ///

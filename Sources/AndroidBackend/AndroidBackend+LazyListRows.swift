@@ -5,38 +5,19 @@ import SwiftCrossUI
 extension AndroidBackend: BackendFeatures.LazyListRows {
     /// Points the adapter at the framework instead of at an array.
     ///
-    /// **`BaseAdapter` was already the right shape** -- `getCount`, `getView(position,...)` --
-    /// and was being fed a complete array. This changes where `getView` reads
-    /// from, through the two native methods `CustomListAdapter` gained for it.
+    /// **`BaseAdapter` is already the right shape** -- `getCount`, `getView(position,...)` --
+    /// so only where `getView` reads from changes, through two native methods on
+    /// `CustomListAdapter`.
     ///
     /// `ListView` recycles the row containers itself through `convertView`, so
     /// the AppKit and UIKit half of this work -- giving the recycled view an
     /// identifier -- has no counterpart here. The adapter already honours
     /// `convertView`.
     ///
-    /// **COMPILES HERE, since 2026-09-11.** It did not for a while, and the reason
-    /// was never this file: the host toolchain was Swift 6.4 while the installed
-    /// Android SDK was 6.3.3, so every Android build failed with module-format
-    /// errors naming files nobody here wrote. `testapp/compile.zsh` now finds a
-    /// matching toolchain and says which one it picked.
-    ///
-    /// Compiling is not running. Nothing in this file has been executed on a
-    /// device or an emulator, and the checks below are still the checks.
-    ///
-    /// **自 2026-09-11 起，此處編得過。** 它曾有一段時間編不過，而理由從來不在這個檔案:主機的
-    /// toolchain 是 Swift 6.4，而安裝的 Android SDK 是 6.3.3，因此每一次 Android 建置都以
-    /// 「module 格式」錯誤失敗，指名的是一些此處沒有人寫過的檔案。`testapp/compile.zsh` 現在會找出
-    /// 相符的 toolchain，並說出它選了哪一個。
-    ///
-    /// 編得過不等於跑得起來。本檔中沒有任何東西曾在裝置或模擬器上執行過，而下方那些要查的項目，
-    /// 依然要查。
-    ///
-    ///
     /// 讓 adapter 改去問框架，而不是去問一個陣列。
     ///
-    /// **`BaseAdapter` 本來就是對的形狀**——`getCount`、`getView(position,...)`——只是一直被餵一個
-    /// 完整的陣列。此處改變的是 `getView` 從哪裡讀，途徑是 `CustomListAdapter` 為此新增的那兩個
-    /// native method。
+    /// **`BaseAdapter` 本來就是對的形狀**——`getCount`、`getView(position,...)`——因此改變的只是 `getView`
+    /// 從哪裡讀,途徑是 `CustomListAdapter` 上的兩個 native method。
     ///
     /// `ListView` 自己會透過 `convertView` 回收那些列容器，因此 AppKit 與 UIKit 那一半的工作
     /// ——給被回收的 view 一個識別碼——在此處沒有對應物。這個 adapter 本來就遵守 `convertView`。
@@ -156,7 +137,7 @@ enum LazyRowReleaseHandlers {
 }
 
 extension AndroidBackend: BackendFeatures.LazyListRowLifetimes {
-    /// **`AbsListView` already reports this; nothing had asked.**
+    /// **`AbsListView` already reports this.**
     /// `RecyclerListener.onMovedToScrapHeap` is the moment a row's view leaves
     /// the list, which is exactly what the framework needs in order to release
     /// the node it built for that row.
@@ -166,7 +147,7 @@ extension AndroidBackend: BackendFeatures.LazyListRowLifetimes {
     /// each commit, and a listener added per commit would allocate a Java object
     /// per frame while leaving every previous one attached.
     ///
-    /// **`AbsListView` 本來就會回報這件事,只是先前沒有人問。**
+    /// **`AbsListView` 本來就會回報這件事。**
     /// `RecyclerListener.onMovedToScrapHeap` 正是「某一列的 view 離開這個清單」的那一刻,
     /// 而那恰好是框架釋放它為該列所建節點所需要的東西。
     ///

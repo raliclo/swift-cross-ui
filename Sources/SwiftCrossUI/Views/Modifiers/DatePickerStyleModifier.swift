@@ -29,17 +29,16 @@ extension View {
 
             guard style.isSupported(backend: environment.backend) else {
                 // `assertionFailure` alone is compiled out of a release build,
-                // so a shipped app substituted `.automatic` and said nothing at
-                // all: an author who asked for a compact field got a full
+                // so a shipped app would substitute `.automatic` and say nothing
+                // at all: an author who asked for a compact field would get a full
                 // calendar grid, with no way to find out why (#38). The style
                 // that is unsupported is a property of the backend, not of the
                 // moment, so saying it once is saying it.
                 //
-                // `PickerStyleModifier` carried the same defect and now carries
-                // the same fix; keep the two in step.
+                // `PickerStyleModifier` handles this the same way; keep the two
+                // in step.
                 //
-                // `PickerStyleModifier` 曾有同一個缺陷，如今也套用了同一個修法；請讓兩者
-                // 保持一致。
+                // `PickerStyleModifier` 以同樣的方式處理這件事；請讓兩者保持一致。
                 if warnedDatePickerStyles.insert(resolved ?? .automatic).inserted {
                     logger.warning(
                         """

@@ -138,29 +138,25 @@ extension UIKitBackend {
     public final class TextView: UIView {
         public var isSelectable: Bool = false
 
-        /// **Setting the text also publishes it to VoiceOver, and until
-        /// 2026-09-17 nothing did.**
+        /// **Setting the text also publishes it to VoiceOver.**
         ///
         /// This view draws its own text through TextKit, so it is a plain
-        /// `UIView` and a plain `UIView` is not an accessibility element. The
-        /// external probe added the same day found what that means: the whole
-        /// of P69 resolved to one `StaticText` in the XCUITest tree, and it
-        /// belonged to the test harness's own UIKit button. Every piece of text
-        /// SwiftCrossUI drew was an unnamed `Other` -- a screen reader had
-        /// nothing to say about any of it. The app looked right in a screenshot
-        /// and was silent to the only user who cannot take one.
+        /// `UIView` and a plain `UIView` is not an accessibility element.
+        /// Without this, the whole of P69 resolves to one `StaticText` in the
+        /// XCUITest tree -- the test harness's own UIKit button -- and every
+        /// piece of text SwiftCrossUI draws is an unnamed `Other`: an app that
+        /// looks right in a screenshot and is silent to a screen reader.
         ///
         /// Set here rather than once at init because the text changes: a
         /// readout that updates would otherwise keep announcing whatever it
         /// said first.
         ///
-        /// **設定文字的同時,也把它發布給 VoiceOver;而在 2026-09-17 之前,沒有任何東西這麼做。**
+        /// **設定文字的同時,也把它發布給 VoiceOver。**
         ///
         /// 這個 view 以 TextKit 自行繪製文字,因此它是一個普通的 `UIView`,而普通的 `UIView` 不是
-        /// 無障礙元素。同一天新增的外部探針顯示了那代表什麼:整支 P69 在 XCUITest 樹中只解析出
-        /// **一個** `StaticText`,而它屬於測試載具自己的 UIKit 按鈕。SwiftCrossUI 畫出的每一段文字
-        /// 都是沒有名字的 `Other`——螢幕閱讀器對它們無話可說。這支 app 在截圖上看起來是對的,
-        /// 而對那個唯一不能看截圖的使用者來說,它是沉默的。
+        /// 無障礙元素。少了這一步,整支 P69 在 XCUITest 樹中只解析出**一個** `StaticText`——測試載具
+        /// 自己的 UIKit 按鈕——而 SwiftCrossUI 畫出的每一段文字都是沒有名字的 `Other`:一支在截圖上
+        /// 看起來是對的、對螢幕閱讀器卻是沉默的 app。
         ///
         /// 設在此處而非 init 一次設定,因為文字會變:否則一個會更新的讀數,會永遠宣讀它最初說過的話。
         public var attributedText: NSAttributedString {

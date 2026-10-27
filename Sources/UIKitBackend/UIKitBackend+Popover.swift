@@ -43,9 +43,6 @@ extension UIKitBackend {
         popover.customContent?.frame = CGRect(origin: .zero, size: contentSize)
         popover.onDismiss = onDismiss
 
-        // WRITTEN ON WINDOWS 2026-09-09 AND NOT RUN -- the Mac side verifies it,
-        // the same handover as #117 and as the AppKit half of this change.
-        //
         // On the presented view controller's own view. UIKit's popover chrome is
         // drawn by `UIPopoverBackgroundView`, which is subclass-only and would
         // mean a new type for a colour; setting the content's background gets
@@ -53,9 +50,6 @@ extension UIKitBackend {
         //
         // `nil` clears it back to the platform's own backdrop, matching the
         // protocol's contract, so a colour bound to state is removable.
-        //
-        // **本段於 2026-09-09 在 Windows 上寫成,未曾執行**——由 Mac 那側驗證,與 #117 以及本次改動
-        // 的 AppKit 那一半是相同的交接方式。
         //
         // 設在被呈現的 view controller 自身的 view 上。UIKit 的 popover 外觀是由
         // `UIPopoverBackgroundView` 繪製,而那個類別只能以子類別化使用,為了一個顏色去建立一個新型別
@@ -114,8 +108,8 @@ extension UIKitBackend {
     ///
     /// **This is UIKit made to answer the way Android does, deliberately.**
     /// Both platforms are given the same arithmetic when a side is asked for
-    /// and the panel is taller than the room on it, and until 2026-09-17 they
-    /// answered differently: `PopupWindow.showAsDropDown` MOVES a popup that
+    /// and the panel is taller than the room on it, and left alone they
+    /// answer differently: `PopupWindow.showAsDropDown` MOVES a popup that
     /// does not fit to the other side of the anchor, keeping it whole, while
     /// UIKit SHRINKS the popover into whatever room the permitted direction
     /// has. P50 showed what that costs -- the panel came up below its button
@@ -134,7 +128,7 @@ extension UIKitBackend {
     /// 被要求的那一側;若面板放不下,則改為相反的那一側。
     ///
     /// **這是刻意讓 UIKit 用 Android 的方式作答。** 當「某一側被要求、而面板比那一側的空間更高」時,
-    /// 兩個平台面對的是同一道算術,而在 2026-09-17 之前它們的答案不同:
+    /// 兩個平台面對的是同一道算術,而若不處理,它們的答案不同:
     /// `PopupWindow.showAsDropDown` 會把放不下的 popup **移到**錨點的另一側、保持它完整,
     /// 而 UIKit 會把 popover **縮**進被允許方向所擁有的空間裡。P50 顯示了那要付出什麼代價
     /// ——面板出現在按鈕下方,而 `press me` 與 `close this panel` 被下緣切掉了:那個 popover 存在、
@@ -238,16 +232,14 @@ public final class CustomPopover: UIViewController, UIPopoverPresentationControl
         dismiss(animated: true)
     }
 
-    /// **Stays a popover on a phone, and until 2026-09-17 it did not.**
+    /// **Stays a popover on a phone.**
     ///
     /// UIKit adapts a popover to a sheet in a horizontally compact size class
     /// unless the delegate says otherwise, and on an iPhone that is every
-    /// popover. Measured with P50 that day: the panel filled the screen from
-    /// the top, anchored to nothing --
-    /// `p50-ios-final-20260917-161038.png`. Both of P50's panels looked
-    /// identical, so its own assertion -- "each panel must land NEXT TO THE
-    /// BUTTON THAT OPENED IT" -- had nothing to land on, and #109's edge
-    /// preference had no side to take.
+    /// popover. Adapted, P50's panel filled the screen from the top, anchored
+    /// to nothing, and both of its panels looked identical, so its own
+    /// assertion -- "each panel must land NEXT TO THE BUTTON THAT OPENED IT" --
+    /// had nothing to land on, and #109's edge preference had no side to take.
     ///
     /// `.none` is the documented way to refuse the adaptation, and it is what
     /// this backend's contract already promised: ``BackendFeatures/Popovers``
@@ -255,11 +247,11 @@ public final class CustomPopover: UIViewController, UIPopoverPresentationControl
     /// sheet, and a backend that quietly hands back a sheet is not implementing
     /// the protocol it conforms to.
     ///
-    /// **在手機上維持為 popover,而在 2026-09-17 之前它並沒有。**
+    /// **在手機上維持為 popover。**
     ///
     /// 在水平方向為 compact 的 size class 下,UIKit 會把 popover 調整成 sheet——除非 delegate 另有
-    /// 交代——而在 iPhone 上那就是每一個 popover。當天以 P50 實測:那塊面板從畫面頂端整片蓋下來、
-    /// 沒有錨定在任何東西上(`p50-ios-final-20260917-161038.png`)。P50 的兩塊面板看起來一模一樣,
+    /// 交代——而在 iPhone 上那就是每一個 popover。被調整後,P50 的面板從畫面頂端整片蓋下來、
+    /// 沒有錨定在任何東西上,兩塊面板看起來一模一樣,
     /// 於是它自己的斷言——「每塊面板都必須落在**開啟它的那顆按鈕旁邊**」——沒有東西可落;而 #109 的
     /// 邊偏好也沒有側邊可選。
     ///
@@ -275,27 +267,19 @@ public final class CustomPopover: UIViewController, UIPopoverPresentationControl
 
     // Both paths report, and the programmatic one is NOT suppressed.
     //
-    // It was, until 2026-09-08. The reasoning was that a caller who set
-    // `isPresented = false` already knows the popover is going away, so telling
-    // it again is noise -- which is wrong for the same reason SwiftUI's
-    // `onDismiss` fires either way: the closure is where the caller cleans up
-    // after the presentation, and whether the user tapped outside or the code
-    // asked has nothing to do with whether that cleanup is needed.
+    // A caller who set `isPresented = false` already knows the popover is
+    // going away, but `onDismiss` fires either way, as in SwiftUI: the closure
+    // is where the caller cleans up after the presentation, and whether the
+    // user tapped outside or the code asked has nothing to do with whether
+    // that cleanup is needed. AppKit, GtkBackend and WinUIBackend report both
+    // paths too.
     //
-    // Suppressing it also made this backend the odd one out. AppKit never
-    // suppressed, and the Windows side removed the equivalent flags from GTK
-    // and WinUI in the same decision; this was the last of the five still
-    // holding one, and it was mine.
+    // 兩條路徑都會回報,而程式化關閉的那一條**不被抑制**。
     //
-    // 兩條路徑都會回報,而程式化關閉的那一條**不再被抑制**。
-    //
-    // 它原本是被抑制的,直到 2026-09-08。當時的理由是:設定 `isPresented = false` 的呼叫端已經知道
-    // popover 要消失了,再告訴它一次只是雜訊——而那是錯的,理由與 SwiftUI 的 `onDismiss` 兩種情況
-    // 都會觸發相同:那個 closure 是呼叫端在呈現結束後做清理的地方,而「是使用者點了外面」還是
-    // 「程式碼要求的」,與那份清理需不需要做完全無關。
-    //
-    // 抑制它也讓本 backend 成為五個之中的異類。AppKit 從來沒有抑制過,而 Windows 端在同一項決定中
-    // 移除了 GTK 與 WinUI 的對應旗標;這是五個裡最後一個還壓著的,而它是我寫的。
+    // 設定 `isPresented = false` 的呼叫端已經知道 popover 要消失了,但 `onDismiss` 兩種情況都會
+    // 觸發,與 SwiftUI 相同:那個 closure 是呼叫端在呈現結束後做清理的地方,而「是使用者點了外面」
+    // 還是「程式碼要求的」,與那份清理需不需要做完全無關。AppKit、GtkBackend 與 WinUIBackend
+    // 也都回報兩條路徑。
     public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         onDismiss?()

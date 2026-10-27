@@ -72,38 +72,25 @@ public struct WidgetSnapshot: Equatable, Sendable {
 
     /// Encodes the snapshot as a PNG.
     ///
-    /// **This was eighty hand-written lines until 2026-09-19, and the argument
-    /// for them did not survive being checked.** The note here used to say that
-    /// writing the deflate stream as stored blocks avoided "a zlib dependency
-    /// that five backends would each have to resolve". PNG does require a zlib
-    /// STREAM -- the format defines IDAT that way -- but not the zlib LIBRARY,
-    /// because stored blocks are valid deflate. That part was right. What was
-    /// wrong was the premise: `SwiftCrossUI` already depends on `ImageFormats`
-    /// unconditionally, for every platform and every build, and `ImageFormats`
-    /// already links libpng and zlib. The dependency being avoided was already
-    /// present, so the whole trade was paying file size for nothing -- and the
-    /// size it was paying was not the "about 4x" the old note guessed either.
-    /// Measured on P72's snapshot, 2026-09-19: 326,728 bytes stored against
-    /// 1,416 through libpng, a factor of 231. A flat-shaded cube is nearly all
-    /// runs of one colour, which is the case deflate is best at.
-    ///
-    /// The hand-written encoder did produce valid files -- python's `zlib` and
-    /// `sips` both read one. It was correct and pointless, which is a harder
-    /// thing to notice than a defect.
+    /// **Through `ImageFormats`' libpng and zlib, not a hand-written encoder.**
+    /// PNG requires a zlib STREAM -- the format defines IDAT that way -- but not
+    /// the zlib LIBRARY, because stored blocks are valid deflate, so writing the
+    /// stream by hand looks like it avoids a dependency. It does not:
+    /// `SwiftCrossUI` already depends on `ImageFormats` unconditionally, for
+    /// every platform and every build, and `ImageFormats` already links libpng
+    /// and zlib. A hand-written encoder would pay file size for nothing.
+    /// Measured on P72's snapshot: 326,728 bytes stored against 1,416 through
+    /// libpng, a factor of 231. A flat-shaded cube is nearly all runs of one
+    /// colour, which is the case deflate is best at.
     ///
     /// 把這張快照編碼成 PNG。
     ///
-    /// **在 2026-09-19 之前,這裡是八十行手寫的程式,而支持它們的那個論證經不起查證。** 此處的註解原本
-    /// 寫著:把 deflate 串流寫成 stored block,可以避開「一個五個 backend 各自都要解決的 zlib 相依」。
-    /// PNG 確實需要一個 zlib **串流**(格式就是這樣定義 IDAT 的),但不需要 zlib **函式庫**——因為
-    /// stored block 本來就是合法的 deflate。那一半是對的。錯的是前提:`SwiftCrossUI` 本來就**無條件**
-    /// 相依 `ImageFormats`(每個平台、每種建置都一樣),而 `ImageFormats` 本來就連結了 libpng 與 zlib。
-    /// 那個被「避開」的相依,原本就已經在了;於是整個取捨等於白白付出檔案大小——而且付出的量,也不是舊註解
-    /// 所猜的「大約四倍」。2026-09-19 以 P72 的快照實測:stored 是 326,728 位元組,經 libpng 是 1,416,
-    /// 相差 231 倍。一個平面著色的立方體幾乎全是同色的連續段,而那正是 deflate 最擅長的情況。
-    ///
-    /// 那個手寫的編碼器確實產生得出合法檔案——python 的 `zlib` 與 `sips` 都讀得進去。它是**正確而無用的**,
-    /// 而那比一個缺陷更難被察覺。
+    /// **經由 `ImageFormats` 的 libpng 與 zlib 編碼,而不是手寫。** PNG 需要一個 zlib **串流**(格式就是
+    /// 這樣定義 IDAT 的),但不需要 zlib **函式庫**——stored block 本來就是合法的 deflate,因此手寫編碼器
+    /// 看似能避開一個相依。但 `SwiftCrossUI` 本來就**無條件**相依 `ImageFormats`(每個平台、每種建置
+    /// 都一樣),而 `ImageFormats` 本來就連結了 libpng 與 zlib,所以手寫編碼器避不開任何相依,只會白白付出
+    /// 檔案大小。以 P72 的快照實測:stored 是 326,728 位元組,經 libpng 是 1,416,相差 231 倍。一個平面
+    /// 著色的立方體幾乎全是同色的連續段,而那正是 deflate 最擅長的情況。
     public func pngData() throws -> Data {
         let image = ImageFormats.Image<RGBA>(
             width: width,

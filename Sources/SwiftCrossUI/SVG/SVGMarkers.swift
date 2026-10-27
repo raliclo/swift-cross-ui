@@ -1,11 +1,11 @@
 import Foundation
 
-// `marker-start`, `marker-mid` and `marker-end` (2026-10-10), built into
+// `marker-start`, `marker-mid` and `marker-end`, built into
 // ordinary nodes: each marker's content is built once per vertex in that
 // vertex's coordinate system and drawn after the shape's fill and stroke, as
 // SVG's paint order has it, inside the shape's opacity, clip and mask.
 //
-// `marker-start`、`marker-mid` 與 `marker-end`(2026-10-10),建構成一般節點：每個標記的內容在每個頂點的
+// `marker-start`、`marker-mid` 與 `marker-end`,建構成一般節點：每個標記的內容在每個頂點的
 // 座標系中各建構一次，並依 SVG 的繪製順序畫在形狀的填色與描邊之後，位於形狀的不透明度、裁切與遮罩之內。
 
 extension SVGBuilder {

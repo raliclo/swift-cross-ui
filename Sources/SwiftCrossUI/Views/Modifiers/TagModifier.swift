@@ -103,7 +103,7 @@ public struct _TaggedView<Content: View>: View {
     /// a debug description on screen where a caller expected a picture, which is
     /// worse than the option being absent. `Button._asMenuItems` reaches the
     /// same wall from the other side and leaves the same kind of note
-    /// (Views/Button.swift:421).
+    /// (Views/Button.swift).
     ///
     /// Two shapes are unwrapped because `@ViewBuilder` wraps a lone view: a bare
     /// `Text` and a `TupleView1<Text>`. Anything else is the unsupported case.
@@ -113,7 +113,7 @@ public struct _TaggedView<Content: View>: View {
     /// **非文字的內容什麼都不貢獻,而且會說出來。** 各 backend 收的是 `[String]`,因此
     /// `Image().tag(x)` 沒有任何可以變成的表示形式——而改為回傳該 tag 的 `String(describing:)`
     /// 會在呼叫端期待一張圖的位置放上一段除錯描述,那**比該選項不存在更糟**。
-    /// `Button._asMenuItems` 從另一側撞上同一面牆,並留下同一類註記(Views/Button.swift:421)。
+    /// `Button._asMenuItems` 從另一側撞上同一面牆,並留下同一類註記(Views/Button.swift)。
     ///
     /// 此處解開兩種形狀,因為 `@ViewBuilder` 會包裝單一 view:裸的 `Text`,以及
     /// `TupleView1<Text>`。其餘都是不支援的情況。

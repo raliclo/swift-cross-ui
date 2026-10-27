@@ -1,4 +1,4 @@
 /// An alias for ``SegmentedPickerStyle``, provided for SwiftUI compatibility.
 ///
-/// Only supported by UIKitBackend, AppKitBackend and GtkBackend.
+/// Supported by all five shipped backends (GtkBackend, WinUIBackend, AppKitBackend, UIKitBackend, AndroidBackend).
 public typealias PalettePickerStyle = SegmentedPickerStyle

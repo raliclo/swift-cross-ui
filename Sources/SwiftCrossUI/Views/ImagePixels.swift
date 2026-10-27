@@ -1,20 +1,22 @@
 /// Pixel conversions shared by backends.
 ///
-/// Written 2026-10-09 when SVG rasterisation made translucent pixels common.
 /// AppKit (`CGImageAlphaInfo.premultipliedLast`), UIKit (`CIImage` `.RGBA8`),
 /// Android (`Bitmap.copyPixelsFromBuffer`) and WinUI (`WriteableBitmap`) all
-/// read their pixels as premultiplied, and all four were handed the straight
-/// bytes `ImageFormats` decodes. GTK (`GdkPixbuf`) reads straight alpha. So a
-/// half-transparent pixel was composited correctly on GTK (by its contract, and
-/// was measured on macOS, GTK 4.24.1, 2026-10-09: GtkImageAlphaTests) and too bright on the others -- measured on AppKit: straight (200, 0, 0, 128) drawn over
-/// white gave (255, 127, 127), where (227, 127, 127) is correct; CIImage (`.RGBA8`,
-/// tried on macOS) gave the same. Android's copyPixelsFromBuffer is documented to
+/// read their pixels as premultiplied, while `ImageFormats` decodes straight
+/// bytes. GTK (`GdkPixbuf`) reads straight alpha (by its contract, and measured
+/// on macOS with GTK 4.24.1: GtkImageAlphaTests). Handed straight bytes, the
+/// four premultiplied readers draw a half-transparent pixel too bright --
+/// measured on AppKit: straight (200, 0, 0, 128) drawn over white gave
+/// (255, 127, 127), where (227, 127, 127) is correct; CIImage (`.RGBA8`, tried
+/// on macOS) gave the same. Android's copyPixelsFromBuffer is documented to
 /// copy unchanged into a premultiplied bitmap; it was not measured separately.
+/// Translucent pixels are common since SVG rasterisation.
 ///
-/// 各 backend 共用的像素轉換。2026-10-09 撰寫——SVG 點陣化讓半透明像素變得常見。AppKit、UIKit、
-/// Android 與 WinUI 都把像素當成預乘 alpha 讀取，而四者拿到的都是 `ImageFormats` 解碼出的未預乘
-/// 位元組；GTK(`GdkPixbuf`)讀的是未預乘(2026-10-09 於 macOS 的 GTK 4.24.1 實測，見 GtkImageAlphaTests)。於是半透明像素在其他四者上會偏亮——
+/// 各 backend 共用的像素轉換。AppKit、UIKit、Android 與 WinUI 都把像素當成預乘 alpha 讀取，而
+/// `ImageFormats` 解碼出的是未預乘位元組；GTK(`GdkPixbuf`)讀的是未預乘(依其規格，並於 macOS 的
+/// GTK 4.24.1 實測，見 GtkImageAlphaTests)。拿到未預乘位元組時，那四個以預乘讀取者會把半透明像素畫得偏亮——
 /// AppKit 實測：未預乘的 (200, 0, 0, 128) 畫在白色上得到 (255, 127, 127),正確值為 (227, 127, 127)。
+/// 自 SVG 點陣化之後，半透明像素變得常見。
 @_spi(Backends) public enum ImagePixels {
     /// Straight RGBA to premultiplied RGBA. Returns the input untouched when
     /// every pixel is opaque, which is the common case for photos.

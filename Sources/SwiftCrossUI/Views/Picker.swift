@@ -8,29 +8,27 @@ public struct Picker<Value: Equatable>: View {
     private var value: Binding<Value?>
     /// Text shown beside the control, or nil for a picker with no label.
     ///
-    /// Composed rather than given a backend protocol of its own, and unlike
-    /// ``Slider`` that is a real statement rather than a hopeful one: `Picker`
+    /// Composed rather than given a backend protocol of its own: `Picker`
     /// already has a `body`, so a label is an `HStack` around what it was
-    /// already returning. `Slider` is an `ElementaryView`, whose `Content` must
-    /// be `EmptyView`, and adding a label there means making the type generic
-    /// and demoting its leaf -- a different job that is still open under #126.
+    /// already returning. ``Slider`` was harder -- it was an `ElementaryView`,
+    /// whose `Content` must be `EmptyView` -- and had to be split into a
+    /// generic shell over `SliderControl` to get one.
     ///
     /// A DIVERGENCE WORTH NAMING: SwiftUI shows this label on macOS and uses it
-    /// only for accessibility on iOS. This shows it everywhere, because this
-    /// project has no accessibility layer at all (#123) and a label that is
-    /// invisible AND unreadable is a label that does nothing. When #123 lands,
-    /// revisit this rather than assuming it still reads correctly.
+    /// only for accessibility on iOS. This shows it everywhere. That was decided
+    /// before the accessibility modifiers (#123) existed, when a hidden label
+    /// would also have been unreadable and so would have done nothing; it has
+    /// not been revisited since.
     ///
     /// 顯示在控制項旁的文字;nil 表示不帶標籤的 picker。
     ///
-    /// 以組合實作而非另立 backend protocol,而**與 ``Slider`` 不同,這裡是一項有依據的陳述、而非
-    /// 一廂情願**:`Picker` 本來就有 `body`,因此標籤只是在它原本回傳的東西外面套一個 `HStack`。
-    /// `Slider` 是 `ElementaryView`,其 `Content` 必須為 `EmptyView`,在該處加標籤意味著把型別泛型化
-    /// 並降級它的葉節點——那是另一件事,仍在 #126 之下待辦。
+    /// 以組合實作而非另立 backend protocol:`Picker` 本來就有 `body`,因此標籤只是在它原本回傳的東西
+    /// 外面套一個 `HStack`。``Slider`` 則不同——它原本是 `ElementaryView`,其 `Content` 必須為
+    /// `EmptyView`——必須拆成一個泛型外殼包住 `SliderControl` 才能加上標籤。
     ///
     /// **一項值得指名的分歧**:SwiftUI 在 macOS 上顯示此標籤,而在 iOS 上僅供無障礙使用。此處在所有
-    /// 平台上都顯示它,因為本專案**完全沒有無障礙層**(#123),而一個既看不見、又讀不到的標籤,
-    /// 是一個什麼都不做的標籤。待 #123 落地時請重新檢視此處,不要假設它仍然成立。
+    /// 平台上都顯示它。這是在無障礙 modifier(#123)出現之前決定的——當時一個看不見的標籤也讀不到,
+    /// 等於什麼都不做——之後沒有重新檢視過。
     private var label: String?
     /// One display string per option, or nil when the options display
     /// themselves.
@@ -88,7 +86,7 @@ public struct Picker<Value: Equatable>: View {
     /// in place, which is what a non-optional selection means. Substituting
     /// `options.first` instead would silently move the user's selection on a
     /// transient clear, and WinUI's combo box is documented in
-    /// `WinUIBackend.createPicker` as briefly reporting -1 while it rebuilds its
+    /// `WinUIBackend` as briefly reporting -1 while it rebuilds its
     /// dropdown -- so that substitution would fire in practice, not in theory.
     ///
     /// 建立一個「選取值必定為選項之一」的 picker。
@@ -100,7 +98,7 @@ public struct Picker<Value: Equatable>: View {
     /// **寫回的 nil 會被忽略,而不是被替換。** 樣式層的 binding 是 `Binding<Value?>`,因此它有權
     /// 清除選取——而此處的呼叫端無處可放 nil。**丟棄它**會讓上一個真實選擇留在原地,那正是
     /// 「非 optional 的 selection」所代表的意思。改為代入 `options.first` 則會在一次短暫的清除中
-    /// **悄悄改動使用者的選擇**;而 WinUI 的 combo box 在 `WinUIBackend.createPicker` 中已載明
+    /// **悄悄改動使用者的選擇**;而 WinUI 的 combo box 在 `WinUIBackend` 中已載明
     /// 「重建下拉選單時會短暫回報 -1」——因此那種代入會在實務上觸發,不是理論上。
     public init(of options: [Value], selection value: Binding<Value>) {
         self.options = options

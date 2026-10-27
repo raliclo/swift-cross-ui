@@ -22,9 +22,9 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         // of their pre-transform frames. P40's own header says the overflow and the
         // overlap are the correct behaviour.
         //
-        // Nothing here relies on this clipping. `BackendFeatures.Clipping` is not
-        // implemented on Android at all, and `CornerRadiusContainer` clips with
-        // `canvas.clipPath` inside its own draw rather than through this flag.
+        // Nothing else relies on this default. `BackendFeatures.Clipping` turns
+        // `clipChildren` back on for the one container asked to clip, and
+        // `CornerRadiusContainer` clips with `canvas.clipPath` inside its own draw.
         //
         // Android 是這些 backend 之中唯一「預設會把子元件裁切到父元件範圍內」的。
         // `UIView.clipsToBounds` 為 false，`NSView` 不裁切，GTK 會畫到 allocation 之外；而
@@ -35,8 +35,8 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         // 53 像素；旋轉與傾斜的磚都止於 x 675，那正是它們變換前方框的右緣。P40 自己的表頭寫明，溢出
         // 與重疊才是正確的行為。
         //
-        // 此處沒有任何東西依賴這個裁切。`BackendFeatures.Clipping` 在 Android 上根本沒有實作，而
-        // `CornerRadiusContainer` 是在它自己的 draw 之中以 `canvas.clipPath` 裁切的，不經由這個旗標。
+        // 此處沒有其他東西依賴這個預設。`BackendFeatures.Clipping` 為被要求裁切的那一個容器重新開啟 `clipChildren`
+        // (AndroidBackend+Clipping.swift);`CornerRadiusContainer` 則在它自己的 draw 之中以 `canvas.clipPath` 裁切，不經由這個旗標。
         clipChildren = false
         clipToPadding = false
     }
@@ -357,19 +357,19 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
     // Checked here rather than in onLayout, because at layout time the value
     // this has to correct does not exist yet. A platform button gets its
     // elevation from the state-list animator, which runs when the view's
-    // drawable state is first set -- after layout, before the first draw. The
-    // first version of this fix ran in onLayout, saw every child at z=0, found
-    // nothing to correct and left the button on top; the tree dump afterwards
-    // still read `Button z=5.25 tz=0.0`, which is what a check that ran too
-    // early looks like.
+    // drawable state is first set -- after layout, before the first draw. Run
+    // in onLayout, the check sees every child at z=0, finds nothing to correct
+    // and leaves the button on top; a tree dump then still reads
+    // `Button z=5.25 tz=0.0`, which is what a check that runs too early looks
+    // like.
     //
     // Converges in one extra frame: the correcting pass invalidates, the next
     // pass finds the orders agree and changes nothing.
     //
     // 在此處檢查而非在 onLayout 中，因為在版面計算的時點，這個機制所要修正的那個值根本還不存在。
     // 平台按鈕的 elevation 來自 state-list animator，而它是在該 view 的 drawable state 首次被設定時
-    // 執行的——晚於版面、早於首次繪製。本修正的第一版是在 onLayout 中執行的，它看到的每個子元件都是
-    // z=0，因而認定沒有東西需要修正，於是按鈕依然在上面；事後的樹狀 dump 仍讀作
+    // 執行的——晚於版面、早於首次繪製。若在 onLayout 中執行，檢查看到的每個子元件都是
+    // z=0，因而認定沒有東西需要修正，於是按鈕依然在上面；此時的樹狀 dump 仍讀作
     // `Button z=5.25 tz=0.0`，而那正是「一個執行得太早的檢查」的模樣。
     //
     // 一個額外的影格即收斂：進行修正的那一輪會觸發 invalidate，而下一輪會發現兩種排序已一致，

@@ -168,16 +168,11 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
 
     // Degrades to the untransformed view rather than aborting the process.
     //
-    // Same change as ``VisualEffectModifier/asWidget(_:backend:)`` and for the
-    // same reason, but the argument for it is already written down elsewhere in
-    // this file's own subject area: the GTK section of todo.md concludes that
-    // declining to render a geometric effect beats rendering it wrongly,
-    // because "an untransformed view is legible and clickable". That reasoning
-    // applies with more force to a backend that has not implemented the feature
-    // at all -- there the alternative was not a wrong rendering but no process.
-    //
-    // Measured 2026-09-01: AppKitBackend does not implement this, so P40 aborted
-    // at launch with no window on macOS.
+    // All five shipped backends implement `GeometricEffects`; this branch is
+    // for the others (Curses, LVGL, Qt, Dummy). `@CastBackend` would expand to
+    // `fatalError` here, and a missing conformance has already cost a test app
+    // (P40) its window on macOS. An untransformed view is still legible and
+    // clickable, so declining to render the effect beats having no process.
     //
     // Unlike a compositing effect, a geometric one does change where a view's
     // pixels land, and therefore where it can be clicked. Degrading leaves the
@@ -187,12 +182,9 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
     //
     // 降級為未經變換的 view，而非中止行程。
     //
-    // 與 ``VisualEffectModifier/asWidget(_:backend:)`` 是相同的改動、相同的理由；但支持它的論證，
-    // 早已寫在本檔自身主題領域的別處：todo.md 的 GTK 一節結論是「寧可拒絕算繪幾何效果，也不要算繪
-    // 錯誤」，因為「未經變換的 view 是可讀且可點擊的」。這個推理對「完全未實作該功能的 backend」
-    // 更為適用——在那裡，替代方案並不是一個錯誤的算繪，而是根本沒有行程。
-    //
-    // 2026-09-01 量測：AppKitBackend 並未實作本項，因此 P40 在啟動時即中止，在 macOS 上沒有視窗。
+    // 五個已發布的 backend 都實作了 `GeometricEffects`;這一支是給其他 backend(Curses、LVGL、Qt、
+    // Dummy)的。`@CastBackend` 在此會展開為 `fatalError`,而一個缺失的 conformance 已經讓一支測試 app
+    // (P40)在 macOS 上沒有視窗。未經變換的 view 仍然可讀且可點擊，因此拒絕算繪該效果，好過根本沒有行程。
     //
     // 不同於合成效果，幾何效果確實會改變 view 的像素落在何處，因而也改變它能在何處被點擊。降級會讓
     // view 留在它的版面矩形上，而那正是 hit testing 本來就預期它所在的位置——因此降級的情況是自洽的，

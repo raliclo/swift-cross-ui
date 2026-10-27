@@ -20,27 +20,27 @@
     ///   NSApp.postEvent(_:atStart:)              delivered; NSButton fired,
     ///                                            NSTextField received the key
     ///
-    /// **Re-measured 2026-09-10 with the terminal TRUSTED, because the line above
-    /// was being read as "CGEvent does not work on macOS".** It does. With
+    /// **With the terminal TRUSTED, CGEvent does work**, so the zeros above are a
+    /// statement about the PERMISSION, not about the API. With
     /// `AXIsProcessTrusted() == true`, `CGEvent.post(tap: .cghidEventTap)` is
     /// delivered: an `NSButton` fired 23.8 ms after the post, and P28's own button
-    /// answered 16 ms after a cold post and 2.9-9.9 ms once warm. So the zero above
-    /// is a statement about the PERMISSION, not about the API, and the path P28
-    /// still needed -- a real event through the full queue -- is reachable from a
-    /// machine where somebody has clicked in System Settings. See
+    /// answered 16 ms after a cold post and 2.9-9.9 ms once warm. See
     /// `testapp/test_support/measure/real_mouse_latency.swift`.
     ///
-    /// None of that changes what this file does. The default has to work on a
-    /// machine where nobody has clicked anything.
+    /// The default still has to work on a machine where nobody has clicked
+    /// anything, so in-process posting stays the default. The HID tap is used
+    /// only where in-process events cannot reach -- open/save panels, GDK windows,
+    /// pinch and rotate, the `hover` verb -- and for wheel scrolls when the grant
+    /// is present; each of those says why where it does it.
     ///
-    /// **2026-09-10 在終端機**已被授權**的狀態下重新量測，因為上面那一行正被讀成「CGEvent 在 macOS
-    /// 上行不通」。** 它行得通。在 `AXIsProcessTrusted() == true` 之下，
-    /// `CGEvent.post(tap: .cghidEventTap)` 會送達：一顆 `NSButton` 在 post 後 23.8 毫秒觸發，而 P28
-    /// 自己的按鈕在冷啟後的第一次為 16 毫秒、預熱後為 2.9 至 9.9 毫秒。因此上面那個 0 講的是**權限**，
-    /// 不是那個 API；而 P28 仍然需要的那條路徑——一個走完整佇列的真實事件——在「有人到系統設定裡按過」
-    /// 的機器上是到得了的。見 `testapp/test_support/measure/real_mouse_latency.swift`。
+    /// **終端機**已被授權**時,CGEvent 是行得通的**,因此上面那些 0 講的是**權限**,不是那個 API。
+    /// 在 `AXIsProcessTrusted() == true` 之下,`CGEvent.post(tap: .cghidEventTap)` 會送達:一顆
+    /// `NSButton` 在 post 後 23.8 毫秒觸發,而 P28 自己的按鈕在冷啟後的第一次為 16 毫秒、預熱後為
+    /// 2.9 至 9.9 毫秒。見 `testapp/test_support/measure/real_mouse_latency.swift`。
     ///
-    /// 這一切都不改變本檔案的作為。預設路徑必須在「沒有人按過任何東西」的機器上也能運作。
+    /// 預設路徑仍必須在「沒有人按過任何東西」的機器上也能運作,因此行程內投遞維持為預設。HID tap 只用在
+    /// 行程內事件到不了的地方——open/save panel、GDK 視窗、pinch 與 rotate、`hover` 動作——以及有權限時
+    /// 的滾輪捲動;每一處都在使用它的地方說明理由。
     ///
     /// The first two fail *silently* -- no error, no diagnostic, an app that looks
     /// as though it ignored its input. That is the worst failure this module can
@@ -119,14 +119,14 @@
         ///
         /// While it is held, a `move` is a DRAG: a real mouse moved with a
         /// button down produces `.leftMouseDragged`, and a view's drag gesture
-        /// listens for that and ignores `.mouseMoved`. Until 2026-09-30 every
-        /// move was `.mouseMoved`, so P65's drag panel read "drag: (none yet)"
-        /// after a mousedown / move / mouseup that crossed it -- while P11's
-        /// slider still worked, because NSSlider runs its own tracking loop.
+        /// listens for that and ignores `.mouseMoved`. With every move posted as
+        /// `.mouseMoved`, P65's drag panel read "drag: (none yet)" after a
+        /// mousedown / move / mouseup that crossed it -- while P11's slider still
+        /// worked, because NSSlider runs its own tracking loop.
         ///
         /// `mousedown` 按下而尚未被 `mouseup` 放開的按鈕。按住期間,`move` 就是**拖曳**:真實滑鼠
         /// 按住按鈕移動時產生的是 `.leftMouseDragged`,而 view 的拖曳手勢聽的是它、忽略 `.mouseMoved`。
-        /// 2026-09-30 之前每一次 move 都是 `.mouseMoved`,所以 P65 的拖曳面板在一次橫越它的
+        /// 若每一次 move 都以 `.mouseMoved` 投遞,P65 的拖曳面板在一次橫越它的
         /// mousedown / move / mouseup 之後仍顯示「drag: (none yet)」——而 P11 的滑桿照樣能動,
         /// 因為 NSSlider 跑的是它自己的追蹤迴圈。
         private var heldButton: MouseButton?
@@ -149,8 +149,8 @@
         /// The input source a replay switched away from, by ID, so it can be put back.
         ///
         /// Key events are posted into this process and go through the user's
-        /// current input source. With an input method active -- Zhuyin, here,
-        /// since 2026-10-03 -- the method takes the keystrokes: P71's Cmd-S and
+        /// current input source. With an input method active -- Zhuyin, for
+        /// example -- the method takes the keystrokes: P71's Cmd-S and
         /// Cmd-Shift-E fired 0 times and P9 typed kana instead of "hi". An action
         /// file names keys, not what an input method composes from them, so a
         /// replay that sends keys runs on an ASCII keyboard layout and restores the
@@ -158,7 +158,7 @@
         /// change to the whole machine for as long as the replay lasts.
         ///
         /// 重放切換前的輸入法(以 ID 記錄),以便還原。按鍵事件投遞到本行程，會經過使用者目前的輸入法。
-        /// 輸入法啟用時(此處自 2026-10-03 起是注音),按鍵被它拿走:P71 的 Cmd-S 與 Cmd-Shift-E 觸發 0 次，
+        /// 輸入法啟用時(例如注音),按鍵被它拿走:P71 的 Cmd-S 與 Cmd-Shift-E 觸發 0 次，
         /// P9 打出假名而不是「hi」。動作檔指名的是按鍵，不是輸入法用按鍵組出的字，因此送按鍵的重放在
         /// ASCII 鍵盤佈局上執行，結束後還原使用者的輸入法。這次切換會回報，因為重放期間它改變的是整台機器。
         private var replacedInputSourceID: String?
@@ -401,6 +401,33 @@
             }
         }
 
+        /// The key window's number, or 0 when there is none.
+        ///
+        /// **The protocol default returns 0, which `replay` treats as "cannot
+        /// tell", so without this override the geometry would never be re-measured
+        /// on macOS** and the coordinates after a `focus` row would keep resolving
+        /// against the window measured before the replay began. Measured with P60:
+        /// the `focus` row succeeded, the replay reported all 8 actions, and the
+        /// `+1` inside the settings window was posted at a point in the MAIN
+        /// window's frame.
+        ///
+        /// `windowNumber` rather than an `ObjectIdentifier`: it is what AppKit
+        /// itself uses to identify a window across processes, it is stable while the
+        /// window lives, and it is already an `Int`.
+        ///
+        /// key window 的視窗編號，沒有 key window 時為 0。
+        ///
+        /// **協定的預設實作回傳 0，而 0 正是 `replay` 用來代表「無法判斷」的值——因此少了這個覆寫，macOS 上的
+        /// geometry 永遠不會被重新量測**，`focus` 列之後的座標仍會相對於「重放開始前所量測的那個視窗」解析。
+        /// 以 P60 實測:`focus` 那一列成功、重放回報 8 個動作全部完成，而設定視窗裡的 `+1`
+        /// 被投遞到了**主視窗**框中的某個點。
+        ///
+        /// 使用 `windowNumber` 而非 `ObjectIdentifier`：那是 AppKit 自己用來跨行程辨識視窗的東西，
+        /// 在視窗存活期間穩定，而且它本來就是 `Int`。
+        public func currentWindowIdentity() -> Int {
+            onMain { NSApp.keyWindow?.windowNumber ?? 0 }
+        }
+
         /// Raises the window whose title matches exactly.
         ///
         /// **Exact, and visible-only.** AppKit keeps closed windows around in
@@ -421,35 +448,7 @@
         ///
         /// 除了 `makeKeyAndOrderFront` 之外還呼叫 `activate()`：一個視窗可以在「本身並非最前景的應用程式」
         /// 之中成為 key window，而驅動一個背景應用程式的重放，點到的是空氣。
-        /// The key window's number, or 0 when there is none.
         ///
-        /// **The default returns 0, and 0 is the value `replay` treats as "cannot
-        /// tell" -- so without this override the geometry was never re-measured on
-        /// macOS.** That did not matter while every file drove one window. It
-        /// matters the moment `focus` exists: focus moved, and the coordinates after
-        /// it kept resolving against the window that had been measured before the
-        /// replay began. Measured 2026-09-09 with P60 -- the `focus` row succeeded,
-        /// the replay reported all 8 actions, and the `+1` inside the settings
-        /// window was posted at a point in the MAIN window's frame.
-        ///
-        /// `windowNumber` rather than an `ObjectIdentifier`: it is what AppKit
-        /// itself uses to identify a window across processes, it is stable while the
-        /// window lives, and it is already an `Int`.
-        ///
-        /// key window 的視窗編號，沒有 key window 時為 0。
-        ///
-        /// **預設實作回傳 0，而 0 正是 `replay` 用來代表「無法判斷」的值——因此少了這個覆寫，macOS 上的
-        /// geometry 從來不會被重新量測。** 在「每個檔案只驅動一個視窗」的年代這不重要；而 `focus` 一旦
-        /// 存在就重要了：焦點移動了，而其後的座標仍然相對於「重放開始前所量測的那個視窗」解析。
-        /// 2026-09-09 以 P60 實測——`focus` 那一列成功、重放回報 8 個動作全部完成，而設定視窗裡的 `+1`
-        /// 被投遞到了**主視窗**框中的某個點。
-        ///
-        /// 使用 `windowNumber` 而非 `ObjectIdentifier`：那是 AppKit 自己用來跨行程辨識視窗的東西，
-        /// 在視窗存活期間穩定，而且它本來就是 `Int`。
-        public func currentWindowIdentity() -> Int {
-            onMain { NSApp.keyWindow?.windowNumber ?? 0 }
-        }
-
         /// Not `@MainActor` on the method, `onMain` inside it -- the same shape every
         /// other AppKit call in this file uses. Marking the method itself is what the
         /// compiler rejects: *"conformance of 'AppKitSynthesiser' to protocol
@@ -472,21 +471,6 @@
             }
         }
 
-        /// AppKit screen coordinates put `0,0` at the bottom-left of the primary
-        /// screen and grow upwards; ``WindowGeometry`` is written top-left-origin,
-        /// downwards, like the other two platforms. This is the only place the two
-        /// meet.
-        ///
-        /// The reference edge is the primary screen's top, and it cancels: geometry
-        /// is measured against it here and unwound against it in ``windowPoint``,
-        /// so a wrong reference would still land on the right control. It is named
-        /// correctly anyway, because a caller may supply its own geometry.
-        ///
-        /// AppKit 的螢幕座標以主螢幕左下角為 `0,0` 且向上增長；``WindowGeometry`` 則如同另外兩個平台，
-        /// 以左上角為原點、向下增長。此處是兩者唯一交會之處。
-        ///
-        /// 參考邊為主螢幕頂端，而它會相互抵消：幾何資訊在此依它量測，並在 ``windowPoint`` 中依它還原，
-        /// 因此即使參考取錯，仍會落在正確的控制項上。儘管如此仍取正確的值，因為呼叫端可能自行提供幾何。
         /// A view's rect in **absolute** screen coordinates: top-left origin,
         /// points, measured from the primary screen's top.
         ///
@@ -498,13 +482,6 @@
         ///     let geometry = try AppKitSynthesiser().currentWindowGeometry()
         ///     let x = rect.x - geometry.clientOrigin.x      // for origin=client
         ///     let y = rect.y - geometry.clientOrigin.y
-        ///
-        /// The first version of this sentence said "the space an action file's
-        /// coordinates are written in", which a reader took to mean the numbers were
-        /// ready to use -- a fair reading, and the two things are one subtraction
-        /// apart. This whole exchange began with two quantities that were both
-        /// called coordinates and differed by an origin, so the doc now says which
-        /// one this is and shows the subtraction rather than describing it.
         ///
         /// **Take both values from the same pair of calls.** Both this and
         /// ``currentWindowGeometry`` flip against `NSScreen.screens.first`, so that
@@ -523,10 +500,6 @@
         /// `origin=client` 的,因此呼叫端要減去 ``currentWindowGeometry`` 中對應的那個原點(見上方
         /// 範例)。
         ///
-        /// 本句的第一版寫的是「動作檔座標所在的那個空間」,而一位讀者把它理解成「這些數字可以直接使用」
-        /// ——那是合理的讀法,而兩者之間只差一次相減。這整段往返的起點,正是兩個都被稱為座標、卻差一個
-        /// 原點的量;因此文件現在會說明「這是哪一個」,並把那次相減寫出來,而不是用描述的。
-        ///
         /// **兩個值要取自同一對呼叫。** 本函式與 ``currentWindowGeometry`` 都以
         /// `NSScreen.screens.first` 為翻轉基準,因此該基準會在相減中互相抵消;但它不會與「以其他方式
         /// 取得的視窗位置」互相抵消,而混用兩個來源所造成的差異,是任何算術都看不出來的。
@@ -535,28 +508,20 @@
         /// `origin=client` 的 `(65,451)`——即該矩形減去那個原點、再加上尺寸的一半——命中它,而 app 的
         /// `selection` 讀到 2。
         ///
-        /// Public because a
-        /// diagnostic dump that computes this itself will drift from the space the
-        /// replay actually uses, and then the two disagree without either being
-        /// obviously wrong.
-        ///
-        /// That is not hypothetical. A peer's dump reported a control at
-        /// `190,290 338x27` while the replay resolved the same control at
-        /// `24,279 332x20` -- an origin off by 166 points and a size off by six --
-        /// and reconciling the two by scanning the control's edges produced a
+        /// Public because a diagnostic dump that computes this itself will drift
+        /// from the space the replay actually uses, and then the two disagree
+        /// without either being obviously wrong. That has happened: a dump reported
+        /// a control at `190,290 338x27` while the replay resolved the same control
+        /// at `24,279 332x20` -- an origin off by 166 points and a size off by six
+        /// -- and reconciling the two by scanning the control's edges produced a
         /// confident, wrong rule about where controls respond. One function that
         /// both sides call cannot disagree with itself.
         ///
-        /// 一個 view 的矩形,以「動作檔座標所使用的那個空間」表示。
-        ///
-        /// 左上為原點、單位為點、自主螢幕頂端量起——與 ``currentWindowGeometry`` 所回報的是同一個空間,
-        /// 因此也就是 `origin=frame` 與 `origin=client` 所相對的那一個。設為 public,是因為一份自行
-        /// 計算此值的診斷傾印會與「重放實際使用的空間」漂移開來,屆時兩者互相矛盾,而任一方看起來都不
-        /// 明顯是錯的。
-        ///
-        /// 這並非假設。某位同事的傾印把一個控制項回報為 `190,290 338x27`,而重放把同一個控制項解析在
-        /// `24,279 332x20`——原點差了 166 點、尺寸差了六點——而以掃描控制項邊緣的方式去調和兩者,產生了
-        /// 一條自信而錯誤的「控制項在哪裡會回應」的規則。一個由雙方共同呼叫的函式,不可能與自己矛盾。
+        /// 設為 public,是因為一份自行計算此值的診斷傾印會與「重放實際使用的空間」漂移開來,屆時兩者互相
+        /// 矛盾,而任一方看起來都不明顯是錯的。這確實發生過:一份傾印把一個控制項回報為 `190,290 338x27`,
+        /// 而重放把同一個控制項解析在 `24,279 332x20`——原點差了 166 點、尺寸差了六點——而以掃描控制項
+        /// 邊緣的方式去調和兩者,產生了一條自信而錯誤的「控制項在哪裡會回應」的規則。一個由雙方共同呼叫的
+        /// 函式,不可能與自己矛盾。
         @MainActor
         public static func actionFileRect(of view: NSView)
             -> (x: Double, y: Double, width: Double, height: Double)
@@ -570,6 +535,21 @@
             return (corner.x, corner.y, Double(onScreen.width), Double(onScreen.height))
         }
 
+        /// AppKit screen coordinates put `0,0` at the bottom-left of the primary
+        /// screen and grow upwards; ``WindowGeometry`` is written top-left-origin,
+        /// downwards, like the other two platforms. This is the only place the two
+        /// meet.
+        ///
+        /// The reference edge is the primary screen's top, and it cancels: geometry
+        /// is measured against it here and unwound against it in ``windowPoint``,
+        /// so a wrong reference would still land on the right control. It is named
+        /// correctly anyway, because a caller may supply its own geometry.
+        ///
+        /// AppKit 的螢幕座標以主螢幕左下角為 `0,0` 且向上增長；``WindowGeometry`` 則如同另外兩個平台，
+        /// 以左上角為原點、向下增長。此處是兩者唯一交會之處。
+        ///
+        /// 參考邊為主螢幕頂端，而它會相互抵消：幾何資訊在此依它量測，並在 ``windowPoint`` 中依它還原，
+        /// 因此即使參考取錯，仍會落在正確的控制項上。儘管如此仍取正確的值，因為呼叫端可能自行提供幾何。
         @MainActor
         private static func topLeft(of rect: NSRect) -> (x: Double, y: Double) {
             (x: Double(rect.minX), y: Double(primaryScreenTop() - rect.maxY))
@@ -589,24 +569,19 @@
         /// 動作檔中的座標，轉換為 `NSEvent` 所需的視窗座標。在本檔存在之前已對一個雙按鈕視窗驗證：
         /// content view 高 200pt 時，client `(150, 40)` 解析為視窗座標 `(150, 160)` 並命中上方按鈕，
         /// client `(150, 160)` 解析為 `(150, 40)` 並命中下方按鈕。
-        /// `throws`, because `screenPosition(of:)` does.
+        /// `throws`, because `screenPosition(of:)` does. A coordinate that cannot be
+        /// resolved must stop the replay, not silently click at the last known
+        /// point.
         ///
-        /// **This did not compile on macOS and did compile everywhere it was
-        /// written.** `AppKitSynthesiser.swift` is macOS-only, so a `try` added
-        /// inside a non-throwing function here is invisible on the Windows side --
-        /// the file is never handed to the compiler there. Found 2026-09-09 by the
-        /// first `Scripts/test.zsh` run on a Mac after the merge, with
-        /// "errors thrown from here are not handled". The fix propagates the throw
-        /// rather than swallowing it: a coordinate that cannot be resolved must
-        /// stop the replay, not silently click at the last known point.
+        /// This file is macOS-only, so a compile error in it (such as a `try` in a
+        /// non-throwing function) is invisible to builds on other platforms; it
+        /// shows only on a Mac.
         ///
-        /// `throws`，因為 `screenPosition(of:)` 會 throw。
+        /// `throws`，因為 `screenPosition(of:)` 會 throw。一個無法解析的座標必須讓重放停止，而不是
+        /// 靜靜地點在上一個已知位置。
         ///
-        /// **這在 macOS 上編不過，而在它被寫出來的地方編得過。** `AppKitSynthesiser.swift` 僅限 macOS，
-        /// 因此「在一個不會 throw 的函式裡加上 `try`」這件事在 Windows 側看不見——那個檔案在那裡根本不會
-        /// 被交給編譯器。2026-09-09 由合併之後 Mac 上的第一次 `Scripts/test.zsh` 執行發現，訊息為
-        /// 「errors thrown from here are not handled」。此處的修法是把該 throw 往外傳，而不是把它吞掉：
-        /// 一個無法解析的座標必須讓重放停止，而不是靜靜地點在上一個已知位置。
+        /// 本檔僅限 macOS,因此其中的編譯錯誤(例如在不會 throw 的函式裡加上 `try`)在其他平台的建置中
+        /// 看不見，只會在 Mac 上出現。
         @MainActor
         private static func windowPoint(
             for point: Point,
@@ -666,19 +641,15 @@
                 }
 
                 // A popover is its OWN window, and an event addressed to the main
-                // one lands outside it.
+                // one lands outside it: the click goes to the window BEHIND the
+                // popover, which light-dismisses it. From outside, a dismissed popover
+                // and a click that missed are the same picture -- the popover is gone
+                // either way. So `origin=popover` rows are posted to the popover.
                 //
-                // This is what made `origin=popover` Windows-only here: the
-                // coordinates could be computed, and the click was then posted to
-                // the window BEHIND the popover, which light-dismisses it. From
-                // outside, a dismissed popover and a click that missed are the same
-                // picture -- the popover is gone either way.
-                //
-                // 一個 popover 是它**自己的**視窗，而一個投遞給主視窗的事件會落在它之外。
-                //
-                // 這正是 `origin=popover` 在此處過去僅限 Windows 的原因:座標算得出來，而那次點擊接著被
-                // 投遞給了 popover **後方**的視窗——那會把它 light-dismiss 掉。從外部看，「一個被關掉的
-                // popover」與「一次沒打中的點擊」是同一張圖:兩種情況下它都不見了。
+                // 一個 popover 是它**自己的**視窗，而一個投遞給主視窗的事件會落在它之外:那次點擊會
+                // 送到 popover **後方**的視窗——那會把它 light-dismiss 掉。從外部看，「一個被關掉的
+                // popover」與「一次沒打中的點擊」是同一張圖:兩種情況下它都不見了。因此 `origin=popover`
+                // 的列會投遞給 popover。
                 let followsPress: Bool
                 switch action {
                     case .mouseUp, .move: followsPress = self.heldButton != nil && self.pressedWindow?.isVisible == true
@@ -721,19 +692,16 @@
                         // A cursor is the one thing `BackendFeatures.Cursors` produces that no
                         // ordinary capture contains: `screencapture` omits the pointer unless
                         // given `-C`, and even with it the picture shows a shape without saying
-                        // whose it is. So the verb reads it back -- and reading it back is where
-                        // the difficulty turned out to be.
+                        // whose it is. So the verb reads it back.
                         //
-                        // **Fixed pauses do not work here, and four of them were tried.** The
-                        // tracking-area machinery that drives `cursorUpdate` runs from the WINDOW
-                        // SERVER's idea of the pointer, not from the synthetic event this posts,
-                        // so the round trip is asynchronous and competes with a test app running
-                        // a 60 Hz frame clock. On 2026-09-22 a 50 ms pump, a 250 ms pump, posting
-                        // the move twice with a pump between, and reading `currentSystem` instead
-                        // of `current` all left the reading one event late on some runs: three
-                        // runs of the same unchanged file gave (arrow, crosshair), (arrow, arrow)
-                        // and (crosshair, arrow). A pause long enough "on this machine today" is
-                        // the shape of a test that passes until it matters.
+                        // **Fixed pauses do not work here.** The tracking-area machinery that
+                        // drives `cursorUpdate` runs from the WINDOW SERVER's idea of the
+                        // pointer, not from the synthetic event this posts, so the round trip is
+                        // asynchronous and competes with a test app running a 60 Hz frame clock.
+                        // A 50 ms pump, a 250 ms pump, posting the move twice with a pump
+                        // between, and reading `currentSystem` instead of `current` all left the
+                        // reading one event late on some runs: three runs of the same unchanged
+                        // file gave (arrow, crosshair), (arrow, arrow) and (crosshair, arrow).
                         //
                         // So this waits for a SIGNAL rather than for a duration: the cursor
                         // before the warp is recorded, and the loop stops the moment the reading
@@ -744,23 +712,22 @@
                         // moves the pointer between two places with the same cursor legitimately
                         // sees no change, and so does a row whose move never arrived. They are
                         // indistinguishable from here, so the line says `unchanged after Nms` and
-                        // lets the reader decide. Silently printing the old value is what made
-                        // the earlier versions of this look like a confinement defect.
+                        // lets the reader decide. Silently printing the old value would look like
+                        // a confinement defect.
                         //
                         // **先 warp,然後等那個答案**改變**,再回報。**
                         //
                         // 游標是 `BackendFeatures.Cursors` 所產生、而任何一般擷圖都不含的那一樣東西:
                         // `screencapture` 除非加 `-C` 否則不含指標,而即使加了,那張圖也只顯示一個形狀、
-                        // 不說那是誰的。因此這個動作會把它讀回來——而困難之處正是在「讀回來」。
+                        // 不說那是誰的。因此這個動作會把它讀回來。
                         //
-                        // **固定的等待在此處行不通,而且試過四種。** 驅動 `cursorUpdate` 的 tracking area
+                        // **固定的等待在此處行不通。** 驅動 `cursorUpdate` 的 tracking area
                         // 機制,依據的是**視窗伺服器**對指標位置的認知,不是此處投遞的那個合成事件;
                         // 因此那趟往返是非同步的,而且要和一支跑著 60 Hz frame clock 的測試 app 競爭。
-                        // 2026-09-22 當天:50 毫秒的 pump、250 毫秒的 pump、把移動事件投遞兩次並在中間
+                        // 50 毫秒的 pump、250 毫秒的 pump、把移動事件投遞兩次並在中間
                         // pump、以及改讀 `currentSystem` 而非 `current`——四種都在某些執行中慢了一個事件:
                         // 同一份未經修改的檔案連跑三次,給出 (arrow, crosshair)、(arrow, arrow)、
-                        // (crosshair, arrow)。一個「在這台機器上今天夠長」的等待,正是那種
-                        // 「在它真正重要之前都會通過」的測試的形狀。
+                        // (crosshair, arrow)。
                         //
                         // 因此此處等的是一個**訊號**、不是一段**時間**:先記下 warp 之前的游標,
                         // 而迴圈在「讀到的值與它不同」的那一刻就停止。而那個改變只可能來自
@@ -769,28 +736,27 @@
                         // **而當它始終沒有改變時,那件事會被**回報**、不會被藏起來。** 一列「在兩個游標
                         // 相同的位置之間移動指標」的動作,本來就看不到改變;而一列「移動根本沒送達」的
                         // 動作也一樣。從此處看兩者無法區分,因此那一行會寫 `unchanged after Nms`,
-                        // 把判斷交給讀的人。靜默地印出舊值,正是本段早先幾個版本看起來像「侷限性缺陷」
-                        // 的原因。
-                        // **The window has to be KEY, and that is the whole of why the earlier
-                        // attempts were flaky.**
+                        // 把判斷交給讀的人。靜默地印出舊值,看起來會像「侷限性缺陷」。
+                        //
+                        // **The window has to be KEY.**
                         //
                         // `NSCursorTarget`'s tracking area is `.activeInKeyWindow` -- deliberately,
                         // because a background window should not repaint the pointer for an app
                         // the user is not in. The consequence for a replay is that if anything has
                         // taken key status (a Terminal, a simulator, the emulator window), AppKit
                         // sends NO `cursorUpdate` at all and the reading never changes. Measured
-                        // on 2026-09-23 with the change-detecting wait below: three runs gave one
-                        // row that changed and five that reported `unchanged after ~1860ms`,
-                        // which is not a slow answer -- it is no answer.
+                        // with the change-detecting wait below: three runs gave one row that
+                        // changed and five that reported `unchanged after ~1860ms`, which is not a
+                        // slow answer -- it is no answer.
                         //
                         // So this asks for key status before warping rather than assuming it.
                         //
-                        // **那個視窗必須是 KEY,而那正是先前幾次嘗試會飄的全部原因。**
+                        // **那個視窗必須是 KEY。**
                         //
                         // `NSCursorTarget` 的 tracking area 是 `.activeInKeyWindow`——這是刻意的,
                         // 因為一個背景視窗不該替「使用者並不在其中的 app」去改變指標樣子。它對重放的後果是:
                         // 只要有任何東西搶走了 key 狀態(終端機、模擬器、emulator 視窗),AppKit 就
-                        // **完全不會**送出 `cursorUpdate`,於是那個讀數永遠不會改變。2026-09-23 以下方的
+                        // **完全不會**送出 `cursorUpdate`,於是那個讀數永遠不會改變。以下方的
                         // 變化偵測等待實測:三次執行中,只有一列真的改變了,另外五列回報
                         // `unchanged after ~1860ms`——那不是一個慢的答案,那是**沒有答案**。
                         //
@@ -807,19 +773,16 @@
                         // the pointer to BE somewhere. This verb needs AppKit to notice it get
                         // there, and a warp is documented as moving the cursor WITHOUT generating
                         // an event -- so the tracking-area machinery, which runs off the window
-                        // server's event stream, sees nothing. `NSApp.postEvent` does not help
-                        // either: it hands an NSEvent to the application's own queue, below the
-                        // level where cursor rects and tracking areas are resolved.
+                        // server's event stream, sees nothing. With the warp, `cursorUpdate` was
+                        // never called between two hover rows although the tracking area existed
+                        // with the right bounds, the app was active, the window key, and
+                        // `NSEvent.mouseLocation` inside the target. `NSApp.postEvent` does not
+                        // help either: it hands an NSEvent to the application's own queue, below
+                        // the level where cursor rects and tracking areas are resolved.
                         //
-                        // **Necessary, and on its own not sufficient.** When this change was made
-                        // `cursorUpdate` still did not fire, because the event it posts then sat
-                        // in the queue until the wait below had finished -- the wait did not
-                        // dispatch events. With both, the reading is right; see the comment on
-                        // `dispatchEvents` and `actions/mac/P72-cursor.actions`.
-                        //
-                        // **必要,但單獨不充分。** 做這個改動時 `cursorUpdate` 仍然沒有觸發,因為它投遞的
-                        // 事件接著就排在佇列裡,直到下方的等待結束——那個等待不會分派事件。兩者都做了,
-                        // 讀數才是對的;見 `dispatchEvents` 上的註解與 `actions/mac/P72-cursor.actions`。
+                        // **Necessary, and on its own not sufficient**: the posted event also has
+                        // to be dispatched by the wait below. See the comment on `dispatchEvents`
+                        // and `actions/mac/P72-cursor.actions`.
                         //
                         // **經由 HID tap 的 CGEvent,不是 `CGWarpMouseCursorPosition`、也不是
                         // `NSApp.postEvent`;而這兩者都不是隨便挑的。**
@@ -827,14 +790,13 @@
                         // `move` 用的是 warp,而那對 `move` 是對的:那個動作只需要指標**位於**某處。
                         // 這個動作需要的是「AppKit 注意到它抵達了」,而 warp 的文件寫明它移動游標
                         // **而不產生事件**——於是那套「跑在視窗伺服器事件流之上」的 tracking area 機制
-                        // 什麼也看不到。`NSApp.postEvent` 也幫不上忙:它把一個 NSEvent 交給應用程式
+                        // 什麼也看不到。用 warp 時,兩列 hover 之間 `cursorUpdate` 一次都沒有被呼叫,即使
+                        // tracking area 存在且 bounds 正確、app 為 active、視窗是 key,而 `NSEvent.mouseLocation`
+                        // 也落在目標之內。`NSApp.postEvent` 也幫不上忙:它把一個 NSEvent 交給應用程式
                         // 自己的佇列,而那在「cursor rect 與 tracking area 被解析」的層級之下。
                         //
-                        // 2026-09-23 實測,而它是把其餘一切都排除之後才得到的。在用 warp 的情況下,
-                        // 兩列 hover 之間 `NSCursorTarget.cursorUpdate` **一次都沒有**被呼叫,
-                        // 而其餘每一個前提都成立:tracking area 存在且 bounds 正確 (0, 0, 340, 240)、
-                        // app 回報 `active=true`、視窗 `key=true`,而 `NSEvent.mouseLocation` 確認
-                        // 指標確實落在那個目標之內。萬事俱備,只差一個「說出這件事」的事件。
+                        // **必要,但單獨不充分**:投遞的事件還必須由下方的等待分派出去。見 `dispatchEvents`
+                        // 上的註解與 `actions/mac/P72-cursor.actions`。
                         do {
                             let screen = try geometry.screenPosition(of: point)
                             let move = CGEvent(
@@ -849,29 +811,28 @@
                             move?.post(tap: .cghidEventTap)
                         }
 
-                        // **Dispatch the events, do not just spin the run loop -- and this was
-                        // the defect behind every earlier version of this verb.**
+                        // **Dispatch the events, do not just spin the run loop.**
                         //
                         // This block runs inside `onMain`, so while it waits the main thread is
                         // HERE and not in `NSApplication.run`. `RunLoop.run(until:)` services
                         // timers and sources; it does not take the mouse-moved event off the
                         // queue and hand it to `sendEvent`, and it is `sendEvent` that routes it
-                        // to the tracking area and so to `cursorUpdate`. The move sat queued
-                        // until this action returned and the next `sleep` row freed the main
-                        // thread, so every reading reported the PREVIOUS row's cursor. Measured
-                        // 2026-09-27: `cursorUpdate ... -> set` in the log, a crosshair in a
-                        // `screencapture -C` of the mesh view and an arrow over the label above
-                        // it -- and the readings (arrow, crosshair), one row late.
+                        // to the tracking area and so to `cursorUpdate`. Spinning the run loop
+                        // leaves the move queued until this action returns and the next `sleep`
+                        // row frees the main thread, so every reading reports the PREVIOUS
+                        // row's cursor. Measured: `cursorUpdate ... -> set` in the log, a
+                        // crosshair in a `screencapture -C` of the mesh view and an arrow over
+                        // the label above it -- and the readings (arrow, crosshair), one row late.
                         //
-                        // **把事件分派出去,不要只轉 run loop——而這正是這個動作先前每一個版本背後的缺陷。**
+                        // **把事件分派出去,不要只轉 run loop。**
                         //
                         // 本段跑在 `onMain` 裡,因此等待期間主執行緒在**這裡**、不在 `NSApplication.run`。
                         // `RunLoop.run(until:)` 處理 timer 與 source;它不會把 mouse-moved 事件從佇列取出、
                         // 交給 `sendEvent`,而正是 `sendEvent` 把它送到 tracking area、進而送到 `cursorUpdate`。
-                        // 那次移動一直排在佇列裡,直到這個動作回傳、下一列 `sleep` 把主執行緒放開為止,
-                        // 因此每一個讀數回報的都是**上一列**的游標。2026-09-27 實測:log 裡有
-                        // `cursorUpdate ... -> set`、`screencapture -C` 在 mesh view 上拍到十字、在它上方的
-                        // 標籤上拍到箭頭——而讀數是 (arrow, crosshair),晚了一列。
+                        // 只轉 run loop 時,那次移動會一直排在佇列裡,直到這個動作回傳、下一列 `sleep` 把主執行緒放開為止,
+                        // 因此每一個讀數回報的都是**上一列**的游標。實測:log 裡有 `cursorUpdate ... -> set`、
+                        // `screencapture -C` 在 mesh view 上拍到十字、在它上方的標籤上拍到箭頭——而讀數是
+                        // (arrow, crosshair),晚了一列。
                         @MainActor func dispatchEvents(for seconds: Double) {
                             let until = Date().addingTimeInterval(seconds)
                             while let event = NSApp.nextEvent(
@@ -917,41 +878,33 @@
                         )
 
                     case .move(let point):
-                        // **The PHYSICAL pointer is moved too, and until
-                        // 2026-09-20 it was not.** `NSApp.postEvent` delivers a
-                        // synthetic mouse-moved event to this application; the
-                        // cursor on screen does not follow it. Everything driven
-                        // by the event stream worked -- hit testing, hover, drag
-                        // -- so nothing complained for months. What does not work
-                        // is anything that reads the REAL pointer: the cursor
-                        // shape (`.cursor(_:)` and `NSTrackingArea.cursorUpdate`),
-                        // `NSEvent.mouseLocation`, and any `screencapture -C`,
-                        // which draws the pointer where the mouse physically is.
+                        // **The PHYSICAL pointer is moved too.** `NSApp.postEvent`
+                        // delivers a synthetic mouse-moved event to this application;
+                        // the cursor on screen does not follow it. Everything driven
+                        // by the event stream works without the warp -- hit testing,
+                        // hover, drag -- but anything that reads the REAL pointer does
+                        // not: the cursor shape (`.cursor(_:)` and
+                        // `NSTrackingArea.cursorUpdate`), `NSEvent.mouseLocation`, and
+                        // any `screencapture -C`, which draws the pointer where the
+                        // mouse physically is. The README says the verb is "move the
+                        // pointer", and this makes it so.
                         //
-                        // This module's own README says the verb is "move the
-                        // pointer". It now does.
+                        // `.click` deliberately does not warp, even though the README
+                        // says it "moves first if a position is given": every verified
+                        // action file in this tree was measured with clicks that left
+                        // the pointer alone, and moving it could put the real cursor
+                        // over something that reacts to hover. Changing that needs its
+                        // own re-verification.
                         //
-                        // `.click` deliberately still does not warp, even though
-                        // the README says it "moves first if a position is
-                        // given": every verified action file in this tree was
-                        // measured with clicks that left the pointer alone, and
-                        // moving it could put the real cursor over something that
-                        // reacts to hover. That is a separate change with its own
-                        // re-verification, not a free rider on this one.
+                        // **實體指標也會被移動。** `NSApp.postEvent` 送出的是一個給「本應用程式」的合成
+                        // mouse-moved 事件;螢幕上的游標不會跟著走。凡是由事件流驅動的東西不靠 warp 也能運作
+                        // ——hit testing、hover、拖曳——但「讀取**真實**指標」的那些東西不行:游標形狀(`.cursor(_:)` 與
+                        // `NSTrackingArea.cursorUpdate`)、`NSEvent.mouseLocation`,以及任何 `screencapture -C`
+                        // ——它畫的是滑鼠實體所在之處。README 寫著這個動作是「移動指標」,而這讓它名副其實。
                         //
-                        // **實體指標也會被移動了,而在 2026-09-20 之前並不會。** `NSApp.postEvent` 送出的是
-                        // 一個給「本應用程式」的合成 mouse-moved 事件;螢幕上的游標不會跟著走。凡是由事件流
-                        // 驅動的東西都能運作——hit testing、hover、拖曳——所以幾個月來沒有任何東西抗議。
-                        // 不能運作的是「讀取**真實**指標」的那些東西:游標形狀(`.cursor(_:)` 與
-                        // `NSTrackingArea.cursorUpdate`)、`NSEvent.mouseLocation`,以及任何
-                        // `screencapture -C`——它畫的是滑鼠實體所在之處。
-                        //
-                        // 本模組自己的 README 寫著這個動作是「移動指標」。現在它真的會。
-                        //
-                        // `.click` **刻意**仍然不 warp,即使 README 說它「若帶位置則先移動」:這棵樹裡每一份
+                        // `.click` **刻意**不 warp,即使 README 說它「若帶位置則先移動」:這棵樹裡每一份
                         // 已驗證的動作檔,都是在「點擊不會動到指標」的前提下量出來的,而移動它可能把真實游標
-                        // 放到某個會對 hover 起反應的東西上。那是另一次變更、要有它自己的重新驗證,
-                        // 不能搭這一次的順風車。
+                        // 放到某個會對 hover 起反應的東西上。要改變這一點,需要它自己的重新驗證。
                         do {
                             let screen = try geometry.screenPosition(of: point)
                             CGWarpMouseCursorPosition(
@@ -1190,10 +1143,9 @@
         /// and buttons in a separate service process, and the NSWindow this app
         /// holds is a host for a remote view. `NSApp.postEvent` addressed to it --
         /// a click on Cancel, an Escape -- is consumed on this side and never
-        /// crosses. Measured 2026-09-28 with P1 and P18 on macOS 27: Escape after
-        /// "Open file dialog" left the panel open in every macOS capture back to
-        /// 2026-09-01, and a click at Cancel's own position did too, so every row
-        /// after the first dialog in both files hit a panel that ignored it.
+        /// crosses. Measured with P1 and P18 on macOS 27: Escape after "Open file
+        /// dialog" left the panel open, and a click at Cancel's own position did
+        /// too, so every later row in both files hit a panel that ignored it.
         ///
         /// `NSSavePanel` covers `NSOpenPanel`, its subclass.
         ///
@@ -1201,10 +1153,9 @@
         ///
         /// **投遞進本行程的事件到不了那些內容。**自沙盒化面板的變更起,NSOpenPanel 與 NSSavePanel 的瀏覽器
         /// 與按鈕由另一個服務行程繪製,而本 app 所持有的 NSWindow 只是一個遠端 view 的宿主。以 `NSApp.postEvent`
-        /// 送給它的事件——一次點在 Cancel 上、一次 Escape——在這一側就被消化,從未跨過去。2026-09-28 在 macOS 27
-        /// 以 P1 與 P18 實測:"Open file dialog" 之後的 Escape,讓面板在回溯到 2026-09-01 的每一張 macOS 擷圖裡
-        /// 都保持開著;點在 Cancel 本身的位置也一樣,因此兩個檔在第一個對話框之後的每一列,打到的都是一個忽略它
-        /// 的面板。
+        /// 送給它的事件——一次點在 Cancel 上、一次 Escape——在這一側就被消化,從未跨過去。在 macOS 27 以 P1 與
+        /// P18 實測:"Open file dialog" 之後的 Escape 讓面板保持開著;點在 Cancel 本身的位置也一樣,因此兩個檔
+        /// 之後的每一列,打到的都是一個忽略它的面板。
         @MainActor
         static func isOutOfProcessPanel(_ window: NSWindow) -> Bool {
             window is NSSavePanel
@@ -1232,19 +1183,19 @@
         }
 
         /// A mouse event through the HID tap, for a window whose content is in
-        /// another process.
+        /// another process, or a GDK window that ignores posted clicks.
         ///
-        /// The one path that reaches it: the window server routes an HID event to
+        /// The one path that reaches them: the window server routes an HID event to
         /// whatever is under the point, remote views included. It needs the
-        /// Accessibility grant, which is why it is confined to panels and every
-        /// other window keeps the in-process path; without the grant the post is
-        /// silently dropped, so the error below names it.
+        /// Accessibility grant, which is why it is confined to panels and GDK
+        /// windows and every other window keeps the in-process path; without the
+        /// grant the post is silently dropped, so the error below names it.
         ///
-        /// 經由 HID tap 的滑鼠事件,給內容位於另一個行程的視窗用。
+        /// 經由 HID tap 的滑鼠事件,給內容位於另一個行程的視窗、或忽略投遞點擊的 GDK 視窗用。
         ///
-        /// 唯一到得了它的路徑:視窗伺服器會把 HID 事件路由給位於該點之下的任何東西,遠端 view 也包括在內。
-        /// 它需要輔助使用權限,因此只限用於面板,其餘每一個視窗仍走行程內的路徑;沒有權限時 post 會被靜默丟棄,
-        /// 所以下面的錯誤會點名它。
+        /// 唯一到得了它們的路徑:視窗伺服器會把 HID 事件路由給位於該點之下的任何東西,遠端 view 也包括在內。
+        /// 它需要輔助使用權限,因此只限用於面板與 GDK 視窗,其餘每一個視窗仍走行程內的路徑;沒有權限時 post 會被
+        /// 靜默丟棄,所以下面的錯誤會點名它。
         @MainActor
         private func postMouseThroughHID(
             _ type: NSEvent.EventType,
@@ -1332,45 +1283,16 @@
             return NSEvent(cgEvent: cg)
         }
 
-        /// Delivers a wheel turn to the view under the file's pointer.
-        ///
-        /// The only verb that does not go through `NSApp.postEvent`, because it
-        /// cannot. `NSEvent` has no scroll-wheel constructor, so the event has to be
-        /// built as a `CGEvent` and bridged -- and a bridged event carries
-        /// `windowNumber == 0`, which `sendEvent:` has no window to route to.
-        /// Measured: posted that way, with the location set correctly and even with
-        /// the real cursor warped on top of the target, an `NSScrollView` under the
-        /// point received nothing at all. Hit-testing and calling `scrollWheel(with:)`
-        /// delivers, and the same scroll view moved from offset 0 to 50.
-        ///
-        /// Two honest consequences. The delivery skips the event queue, so a scroll
-        /// can overtake a click posted immediately before it -- action files put
-        /// `sleep` rows between steps anyway, and the module's README already asks
-        /// for them. And `locationInWindow` on the delivered event is whatever the
-        /// bridge produced rather than the target point; scroll views read the
-        /// deltas, which are correct.
-        ///
-        /// 唯一不經由 `NSApp.postEvent` 的動作，因為它辦不到。`NSEvent` 沒有滾輪事件的建構子，因此該
-        /// 事件必須以 `CGEvent` 建構再橋接——而橋接後的事件其 `windowNumber == 0`，`sendEvent:` 沒有
-        /// 可路由的視窗。實測：以該方式投遞，即使正確設定了位置、甚至把真實游標移到目標之上，位於該點
-        /// 下方的 `NSScrollView` 仍然什麼也沒收到。改以 hit-test 並呼叫 `scrollWheel(with:)` 即可送達，
-        /// 同一個 scroll view 的偏移量由 0 移動到 50。
-        ///
-        /// 兩項需要誠實說明的後果。此路徑略過事件佇列，因此一次捲動可能超前緊接在它之前 post 的點擊
-        /// ——動作檔本來就會在步驟之間放置 `sleep` 列，本模組的 README 亦已如此要求。另外，送達事件的
-        /// `locationInWindow` 是橋接產生的值而非目標座標；scroll view 讀取的是 delta，而那是正確的。
         /// A trackpad magnify or rotate, as a began / changed x10 / ended sequence
         /// of gesture events posted through the HID tap.
         ///
-        /// **Until 2026-09-30 this was refused as impossible**, with a comment
-        /// saying NSEvent has no initialiser for `.magnify` / `.rotate` and
-        /// CGEvent no public gesture constructor. Both statements were true and
-        /// the conclusion was not: `CGEvent(source:)` makes a blank event whose
-        /// type can be set to 29 (the gesture type AppKit turns into `.magnify`
-        /// and `.rotate`), and `setIntegerValueField` / `setDoubleValueField` --
-        /// public API -- fill in the fields AppKit reads. The field NUMBERS are
-        /// undocumented: 110 is the HID event type (8 zoom, 5 rotation), 113
-        /// the zoom delta, 114 the rotation in degrees (positive
+        /// NSEvent has no initialiser for `.magnify` / `.rotate` and CGEvent no
+        /// public gesture constructor, but `CGEvent(source:)` makes a blank event
+        /// whose type can be set to 29 (the gesture type AppKit turns into
+        /// `.magnify` and `.rotate`), and `setIntegerValueField` /
+        /// `setDoubleValueField` -- public API -- fill in the fields AppKit reads.
+        /// The field NUMBERS are undocumented: 110 is the HID event type (8 zoom,
+        /// 5 rotation), 113 the zoom delta, 114 the rotation in degrees (positive
         /// counter-clockwise), 132 the phase (1 began, 2 changed, 4 ended).
         /// This is test tooling, never shipped in an app's normal path.
         ///
@@ -1380,9 +1302,8 @@
         /// -0.524 rad". Like the HID scroll path it needs Accessibility trust.
         ///
         /// 觸控板的縮放或旋轉,以 began / changed x10 / ended 的手勢事件序列經 HID tap 送出。
-        /// **2026-09-30 之前這被當成「不可能」而拒絕**:註解說 NSEvent 沒有 `.magnify` / `.rotate`
-        /// 的初始化式、CGEvent 沒有公開的手勢建構子。兩句都對,結論卻錯:`CGEvent(source:)` 能造出
-        /// 空白事件,其型別可設為 29(AppKit 會把它轉成 `.magnify` 與 `.rotate` 的手勢型別),而公開的
+        /// NSEvent 沒有 `.magnify` / `.rotate` 的初始化式、CGEvent 也沒有公開的手勢建構子，但 `CGEvent(source:)`
+        /// 能造出空白事件，其型別可設為 29(AppKit 會把它轉成 `.magnify` 與 `.rotate` 的手勢型別),而公開的
         /// `setIntegerValueField` / `setDoubleValueField` 能填入 AppKit 讀取的欄位。欄位**編號**是未
         /// 文件化的(見上方英文)。這是測試工具,不在 app 的正常路徑中。以 P65 實測:用 `postToPid` 什麼都
         /// 沒送到;經 HID tap 且指標位於面板上時,十步 0.05 讀到「magnify ENDED: 1.500」,十步 3 度讀到
@@ -1466,30 +1387,59 @@
             )
         }
 
+        /// Delivers a wheel turn to the view under the file's pointer.
+        ///
+        /// Not through `NSApp.postEvent`, because it cannot be. `NSEvent` has no
+        /// scroll-wheel constructor, so the event has to be built as a `CGEvent`
+        /// and bridged -- and a bridged event carries `windowNumber == 0`, which
+        /// `sendEvent:` has no window to route to. Posted that way, with the
+        /// location set correctly and even with the real cursor warped on top of
+        /// the target, an `NSScrollView` under the point received nothing at all.
+        ///
+        /// With the Accessibility grant the event goes through the HID tap, the
+        /// way a real wheel's does (see the body). Without it, the view under the
+        /// point is hit-tested and handed the event with `scrollWheel(with:)`, and
+        /// the clip view is moved directly if that did nothing.
+        ///
+        /// Two consequences of the in-process path. The delivery skips the event
+        /// queue, so a scroll can overtake a click posted immediately before it --
+        /// action files put `sleep` rows between steps anyway, and the module's
+        /// README already asks for them. And `locationInWindow` on the delivered
+        /// event is whatever the bridge produced rather than the target point;
+        /// scroll views read the deltas, which are correct.
+        ///
+        /// 把一次滾輪轉動送給檔案指標下方的 view。
+        ///
+        /// 不經由 `NSApp.postEvent`,因為辦不到。`NSEvent` 沒有滾輪事件的建構子，因此該事件必須以
+        /// `CGEvent` 建構再橋接——而橋接後的事件其 `windowNumber == 0`，`sendEvent:` 沒有可路由的視窗。
+        /// 以該方式投遞，即使正確設定了位置、甚至把真實游標移到目標之上，位於該點下方的 `NSScrollView`
+        /// 仍然什麼也沒收到。
+        ///
+        /// 有輔助使用權限時，事件經 HID tap 送出，與真實滾輪相同(見本體)。沒有權限時，對該點下方的 view
+        /// 做 hit-test 並以 `scrollWheel(with:)` 交給它；若沒有作用，再直接移動 clip view。
+        ///
+        /// 行程內路徑的兩項後果。此路徑略過事件佇列，因此一次捲動可能超前緊接在它之前 post 的點擊
+        /// ——動作檔本來就會在步驟之間放置 `sleep` 列，本模組的 README 亦已如此要求。另外，送達事件的
+        /// `locationInWindow` 是橋接產生的值而非目標座標；scroll view 讀取的是 delta，而那是正確的。
         @MainActor
         private func postScroll(dx: Int, dy: Int, at point: NSPoint, in window: NSWindow) throws {
             guard dx != 0 || dy != 0 else { return }
 
-            // **The sign IS inverted here, and the note that said otherwise was the
-            // defect.** `dy` is positive downwards in the action-file format; an
-            // `NSEvent` scrolling delta is the FINGER's direction, so moving the
-            // viewport down is a negative delta -- the same inversion the iOS
-            // runner documents for its drags.
+            // **The sign IS inverted here.** `dy` is positive downwards in the
+            // action-file format; an `NSEvent` scrolling delta is the FINGER's
+            // direction, so moving the viewport down is a negative delta -- the same
+            // inversion the iOS runner documents for its drags.
             //
-            // Measured on P57, 2026-09-17, with the clip view's origin printed
-            // either side of the event: at y=192, one `scroll 0,8` -- nominally
-            // downward -- took it to 0. Upward. It hid behind the compensation
-            // below, which moved the view down by exactly what the event had just
-            // moved it up; see mistakes entry 18.
+            // Measured on P57 with the clip view's origin printed either side of
+            // the event: without the inversion, at y=192 one `scroll 0,8` --
+            // nominally downward -- took it to 0, and the compensation below hid
+            // that by moving the view down by exactly as much.
             //
-            // **此處的符號**確實**要反轉,而先前那句「不需要反轉」的註解正是那個缺陷。**
-            // 在動作檔格式中 `dy` 為正代表向下;`NSEvent` 的 scrolling delta 講的是**手指**的方向,
-            // 因此「把視口往下移」是一個**負的** delta——與 iOS runner 為它的拖曳所記載的是同一種反轉。
+            // **此處的符號**確實**要反轉。** 在動作檔格式中 `dy` 為正代表向下;`NSEvent` 的 scrolling delta
+            // 講的是**手指**的方向,因此「把視口往下移」是一個**負的** delta——與 iOS runner 為它的拖曳所記載的是同一種反轉。
             //
-            // 2026-09-17 在 P57 上,把 clip view 的原點印在事件兩側量到:位於 y=192 時,一次名義上
-            // 向下的 `scroll 0,8` 把它帶到了 0。是向上。它藏在下面那段補償後面——補償把 view 往下移了
-            // 「事件剛剛往上移的同一個量」;見 mistakes 第 18 條。
-            // 此處不反轉符號。`dy` 以向下為正，而 AppKit 的行 delta 亦採相同慣例。需要取負的是 Windows。
+            // 在 P57 上把 clip view 的原點印在事件兩側量到:沒有反轉時,位於 y=192 的一次名義上向下的
+            // `scroll 0,8` 把它帶到了 0,而下面那段補償以恰好相同的量把 view 往下移,把這件事藏了起來。
             guard
                 let cg = CGEvent(
                     scrollWheelEvent2Source: nil,
@@ -1546,21 +1496,19 @@
             // **A real wheel event when the grant is there.** Calling
             // `scrollWheel(with:)` on the hit view is not what a wheel does, and on
             // a SwiftCrossUI ScrollView -- an NSScrollView whose document is an
-            // NSStackView pinned to the clip view's top -- it went the wrong way:
+            // NSStackView pinned to the clip view's top -- it goes the wrong way:
             // P8's outer view logged `before=(0,0) afterEvent=(0,-30)` for a
-            // downward scroll, bounced back to 0, and never showed a row past 0 in
-            // any macOS capture since 2026-09-17. A wheel event posted through the
-            // HID tap at the same point, measured 2026-09-28, moved it from Outer
-            // row 0 to Outer row 1 at the top. The window server routes that event
-            // exactly as it routes the user's, so this path is taken whenever it
-            // can be; the in-process one stays for a machine without the grant.
+            // downward scroll and bounced back to 0. A wheel event posted through
+            // the HID tap at the same point moved it from Outer row 0 to Outer row 1
+            // at the top. The window server routes that event exactly as it routes
+            // the user's, so this path is taken whenever it can be; the in-process
+            // one stays for a machine without the grant.
             //
             // **有權限時送一個真正的滾輪事件。**對 hit 到的 view 呼叫 `scrollWheel(with:)` 並不是滾輪會做的事,
             // 而在 SwiftCrossUI 的 ScrollView 上——document 是釘在 clip view 頂端的 NSStackView——它走反方向:
-            // P8 的外層向下捲時記下 `before=(0,0) afterEvent=(0,-30)`,彈回 0,自 2026-09-17 起任何一張 macOS
-            // 擷圖都沒出現過 row 0 之後的列。2026-09-28 實測,在同一點經 HID tap 送出的滾輪事件把它從頂端的
-            // Outer row 0 移到 Outer row 1。視窗伺服器路由那個事件的方式與使用者的完全相同,所以只要可以就走這條
-            // 路;行程內的那條保留給沒有權限的機器。
+            // P8 的外層向下捲時記下 `before=(0,0) afterEvent=(0,-30)`,然後彈回 0。在同一點經 HID tap 送出的
+            // 滾輪事件把它從頂端的 Outer row 0 移到 Outer row 1。視窗伺服器路由那個事件的方式與使用者的完全相同,
+            // 所以只要可以就走這條路;行程內的那條保留給沒有權限的機器。
             if AXIsProcessTrusted() {
                 let onScreen = window.convertPoint(toScreen: point)
                 let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
@@ -1665,13 +1613,12 @@
             hit.scrollWheel(with: event)
 
             // **Give the event a turn before deciding it did nothing.**
-            // `NSScrollView` applies a wheel event on a later pass, so the check
-            // below always read "unchanged" and the compensation always fired --
-            // which is how an inverted delta stayed invisible. Mistakes entry 18.
+            // `NSScrollView` applies a wheel event on a later pass; without this turn
+            // the check below would always read "unchanged" and the compensation
+            // would always fire -- which would hide an inverted delta.
             //
             // **先給那個事件一個回合,再判斷它什麼都沒做。** `NSScrollView` 是在稍後的一輪才套用滾輪
-            // 事件,因此下面那個檢查永遠讀到「沒有改變」、補償每次都開火——而那正是一個反了的 delta
-            // 得以隱形的方式。見 mistakes 第 18 條。
+            // 事件;少了這一回合,下面那個檢查永遠讀到「沒有改變」、補償每次都開火——一個反了的 delta 就會因此隱形。
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
             // Says what it found and what it did, the way the hit tester does for
@@ -1711,12 +1658,12 @@
                 // `contentView.scroll(to:)` accepts a point above the document, and
                 // a clip view parked there shows empty space -- measured at y=-192,
                 // five hundred rows with none of them on screen. AppKit's own wheel
-                // handling clamps; this path replaced it and had not.
+                // handling clamps; this path replaces it, so it clamps too.
                 //
                 // 夾在這個 scroll view 真正顯示得出來的範圍內。沒有夾範圍的目標點,正是「在頂端往上捲
                 // 會什麼都不畫」的成因:`contentView.scroll(to:)` 接受文件上方的點,而停在那裡的
                 // clip view 顯示的是空白——量到 y=-192:五百列,畫面上一列都沒有。AppKit 自己的滾輪
-                // 處理會夾範圍;這條路徑取代了它,卻沒有夾。
+                // 處理會夾範圍;這條路徑取代了它,因此也必須夾。
                 let document = scrollView.documentView?.frame.size ?? .zero
                 let visible = scrollView.contentView.bounds.size
                 let target = NSPoint(
@@ -2168,20 +2115,6 @@
 
     @MainActor
     extension AppKitSynthesiser {
-        /// Names a cursor, because `NSCursor` has no name and a pointer in a photograph has no
-        /// name either.
-        ///
-        /// Compared by IDENTITY against the system cursors, not by any property:
-        /// `NSCursor.crosshair` is a singleton and `===` against it is exact, while comparing
-        /// images would be comparing two renderings of the same thing. Anything unrecognised is
-        /// reported as `other` with the hot spot rather than guessed at -- a wrong name here
-        /// would be read as a wrong cursor.
-        ///
-        /// 為一個游標命名,因為 `NSCursor` 沒有名字,而照片裡的一個指標也沒有名字。
-        ///
-        /// 以**識別**與系統游標比較,不是比較任何屬性:`NSCursor.crosshair` 是單例,對它用 `===`
-        /// 是精確的;而比較影像則會變成「比較同一個東西的兩次算繪」。認不出來的東西回報為 `other`
-        /// 並附上熱點,而不是用猜的——此處一個錯的名字,會被讀成一個錯的游標。
         /// A cursor reading: the name, plus enough to compare two readings for equality.
         ///
         /// Equality is what the wait loop turns on, so it cannot be identity: `currentSystem`
@@ -2218,6 +2151,20 @@
             )
         }
 
+        /// Names a cursor, because `NSCursor` has no name and a pointer in a photograph has no
+        /// name either.
+        ///
+        /// Compared by IDENTITY against the system cursors, not by any property:
+        /// `NSCursor.crosshair` is a singleton and `===` against it is exact, while comparing
+        /// images would be comparing two renderings of the same thing. Anything unrecognised is
+        /// reported as `other` with the hot spot rather than guessed at -- a wrong name here
+        /// would be read as a wrong cursor.
+        ///
+        /// 為一個游標命名,因為 `NSCursor` 沒有名字,而照片裡的一個指標也沒有名字。
+        ///
+        /// 以**識別**與系統游標比較,不是比較任何屬性:`NSCursor.crosshair` 是單例,對它用 `===`
+        /// 是精確的;而比較影像則會變成「比較同一個東西的兩次算繪」。認不出來的東西回報為 `other`
+        /// 並附上熱點,而不是用猜的——此處一個錯的名字,會被讀成一個錯的游標。
         static func cursorName(_ cursor: NSCursor) -> String {
             let known: [(String, NSCursor)] = [
                 ("arrow", .arrow),

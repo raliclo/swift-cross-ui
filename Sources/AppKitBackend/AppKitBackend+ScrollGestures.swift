@@ -145,13 +145,13 @@ final class NSScrollGestureTarget: NSView {
     ///
     /// AppKit gives no constant for this. 16 is the value `NSScrollView` uses
     /// for a line when nothing overrides it, checked against the distance a
-    /// notch moves a plain document scroll view on this machine on 2026-09-19.
+    /// notch moves a plain document scroll view on a Mac on 2026-09-19.
     /// It is a convention, not a law, and it is here rather than in five
     /// backends so that a wheel notch means the same thing everywhere.
     ///
     /// 一格滾輪值多少點。
     ///
-    /// AppKit 沒有給這個常數。16 是 `NSScrollView` 在無人覆寫時對「一行」所用的值;2026-09-19 在本機上
+    /// AppKit 沒有給這個常數。16 是 `NSScrollView` 在無人覆寫時對「一行」所用的值;2026-09-19 在 Mac 上
     /// 對照過「一格滾輪讓一個普通文件 scroll view 移動多遠」。它是一個慣例、不是法律,而它放在這裡、
     /// 不放在五個 backend 裡,是為了讓一格滾輪在每個地方都代表同一件事。
     private static let pointsPerLine: Double = 16

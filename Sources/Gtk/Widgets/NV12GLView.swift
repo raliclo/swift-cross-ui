@@ -3,22 +3,6 @@ import Dispatch
 import Foundation
 import GtkCHelpers
 
-/// A `GtkGLArea` that draws NV12 video frames, converting them to RGB on the
-/// GPU.
-///
-/// The reason this exists is transport rather than drawing. Handing frames to
-/// GTK as `GdkMemoryTexture` requires RGBA, and RGBA at 1080p60 needs 475 MB/s
-/// through a decoder pipe that measures between 247 and 416 MB/s, which caps
-/// playback at 30-43 fps however fast the decoder is -- hardware decode made no
-/// difference at all. NV12 carries the same picture in 12 bits per pixel
-/// instead of 32, needing 178 MB/s, but there is no memory-texture format for
-/// it and converting on the CPU would return the saving. So the two planes go
-/// to the GPU untouched and a fragment shader does the conversion.
-///
-/// Ownership note: the renderer holds GL objects, which are only valid while
-/// this widget's context is current. It is created before realize and its GL
-/// side is set up on the first render, because a widget has no context when it
-/// is constructed.
 /// One-slot mailbox between the decode thread and the widget.
 ///
 /// One slot, not a queue: a frame that has not been drawn yet is stale the
@@ -36,16 +20,15 @@ private final class FrameInbox: @unchecked Sendable {
 
     /// Frames replaced here before anyone took them.
     ///
-    /// Counted because moving the handover to `g_idle_add` moved the discard
-    /// point with it. The widget's own overwrite counter then reported 16 while
-    /// 509 frames were being dropped in this slot -- a counter that no longer
-    /// covered the place the loss happens, which is the same defect twice.
+    /// Counted here because this slot is where frames are lost once the
+    /// handover crosses threads. A counter anywhere else misses them: the
+    /// widget's own overwrite counter once reported 16 while 509 frames were
+    /// being dropped in this slot.
     ///
     /// 在此被取代、且無人取走的幀數。
     ///
-    /// 之所以計數，是因為把交遞改到 `g_idle_add` 的同時，也把丟棄點一併移了過來。當時 widget
-    /// 自身的覆蓋計數器回報 16，而實際上有 509 幀正在這一格中被丟棄——一個不再涵蓋「損失實際
-    /// 發生之處」的計數器，是同一個缺陷犯了第二次。
+    /// 之所以在此計數，是因為交遞跨越執行緒之後，丟棄就發生在這一格。任何其他地方的計數器都會漏掉它們：
+    /// widget 自身的覆蓋計數器曾回報 16，而實際上有 509 幀正在這一格中被丟棄。
     var discardedCount: Int {
         lock.lock()
         defer { lock.unlock() }
@@ -97,10 +80,10 @@ private final class FrameInbox: @unchecked Sendable {
 /// pointer into `gtk_widget_add_tick_callback` reads as sending `self` --
 /// "sending 'box' risks causing data races" under the Swift 6 language mode.
 ///
-/// `nonisolated(unsafe)` on the local does **not** fix it, which is the second
-/// time that has been true today: it works for a reference being passed along,
-/// and not for a value whose region contains isolated state, nor for a closure's
-/// type. Both of those needed a type-level assertion instead.
+/// `nonisolated(unsafe)` on the local does **not** fix it: it works for a
+/// reference being passed along, and not for a value whose region contains
+/// isolated state, nor for a closure's type. Both of those need a type-level
+/// assertion instead.
 ///
 /// What is asserted is GTK's own rule: the tick callback runs on the thread that
 /// ran `gtk_init`, which the callback body already states with
@@ -112,9 +95,8 @@ private final class FrameInbox: @unchecked Sendable {
 /// 位於該 view 的 region 之內，因此把指標傳入 `gtk_widget_add_tick_callback` 會被讀成「送出
 /// `self`」——在 Swift 6 語言模式下即為「sending 'box' risks causing data races」。
 ///
-/// 在區域變數上標 `nonisolated(unsafe)` **無法**解決，而這已是今日第二次如此：它對「傳遞中的
-/// 參考」有效，但對「region 中含有受隔離狀態的值」無效，對 closure 的型別亦然。這兩者都改以
-/// 型別層級的擔保解決。
+/// 在區域變數上標 `nonisolated(unsafe)` **無法**解決：它對「傳遞中的參考」有效，但對「region 中
+/// 含有受隔離狀態的值」無效，對 closure 的型別亦然。這兩者都需要型別層級的擔保。
 ///
 /// 此處擔保的是 GTK 自身的規則：tick callback 執行於執行 `gtk_init` 的那條執行緒上，而該 callback
 /// 的本體已以 `MainActor.assumeIsolated` 陳述了這一點。
@@ -123,6 +105,22 @@ private final class WeakViewBox: @unchecked Sendable {
     init(_ view: NV12GLView?) { self.view = view }
 }
 
+/// A `GtkGLArea` that draws NV12 video frames, converting them to RGB on the
+/// GPU.
+///
+/// The reason this exists is transport rather than drawing. Handing frames to
+/// GTK as `GdkMemoryTexture` requires RGBA, and RGBA at 1080p60 needs 475 MB/s
+/// through a decoder pipe that measures between 247 and 416 MB/s, which caps
+/// playback at 30-43 fps however fast the decoder is -- hardware decode made no
+/// difference at all. NV12 carries the same picture in 12 bits per pixel
+/// instead of 32, needing 178 MB/s, but there is no memory-texture format for
+/// it and converting on the CPU would return the saving. So the two planes go
+/// to the GPU untouched and a fragment shader does the conversion.
+///
+/// Ownership note: the renderer holds GL objects, which are only valid while
+/// this widget's context is current. It is created before realize and its GL
+/// side is set up on the first render, because a widget has no context when it
+/// is constructed.
 public class NV12GLView: GLArea {
     // A var set after `self.init`, not a `let` set in a designated init.
     // GLArea's `init()` is a convenience initialiser, so it cannot be
@@ -155,10 +153,8 @@ public class NV12GLView: GLArea {
 
         render = { [weak self] area, _ in
             // GLArea's render signal returns whether the frame was drawn; true
-            // stops GTK drawing over it. It could not say so until the generated
-            // signals carried a return type (#594).
+            // stops GTK drawing over it.
             // GLArea 的 render signal 回傳「該幀是否已繪製」；true 會使 GTK 不再於其上繪製。
-            // 在產生的 signal 具備回傳型別之前（#594），它無法表達這一點。
             guard let self else { return false }
             self.drawFrame(area)
             return true
@@ -171,13 +167,6 @@ public class NV12GLView: GLArea {
         scui_nv12_renderer_free(renderer)
     }
 
-    /// Hands one NV12 frame over. `y` is `width * height` bytes and `uv` is
-    /// `width * height / 2` bytes of interleaved Cb/Cr, the layout ffmpeg
-    /// writes for `-pix_fmt nv12`.
-    ///
-    /// The upload happens inside the render pass rather than here, because a
-    /// GL call without a current context is undefined and the decode thread has
-    /// none. The frame is copied so the caller may reuse its buffer.
     /// Hands over a frame from any thread.
     ///
     /// Use this from a decode thread rather than hopping through
@@ -188,8 +177,8 @@ public class NV12GLView: GLArea {
     /// against 8.4 ms actually reading, capping throughput at about 25 fps while
     /// the widget's own upload cost 0.3 ms.
     ///
-    /// `g_idle_add` is GTK's own scheduling primitive and runs in the loop that
-    /// is actually turning.
+    /// The frame is drained by a frame-clock tick callback, which runs in the
+    /// loop that is actually turning.
     ///
     /// 從任意執行緒交遞一幀。
     ///
@@ -199,7 +188,7 @@ public class NV12GLView: GLArea {
     /// 每幀花費 28 ms 等待這些區塊執行，而真正的讀取只需 8.4 ms，使吞吐量被限制在約 25 fps；
     /// 同時 widget 自身的上傳成本僅 0.3 ms。
     ///
-    /// `g_idle_add` 是 GTK 自己的排程原語，執行於真正在運轉的那個迴圈中。
+    /// 該幀由一個 frame clock 的 tick callback 取走，它執行於真正在運轉的那個迴圈中。
     public nonisolated func submitFrame(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
         inbox.store(y: y, uv: uv, width: width, height: height)
 
@@ -273,6 +262,13 @@ public class NV12GLView: GLArea {
         setFrame(y: frame.y, uv: frame.uv, width: frame.width, height: frame.height)
     }
 
+    /// Hands one NV12 frame over. `y` is `width * height` bytes and `uv` is
+    /// `width * height / 2` bytes of interleaved Cb/Cr, the layout ffmpeg
+    /// writes for `-pix_fmt nv12`.
+    ///
+    /// The upload happens inside the render pass rather than here, because a
+    /// GL call without a current context is undefined and the decode thread has
+    /// none. The frame is copied so the caller may reuse its buffer.
     public func setFrame(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
         // A frame still waiting here is one the widget never drew. It is
         // overwritten, and it has to be counted, because from the decoder's side
@@ -326,11 +322,9 @@ public class NV12GLView: GLArea {
 
     /// Frame clock ticks seen. Distinct from `renderCallbacks`: the tick is GTK
     /// offering us a slot, the render is GTK asking us to draw. Conflating them
-    /// made "the clock is slow" and "the redraw is slow" indistinguishable, and
-    /// a vsync experiment was run against the wrong one.
+    /// makes "the clock is slow" and "the redraw is slow" indistinguishable.
     /// 已觀察到的 frame clock tick 次數。與 `renderCallbacks` 不同：tick 是 GTK 提供給我們的時機，
-    /// render 則是 GTK 要求我們繪製。把兩者混為一談，會使「時鐘慢」與「重繪慢」無從分辨，而先前
-    /// 那次 vsync 實驗正是針對了錯誤的那一個。
+    /// render 則是 GTK 要求我們繪製。把兩者混為一談，會使「時鐘慢」與「重繪慢」無從分辨。
     public private(set) var tickCallbacks = 0
 
     /// Frames discarded in the cross-thread slot before the widget took them.

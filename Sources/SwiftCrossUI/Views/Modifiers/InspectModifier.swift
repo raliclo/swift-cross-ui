@@ -41,15 +41,15 @@ public struct InspectionPoints: OptionSet, RawRepresentable, Hashable, Sendable 
     /// `.onCreate` that search alone fails: the descendants exist but are not
     /// yet added to the container -- that happens on the first update. The
     /// view graph already holds them, so this hands them over too.
-    /// AdvancedCustomizationExample's `Slider(...).inspect { ... }` stopped at
-    /// launch on macOS with "no NSSlider at or below this view" (2026-10-06).
+    /// Without it, AdvancedCustomizationExample's `Slider(...).inspect { ... }`
+    /// stops at launch on macOS with "no NSSlider at or below this view".
     ///
     /// 以 view 的 widget 以及 view graph 中它底下的每一個 widget(深度優先)呼叫 `action`。**給必須在
     /// `.onCreate` 也能成功的搜尋使用。** backend 的具型別 `.inspect` 在 view 的 widget 底下搜尋原生
     /// 控制項，因為有樣式的控制項其 widget 是容器。在 `.onCreate` 時只做那個搜尋會失敗：子孫已經建立，
     /// 卻還沒被加進容器——那發生在第一次更新。view graph 已經持有它們，所以一併交出。
-    /// AdvancedCustomizationExample 的 `Slider(...).inspect { ... }` 在 macOS 上一啟動就因
-    /// 「no NSSlider at or below this view」停止(2026-10-06)。
+    /// 少了它,AdvancedCustomizationExample 的 `Slider(...).inspect { ... }` 在 macOS 上一啟動就因
+    /// 「no NSSlider at or below this view」停止。
     public init<WidgetType>(
         child: Child,
         inspectionPoints: InspectionPoints,

@@ -74,6 +74,17 @@ extension WinUIBackend {
     }
 }
 
+/// Routes `.accessibilityLabel` to a view-label button, and reports whether
+/// `widget` was one.
+/// 把 `.accessibilityLabel` 交給 view-label 按鈕,並回報 `widget` 是否就是這種按鈕。
+func scuiSetButtonAccessibilityLabel(_ widget: WinUI.UIElement, to label: String?) -> Bool {
+    guard let button = widget as? ViewLabelCustomButton else {
+        return false
+    }
+    button.accessibilityLabelOverride = label
+    return true
+}
+
 /// The button behind `createButton(wrapping:)` -- the arbitrary-view label API
 /// upstream added when it split buttons into `StringLabelButtons` and
 /// `ViewLabelButtons` (#590). Its content is whatever `Widget` the caller passed.
@@ -97,17 +108,6 @@ extension WinUIBackend {
 /// `updateButton(_:label:menu:environment:)`——最後一個是 menu/flyout 按鈕,與 #590 無關。
 /// 與 GtkBackend 不同,那三個方法從未被搬進本檔案,因此兩個類別都仍在使用中。合併它們會弄壞 menu
 /// 按鈕。
-/// Routes `.accessibilityLabel` to a view-label button, and reports whether
-/// `widget` was one.
-/// 把 `.accessibilityLabel` 交給 view-label 按鈕,並回報 `widget` 是否就是這種按鈕。
-func scuiSetButtonAccessibilityLabel(_ widget: WinUI.UIElement, to label: String?) -> Bool {
-    guard let button = widget as? ViewLabelCustomButton else {
-        return false
-    }
-    button.accessibilityLabelOverride = label
-    return true
-}
-
 fileprivate final class ViewLabelCustomButton: WinUI.Button {
     fileprivate var action: (() -> Void)?
 
@@ -129,12 +129,11 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     /// words are announced once rather than as the button and again as its
     /// child.
     ///
-    /// **All texts, not the first.** The first version followed AppKitBackend's
-    /// `firstTextFieldValue`, and P67's `HStack { Text("two"); Text("texts") }`
-    /// read `two`. On 2026-09-17 the same button on GtkBackend under WSLg read
-    /// `two texts` over AT-SPI, since GTK computes the name from all of its
-    /// content, and SwiftUI's VoiceOver reads both texts too. Taking only the
-    /// first cut the name short.
+    /// **All texts, not the first.** With only the first text, P67's
+    /// `HStack { Text("two"); Text("texts") }` read `two`, while the same
+    /// button on GtkBackend under WSLg reads `two texts` over AT-SPI (GTK
+    /// computes the name from all of its content, 2026-09-17), and SwiftUI's
+    /// VoiceOver reads both texts too.
     ///
     /// Runs from `updateButton` on every layout pass. That comes after the label
     /// has laid out, and `Text` writes its string during layout, so the text is
@@ -150,10 +149,9 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     /// content 是字串時才從 content 推導 Button 的名稱,而這裡的 content 是一個 view。名稱是 label 中
     /// **所有**文字依序以空白串接,並把內容藏起來,讓那些字只被念一次,而不是按鈕念一次、子節點再念一次。
     ///
-    /// **取全部,不是第一段。** 第一版照 AppKitBackend 的 `firstTextFieldValue`,P67 的
-    /// `HStack { Text("two"); Text("texts") }` 讀成 `two`。2026-09-17 同一顆按鈕在 WSLg 的 GtkBackend 上
-    /// 以 AT-SPI 讀到 `two texts`(GTK 由全部內容計算名稱),SwiftUI 的 VoiceOver 也會唸出兩段——只取第一段
-    /// 是把名字截斷了。
+    /// **取全部，不是第一段。** 只取第一段時,P67 的 `HStack { Text("two"); Text("texts") }` 讀成 `two`;
+    /// 同一顆按鈕在 WSLg 的 GtkBackend 上以 AT-SPI 讀到 `two texts`(GTK 由全部內容計算名稱,2026-09-17),
+    /// SwiftUI 的 VoiceOver 也會唸出兩段。
     ///
     /// 由 `updateButton` 在每一次 layout pass 呼叫。那發生在 label 排版之後,而 `Text` 在排版時就寫入
     /// 字串,所以文字已經在那裡可讀。modifier 在這一趟之後設定的標籤覆寫,經由

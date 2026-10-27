@@ -30,13 +30,12 @@ public struct DatePickerComponents: OptionSet, Sendable {
     public static let hourMinuteAndSecond = DatePickerComponents(rawValue: 0xE0)
 }
 
-// `DatePickerStyle` used to be an enum here. It is now a protocol in
-// Views/Styles/DatePickerStyle/, and the enum it used to be lives on as
-// `BackendDatePickerStyle` in Backend/ -- the vocabulary a backend implements,
+// `DatePickerStyle` is a protocol in Views/Styles/DatePickerStyle/. The backend's
+// vocabulary is `BackendDatePickerStyle` in Backend/ -- what a backend implements,
 // as distinct from the API an application writes against.
-// `DatePickerStyle` 過去是此處的一個 enum。它現已成為 Views/Styles/DatePickerStyle/ 中的
-// protocol，而它原本那個 enum 則以 `BackendDatePickerStyle` 之名存續於 Backend/ 之中——那是
-// backend 所實作的詞彙，與應用程式所面對的 API 有別。
+// `DatePickerStyle` 是 Views/Styles/DatePickerStyle/ 中的 protocol。backend 的詞彙是
+// Backend/ 中的 `BackendDatePickerStyle`——那是 backend 所實作的東西，與應用程式所面對的
+// API 有別。
 
 @available(tvOS, unavailable)
 public struct DatePicker<Label: View> {
@@ -45,13 +44,9 @@ public struct DatePicker<Label: View> {
     private var range: ClosedRange<Date>
     private var components: DatePickerComponents
 
-    // No stored `style`. There was one, defaulted to `.automatic`, and nothing
-    // ever read it -- `body` did not pass it on and no initialiser set it. The
-    // style has always come from the environment, which is what
+    // No stored `style`: it comes from the environment, which is what
     // `datePickerStyle(_:)` writes to.
-    // 此處不保存 `style`。原本有一個、預設為 `.automatic`，但從來沒有任何地方讀取它——`body`
-    // 不會把它傳下去，也沒有任何 initialiser 設定它。樣式一向來自 environment，而那正是
-    // `datePickerStyle(_:)` 所寫入的位置。
+    // 此處不保存 `style`:樣式來自 environment,也就是 `datePickerStyle(_:)` 所寫入的位置。
     @Environment(\.self) private var environment
 
     /// Displays a date input.
@@ -164,9 +159,9 @@ public struct _BuiltinDatePickerImplementation: ElementaryView {
     ) -> ViewLayoutResult {
         // The style this view was made with, not the environment's: a style that
         // is not built in (`.wheel`, `.clock`, `.rows`) resolves to `.automatic`
-        // there, so their native pickers came out as `.automatic` (P41, 2026-10-18).
+        // there, so their native pickers would be drawn as `.automatic` (P41).
         // 用建立這個 view 時的樣式，而非環境中的：非內建樣式(`.wheel`、`.clock`、`.rows`)在環境中解析為 `.automatic`,
-        // 所以它們的原生選擇器畫成了 `.automatic`(P41,2026-10-18)。
+        // 所以它們的原生選擇器會畫成 `.automatic`(P41)。
         backend.updateDatePicker(
             widget,
             environment: environment.with(\.backendDatePickerStyle, style),

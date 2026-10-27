@@ -176,12 +176,12 @@ public final class RawSwapChainPanel {
 /// Well-known public COM interface IIDs, hand-declared (matching the
 /// `SwiftISwapChainPanelNative.IID` approach above) rather than linking
 /// against dxguid.lib, so no extra linker settings are needed.
-// Internal rather than private since 2026-09-04: WinUIBackend+GraphicsAdapters
+// Internal rather than private: WinUIBackend+GraphicsAdapters
 // needs IDXGIFactory1 for `EnumAdapters1`, and a second hand-written copy of a
 // GUID is a copy that can drift. One wrong hex digit produces E_NOINTERFACE at
 // runtime and nothing at compile time, so the two copies would disagree
 // silently -- the same reasoning as sharing `largestByArea` in the synthesiser.
-// 自 2026-09-04 起改為 internal 而非 private：WinUIBackend+GraphicsAdapters 需要
+// 改為 internal 而非 private：WinUIBackend+GraphicsAdapters 需要
 // IDXGIFactory1 來呼叫 `EnumAdapters1`，而手寫 GUID 的第二份副本正是會漂移的那種副本。
 // 一個十六進位數字打錯，在執行期得到 E_NOINTERFACE、在編譯期什麼也沒有，因此兩份副本會**靜默地**
 // 不一致——與合成器中共用 `largestByArea` 的理由相同。
@@ -659,11 +659,11 @@ public final class D3D11VideoSurface {
     /// Direct3D 的功能而非 Nvidia 的功能，真正缺少它的是軟體光柵化裝置。
     ///
     /// The probe runs on the adapter the surface will actually present from,
-    /// because the answer differs per adapter: the hardware GPUs here support
+    /// because the answer differs per adapter: hardware GPUs support
     /// it and the software rasteriser does not, so probing the default adapter
     /// and then presenting from another one reports a capability that is not
     /// there.
-    /// 探測必須在「表面實際用來呈現的那張介面卡」上進行，因為答案因卡而異：本機的
+    /// 探測必須在「表面實際用來呈現的那張介面卡」上進行，因為答案因卡而異：
     /// 硬體 GPU 支援、軟體光柵化裝置不支援；若在預設介面卡上探測卻從另一張卡呈現，
     /// 回報的就會是一個並不存在的能力。
     public static func nv12Support(
@@ -1226,17 +1226,14 @@ public final class D3D11VideoSurface {
     /// fills it with exactly one frame. This is the zero-copy seam: the
     /// decoder reads pipe bytes straight into GPU-visible memory.
     ///
-    /// `body` receives the destination pointer and the row pitch in bytes,
-    /// which may exceed width*4, so rows must be written individually when the
-    /// pitch does not match.
-    /// `body` 取得目的地指標與每列位元組數（row pitch）；pitch 可能大於
-    /// width*4，不相符時必須逐列寫入。
-    /// `body` receives the destination, the row pitch, and the total mapped
-    /// size. The size matters for NV12: the chroma plane follows the luma
-    /// plane in the same mapping, and its offset has to be derived rather than
-    /// assumed.
-    /// `body` 會取得目的地位址、列間距與整段對映的大小。大小對 NV12 很重要：色度
-    /// 平面接在亮度平面之後、位於同一段對映中，其偏移量必須推算而非假設。
+    /// `body` receives the destination, the row pitch in bytes, and the total
+    /// mapped size. The pitch may exceed width*4, so rows must be written
+    /// individually when it does not match. The size matters for NV12: the
+    /// chroma plane follows the luma plane in the same mapping, and its offset
+    /// has to be derived rather than assumed.
+    /// `body` 會取得目的地位址、每列位元組數(row pitch)與整段對映的大小。pitch 可能大於 width*4,
+    /// 不相符時必須逐列寫入。大小對 NV12 很重要：色度平面接在亮度平面之後、位於同一段對映中，其偏移量
+    /// 必須推算而非假設。
     public func writeFrame(
         _ body: (UnsafeMutableRawPointer, Int, Int) throws -> Void
     ) throws {

@@ -1,13 +1,13 @@
 import Foundation
 import ImageFormats
 
-// `<image>` with a `data:` URI (2026-10-10): PNG, JPEG and the other raster
+// `<image>` with a `data:` URI: PNG, JPEG and the other raster
 // formats ImageFormats decodes. The picture becomes a paint, and the element a
 // rectangle filled with it -- the viewport, or the placed picture where that
 // is smaller -- so its edges are antialiased like any other shape's.
 // File references and pictures that are SVGs: see SVGImageFiles.swift.
 //
-// 帶 `data:` URI 的 `<image>`(2026-10-10):PNG、JPEG 以及 ImageFormats 能解碼的其他點陣格式。圖片成為
+// 帶 `data:` URI 的 `<image>`:PNG、JPEG 以及 ImageFormats 能解碼的其他點陣格式。圖片成為
 // 一種塗料，元素則是以它填充的矩形——視窗，或在較小時為放置後的圖片——因此邊緣與其他形狀一樣有抗鋸齒。
 // 檔案參照與內容為 SVG 的圖片見 SVGImageFiles.swift。
 

@@ -1,9 +1,5 @@
 /// The track and thumb, without a label.
 ///
-/// This is what ``Slider`` used to be, renamed and made internal rather than
-/// rewritten -- every line below the declaration, including the `step:`
-/// reasoning and the struck-through note in ``commit``, is untouched.
-///
 /// WHY THE SPLIT. `ElementaryView` requires `Content == EmptyView`
 /// (Views/ElementaryView.swift:6), so a view that conforms to it cannot have a
 /// label: it has no body to put one beside. A label therefore has to live one
@@ -11,13 +7,9 @@
 ///
 /// This is exactly the difference that made ``Picker``'s label cheap and this
 /// one not. `Picker` already had a `body`, so its label was an `HStack` around
-/// what it already returned; `Slider` had no body at all. Both were recorded as
-/// "pure view layer" in #126's original note and only one of them was.
+/// what it already returned; `Slider` had no body at all.
 ///
 /// 軌道與把手,不含標籤。
-///
-/// 這就是原本的 ``Slider``,經**改名並降為 internal**,而非重寫——宣告以下的每一行,包含 `step:`
-/// 的推論與 ``commit`` 中那段被劃掉的註記,都原封不動。
 ///
 /// **為何要拆。** `ElementaryView` 要求 `Content == EmptyView`
 /// (Views/ElementaryView.swift:6),因此符合它的 view **不可能有標籤**:它沒有 body 可以把標籤
@@ -25,7 +17,6 @@
 ///
 /// 這正是「讓 ``Picker`` 的標籤便宜、而讓這個不便宜」的那個差別。`Picker` 本來就有 `body`,
 /// 所以它的標籤只是在它原本回傳的東西外套一個 `HStack`;`Slider` 根本沒有 body。
-/// 兩者在 #126 最初的記錄中都被寫成「純 view 層」,而**只有其中一個是**。
 struct SliderControl: ElementaryView, View {
     /// The ideal width of a Slider.
     private static let idealWidth: Double = 100
@@ -73,19 +64,19 @@ struct SliderControl: ElementaryView, View {
     ///
     /// **An INITIAL value is left alone.** `step:` governs the values the user
     /// produces; the value an application starts with is its own. See the note
-    /// in ``commit`` for the run that settled that, and for what snapping it
-    /// there actually produced -- a printed value and a thumb that disagreed.
+    /// in ``commit`` for what snapping it
+    /// there produces -- a printed value and a thumb that disagree.
     ///
     /// **初始值不予變動。** `step:` 管的是**使用者所產生**的值;應用程式起始時所持有的值屬於它自己。
-    /// 那次定案的執行,以及在該處吸附實際造成了什麼——一個印出的數值與一個把手互相矛盾——記於
-    /// ``commit`` 中的註解。
+    /// 在該處吸附會造成什麼,見 ``commit`` 中的註解:一個
+    /// 印出的數值與一個把手互相矛盾。
     ///
     /// 可選值之間的間距;nil 代表連續滑桿。
     ///
     /// **不是一個 backend 參數,而這是量測的結果,不是偏好。** 五個已發布的 backend 對「滑桿究竟能不能
     /// 分段」意見分歧:`GtkScale` 有 increments 與 `round-digits`、`WinUI.Slider` 有 `stepFrequency`、
     /// `NSSlider` 需要刻度加上 `allowsTickMarkValuesOnly`、Android 的本來就是整數步進——而 `UISlider`
-    /// **根本沒有任何 step API**,因此無論如何它的值都得在變更處理常式中吸附。既然有一個平台強迫我們
+    /// **根本沒有任何 step API**,因此無論如何它的值都得在變更處理常式中吸附。既然有一個平台強迫
     /// 在共用程式碼中吸附,那麼為五個平台都在該處吸附,就是讓每個 backend 行為一致的唯一辦法——而那
     /// 正是應用程式原始碼裡那個 `step:` 所要求的東西。
     ///
@@ -288,17 +279,12 @@ struct SliderControl: ElementaryView, View {
             }
         )
 
-        // NOT snapped, and the struck-through reasoning below is kept because it
-        // was written, built, run, and refuted by the picture.
-        //
-        // ~~`setValue(ofSlider:to: snapped(value))`, so a slider created at a
-        // value the step does not land on shows its thumb on a step rather than
-        // between two.~~ Measured 2026-09-10 with P21, `in: 0...1, step: 0.25`
-        // and an initial 0.3: the on-screen label read **0.30**. Of course it
-        // did -- the `Text` reads the state, and snapping here only tells the
-        // WIDGET a different number. The result is not "the step was applied on
-        // launch"; it is the thumb and the printed value disagreeing, which is
-        // worse than either of the things it was choosing between.
+        // NOT snapped. `setValue(ofSlider:to: snapped(value))` here only tells
+        // the WIDGET a different number: measured with P21, `in: 0...1,
+        // step: 0.25` and an initial 0.3, the thumb sat on a step while the
+        // on-screen label, which reads the state, still printed **0.30**. The
+        // thumb and the printed value disagreeing is worse than either of the
+        // things it was choosing between.
         //
         // So `step:` governs the values the USER produces, and an initial value
         // is the application's own. Rewriting a caller's binding from inside a
@@ -307,13 +293,9 @@ struct SliderControl: ElementaryView, View {
         // the number and the thumb agree, which is the property that actually
         // matters.
         //
-        // **不吸附**;下方被劃掉的推論予以保留,因為它曾被寫下、建置、執行,然後被那張圖推翻。
-        //
-        // ~~使用 `setValue(ofSlider:to: snapped(value))`,好讓初始值不落在步進上的滑桿,把手停在
-        // 某一步上而非兩步之間。~~ 2026-09-10 以 P21 實測(`in: 0...1, step: 0.25`,初始值 0.3):
-        // 畫面上的標籤讀作 **0.30**。這是當然的——`Text` 讀的是 state,而在此吸附只是告訴 **widget**
-        // 一個不同的數字。其結果並不是「step 在啟動時就生效了」,而是**把手與印出的數值互相矛盾**,
-        // 那比它原本要在兩者間做的選擇都更糟。
+        // **不吸附。** 在此使用 `setValue(ofSlider:to: snapped(value))` 只是告訴 **widget** 一個不同的
+        // 數字:以 P21 實測(`in: 0...1, step: 0.25`,初始值 0.3),把手停在某一步上,而讀取 state 的
+        // 畫面標籤仍印出 **0.30**。**把手與印出的數值互相矛盾**,比它原本要在兩者間做的選擇都更糟。
         //
         // 因此 `step:` 管的是**使用者所產生**的值,而初始值屬於應用程式自己。從一次 layout commit
         // 內部改寫呼叫端的 binding,是發生在算繪期的副作用,而本框架沒有任何一個「那樣做是安全的」
@@ -371,7 +353,7 @@ public struct Slider<Label: View>: View {
     /// the backend, but every call site builds a `Slider<Label>` -- so a
     /// modifier declared only on the control reads correctly in the source and
     /// then fails at the first use with *"value of type 'Slider<EmptyView>' has
-    /// no member 'onEditingChanged'"*. Measured 2026-09-10 while writing P61.
+    /// no member 'onEditingChanged'"*.
     ///
     /// It must also come before any modifier that erases the type: this is
     /// declared on `Slider`, so `.frame(width:).onEditingChanged { }` does not
@@ -383,8 +365,7 @@ public struct Slider<Label: View>: View {
     /// **掛在公開的 `Slider` 上，而不是內部的 `SliderControl` 上，而這個差別離一個編譯錯誤只有一步。**
     /// 與 backend 對話的是 `SliderControl`，但每一個呼叫點建構的都是 `Slider<Label>`——因此一個只宣告在
     /// 該 control 上的 modifier，在原始碼裡讀起來完全正確，卻會在第一次被使用時失敗，訊息是
-    /// *「value of type 'Slider<EmptyView>' has no member 'onEditingChanged'」*。2026-09-10 寫 P61
-    /// 時量到。
+    /// *「value of type 'Slider<EmptyView>' has no member 'onEditingChanged'」*。
     ///
     /// 它同樣必須排在任何會抹除型別的 modifier 之前：它宣告在 `Slider` 上，因此
     /// `.frame(width:).onEditingChanged { }` 也編不過。兩個錯誤都很大聲，這正是這種人體工學可被接受的

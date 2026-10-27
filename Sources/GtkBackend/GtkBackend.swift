@@ -51,11 +51,9 @@ public final class GtkBackend:
     BackendFeatures.Toolbars,
     // Listed here, so `GtkBackend+ButtonPressState.swift` must be a bare
     // `extension GtkBackend { ... }`. Naming the protocol in both places is
-    // `error: redundant conformance`, which is how the same mistake was found
-    // for `GraphicsAdapters` on 2026-09-04 (see the note in `WinUIBackend.swift`).
+    // `error: redundant conformance`.
     // 在此處列出，因此 `GtkBackend+ButtonPressState.swift` 必須是不帶 conformance 的
-    // `extension GtkBackend { ... }`。兩處都寫上該 protocol 會得到 `error: redundant conformance`，
-    // 2026-09-04 的 `GraphicsAdapters` 正是這樣被發現的（見 `WinUIBackend.swift` 中的註記）。
+    // `extension GtkBackend { ... }`。兩處都寫上該 protocol 會得到 `error: redundant conformance`。
     BackendFeatures.ButtonPressState
 {
     public typealias Window = Gtk.ApplicationWindow
@@ -70,9 +68,8 @@ public final class GtkBackend:
         /// Whether this sheet has already been torn down by `tearDown(_:)`.
         ///
         /// Not a record of WHICH path closed the sheet -- there is deliberately
-        /// no such flag here, and `WinUIBackend+Sheets.swift` just lost the one
-        /// it had. This only says that the teardown has happened, so that the
-        /// destroy and the `onDismiss` each run once per presentation.
+        /// no such flag. This only says that the teardown has happened, so that
+        /// the destroy and the `onDismiss` each run once per presentation.
         ///
         /// A `Sheet` is never re-presented after teardown, so this never needs
         /// resetting: `SheetModifier.commit` nils `sheetContentNode` along with
@@ -81,8 +78,7 @@ public final class GtkBackend:
         ///
         /// 本 sheet 是否已經被 `tearDown(_:)` 拆除。
         ///
-        /// 它不是「用來記錄是哪一條路關閉了 sheet」的旗標——此處刻意沒有那種東西，而
-        /// `WinUIBackend+Sheets.swift` 也剛把它原有的那一個拿掉了。這裡只表示拆除已經發生，
+        /// 它不是「用來記錄是哪一條路關閉了 sheet」的旗標——此處刻意沒有那種東西。這裡只表示拆除已經發生，
         /// 好讓 destroy 與 `onDismiss` 在每一次呈現中各只執行一次。
         ///
         /// `Sheet` 在拆除之後不會再被重新呈現，因此這個旗標永遠不需要重設：`SheetModifier.commit`
@@ -101,25 +97,22 @@ public final class GtkBackend:
     /// 0 while GTK's scrollbars float over the content, which is its default.
     ///
     /// Computed rather than stored, because the answer is a user setting and can
-    /// change while the app runs. It was `let scrollBarWidth = 0`, and the 0 was
-    /// right for the default and unreachable for anything else: with overlay
-    /// scrolling off the bars take real width, SwiftCrossUI allots none, and the
-    /// content is over-allocated by about a scrollbar.
+    /// change while the app runs: with overlay scrolling off the bars take real
+    /// width, and a constant 0 would leave the content over-allocated by about a
+    /// scrollbar.
     ///
     /// The width is measured from a real GtkScrollbar rather than guessed,
     /// because a theme decides it. AppKitBackend likewise asks
-    /// `NSScroller.preferredScrollerStyle`; WinUIBackend still returns a
-    /// constant 12.
+    /// `NSScroller.preferredScrollerStyle`, and WinUIBackend reads
+    /// `UISettings.autoHideScrollBars`.
     ///
     /// 當 GTK 的捲軸浮動於內容之上時為 0，而那是它的預設值。
     ///
-    /// 此處改為計算屬性而非儲存屬性，因為答案取決於使用者設定，且可能在 app 執行期間改變。原本是
-    /// `let scrollBarWidth = 0`：該 0 對預設情況是正確的，對其餘情況則永遠到不了——關閉 overlay
-    /// scrolling 後捲軸會佔用實際寬度，而 SwiftCrossUI 未分配任何寬度給它，內容便會超額配置約一個
-    /// 捲軸的寬度。
+    /// 此處為計算屬性而非儲存屬性，因為答案取決於使用者設定，且可能在 app 執行期間改變：關閉 overlay
+    /// scrolling 後捲軸會佔用實際寬度，固定的 0 會讓內容超額配置約一個捲軸的寬度。
     ///
     /// 寬度取自一個真實的 GtkScrollbar 實測，而非猜測，因為決定它的是主題。AppKitBackend 同樣會去
-    /// 詢問 `NSScroller.preferredScrollerStyle`；WinUIBackend 目前仍回傳固定的 12。
+    /// 詢問 `NSScroller.preferredScrollerStyle`,WinUIBackend 則讀取 `UISettings.autoHideScrollBars`。
     public var scrollBarWidth: Int {
         if Settings.default?.overlayScrolling ?? true {
             return 0
@@ -182,31 +175,21 @@ public final class GtkBackend:
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
-    // `.wheel` was absent here until 2026-08-27, with a comment saying GTK "has
-    // no wheel widget of any kind, and faking one out of a scrolled list would
-    // be a worse lie than the fallback". The premise was wrong. SwiftUI's own
-    // documentation describes `.wheel` as showing "each component as columns in
-    // a scrollable wheel", and on iOS it is a UIPickerView -- N columns of
-    // scrollable text. A scrolled list per component is not a fake of the wheel,
-    // it is the wheel. See ``DateWheel``.
+    // `.wheel` is a scrolled list per component, which is what SwiftUI's
+    // `.wheel` is; see ``DateWheel``.
     //
     // A style left out of this list is downgraded to `.automatic` by
     // `datePickerStyle(_:)` without a word in a release build, so the list is
     // the only place an omission is visible.
     //
-    // `.wheel` 在 2026-08-27 之前並不在此清單中，當時的註解說 GTK「沒有任何形式的滾輪 widget，
-    // 而用捲動清單假造一個，會是比退回預設更糟的謊言」。該前提是錯的。SwiftUI 自己的文件把
-    // `.wheel` 描述為「將每個組成部分顯示為可捲動滾輪中的欄位」，而在 iOS 上它就是
-    // UIPickerView——N 欄可捲動文字。每個組成部分一個捲動清單並非滾輪的贗品，它就是滾輪本身。
-    // 詳見 ``DateWheel``。
+    // `.wheel` 是每個組成部分一個捲動清單，那正是 SwiftUI 的 `.wheel`;詳見 ``DateWheel``。
     //
     // Split by host because `BackendDatePickerStyle.wheel` is
     // `@available(macOS, unavailable)`, and GtkBackend does build for macOS --
     // GTK 4 comes from Homebrew and testapp runs GTK apps there. Naming the
-    // case unconditionally made `swift test` on a Mac fail to compile this
-    // file, which is how it was found: the failure is in GtkBackend, four
-    // targets away from anything about date pickers, and it takes the whole
-    // suite with it.
+    // case unconditionally makes `swift test` on a Mac fail to compile this
+    // file -- a failure in GtkBackend, four targets away from anything about
+    // date pickers, that takes the whole suite with it.
     //
     // The macOS list is not a lesser version of the other one. A style the
     // shared enum does not offer on this host cannot be asked for on this host,
@@ -215,8 +198,8 @@ public final class GtkBackend:
     // 依主機平台分開，因為 `BackendDatePickerStyle.wheel` 帶有
     // `@available(macOS, unavailable)`，而 GtkBackend 的確會為 macOS 建置——GTK 4 來自
     // Homebrew，testapp 也在該處執行 GTK app。無條件指名該 case，會使 Mac 上的 `swift test`
-    // 無法編譯本檔，而這正是它被發現的方式：失敗出現在 GtkBackend，距離任何與日期選擇器相關的
-    // 東西有四個 target 之遠，卻連帶拖垮整個測試套件。
+    // 無法編譯本檔——失敗出現在 GtkBackend，距離任何與日期選擇器相關的東西有四個 target 之遠，
+    // 卻連帶拖垮整個測試套件。
     //
     // macOS 的清單並非另一份清單的簡化版。共用的 enum 在此主機上不提供的樣式，在此主機上就無從
     // 被要求，因此也沒有什麼可支援的。
@@ -351,16 +334,15 @@ public final class GtkBackend:
 
     /// Reports a backend limitation to the app author, once per call site.
     ///
-    /// The body was wrapped in `#if DEBUG` and is no longer. This project builds
-    /// release by default -- see the `testapp/compile.zsh` policy in CLAUDE.md --
-    /// so the one message this method carries, "GTK does not support setting
-    /// maximum window sizes", printed in no configuration anything is actually
-    /// run in. A request the backend silently drops, with nothing said about it,
-    /// is #38's defect exactly.
+    /// Not wrapped in `#if DEBUG`. This project builds release by default --
+    /// see the `testapp/compile.zsh` policy in CLAUDE.md -- so a message such as
+    /// "GTK does not support setting maximum window sizes" would print in no
+    /// configuration anything is actually run in. A request the backend
+    /// silently drops, with nothing said about it, is #38's defect exactly.
     ///
     /// It is not gated on `SCUI_DEBUG` either: this is not a developer trace but
     /// something the author of the app needs to be told, and needing a special
-    /// build to be told is how the silence happened in the first place.
+    /// build to be told amounts to silence.
     /// `logger.notice` outranks the release log level (`.info`, set in
     /// `App.logHandler`), and the once-per-location set is what stops a call made
     /// every frame from repeating.
@@ -370,13 +352,12 @@ public final class GtkBackend:
     ///
     /// 向 app 作者回報 backend 的限制，每個呼叫點只回報一次。
     ///
-    /// 本方法主體原先包在 `#if DEBUG` 之中，現已移除。本專案預設建置 release——見 CLAUDE.md 中的
-    /// `testapp/compile.zsh` 政策——因此它唯一攜帶的訊息「GTK does not support setting maximum
-    /// window sizes」，在任何實際執行的組態中都不會印出。backend 默默丟棄一項要求、且對此隻字
-    /// 未提，正是 #38 的缺陷。
+    /// 不包在 `#if DEBUG` 之中。本專案預設建置 release——見 CLAUDE.md 中的 `testapp/compile.zsh` 政策——因此像
+    /// 「GTK does not support setting maximum window sizes」這樣的訊息，在任何實際執行的組態中都不會印出。
+    /// backend 默默丟棄一項要求、且對此隻字未提，正是 #38 的缺陷。
     ///
     /// 它也不以 `SCUI_DEBUG` 為條件：這並非開發者用的追蹤訊息，而是 app 作者必須被告知的事；
-    /// 而「必須改用特殊建置才會被告知」，正是當初造成沉默的原因。`logger.notice` 高於 release 的
+    /// 而「必須改用特殊建置才會被告知」，等同於沉默。`logger.notice` 高於 release 的
     /// log 層級（`.info`，設定於 `App.logHandler`），而「每個位置只報一次」的集合則使得逐幀呼叫
     /// 不會重複輸出。
     ///
@@ -458,8 +439,8 @@ public final class GtkBackend:
     /// for 99 consecutive readings. Windows bitmap-scales the window instead, so
     /// the app stays readable and stays blurry.
     ///
-    /// With it, the same probe reads awareness 2 and the user driving the
-    /// display 100% -> 150% -> 125% -> 100% produced `windowScaleFactor`
+    /// With it, the same probe reads awareness 2, and moving the display
+    /// 100% -> 150% -> 125% -> 100% produced `windowScaleFactor`
     /// 1.0 -> 1.5 -> 1.25 -> 1.0, with `windowDpi` 96 -> 144 -> 120 -> 96
     /// alongside.
     ///
@@ -484,7 +465,7 @@ public final class GtkBackend:
     /// 把顯示器由 125% 改成 100%,每兩秒直接呼叫一次 `GetDpiForWindow`,連續 99 次都回報 1.25。
     /// Windows 改為對視窗做點陣縮放,於是 app 仍然可讀、而且一直是糊的。
     ///
-    /// 加上它之後,同一支探針讀到 awareness 為 2,而使用者把顯示器由 100% → 150% → 125% → 100%
+    /// 加上它之後,同一支探針讀到 awareness 為 2,而把顯示器由 100% → 150% → 125% → 100%
     /// 時,`windowScaleFactor` 記到 1.0 → 1.5 → 1.25 → 1.0,旁邊的 `windowDpi` 為
     /// 96 → 144 → 120 → 96。
     ///
@@ -502,17 +483,10 @@ public final class GtkBackend:
 
     /// Asks GDK for Direct Composition, so GTK can use a hardware renderer.
     ///
-    /// ON BY DEFAULT since 2026-09-05. `-GPU 0` turns it off along with the rest
-    /// of hardware rendering, and `SCUI_GTK_DCOMP=0` turns off just this, for
-    /// bisecting against a build that predates the change.
+    /// ON BY DEFAULT. `-GPU 0` turns it off along with the rest of hardware
+    /// rendering, and `SCUI_GTK_DCOMP=0` turns off just this, for bisecting.
     ///
-    /// It used to be opt-in through `SCUI_GTK_DCOMP=1`, on the grounds that it
-    /// changes how every window is composited rather than only the transformed
-    /// ones. That reason was real but it was never weighed against what leaving
-    /// it off costs: GTK falls back to a software renderer that cannot draw a
-    /// transform node, so every geometric effect is a no-op on Win-gtk4.
-    ///
-    /// Why it matters. On this Windows machine GTK cannot realize its GL
+    /// Why it matters. On Windows GTK cannot realize its GL
     /// renderer -- `Failed to realize renderer 'GskGLRenderer' for surface
     /// 'GdkWin32Toplevel': OpenGL requires Direct Composition` -- and silently
     /// falls back to `GskCairoRenderer`, which is software. That fallback is
@@ -528,15 +502,9 @@ public final class GtkBackend:
     ///
     /// 向 GDK 要求啟用 Direct Composition，使 GTK 得以採用硬體繪製器。
     ///
-    /// 自 2026-09-05 起**預設開啟**。`-GPU 0` 會連同其餘硬體繪製一併關閉它；`SCUI_GTK_DCOMP=0`
-    /// 則只關閉這一項，供與該改動之前的建置進行二分比對。
+    /// **預設開啟**。`-GPU 0` 會連同其餘硬體繪製一併關閉它；`SCUI_GTK_DCOMP=0` 則只關閉這一項，供二分比對。
     ///
-    /// 它從前是透過 `SCUI_GTK_DCOMP=1` 選擇性啟用、預設關閉，理由是它改變的是**每一個**視窗的
-    /// 合成方式，而不只是那些被變換過的視窗。那個理由是真的，但從未與「不開啟的代價」放在一起
-    /// 衡量過：GTK 會退回一個畫不出 transform node 的軟體繪製器，於是在 Win-gtk4 上，每一項
-    /// geometric effect 都是 no-op。
-    ///
-    /// 為何重要：在這台 Windows 機器上，GTK 無法實現它的 GL 繪製器——
+    /// 為何重要：在 Windows 上，GTK 無法實現它的 GL 繪製器——
     /// `Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
     /// OpenGL requires Direct Composition`——並靜默退回到軟體的 `GskCairoRenderer`。
     /// 正是這個退路畫不出 transform node，於是畫出 bugs/Gtk4-bugs.md 所記載的那片 hotpink。
@@ -549,105 +517,28 @@ public final class GtkBackend:
     /// GDK_DEBUG 設定。
     private static func enableDirectCompositionIfRequested() {
         #if os(Windows)
-            // `SCUI_GTK_DCOMP` still forces it on, for bisecting against a
-            // build that predates `-GPU`.
-            // `SCUI_GTK_DCOMP` 仍可強制開啟，以便與早於 `-GPU` 的建置進行二分比對。
-            // `>= 2`, not `>= 1`, and this is a correction with a measurement
-            // behind it.
+            // `>= 1`, so Direct Composition is on by default, as
+            // `DebugFeatures.gpuSelection` documents `1` ("the default, asks for
+            // hardware"). `-GPU 0` is the software opt-out, and
+            // `SCUI_GTK_DCOMP=0` turns off just this.
             //
-            // Direct Composition made the window uncapturable by the old
-            // gdigrab/BitBlt window path this project's GTK screenshots used
-            // to depend on. Measured 2026-08-29 on P40: with dcomp off, the
-            // old path captured the window; with dcomp on, it had to fall back
-            // to desktop capture. Defaulting dcomp on therefore broke the
-            // meaning of GTK screenshots until the harness moved to wincap.
+            // Without dcomp GTK falls back to GskCairoRenderer, which cannot
+            // draw a transform node, so offset, rotationEffect, scaleEffect and
+            // transformEffect would not apply on Win-gtk4. Measured on P40 with
+            // the transform probe: 76,285 hotpink pixels with dcomp off, 0 with
+            // it on, and every transform correct (2026-09-05). P11, P15-DARK
+            // and P25 captured both ways differ only in glyph antialiasing and
+            // colour rounding between the cairo and GL renderers: of P25's
+            // 128,510 differing pixels, 711 exceed a delta of 8.
             //
-            // That half has expired, and is kept because it is why the number
-            // is 2 rather than why it should stay 2. The harness DID move: `-w`
-            // is wincap/PrintWindow only, gdigrab has no window path left, and
-            // a DComp window was captured at 93.0% non-black. Capture is no
-            // longer an argument for the threshold either way.
+            // `>= 1`,亦即 Direct Composition **預設開啟**,與 `DebugFeatures.gpuSelection` 文件中 `1` 的意義
+            // (「預設值，要求硬體」)一致。`-GPU 0` 是軟體退路，而 `SCUI_GTK_DCOMP=0` 只關閉這一項。
             //
-            // The paragraph below is, and it never depended on capture. Do not
-            // read the two as one reason.
-            //
-            // Before moving the threshold on the strength of that capture,
-            // note that it is a single run, and that `screenshot.zsh` deleted
-            // wincap`s log on success until 2026-09-02 -- so the exstyle that
-            // proves a run was on DComp was discarded exactly when it worked.
-            // The log is kept now; re-establish the figure with a run that
-            // leaves one behind.
-            //
-            // 上述關於擷取的那一半已經到期，保留它是因為它說明「這個數字為何是 2」，而非
-            // 「它為何應該維持是 2」。harness 確實已經改變：`-w` 只使用 wincap/PrintWindow，
-            // gdigrab 已無視窗路徑，而一個 DComp 視窗曾被以 93.0% 非黑像素擷取。擷取在任一
-            // 方向上都不再構成此門檻的論據。
-            //
-            // 下一段才是，而它從未依賴擷取。請勿把兩者讀成同一個理由。
-            //
-            // 若要依據那次擷取來調整門檻，請注意它只有一次執行，且 `screenshot.zsh` 在
-            // 2026-09-02 之前會於成功時刪除 wincap 的日誌——因此「證明某次執行確實在 DComp 上」
-            // 的 exstyle，恰好在它成功的那一刻被丟棄。該日誌現已保留；請以一次會留下日誌的
-            // 執行重新確立該數字。
-            //
-            // Mapping it to 2 is also the more faithful reading of the number.
-            // `1` means "the platform's own default", and GTK's own default
-            // here is what it does unaided -- which is to fail to realize GL and
-            // fall back to cairo. Asking for hardware is asking for more than
-            // the default, which is what `2` means.
-            //
-            // 此處為 `>= 2` 而非 `>= 1`，而這是一項有量測依據的修正。
-            //
-            // Direct Composition 會使視窗無法被舊的 gdigrab/BitBlt 視窗路徑擷取，而本專案
-            // 的 GTK 截圖曾依賴該路徑。2026-08-29 於 P40 實測：dcomp 關閉時舊路徑可擷取
-            // 視窗；dcomp 開啟時只能退回桌面擷取。因此把 dcomp 設為預設開啟，等於在 harness
-            // 移到 wincap 之前弄壞了 GTK 截圖的語意。
-            //
-            // 將它對應到 2，同時也是對這個數字更忠實的解讀。`1` 意指「平台自身的預設」，而 GTK
-            // 在此處的自身預設，就是它在無人干預時所做的事——無法實現 GL、退回 cairo。要求硬體
-            // 就是要求「比預設更多」，而那正是 `2` 的意思。
-            // DECIDED 2026-09-05: `>= 1`, so Direct Composition is ON BY DEFAULT.
-            // This closes task #73 and resolves a contradiction rather than
-            // stating a preference -- `DebugFeatures.gpuSelection` documents `1`
-            // as "the default, asks for hardware", and the gate below was
-            // `>= 2`, so the default asked for nothing. `-GPU 0` remains the
-            // software opt-out it is documented to be, and the two crash guards
-            // that follow are unchanged.
-            //
-            // Why it had to change, and not for tidiness: without dcomp GTK
-            // falls back to GskCairoRenderer, which cannot draw a transform
-            // node, so `setGeometricEffect` declines and offset, rotationEffect,
-            // scaleEffect and transformEffect are NO-OPS on Win-gtk4. CLAUDE.md
-            // does not allow a feature to be left unsupported on a shipped
-            // backend, and dcomp is how this one becomes supported.
-            //
-            // Measured 2026-09-05 before flipping it, on P40 with the transform
-            // probe: 76,285 hotpink pixels with dcomp off, 0 with it on, and
-            // every transform correct. The old "two apps, not a decision"
-            // objection was answered by capturing P11, P15-DARK and P25 both
-            // ways and diffing: the only differences are glyph antialiasing and
-            // colour rounding between the cairo and GL renderers. P25 looked
-            // alarming at 31% of pixels differing until the MAGNITUDE was
-            // measured -- 128,510 differing pixels, of which 711 exceed a delta
-            // of 8. Counting differing pixels without their size would have
-            // blocked this change on nothing.
-            //
-            // 2026-09-05 決定：改為 `>= 1`，亦即 Direct Composition **預設開啟**。此舉關閉任務
-            // #73，且它修正的是一項矛盾而非表達偏好——`DebugFeatures.gpuSelection` 的文件寫著
-            // `1` 是「預設值，要求硬體」，而下方的閘門卻是 `>= 2`，於是預設值什麼也沒要求。
-            // `-GPU 0` 仍是它文件所述的軟體退路，其後那兩道防當機守衛也維持不變。
-            //
-            // 為何非改不可，而不是為了整潔：沒有 dcomp 時 GTK 會退回 GskCairoRenderer，它畫不出
-            // transform node，於是 `setGeometricEffect` 選擇拒絕，而 offset、rotationEffect、
-            // scaleEffect 與 transformEffect 在 Win-gtk4 上全是 **no-op**。CLAUDE.md 不允許任何
-            // 功能在已發布的 backend 上維持「不支援」，而 dcomp 正是此功能得以被支援的方式。
-            //
-            // 改動之前於 2026-09-05 實測，P40 搭配 transform 探針：dcomp 關閉時 76,285 個 hotpink
-            // 像素，開啟時為 0，且每一個變換都正確。至於「那是兩支 app，不是一個決定」這項舊有的
-            // 反對意見，已藉由對 P11、P15-DARK 與 P25 各擷取兩次並比對而得到回答：唯一的差異是
-            // cairo 與 GL 兩種 renderer 之間的字形反鋸齒與色彩捨入。P25 起初看來很嚇人——31% 的
-            // 像素相異——直到量了**幅度**：128,510 個相異像素中，僅 711 個差幅超過 8。若只數相異
-            // 像素而不看其大小，這項改動就會被一件根本不存在的事擋下來。
+            // 沒有 dcomp 時 GTK 會退回 GskCairoRenderer,它畫不出 transform node,於是 offset、rotationEffect、
+            // scaleEffect 與 transformEffect 在 Win-gtk4 上不會套用。於 P40 搭配 transform 探針實測:dcomp 關閉時
+            // 76,285 個 hotpink 像素，開啟時為 0,且每一個變換都正確(2026-09-05)。P11、P15-DARK 與 P25 各擷取兩次
+            // 比對，唯一的差異是 cairo 與 GL 兩種 renderer 之間的字形反鋸齒與色彩捨入:P25 的 128,510 個相異像素中，
+            // 僅 711 個差幅超過 8。
             let forcedOff = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "0"
             guard !forcedOff, DebugFeatures.gpuSelection >= 1 else { return }
 
@@ -1314,7 +1205,7 @@ public final class GtkBackend:
     }
 
     /// Control metrics close to AppKit's on macOS, where the two backends are
-    /// compared side by side and the user asked GTK to follow macOS (P52, P91,
+    /// compared side by side and AppKit is the reference there (P52, P91,
     /// 2026-10-18). Adwaita's button is about 34 px tall with 17 px of side
     /// padding and its entry 34 px; AppKit's regular push button and text field
     /// are 22. So P52's grid of 48 one-letter buttons overflowed its column on
@@ -1324,7 +1215,7 @@ public final class GtkBackend:
     /// slider's frame as NSSlider's does, and its knob drops the negative side
     /// margins that let it stand past the trough, so at either end it stays inside
     /// the frame as NSSlider's knob does (P32, P99).
-    /// macOS 上接近 AppKit 的控制項尺寸：兩個 backend 在那裡並排比較，使用者要求 GTK 跟隨 macOS(P52、P91,
+    /// macOS 上接近 AppKit 的控制項尺寸：兩個 backend 在那裡並排比較，而 macOS 上以 AppKit 為準(P52、P91,
     /// 2026-10-18)。Adwaita 的按鈕約 34 px 高、左右內距 17 px,輸入框 34 px;AppKit 的一般按鈕與文字欄是 22。
     /// 所以 P52 由 48 個單字母按鈕組成的格子在 GTK 上溢出了它的欄，P91 的按鈕與欄位高出一半。其他平台上 GTK 保留它
     /// 自己主題的尺寸，那是它的桌面所預期的。水平 scale 拿掉 Adwaita 左右 12 px 的內距，讓軌道與 NSSlider 一樣撐滿滑桿的框;
@@ -1393,79 +1284,29 @@ public final class GtkBackend:
         GtkHeldSuperKey.track(window)
 
         if let defaultSize {
-            // The request goes out unadjusted, and the correction happens after
-            // the window is mapped. That costs a second layout pass, and the
-            // first frame is wrong -- WinUI needs only one. It was investigated
-            // on 2026-09-03 and there is no way to do better from here.
+            // `SCUI_DEBUG_DECORATION=1|2|3`: what `Window.titlebarNaturalHeight`
+            // reports before the window is mapped, printed and appended to
+            // decoration-debug.log. The window's size itself comes from the
+            // allowance below.
             //
-            // Measured, P16 asking for 900x600, reading splitview-debug.log in
-            // the repo root after `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`:
-            // GTK logs 480, 480, then 441. WinUI logs 486 once. The 39 is the
-            // same on Windows AND under WSLg; only the frame thickness differs
-            // (+28/+29 against WinUI's +16/+39).
+            // GTK on Windows and under WSLg loses the same 39 to its header bar;
+            // only the frame thickness differs (+28/+29 against WinUI's +16/+39;
+            // P16 asking for 900x600, `SCUI_DEBUG_SPLIT=1`, 2026-09-03).
             //
-            // The only way to size it right the first time is to know the
-            // decoration's height before mapping, and `gtk_widget_measure` can
-            // answer without an allocation -- but it needs a widget, and there
-            // is none. Measured the same day with SCUI_DEBUG_DECORATION=1:
-            // `gtk_window_get_titlebar` returns **nil**, because nothing here
-            // calls `gtk_window_set_titlebar` and GTK draws the platform's own
-            // decoration, which is not a widget anyone can query.
+            // `SCUI_DEBUG_DECORATION=1|2|3`:視窗被 map 之前 `Window.titlebarNaturalHeight` 回報的值，會被印出並附加到
+            // decoration-debug.log。視窗本身的尺寸來自下方的額度。
             //
-            // A per-scale cache of the measured shortfall was written and
-            // REMOVED. It helped only the second window onward, and every test
-            // app in this tree opens one, so nothing could observe it -- code
-            // that looks load-bearing and is not. Tracked as task #81; see
-            // `Window.titlebarNaturalHeight`, which starts returning a number
-            // the moment anything does set a titlebar.
-            //
-            // 請求原樣送出，修正在視窗 map 之後才發生。代價是多一次版面計算，而且第一幀是錯的
-            // ——WinUI 只需要一次。此事已於 2026-09-03 調查過，從此處無法做得更好。
-            //
-            // 實測：P16 要求 900x600 時，GTK 記錄 480、480、441；WinUI 只記錄一次 486。那個 39
-            // 在 Windows 與 WSLg 上相同，兩者相差的只有外框厚度（+28/+29 對 WinUI 的 +16/+39）。
-            //
-            // 要第一次就開對，唯一的辦法是在 map 之前得知裝飾高度，而 `gtk_widget_measure` 確實
-            // 能在沒有配置的情況下回答——但它需要一個 widget，而這裡沒有。同日以
-            // SCUI_DEBUG_DECORATION=1 實測：`gtk_window_get_titlebar` 回傳 **nil**，因為此處從未
-            // 呼叫 `gtk_window_set_titlebar`，GTK 畫的是平台自身的裝飾，那不是任何人能查詢的
-            // widget。
-            //
-            // 曾寫過一份「依縮放分鍵、記錄實測短少」的快取，後來**移除**：它只對第二個之後的
-            // 視窗有效，而本樹中每一支測試 app 都只開一個視窗，因此沒有任何東西能觀察到它
-            // ——那正是「看起來承重、實則無用」的程式碼。追蹤於任務 #81；另見
-            // `Window.titlebarNaturalHeight`，一旦有任何地方設了 titlebar，它就會開始回傳數字。
-            // Is there a titlebar widget to measure before the window is
-            // mapped? Kept rather than deleted after it answered, because the
-            // answer cost a build and a run to obtain and the next person to
-            // wonder should not repeat that. On 2026-09-03 it printed
-            // `titlebar=nil`, which is why the request above goes out
-            // unadjusted. It starts printing a number the moment anything calls
-            // `gtk_window_set_titlebar`, and that is the day this can be fixed.
-            //
-            // 在視窗被 map 之前，是否有 titlebar widget 可量？它回答之後仍予保留而非刪除，
-            // 因為那個答案花了一次建置與一次執行才得到，下一個心生同樣疑問的人不該重來一遍。
-            // 2026-09-03 它印出 `titlebar=nil`，這正是上方請求原樣送出的理由。一旦有任何地方
-            // 呼叫 `gtk_window_set_titlebar`，它就會開始印出數字，而那一天此事才修得了。
+            // Windows 與 WSLg 上的 GTK 被標題列吃掉的同樣是 39;兩者相差的只有外框厚度(+28/+29 對 WinUI 的
+            // +16/+39;P16 要求 900x600,`SCUI_DEBUG_SPLIT=1`,2026-09-03)。
             let decorationProbe = ProcessInfo.processInfo.environment["SCUI_DEBUG_DECORATION"]
             if decorationProbe == "1" || decorationProbe == "2" || decorationProbe == "3" {
-                // `2` answers the question `1` could only pose. `1` reports
-                // titlebar=nil, which says the height is unknowable but not
-                // whether it would be knowable if we owned the widget. `2`
-                // installs a GtkHeaderBar first, so the same measurement runs
-                // against a titlebar that exists.
+                // `1` measures as is and reports titlebar=nil: GTK's own
+                // decoration is not a titlebar widget. `2` and `3` install a
+                // GtkHeaderBar first, so the same measurement runs against a
+                // titlebar that exists (47, against GTK's own 39).
                 //
-                // If `2` prints a number and `1` prints nil on the same app,
-                // the shortfall is fixable on the first pass and the only thing
-                // in the way is who owns the decoration -- which is a decision,
-                // not a limitation.
-                //
-                // `2` 回答的，正是 `1` 只能提出的那個問題。`1` 回報 titlebar=nil，那說明「高度
-                // 無從得知」，卻沒有說明「若由我們擁有該 widget，它是否就可得知」。`2` 會先裝上一個
-                // GtkHeaderBar，使同一個量測得以對著一個確實存在的 titlebar 執行。
-                //
-                // 若同一支 app 在 `2` 下印出數字、在 `1` 下印出 nil，就代表這個短少在第一次版面
-                // 計算時是修得掉的，而擋在路上的只有「裝飾歸誰擁有」——那是一項決策，不是限制。
+                // `1` 照原樣量測並回報 titlebar=nil:GTK 自身的裝飾不是一個 titlebar widget。`2` 與 `3` 會先裝上
+                // 一個 GtkHeaderBar,使同一個量測得以對著一個確實存在的 titlebar 執行(47,相對於 GTK 自身的 39)。
                 if decorationProbe == "2" || decorationProbe == "3" {
                     window.installMeasurableTitlebar()
                 }
@@ -1487,85 +1328,24 @@ public final class GtkBackend:
                     }
                 }
             }
-
-            // `3` is the whole proposal, not just its measurement: own the
-            // titlebar, ask it how tall it is BEFORE mapping, and add that to
-            // the requested height so the first layout pass is already right.
-            // If the content then measures exactly what the app asked for, the
-            // 39px is fixable and the only remaining question is whether owning
-            // the decoration is worth it.
-            //
-            // `3` 即為整個提案本身，而不只是它的量測：接管 titlebar、在 map **之前**問它有多高，
-            // 並把該值加進所要求的高度，使**第一次**版面計算就已經正確。若內容區屆時量得的正是
-            // app 所要求的尺寸，那就代表這 39px 是修得掉的，剩下的唯一問題只是「接管裝飾是否
-            // 值得」。
-            // #79, ANSWERED 2026-09-10. `gtk_window_set_default_size` sizes the
-            // WINDOW, and under client-side decorations the header bar is
-            // inside it, so an app asking for 620x420 got 620x381 of content.
-            // The allowance now comes from a throwaway `GtkHeaderBar`, measured
-            // before this window exists.
-            //
-            // **THE NUMBER TO ADD IS 47, NOT THE 39 THAT WENT MISSING**, and
-            // getting that backwards is the whole trap. Measured in one run:
-            //
-            //     headerbar bare=47 titlebarClass=47 inWindow=47
-            //     content size: requested 620x420 allocated 620x381 shortfall 0x39
-            //     AFTER map: GtkCustomRootWidget=341 GtkHeaderBar=39
-            //
-            // 39 is not the header's height. It is what the header was
-            // COMPRESSED to when 420 had to cover both it and the content --
-            // 39 + 381 = 420 exactly. Give the window 47 more and the header
-            // takes its natural 47, leaving the content the 420 that was asked
-            // for. Adding 39 would leave it 8px short and look like a partial
-            // fix, which is worse than no fix.
-            //
-            // Three variants were tried and all three answer 47, including a
-            // header bar installed in a real (never presented) window: the CSS
-            // context is not what differs. What differs is allocation, and
-            // allocation is downstream of the size being set here.
-            //
-            // #79,**2026-09-10 已解答**。`gtk_window_set_default_size` 設定的是**視窗**,
-            // 而在 client-side decorations 之下 header bar 位於視窗**之內**,因此一個要求
-            // 620x420 的 app 拿到的是 620x381 的內容。現在這個 allowance 來自一條**用完即丟**的
-            // `GtkHeaderBar`,量測於這個視窗尚不存在之時。
-            //
-            // **要加的數字是 47,不是那個「不見了」的 39**,而把這件事弄反正是整個陷阱所在。
-            // 同一次執行中量到:bare／titlebarClass／inWindow **三者皆為 47**;shortfall 為 39;
-            // map 之後的 `GtkHeaderBar=39`。
-            //
-            // **39 不是 header 的高度**,而是當 420 必須同時涵蓋它與內容時,header **被壓縮到**
-            // 的高度——39 + 381 = 420,分毫不差。給視窗多 47,header 便取回它自然的 47,
-            // 留給內容的正是當初所要求的 420。**加 39 會少 8px,看起來像修好了一半——那比不修更糟。**
-            //
-            // 三種變體都試過、三者都回答 47,**包括一條裝進真實(從未 present 的)視窗中的
-            // header bar**:差別不在 CSS context。差別在**分配**,而分配位於「此處所設定的尺寸」的下游。
         }
 
-        // OUTSIDE the `SCUI_DEBUG_DECORATION` block on purpose. The first
-        // version of this fix sat INSIDE it, so with the variable unset the
-        // whole thing never ran -- and "shortfall still 39" then reads exactly
-        // like "the fix does not work" rather than "the fix did not execute".
-        // That is mistakes.md entry 4 wearing different clothes, and it cost a
-        // build cycle.
+        // Outside the `SCUI_DEBUG_DECORATION` block, so it runs whether or not
+        // the variable is set.
         //
-        // **刻意放在 `SCUI_DEBUG_DECORATION` 區塊之外。** 本修法的第一版就寫在那個區塊**之內**,
-        // 因此在該變數未設定時整段從未執行——而「shortfall 仍是 39」讀起來,會與
-        // 「這個修法沒有效」一模一樣,而不是「這個修法沒有被執行」。**那是 mistakes.md 第 4 條
-        // 換了一身衣服**,而它花掉了一輪建置。
+        // 放在 `SCUI_DEBUG_DECORATION` 區塊之外，因此不論該變數是否設定都會執行。
         if let defaultSize {
-            // `.gtkOwnDecoration`, not `.bare`. Measured 2026-09-16: the three
-            // older probes all report 47 because each measures a `GtkHeaderBar`
-            // this code created, while the header GTK lays out for itself is 39.
-            // Adding 47 overshot by 8-9 (`shortfall 0x-9`), which is 47 - 39.
-            // The new probe walks a realized, never-presented window's children
-            // for GTK's OWN header bar and reports 39 before present -- which is
-            // what #79 option (c) asked for: the decoration measured rather than
-            // a constant written down.
-            // 用 `.gtkOwnDecoration`,不是 `.bare`。2026-09-16 實測:三個舊探針全都回報 47,
-            // 因為它們量的都是**這段程式碼自己建立的** `GtkHeaderBar`,而 GTK 為它自己排版的那條是 39。
-            // 加 47 會超出 8~9(`shortfall 0x-9`),而那正是 47 − 39。新的探針會在一個 realize 過、
-            // 從不 present 的視窗子節點中找出 **GTK 自己的** header bar,並在 present 之前回報 39
-            // ——那正是 #79 選項 (c) 所要求的:**量出來的**裝飾,而不是一個被寫死的常數。
+            // `.gtkOwnDecoration`, not `.bare`. The other probes all report 47
+            // because each measures a `GtkHeaderBar` this code created, while
+            // the header GTK lays out for itself is 39; adding 47 overshot by
+            // 8-9 (`shortfall 0x-9`, 2026-09-16). This probe walks a realized,
+            // never-presented window's children for GTK's OWN header bar and
+            // reports 39 before present -- the decoration measured rather than a
+            // constant written down (#79 option (c)).
+            // 用 `.gtkOwnDecoration`,不是 `.bare`。其他探針全都回報 47,因為它們量的都是**這段程式碼自己建立的**
+            // `GtkHeaderBar`,而 GTK 為它自己排版的那條是 39;加 47 會超出 8~9(`shortfall 0x-9`,2026-09-16)。
+            // 這個探針會在一個 realize 過、從不 present 的視窗子節點中找出 **GTK 自己的** header bar,並在 present
+            // 之前回報 39——**量出來的**裝飾，而不是一個被寫死的常數(#79 選項 (c))。
             let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration) ?? 0
             titlebarAllowances[ObjectIdentifier(window)] = titlebarAllowance
             window.defaultSize = Size(
@@ -1577,39 +1357,23 @@ public final class GtkBackend:
                     + "+\(titlebarAllowance) -> \(defaultSize.y + titlebarAllowance)"
             )
         } else {
-            // Says so out loud. A silent skip here and a fix that does not work
-            // produce the same screen, and that has already happened once today.
-            // 明講出來。此處若靜默跳過,與「修法無效」會產生同一個畫面,而那今天已經發生過一次。
+            // Says so out loud: a silent skip here and an allowance that does
+            // not work produce the same screen.
+            // 明講出來：此處若靜默跳過，與「額度無效」會產生同一個畫面。
             DebugFeatures.log("titlebar allowance: SKIPPED, defaultSize is nil")
         }
 
         window.setChild(Gtk.Box())
 
-        // #79, option (c): is the decoration measurable BEFORE the first
-        // present? The comment below asserts "the shortfall cannot be computed
-        // in advance", and that is a claim, not a conclusion --
-        // `gtk_window_get_titlebar` answering NULL only rules out a titlebar
-        // THIS program installed, not the one GTK builds for client-side
-        // decorations. Walking the window's own children finds any widget GTK
-        // put there, whoever created it.
+        // The window's own children and the header-bar probes before
+        // `present`, for comparison with the AFTER line `reportContentSizeShortfall`
+        // prints once the window is mapped. Walking the window's children finds
+        // any widget GTK put there, whoever created it, where
+        // `gtk_window_get_titlebar` answers NULL for GTK's own decoration.
         //
-        // Printed on both sides of `present` so the two can be compared. If a
-        // decoration widget appears here with a height matching the later
-        // shortfall, (c) is answered and the fix is to add it to the requested
-        // height. If the child list is empty or has no such widget, (c) is
-        // answered the other way -- with the specific call and what it returned,
-        // which is the deliverable either way.
-        //
-        // **#79,方案 (c):裝飾在第一次 present **之前**量得到嗎?** 下方的註解斷言
-        // 「shortfall 無法事先算出」,而那是一項**主張**、不是結論——`gtk_window_get_titlebar`
-        // 回答 NULL,只排除掉了「**本程式**裝上的 titlebar」,並不排除 GTK 為 client-side
-        // decorations 自行建立的那一條。遍歷視窗自己的子項,能找到 GTK 放在那裡的任何 widget,
-        // 無論它是誰建立的。
-        //
-        // 在 `present` 的**兩側**都輸出,以便兩相對照。若此處出現一個裝飾 widget,其高度與稍後的
-        // shortfall 相符,(c) 就得到了答案,而修法就是把它加進所要求的高度。若子項清單是空的、
-        // 或其中沒有這樣的 widget,(c) 也得到了答案——而且**附帶著具體的呼叫與其回傳值**,
-        // 那無論哪種結果都是要交付的東西。
+        // 在 `present` 之前輸出視窗自己的子項與各個 header bar 探針，以便與視窗 map 之後
+        // `reportContentSizeShortfall` 印出的 AFTER 那行對照。遍歷視窗的子項能找到 GTK 放在那裡的任何
+        // widget,無論它是誰建立的;`gtk_window_get_titlebar` 對 GTK 自身的裝飾則回答 NULL。
         DebugFeatures.log(
             "decoration probe BEFORE present: "
                 + (window.childMeasurements.isEmpty
@@ -1627,45 +1391,15 @@ public final class GtkBackend:
                 + (Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration).map(String.init) ?? "nil")
         )
 
-        // `gtk_window_set_default_size` sizes the WINDOW, and with client-side
-        // decorations the header bar is inside the window. So the size just set
-        // is not the size the app asked for -- an app requesting 900x600 was
-        // measured getting 900x561 of content on WSLg, the missing 39 being the
-        // header bar. AppKit and WinUI both treat the request as content: on
-        // Windows the title bar is non-client area, and the same app there gets
-        // a 916x639 frame around a 900x600 client. GTK was the odd one out.
+        // Kept so `reportContentSizeShortfall` can compare what was asked for
+        // with what the content got. It runs from `updateWindow`, on every
+        // layout pass, because the "map" signal is too early: instrumented, it
+        // reports `contentAllocation=0x0` -- the window is mapped before its
+        // child has any allocation at all.
         //
-        // The shortfall cannot be computed in advance. There is no
-        // set-content-size call in GTK4, and the header's height depends on the
-        // theme, the scale and whether the compositor gives server-side
-        // decorations at all -- under which the shortfall is zero and this must
-        // do nothing. So it is measured once the window is mapped, which is the
-        // first moment the child has a real allocation, and corrected once.
-        //
-        // Guarded by `didCorrect` rather than by disconnecting: "map" fires
-        // again if the window is hidden and reshown, and by then the user may
-        // have resized it deliberately. Growing it a second time would fight
-        // them.
-        //
-        // `gtk_window_set_default_size` 設定的是「視窗」，而在 client-side decoration 之下，
-        // 標題列位於視窗之內。因此剛才設定的並不是 app 所要求的尺寸——實測一支要求 900x600 的
-        // app 在 WSLg 上只拿到 900x561 的內容，少掉的 39 就是標題列。AppKit 與 WinUI 都把該
-        // 要求視為內容尺寸：Windows 上標題列屬 non-client 區域，同一支 app 得到的是 916x639
-        // 的外框包著 900x600 的 client。GTK 是三者中唯一不同的。
-        //
-        // 差額無法事先算出。GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度取決於主題、縮放，
-        // 以及 compositor 是否提供 server-side decorations——在後者之下差額為零，此處必須什麼
-        // 都不做。因此改為在視窗被 map（child 首次擁有真實配置的時刻）之後量測一次並修正一次。
-        //
-        // Measured, so that the next reader does not repeat it: the "map" signal
-        // is too early. Instrumented, it reports `contentAllocation=0x0` -- the
-        // window is mapped before its child has any allocation at all. The
-        // correction therefore happens from `updateWindow`, which the framework
-        // calls on every layout pass, by which time the allocation is real.
-        //
-        // 已實測，避免下一位讀者重蹈：`"map"` signal 太早。加上診斷後它回報
-        // `contentAllocation=0x0`——視窗被 map 時，其 child 根本還沒有任何配置。因此改由
-        // `updateWindow` 執行修正，那是框架在每次版面計算時都會呼叫的位置，屆時配置已是真的。
+        // 保存下來，讓 `reportContentSizeShortfall` 能比較所要求的與內容實際拿到的。它由 `updateWindow` 在每次
+        // 版面計算時執行，因為 `"map"` signal 太早：加上診斷後它回報 `contentAllocation=0x0`——視窗被 map 時，
+        // 其 child 根本還沒有任何配置。
         if let defaultSize {
             requestedContentSizes[ObjectIdentifier(window)] = defaultSize
         }
@@ -1684,107 +1418,28 @@ public final class GtkBackend:
         return window
     }
 
-    /// The content size each window was created with, and the windows already
-    /// grown to deliver it. See `createWindow` for why the correction cannot
-    /// happen there.
-    /// 各視窗建立時所要求的內容尺寸，以及已經被放大以交付該尺寸的視窗。修正為何無法在
-    /// `createWindow` 內完成，見該處說明。
+    /// The content size each window was created with, for
+    /// `reportContentSizeShortfall`.
+    /// 各視窗建立時所要求的內容尺寸，供 `reportContentSizeShortfall` 使用。
     private var requestedContentSizes: [ObjectIdentifier: SIMD2<Int>] = [:]
-    // `contentSizeCorrected` lived here and is gone with the correction it
-    // guarded. Nothing needs to remember whether a window has been corrected
-    // once nothing corrects one, and a set kept "in case" is state that reads as
-    // load-bearing while holding nothing up.
-    // 這裡原本有 `contentSizeCorrected`，它隨著它所守護的那段修正一併移除。當沒有東西在做修正時，
-    // 就不需要記住「某個視窗是否已被修正過」；而一個「以備不時之需」而保留的集合，是一種「看起來
-    // 承重、實則什麼都沒撐」的狀態。
 
-    /// Grows a window by however much its decorations ate, once.
+    /// Logs, through `DebugFeatures.log`, the difference between the content
+    /// size a window asked for and the size its content was allocated.
     ///
     /// `gtk_window_set_default_size` sizes the window, and under client-side
-    /// decorations the header bar is inside it, so an app asking for 900x600 was
-    /// measured getting 900x561 of content on WSLg. AppKit and WinUI both treat
-    /// the request as content -- on macOS the same app gets a 900x628 frame
-    /// around 900x600, on Windows a 916x639 frame around a 900x600 client -- so
-    /// GTK was the only one of the three delivering less than was asked for.
+    /// decorations the header bar is inside it, so without the allowance
+    /// `createWindow` adds an app asking for 900x600 got 900x561 of content on
+    /// WSLg. AppKit and WinUI both treat the request as content -- on macOS the
+    /// same app gets a 900x628 frame around 900x600, on Windows a 916x639 frame
+    /// around a 900x600 client. This only reports; see the note in the body for
+    /// why it does not correct.
     ///
-    /// The shortfall cannot be computed in advance: GTK4 has no set-content-size
-    /// call, and the header's height depends on the theme, the scale and whether
-    /// the compositor gives server-side decorations at all, under which it is
-    /// zero and this must do nothing.
+    /// 透過 `DebugFeatures.log` 記錄視窗所要求的內容尺寸與其內容實際配置到的尺寸之差。
     ///
-    /// 依裝飾所吃掉的量放大視窗，只做一次。
-    ///
-    /// `gtk_window_set_default_size` 設定的是視窗，而在 client-side decoration 之下標題列位於其
-    /// 內，因此實測一支要求 900x600 的 app 在 WSLg 上只拿到 900x561 的內容。AppKit 與 WinUI 都把
-    /// 該要求視為內容——macOS 上同一支 app 得到 900x628 的外框包著 900x600，Windows 上是 916x639
-    /// 的外框包著 900x600 的 client——因此 GTK 是三者中唯一交付得比要求少的。
-    ///
-    /// 差額無法事先算出：GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度取決於主題、縮放，以及
-    /// compositor 是否提供 server-side decorations——在後者之下差額為零，此處必須什麼都不做。
-    ///
-    /// **THIS DOES NOT WORK, AND THAT IS MEASURED. 2026-09-04.** The assignment
-    /// below runs, logs, and changes nothing. With the read-back added the same
-    /// day, P16 on Windows/GtkBackend reports:
-    ///
-    ///     content size: requested 900x600 allocated 900x561 shortfall 0x39
-    ///     content size: grew the window to 900x639
-    ///     content size after correction (+250ms):  allocated 900x561 shortfall 0x39
-    ///     content size after correction (+1500ms): allocated 900x561 shortfall 0x39
-    ///
-    /// Two delays, the same number twice, so this is a real no-op and not a
-    /// measurement taken before GTK relaid out -- a timing artefact would have
-    /// produced two DIFFERENT numbers.
-    ///
-    /// Why it cannot work, and the answer was already written down 400 lines
-    /// away in `setSizeLimits`: "A size request on the toplevel is only honoured
-    /// as a launch hint; once the window is realised GTK lets the user drag it
-    /// below that." `gtk_window_set_default_size` is the same kind of hint, and
-    /// this method by construction runs AFTER the window is mapped -- that is
-    /// the whole reason it exists, since the shortfall is unmeasurable before
-    /// then. So the one moment it can measure is the one moment it can no longer
-    /// act.
-    ///
-    /// **The assignment was deleted on 2026-09-04 and this method renamed with
-    /// it.** What stood here said "left in place rather than deleted", and that
-    /// was true at the time: the reading and the assignment shared one function,
-    /// so removing either took the shortfall's only reading with it. They are
-    /// separated now, so the reading stays and the assignment goes -- and the
-    /// name goes too, because a `correctContentSizeIfNeeded` that corrects
-    /// nothing misleads at every call site.
-    ///
-    /// Three real fixes were considered and all three rejected; see task #79 and
-    /// `bugs/Gtk4-bugs.md` section 5. Forcing the size through the
-    /// CustomRootWidget's measured minimum breaks what `.defaultSize` means, and
-    /// owning the titlebar in order to measure it costs 8px of permanent chrome
-    /// on every window (GTK's own decoration measures 39, a `GtkHeaderBar` 47,
-    /// both measured 2026-09-04). So this reports, and does not pretend.
-    ///
-    /// **這段程式碼沒有作用，而且是實測的。2026-09-04。** 下方的指派會執行、會記錄，然後什麼也
-    /// 不改變。加入同日新增的讀回之後，P16 在 Windows/GtkBackend 上回報：
-    ///
-    ///     content size: requested 900x600 allocated 900x561 shortfall 0x39
-    ///     content size: grew the window to 900x639
-    ///     content size after correction (+250ms):  allocated 900x561 shortfall 0x39
-    ///     content size after correction (+1500ms): allocated 900x561 shortfall 0x39
-    ///
-    /// 兩個延遲、同一個數字兩次，因此這是真正的 no-op，而不是「在 GTK 重新配置之前就量了」——
-    /// 時序造成的假象會給出**兩個不同的**數字。
-    ///
-    /// 它為何不可能有效，而答案早就寫在四百行外的 `setSizeLimits` 裡：「toplevel 上的 size
-    /// request 只會被當成啟動提示；視窗一旦 realise，GTK 就允許使用者把它拖得更小。」
-    /// `gtk_window_set_default_size` 屬於同一類提示，而本方法**依其構造**必然在視窗 map 之後才
-    /// 執行——那正是它存在的全部理由，因為差額在那之前量不到。於是**它唯一能量測的時刻，正是它
-    /// 已經無法作用的時刻。**
-    ///
-    /// **那個指派已於 2026-09-04 刪除，本方法也隨之更名。** 先前這裡寫的是「保留而不刪除」，
-    /// 那句話在當時是對的：讀數與指派綁在同一個函式裡，刪掉其一會連唯一一份「差額」的讀數一併
-    /// 帶走。兩者現在已經分開，因此**讀數留下、指派移除**——而名稱也跟著改，因為一個叫
-    /// `correctContentSizeIfNeeded` 卻不做任何修正的方法，會在呼叫端騙過下一個讀者。
-    ///
-    /// 曾考慮三種真正的修正，三種都被否決；見任務 #79 與 bugs/Gtk4-bugs.md 第 5 節。透過
-    /// CustomRootWidget 的 measured minimum 強制尺寸，會破壞 `.defaultSize` 的語意；為了量測而
-    /// 接管 titlebar，代價是每個視窗永久多出 8px 裝飾（GTK 自身 39，GtkHeaderBar 47，2026-09-04
-    /// 實測）。因此此處回報，而不假裝修好。
+    /// `gtk_window_set_default_size` 設定的是視窗，而在 client-side decoration 之下標題列位於其內，因此若沒有
+    /// `createWindow` 加上的額度，一支要求 900x600 的 app 在 WSLg 上只拿到 900x561 的內容。AppKit 與 WinUI 都把
+    /// 該要求視為內容——macOS 上同一支 app 得到 900x628 的外框包著 900x600,Windows 上是 916x639 的外框包著
+    /// 900x600 的 client。本方法只回報；為何不修正，見方法內的註記。
     private func reportContentSizeShortfall(of window: Window) {
         let key = ObjectIdentifier(window)
         guard let requested = requestedContentSizes[key],
@@ -1793,36 +1448,9 @@ public final class GtkBackend:
 
         let allocated = content.allocatedSize
 
-        // Report on EVERY pass, correct on one. The two were fused until
-        // 2026-09-04 and that made the diagnostic unable to answer the only
-        // question worth asking.
-        //
-        // With the correction guarded and the log inside it, a run printed
-        // "shortfall 0x39 -- grew the window to 900x639" and then went quiet.
-        // That says the fix RAN. It does not say it WORKED: there is no second
-        // reading, so "corrected to 600" and "corrected to something else" look
-        // identical, and so does a correction that GTK silently refused. A
-        // check that cannot produce a failing answer has not produced a passing
-        // one either -- the shape this project has now recorded three times in
-        // bugs/Gtk4-bugs.md section 6.
-        //
-        // Now the after-pass prints `shortfall 0x0`, which is a value that could
-        // have come out wrong and did not.
-        //
-        // **每一輪都回報，只修正一次。** 兩者在 2026-09-04 之前是綁在一起的，而那使這個診斷無法
-        // 回答唯一值得問的問題。
-        //
-        // 在「修正被 guard 擋住、log 又寫在 guard 之內」的情況下，某次執行印出
-        // 「shortfall 0x39——已把視窗放大為 900x639」，然後就沉默了。那說明這個修正**執行過**，
-        // 卻沒說它**有效**：因為沒有第二次讀數，「已修正為 600」與「修正成了別的值」看起來一模一樣，
-        // 而「GTK 默默拒絕了這次修正」看起來也一樣。**一個無法產生失敗答案的檢查，也沒有產生通過的
-        // 答案**——這正是本專案已在 bugs/Gtk4-bugs.md 第 6 節記錄三次的形狀。
-        //
-        // 現在事後那一輪會印出 `shortfall 0x0`，那是一個「本來可能出錯、而它沒有」的數值。
         // Still zero means the allocation has not happened yet, so this is not
-        // the pass that can measure it. Returning without marking the window
-        // corrected leaves the next pass to try.
-        // 仍為零代表配置尚未發生，因此這一輪無法量測。此處返回而不標記為已修正，把機會留給下一輪。
+        // the pass that can measure it; the next pass tries again.
+        // 仍為零代表配置尚未發生，因此這一輪無法量測；下一輪會再試。
         guard allocated.width > 0, allocated.height > 0 else { return }
 
         let shortfallX = requested.x - allocated.width
@@ -1836,17 +1464,16 @@ public final class GtkBackend:
         // reported frame disagree by a number that itself has to be measured.
         // Task #78 reached the same conclusion for #160 and it holds here.
         //
-        // Prints whether or not a correction is needed, because "shortfall 0"
-        // is the result that says the bug is gone -- and a diagnostic that only
-        // speaks when something is wrong cannot distinguish "fixed" from
-        // "not running".
+        // Printed whatever the value, because "shortfall 0" is the result that
+        // says the window got what it asked for, and a diagnostic that only
+        // speaks when something is wrong cannot tell "fixed" from "not running".
         //
         // 由**版面系統內部**回報，那是唯一不需要猜測的地方。2026-09-04 曾嘗試從截圖量測並放棄：
         // Windows 上的 GTK4 視窗帶有一圈隱形的調整邊框，`GetWindowRect` 把它算進去而沒有任何東西
         // 去畫它，因此「量可見邊緣的尺」與「量回報框架的尺」會相差一個本身還得先被量出來的數字。
         // 任務 #78 對 #160 得到相同結論，此處亦然。
         //
-        // **無論是否需要修正都輸出**，因為「shortfall 0」正是「缺陷已消失」的結果——而一個只在
+        // **無論數值為何都輸出**，因為「shortfall 0」正是「視窗拿到了它所要求的」的結果——而一個只在
         // 出錯時才出聲的診斷，無法區分「已修好」與「根本沒有執行」。
         DebugFeatures.log(
             "content size: requested \(requested.x)x\(requested.y) "
@@ -1854,14 +1481,9 @@ public final class GtkBackend:
                 + "shortfall \(shortfallX)x\(shortfallY)"
         )
 
-        // The other half of the #79 (c) probe. Compare with the BEFORE line
-        // printed in `createWindow`: same list, after mapping. A widget present
-        // in both, at the same height as the shortfall, means the number was
-        // available in advance and the "cannot be computed" comment below is
-        // wrong.
-        // #79 方案 (c) 探針的另一半。與 `createWindow` 中輸出的那行 BEFORE 對照:同一份清單,
-        // 只是在 map 之後。若某個 widget **兩邊都在**、且高度與 shortfall 相同,就代表那個數字
-        // **事先就取得到**,而下方那句「無法事先算出」是錯的。
+        // Compare with the BEFORE line printed in `createWindow`: the same list
+        // of the window's children, after mapping.
+        // 與 `createWindow` 中輸出的那行 BEFORE 對照:同一份視窗子節點清單，只是在 map 之後。
         DebugFeatures.log(
             "decoration probe AFTER map: "
                 + (window.childMeasurements.isEmpty
@@ -1871,144 +1493,38 @@ public final class GtkBackend:
                     .joined(separator: " "))
         )
 
-        // I PUT THE CORRECTION BACK ON 2026-09-10 AND TOOK IT OUT AGAIN THE
-        // SAME HOUR. Recorded rather than quietly reverted, because the reason
-        // it failed is the deleted version's conclusion being RIGHT and my
-        // reason for doubting it being wrong.
+        // No correction here. `gtk_window_set_default_size` is a launch hint
+        // once the window is realised -- `setSizeLimits` says the same of a size
+        // request -- and this runs after mapping, because the allocation is not
+        // real before then. Measured twice: a correction by the shortfall logged
+        // "grew the window to 900x639" while the content stayed 900x561 at
+        // +250 ms and +1500 ms (P16, 2026-09-04), and one by the window's own
+        // 39 px header gave window 620x459 and content still 620x428
+        // (2026-09-10). The allowance `createWindow` adds before present is
+        // what works.
         //
-        // The argument for putting it back: `setSize(ofWindow:)` used to write
-        // the unadjusted request back afterwards (its own comment says so), and
-        // that is now fixed, so a correction here should survive. The window's
-        // own header can finally be measured at this point -- 39, where the
-        // throwaway probe says 47 -- so the correction had the right number,
-        // which the earlier attempt did not.
+        // Re-read later, because `updateWindow`, the only caller, is not called
+        // again in an app that simply sits there (measured 2026-09-04, also with
+        // `actions/win/P16-force-update.actions`). The later readings tell a
+        // permanent shortfall -- an app given less than it asked for, for the
+        // whole run -- from a transient of startup layout. On a timeout rather
+        // than an idle callback, so the reading comes after GTK's own resize.
         //
-        // It ran, with the right number, and changed nothing:
+        // 此處不做修正。視窗一旦 realise,`gtk_window_set_default_size` 就只是啟動提示——`setSizeLimits`
+        // 對 size request 也這麼寫——而本方法在 map 之後才執行，因為配置在那之前並不真實。實測兩次：依差額
+        // 修正時記錄了「grew the window to 900x639」,內容在 +250ms 與 +1500ms 仍停在 900x561(P16,
+        // 2026-09-04);依視窗自己 39 px 的 header 修正時，視窗為 620x459,內容仍是 620x428(2026-09-10)。
+        // 有效的是 `createWindow` 在 present 之前加上的那份額度。
         //
-        //     content size: corrected using the window's own header
-        //                   (39, the probe said 47) -> window 620x459
-        //     content size settled (+250ms):  allocated 620x428
-        //     content size settled (+1500ms): allocated 620x428
-        //
-        // So `gtk_window_set_default_size` really is a launch hint once the
-        // window is realised, exactly as the note below says and as
-        // `setSizeLimits` in this file has said all along. The overwrite was a
-        // second, independent bug -- fixing it did not make this call work.
-        //
-        // **我在 2026-09-10 把這段修正放了回來,又在同一個小時內把它拿掉。** 此處記錄而非默默還原,
-        // 因為它失敗的原因是:**那份已刪除版本的結論是對的,而我懷疑它的理由是錯的。**
-        //
-        // 放回來的論據是:`setSize(ofWindow:)` 先前會在其後把未經調整的請求寫回去(那個方法自己的
-        // 註解就這麼說),而那件事現在已經修好,因此此處的修正應當得以存活。而且在這個時間點,
-        // 視窗**自己的** header 終於量得到了——**39**,而用完即丟的 probe 說的是 47——
-        // 所以這次的修正**帶著正確的數字**,那是先前那次嘗試所沒有的。
-        //
-        // 它執行了、帶著正確的數字、而且什麼都沒有改變(見上方英文段落中的三行實測輸出)。
-        //
-        // 因此 `gtk_window_set_default_size` 在視窗 realize 之後**真的**只是一個啟動提示,
-        // 正如下方那則註記所述、也正如本檔的 `setSizeLimits` 一直以來所說。那次覆寫是**第二個、
-        // 獨立的**缺陷——修好它並不會讓這個呼叫變得有效。
-        //
-        // The correction that used to follow is GONE, deleted 2026-09-04 after
-        // it was measured doing nothing. It read:
-        //
-        //     window.defaultSize = Size(width: requested.x + shortfallX,
-        //                               height: requested.y + shortfallY)
-        //
-        // and it logged "grew the window to 900x639" while the content stayed
-        // at 900x561, at +250ms and again at +1500ms. Two delays, the same
-        // number twice, so a no-op rather than a reading taken too early.
-        //
-        // `gtk_window_set_default_size` is a launch hint once the window is
-        // realised -- `setSizeLimits` in this same file has said so all along --
-        // and this method runs after the window is mapped BY CONSTRUCTION,
-        // because the shortfall is unmeasurable before then. The one moment it
-        // can measure is the one moment it can no longer act.
-        //
-        // Deleting the assignment rather than keeping it: a line that logs
-        // success and changes nothing is worse than no line, because it makes
-        // the bug look handled in `git log`, in the comments, and in the output.
-        // The reading above stays, because it is the only thing in the tree that
-        // reports the shortfall at all.
-        //
-        // Three replacements were considered and all three rejected; see task
-        // #79 and bugs/Gtk4-bugs.md section 5. The shortest version: forcing the
-        // size through the child's measured minimum breaks what `.defaultSize`
-        // means, and owning the titlebar to measure it costs 8px of permanent
-        // chrome (GTK's own decoration is 39, a GtkHeaderBar is 47).
-        //
-        // 原本接在這裡的那段修正**已刪除**，2026-09-04，在它被量測到毫無作用之後。它原本是：
-        //
-        //     window.defaultSize = Size(width: requested.x + shortfallX,
-        //                               height: requested.y + shortfallY)
-        //
-        // 它會記錄「grew the window to 900x639」，而內容仍停在 900x561——在 +250ms 與 +1500ms
-        // 各量一次，兩個延遲、同一個數字兩次，因此是 no-op，而非「量得太早」。
-        //
-        // 視窗一旦 realise，`gtk_window_set_default_size` 就只是啟動提示——同一個檔案裡的
-        // `setSizeLimits` 一直都這麼寫著——而本方法**依其構造**必然在 map 之後才執行，因為差額在
-        // 那之前量不到。**它唯一能量測的時刻，正是它已經無法作用的時刻。**
-        //
-        // 選擇刪除而非保留：一行「記錄成功卻什麼都不改」的程式碼，比沒有這行更糟，因為它會讓這個
-        // 缺陷在 `git log`、在註解、在輸出中**看起來都已經被處理過了**。上方的讀數則保留，因為它是
-        // 本樹中唯一會回報這個短少的東西。
-        //
-        // 曾考慮三種替代方案，三種都被否決；見任務 #79 與 bugs/Gtk4-bugs.md 第 5 節。最短的版本：
-        // 透過子 widget 的 measured minimum 強制尺寸，會破壞 `.defaultSize` 的語意；而為了量測而
-        // 接管 titlebar，代價是永久多出 8px 的裝飾（GTK 自身的裝飾為 39，GtkHeaderBar 為 47）。
-
-        // Re-read it later, which now proves something different from what it
-        // was written for. It was added to tell a correction that WORKED from
-        // one that merely RAN; there is no correction any more, so what the
-        // second and third readings establish is that the shortfall is
-        // PERMANENT rather than a transient of startup layout. That distinction
-        // matters and nothing else in the tree makes it: a 39px window that
-        // settles correctly a moment later is a flicker, and a 39px window that
-        // stays is an app given less than it asked for, for the whole run.
-        //
-        // 稍後重讀一次；它現在證明的東西與當初寫它的目的**不同**。它原本是用來分辨一次修正是
-        // **有效**還是只是**執行過**；如今已經沒有修正，因此第二、第三次讀數所確立的，是這個短少
-        // 屬於**永久性**，而非啟動版面的暫態。這個區別很重要，而本樹中沒有別的東西能做出它：
-        // 一個稍後就自行修正的 39px 視窗只是閃爍，而一個一直維持著的 39px 視窗，代表這支 app
-        // **在整個執行期間**都拿到比它所要求的更少。
-        //
-        // Nothing else provides the second reading. `updateWindow` is the only
-        // caller of this method and it is not invoked again in an app that
-        // simply sits there -- measured 2026-09-04, including with
-        // `actions/win/P16-force-update.actions`, which produced the same single
-        // pass. So the after-value has to be asked for explicitly.
-        //
-        // On a timeout rather than an idle callback: the new default size takes
-        // effect through GTK's own resize, and an idle handler can run before
-        // that has happened, which would report the OLD allocation and read as
-        // a failed correction. The delay is a guess at "after the resize", and
-        // it is a diagnostic, so being late costs nothing and being early costs
-        // a wrong answer.
-        //
-        // Behind `DebugFeatures.log`, so a release build schedules nothing.
-        //
-        // 在 GTK 重新配置之後讀回一次，否則無從分辨一次修正是**有效**還是只是**執行過**。
-        //
-        // 沒有別的東西會提供第二次讀數。`updateWindow` 是本方法唯一的呼叫端，而在一個就這麼放著
-        // 的 app 中它不會被再次呼叫——2026-09-04 實測，連用
-        // `actions/win/P16-force-update.actions` 也一樣只有單獨一輪。因此事後的值必須主動去要。
-        //
-        // 使用 timeout 而非 idle callback：新的預設尺寸要透過 GTK 自身的 resize 才會生效，而
-        // idle handler 可能在那之前就執行，於是回報**舊的**配置，讀起來就像修正失敗。這個延遲是
-        // 對「resize 之後」的估計；由於它是診斷，晚一點沒有代價，早一點卻會得到錯的答案。
-        //
-        // 置於 `DebugFeatures.log` 之後，因此 release 建置不會排任何東西。
+        // 稍後重讀，因為唯一的呼叫端 `updateWindow` 在一個就這麼放著的 app 中不會被再次呼叫(2026-09-04
+        // 實測，連用 `actions/win/P16-force-update.actions` 也一樣)。稍後的讀數能分辨永久性的短少——app
+        // 在整個執行期間都拿到比它所要求的更少——與啟動版面的暫態。使用 timeout 而非 idle callback,讓讀數
+        // 落在 GTK 自身的 resize 之後。
         #if SCUI_DEBUG
-            // TWICE, at two delays, and that is not belt-and-braces. A single
-            // late reading cannot distinguish "the correction did nothing" from
-            // "the correction worked but I measured before GTK relaid out" --
-            // both print the old number. Two readings separate them: a timing
-            // artefact shows two DIFFERENT numbers, a real no-op shows the same
-            // number twice.
+            // Two delays: a timing artefact shows two DIFFERENT numbers, a
+            // permanent shortfall the same number twice.
             //
-            // **兩次，取兩個延遲**，這不是多此一舉。單一次的延後讀數無法分辨「修正沒有作用」與
-            // 「修正有效，但我在 GTK 重新配置之前就量了」——兩者都會印出舊的數字。兩次讀數能把它們
-            // 分開：時序造成的假象會顯示**兩個不同的**數字，真正的 no-op 則會把同一個數字印兩次。
+            // 兩個延遲：時序造成的假象會顯示**兩個不同的**數字，永久性的短少則會把同一個數字印兩次。
             for delay in [250, 1500] {
                 Self.runInMainThread(afterMilliseconds: delay) { [weak window] in
                     guard let window, let content = window.getChild() else { return }
@@ -2034,7 +1550,7 @@ public final class GtkBackend:
         // SwiftCrossUI colours.
         //
         // Only when the app asks for something other than the ambient theme.
-        // Setting it unconditionally feeds our own detection back into GTK, and
+        // Setting it unconditionally feeds this backend's own detection back into GTK, and
         // the setting is global and sticky, so it would outlive the app: a run
         // that requested dark leaves the next run reporting dark under a light
         // theme, which is light text on a light background.
@@ -2049,7 +1565,7 @@ public final class GtkBackend:
         // 自行繪製的 widget（按鈕、輸入框、清單列）也跟隨 app 的要求，而不僅是 SwiftCrossUI 自行
         // 上色的文字。
         //
-        // 僅在 app 要求了與環境主題不同的配色時才設定。無條件設定會把我們自己的偵測回饋給 GTK，
+        // 僅在 app 要求了與環境主題不同的配色時才設定。無條件設定會把本 backend 自己的偵測回饋給 GTK，
         // 而該設定為全域且具黏性，其效果會比 app 存活更久：一次要求 dark 的執行，會使下一次在
         // light 主題下的執行回報 dark，結果是淺色文字畫在淺色背景上。
         //
@@ -2198,48 +1714,27 @@ public final class GtkBackend:
             return 0
         #else
             if window.showMenuBar {
-                // Still hardcoded, and the TODO that used to sit here -- "don't
-                // hardcode this (if possible), because some Gtk themes may
-                // affect the height of the menu bar" -- has been tried. It is
-                // not possible at this call site, which is worth recording so
-                // the next person does not repeat the attempt.
+                // Hardcoded, because there is nothing to measure when this is
+                // asked: `menubarHeight` is called once per run, from
+                // `setSize(ofWindow:)` during initial sizing, before GTK has
+                // built the bar -- a depth-first walk from the ApplicationWindow
+                // found only `GtkCustomRootWidget` and three `GtkPassthroughFixed`
+                // (Windows/GTK 4.22.4, P20 with an application menu, 2026-08-27).
+                // Measuring would mean re-running the sizing after the bar
+                // appears, a change to when this is computed rather than to how.
                 //
-                // Measured 2026-08-27 on Windows/GTK 4.22.4, with P20 given an
-                // application menu for the purpose (no Pn had one before, so
-                // this whole branch had never executed):
+                // The bar drew 23 pt of strip plus a 1 pt rule, sampled down a
+                // text-free column of the capture, so 25 is one or two points too
+                // tall under that theme, and the window that much too tall with
+                // the content offset to match.
                 //
-                //   * `menubarHeight` is called exactly ONCE per run, from
-                //     `setSize(ofWindow:)` during initial sizing.
-                //   * At that moment the menu bar is not in the widget tree. A
-                //     depth-first walk from the ApplicationWindow found only
-                //     `GtkCustomRootWidget` and three `GtkPassthroughFixed`.
-                //     GTK builds the bar later.
+                // 寫死，因為在被詢問的時刻沒有東西可以量測:`menubarHeight` 每次執行只會被呼叫一次，來自初始尺寸
+                // 設定時的 `setSize(ofWindow:)`,早於 GTK 建立選單列——自 ApplicationWindow 進行深度優先走訪，只找到
+                // `GtkCustomRootWidget` 與三個 `GtkPassthroughFixed`(Windows/GTK 4.22.4,帶應用程式選單的 P20,
+                // 2026-08-27)。要量測就得在選單列出現之後重新執行尺寸計算，那是改變「何時計算」，而非改變「如何計算」。
                 //
-                // So there is nothing to measure when the one question is asked.
-                // A real fix has to measure after the bar appears and then
-                // re-run the sizing, which is a change to when this is computed
-                // rather than to how.
-                //
-                // How wrong the constant is: the bar drew 23 pt of strip plus a
-                // 1 pt rule, sampled down a text-free column of the capture. So
-                // 25 is one or two points too tall under this theme, and the
-                // window is that much too tall with the content offset to match.
-                //
-                // 此處仍為寫死的值，而原本擺在這裡的 TODO——「盡可能不要寫死，因為某些 Gtk 主題會
-                // 影響選單列的高度」——已經嘗試過了。在這個呼叫點上做不到，此事值得記錄下來，以免
-                // 下一個人重複同樣的嘗試。
-                //
-                // 2026-08-27 於 Windows/GTK 4.22.4 實測（為此特地讓 P20 帶上應用程式選單——在那之前
-                // 沒有任何 Pn 有選單，因此這整條分支從未執行過）：`menubarHeight` 每次執行只會被呼叫
-                // **一次**，來自初始尺寸設定時的 `setSize(ofWindow:)`；而在那個時間點，選單列並不在
-                // widget 樹中——自 ApplicationWindow 進行深度優先走訪，只找到 `GtkCustomRootWidget`
-                // 與三個 `GtkPassthroughFixed`，GTK 是稍後才建立該列的。
-                //
-                // 因此在唯一被提問的時刻，根本沒有東西可以量測。真正的修法必須在選單列出現之後才
-                // 量測，並重新執行尺寸計算——那是改變「何時計算」，而非改變「如何計算」。
-                //
-                // 這個常數錯得多離譜：該列畫出 23 pt 的橫條加上 1 pt 的分隔線（取樣自截圖中一條沒有
-                // 文字的直線）。因此在此主題下，25 高了一到兩點，視窗也就高了那麼多，內容隨之偏移。
+                // 該列畫出 23 pt 的橫條加上 1 pt 的分隔線(取樣自截圖中一條沒有文字的直線)。因此在該主題下,25 高了
+                // 一到兩點，視窗也就高了那麼多，內容隨之偏移。
                 25
             } else {
                 0
@@ -2256,107 +1751,47 @@ public final class GtkBackend:
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         // A fullscreen window must answer false, or the layout system keeps
         // proposing sizes the compositor will not grant and the two fight.
-        // AppKitBackend answers `!window.styleMask.contains(.fullScreen)` for
-        // the same reason; this was a constant `true` with a TODO next to it,
-        // which is the same bug WinUIBackend still carries.
+        // AppKitBackend answers `!window.styleMask.contains(.fullScreen)` and
+        // WinUIBackend checks its presenter kind, for the same reason.
         //
         // 全螢幕視窗必須回答 false，否則版面系統會不斷提出合成器不會允許的尺寸，兩者互相拉扯。
-        // AppKitBackend 基於相同理由回傳 `!window.styleMask.contains(.fullScreen)`；此處原本是一個
-        // 常數 `true` 加上一則 TODO，而 WinUIBackend 至今仍帶著同一個問題。
+        // AppKitBackend 基於相同理由回傳 `!window.styleMask.contains(.fullScreen)`,WinUIBackend 則檢查其
+        // presenter 的種類。
         return !window.isFullscreen
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
         let child = window.getChild() as! CustomRootWidget
         // The titlebar is chrome INSIDE the window that eats content height,
-        // exactly like the menu bar beside it -- and it was missing here.
+        // exactly like the menu bar beside it. This is the second place the
+        // requested CONTENT size is turned into a WINDOW size, after
+        // `createWindow`; without the titlebar here, `setSize` would write the
+        // unadjusted request back and the content would come out short by the
+        // header's height (553 for 600 with a 47 px titlebar, 2026-09-04).
         //
-        // This is the second place the requested CONTENT size is turned into a
-        // WINDOW size, and it is why adding the allowance in `createWindow`
-        // alone changed nothing: `setSize` runs afterwards and writes the
-        // unadjusted request back. Measured 2026-09-04 with
-        // SCUI_DEBUG_DECORATION=3 -- the titlebar reported 47 before mapping,
-        // the allowance was added at creation, and the content still came out
-        // 553, which is 600 - 47. The arithmetic named the overwriter before
-        // the code was read.
+        // The window's own header is preferred once it has one. The standalone
+        // probe bar reports 47 whether realized or not, inside a window or not,
+        // while the same `gtk_widget_measure` against the window's own header
+        // returns 39 (2026-09-10): the number depends on the header being that
+        // window's. A window that owns a titlebar -- under the probe, or a
+        // toolbar's -- measures that titlebar first.
         //
-        // Zero unless the window owns a titlebar, which today only happens
-        // under the probe. `titlebarNaturalHeight` returns nil for GTK's own
-        // decoration, so this is inert on every normal run.
+        // titlebar 是**視窗內部**會吃掉內容高度的裝飾，與它旁邊的 menu bar 完全同類。這是繼 `createWindow` 之後，
+        // 「把所要求的**內容**尺寸換算成**視窗**尺寸」的第二個地點；此處若不加上 titlebar,`setSize` 會把未經
+        // 調整的請求寫回去，內容就會短少 header 的高度(titlebar 為 47 px 時,600 只剩 553,2026-09-04)。
         //
-        // titlebar 是**視窗內部**會吃掉內容高度的裝飾，與它旁邊的 menu bar 完全同類——而它在此處
-        // 被漏掉了。
-        //
-        // 這是「把所要求的**內容**尺寸換算成**視窗**尺寸」的第二個地點，也正是「只在
-        // `createWindow` 加上補正卻毫無改變」的原因：`setSize` 在其後執行，並把未經調整的請求寫
-        // 了回去。2026-09-04 以 SCUI_DEBUG_DECORATION=3 實測——titlebar 在 map 前回報 47、補正
-        // 已加在建立時，而內容仍然是 553，即 600 − 47。**是算術先指出了覆蓋者，然後才去讀程式碼。**
-        //
-        // ~~Zero unless the window owns a titlebar … inert on every normal
-        // run.~~ **NO LONGER INERT, 2026-09-10.** That was true only because
-        // there was no way to measure GTK's OWN decoration, and the paragraph
-        // above had already worked out that this line is where the fix has to
-        // land. `probeHeaderBarHeight` supplies the number `titlebarNaturalHeight`
-        // could not: it builds a throwaway `GtkHeaderBar`, measures it, and
-        // drops it, so no decoration has to be taken over.
-        //
-        // It answers 47, and 47 is the right number even though the shortfall
-        // reads 39. 39 is the height GTK COMPRESSED its header to when 420 had
-        // to cover both header and content (39 + 381 = 420). Given 47 more, the
-        // header takes its natural 47 and the content gets the full 420.
-        // Adding 39 would land 8px short.
-        //
-        // Falls back to the old call, so a window that DOES own a titlebar --
-        // under the probe, or once toolbars install one -- still measures its
-        // real one rather than a generic sample.
-        //
-        // ~~除非視窗擁有 titlebar,否則此值為零……在一般執行中完全不作用。~~
-        // **2026-09-10 起不再是不作用的。** 先前之所以為真,只是因為當時**沒有辦法量測 GTK
-        // 自己的裝飾**;而上方那段文字早已推導出「修法必須落在這一行」。`probeHeaderBarHeight`
-        // 提供了 `titlebarNaturalHeight` 給不出的那個數字:它建一條**用完即丟**的
-        // `GtkHeaderBar`、量它、再丟掉,因此**不必接管任何裝飾**。
-        //
-        // 它的答案是 **47**,而即使 shortfall 讀起來是 39,47 才是對的數字。39 是當 420 必須同時
-        // 涵蓋 header 與內容時,GTK 把 header **壓縮**到的高度(39 + 381 = 420)。多給 47,
-        // header 就取回它自然的 47,而內容拿到完整的 420。**加 39 會少 8px。**
-        //
-        // 保留舊呼叫作為優先選項,如此一來「確實擁有 titlebar 的視窗」——在探針之下,或日後
-        // toolbar 裝上一條時——量到的仍是它**真正的**那一條,而不是一個通用樣本。
-        // PREFER THE WINDOW'S OWN HEADER, once it has one.
-        //
-        // The throwaway probe answers 47 and the header GTK lays out is 39, and
-        // that is not a natural-vs-minimum distinction: measured 2026-09-10,
-        // the standalone bar reports 47 for BOTH, realized or not, inside a
-        // window or not. The same `gtk_widget_measure` call against the
-        // window's own header returns 39. So the number depends on the header
-        // being that window's, and nothing about a sample reproduces it.
-        //
-        // Hence the order: the window's own header if it is there, the probe
-        // only until it is. `setSize` runs on every layout pass, so the first
-        // pass uses 47 (8px generous) and every pass after it uses the real 39.
-        //
-        // **一旦視窗有了自己的 header,就優先採用它。**
-        //
-        // 用完即丟的 probe 回答 47,而 GTK 排出來的 header 是 39,**且那並不是 natural 與
-        // minimum 的差別**:2026-09-10 實測,獨立的那條 bar **兩者都回報 47**,無論是否 realize、
-        // 是否置於視窗之內。同一個 `gtk_widget_measure` 對**視窗自己的** header 呼叫則回傳 39。
-        // 也就是說,**這個數字取決於那條 header 屬於那個視窗**,而任何樣本都複製不出來。
-        //
-        // 因此順序是:視窗自己的 header 若在就用它,probe 只在它還不在時頂替。`setSize` 每一次
-        // 版面計算都會執行,所以**第一次**用 47(寬鬆 8px),**其後每一次**都用真正的 39。
+        // **一旦視窗有了自己的 header,就優先採用它。** 獨立的探針 bar 無論是否 realize、是否置於視窗之內都回報
+        // 47,而同一個 `gtk_widget_measure` 對**視窗自己的** header 呼叫則回傳 39(2026-09-10):這個數字取決於
+        // 那條 header 屬於那個視窗。擁有 titlebar 的視窗——在探針之下，或 toolbar 的那條——優先量它。
         let liveHeaderHeight = window.childMeasurements
             .first { $0.typeName == "GtkHeaderBar" }?
             .naturalHeight
-        // The last resort is `.gtkOwnDecoration` rather than `.bare` for the
-        // reason the paragraph above gives: a header bar built here measures 47
-        // and the window's own lays out at 39, so the stand-in was 8px looser
-        // than the thing it stands in for. Measuring GTK's own decoration on a
-        // throwaway realized window closes that gap, which makes the fallback
-        // agree with the live reading instead of merely approximating it.
-        // 最後的退路改用 `.gtkOwnDecoration` 而非 `.bare`,理由就是上一段所說的:在此處建立的
-        // header bar 量得 47,而視窗自己的那條排版成 39,因此那個頂替者比它所頂替的對象鬆了 8px。
-        // 改為在一個用完即棄、realize 過的視窗上量測 **GTK 自己的**裝飾,即可補上這個落差——
-        // 使這條退路**與實際讀數一致**,而不只是近似它。
+        // The last resort is `.gtkOwnDecoration` rather than `.bare`: a header
+        // bar built here measures 47 and the window's own lays out at 39, while
+        // GTK's own decoration measured on a throwaway realized window agrees
+        // with the live reading.
+        // 最後的退路用 `.gtkOwnDecoration` 而非 `.bare`:在此處建立的 header bar 量得 47,而視窗自己的那條排版成
+        // 39;在一個用完即棄、realize 過的視窗上量測 **GTK 自己的**裝飾，則與實際讀數一致。
         let titlebarHeight =
             window.titlebarNaturalHeight
                 ?? liveHeaderHeight
@@ -2421,9 +1856,9 @@ public final class GtkBackend:
 
     /// Ctrl-Q quits, which is the GTK convention and issue #478.
     ///
-    /// Nothing provided this before. On macOS Cmd-Q comes free with AppKit's
-    /// standard application menu; GTK has no equivalent, so an app built on this
-    /// backend simply had no quit shortcut and the window stayed open.
+    /// On macOS Cmd-Q comes free with AppKit's standard application menu; GTK
+    /// has no equivalent, so without this an app built on this backend has no
+    /// quit shortcut.
     ///
     /// A `GAction` plus an accelerator rather than a key controller on each
     /// window: an accelerator is application-wide, so it works whichever window
@@ -2435,8 +1870,8 @@ public final class GtkBackend:
     ///
     /// Ctrl-Q 結束程式，這是 GTK 的慣例，也是 issue #478。
     ///
-    /// 此前並無任何機制提供它。在 macOS 上，Cmd-Q 隨 AppKit 的標準應用程式選單而來；GTK 沒有對應
-    /// 機制，因此以此 backend 建置的 app 根本沒有結束捷徑，視窗會一直開著。
+    /// 在 macOS 上，Cmd-Q 隨 AppKit 的標準應用程式選單而來；GTK 沒有對應機制，因此少了這一步，以此
+    /// backend 建置的 app 就沒有結束捷徑。
     ///
     /// 使用 `GAction` 加上加速鍵，而非在每個視窗掛上 key controller：加速鍵是應用程式層級的，因此
     /// 無論哪個視窗取得焦點都有效，對日後才建立的視窗亦然。
@@ -3229,12 +2664,12 @@ public final class GtkBackend:
         /// ``systemColorScheme`` is consulted repeatedly and a process per call
         /// would be absurd. The cost is that a WSL app does not follow a change
         /// made while it runs; it does follow it on the next launch. A run that
-        /// cannot start `reg.exe` within two seconds gets nil, which is the
-        /// pre-2026-10-20 behaviour, not an error.
+        /// cannot start `reg.exe` within two seconds gets nil, which leaves GTK's
+        /// own theme in charge, not an error.
         ///
         /// 本行程在 WSL 下執行時的 Windows「預設應用程式模式」,否則為 nil。以 `reg.exe` 經 WSL interop 讀取一次
         /// (實測 59 ms),因為 ``systemColorScheme`` 會被反覆查詢，每次都開行程並不合理。代價是 WSL 的 app 不會跟隨
-        /// 執行期間的切換，下次啟動時才會。兩秒內無法啟動 `reg.exe` 時得到 nil,即 2026-10-20 之前的行為，而非錯誤。
+        /// 執行期間的切換，下次啟動時才會。兩秒內無法啟動 `reg.exe` 時得到 nil,即不讀 Windows 設定時的行為(GTK 自己的主題),而非錯誤。
         /// Whether this process runs under WSL. / 本行程是否在 WSL 下執行。
         private static let isWSL: Bool =
             ProcessInfo.processInfo.environment["WSL_DISTRO_NAME"] != nil
@@ -3315,24 +2750,17 @@ public final class GtkBackend:
 
     /// What the current GTK theme's foreground colour implies, and NOTHING else.
     ///
-    /// ~~"Samples ``ambientColorScheme``."~~ -- that line belonged to
-    /// `sampleAmbientColorScheme` and was left attached here when the two were
-    /// split on 2026-09-09. It said the opposite of what this function does:
-    /// this one assigns nothing, which is the entire point of the split. Must
-    /// still run with GTK initialised.
-    ///
-    /// Split out of ``sampleAmbientColorScheme`` on 2026-09-09 for #27, because
-    /// that method also WRITES `Settings.default?.preferDarkTheme`. Calling it
-    /// from a `notify::` handler would therefore push a value back into the
-    /// object whose change caused the notification -- a feedback loop, and the
-    /// reason the earlier attempt at this was reverted. This one only reads.
+    /// It assigns nothing, unlike ``sampleAmbientColorScheme``, which also
+    /// WRITES `Settings.default?.preferDarkTheme` (#27). Calling that from a
+    /// `notify::` handler would push a value back into the object whose change
+    /// caused the notification -- a feedback loop. This one only reads. Must
+    /// run with GTK initialised.
     ///
     /// 目前 GTK 主題的前景色所蘊含的配色，**且僅止於此**。
     ///
-    /// 於 2026-09-09 為 #27 自 ``sampleAmbientColorScheme`` 中拆出，因為該方法同時會**寫入**
-    /// `Settings.default?.preferDarkTheme`。若從 `notify::` 的 handler 呼叫它，等於把一個值推回
-    /// 「其變更觸發了該通知」的那個物件——那是一個回饋迴圈，也正是先前那次嘗試被回退的原因。
-    /// 這一個只讀。
+    /// 它不指派任何東西，不同於 ``sampleAmbientColorScheme``——後者同時會**寫入**
+    /// `Settings.default?.preferDarkTheme`(#27)。若從 `notify::` 的 handler 呼叫後者，等於把一個值推回
+    /// 「其變更觸發了該通知」的那個物件——那是一個回饋迴圈。這一個只讀。必須在 GTK 初始化後執行。
     private func readAmbientColorScheme() -> ColorScheme {
         // A throwaway label in a throwaway window, neither ever shown.
         //
@@ -3355,25 +2783,17 @@ public final class GtkBackend:
         // 1.0/1.0/1.0，於是到處都判為「dark」，也就到處都是錯的）。置於視窗中即已足夠，該視窗
         // 不需要被 present。
         //
-        // BUILDING A WINDOW HERE IS SAFE, including from a notification handler.
-        // The TODO this replaced said otherwise -- "re-sampling has to build a
-        // window to read a themed colour from. Doing that there crashed, and
-        // deferring it to the next main-loop turn crashed as well." MEASURED
-        // 2026-08-26: both inline and via `g_idle_add` built the throwaway
-        // Window+Label and returned the correct new value, 0.180 -> 0.933. The
-        // crash in the reverted attempt was an ABI mismatch in the signal
-        // handler, not the probe: `notify` marshals as
-        // (instance, GParamSpec*, user_data) and the handler was declared with
-        // two parameters, so the box was read out of the register holding the
-        // GParamSpec. `Gtk.GObject.addNotificationSignal` declares three.
+        // BUILDING A WINDOW HERE IS SAFE, including from a notification handler:
+        // both inline and via `g_idle_add` it built the throwaway Window+Label
+        // and returned the correct new value, 0.180 -> 0.933 (2026-08-26). What
+        // crashes is a `notify` handler declared with two parameters instead of
+        // the marshalled three (instance, GParamSpec*, user_data);
+        // `Gtk.GObject.addNotificationSignal` declares three.
         //
-        // **在此建立視窗是安全的**，從通知 handler 中呼叫亦然。被本段取代的那個 TODO 說法相反：
-        // 「重新取樣必須建立一個 widget 才能讀到主題顏色。在該處建立會崩潰，延到主迴圈下一回合同樣
-        // 崩潰。」**2026-08-26 實測**：直接呼叫與透過 `g_idle_add` 兩種方式，都成功建立了暫時性的
-        // Window+Label 並回傳了正確的新值（0.180 → 0.933）。那次被回退的嘗試之所以崩潰，是 signal
-        // handler 的 ABI 不符，而非這個探針：`notify` 的封送形式是
-        // (instance, GParamSpec*, user_data)，而當時的 handler 只宣告了兩個參數，於是 box 被從存放
-        // GParamSpec 的暫存器讀出。`Gtk.GObject.addNotificationSignal` 宣告的是三個。
+        // **在此建立視窗是安全的**，從通知 handler 中呼叫亦然：直接呼叫與透過 `g_idle_add` 兩種方式，
+        // 都成功建立了暫時性的 Window+Label 並回傳了正確的新值(0.180 → 0.933,2026-08-26)。會崩潰的是
+        // 只宣告兩個參數、而非封送的三個 (instance, GParamSpec*, user_data) 的 `notify` handler;
+        // `Gtk.GObject.addNotificationSignal` 宣告的是三個。
         let probeWindow = Gtk.Window()
         let probeLabel = Gtk.Label(string: "")
         probeWindow.setChild(probeLabel)
@@ -3404,14 +2824,15 @@ public final class GtkBackend:
     /// for a set-to-the-same-value as well, and a handler that fired the
     /// environment change unconditionally would rebuild every view for nothing.
     ///
-    /// **NOT VERIFIABLE UNDER WSLg, and that is measured rather than assumed.**
-    /// `gsettings set org.gnome.desktop.interface color-scheme prefer-dark`
-    /// produced ZERO notifications on any of GtkSettings' 55 properties, under
-    /// both Wayland and X11, because WSLg has no xdg-desktop-portal, no
-    /// XSettings manager, no libadwaita and an empty `XDG_CURRENT_DESKTOP`.
-    /// An app will look broken there however correct this code is. Verification
-    /// needs a real GNOME desktop, or a Windows theme switch for the Windows
-    /// branch.
+    /// **Not verifiable on stock WSLg, and that is measured rather than
+    /// assumed.** `gsettings set org.gnome.desktop.interface color-scheme
+    /// prefer-dark` produced ZERO notifications on any of GtkSettings' 55
+    /// properties, under both Wayland and X11, because stock WSLg has no
+    /// xdg-desktop-portal, no XSettings manager, no libadwaita and an empty
+    /// `XDG_CURRENT_DESKTOP`. With xdg-desktop-portal and -gtk installed, whose
+    /// Settings interface carries the color scheme, it has not been measured.
+    /// Verification needs a real GNOME desktop, or a Windows theme switch for
+    /// the Windows branch.
     ///
     /// 訂閱兩個「會回報桌面淺色／深色變更」的 GtkSettings 屬性，且僅此兩個。
     ///
@@ -3425,19 +2846,12 @@ public final class GtkBackend:
     /// 「設定為相同的值」時同樣會發出 `notify`，而一個無條件觸發環境變更的 handler，會為了什麼都
     /// 沒發生而重建每一個 view。
     ///
-    /// **在 WSLg 下無法驗證，而這是實測而非臆測。**
+    /// **在原版 WSLg 下無法驗證，而這是實測而非臆測。**
     /// `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` 在 Wayland 與 X11 下，
-    /// 對 GtkSettings 的 55 個屬性**皆未產生任何通知**，因為 WSLg 沒有 xdg-desktop-portal、沒有
-    /// XSettings manager、沒有 libadwaita，且 `XDG_CURRENT_DESKTOP` 為空。無論這段程式碼多正確，
-    /// app 在那裡看起來都會像壞掉。驗證需要一個真正的 GNOME 桌面，或針對 Windows 分支做一次
-    /// Windows 主題切換。
-    ///
-    /// 2026-10-20: the "no xdg-desktop-portal" above was true of stock WSLg when
-    /// measured; this distro has had xdg-desktop-portal and -gtk since
-    /// 2026-09-17, whose Settings interface carries the color scheme. Whether
-    /// that makes this verifiable under WSLg has not been measured.
-    /// 2026-10-20:上方「沒有 xdg-desktop-portal」在量測時對原版 WSLg 成立；此發行版自 2026-09-17 起裝有
-    /// xdg-desktop-portal 與 -gtk,其 Settings 介面帶有配色。這是否讓本處在 WSLg 下變得可驗證，尚未量測。
+    /// 對 GtkSettings 的 55 個屬性**皆未產生任何通知**，因為原版 WSLg 沒有 xdg-desktop-portal、沒有
+    /// XSettings manager、沒有 libadwaita，且 `XDG_CURRENT_DESKTOP` 為空。裝有 xdg-desktop-portal 與
+    /// -gtk(其 Settings 介面帶有配色)時尚未量測。驗證需要一個真正的 GNOME 桌面，或針對 Windows 分支
+    /// 做一次 Windows 主題切換。
     /// Carries a weak ``GtkBackend`` and an `HKEY` across a thread boundary.
     ///
     /// `@unchecked Sendable` for the reason spelled out at its use site: this
@@ -3449,8 +2863,7 @@ public final class GtkBackend:
     /// Declared unconditionally rather than inside `#if os(Windows)` so that a
     /// change here is compiled on every platform. A type that exists on one
     /// platform is a type that can be broken on the others without anyone
-    /// noticing until that platform is built -- and the machine that builds
-    /// Windows is one machine.
+    /// noticing until that platform is built.
     ///
     /// 跨執行緒邊界攜帶一個 weak 的 ``GtkBackend`` 與一個 `HKEY`。
     ///
@@ -3460,7 +2873,7 @@ public final class GtkBackend:
     ///
     /// 此處**不**包在 `#if os(Windows)` 之內而是無條件宣告，如此對它的改動會在每個平台上都被編譯。
     /// 一個只存在於單一平台的型別，就是一個「可以在其他平台上被弄壞、而在那個平台被建置之前沒有人會
-    /// 發現」的型別——而建置 Windows 的機器只有一台。
+    /// 發現」的型別。
     private final class ColorSchemeWatchBox: @unchecked Sendable {
         weak var backend: GtkBackend?
         #if os(Windows)
@@ -3683,25 +3096,16 @@ public final class GtkBackend:
         // internal to the `Gtk` module and a call from here does not compile.
         // `Settings` already exposes exactly this wrapper, and it takes the full
         // name including the `notify::` prefix.
-        //
-        // This was caught by reading rather than by building, which is the only
-        // reason it is a footnote. It is the THIRD time this module boundary has
-        // cost something: `castedPointer` and `addSignal` are internal for the
-        // same reason, and this file already records at ~2636 that a fix was
-        // once written down as blocked because `window.addSignal(...)` is not
-        // reachable from here. Raw GTK plumbing belongs in the `Gtk` module,
-        // with a named method crossing the boundary -- the same shape as
+        // Raw GTK plumbing belongs in the `Gtk` module, with a named method
+        // crossing the boundary -- the same shape as
         // `Window.setHeaderBar(leading:trailing:)`.
         //
         // 此處用 `registerNotification`，**不是** `addNotificationSignal`。後者宣告於
         // `open class GObject` 內且沒有存取修飾詞，因此僅在 `Gtk` 模組內可見，從這裡呼叫編不過。
         // `Settings` 已經公開了正是這個包裝，而且它接受含 `notify::` 前綴的完整名稱。
         //
-        // 這是靠**閱讀**而非建置抓到的，那也是它只能算一個註腳的唯一原因。這是這道模組邊界第三次
-        // 造成代價：`castedPointer` 與 `addSignal` 內部化的理由相同，而本檔約 2636 行處已經記著
-        // 「某個修正曾因 `window.addSignal(...)` 在此無法取用而被記為受阻」。**原始的 GTK 管線屬於
-        // `Gtk` 模組**，並以一個具名方法跨越邊界——與 `Window.setHeaderBar(leading:trailing:)`
-        // 是同一種形狀。
+        // **原始的 GTK 管線屬於 `Gtk` 模組**，並以一個具名方法跨越邊界——與
+        // `Window.setHeaderBar(leading:trailing:)` 是同一種形狀。
         for property in ["gtk-interface-color-scheme", "gtk-theme-name"] {
             settings.registerNotification(named: "notify::\(property)") { [weak self] in
                 self?.recheckAmbientColorScheme()
@@ -3715,8 +3119,7 @@ public final class GtkBackend:
     /// **ONE body, two triggers**, and that is the point of it being a method
     /// rather than a closure: the GtkSettings notification (Linux, and Windows
     /// in principle) and the registry watch (Windows, in practice) must not
-    /// drift apart. Two copies of a rule about which reading wins is exactly the
-    /// shape that has cost this project a day at a time.
+    /// drift apart. Two copies of a rule about which reading wins would.
     ///
     /// Idempotent by value. GTK emits `notify` for a set-to-the-same-value as
     /// well, and the registry watch fires for any change under the key -- there
@@ -3724,8 +3127,8 @@ public final class GtkBackend:
     /// rebuild every view for nothing.
     ///
     /// **一個本體、兩個觸發源**,而這正是它是方法而非閉包的理由:GtkSettings 的通知(Linux,以及理論上
-    /// 的 Windows)與登錄檔監看(Windows,實務上)**不可以漂移開來**。「哪一個讀數優先」這條規則有兩份
-    /// 副本,正是本專案一次付出一整天代價的那種形狀。
+    /// 的 Windows)與登錄檔監看(Windows,實務上)**不可以漂移開來**。「哪一個讀數優先」這條規則若有兩份
+    /// 副本，就會漂移。
     ///
     /// 以**值**保證冪等。GTK 在「設定為相同的值」時同樣會發出 `notify`,而登錄檔監看則會為該鍵底下的
     /// **任何**變更觸發——`Personalize` 之下還有別的值——因此無條件呼叫會為了什麼都沒發生而重建每一個
@@ -3735,19 +3138,14 @@ public final class GtkBackend:
         // computed property that reads the Windows registry on every
         // access, so it is live; and where it has a value, it WINS --
         // that is the whole reason the Windows branch of
-        // `sampleAmbientColorScheme` exists. An earlier draft of this
-        // handler took `readAmbientColorScheme()` unconditionally, which
-        // on Windows would have let a GTK theme change overwrite the
-        // user's system preference. Caught by reading, not by running:
-        // the check needs a Windows theme switch, which nothing here can
-        // do.
+        // `sampleAmbientColorScheme` exists. Taking `readAmbientColorScheme()`
+        // unconditionally would let a GTK theme change on Windows overwrite
+        // the user's system preference.
         //
         // **先取 `systemColorScheme`,而這不是細節。** 它是一個計算屬性，每次存取都會讀取
         // Windows 登錄檔，因此它是即時的；而在它有值之處，它**優先**——那正是
-        // `sampleAmbientColorScheme` 的 Windows 分支存在的全部理由。本 handler 的較早草稿
-        // 無條件採用 `readAmbientColorScheme()`，那在 Windows 上會讓一次 GTK 主題變更**覆蓋
-        // 掉使用者的系統偏好**。這是靠閱讀抓到的，不是靠執行：要驗證它需要切換 Windows 主題，
-        // 而此處沒有任何東西做得到。
+        // `sampleAmbientColorScheme` 的 Windows 分支存在的全部理由。無條件採用 `readAmbientColorScheme()`,
+        // 會讓 Windows 上的一次 GTK 主題變更**覆蓋掉使用者的系統偏好**。
         let fresh = systemColorScheme ?? readAmbientColorScheme()
         guard fresh != ambientColorScheme else { return }
 
@@ -3772,18 +3170,12 @@ public final class GtkBackend:
         // 改變 `gtk-theme-name`」。**讓這件事安全的是那次量測，不是程式碼的形狀。**
         sampleAmbientColorScheme()
 
-        // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ was here and
-        // is REMOVED. `sampleAmbientColorScheme` already ends by setting
-        // it from `ambientColorScheme`, so this was the same rule
-        // written twice -- and the two copies were not even guaranteed
-        // to agree, since one used `fresh` and the other whatever the
-        // sampler settled on. They do agree today; that is not a reason
-        // to keep both.
+        // `gtkPrefersDarkTheme` is not set here: `sampleAmbientColorScheme`
+        // already ends by setting it from `ambientColorScheme`, and a second
+        // copy of that rule could disagree with the first.
         //
-        // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ 原本在此，**已移除**。
-        // `sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme` 設定過它，因此這是同一條
-        // 規則的兩份副本——而且兩者甚至不保證一致，因為一邊用的是 `fresh`、另一邊用的是取樣器
-        // 最後得出的值。它們今天是一致的；那不構成兩份都留下的理由。
+        // 此處不設定 `gtkPrefersDarkTheme`:`sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme`
+        // 設定過它，而那條規則的第二份副本可能與第一份不一致。
         rootEnvironmentChangeHandler?()
     }
 
@@ -3841,53 +3233,23 @@ public final class GtkBackend:
     public func setRootEnvironmentChangeHandler(
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // ~~TODO: React to the desktop switching between light and dark while
-        // the app runs ... Subscribing to the GtkSettings notifications was
-        // tried and reverted: the notification arrives inside GTK's own
-        // property-change machinery, reached from a window update, and
-        // re-sampling has to build a window to read a themed colour from. Doing
-        // that there crashed, and deferring it to the next main-loop turn
-        // crashed as well.~~
-        //
-        // **THE DIAGNOSIS IN THAT TODO WAS WRONG, and it is kept struck through
-        // because believing it is what left this gap open for two weeks.** The
-        // crash was never the probe. It was an ABI mismatch: `notify` marshals
-        // as (instance, GParamSpec*, user_data), and the handler had been
-        // declared with two parameters, so `Unmanaged.fromOpaque` was handed the
-        // register holding the GParamSpec and retained it as a Swift object.
-        // Reproduced 2026-08-26 down to `swift_retain` and a dereference of
-        // 0x18. Building the throwaway window from the handler was measured to
-        // work, inline and via `g_idle_add`, returning 0.180 -> 0.933.
-        //
-        // A second, quieter defect made it look like nothing happened even when
-        // it did not crash: `Settings.default` returned a fresh unretained
-        // wrapper each call, and `GObject.deinit` disconnects the handlers its
-        // wrapper registered -- so the subscription was connected and
-        // disconnected inside one expression. Both are fixed;
-        // `Gtk.GObject.addNotificationSignal` declares three parameters and
-        // `Settings.default` caches.
-        //
-        // Subscribing now happens once, in `runMainLoop`. See
+        // The desktop switching between light and dark while the app runs is
+        // followed through a subscription made once, in `runMainLoop`; see
         // ``subscribeToAmbientColorSchemeChanges`` for which two properties and
-        // why not the third.
+        // why not the third. Building the throwaway probe window from that
+        // handler is safe, inline and via `g_idle_add` (measured 2026-08-26,
+        // 0.180 -> 0.933), provided the `notify` handler is declared with all
+        // three marshalled parameters (instance, GParamSpec*, user_data) -- with
+        // two, `Unmanaged.fromOpaque` is handed the GParamSpec and the process
+        // crashes in `swift_retain` -- and `Settings.default` is cached, since a
+        // fresh wrapper's `deinit` disconnects the handlers it registered.
         //
-        // ~~TODO：讓 app 在執行期間跟隨桌面於淺色與深色之間的切換……訂閱 GtkSettings 的通知曾經
-        // 嘗試並已回退：該通知抵達於 GTK 自身的屬性變更流程之中，而重新取樣必須建立一個 widget
-        // 才能讀到主題顏色。在該處建立會崩潰，延到主迴圈下一回合同樣崩潰。~~
-        //
-        // **那個 TODO 的診斷是錯的**，此處劃線保留，因為**相信它**正是這個缺口被擱置了兩週的原因。
-        // 崩潰從來就不是那個探針造成的，而是 ABI 不符：`notify` 的封送形式是
-        // (instance, GParamSpec*, user_data)，而當時的 handler 宣告了兩個參數，於是
-        // `Unmanaged.fromOpaque` 拿到的是存放 GParamSpec 的暫存器，並把它當成 Swift 物件 retain。
-        // 2026-08-26 重現至 `swift_retain` 與對 0x18 的解參考。從 handler 中建立暫時性視窗，已實測
-        // 可行（直接呼叫與經由 `g_idle_add` 皆然），回傳 0.180 → 0.933。
-        //
-        // 另有一個更安靜的缺陷，使它即使不崩潰也像什麼都沒發生：`Settings.default` 每次呼叫都回傳
-        // 一個全新且未被持有的 wrapper，而 `GObject.deinit` 會斷開其 wrapper 所註冊的 handler
-        // ——於是該訂閱在同一個運算式內被連上又被斷開。兩者皆已修正。
-        //
-        // 訂閱現在只發生一次，位於 `runMainLoop`。至於是哪兩個屬性、以及為何不含第三個，
-        // 見 ``subscribeToAmbientColorSchemeChanges``。
+        // 桌面於執行期間在淺色與深色之間的切換，透過在 `runMainLoop` 中只做一次的訂閱來跟隨；至於是哪兩個
+        // 屬性、以及為何不含第三個，見 ``subscribeToAmbientColorSchemeChanges``。從該 handler 中建立暫時性
+        // 探針視窗是安全的，直接呼叫與經由 `g_idle_add` 皆然(2026-08-26 實測,0.180 → 0.933),前提是
+        // `notify` handler 宣告了全部三個封送參數 (instance, GParamSpec*, user_data)——只宣告兩個時,
+        // `Unmanaged.fromOpaque` 拿到的是 GParamSpec,行程會崩潰於 `swift_retain`——而且 `Settings.default`
+        // 有快取，因為一個全新 wrapper 的 `deinit` 會斷開它所註冊的 handler。
         self.rootEnvironmentChangeHandler = action
     }
 
@@ -3913,27 +3275,20 @@ public final class GtkBackend:
         // 採用 toolkit 自己的答案而非顯示器的答案，與該處是同一項決定、同一個理由：`Image` 會在此值
         // 變動時重新繪製，而以「GTK 並未據以排版的比例」繪製，會得到一張「在錯誤尺寸上很銳利」的圖。
         //
-        // Superseded 2026-09-16, for `windowScaleFactor` only. The paragraph
-        // above stays because it is still exactly right about ActionFileReplay,
-        // which still gets the integer -- every action file's coordinates were
-        // measured against it. What it was wrong about is this environment
-        // value: an app asking for `windowScaleFactor` is asking what the
-        // DISPLAY is at, and answering with GTK's buffer scale reports 1.0 on a
-        // 125% Windows display. The same app on WinUIBackend, minutes apart on
-        // the same desktop, reports 1.25. One framework, two answers, and the
-        // GTK one is not the display's.
+        // `windowScaleFactor` is the exception. ActionFileReplay gets the
+        // integer -- every action file's coordinates were measured against it
+        // -- but an app asking for `windowScaleFactor` is asking what the
+        // DISPLAY is at, and GTK's buffer scale reports 1.0 on a 125% Windows
+        // display where WinUIBackend, on the same desktop, reports 1.25.
         //
         // `scui_window_display_scale` returns 0 where it has nothing to say --
         // before the window is realized, and on every platform but Win32, where
         // GDK's own fraction IS the display's and stays the source. So this is
         // additive: nothing outside Windows changes.
         //
-        // 2026-09-16 起被取代,但**僅限 `windowScaleFactor`**。上方那段保留下來,因為它對
-        // `ActionFileReplay` 的描述依然完全正確——那裡仍然拿整數,每一個 action file 的座標都是據它
-        // 量出來的。它說錯的是**這個 environment 值**:app 詢問 `windowScaleFactor` 時,問的是
-        // **顯示器**處於什麼比例,而以 GTK 的 buffer scale 作答,會在 125% 的 Windows 顯示器上回報
-        // 1.0。同一支 app 以 WinUIBackend 建置、在同一個桌面上相隔數分鐘執行,回報的是 1.25。
-        // 同一個框架,兩種答案,而 GTK 的那個並不是顯示器的。
+        // `windowScaleFactor` 是例外。`ActionFileReplay` 拿的是整數——每一個 action file 的座標都是據它
+        // 量出來的——但 app 詢問 `windowScaleFactor` 時,問的是**顯示器**處於什麼比例,而 GTK 的 buffer
+        // scale 在 125% 的 Windows 顯示器上回報 1.0,同一個桌面上的 WinUIBackend 則回報 1.25。
         //
         // `scui_window_display_scale` 在無話可說時回傳 0——視窗 realize 之前,以及除 Win32 以外的
         // 每個平台(在那些平台上 GDK 自己的小數就是顯示器的,並繼續作為來源)。因此這是**附加**的:
@@ -3954,11 +3309,10 @@ public final class GtkBackend:
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
         // `notify::scale-factor`, because the scale factor is the whole of what
-        // `computeWindowEnvironment` reads from the window. This body was a bare
-        // TODO, which meant a window dragged between displays of different scale
-        // kept whatever it started with: `Image` re-renders on this value, so it
-        // stayed rendered for the old display until something else forced a
-        // recompute.
+        // `computeWindowEnvironment` reads from the window. Without it a window
+        // dragged between displays of different scale keeps whatever it started
+        // with: `Image` re-renders on this value, so it stays rendered for the
+        // old display until something else forces a recompute.
         //
         // The property, not a display or monitor signal. GTK's scale factor is
         // the buffer scale it actually laid out at -- an integer by design --
@@ -3973,9 +3327,8 @@ public final class GtkBackend:
         // turn. Same shape as the action callback above.
         //
         // 使用 `notify::scale-factor`，因為 scale factor 就是 `computeWindowEnvironment` 從視窗
-        // 讀取的全部內容。此處原本只有一行 TODO，意味著視窗被拖到不同縮放的顯示器時，會保留它啟動
-        // 時的值：`Image` 會依這個值重新繪製，於是它會一直維持著為舊顯示器繪製的結果，直到有別的
-        // 事情強迫重新計算為止。
+        // 讀取的全部內容。少了它，視窗被拖到不同縮放的顯示器時，會保留它啟動時的值:`Image` 會依這個值
+        // 重新繪製，於是它會一直維持著為舊顯示器繪製的結果，直到有別的事情強迫重新計算為止。
         //
         // 監聽的是該屬性，而非顯示器或螢幕的訊號。GTK 的 scale factor 是它實際排版時所用的 buffer
         // scale——依設計即為整數——而 `computeWindowEnvironment` 刻意回報它、而非顯示器所宣稱的
@@ -3985,22 +3338,15 @@ public final class GtkBackend:
         // 使用 `MainActor.assumeIsolated` 而非 hop：GTK 在執行 main loop 的執行緒上派送訊號，
         // 而那就是主執行緒，因此隔離性本已成立，hop 只會讓重新計算多延遲一輪。與上方的 action
         // callback 形狀相同。
-        // Implemented 2026-09-01 through `Window.onScaleFactorChange`, which was
-        // added to the `Gtk` module for this. An earlier version of this comment
-        // recorded the fix as blocked because `window.addSignal(...)` does not
-        // compile here -- `addSignal` is internal to `Gtk`. That was true and is
-        // still true; what was wrong was treating it as the end of the road.
-        // Registering the signal simply has to happen inside the module, and
-        // `Window.registerSignals()` is already there and already runs for a
-        // top-level window: `ApplicationWindow.init(application:)` calls it
-        // directly, rather than via `didMoveToParent`, which never fires for a
-        // window with no parent.
         //
-        // 2026-09-01 透過 `Window.onScaleFactorChange` 實作完成，該 API 是為此而加入 `Gtk`
-        // 模組的。本註解的舊版本把此修正記為「受阻」，因為 `window.addSignal(...)` 在此無法
-        // 編譯——`addSignal` 對 `Gtk` 為 internal。那句話當時成立、現在也仍成立；錯的是把它
-        // 當成了路的盡頭。註冊訊號這件事只需發生在模組之內，而 `Window.registerSignals()`
-        // 本就在那裡，也本就會為頂層視窗執行：`ApplicationWindow.init(application:)` 直接
+        // Through `Window.onScaleFactorChange`, because `addSignal` is internal
+        // to the `Gtk` module: the signal is registered inside the module, by
+        // `Window.registerSignals()`, which runs for a top-level window --
+        // `ApplicationWindow.init(application:)` calls it directly, rather than
+        // via `didMoveToParent`, which never fires for a window with no parent.
+        //
+        // 透過 `Window.onScaleFactorChange`,因為 `addSignal` 對 `Gtk` 模組為 internal:訊號在模組之內由
+        // `Window.registerSignals()` 註冊，而它會為頂層視窗執行——`ApplicationWindow.init(application:)` 直接
         // 呼叫它，而非經由對「沒有 parent 的視窗」永不觸發的 `didMoveToParent`。
         window.onScaleFactorChange = { _ in
             MainActor.assumeIsolated {
@@ -4009,34 +3355,28 @@ public final class GtkBackend:
         }
 
         // NOTHING WINDOWS-SPECIFIC IS NEEDED HERE, and that is a measurement
-        // rather than an omission -- so do not add a WM_DPICHANGED hook back.
+        // rather than an omission: do not add a WM_DPICHANGED hook.
         //
-        // One was written on 2026-09-16, subclassing the window procedure,
-        // because `notify::scale-factor` is silent across a fractional change:
-        // GTK's integer scale is 1 at 100% and 1 at 125%. It was removed the
-        // same day, by its own control group. Two instances at once, both
-        // PER_MONITOR_AWARE, one with the subclass and one with it skipped: the
-        // user moved the display 100% -> 150% -> 125%, and BOTH recorded
-        // `1.0 -> 1.5 -> 1.25` at the same two timestamps, while the subclass
-        // logged nothing at all. Windows resizes a per-monitor-aware window on a
-        // DPI change, the resize runs a layout pass, and the layout pass
-        // recomputes this environment -- so the recompute was already happening
-        // and the subclass was dead weight.
+        // `notify::scale-factor` is silent across a fractional change -- GTK's
+        // integer scale is 1 at 100% and 1 at 125% -- but Windows resizes a
+        // per-monitor-aware window on a DPI change, the resize runs a layout
+        // pass, and the layout pass recomputes this environment. Measured
+        // 2026-09-16 with two PER_MONITOR_AWARE instances at once, one with a
+        // window-procedure subclass for WM_DPICHANGED and one without: with the
+        // display moved 100% -> 150% -> 125%, BOTH recorded `1.0 -> 1.5 -> 1.25`
+        // at the same timestamps, and the subclass logged nothing.
         //
         // What makes that mechanism reliable is `enablePerMonitorDPIAwareness()`
         // above; without it the window is not resized and the reported scale is
         // frozen for the life of the process.
         //
-        // **此處不需要任何 Windows 專屬的東西,而這是量出來的、不是漏掉的——所以不要再把一個
-        // `WM_DPICHANGED` 掛回來。**
+        // **此處不需要任何 Windows 專屬的東西,而這是量出來的、不是漏掉的:不要加 `WM_DPICHANGED` hook。**
         //
-        // 2026-09-16 曾經寫過一個,以 subclass window procedure 的方式,理由是
-        // `notify::scale-factor` 對小數變化是沉默的:GTK 的整數縮放在 100% 是 1、125% 也是 1。
-        // 它在**同一天被它自己的對照組刪掉**。同時跑兩個實例,兩者都是 PER_MONITOR_AWARE,
-        // 一個裝了那支 subclass、一個略過:使用者把顯示器由 100% → 150% → 125%,
-        // **兩邊都在同樣的兩個時間戳記下記到 `1.0 → 1.5 → 1.25`**,而那支 subclass 一行都沒印。
-        // Windows 會在 DPI 改變時調整 per-monitor aware 視窗的大小,resize 會跑一次 layout pass,
-        // 而那次 layout pass 就會重算這個 environment——所以重算本來就在發生,subclass 是多餘的。
+        // `notify::scale-factor` 對小數變化是沉默的——GTK 的整數縮放在 100% 是 1、125% 也是 1——但 Windows
+        // 會在 DPI 改變時調整 per-monitor aware 視窗的大小,resize 會跑一次 layout pass,而那次 layout pass
+        // 就會重算這個 environment。2026-09-16 同時跑兩個 PER_MONITOR_AWARE 實例實測,一個裝了攔截
+        // WM_DPICHANGED 的 window procedure subclass、一個沒有:顯示器由 100% → 150% → 125% 時,
+        // **兩邊都在同樣的時間戳記下記到 `1.0 → 1.5 → 1.25`**,而那支 subclass 一行都沒印。
         //
         // 讓那個機制可靠的是上方的 `enablePerMonitorDPIAwareness()`;少了它,視窗不會被調整大小,
         // 而回報的縮放會在行程的整個生命期內凍住。
@@ -4098,45 +3438,34 @@ public final class GtkBackend:
         container.remove(child)
     }
 
-    /// Swaps two children, in GTK as well as in our own bookkeeping.
+    /// Swaps two children, in GTK as well as in this backend's own list.
     ///
-    /// The GTK half used to be missing. The comment here said "Gtk.Fixed
-    /// doesn't let us rearrange children, so we just swap them in our own list
-    /// so that at least everything works on the SCUI side", and named the
-    /// consequence: overlapping widgets end up with unexpected z ordering. That
-    /// is a `ZStack` whose order is driven by state drawing in the wrong order,
-    /// silently, and AppKitBackend and WinUIBackend both did the real thing --
-    /// `subviews.swapAt` and a remove/insert pair respectively -- so GtkBackend
-    /// was the only one faking it.
-    ///
-    /// The premise was out of date. `gtk_widget_insert_after` is GTK 4's way to
-    /// place a widget among its siblings, and passing `nil` for the sibling
-    /// makes it first.
+    /// Swapping only the list would leave overlapping widgets in the wrong z
+    /// order -- a `ZStack` whose order is driven by state drawing in the wrong
+    /// order, silently. AppKitBackend and WinUIBackend reorder their views too
+    /// (`subviews.swapAt` and a remove/insert pair). `gtk_widget_insert_after`
+    /// is GTK 4's way to place a widget among its siblings, and passing `nil`
+    /// for the sibling makes it first.
     ///
     /// The whole order is re-established from the array rather than moving just
     /// the two. Moving two requires working out each one's new anchor while the
     /// other is also moving, which is easy to get subtly wrong for the case
     /// where they are adjacent; walking the array is obviously correct by
-    /// inspection. It also repairs any order that drifted while the GTK half
-    /// was missing, rather than swapping two entries within a sequence that was
-    /// already wrong. A `Fixed` holds a handful of children, so the extra work
-    /// is not worth the sharper edge.
+    /// inspection, and repairs any order that has drifted rather than swapping
+    /// two entries within a sequence that was already wrong. A `Fixed` holds a
+    /// handful of children, so the extra work is not worth the sharper edge.
     ///
-    /// 交換兩個子元件——在 GTK 中，以及在我方自己的記帳中。
+    /// 交換兩個子元件——在 GTK 中，以及在本 backend 自己的清單中。
     ///
-    /// GTK 的那一半原本並不存在。此處的註解曾寫著「Gtk.Fixed 不允許我們重排子元件，因此我們只在
-    /// 自己的清單裡交換，至少讓 SCUI 這一側能運作」，並指出了後果：重疊的 widget 會得到非預期的
-    /// z 順序。那就是「順序由 state 決定的 `ZStack` 以錯誤的順序繪製」，而且是靜默的；
-    /// AppKitBackend 與 WinUIBackend 都做了真正的事——分別是 `subviews.swapAt` 與一組移除／插入
-    /// ——因此 GtkBackend 是唯一造假的那一個。
-    ///
-    /// 該前提已經過時。`gtk_widget_insert_after` 正是 GTK 4 用來在兄弟節點之間安置 widget 的方式，
-    /// 而 sibling 傳入 `nil` 即代表置於首位。
+    /// 只交換清單會讓重疊的 widget 得到錯誤的 z 順序——也就是「順序由 state 決定的 `ZStack` 以錯誤的
+    /// 順序繪製」，而且是靜默的。AppKitBackend 與 WinUIBackend 也會重排它們的 view(分別是
+    /// `subviews.swapAt` 與一組移除／插入)。`gtk_widget_insert_after` 正是 GTK 4 用來在兄弟節點之間
+    /// 安置 widget 的方式，而 sibling 傳入 `nil` 即代表置於首位。
     ///
     /// 此處是依陣列重建整個順序，而非只搬動那兩個。搬動兩個時，必須在「另一個也正在移動」的情況下
     /// 推算各自的新錨點，對於兩者相鄰的情形很容易出現細微的錯誤；而走訪整個陣列，正確與否一眼可
-    /// 判。它同時也會修復「GTK 那一半缺席期間已經飄掉的順序」，而不是在一個本來就錯的序列中交換
-    /// 兩個項目。一個 `Fixed` 只有寥寥數個子元件，因此這點額外成本不值得換取更鋒利的邊角。
+    /// 判，也會修復已經飄掉的順序，而不是在一個本來就錯的序列中交換兩個項目。一個 `Fixed` 只有寥寥
+    /// 數個子元件，因此這點額外成本不值得換取更鋒利的邊角。
     public func swap(childAt firstIndex: Int, withChildAt secondIndex: Int, in container: Widget) {
         let container = container as! Fixed
         container.children.swapAt(firstIndex, secondIndex)
@@ -4222,13 +3551,12 @@ public final class GtkBackend:
 
     public func createCornerRadiusContainer(wrapping child: Widget) -> Widget {
         // SwiftUI's cornerRadius rounds *and* clips: a child larger than the box
-        // is cut to it. AppKit does this with clipsToBounds and WinUI with a
-        // geometric clip; GtkBackend was the one backend that only styled and
-        // never clipped, which is #389. Clip through the same ClipFixed the
-        // explicit clipped() uses -- a plain overflow: hidden does not work here
-        // because a GtkFixed over-allocates to an oversized child and then clips
-        // the wrong box; the P17-DOE experiment showed this. ClipFixed clips to
-        // the size SwiftCrossUI decided instead.
+        // is cut to it (#389). AppKit does this with clipsToBounds and WinUI with
+        // a geometric clip. Clip through the same ClipFixed the explicit
+        // clipped() uses -- a plain overflow: hidden does not work here because
+        // a GtkFixed over-allocates to an oversized child and then clips the
+        // wrong box; the P17-DOE experiment showed this. ClipFixed clips to the
+        // size SwiftCrossUI decided instead.
         let container = ClipFixed()
         container.put(child, x: 0, y: 0)
         return container
@@ -4244,18 +3572,18 @@ public final class GtkBackend:
         // told to follow the same radius so the child is actually cut to the
         // rounded shape.
         //
-        // The clip used to be rectangular whatever the radius, which was exact
-        // only at radius 0 (P3's case): at any larger radius an oversized child
-        // kept square corners showing underneath a rounded border. AppKit cuts
-        // to the shape with clipsToBounds plus a layer corner radius, and WinUI
-        // with a rounded-rectangle geometric clip.
+        // A rectangular clip is exact only at radius 0 (P3's case): at any
+        // larger radius an oversized child would keep square corners showing
+        // underneath a rounded border. AppKit cuts to the shape with
+        // clipsToBounds plus a layer corner radius, and WinUI with a
+        // rounded-rectangle geometric clip.
         //
         // 分為兩半。CSS 負責把「繪製出來的邊框」變圓，而裁切則被告知依循同一個半徑，使子元件
         // 真的被裁成圓角形狀。
         //
-        // 先前不論半徑為何，裁切一律為矩形，那只有在半徑為 0 時才是正確的（P3 的情況）：只要
-        // 半徑更大，超尺寸的子元件就會在圓角邊框之下留下方形的角。AppKit 以 clipsToBounds 搭配
-        // layer 的圓角半徑裁成該形狀，WinUI 則以圓角矩形的幾何裁切為之。
+        // 矩形裁切只有在半徑為 0 時才是正確的（P3 的情況）：只要半徑更大，超尺寸的子元件就會在圓角
+        // 邊框之下留下方形的角。AppKit 以 clipsToBounds 搭配 layer 的圓角半徑裁成該形狀，WinUI 則以
+        // 圓角矩形的幾何裁切為之。
         widget.css.set(property: .cornerRadius(radius))
         scui_clip_fixed_set_corner_radius(widget.widgetPointer, gint(radius))
     }
@@ -4367,7 +3695,7 @@ public final class GtkBackend:
         show(widget: splitView.startChild!)
 
         // Measured before the size requests below, which would otherwise floor
-        // the natural width at whatever we just asked for and make it useless
+        // the natural width at whatever was just asked for and make it useless
         // as a measure of what the content wants.
         let naturalSidebarWidth = splitView.startChild?.getNaturalSize().width ?? 0
 
@@ -4430,14 +3758,13 @@ public final class GtkBackend:
     /// 以原生 factory 按需建列；保留 ScrolledWindow 的視口高度限制。
     public func createSelectableListView() -> Widget {
         let listView = Gtk.ListView()
-        // No `navigation-sidebar` here. It used to be added unconditionally, so
-        // every `List` was drawn as a sidebar whether it was one or not --
-        // flat, no frame, sidebar row padding. The style now follows
-        // `listStyle`, in `updateSelectableListView` below, which is where the
-        // environment is available.
-        // 此處不加 `navigation-sidebar`。它原本是無條件加上的，因此每一個 `List` 都被畫成側邊欄
-        // ——無邊框、扁平、採用側邊欄的列距——無論它是不是側邊欄。樣式現改為跟隨 `listStyle`，
-        // 於下方的 `updateSelectableListView` 中處理，因為 environment 在那裡才取得到。
+        // No `navigation-sidebar` here, or every `List` would be drawn as a
+        // sidebar whether it was one or not -- flat, no frame, sidebar row
+        // padding. The style follows `listStyle`, in `updateSelectableListView`
+        // below, which is where the environment is available.
+        // 此處不加 `navigation-sidebar`,否則每一個 `List` 都會被畫成側邊欄——無邊框、扁平、採用側邊欄的
+        // 列距——無論它是不是側邊欄。樣式跟隨 `listStyle`，於下方的 `updateSelectableListView` 中處理，
+        // 因為 environment 在那裡才取得到。
         let scrolled = ScrolledWindow()
         scrolled.setChild(listView)
         // Vertical only. A horizontal scroll bar on a list would let rows be
@@ -4470,24 +3797,14 @@ public final class GtkBackend:
         (listView as! ScrolledWindow).getChild() as! Gtk.ListView
     }
 
-    /// Applies `listStyle`, which until 2026-08-27 nothing read.
-    ///
-    /// `SplitView` set it on its sidebar column and no backend consulted it, so
-    /// it was inert -- and the reason nobody noticed is that
-    /// `createSelectableListView` added `navigation-sidebar` to *every* list, so
-    /// the sidebar case looked right and the default case was wrong in the same
-    /// way. Two defects that concealed each other.
+    /// Applies `listStyle`, which `SplitView` sets on its sidebar column.
     ///
     /// Set on every update rather than only when the value changes, because a
     /// list whose style is bound to state has to lose the class as well as gain
     /// it. `gtk_widget_remove_css_class` on a widget that does not have the
     /// class is a no-op, so the unconditional pair is safe.
     ///
-    /// 套用 `listStyle`——在 2026-08-27 之前，沒有任何東西讀取它。
-    ///
-    /// `SplitView` 會在其側邊欄那一欄設定它，卻沒有任何 backend 去查詢，因此它是 inert 的；而之所以
-    /// 沒人察覺，是因為 `createSelectableListView` 為**每一個** list 都加上了 `navigation-sidebar`
-    /// ——於是側邊欄的情況看起來是對的，而預設的情況以同樣的方式錯著。兩個缺陷互相遮掩。
+    /// 套用 `listStyle`,`SplitView` 會在其側邊欄那一欄設定它。
     ///
     /// 每次更新都設定，而非僅在值變動時，因為樣式綁定於 state 的 list 不只要能取得該 class，也要能
     /// 失去它。對未持有該 class 的 widget 呼叫 `gtk_widget_remove_css_class` 為 no-op，因此這組
@@ -4523,25 +3840,12 @@ public final class GtkBackend:
         to items: [Widget],
         withRowHeights rowHeights: [Int]
     ) {
-        // ~~"we assume modifications between setItems calls are either all pops
-        // or all appends (not a mix)"~~ -- that was true of the GtkListBox
-        // implementation, which diffed against a previous row count and appended
-        // or removed the difference. This body appends nothing: it hands the
-        // list a provider closure over `items` and a count, and GtkListView asks
-        // for whatever it needs. Any mix of insertions and removals is fine now.
+        // Any mix of insertions and removals is fine: this body appends
+        // nothing, it hands the list a provider closure over `items` and a
+        // count, and GtkListView asks for whatever it needs.
         //
-        // Struck through rather than deleted, because the assumption is still
-        // load-bearing in AppKitBackend.setItems, and a reader arriving from
-        // that comment needs to know it stopped applying HERE rather than
-        // conclude the note was never true.
-        //
-        // ~~「我們假設 setItems 之間的變動,要麼全是 pop、要麼全是 append(不可混用)」~~——那對
-        // GtkListBox 的實作為真,因為它會比對先前的列數、再 append 或移除其差額。**本函式不 append
-        // 任何東西**:它交給清單的是一個對 `items` 取值的 provider closure 與一個列數,而 GtkListView
-        // 需要什麼就來要什麼。現在插入與移除任意混用都沒有問題。
-        //
-        // 保留刪除線而非直接刪掉,因為那個假設在 `AppKitBackend.setItems` 中仍然承重;而一個循著那段
-        // 註解找過來的讀者,需要知道它是**在此處**不再適用,而不是就此認定那段註記從來不成立。
+        // 插入與移除任意混用都沒有問題:**本函式不 append 任何東西**,它交給清單的是一個對 `items` 取值的
+        // provider closure 與一個列數,而 GtkListView 需要什麼就來要什麼。
 
         let listView = lazyList(of: listView)
         listView.rowProvider = { index in
@@ -4695,14 +3999,9 @@ public final class GtkBackend:
                 )
             } ?? measuredHeight
 
-        // No line-limit handling here any more; `Text` applies it, for every
-        // backend, from the font's line height. What used to be here measured a
-        // synthetic string through a label that was never rooted, so the cap came
-        // out at GTK's default font size whatever font was asked for. See the
-        // note in Text.computeLayout.
-        // 此處不再處理行數限制；`Text` 會為所有 backend 依字型行高統一套用。原本在此的做法是透過
-        // 一個從未 root 的 label 量測合成字串，因此無論被要求何種字型，上限都以 GTK 的預設字級算出。
-        // 詳見 Text.computeLayout 中的說明。
+        // No line-limit handling here; `Text` applies it, for every backend,
+        // from the font's line height. See the note in Text.computeLayout.
+        // 此處不處理行數限制；`Text` 會為所有 backend 依字型行高統一套用。詳見 Text.computeLayout 中的說明。
         if let label = widget as? CustomLabel {
             if let inked = inkBox(of: text, in: label, proposedWidth: proposedWidth) {
                 gtk_label_set_xalign(label.opaquePointer, 0)
@@ -4850,19 +4149,12 @@ public final class GtkBackend:
 
     // MARK: Controls
 
-    // `createSimpleButton` and `updateSimpleButton` moved to
-    // `GtkBackend+Button.swift` on 2026-09-08, when upstream's #590 split
-    // buttons into `StringLabelButtons` and `ViewLabelButtons` and gave each
-    // backend its own button file. The destructive-action style class and its
-    // `deferToThemeStyleClass:` argument moved with them; upstream's version of
-    // the method does not have that block, so it was carried across by hand
-    // rather than taken from upstream wholesale.
+    // `createSimpleButton` and `updateSimpleButton` are in
+    // `GtkBackend+Button.swift`, with the destructive-action style class and
+    // its `deferToThemeStyleClass:` argument.
     //
-    // `createSimpleButton` 與 `updateSimpleButton` 已於 2026-09-08 移至
-    // `GtkBackend+Button.swift`，當時 upstream 的 #590 把按鈕拆為 `StringLabelButtons` 與
-    // `ViewLabelButtons`，並讓每個 backend 各有自己的按鈕檔案。destructive-action 樣式類別及其
-    // `deferToThemeStyleClass:` 參數一併移了過去；upstream 版的該方法並沒有那一段，因此是逐段手動
-    // 搬移，而非直接採用 upstream 的整份實作。
+    // `createSimpleButton` 與 `updateSimpleButton` 位於 `GtkBackend+Button.swift`，連同
+    // destructive-action 樣式類別及其 `deferToThemeStyleClass:` 參數。
 
     public func createToggle() -> Widget {
         return Self.withoutFocusOnClick(ToggleButton())
@@ -4951,22 +4243,21 @@ public final class GtkBackend:
         // established shape in this file for a controller whose closure has to
         // change on every update.
         //
-        // MEASURED 2026-09-10, and the reason this moved: adding the controller
-        // in `updateSlider` instead added a NEW one on every view update and
-        // removed none. P61 then reported `began=5` for a SINGLE press -- not
-        // GTK firing five times, but five accumulated controllers firing once
-        // each. It compounds, because `onEditingChanged` changes state, which
-        // schedules the update that adds the next controller.
+        // Adding the controller in `updateSlider` instead adds a NEW one on
+        // every view update and removes none: P61 reported `began=5` for a
+        // SINGLE press -- not GTK firing five times, but five accumulated
+        // controllers firing once each (2026-09-10). It compounds, because
+        // `onEditingChanged` changes state, which schedules the update that adds
+        // the next controller.
         //
         // 回報編輯狀態的控制器在**此處**加入，只加一次，而 `updateSlider` 只替換它的
         // callback。這與本檔下方的 `createTapGestureTarget`／`updateTapGestureTarget`
         // 同形——那是本檔中「closure 每次 update 都要更換的 controller」既有的寫法。
         //
-        // **2026-09-10 實測，也是它搬到此處的原因**：改在 `updateSlider` 裡加，等於每次
-        // view update 都**新增**一個、且一個都不移除。P61 於是對**單獨一次**按下回報
-        // `began=5`——那不是 GTK 觸發了五次，而是五個累積下來的 controller 各觸發一次。
-        // 而且它會滾雪球，因為 `onEditingChanged` 會改變 state，而那正好排程了下一次
-        // 「再加一個 controller」的 update。
+        // 改在 `updateSlider` 裡加，等於每次 view update 都**新增**一個、且一個都不移除：P61 對
+        // **單獨一次**按下回報 `began=5`——那不是 GTK 觸發了五次，而是五個累積下來的 controller
+        // 各觸發一次(2026-09-10)。而且它會滾雪球，因為 `onEditingChanged` 會改變 state，而那正好
+        // 排程了下一次「再加一個 controller」的 update。
         GtkSliderEditing.install(on: scale)
 
         return scale
@@ -5107,15 +4398,14 @@ public final class GtkBackend:
     ) {
         let textEditor = textEditor as! Gtk.TextView
 
-        // Every other control honours `.disabled` through `sensitive` (see
-        // updateTextField, updateButton, updateDatePicker); the text editor was
-        // the one that did not, so a TextEditor inside a `.disabled(true)`
-        // subtree stayed editable on GtkBackend while looking the same as one
-        // that was not.
+        // The text editor honours `.disabled` through `sensitive`, as every other
+        // control does (see updateTextField, updateButton, updateDatePicker);
+        // without it a TextEditor inside a `.disabled(true)` subtree stays
+        // editable while looking the same as one that is not.
         //
-        // 其他每一個控制項都透過 `sensitive` 遵從 `.disabled`（見 updateTextField、updateButton、
-        // updateDatePicker）；唯獨 text editor 沒有，因此位於 `.disabled(true)` 子樹中的
-        // TextEditor 在 GtkBackend 上仍可編輯，外觀卻與未被 disable 者相同。
+        // text editor 與其他每一個控制項一樣，透過 `sensitive` 遵從 `.disabled`（見 updateTextField、
+        // updateButton、updateDatePicker）；少了它，位於 `.disabled(true)` 子樹中的 TextEditor 仍可編輯，
+        // 外觀卻與未被 disable 者相同。
         textEditor.sensitive = environment.isEnabled
 
         let undoKey = UnsafeMutableRawPointer(textEditor.widgetPointer)
@@ -5353,8 +4643,8 @@ public final class GtkBackend:
         // out of activity mode, so the two are mutually exclusive.
         //
         // AppKit flips isIndeterminate and calls startAnimation; WinUI sets
-        // isIndeterminate. GtkBackend previously did `fraction = fraction ?? 0`,
-        // which is a filled-in 0% bar in both cases.
+        // isIndeterminate. `fraction = fraction ?? 0` would be a filled-in 0%
+        // bar.
         //
         // 不確定進度的 ProgressView（沒有值的那一種）必須要有動畫，否則看起來會像「卡在 0%」而
         // 非「進行中」。GTK 不會自行動畫：gtk_progress_bar_pulse 每呼叫一次才移動一格，因此不確定
@@ -5362,7 +4652,7 @@ public final class GtkBackend:
         // activity mode，因此兩者互斥。
         //
         // AppKit 會切換 isIndeterminate 並呼叫 startAnimation；WinUI 設定 isIndeterminate。
-        // GtkBackend 先前的做法是 `fraction = fraction ?? 0`，那在兩種情況下都是一條填滿 0% 的 bar。
+        // `fraction = fraction ?? 0` 會是一條填滿 0% 的 bar。
         if let progressFraction {
             stopPulsing(progressBar)
             progressBar.fraction = progressFraction
@@ -5520,11 +4810,9 @@ public final class GtkBackend:
 
         // One alert per window on screen at a time, the latest on top: an alert
         // already up is hidden and comes back when this one is answered, so they
-        // are answered newest first, as on AppKit (P5, #675: C, B, A). Until
-        // 2026-10-16 the new one waited behind the old, and GTK answered A, B, C.
+        // are answered newest first, as on AppKit (P5, #675: C, B, A).
         // 每個視窗同時只顯示一個 alert,最新的在上面：已顯示的那個先隱藏，等這個被回應後再回來，
-        // 因此回應順序是由新到舊，與 AppKit 相同(P5、#675:C、B、A)。2026-10-16 之前新的排在舊的後面，
-        // GTK 的順序是 A、B、C。
+        // 因此回應順序是由新到舊，與 AppKit 相同(P5、#675:C、B、A)。
         if let current = shownAlert[key], let currentHandler = shownAlertHandler[key] {
             current.hide()
             pendingAlerts[key, default: []].append((current, target, currentHandler))
@@ -5683,21 +4971,19 @@ public final class GtkBackend:
     ) {
         // GtkFileDialog rather than GtkFileChooserNative, which the GIR marks
         // deprecated. The old API also does not close its dialog on Wayland
-        // when no xdg-desktop-portal is present, as under WSLg: the response
-        // arrives and the app gets the file, but the window stays on screen.
-        // A stock GTK4 app using GtkFileDialog closes correctly in the same
-        // session, which is what identified the API rather than our use of it.
+        // when no xdg-desktop-portal is present, as on stock WSLg: the response
+        // arrives and the app gets the file, but the window stays on screen. A
+        // stock GTK4 app using GtkFileDialog closes correctly in the same
+        // session, which identifies the API rather than this backend's use of it.
         //
-        // 2026-10-20: "no xdg-desktop-portal" describes stock WSLg. With one
-        // installed (this distro has had it since 2026-09-17), GtkFileDialog hands
-        // the dialog to xdg-desktop-portal-gtk, and systemd starts that without
+        // With xdg-desktop-portal installed under WSLg, GtkFileDialog hands the
+        // dialog to xdg-desktop-portal-gtk, and systemd starts that without
         // DISPLAY or WAYLAND_DISPLAY: no dialog reaches the screen and the request
         // never completes. That is the session's environment, not this call, and
         // testapp's test_common.zsh `wslg_portal_display` repairs it before a run.
-        // 2026-10-20:「沒有 xdg-desktop-portal」說的是原版 WSLg。裝了 portal 之後(此發行版自 2026-09-17 起),
-        // GtkFileDialog 會把對話框交給 xdg-desktop-portal-gtk,而 systemd 啟動它時沒有 DISPLAY 也沒有 WAYLAND_DISPLAY:
-        // 對話框到不了螢幕，請求也永遠不會完成。那是工作階段的環境，不是這個呼叫的問題;testapp 的 test_common.zsh
-        // `wslg_portal_display` 會在測試前修好它。
+        // WSLg 裝了 xdg-desktop-portal 時,GtkFileDialog 會把對話框交給 xdg-desktop-portal-gtk,而 systemd
+        // 啟動它時沒有 DISPLAY 也沒有 WAYLAND_DISPLAY:對話框到不了螢幕，請求也永遠不會完成。那是工作階段的
+        // 環境，不是這個呼叫的問題;testapp 的 test_common.zsh `wslg_portal_display` 會在測試前修好它。
         let dialog = gtk_file_dialog_new()
         gtk_file_dialog_set_title(dialog, fileDialogOptions.title)
         gtk_file_dialog_set_accept_label(dialog, fileDialogOptions.defaultButtonLabel)
@@ -5716,11 +5002,11 @@ public final class GtkBackend:
         // One filter per content type, by MIME type and by suffix, so a file
         // whose type GIO cannot sniff is still matched by its name; then "All
         // files" when other types are allowed. The first filter is the one
-        // shown. Not set until 2026-10-06, so every GTK file dialog offered
-        // every file and a save had no type.
+        // shown. Without filters every GTK file dialog offers every file and a
+        // save has no type.
         // 每個內容型別一個 filter,依 MIME 型別也依副檔名，讓 GIO 判斷不出型別的檔案仍能以檔名符合；允許
-        // 其他型別時再加「All files」。顯示的是第一個 filter。2026-10-06 之前沒有設定，所以每個 GTK 檔案
-        // 對話框都提供所有檔案，儲存也沒有型別。
+        // 其他型別時再加「All files」。顯示的是第一個 filter。沒有 filter 時，每個 GTK 檔案對話框都提供所有
+        // 檔案，儲存也沒有型別。
         if !fileDialogOptions.allowedContentTypes.isEmpty {
             let filters = g_list_store_new(gtk_file_filter_get_type())
             var filtersToAdd: [(
@@ -6050,14 +5336,12 @@ public final class GtkBackend:
     ///
     /// Cairo needs no persuading here: a gradient is a `cairo_pattern_t` just as
     /// a flat colour is, so the only change from the two-colour version is which
-    /// constructor makes the pattern. That is the whole reason this backend went
-    /// first -- see `testapp/plan/plan-shape-styles.md`.
+    /// constructor makes the pattern. See `testapp/plan/plan-shape-styles.md`.
     ///
     /// 接收樣式的多載，實際繪製發生在此。
     ///
     /// Cairo 在此不需要任何說服：漸層與平面色同樣都是 `cairo_pattern_t`，因此與兩色版本唯一的
-    /// 差別，只在於由哪一個建構函式產生該 pattern。這正是本 backend 先行的全部理由
-    /// ——見 `testapp/plan/plan-shape-styles.md`。
+    /// 差別，只在於由哪一個建構函式產生該 pattern。見 `testapp/plan/plan-shape-styles.md`。
     public func renderPath(
         _ path: Path,
         container: Widget,
@@ -6220,12 +5504,12 @@ public final class GtkBackend:
     /// Builds the Cairo pattern for a fill style, in the path's own coordinates.
     ///
     /// `flattenedTo` is passed in rather than recomputed so the flat case costs
-    /// exactly what it did before: one `cairo_pattern_create_rgba`, no
-    /// environment work inside the draw callback.
+    /// only one `cairo_pattern_create_rgba`, with no environment work inside the
+    /// draw callback.
     ///
     /// 在路徑自身的座標系中，為一個填充樣式建立 Cairo pattern。
     ///
-    /// `flattenedTo` 是傳入而非重新計算的，好讓平面色的情況維持與先前完全相同的成本：一次
+    /// `flattenedTo` 是傳入而非重新計算的，好讓平面色的情況只花一次
     /// `cairo_pattern_create_rgba`，且 draw callback 內不做任何 environment 相關的工作。
     private func cairoPattern(
         for style: ResolvedFillStyle,
@@ -6450,11 +5734,10 @@ public final class GtkBackend:
     // MARK: Tables
 
     // defaultTableRowContentHeight and defaultTableCellVerticalPadding are
-    // already declared near the top of this type, alongside the other backend
-    // constants -- they were there before Tables was conformed to, waiting for
-    // the rest.
+    // declared near the top of this type, alongside the other backend
+    // constants.
     // defaultTableRowContentHeight 與 defaultTableCellVerticalPadding 已在本型別開頭、與其他
-    // backend 常數一同宣告——它們在 Tables 被實作之前就已存在，等著其餘部分補上。
+    // backend 常數一同宣告。
 
     public func createTable() -> Widget {
         Gtk.Table()
@@ -6574,19 +5857,16 @@ public final class GtkBackend:
     /// can ever change again. Emitting one the application never asked for
     /// spends that authority on a guess.
     /// Internal rather than `private` because `GtkBackend+Button.swift` needs
-    /// it. `private` in Swift is file-scoped, so the button code upstream moved
-    /// into its own file could not see this at all -- and the error it produced
-    /// pointed somewhere else entirely: `Self.cssProperties(...)` resolved to an
-    /// unbound method reference, so the compiler complained that a
-    /// `(EnvironmentValues, Bool, Bool) -> [CSSProperty]` is not a
-    /// `[CSSProperty]`, which reads like a type mistake rather than an access
-    /// one. Measured 2026-09-08.
+    /// it. Made `private`, the error points somewhere else entirely:
+    /// `Self.cssProperties(...)` resolves to an unbound method reference, so the
+    /// compiler complains that a `(EnvironmentValues, Bool, Bool) -> [CSSProperty]`
+    /// is not a `[CSSProperty]`, which reads like a type mistake rather than an
+    /// access one.
     ///
-    /// 標記為 internal 而非 `private`，因為 `GtkBackend+Button.swift` 需要它。Swift 的 `private`
-    /// 是以檔案為範圍，因此 upstream 移到獨立檔案中的按鈕程式碼根本看不見它——而它所產生的錯誤指向了
-    /// 完全不同的地方：`Self.cssProperties(...)` 解析成了一個未綁定的方法參考，於是編譯器抱怨
+    /// 標記為 internal 而非 `private`，因為 `GtkBackend+Button.swift` 需要它。若改成 `private`，錯誤會指向
+    /// 完全不同的地方：`Self.cssProperties(...)` 解析成一個未綁定的方法參考，於是編譯器抱怨
     /// `(EnvironmentValues, Bool, Bool) -> [CSSProperty]` 不是 `[CSSProperty]`，讀起來像是型別錯誤
-    /// 而非存取權錯誤。2026-09-08 實測。
+    /// 而非存取權錯誤。
     func cssProperties(
         for environment: EnvironmentValues,
         isControl: Bool = false,
@@ -6650,31 +5930,18 @@ public final class GtkBackend:
             properties.append(.fontStyle("italic"))
         }
 
-        // A control's chrome, for the case where the theme cannot supply it.
-        //
-        // Added in 5c89d3e0 alongside the `colorScheme` modifier, so that an app
-        // forcing a scheme got controls to match. It ran unconditionally, which
-        // made it the single most destructive thing this backend did: the
-        // provider outranks the theme, so an explicit background here beats
-        // every state and style class Adwaita ships -- `:hover`, `:checked`,
-        // `.suggested-action`, `.destructive-action`. Measured 2026-08-28: a
-        // button carrying `suggested-action` rendered the same flat rgb(73,73,73)
-        // as a plain one, while `gtk_widget_has_css_class` confirmed the class
-        // was on the widget. The class was landing; this was overruling it.
-        //
-        // Three call sites had already worked around it one at a time -- the
-        // toggle and the text editor pass `isControl: false`, and a button with
-        // a role passes `deferToThemeStyleClass` -- which is what says the
-        // default was wrong rather than its callers.
-        //
-        // Now it fires only when the theme is drawing the wrong scheme, which is
-        // the case it was written for. When the theme agrees, standing down
-        // costs nothing measurable and returns the theme's border: on P2, dark
-        // Adwaita, the enforced button had edge and interior both rgb(73,73,73)
-        // and the theme's had a distinct rgb(56,56,56) edge.
+        // A control's chrome, only when the theme is drawing the wrong scheme
+        // -- the case it exists for, an app forcing a scheme the theme does not
+        // match. The provider outranks the theme, so an explicit background
+        // here beats every state and style class Adwaita ships -- `:hover`,
+        // `:checked`, `.suggested-action`, `.destructive-action`. Applied
+        // unconditionally, a button carrying `suggested-action` rendered the
+        // same flat rgb(73,73,73) as a plain one while `gtk_widget_has_css_class`
+        // confirmed the class was on the widget (2026-08-28), and on P2, dark
+        // Adwaita, the theme's distinct rgb(56,56,56) edge was lost.
         //
         // Not to be confused with the entry focus ring, which this block never
-        // affected: GTK 4 draws that with `outline`, which is not set here.
+        // affects: GTK 4 draws that with `outline`, which is not set here.
         if isControl && !deferToThemeStyleClass && !themeDrawsRequestedScheme {
             switch environment.colorScheme {
                 case .light:
@@ -6704,30 +5971,21 @@ public final class GtkBackend:
 
         // Listen for interactive dismissals.
         //
-        // Neither handler runs `onDismiss` any more; `dismissSheet(_:)` does,
-        // and it is now the only place that tears a sheet down. That one move is
-        // the whole of the fix, and the reason it was needed is structural
-        // rather than a missing flag: the programmatic entry point
+        // Neither handler runs `onDismiss`; `dismissSheet(_:)` does, and it is
+        // the only place that tears a sheet down. The programmatic entry point
         // `dismissSheet(_:window:parentSheet:)` -- the one `SheetModifier` calls
-        // when `isPresented` goes false -- ends in `gtk_window_destroy`, and
-        // `gtk_window_destroy` does not emit `close-request`. (`gtk_window_close`
-        // is the call that does; nothing here uses it.) So on the programmatic
-        // path the block below never ran, there was no other route to the
-        // callback, and `onDismiss` was simply unreachable. Unlike WinUI, which
-        // reached its own handler and then suppressed it behind
-        // `isProgrammaticDismissal`, GTK had no flag to delete -- there was no
-        // wire at all.
+        // when `isPresented` goes false -- ends in `gtk_window_destroy`, which
+        // does not emit `close-request` (`gtk_window_close` does; nothing here
+        // uses it). So a callback run only from the block below would be
+        // unreachable on the programmatic path.
         //
         // 監聽互動式關閉。
         //
-        // 這兩個 handler 都不再執行 `onDismiss`；改由 `dismissSheet(_:)` 執行，而它現在是唯一會拆除
-        // sheet 的地方。整個修正就只有這一次搬移，而之所以需要它，原因是結構性的、而非少了某個旗標：
+        // 這兩個 handler 都不執行 `onDismiss`；由 `dismissSheet(_:)` 執行，而它是唯一會拆除 sheet 的地方。
         // 程式化的進入點 `dismissSheet(_:window:parentSheet:)`——也就是 `isPresented` 轉為 false 時
-        // `SheetModifier` 所呼叫的那一個——最後走到的是 `gtk_window_destroy`，而 `gtk_window_destroy`
-        // 不會發出 `close-request`。（會發出的是 `gtk_window_close`，而此處沒有任何地方使用它。）
-        // 因此在程式化那條路上，下面這個區塊從未執行過，而通往該回呼也沒有別的路線，`onDismiss` 就
-        // 只是抵達不了。與 WinUI 不同——WinUI 是抵達了自己的 handler 之後再以
-        // `isProgrammaticDismissal` 把它壓住——GTK 這邊沒有旗標可刪，因為那條線根本不存在。
+        // `SheetModifier` 所呼叫的那一個——最後走到的是 `gtk_window_destroy`，而它不會發出 `close-request`
+        // （會發出的是 `gtk_window_close`，而此處沒有任何地方使用它）。因此只從下面這個區塊執行的回呼，
+        // 在程式化那條路上會抵達不了。
         sheet.onCloseRequest = { [weak self, weak sheet] _ in
             guard let self, let sheet else {
                 return
@@ -6815,20 +6073,19 @@ public final class GtkBackend:
     /// The programmatic path: `SheetModifier` calling in because `isPresented`
     /// went false.
     ///
-    /// It runs `onDismiss` now, via `dismissSheet(_:)`, and that is the fix for
-    /// issue #104 on this backend. It does not fire twice for one dismissal --
-    /// `SheetModifier.commit`'s `else` branch is only entered when `isPresented`
-    /// is already false and nils `children.sheet` immediately afterwards, and
-    /// state updates are queued rather than delivered synchronously, so nothing
-    /// re-enters that branch while this call is in progress. The argument is
-    /// written out in full at the branch itself.
+    /// It runs `onDismiss` via `dismissSheet(_:)` (issue #104). It does not fire
+    /// twice for one dismissal -- `SheetModifier.commit`'s `else` branch is only
+    /// entered when `isPresented` is already false and nils `children.sheet`
+    /// immediately afterwards, and state updates are queued rather than
+    /// delivered synchronously, so nothing re-enters that branch while this call
+    /// is in progress. The argument is written out in full at the branch itself.
     ///
     /// 程式化的那條路：`SheetModifier` 因 `isPresented` 轉為 false 而呼叫進來。
     ///
-    /// 它現在會經由 `dismissSheet(_:)` 執行 `onDismiss`，而那正是 issue #104 在本 backend 上的修正。
-    /// 它不會為同一次關閉觸發兩次——`SheetModifier.commit` 的 `else` 分支只有在 `isPresented` 已經為
-    /// false 時才會進入，且隨即把 `children.sheet` 設為 nil，而 state 更新是排入佇列而非同步送達的，
-    /// 因此在本呼叫進行期間不會有任何東西重入該分支。完整論證寫在該分支本身。
+    /// 它經由 `dismissSheet(_:)` 執行 `onDismiss`(issue #104)。它不會為同一次關閉觸發兩次——
+    /// `SheetModifier.commit` 的 `else` 分支只有在 `isPresented` 已經為 false 時才會進入，且隨即把
+    /// `children.sheet` 設為 nil，而 state 更新是排入佇列而非同步送達的，因此在本呼叫進行期間不會有
+    /// 任何東西重入該分支。完整論證寫在該分支本身。
     public func dismissSheet(_ sheet: Sheet, window: Window, parentSheet: Sheet?) {
         dismissSheet(sheet)
         parentSheet?.nestedSheet = nil
@@ -6868,8 +6125,7 @@ public final class GtkBackend:
     ///
     /// Destroy first, then notify, because `SheetModifier` documents the
     /// callback as running *after* the underlying UI framework has dismissed the
-    /// sheet. That was already the order the nested loop above used, and it is
-    /// kept.
+    /// sheet.
     ///
     /// The guard is not defensive decoration. Both interactive handlers in
     /// `createSheet` defer their work through `runInMainThread`, so an escape
@@ -6882,7 +6138,7 @@ public final class GtkBackend:
     /// 摧毀單一 sheet 並執行它的 `onDismiss`，每個 sheet 至多一次。
     ///
     /// 先摧毀、再通知，因為 `SheetModifier` 的文件寫明該回呼是在底層 UI 框架關閉 sheet **之後**才
-    /// 執行。上方處理巢狀 sheet 的迴圈原本用的就是這個順序，此處予以保留。
+    /// 執行。
     ///
     /// 這個 guard 不是防禦性的裝飾。`createSheet` 中的兩個互動 handler 都透過 `runInMainThread`
     /// 延後其工作，因此一次 escape 按鍵與一次指向同一個 sheet 的 `close-request` 會排入兩次拆除，
@@ -7583,11 +6839,10 @@ final class DatePickerWidget: Box {
         let presentation: Presentation? =
             switch style {
                 // `.automatic` is the compact button, as SwiftUI's `.automatic` is the
-                // compact field on macOS and iOS and as GNOME apps show a date; it was
-                // the grid until 2026-10-16, which made P41's `.automatic` and
-                // `.graphical` the same picture.
+                // compact field on macOS and iOS and as GNOME apps show a date, so
+                // that P41's `.automatic` and `.graphical` are different pictures.
                 // `.automatic` 是精簡按鈕，與 SwiftUI 在 macOS、iOS 上 `.automatic` 為精簡欄位、以及 GNOME
-                // app 顯示日期的方式一致；在 2026-10-16 之前它是月曆格，使 P41 的 `.automatic` 與 `.graphical` 成為同一張圖。
+                // app 顯示日期的方式一致，因此 P41 的 `.automatic` 與 `.graphical` 是兩張不同的圖。
                 case .automatic, .compact:
                     .button
                 case .graphical:
@@ -7611,11 +6866,11 @@ final class DatePickerWidget: Box {
             presentation: components.contains(.date) ? presentation : nil,
             time: time,
             // The wheel names its months from the calendar too, so it needs it as
-            // much as the time row does. It used to be left out, and P90's
-            // date-only wheel kept English months after zh_TW (Windows GTK,
-            // 2026-10-20) because a nil here never differs and never rebuilds.
-            // 滾輪的月份名稱同樣取自 calendar,所以它和時間列一樣需要它。以前沒有帶，P90 只有日期的
-            // 滾輪在 zh_TW 之後仍是英文月份(Windows GTK,2026-10-20):這裡的 nil 永遠不會不同，也就永遠不會重建。
+            // much as the time row does: a nil here never differs and never
+            // rebuilds, and P90's date-only wheel kept English months after zh_TW
+            // that way (Windows GTK, 2026-10-20).
+            // 滾輪的月份名稱同樣取自 calendar,所以它和時間列一樣需要它：這裡的 nil 永遠不會不同，也就永遠不會重建,
+            // P90 只有日期的滾輪就曾因此在 zh_TW 之後仍是英文月份(Windows GTK,2026-10-20)。
             calendar: time != nil || (components.contains(.date) && presentation == .wheel)
                 ? calendar : nil
         )
@@ -7839,9 +7094,8 @@ final class DatePickerWidget: Box {
 /// this: `hh : mm` , plus `: ss` when asked, plus an AM/PM dropdown where the
 /// locale wants one.
 ///
-/// This is not the first attempt in this file. The abandoned `TimePicker` above
-/// it recorded "I couldn't get the spin buttons to work"; two reasons it did
-/// not, both avoided here:
+/// The unused upstream `TimePicker` above it does not work, for two reasons,
+/// both avoided here:
 ///
 /// - It wrote `spinButton.text = "\(value)"`, which sets the entry's text
 ///   without telling the underlying `GtkAdjustment` anything, so the value the
@@ -7922,11 +7176,10 @@ final class TimeRow: Box {
         }
 
         // AM/PM where the locale writes it: before the hour in zh_TW (上午 09:46),
-        // after it in en_US. It used to go last whatever the locale; the
-        // order is now the `jm` pattern's, as WinUIBackend's LocaleTimeRow and
-        // SwiftCrossUI's .rows and .clock already do (2026-10-20).
-        // 上午/下午放在 locale 書寫的位置:zh_TW 在時之前(上午 09:46),en_US 在之後。以前不論 locale 一律放最後；
-        // 現在依 `jm` 樣式排列，與 WinUIBackend 的 LocaleTimeRow 以及 SwiftCrossUI 的 .rows、.clock 相同(2026-10-20)。
+        // after it in en_US. The order is the `jm` pattern's, as WinUIBackend's
+        // LocaleTimeRow and SwiftCrossUI's .rows and .clock have it.
+        // 上午/下午放在 locale 書寫的位置:zh_TW 在時之前(上午 09:46),en_US 在之後。依 `jm` 樣式排列，
+        // 與 WinUIBackend 的 LocaleTimeRow 以及 SwiftCrossUI 的 .rows、.clock 相同。
         let meridiemFirst: Bool = {
             let pattern = DateFormatter.dateFormat(fromTemplate: "jm", options: 0, locale: locale) ?? ""
             guard

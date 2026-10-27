@@ -64,7 +64,7 @@ extension WinUIBackend {
     /// ``FrameworkElement/resources`` dictionary, which is the narrowest scope
     /// that reaches a template-internal `ThemeResource` lookup. The same
     /// technique is already used for ``TextEditor`` at `WinUIBackend.swift`
-    /// around line 1744, whose comment records that the *focused* border brush
+    /// (`createTextEditor()`), whose comment records that the *focused* border brush
     /// was deliberately left alone there; this does not leave it alone, because
     /// "no chrome" that grows an accent underline on focus is not the shape the
     /// application asked for.
@@ -76,7 +76,7 @@ extension WinUIBackend {
     /// The same reasoning is why the properties are `clearValue`d rather than
     /// re-set to guessed literals -- `clearValue` hands the property back to
     /// the theme, which is what `automatic` means. That idiom is
-    /// `WinUIBackend+Button.swift:202-205`.
+    /// `updateRenderedStyle` in `WinUIBackend+Button.swift`.
     ///
     /// 光靠四個屬性是不夠的，而這正是此處的全部難處。`borderThickness`、`cornerRadius`、
     /// `background` 與 `borderBrush` 只設定了 *Normal* 這個視覺狀態：WinUI 的 `TextBox` template
@@ -87,7 +87,7 @@ extension WinUIBackend {
     ///
     /// 因此 `plain` 還會在控制項自身的 ``FrameworkElement/resources`` 字典上覆寫那些主題資源，
     /// 那是能觸及 template 內部 `ThemeResource` 查找的最小範圍。同樣手法已用於 ``TextEditor``
-    /// （`WinUIBackend.swift` 約 1744 行），該處註解記載了它刻意不動**聚焦時**的邊框筆刷；此處則
+    /// （`WinUIBackend.swift` 的 `createTextEditor()`），該處註解記載了它刻意不動**聚焦時**的邊框筆刷；此處則
     /// 不放過它，因為「一聚焦就長出強調色底線的無裝飾」並不是應用程式要的外形。
     ///
     /// 另外三個 case 會 `remove` 那些鍵，而不是略過。widget 會跨更新重複使用，因此上一刻還是

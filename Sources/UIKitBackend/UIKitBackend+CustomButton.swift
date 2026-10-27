@@ -36,26 +36,20 @@ extension UIKitBackend {
         // The ViewBuilder button init is not covered by this current solution.
         // Searched, not indexed.
         //
-        // This was `button.subviews[1] as? WrapperWidget<TextView>`, which is
-        // the same shape that made every AppKit button unnamed: it holds only
+        // Not `button.subviews[1] as? WrapperWidget<TextView>`, the same shape
+        // that once left every AppKit button unnamed: it holds only
         // while the label is that exact type at that exact index. A button whose
         // label is wrapped in anything -- a padding, a frame, an HStack of two
-        // texts -- silently got no name at all, and nothing reports a missing
-        // accessibility name.
-        //
-        // The AppKit half was found by dumping the tree (`78fc4b0e`); this one
-        // was found by reading the code beside it afterwards, which is why it is
-        // fixed the same way rather than differently.
+        // texts -- silently gets no name at all, and nothing reports a missing
+        // accessibility name. The AppKit half is fixed the same way (`78fc4b0e`).
         //
         // 用**找**的，不是用索引取的。
         //
-        // 這裡原本是 `button.subviews[1] as? WrapperWidget<TextView>`——那與「讓每一顆 AppKit 按鈕
-        // 都沒有名字」的是同一個形狀:它只有在「標籤恰好是那個型別、恰好在那個索引」時才成立。一顆
+        // 不用 `button.subviews[1] as? WrapperWidget<TextView>` 這種索引取法——那與 AppKit 按鈕
+        // 曾經全都沒有名字的是同一個形狀:它只有在「標籤恰好是那個型別、恰好在那個索引」時才成立。一顆
         // 標籤被任何東西包住的按鈕——一層 padding、一個 frame、一個由兩段文字組成的 HStack——會靜默地
-        // 完全沒有名字，而「缺少 accessibility 名稱」這件事不會有任何東西回報。
-        //
-        // AppKit 那一半是靠傾印那棵樹找到的(`78fc4b0e`);這一半是事後讀它旁邊的程式碼時發現的
-        // ——這正是它以**相同**方式修好、而不是以另一種方式修好的原因。
+        // 完全沒有名字，而「缺少 accessibility 名稱」這件事不會有任何東西回報。AppKit 那一半以相同方式修正
+        // (`78fc4b0e`)。
         button.accessibilityLabel = Self.firstText(in: button)
     }
 

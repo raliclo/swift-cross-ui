@@ -145,12 +145,11 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
 
         backend.setSize(of: widget, to: layout.size.vector)
 
-        // Temporary: set SCUI_DEBUG_SPLIT to see the bounds this hands the
+        // Diagnostic: set SCUI_DEBUG_SPLIT to see the bounds this hands the
         // backend, and where the divider ended up. A backend can only report
         // the width it settled on, and the app can only measure content, so
         // these are the numbers that decide the layout and they are otherwise
-        // invisible. Reading a content width as a pane width produced two
-        // confident, wrong diagnoses of #556.
+        // invisible.
         //
         // `leadingContent` and `trailingContent` are here for #160, which is
         // about what the panes get on the first layout pass versus after a
@@ -171,10 +170,9 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
         // One line is emitted per SplitView per commit, and a three-column
         // NavigationSplitView is two nested SplitViews, so expect two lines
         // per pass: the outer one's trailing pane is the inner split view.
-        // 臨時診斷：設定 SCUI_DEBUG_SPLIT 可看到傳給 backend 的上下界與分隔線最後
+        // 診斷：設定 SCUI_DEBUG_SPLIT 可看到傳給 backend 的上下界與分隔線最後
         // 的位置。backend 只能回報它採用的寬度，app 只能量到內容尺寸，因此這些真正
-        // 決定版面的數字在別處都看不到。把內容寬度誤讀為 pane 寬度，曾對 #556 造成
-        // 兩次自信但錯誤的判斷。
+        // 決定版面的數字在別處都看不到。
         //
         // `leadingContent` 與 `trailingContent` 是為 #160 而加的——該問題正是關於「第一次版面
         // 計算時各窗格得到什麼」與「狀態改變之後」之差異。測試 app 拿不到這兩個數字：

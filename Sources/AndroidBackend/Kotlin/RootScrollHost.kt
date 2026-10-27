@@ -19,13 +19,9 @@ import android.widget.ScrollView
  * The two ways to look at content that does not fit the phone, and the control that switches
  * between them.
  *
- * This is UIKitBackend's `RootScrollHost` on Android. It was missing here, and the absence did not
- * look like an absence: the previous version wrapped the content in a `HorizontalScrollView` around
- * a `ScrollView` and added it with `MATCH_PARENT` in both axes, so the content was pinned to
- * exactly the viewport and there was never anything to scroll. Both scroll views reported
- * `scrollable=false` on every app measured -- P35, P39, P41, P43 -- and a 900-pixel swipe on P35
- * moved zero pixels. A scroll view that cannot scroll is indistinguishable from no scroll view at
- * all, which is why this went unnoticed for three days.
+ * This is UIKitBackend's `RootScrollHost` on Android. Both scroll views take the content with
+ * `WRAP_CONTENT` on the axis they scroll (see init): added with `MATCH_PARENT`, the content is
+ * pinned to the viewport, both report `scrollable=false`, and there is never anything to scroll.
  *
  * **actualView** lays the content out at its natural size and lets you reach the overflow by
  * scrolling. **rwdView** scales it down until the width fits. The names are UIKitBackend's,
@@ -38,10 +34,8 @@ import android.widget.ScrollView
  *
  * 兩種觀看「塞不進手機的內容」的方式，以及在兩者之間切換的控制項。
  *
- * 這是 UIKitBackend 的 `RootScrollHost` 在 Android 上的對應物。此處原本沒有它，而那個缺席看起來
- * 並不像缺席：先前的版本把內容包進「`HorizontalScrollView` 包 `ScrollView`」，並以兩軸皆 `MATCH_PARENT`
- * 加入，於是內容被釘死在視口大小上，永遠沒有任何東西可捲。所量測的每一支 app ——P35、P39、P41、P43——兩層捲動視圖都回報 `scrollable=false`，而在 P35
- * 上滑動 900 像素，畫面 一個像素也沒有改變。一個捲不動的捲動視圖，與根本沒有捲動視圖是分辨不出來的，這正是它被忽略了 三天的原因。
+ * 這是 UIKitBackend 的 `RootScrollHost` 在 Android 上的對應物。兩層捲動視圖在捲動軸上用 `WRAP_CONTENT`(見 init):
+ * 以 `MATCH_PARENT` 加入時，內容被釘死在視口大小上，兩層都回報 `scrollable=false`,永遠沒有東西可捲。
  *
  * **actualView** 讓內容以自然尺寸排版，並以捲動觸及溢出的部分。**rwdView** 則將其縮小直到寬度 塞得下。名稱刻意沿用 UIKitBackend
  * 的：同一個控制項在兩個平台上不應該需要兩套詞彙。
@@ -102,8 +96,9 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
          * at the edge of a padding frame instead of the content: P11 began 18 dp in from the left
          * on Android and at the text on iOS (2026-10-09).
          *
-         * 一個 view 及其後代實際繪製的範圍，依 UIKitBackend 的規則:沒有背景的單純 `CustomContainer` 只透過子元件計算，
-         * 其餘(文字、控制項、捲動視圖、清單)以自身邊界計算、不往下展開，非 VISIBLE 的子元件不算。沒有東西繪製時回傳 false。
+         * 一個 view 及其後代實際繪製的範圍，依 UIKitBackend 的規則(RootScrollHost.swift `contentBounds`):沒有背景的單純 `CustomContainer` 只透過子元件計算，
+         * 其餘(文字、控制項、捲動視圖、清單)以自身邊界計算、不往下展開，非 VISIBLE 的子元件不算；裁切容器(`.clipped()`)
+         * 以自身邊界計算，底下沒有東西繪製的容器也以自身邊界計算，與 UIKit 的退路相同。恆回傳 true。
          * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上
          * 從左邊 18 dp 處開始，iOS 則從文字開始(2026-10-09)。
          */
@@ -155,7 +150,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         // window, which would change every existing Android screenshot for the
         // apps that do fit.
         //
-        // The layout params are the part the previous version had wrong.
+        // The layout params are the part that is easy to get wrong.
         // `WRAP_CONTENT` on the scrolling axis is what allows a child to be
         // larger than its scroll view; `MATCH_PARENT` forbids exactly the case
         // a scroll view exists for. `fillViewport` already covers "smaller than
@@ -164,7 +159,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         // 兩者都設定 `fillViewport`，否則比螢幕小的內容會以它自己的尺寸排版並浮在左上角，而不是
         // 填滿視窗；那會改變所有「本來就塞得下」的 app 的既有截圖。
         //
-        // layout params 正是先前版本弄錯的地方。在捲動軸上使用 `WRAP_CONTENT`，才允許子元件大於它的
+        // layout params 正是容易弄錯的地方。在捲動軸上使用 `WRAP_CONTENT`，才允許子元件大於它的
         // 捲動視圖；`MATCH_PARENT` 恰恰禁止了「捲動視圖之所以存在」的那個情況。而 `fillViewport`
         // 已經涵蓋了「比視口小」的情形，因此改用 wrap 不會失去任何東西。
         horizontal.isFillViewport = true
@@ -194,14 +189,14 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
      * How far the status bar and the gesture bar reach into this host, in px: (top, bottom).
      *
      * The host fills an edge-to-edge window and the app starts below the status bar. Scrolled, its
-     * content used to pass under the status bar's icons and under the gesture bar (seen on P6 and
+     * content would otherwise pass under the status bar's icons and under the gesture bar (P6 and
      * P21, 2026-10-12); UIKitBackend's host ends at the safe area on both sides. Nothing is drawn
-     * in either strip now, and the stage is told the lower one so the last row can still be
+     * in either strip, and the stage is told the lower one so the last row can still be
      * scrolled clear of it. Zero on a window that is not edge to edge.
      *
      * 狀態列與手勢列伸進這個 host 多少(px):(上, 下)。host 佔滿 edge-to-edge 的視窗，而 app 從狀態列下方開始。捲動之後，
-     * 內容以前會穿過狀態列的圖示底下、也穿過手勢列底下(2026-10-12 在 P6 與 P21 看到);UIKitBackend 的 host 兩端都停在
-     * 安全區。現在這兩條範圍內都不繪製，並把下方那條告訴 stage,讓最後一列仍然能捲到它上方。視窗不是 edge-to-edge 時為零。
+     * 內容若不處理會穿過狀態列的圖示底下、也穿過手勢列底下(P6 與 P21,2026-10-12);UIKitBackend 的 host 兩端都停在
+     * 安全區。這兩條範圍內都不繪製，並把下方那條告訴 stage,讓最後一列仍然能捲到它上方。視窗不是 edge-to-edge 時為零。
      */
     private fun barClip(): IntArray {
         if (Build.VERSION.SDK_INT < 30) return intArrayOf(0, 0)
@@ -236,20 +231,17 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 
     // Starts at the content's top-left, as UIKitBackend's host does.
     //
-    // Until 2026-10-09 this scrolled once to the window origin instead, so a
-    // desktop-sized app that SwiftCrossUI centred past the left or top edge
-    // launched with its title and left column off screen on Android while iOS
-    // showed them (P2: box (-246,-115)-(1329,2517) on a 1080x2400 screen). That
-    // was chosen so 46 Android action files measured against the origin kept
-    // working; the user chose to align with iOS (2026-10-09), and those files'
-    // coordinates are shifted to match. Scroll position zero IS the top-left,
-    // because `Stage` translates the content by the box's negative origin, so
-    // nothing is scrolled here.
+    // Scrolling to the window origin instead would launch a desktop-sized app
+    // that SwiftCrossUI centred past the left or top edge with its title and
+    // left column off screen, where iOS shows them (P2: box
+    // (-246,-115)-(1329,2517) on a 1080x2400 screen). Scroll position zero IS
+    // the top-left, because `Stage` translates the content by the box's
+    // negative origin, so nothing is scrolled here. Action files measured
+    // against the window origin are shifted by `originDisplacement` below.
     //
-    // 與 UIKitBackend 的宿主一樣，從內容的左上角開始。2026-10-09 之前這裡會捲到視窗原點一次，所以被
-    // SwiftCrossUI 置中而超出左緣或上緣的桌面尺寸 app,在 Android 上啟動時標題與左欄在畫面外，iOS 則看得到。
-    // 當初是為了讓 46 份以原點量測的 Android 動作檔繼續可用;使用者選擇與 iOS 對齊(2026-10-09),那些檔案的
-    // 座標隨之位移。捲動位置零就是左上角，因為 `Stage` 會把內容平移 box 的負原點，所以這裡不捲。
+    // 與 UIKitBackend 的宿主一樣，從內容的左上角開始。若改為捲到視窗原點，被 SwiftCrossUI 置中而超出左緣或上緣的
+    // 桌面尺寸 app,在 Android 上啟動時標題與左欄會在畫面外，而 iOS 看得到。捲動位置零就是左上角，因為 `Stage` 會把
+    // 內容平移 box 的負原點，所以這裡不捲。以視窗原點量測的動作檔，由下方的 `originDisplacement` 位移。
 
     /// How far the content's own (0,0) now sits, in pixels, from where it sat
     /// when the host was scrolled to it -- the position every Android action
@@ -435,18 +427,15 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 
         // Below the status bar, not under it.
         //
-        // The first version used an 8dp margin from the top of the window and
-        // the button was unreachable: `dumpsys window` reports
-        // `statusBars frame=[0,0][1080,128]` on this device and the button
-        // occupied y 21..147, so 107 of its 126 pixels were beneath a window
-        // that belongs to SystemUI and takes the touches in its own area.
-        // `adb shell input tap` at the centre did nothing at all -- no log, no
-        // mode change -- and a tap 54 pixels lower, on the sliver that cleared
-        // the bar, worked first time. A control that is visible and not
-        // touchable is the worst of the three states it could be in.
+        // An 8dp margin from the top of the window leaves the button unreachable:
+        // `dumpsys window` reports `statusBars frame=[0,0][1080,128]` on a 1080-wide
+        // device, so a button at y 21..147 has 107 of its 126 pixels beneath a
+        // window that belongs to SystemUI and takes the touches in its own area;
+        // `adb shell input tap` at its centre does nothing at all. A control that
+        // is visible and not touchable is the worst of the three states it could be in.
         //
-        // From API 35 an app draws into the insets, which is why this is needed
-        // now and was not before; `getSafeAreaTopInset` returns 0 below that,
+        // From API 35 an app draws into the insets, which is why this is needed;
+        // `getSafeAreaTopInset` returns 0 below that,
         // where the system keeps the content view clear of the bars itself.
         // Asked of `AndroidBackendHelpers` rather than computed here, so that
         // the inset this positions against is the same one `size(ofWindow:)`
@@ -454,13 +443,12 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         //
         // 放在狀態列之下，而不是壓在它底下。
         //
-        // 第一版使用「距視窗頂端 8dp」的邊距，結果按鈕根本按不到：本裝置上 `dumpsys window` 回報
+        // 只用「距視窗頂端 8dp」的邊距時按鈕按不到：在 1080 寬的裝置上 `dumpsys window` 回報
         // `statusBars frame=[0,0][1080,128]`，而按鈕佔據 y 21..147，因此它 126 個像素中有 107 個
-        // 位於一個屬於 SystemUI 的視窗底下，而該視窗會接走其範圍內的觸控。以 `adb shell input tap`
-        // 點擊其中心毫無反應——沒有日誌、也沒有模式變更——而往下 54 像素、點在剛好露出狀態列之外的
-        // 那一條窄縫上，第一次就成功。一個「看得見卻按不到」的控制項，是三種可能狀態中最糟的一種。
+        // 位於一個屬於 SystemUI 的視窗底下，而該視窗會接走其範圍內的觸控；以 `adb shell input tap`
+        // 點擊其中心毫無反應。一個「看得見卻按不到」的控制項，是三種可能狀態中最糟的一種。
         //
-        // 自 API 35 起 app 會繪製進 inset 區域，這正是現在需要這段處理、而先前不需要的原因；在該版本
+        // 自 API 35 起 app 會繪製進 inset 區域，因此需要這段處理；在該版本
         // 以下 `getSafeAreaTopInset` 回傳 0，因為系統會自行讓 content view 避開系統列。此處向
         // `AndroidBackendHelpers` 詢問而非自行計算，如此「本控制項所依據的 inset」與
         // `size(ofWindow:)` 所回報的是同一個。它以「點」為單位作答。
@@ -578,12 +566,12 @@ private class Stage(context: Context) : ViewGroup(context) {
 
     /// Where the content's own (0,0) sits inside this view, in pixels.
     ///
-    /// The host scrolls here once so the first frame shows what the app laid
-    /// out, rather than the empty margin to its left.
+    /// `RootScrollHost.originDisplacement` reads it, to shift action-file
+    /// points measured against the window origin.
     ///
     /// 內容自身的 (0,0) 落在本 view 內的位置,以像素計。
     ///
-    /// 宿主會捲到此處一次,好讓第一個畫面顯示 app 實際排出來的東西,而不是它左側的空白邊界。
+    /// `RootScrollHost.originDisplacement` 讀它，用來位移以視窗原點量測的動作檔座標。
     val originOffset: android.graphics.Point
         get() =
             android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt() + lift)
@@ -738,12 +726,12 @@ private class Stage(context: Context) : ViewGroup(context) {
                 }
                 // A layout larger than the screen starts at its content and ends at
                 // it, not at the blank the centring left -- see UIKitBackend's
-                // RootScrollHost (user, 2026-10-11: P50's 780 x 900 layout began
-                // 107 dp in on Android and 101 pt in on iOS). An axis that fits keeps
-                // the old rule, so content centred on the screen stays centred.
+                // RootScrollHost (2026-10-11: P50's 780 x 900 layout began
+                // 107 dp in on Android and 101 pt in on iOS). An axis that fits is
+                // unaffected, so content centred on the screen stays centred.
                 // 比螢幕大的版面從內容開始、也在內容結束，而不是置中留下的空白——見 UIKitBackend 的 RootScrollHost
-                // (使用者,2026-10-11:P50 的 780 x 900 版面在 Android 從 107 dp 處開始、iOS 從 101 pt 處開始)。
-                // 塞得下的軸維持舊規則，所以置中在螢幕上的內容仍然置中。
+                // (2026-10-11:P50 的 780 x 900 版面在 Android 從 107 dp 處開始、iOS 從 101 pt 處開始)。
+                // 塞得下的軸不受影響，所以置中在螢幕上的內容仍然置中。
                 //
                 // The root is the safe child's own child. One that fills the layout is the
                 // frame itself: the walk above would pass it and stop at whatever its
@@ -759,10 +747,10 @@ private class Stage(context: Context) : ViewGroup(context) {
                     frameBottom = safe.height
                 }
                 if (safe.width > viewportWidth) {
-                    // A root that fits the viewport is centred in it (user, 2026-10-12,
-                    // from P89): half the surplus on each side, where starting at the
+                    // A root that fits the viewport is centred in it (P89, 2026-10-12):
+                    // half the surplus on each side, where starting at the
                     // root left all of it on the right. UIKitBackend does the same.
-                    // 塞得進 viewport 的根置中(使用者,2026-10-12,起因是 P89):多出來的左右各一半，而從根開始會全留在右邊。
+                    // 塞得進 viewport 的根置中(P89,2026-10-12):多出來的左右各一半，而從根開始會全留在右邊。
                     // UIKitBackend 做法相同。
                     val slack =
                         if (frameLeft != Int.MAX_VALUE) {
@@ -776,11 +764,10 @@ private class Stage(context: Context) : ViewGroup(context) {
                     box.left = minOf(0, inner.left, frameLeft)
                 }
                 // **Vertically the content always starts at the top**, whether or not the
-                // layout fits the screen (user, 2026-10-12: "put all content on the top if
-                // content length is less than screen height, not centred"); rwdView keeps
-                // the window origin. UIKitBackend does the same.
-                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕(使用者,2026-10-12:「內容比螢幕矮時全部放在頂端，
-                // 不要置中」);rwdView 維持視窗原點。UIKitBackend 做法相同。
+                // layout fits the screen, rather than being centred; rwdView keeps the
+                // window origin. UIKitBackend does the same.
+                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕，而不是置中;rwdView 維持視窗原點。
+                // UIKitBackend 做法相同。
                 if (safe.height > viewportHeight || mode == RootScrollHost.MODE_ACTUAL_VIEW) {
                     box.top = minOf(inner.top, frameTop)
                     // The bottom is measured from the stage, where the safe child sits
@@ -793,12 +780,12 @@ private class Stage(context: Context) : ViewGroup(context) {
                     box.top = minOf(0, inner.top, frameTop)
                 }
                 // **Content that would start under the mode button starts below it.**
-                // Since 2026-10-11 an oversized layout starts at its root, which is the
-                // corner the button rests in; the centring blank used to clear it. Only
+                // An oversized layout starts at its root, which is the
+                // corner the button rests in, and nothing else keeps it clear. Only
                 // the resting place counts, and content that already clears it is not
                 // moved. UIKitBackend's RootScrollHost does the same.
-                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**2026-10-11 起，比螢幕大的版面從根開始，而那正是按鈕停放的角落；
-                // 以前是置中的空白讓開它。只看按鈕的原位，已經讓開的內容不動。UIKitBackend 的 RootScrollHost 做法相同。
+                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**比螢幕大的版面從根開始，而那正是按鈕停放的角落；
+                // 沒有其他東西讓開它。只看按鈕的原位，已經讓開的內容不動。UIKitBackend 的 RootScrollHost 做法相同。
                 val avoid = avoided
                 if (avoid != null && mode == RootScrollHost.MODE_ACTUAL_VIEW) {
                     val lead =
@@ -813,12 +800,12 @@ private class Stage(context: Context) : ViewGroup(context) {
                     lead.offset(safe.x.toInt() - box.left, safe.y.toInt() - box.top)
                     if (Rect.intersects(lead, avoid)) lift = avoid.bottom - lead.top
                 }
-                // **A root ScrollView cut short by the layout grows to the screen** (user,
-                // 2026-10-12, from P21: 720 dp high with room below, its last row cut through
+                // **A root ScrollView cut short by the layout grows to the screen** (P21,
+                // 2026-10-12: 720 dp high with room below, its last row cut through
                 // the text). Only when the single-child chain ends in a vertical scroller with
                 // more content than room; any other root keeps the height it asked for. Found
                 // once per mode and screen height, then Swift lays the app out again.
-                // **被版面截短的根 ScrollView 會長到螢幕的高度**(使用者,2026-10-12,起因是 P21:只有 720 dp 高而下方還有
+                // **被版面截短的根 ScrollView 會長到螢幕的高度**(P21,2026-10-12:只有 720 dp 高而下方還有
                 // 空間,最後一列從文字中間被切掉)。只在單一子元件鏈以「內容比空間多的垂直捲動元件」結尾時才這麼做;
                 // 其他的根維持它要求的高度。每個模式、每個螢幕高度只找一次,之後由 Swift 重新排版。
                 if (fillHeight != 0 && fillViewport != viewportHeight) {
@@ -940,11 +927,11 @@ private class ViewModeButton(context: Context, initial: Int, private val onToggl
         val density = resources.displayMetrics.density
         val padding = (10 * density).toInt()
         setPadding(padding, padding / 2, padding, padding / 2)
-        // As UIKitBackend's ViewModeButton draws it (user, 2026-10-09: "should be
-        // transparent, like iOS"): the window background at 90%, a 1 dp
+        // As UIKitBackend's ViewModeButton draws it, translucent like iOS:
+        // the window background at 90%, a 1 dp
         // separator-grey border, 6 dp corners, 12 sp medium text, 92x28 dp, no
         // shadow -- instead of a grey raised Material button.
-        // 與 UIKitBackend 的 ViewModeButton 相同(使用者,2026-10-09:「應該是透明的，像 iOS」):視窗背景色 90%、1 dp 分隔線灰的
+        // 與 UIKitBackend 的 ViewModeButton 相同,像 iOS 一樣半透明:視窗背景色 90%、1 dp 分隔線灰的
         // 邊框、6 dp 圓角、12 sp 中等粗細文字、92x28 dp、沒有陰影——取代灰色凸起的 Material 按鈕。
         val face = android.graphics.drawable.GradientDrawable()
         face.cornerRadius = 6 * density

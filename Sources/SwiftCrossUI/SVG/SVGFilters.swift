@@ -1,6 +1,6 @@
 import Foundation
 
-// `filter` (2026-10-10): every SVG 1.1 filter primitive, run on the element's
+// `filter`: every SVG 1.1 filter primitive, run on the element's
 // layer in device pixels before its clip, mask and opacity, as SVG orders them.
 //
 // Here: feGaussianBlur, feOffset, feDropShadow, feFlood, feColorMatrix (all
@@ -22,7 +22,7 @@ import Foundation
 // result resampled back (`applyInFilterSpace`), so a blur of "4 0" blurs along
 // the element's x axis however it is turned.
 //
-// `filter`(2026-10-10):SVG 1.1 的全部濾鏡 primitive,依 SVG 的順序在元素的裁切、遮罩與不透明度之前，
+// `filter`:SVG 1.1 的全部濾鏡 primitive,依 SVG 的順序在元素的裁切、遮罩與不透明度之前，
 // 以裝置像素在元素的圖層上執行。
 //
 // 本檔：feGaussianBlur、feOffset、feDropShadow、feFlood、feColorMatrix(四種類型)、feComposite

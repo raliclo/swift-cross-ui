@@ -7,10 +7,6 @@ import android.view.ViewGroup
 /**
  * `NavigationSplitView` on Android.
  *
- * Before this class the four split-view entry points in `AndroidBackend` were `fatalError`, so P16
- * did not render a split view badly -- it died at launch with
- * "createSplitView(leadingChild:trailingChild:) not implemented".
- *
  * Side by side, not a drawer. Android's own idiom for this on a phone is a navigation drawer that
  * slides over the content, and that is the wrong shape here for the same reason it was on iPhone:
  * the layout system asks `sidebarWidth(ofSplitView:)` and hands the remainder to the trailing
@@ -26,9 +22,6 @@ import android.view.ViewGroup
  * makes their screenshots comparable -- the point of a reference platform.
  *
  * Android 上的 `NavigationSplitView`。
- *
- * 在本類別存在之前，`AndroidBackend` 中四個 split view 進入點都是 `fatalError`，因此 P16 並不是 「split view
- * 畫得不好」，而是直接在啟動時死於 「createSplitView(leadingChild:trailingChild:) not implemented」。
  *
  * 採並排，而非抽屜。Android 自己在手機上的慣用做法是一個覆蓋內容滑出的 navigation drawer，而它在 此處是錯的形狀，理由與在 iPhone 上相同：版面系統會詢問
  * `sidebarWidth(ofSplitView:)` 並把其餘寬度 交給 trailing child，那是一項「兩個欄位同時存在」的陳述。抽屜會讓那個寬度在關閉時成為謊言，而框架

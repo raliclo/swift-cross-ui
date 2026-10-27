@@ -446,10 +446,6 @@ extension UIKitBackend {
     /// leave `squareBorder` looking like a different control from
     /// `roundedBorder` rather than the same one with different corners.
     ///
-    /// - Note: Unrun. This backend cannot be built or executed on the Windows
-    ///   machine this was written on, so it is implemented by reading UIKit's
-    ///   interface rather than by observing it.
-    ///
     /// UIKit 是五者中最省事的：`UITextField.BorderStyle` 本來就列舉了正好想要的那些外形，因此這裡
     /// 是一次改名而非一次實作。沒有 layer 的操作、沒有圓角半徑、沒有邊框寬度——`layer.cornerRadius`
     /// 與 `layer.borderWidth` 在本 backend 的其他地方有用到，但此處刻意不用，因為手繪的邊框不會像
@@ -462,9 +458,6 @@ extension UIKitBackend {
     ///
     /// `squareBorder` 對應 `.bezel` 而非 `.line`：`.line` 只在文字下方畫一條線，那是底線而非邊框，
     /// 會讓 `squareBorder` 看起來像是與 `roundedBorder` 不同的控制項，而不是同一個控制項換了轉角。
-    ///
-    /// - Note: 未實際執行。撰寫本程式碼的 Windows 機器無法建置或執行此 backend，因此它是靠閱讀
-    ///   UIKit 的介面實作的，而非靠觀察其行為。
     static func borderStyle(
         for style: BackendTextFieldStyle
     ) -> UITextField.BorderStyle {

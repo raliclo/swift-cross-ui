@@ -86,53 +86,21 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
         FileHandle.standardError.fileDescriptor
     )
 
-    // Line buffering, or `print` reaches logcat only in 4 KB instalments.
-    //
-    // C stdio picks its buffering from what the descriptor is: a terminal gets
-    // line buffering, anything else gets a full 4 KB buffer. The `dup2` above
-    // makes stdout a pipe, so from that call onwards `print` writes into a
-    // buffer that is flushed when it fills, when the process exits, or never --
-    // and an app killed with `am force-stop`, which is how every test here
-    // ends, never flushes.
-    //
-    // stderr is unbuffered by the C standard and needs nothing, which is why
-    // `InputEvent`'s `-actionfile:` lines have always appeared while the test
-    // apps' own `print` output has not. That asymmetry was recorded as "an
-    // Android app's print does not reach logcat" and taken as a platform
-    // limitation; it is four lines of buffering.
-    //
-    // 設為行緩衝，否則 `print` 只會以 4 KB 為單位分批抵達 logcat。
-    //
-    // C stdio 是依「該描述子是什麼」來決定緩衝方式的：終端機得到行緩衝，其他一切得到完整的 4 KB
-    // 緩衝區。上方的 `dup2` 使 stdout 成為一條 pipe，因此自該次呼叫起，`print` 寫入的是一個
-    // 「緩衝區滿了才沖、行程結束才沖，或者永遠不沖」的緩衝區——而一個以 `am force-stop` 終結的
-    // app（此處每一次測試都是這樣結束的）永遠不會沖。
-    //
-    // stderr 依 C 標準是無緩衝的，不需要任何處理——這正是為什麼 `InputEvent` 的 `-actionfile:`
-    // 各行一直都看得到，而測試 app 自身的 `print` 輸出卻看不到。那個不對稱曾被記錄為「Android app
-    // 的 print 到不了 logcat」並當成平台限制；它其實是四行緩衝設定。
-    // Both calls moved into `AndroidBackendShim`. `stdout` and `stderr` are
-    // mutable C globals and Swift 6 refuses to reference one; the reasoning,
-    // and what these two lines are actually for, is in `impl.c` beside them.
-    // 這兩個呼叫已移入 `AndroidBackendShim`。`stdout` 與 `stderr` 是可變的 C 全域變數,而 Swift 6
-    // 拒絕引用其中任何一個;推理與「這兩行究竟在做什麼」寫在它們旁邊的 `impl.c` 裡。
+    // Line-buffered stdout, or `print` reaches logcat only in 4 KB instalments
+    // -- and an app ended with `am force-stop` never flushes. Done in
+    // `AndroidBackendShim`: `stdout` and `stderr` are mutable C globals and
+    // Swift 6 refuses to reference one. The full reasoning is in `impl.c`.
+    // 設為行緩衝，否則 `print` 只會以 4 KB 為單位分批抵達 logcat——而以 `am force-stop` 終結的 app
+    // 永遠不會沖出緩衝。在 `AndroidBackendShim` 中完成:`stdout` 與 `stderr` 是可變的 C 全域變數,
+    // 而 Swift 6 拒絕引用其中任何一個。完整的推理寫在 `impl.c` 裡。
     android_configure_stdio()
 
-    // Arguments from the launching intent rather than none at all.
+    // Arguments from the launching intent rather than none at all: everything
+    // downstream reads `CommandLine.arguments`, so without them `--debug` and
+    // `-actionfile` never arrive on Android. See `AndroidBackend+Arguments.swift`.
     //
-    // This was `main(0, argv)` with `argv[0] = nil`, described as "dummy
-    // arguments". The cost was not obvious from here: everything downstream
-    // reads `CommandLine.arguments`, so `--debug` was never seen on Android,
-    // `DebugFeatures.isEnabled` was always false, and `-actionfile` could not
-    // arrive -- while `test_android.zsh` accepted the flag and dropped it. See
-    // `AndroidBackend+Arguments.swift`.
-    //
-    // 引數取自啟動它的 intent，而非完全沒有引數。
-    //
-    // 此處原本是 `main(0, argv)`、`argv[0] = nil`，並註解為「dummy arguments」。其代價從這裡看不
-    // 出來：下游的一切都讀取 `CommandLine.arguments`，因此在 Android 上 `--debug` 從未被看見、
-    // `DebugFeatures.isEnabled` 恆為 false，而 `-actionfile` 根本無法送達——同時
-    // `test_android.zsh` 卻接受了該旗標並把它丟掉。詳見 `AndroidBackend+Arguments.swift`。
+    // 引數取自啟動它的 intent，而非完全沒有引數：下游的一切都讀取 `CommandLine.arguments`，
+    // 少了它們，`--debug` 與 `-actionfile` 在 Android 上永遠送不到。詳見 `AndroidBackend+Arguments.swift`。
     // Registered before `main`, so a replay scheduled by the first window has a
     // synthesiser to find. See `AndroidSynthesiser`.
     // 在 `main` 之前註冊，使「由第一個視窗排定的重放」找得到 synthesiser。詳見 `AndroidSynthesiser`。
@@ -259,16 +227,14 @@ public final class AndroidBackend: BaseAppBackend {
     // A placeholder, like `deviceClass` below, and it has to agree with that
     // one: the real list is chosen in `computeRootEnvironment`, and until then
     // this is what a caller sees. `deviceClass` places itself at `.phone`, so
-    // this holds the phone list -- and it did not, which is why declaring
-    // `.graphical` for phones in `computeRootEnvironment` was not enough on its
-    // own. P41 still died on `DatePickerStyleModifier`'s assertion, from a read
-    // that happened while this value was still the placeholder.
+    // this holds the phone list; a read that happens while this value is still
+    // the placeholder would otherwise trip `DatePickerStyleModifier`'s
+    // assertion (P41).
     //
     // 一個佔位值，與下方的 `deviceClass` 相同，而且必須與它一致：真正的清單是在
     // `computeRootEnvironment` 中選定的，在那之前呼叫端看到的就是這個值。`deviceClass` 把自己置於
-    // `.phone`，因此此處持有的是 phone 的清單——而它原本並非如此，這正是為何「只在
-    // `computeRootEnvironment` 中為 phone 宣告 `.graphical`」還不夠。P41 依然死在
-    // `DatePickerStyleModifier` 的 assert 上，而那次讀取發生在本值仍是佔位值的時候。
+    // `.phone`，因此此處持有的是 phone 的清單；否則一次發生在本值仍是佔位值時的讀取，會觸發
+    // `DatePickerStyleModifier` 的 assert(P41)。
     // Computed in `init()` rather than left constant: `.floating` needs an
     // overlay permission the user grants in Settings, and a list that claimed
     // it on a device where they said no would be a promise this backend cannot
@@ -293,34 +259,30 @@ public final class AndroidBackend: BaseAppBackend {
     public private(set) var deviceClass = DeviceClass.phone
 
     public let defaultPaddingAmount = 10
-    // True since 2026-10-06: a window after the first is an activity of its
-    // own (ScuiWindowActivity.kt) -- a separate task in Recents on a phone, beside
+    // True: a window after the first is an activity of its own
+    // (ScuiWindowActivity.kt) -- a separate task in Recents on a phone, beside
     // the first in split screen on a tablet.
-    // 自 2026-10-06 起為 true:第一個之後的視窗是自己的 activity(ScuiWindowActivity.kt)——在手機上是「最近使用」
+    // 為 true:第一個之後的視窗是自己的 activity(ScuiWindowActivity.kt)——在手機上是「最近使用」
     // 中的獨立工作，在平板上可在分割畫面中並排。
     public let supportsMultipleWindows = true
-    // True since 2026-09-03, and the false it replaced was not a statement about
-    // Android. `WindowReference` reads this flag before it does anything: false
-    // makes it discard `preferredColorScheme` entirely, so `.colorScheme(.dark)`
-    // was accepted by the API, recorded by the app and then dropped upstream of
-    // every line of this backend. P15 showed the shape exactly -- its status
-    // line read "Requested: dark   Resolved: light".
+    // True, and false would not be a statement about Android.
+    // `WindowReference` reads this flag before it does anything: false makes it
+    // discard `preferredColorScheme` entirely, so `.colorScheme(.dark)` would be
+    // accepted by the API, recorded by the app and then dropped upstream of
+    // every line of this backend (P15's status line would read "Requested: dark
+    // Resolved: light").
     //
-    // Nothing here was missing. `resolveAdaptiveColor` has always switched on
-    // `environment.colorScheme` (AndroidBackend+Colors.swift) and so have the
-    // sheets; they were being handed an environment that had already had the
-    // request taken out of it. What this needed was the flag and a window
-    // background to go with it -- see `updateWindow`.
+    // `resolveAdaptiveColor` switches on `environment.colorScheme`
+    // (AndroidBackend+Colors.swift) and so do the sheets; what the flag needs
+    // beside it is a window background -- see `updateWindow`.
     //
-    // 自 2026-09-03 起為 true，而它所取代的 false 並不是對 Android 的陳述。`WindowReference` 會在
-    // 做任何事之前先讀這個旗標：false 會讓它把 `preferredColorScheme` 整個丟棄，於是
-    // `.colorScheme(.dark)` 被 API 接受了、被 app 記錄了，然後在抵達本 backend 的任何一行程式碼
-    // 之前就被丟掉。P15 精確地呈現了這個形狀——它的狀態列寫著
-    // 「Requested: dark   Resolved: light」。
+    // 為 true,而 false 並不會是對 Android 的陳述。`WindowReference` 會在做任何事之前先讀這個旗標：
+    // false 會讓它把 `preferredColorScheme` 整個丟棄，於是 `.colorScheme(.dark)` 會被 API 接受、被 app
+    // 記錄，然後在抵達本 backend 的任何一行程式碼之前就被丟掉(P15 的狀態列會寫著
+    // 「Requested: dark   Resolved: light」)。
     //
-    // 此處沒有任何東西是缺的。`resolveAdaptiveColor` 一直都會對 `environment.colorScheme` 做
-    // switch（AndroidBackend+Colors.swift），sheet 也是；它們只是被交付了一個「請求已被拿掉」的
-    // environment。真正需要補的是這個旗標，以及與之相配的視窗背景——見 `updateWindow`。
+    // `resolveAdaptiveColor` 會對 `environment.colorScheme` 做 switch(AndroidBackend+Colors.swift),
+    // sheet 也是；這個旗標旁邊還需要的，是與之相配的視窗背景——見 `updateWindow`。
     public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
@@ -485,10 +447,8 @@ public final class AndroidBackend: BaseAppBackend {
 
     public func createWindow(withDefaultSize defaultSize: SIMD2<Int>?, id: String) -> Window {
         // The first window is the activity the app started in; every later one
-        // gets a token and its own activity when shown. Until 2026-10-06 this
-        // was upstream's TODO and every call returned the same placeholder.
-        // 第一個視窗是 app 啟動時的 activity;之後每一個都拿到 token,顯示時有自己的 activity。2026-10-06
-        // 之前這裡是上游的 TODO,每次呼叫都回傳同一個佔位物件。
+        // gets a token and its own activity when shown.
+        // 第一個視窗是 app 啟動時的 activity;之後每一個都拿到 token,顯示時有自己的 activity。
         defer { Self.didCreateMainWindow = true }
         let window = Window(token: Self.didCreateMainWindow ? UUID().uuidString : nil)
         window.defaultSize = defaultSize
@@ -499,13 +459,13 @@ public final class AndroidBackend: BaseAppBackend {
         // The same hook AppKitBackend uses for `window.appearance` and
         // GtkBackend for its theme override: the one place a backend is handed
         // the environment for a window rather than for a widget. See
-        // `canOverrideWindowColorScheme` above for why nothing reached here
-        // before, and `setWindowBackground` in AndroidBackendHelpers.kt for
+        // `canOverrideWindowColorScheme` above for why the flag has to be true
+        // for anything to reach here, and `setWindowBackground` in AndroidBackendHelpers.kt for
         // which colour and why it is not a literal.
         //
         // 與 AppKitBackend 用來設定 `window.appearance`、GtkBackend 用來覆寫主題的是同一個 hook：
         // 那是 backend 唯一一處拿到「某個視窗的」environment 而非「某個 widget 的」environment。
-        // 為何此前沒有任何東西抵達這裡，見上方的 `canOverrideWindowColorScheme`；至於用哪個顏色、
+        // 為何那個旗標必須為 true 才會有東西抵達這裡，見上方的 `canOverrideWindowColorScheme`；至於用哪個顏色、
         // 以及為何不用字面值，見 AndroidBackendHelpers.kt 的 `setWindowBackground`。
         if let activity = activity(of: window) {
             helpers.setWindowBackground(activity, environment.colorScheme == .dark)
@@ -524,12 +484,10 @@ public final class AndroidBackend: BaseAppBackend {
 
     public func setTitle(ofWindow window: Window, to title: String) {
         // The window's title, not `.navigationTitle` (that is a row in the
-        // root stack, AndroidBackend+Toolbar.swift). Upstream's TODO here said
-        // "navigation titles"; what was missing was the activity title and the
-        // Recents label, which an Android user sees for the window. 2026-10-06.
-        // 視窗的標題，不是 `.navigationTitle`(那是 root stack 中的一列，見 AndroidBackend+Toolbar.swift)。
-        // 上游在此的 TODO 寫的是「導覽標題」;實際缺的是 activity 標題與「最近使用」中的標籤——Android
-        // 使用者看到視窗標題的地方。2026-10-06。
+        // root stack, AndroidBackend+Toolbar.swift): the activity title and the
+        // Recents label, which is where an Android user sees a window's title.
+        // 視窗的標題，不是 `.navigationTitle`(那是 root stack 中的一列，見 AndroidBackend+Toolbar.swift):
+        // 也就是 activity 標題與「最近使用」中的標籤——Android 使用者看到視窗標題的地方。
         window.title = title
         if let token = window.token {
             helpers.setTitleOfWindow(token, title)
@@ -679,12 +637,11 @@ public final class AndroidBackend: BaseAppBackend {
         // actualView lays an app out at the size it asked for, as on a desktop,
         // not at the phone's: a layout that depends on the screen width is not
         // the app's actual view, and iOS (411 dp vs 440 pt) wrapped differently
-        // (user, 2026-10-09: "Actual View 不應該有 screen width 問題", "不該換行").
-        // Test builds only -- where the mode control exists; a shipped app sizes
-        // to the screen, as SwiftUI ignores defaultSize on a phone. rwdView keeps
-        // the screen size and scales.
+        // (2026-10-09). Test builds only -- where the mode control exists; a
+        // shipped app sizes to the screen, as SwiftUI ignores defaultSize on a
+        // phone. rwdView keeps the screen size and scales.
         // actualView 以 app 要求的尺寸排版，如同在桌面上，而不是以手機的尺寸：依螢幕寬度而定的版面不是 app 的實際樣子，
-        // 而且 iOS(411 dp 對 440 pt)換行位置不同(使用者,2026-10-09)。只在有模式切換控制項的測試建置中;正式的 app 依螢幕
+        // 而且 iOS(411 dp 對 440 pt)換行位置不同(2026-10-09)。只在有模式切換控制項的測試建置中;正式的 app 依螢幕
         // 排版，如同 SwiftUI 在手機上忽略 defaultSize。rwdView 維持螢幕尺寸並縮放。
         if DebugFeatures.allowsRootScrollControl,
            let defaultSize = window.defaultSize,
@@ -781,9 +738,9 @@ public final class AndroidBackend: BaseAppBackend {
     /// The activity to present over for a window, or the first activity when
     /// there is none (no window given, or a later window not started yet).
     /// Sheets, alerts and file dialogs use it, so a presentation from a later
-    /// window appears over that window. 2026-10-07.
+    /// window appears over that window.
     /// 為某個視窗做呈現時所用的 activity;沒有時(未指定視窗、或之後的視窗尚未啟動)用第一個 activity。sheet、alert
-    /// 與檔案對話框都用它，讓來自之後視窗的呈現出現在那個視窗上。2026-10-07。
+    /// 與檔案對話框都用它，讓來自之後視窗的呈現出現在那個視窗上。
     func presentingActivity(for window: Window?) -> Activity {
         window.flatMap { activity(of: $0) } ?? Self.activity
     }
@@ -793,17 +750,11 @@ public final class AndroidBackend: BaseAppBackend {
         return helpers.windowActivity(token)
     }
 
-    // `setApplicationMenu` is implemented now, in
-    // `AndroidBackend+ApplicationMenus.swift`. The stub that stood here carried
-    // the TODO "Register app menu items as shortcuts when we support keyboard
-    // shortcuts", and that is precisely what it does, keyboard shortcuts having
-    // landed on 2026-09-16.
-    // `setApplicationMenu` 現已實作,位於 `AndroidBackend+ApplicationMenus.swift`。原本立在此處的樁
-    // 帶著 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」,而它做的
-    // 正是那件事——鍵盤快捷鍵已於 2026-09-16 落地。
+    // `setApplicationMenu` is in `AndroidBackend+ApplicationMenus.swift`.
+    // `setApplicationMenu` 位於 `AndroidBackend+ApplicationMenus.swift`。
 
-    // `setIncomingURLHandler` is in `AndroidBackend+IncomingURLs.swift` (2026-10-06).
-    // `setIncomingURLHandler` 位於 `AndroidBackend+IncomingURLs.swift`(2026-10-06)。
+    // `setIncomingURLHandler` is in `AndroidBackend+IncomingURLs.swift`.
+    // `setIncomingURLHandler` 位於 `AndroidBackend+IncomingURLs.swift`。
 
     public func runInMainThread(action: @escaping @MainActor () -> Void) {
         Task { @MainActor in
@@ -816,8 +767,8 @@ public final class AndroidBackend: BaseAppBackend {
     /// Called from `init()` and not only from `computeRootEnvironment`, because
     /// `EnvironmentValues.init(backend:)` captures `supportedDatePickerStyles`
     /// once and runs before `computeRootEnvironment` does. An app that checks
-    /// the environment before asking -- which is what P11 does and what P41 now
-    /// does -- would otherwise be handed the placeholder list.
+    /// the environment before asking -- which is what P11 and P41 do -- would
+    /// otherwise be handed the placeholder list.
     ///
     /// Measured 2026-09-04 on a Wear OS 5 emulator: P41 asked for `.graphical`
     /// because the environment still said it was available, and
@@ -829,8 +780,8 @@ public final class AndroidBackend: BaseAppBackend {
     ///
     /// 從 `init()` 呼叫，而不只是從 `computeRootEnvironment` 呼叫，因為
     /// `EnvironmentValues.init(backend:)` 只會擷取一次 `supportedDatePickerStyles`，而它的執行早於
-    /// `computeRootEnvironment`。一支「先檢查 environment 再索取」的 app——P11 就是如此，P41 現在
-    /// 也是——否則拿到的會是佔位清單。
+    /// `computeRootEnvironment`。一支「先檢查 environment 再索取」的 app——P11 與 P41 都是如此
+    /// ——否則拿到的會是佔位清單。
     ///
     /// 2026-09-04 於 Wear OS 5 emulator 上實測：P41 索取了 `.graphical`，因為 environment 仍說它
     /// 可用；而 `DatePickerStyleModifier` 接著依真實清單拒絕了它，並終結了行程。app 的檢查與
@@ -841,63 +792,36 @@ public final class AndroidBackend: BaseAppBackend {
                 case 0:
                     deviceClass = .desktop
                     supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
-                // `.graphical` added for phone and tablet 2026-09-03. The size
-                // objection above was real when it was written and the answer
-                // to it arrived separately: every window's root child is now
-                // hosted in `AndroidRootScrollHost`, so content wider or taller
-                // than the screen is reached by scrolling rather than lost. A
-                // 350dp calendar also fits across this emulator's 411-point
-                // window without scrolling at all.
+                // Every style a class can draw is listed, because
+                // `datePickerStyle(_:)` asserts on a style the backend does not
+                // list: P41 asks for `.graphical` unconditionally and would end
+                // at launch, while an app that queries
+                // `supportedDatePickerStyles` first, as P11 does, would be
+                // quietly downgraded instead.
                 //
-                // Nothing had to be implemented for this. `GraphicalDatePicker`
-                // has always been here and `updateDatePicker` has always had
-                // the `.graphical` branch; the style was simply not declared,
-                // and `datePickerStyle(_:)` asserts on a style a backend does
-                // not list. P41 asks for `.graphical` unconditionally and died
-                // at launch on that assertion -- an app that queried
-                // `supportedDatePickerStyles` first, as P11 does, would have
-                // been quietly downgraded instead.
+                // Phone and tablet include `.graphical`: every window's root
+                // child is hosted in `AndroidRootScrollHost`, so content wider
+                // or taller than the screen is reached by scrolling rather than
+                // lost, and a 350dp calendar fits a 411dp phone window anyway.
                 //
                 // Watch keeps `.compact` and `.wheel` and not `.graphical`,
-                // and both halves of that are now measured rather than
-                // reasoned. A Wear OS 5 emulator reports 320 x 640 points at
-                // density 160, so the 350dp calendar does not fit -- the size
-                // objection is real there, unlike on the phone. `.wheel` was
-                // verified on the same device on 2026-09-04: P41 draws
+                // measured on a Wear OS 5 emulator: it reports 320 x 640 points
+                // at density 160, so the 350dp calendar does not fit. `.wheel`
+                // was verified on the same device (2026-09-04): P41 draws
                 // Jul/Aug/Sep beside 23/24/25 with "2025-08-24" underneath, the
-                // same as on the phone.
+                // same as on the phone. See `WheelDatePicker.kt`.
                 //
-                // This entry was an assertion when it was written. The watch
-                // was added to the SDK, an AVD created and the app run on it
-                // precisely because a claim about a device nobody had tried is
-                // the kind this repository asks to be demonstrated.
+                // 每個 device class 畫得出的 style 都要列出，因為 `datePickerStyle(_:)` 對 backend 未列出的
+                // style 會觸發 assert:P41 無條件要求 `.graphical`,會在啟動時終結；而一個像 P11 那樣先查詢
+                // `supportedDatePickerStyles` 的 app,得到的則是靜默降級。
                 //
-                // `.wheel` is new on every class in this switch, and it needed
-                // no size argument at all: it was declared nowhere because it
-                // was implemented nowhere. See `WheelDatePicker.kt`.
+                // phone 與 tablet 包含 `.graphical`:每個視窗的根子元件都寄宿於 `AndroidRootScrollHost`
+                // 之中，因此比螢幕更寬或更高的內容是靠捲動抵達，而不是遺失；而且一個 350dp 的日曆在 411dp
+                // 寬的手機視窗中本來就放得下。
                 //
-                // 2026-09-03 為 phone 與 tablet 加入 `.graphical`。上方那個尺寸的反對意見在當時是
-                // 成立的，而它的解答是另外抵達的：每個視窗的根子元件現在都寄宿於
-                // `AndroidRootScrollHost` 之中，因此比螢幕更寬或更高的內容是靠捲動抵達，而不是遺失。
-                // 而且一個 350dp 的日曆在本 emulator 411 點寬的視窗中，根本不需要捲動就放得下。
-                //
-                // 此處不需要實作任何東西。`GraphicalDatePicker` 一直都在，`updateDatePicker` 也一直
-                // 都有 `.graphical` 分支；只是這個 style 從未被宣告，而 `datePickerStyle(_:)` 對於
-                // backend 未列出的 style 會觸發 assert。P41 無條件要求 `.graphical`，因而死在那個
-                // assert 上——而一個像 P11 那樣先查詢 `supportedDatePickerStyles` 的 app，得到的會是
-                // 靜默降級。
-                //
-                // watch 保留 `.compact` 與 `.wheel`、不含 `.graphical`，而這兩半現在都是量出來的，
-                // 不是推出來的。Wear OS 5 emulator 回報 320 x 640 點、density 160，因此 350dp 的
-                // 日曆放不下——那個尺寸的反對意見在該處是成立的，與手機上不同。`.wheel` 於
-                // 2026-09-04 在同一台裝置上驗證：P41 畫出 Jul/Aug/Sep 與 23/24/25，底下是
-                // 「2025-08-24」，與手機上相同。
-                //
-                // 這一條在寫下時是一項斷言。之所以把手錶映像裝進 SDK、建立 AVD 並在其上執行該 app，
-                // 正是因為「關於一台沒有人試過的裝置的主張」，屬於本倉庫要求被證明的那一類。
-                //
-                // 本 switch 中每一個 device class 的 `.wheel` 都是新加的，而它完全不需要尺寸方面的
-                // 論證：它之所以在任何地方都沒有被宣告，是因為它在任何地方都沒有被實作。
+                // watch 保留 `.compact` 與 `.wheel`、不含 `.graphical`,是在 Wear OS 5 emulator 上量出來的：
+                // 它回報 320 x 640 點、density 160,因此 350dp 的日曆放不下。`.wheel` 在同一台裝置上驗證過
+                // (2026-09-04):P41 畫出 Jul/Aug/Sep 與 23/24/25,底下是「2025-08-24」,與手機上相同。
                 // 見 `WheelDatePicker.kt`。
                 case 1:
                     deviceClass = .phone
@@ -1144,18 +1068,17 @@ public final class AndroidBackend: BaseAppBackend {
     /// one by the display density turns it into the other -- at density 2.625,
     /// `Int32(Float(-1) * 2.625)` is `-2`.
     ///
-    /// So `updateInsets`, which asks for `MATCH_PARENT` on the root container,
-    /// was setting `WRAP_CONTENT` on it, on every device whose density is above
-    /// 1. The window rendered anyway while the content fitted, which is what
-    /// made it survive: a `WRAP_CONTENT` container is the size of its content,
-    /// and that looks identical to filling the parent until the content grows
-    /// past it.
+    /// Without this, `updateInsets`, which asks for `MATCH_PARENT` on the root
+    /// container, would set `WRAP_CONTENT` on it on every device whose density
+    /// is above 1. The window still renders while the content fits, which is
+    /// what makes the bug easy to miss: a `WRAP_CONTENT` container is the size
+    /// of its content, and that looks identical to filling the parent until the
+    /// content grows past it.
     ///
-    /// Measured on the emulator, 2026-09-03, before this line existed: nine
+    /// Measured on the emulator, 2026-09-03, without this conversion: nine
     /// presses of P12's "Increment counter" left the page intact at 378953
     /// non-white pixels, and the tenth -- where the count needs a second digit
-    /// -- emptied the window to 0. Pressing a tab button or a control with a
-    /// longer status line did the same. `adb shell input tap` did it too, so it
+    /// -- emptied the window to 0. `adb shell input tap` did the same, so it
     /// was never the action-file machinery. See `bugs/bug-Android.md`.
     ///
     /// 點轉換為像素，但「那個數字不是長度」的情況除外。
@@ -1164,15 +1087,13 @@ public final class AndroidBackend: BaseAppBackend {
     /// `WRAP_CONTENT` 是 `-2`。它們是哨兵值，而把其中一個乘上顯示密度會把它變成另一個——在密度
     /// 2.625 下，`Int32(Float(-1) * 2.625)` 就是 `-2`。
     ///
-    /// 因此 `updateInsets`（它為根容器要求的是 `MATCH_PARENT`）實際上把它設成了 `WRAP_CONTENT`，
-    /// 而且在每一台密度大於 1 的裝置上都是如此。視窗在內容塞得下時照樣算繪，這正是它能存活至今的
-    /// 原因：`WRAP_CONTENT` 的容器就是其內容的大小，而在內容尚未超出之前，那看起來與「填滿父容器」
-    /// 完全相同。
+    /// 少了這一步，`updateInsets`（它為根容器要求的是 `MATCH_PARENT`）會在每一台密度大於 1 的裝置上
+    /// 把它設成 `WRAP_CONTENT`。視窗在內容塞得下時照樣算繪，這正是這個錯誤容易被忽略的原因：
+    /// `WRAP_CONTENT` 的容器就是其內容的大小，而在內容尚未超出之前，那看起來與「填滿父容器」完全相同。
     ///
-    /// 2026-09-03 於 emulator 上、在這一行存在之前量得：按 P12 的「Increment counter」九次，
-    /// 頁面完好，非白像素 378953；而第十次——計數需要第二位數時——把視窗清空為 0。按分頁按鈕、
-    /// 或按一個會讓狀態文字變長的控制項，結果相同。`adb shell input tap` 也一樣，因此這從來就不是
-    /// 動作檔機制的問題。詳見 `bugs/bug-Android.md`。
+    /// 2026-09-03 於 emulator 上、在沒有這個換算時量得：按 P12 的「Increment counter」九次，
+    /// 頁面完好，非白像素 378953；而第十次——計數需要第二位數時——把視窗清空為 0。
+    /// `adb shell input tap` 也一樣，因此這從來就不是動作檔機制的問題。詳見 `bugs/bug-Android.md`。
     static func layoutLength(_ points: Int, density: Float) -> Int32 {
         // Rounded up, while positions are truncated: a view then always reaches the
         // next one's left edge, so two adjacent views never leave an unpainted
@@ -1408,18 +1329,15 @@ public final class AndroidBackend: BaseAppBackend {
     /// 所有量測共用的那一個 TextView。
     @MainActor static var measuringTextView: Widget?
 
-    // The four of these were `fatalError` until 2026-09-03. `NavigationSplitView`
-    // is not an optional part of the framework -- P16 is built around it -- and
-    // an unimplemented backend entry point does not degrade the view, it ends
-    // the process: P16 died at launch and ActivityManager gave up on it as
-    // having crashed too many times.
+    // `NavigationSplitView` is not an optional part of the framework -- P16 is
+    // built around it -- and an unimplemented backend entry point does not
+    // degrade the view, it ends the process.
     //
     // The geometry lives in `SplitContainer.kt`, which also records why this is
     // two columns side by side rather than Android's usual drawer.
     //
-    // 這四個在 2026-09-03 之前都是 `fatalError`。`NavigationSplitView` 不是框架中的選配部分——P16
-    // 整支 app 就是圍繞它建立的——而一個未實作的 backend 進入點並不會讓該 view 降級，它會終結整個
-    // 行程：P16 在啟動時就死掉，接著 ActivityManager 以「crashed too many times」放棄了它。
+    // `NavigationSplitView` 不是框架中的選配部分——P16 整支 app 就是圍繞它建立的——而一個未實作的
+    // backend 進入點並不會讓該 view 降級，它會終結整個行程。
     //
     // 幾何計算位於 `SplitContainer.kt`，該檔同時記錄了此處為何採用左右兩欄並排，而非 Android 慣用的
     // 抽屜式做法。
@@ -1438,22 +1356,18 @@ public final class AndroidBackend: BaseAppBackend {
         )
     }
 
-    // Both of these cross the unit boundary, and the first version of this file
-    // did not. `SplitContainer` works in pixels because `layoutParams` does;
-    // SwiftCrossUI works in points. Returning the pixel count unconverted told
-    // the layout system the sidebar was 288 points wide when it was 288 pixels,
-    // which at density 2.625 is 110 -- so the sidebar's rows were laid out for
-    // two and a half times the width they had, and P16 drew "Science" and
-    // "Humanities" cut off at the divider while its own status line read
-    // "sidebar: 288". The drawing was self-consistent, which is what made it
-    // look like a clipping bug rather than a unit bug.
+    // Both of these cross the unit boundary. `SplitContainer` works in pixels
+    // because `layoutParams` does; SwiftCrossUI works in points. An
+    // unconverted pixel count would tell the layout system a 288-pixel sidebar
+    // is 288 points wide, when at density 2.625 it is 110 -- the sidebar's rows
+    // would be laid out for two and a half times the width they have, and cut
+    // off at the divider in a way that looks like a clipping bug rather than a
+    // unit bug.
     //
-    // 這兩個函式都跨越了單位邊界，而本檔的第一版沒有處理。`SplitContainer` 以像素運作，因為
-    // `layoutParams` 就是像素；SwiftCrossUI 則以點運作。未經換算就回傳像素值，等於告訴版面系統
-    // 側欄有 288 點寬，而它其實是 288 像素——在 density 2.625 下那是 110 點。於是側欄中的列是以
-    // 「兩倍半於它實際擁有的寬度」來排版的，P16 因而把 "Science" 與 "Humanities" 畫成在分隔線處
-    // 被切斷，而它自己的狀態列卻寫著「sidebar: 288」。繪製本身是自洽的，那正是它看起來像裁切問題
-    // 而非單位問題的原因。
+    // 這兩個函式都跨越了單位邊界。`SplitContainer` 以像素運作，因為 `layoutParams` 就是像素；
+    // SwiftCrossUI 則以點運作。未經換算就回傳像素值，等於告訴版面系統 288 像素的側欄有 288 點寬，
+    // 而在 density 2.625 下它其實是 110 點——側欄中的列會以「兩倍半於它實際擁有的寬度」來排版，
+    // 並在分隔線處被切斷，看起來像裁切問題而非單位問題。
     public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
         let density = AndroidBackend.density { splitView.getResources().getDisplayMetrics().density }
         let pixels = splitView.as(SplitContainer.self)!.resolvedSidebarWidth()

@@ -113,15 +113,13 @@ extension GtkBackend {
         let widget = widget as! Box
 
         // CSS conic-gradient, the same route the linear and radial widgets take.
-        // Angular gradients had no implementation at all before this, and a
-        // missing conformance is not a degradation: @CastBackend turns it into
-        // `fatalError("'GtkBackend' does not implement ...")`, so an
-        // AngularGradient aborted the app on Linux and on Windows -gtk4.
+        // A missing conformance is not a degradation: @CastBackend turns it into
+        // `fatalError("'GtkBackend' does not implement ...")`, so without this an
+        // AngularGradient aborts the app on Linux and on Windows -gtk4.
         //
-        // CSS conic-gradient，與 linear 和 radial widget 走同一條路。在此之前 angular gradient
-        // 完全沒有實作，而缺少 conformance 並非降級：@CastBackend 會將其轉為
-        // `fatalError("'GtkBackend' does not implement ...")`，因此 AngularGradient 會在 Linux
-        // 與 Windows -gtk4 上使 app 中止。
+        // CSS conic-gradient，與 linear 和 radial widget 走同一條路。缺少 conformance 並非降級：
+        // @CastBackend 會將其轉為 `fatalError("'GtkBackend' does not implement ...")`，因此少了這段，
+        // AngularGradient 會在 Linux 與 Windows -gtk4 上使 app 中止。
 
         // CSS measures the angle clockwise from twelve o'clock; SwiftUI measures
         // it clockwise from three o'clock, which is CSS's 90 degrees, so the start

@@ -101,17 +101,15 @@ extension BackendFeatures {
     ///
     /// **Three protocols rather than one, matching ``TapGestures`` and
     /// ``HoverGestures``.** A single `ContinuousGestures` would make a backend
-    /// that can drag but not rotate unable to declare that, and Android is
-    /// exactly that case until a rotation detector is written by hand: Android
+    /// that can drag but not rotate unable to declare that. Android, for one,
     /// ships `GestureDetector` and `ScaleGestureDetector` and has no rotation
-    /// equivalent at all.
+    /// equivalent at all, so rotation there needs a hand-written detector.
     ///
     /// 一指拖曳，或滑鼠按住並移動。
     ///
     /// **三個協定而非一個，與 ``TapGestures``、``HoverGestures`` 一致。** 單一個
-    /// `ContinuousGestures` 會讓「能拖曳但不能旋轉」的 backend 無從表達;而 Android 正是那種情況——
-    /// 直到有人手寫一個旋轉偵測器為止:Android 提供 `GestureDetector` 與 `ScaleGestureDetector`，
-    /// 而完全沒有旋轉的對應物。
+    /// `ContinuousGestures` 會讓「能拖曳但不能旋轉」的 backend 無從表達;Android 就提供
+    /// `GestureDetector` 與 `ScaleGestureDetector`,而完全沒有旋轉的對應物,旋轉偵測必須自己寫。
     @MainActor
     public protocol DragGestures: Core {
         func createDragGestureTarget(wrapping child: Widget) -> Widget

@@ -13,9 +13,7 @@ import Foundation
 /// **Nothing new had to reach the backends.** `OpenDialogOptions` has carried
 /// `allowMultipleSelections` all along and `showOpenDialog` has always handed
 /// back `[URL]`; the single-file action passes `false` and then reads
-/// `url[0]`. So the capability was there and only the public surface was
-/// missing -- checked 2026-09-10 rather than assumed, because "the backends
-/// probably support it" is exactly the kind of guess this tree keeps catching.
+/// `url[0]`. So the capability was there and only the public surface was missing.
 ///
 /// 呈現一個「允許選取多個項目」的開啟對話框。
 ///
@@ -26,8 +24,7 @@ import Foundation
 ///
 /// **沒有任何新東西需要送到 backend。** `OpenDialogOptions` 一直帶著 `allowMultipleSelections`,
 /// 而 `showOpenDialog` 一直回傳 `[URL]`;單檔那個 action 傳的是 `false`,然後讀 `url[0]`。因此能力
-/// 本來就在,缺的只有公開介面——這是 2026-09-10 查證過的,而不是假設的,因為「backend 大概支援吧」
-/// 正是這棵樹一再抓到的那種猜測。
+/// 本來就在，缺的只有公開介面。
 @available(tvOS, unavailable, message: "tvOS does not provide file system access")
 public struct PresentMultipleFileOpenDialogAction: Sendable {
     let backend: any BaseAppBackend

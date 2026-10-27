@@ -37,9 +37,8 @@ extension AppKitBackend {
         backgroundColor: Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
-        // WRITTEN ON WINDOWS 2026-09-09 AND NOT RUN. The Windows side cannot
-        // build AppKit; this compiles against the API as read, and the Mac side
-        // verifies it. Same handover shape as #117.
+        // Written without an AppKit build at hand; the nil-clears behaviour
+        // below has not been checked on macOS, so verify before relying on it.
         //
         // On the content view's layer, not on the NSPopover. `NSPopover` has
         // `appearance` (aqua / dark aqua / vibrant) and no background colour at
@@ -50,10 +49,10 @@ extension AppKitBackend {
         // nil clears the layer's colour rather than leaving the last one, so a
         // colour bound to state is removable. Clearing reveals NSPopover's own
         // vibrant chrome, which is what "leave it to the platform" means here --
-        // it does not leave a hole, unlike the GTK case measured the same day.
+        // it does not leave a hole, unlike GtkBackend (see
+        // `BackendFeatures.Popovers`).
         //
-        // **本段於 2026-09-09 在 Windows 上寫成,未曾執行。** Windows 這側無法建置 AppKit;此處是
-        // 對照所讀到的 API 寫出來的,由 Mac 那側驗證。與 #117 相同的交接形狀。
+        // **本段在手邊沒有 AppKit 建置時寫成;下方「nil 時清除」的行為未在 macOS 上確認過,依賴它之前請先驗證。**
         //
         // 設在內容 view 的 layer 上,而非 NSPopover 上。`NSPopover` 只有 `appearance`
         // (aqua / dark aqua / vibrant),**完全沒有**背景色——因此顏色無法表達在 popover 本身,
@@ -61,7 +60,7 @@ extension AppKitBackend {
         //
         // nil 時清掉 layer 的顏色而不是留著上一個,使綁定於 state 的顏色可被移除。清掉後露出的是
         // `NSPopover` 自己的 vibrant 外觀,那正是此處「交給平台」的意思——它**不會**留下一個洞,
-        // 與同一天在 GTK 上量到的情況不同。
+        // 與 GtkBackend 不同(見 `BackendFeatures.Popovers`)。
         if let view = popover.contentViewController?.view {
             view.wantsLayer = true
             view.layer?.backgroundColor = backgroundColor.map { $0.nsColor.cgColor }
@@ -69,18 +68,12 @@ extension AppKitBackend {
 
         // **`contentSize` is set, and the controller's view is NOT repositioned.**
         //
-        // This used to also do
-        // `popover.contentViewController?.view.frame = NSRect(origin: .zero, ...)`,
-        // and that line is what put the panel in the corner. AppKit owns where
-        // the content view sits inside the popover's shell -- the shell is
-        // larger, by the arrow and its margins -- and forcing the frame to
-        // `.zero` moves it to the BOTTOM-LEFT of that shell, leaving the chrome
-        // visible along the top and the right.
-        //
-        // Reported as "the green panel is not inside the popover, a lot of white
-        // leaking on the right". Measured: shell 314x180, content 288x154, so 26
-        // points in each axis that AppKit would have split evenly and this line
-        // pushed entirely to two edges.
+        // AppKit owns where the content view sits inside the popover's shell --
+        // the shell is larger, by the arrow and its margins -- and setting
+        // `popover.contentViewController?.view.frame` to origin `.zero` moves it
+        // to the BOTTOM-LEFT of that shell, leaving the chrome visible along the
+        // top and the right (shell 314x180, content 288x154: 26 points in each
+        // axis that AppKit would have split evenly, pushed onto two edges).
         //
         // The child fills the container instead, and follows it if AppKit
         // resizes it -- which is what `autoresizingMask` is for and what setting
@@ -88,13 +81,10 @@ extension AppKitBackend {
         //
         // **設定 `contentSize`,而**不**重新定位 controller 的 view。**
         //
-        // 此處原本還有一行 `popover.contentViewController?.view.frame = NSRect(origin: .zero, ...)`，
-        // 而正是那一行把面板推到了角落。內容 view 在 popover 外殼中的位置由 AppKit 擁有——外殼比內容大，
-        // 大出來的是箭頭與它的邊距——而把 frame 強制設為 `.zero`，會把它移到該外殼的**左下角**，於是
-        // 上緣與右緣露出外殼。
-        //
-        // 回報的說法是「綠框不在 popover 內,右邊漏白很多」。量到:外殼 314x180、內容 288x154,也就是
-        // 每個軸上有 26 點——AppKit 本來會把它平均分到兩側，而那一行把它整份推到了兩個邊。
+        // 內容 view 在 popover 外殼中的位置由 AppKit 擁有——外殼比內容大，大出來的是箭頭與它的邊距——
+        // 而把 `popover.contentViewController?.view.frame` 的原點設為 `.zero`,會把它移到該外殼的
+        // **左下角**,於是上緣與右緣露出外殼(外殼 314x180、內容 288x154:每個軸上有 26 點,AppKit
+        // 本來會把它平均分到兩側，卻被整份推到了兩個邊)。
         //
         // 改為讓子 view 填滿容器，並在 AppKit 調整容器大小時跟著走——那正是 `autoresizingMask` 的用途，
         // 也是「只設定一次 frame」做不到的事。
@@ -113,38 +103,23 @@ extension AppKitBackend {
         window: NSCustomWindow
     ) {
         // **`.minY` when nothing is asked for: below the anchor, which is what
-        // the other four backends do and what this call always MEANT to do.**
-        //
-        // It carried `.maxY` from the day the popover landed, under a comment
-        // saying that put the panel below the button, "which is where a popover
-        // opened from a button belongs". The comment's intent was right and its
-        // claim was wrong: driven on 2026-09-17 with no `arrowEdge` at all, P50
-        // opened its panel ABOVE the button
-        // (`p50-macos-final-20260917-195515.png`, the readout reading
-        // `arrow edge: none (platform decides)`).
+        // the other four backends do.** `.maxY` opens a no-preference panel
+        // ABOVE the button (P50, `arrow edge: none (platform decides)`; see
+        // `rectEdge(for:)`).
         //
         // The other four agree with each other: `GtkPopover`'s default position
         // is below, `PopupWindow.showAsDropDown` means below, WinUI's `Flyout`
         // auto-places below where it fits, and UIKit's `[.up, .down]` takes
-        // below when there is room. AppKit was the only one placing a
-        // no-preference popover above, so this is one app looking different on
-        // one platform for no reason anybody chose.
+        // below when there is room.
         //
         // AppKit still moves the panel when there is no room below, which is
         // the rule this backend is being left to keep.
         //
-        // **沒有任何要求時使用 `.minY`:錨點下方——那是另外四個 backend 的做法,也是本呼叫一直以來
-        // 所「打算」做的事。**
-        //
-        // 它自這個 popover 落地那天起就帶著 `.maxY`,而其上的註解說那會把面板放在按鈕下方、
-        // 「那正是由按鈕開啟的 popover 該在的位置」。那個註解的**意圖**是對的,它的**主張**是錯的:
-        // 2026-09-17 在完全不給 `arrowEdge` 的情況下驅動,P50 把面板開在按鈕**上方**
-        // (`p50-macos-final-20260917-195515.png`,讀數寫著 `arrow edge: none (platform decides)`)。
+        // **沒有任何要求時使用 `.minY`:錨點下方——那是另外四個 backend 的做法。** `.maxY` 會把「沒有
+        // 偏好」的面板開在按鈕**上方**(P50,`arrow edge: none (platform decides)`;見 `rectEdge(for:)`)。
         //
         // 另外四個彼此一致:`GtkPopover` 的預設位置是下方、`PopupWindow.showAsDropDown` 就是下方、
         // WinUI 的 `Flyout` 自動放在放得下的下方、UIKit 的 `[.up, .down]` 在有空間時取下方。
-        // 只有 AppKit 把「沒有偏好」的 popover 放在上方——那是同一支 app 在同一件事上,因為沒有人選擇過
-        // 的理由而在某個平台上長得不一樣。
         //
         // 空間不足時 AppKit 依然會移動面板,那正是此處刻意讓這個 backend 保有的規則。
         popover.willPresent()
@@ -157,32 +132,22 @@ extension AppKitBackend {
 
     /// `NSRectEdge` for a side of the anchor.
     ///
-    /// **`.maxY` puts the panel ABOVE the anchor, and this pair was written the
-    /// other way round first.** The comment in `presentPopover` above said
-    /// `.maxY` meant "below", reasoning from this backend's flipped views, and
-    /// the first mapping here followed it: `.top` to `.minY`. Driven on
-    /// 2026-09-17 with P50, the two captures said the opposite --
-    /// `p50-macos-final-20260917-155815.png` has the app reporting
-    /// `arrow edge: top` with the panel BELOW its button, and `-155948.png` has
-    /// it reporting `bottom` with the panel ABOVE. The readout is what makes
-    /// that a measurement rather than two pictures of a popover: AppKit moves a
-    /// popover that does not fit, so a panel on the far side could always have
-    /// been the platform's doing.
-    ///
-    /// `NSPopover` therefore reads `preferredEdge` in AppKit's own y-up screen
-    /// space, not in the flipped space the anchor view is laid out in.
+    /// **`.maxY` puts the panel ABOVE the anchor, although this backend's views
+    /// are flipped**: `NSPopover` reads `preferredEdge` in AppKit's own y-up
+    /// screen space, not in the flipped space the anchor view is laid out in.
+    /// Measured 2026-09-17 with P50, which prints the edge it asked for: with
+    /// `.top` mapped to `.minY`, `arrow edge: top` opened the panel BELOW its
+    /// button and `bottom` opened it ABOVE. The readout is what makes that a
+    /// measurement: AppKit moves a popover that does not fit, so a panel on the
+    /// far side alone could have been the platform's doing.
     ///
     /// 錨點某一側所對應的 `NSRectEdge`。
     ///
-    /// **`.maxY` 會把面板放在錨點的上方,而這一組對應最初是寫反的。** 上面 `presentPopover` 的註解說
-    /// `.maxY` 是「下方」——那是從本 backend 的翻轉 view 推論來的——而此處第一版的對應也照著寫:
-    /// `.top` 對 `.minY`。2026-09-17 以 P50 驅動之後,那兩張擷圖說的正好相反:
-    /// `p50-macos-final-20260917-155815.png` 裡 app 回報 `arrow edge: top`,而面板在按鈕**下方**;
-    /// `-155948.png` 裡它回報 `bottom`,而面板在**上方**。使這成為一次量測、而非兩張 popover 照片的,
-    /// 正是那行讀數:AppKit 會移動放不下的 popover,因此「面板落在另一側」永遠有可能是平台自己做的。
-    ///
-    /// 由此可知,`NSPopover` 是在 AppKit 自己 y 向上的**螢幕**座標系裡解讀 `preferredEdge` 的,
-    /// 而不是在錨點 view 所處的那個翻轉空間裡。
+    /// **儘管本 backend 的 view 是翻轉的,`.maxY` 仍會把面板放在錨點的上方**:`NSPopover` 是在 AppKit
+    /// 自己 y 向上的**螢幕**座標系裡解讀 `preferredEdge` 的,而不是在錨點 view 所處的那個翻轉空間裡。
+    /// 2026-09-17 以會印出所要求邊的 P50 量得:把 `.top` 對應到 `.minY` 時,`arrow edge: top` 把面板開在
+    /// 按鈕**下方**,`bottom` 則開在**上方**。使這成為一次量測的正是那行讀數:AppKit 會移動放不下的
+    /// popover,因此單憑「面板落在另一側」,永遠有可能是平台自己做的。
     private static func rectEdge(for edge: SwiftCrossUI.Edge) -> NSRectEdge {
         switch edge {
             case .top: return .maxY

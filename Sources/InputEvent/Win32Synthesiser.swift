@@ -170,28 +170,23 @@
             }
             if let best { return best.window }
 
-            // The driven window may already BE the popover, and before 2026-09-10 it
-            // could not be, which is why this branch is new rather than defensive.
-            //
-            // `innermostModal` now resolves a content surface back to its window, so
-            // once a popover is up the walk lands on the POPOVER rather than on the
-            // main window. The search above then asks "which visible window is owned
-            // by the popover and smaller than it" and correctly finds nothing -- so
-            // `origin=popover` failed with "no popover is open" at the exact moment
-            // the code had finally started driving one.
+            // The driven window may itself BE the popover. `innermostModal`
+            // resolves a content surface back to its window, so once a popover is
+            // up the walk lands on the POPOVER rather than on the main window. The
+            // search above then asks "which visible window is owned by the popover
+            // and smaller than it" and correctly finds nothing -- so without this
+            // branch `origin=popover` fails with "no popover is open" exactly when
+            // a popover is being driven.
             //
             // The test is the same one that identifies a popover anywhere else here:
             // a visible toplevel, owned by another visible window, and smaller than
             // its owner. Asking it of `owner` itself costs one call and removes a
             // failure that would read as the popover being absent.
             //
-            // 被驅動的那個視窗**本身**可能就是 popover;而在 2026-09-10 之前它不可能是——這正是本分支
-            // 是「新增」而非「防禦性」的原因。
-            //
-            // `innermostModal` 現在會把內容 surface 解析回它的視窗,因此 popover 一旦升起,走訪會落在
-            // **popover** 上而非主視窗上。於是上方的搜尋所問的是「哪一個可見視窗由這個 popover 所擁有
-            // 且比它小」,而它正確地找不到任何東西——`origin=popover` 於是在「程式終於開始驅動一個
-            // popover」的那一刻,以「沒有 popover 開啟」失敗。
+            // 被驅動的那個視窗**本身**可能就是 popover。`innermostModal` 會把內容 surface 解析回它的視窗,
+            // 因此 popover 一旦升起,走訪會落在 **popover** 上而非主視窗上。於是上方的搜尋所問的是「哪一個
+            // 可見視窗由這個 popover 所擁有且比它小」,而它正確地找不到任何東西——少了本分支,`origin=popover`
+            // 就會恰好在驅動一個 popover 時,以「沒有 popover 開啟」失敗。
             //
             // 判準與此處其他地方辨識 popover 所用的完全相同:一個可見的 toplevel、被另一個可見視窗所
             // 擁有、且比它的擁有者小。對 `owner` 自己問一次這個問題只多一次呼叫,卻消除了一個
@@ -237,11 +232,11 @@
         /// coordinates, computed from the correct window, wrong target. Nothing
         /// reports it -- `SendInput` accepts the events and returns success.
         ///
-        /// Measured 2026-08-26, twice, against a real desktop. This was a bare
-        /// `SetForegroundWindow(window)` with its result discarded, while every
-        /// other Win32 call in this file is guarded, and both runs clicked into the
-        /// editor covering the app instead: the first collapsed two tree items in
-        /// it, the second opened a new document. Both runs reported success.
+        /// Measured 2026-08-26, twice, against a real desktop: with a bare
+        /// `SetForegroundWindow(window)` and its result discarded, both runs
+        /// clicked into the editor covering the app instead: the first collapsed
+        /// two tree items in it, the second opened a new document. Both runs
+        /// reported success.
         ///
         /// `SetForegroundWindow` cannot be the mechanism. Windows refuses a
         /// foreground change asked for by a process that is neither already in front
@@ -264,9 +259,9 @@
         /// 視窗，會把整場重放交給那個應用程式：座標正確、來源視窗也正確，目標卻是錯的。而且沒有任何
         /// 東西會回報——`SendInput` 會接受這些事件並回報成功。
         ///
-        /// 於 2026-08-26 對真實桌面實測兩次。此處原本是一行捨棄回傳值的 `SetForegroundWindow(window)`
-        /// ——而本檔其他每個 Win32 呼叫都有防護——兩次都改而點進了覆蓋在 app 上方的編輯器：第一次摺疊了
-        /// 其中兩個樹狀項目，第二次開了一份新文件。兩次都回報成功。
+        /// 於 2026-08-26 對真實桌面實測兩次：只用一行捨棄回傳值的 `SetForegroundWindow(window)` 時，
+        /// 兩次都改而點進了覆蓋在 app 上方的編輯器：第一次摺疊了其中兩個樹狀項目，第二次開了一份新文件。
+        /// 兩次都回報成功。
         ///
         /// `SetForegroundWindow` 不能作為此處的機制。Windows 會拒絕「既不在前方、也不擁有最後一個輸入
         /// 事件」之行程所提出的前景切換，改為閃爍其工作列按鈕——因此由背景 shell 啟動的 app 永遠拿不到
@@ -328,40 +323,6 @@
             // 執行都驅動了覆蓋在 app 上方的編輯器，而兩次都回報成功。guard 決定的是「失敗要多大聲」，
             // 不是「失敗會不會被發現」。
 
-            // No `AttachThreadInput` here, and that is a measurement rather than an
-            // omission.
-            //
-            // The known problem is that Windows grants a foreground change only to
-            // a process already in front, owning the last input event, or with no
-            // foreground window -- and an app launched from a shell is none of
-            // those. `AttachThreadInput` to the foreground thread is the standard
-            // remedy, and it was written, tried, and taken out again on 2026-08-27
-            // because it changed nothing: P10 driven by a Ctrl-Q file quit with it
-            // and quit without it. What made this work is the
-            // `SetWindowPos(HWND_TOPMOST)` above, which landed after #52 was filed.
-            //
-            // Left out because unused code that looks load-bearing is worse than
-            // absent code. If a keyboard file ever fails here again, attaching to
-            // the foreground thread before the `SetForegroundWindow` above is the
-            // thing to try, and this note is the record that it is not currently
-            // needed. Named rather than written as "this call": the call moved once
-            // already, and a pronoun pointing across a page of comment is how a
-            // reader ends up attaching before the read-back loop, where it does
-            // nothing.
-            //
-            // 此處沒有 `AttachThreadInput`，而這是量測的結果，並非疏漏。
-            //
-            // 已知的問題是：Windows 只允許「已在前景」、「擁有最後一個輸入事件」或「沒有前景視窗」的
-            // 行程切換前景，而由 shell 啟動的 app 三者皆非。附加至前景執行緒是標準解法；它已於
-            // 2026-08-27 寫出、試過，然後又被移除，因為它什麼也沒改變：以 Ctrl-Q 動作檔驅動的 P10，
-            // 加不加它都同樣結束。真正讓此處可行的，是上方的 `SetWindowPos(HWND_TOPMOST)`——它是在
-            // #52 被提出之後才加入的。
-            //
-            // 之所以不留下，是因為「看起來承重、實則無用」的程式碼比「沒有程式碼」更糟。若日後鍵盤
-            // 動作檔在此再次失敗，「在上方的 `SetForegroundWindow` 之前附加至前景執行緒」就是該試的
-            // 東西，而本註解即是「目前並不需要它」的紀錄。此處直接寫出呼叫名稱而非「此呼叫」：那個呼叫
-            // 已經被搬移過一次，而一個跨越整頁註解的指代詞，正是讓讀者把附加動作加在讀回迴圈之前
-            // ——那裡什麼也不會發生——的原因。
             // The foreground change is asynchronous, so reading it back immediately
             // can miss a switch that is about to happen. Half a second is far longer
             // than it takes whenever it works at all.
@@ -374,50 +335,38 @@
                 Thread.sleep(forTimeInterval: 0.01)
             }
 
-            // SECOND ATTEMPT, and only for a file that cannot proceed without focus.
-            //
-            // The note above is a live instruction, not history: it says that if a
-            // keyboard file ever fails here again, attaching to the foreground
-            // thread before `SetForegroundWindow` is the thing to try. On
-            // 2026-09-05 all three keyboard files in actions/win did fail --
-            // P10-ctrl-q, P18-three-dialogs, P31-tab-and-escape, which is every
-            // file there carrying a key event and no others -- so the condition it
-            // names has occurred.
+            // SECOND ATTEMPT, and only for a file that cannot proceed without focus:
+            // join the foreground thread's input queue and ask again. Windows grants
+            // a foreground change only to a process already in front, owning the
+            // last input event, or with no foreground window, and an app launched
+            // from a shell is none of those. The keyboard files in actions/win
+            // (P10-ctrl-q, P18-three-dialogs, P31-tab-and-escape) have failed to
+            // take the foreground with the first attempt alone.
             //
             // Placed HERE rather than before the first attempt, so the path that
-            // already works is not touched. `SetWindowPos(HWND_TOPMOST)` plus a
-            // plain `SetForegroundWindow` is what made keyboard files work when #52
-            // was closed, and 15 mouse files still pass on it today; a change ahead
-            // of that would put every one of them on an untested path to fix three.
+            // works for the mouse-only files -- `SetWindowPos(HWND_TOPMOST)` plus a
+            // plain `SetForegroundWindow` -- is not touched.
             //
-            // WHAT THIS DOES NOT CLAIM: that it works. It did nothing in the
-            // 2026-08-27 trial, and that trial's subject was P10 driven by a Ctrl-Q
-            // file -- one of the three failing now. Attaching may well fail again,
-            // because the window holding the foreground here is Program Manager,
-            // the desktop shell, and the input queue we would be joining is
-            // explorer.exe's. The reason to add it anyway is that the alternative
-            // is three files that cannot run at all, and a second attempt that is
-            // measured beats a first attempt that is only regretted.
+            // It is not known to succeed: a trial with P10 driven by a Ctrl-Q file
+            // changed nothing, and the window holding the foreground is often
+            // Program Manager, the desktop shell, so the queue being joined is
+            // explorer.exe's. `takeForegroundByAttachingInput(to:)` reports its
+            // outcome either way.
             //
             // Set SCUI_NO_ATTACH_INPUT=1 to take this path out at runtime, so the
             // with/without comparison is one build and not two.
             //
-            // 第二次嘗試，且僅針對「沒有焦點就無法進行」的檔案。
+            // 第二次嘗試，且僅針對「沒有焦點就無法進行」的檔案：加入前景執行緒的輸入佇列後再要求一次。
+            // Windows 只允許「已在前景」、「擁有最後一個輸入事件」或「沒有前景視窗」的行程切換前景，而由
+            // shell 啟動的 app 三者皆非。actions/win 中的鍵盤檔案(P10-ctrl-q、P18-three-dialogs、
+            // P31-tab-and-escape)只靠第一次嘗試都無法取得前景。
             //
-            // 上方那段註解是一道**生效中的指示**，不是歷史紀錄：它寫明若鍵盤動作檔日後在此再次失敗，
-            // 該試的就是「在 `SetForegroundWindow` 之前附加至前景執行緒」。2026-09-05，actions/win
-            // 中的三個鍵盤檔案全部失敗——P10-ctrl-q、P18-three-dialogs、P31-tab-and-escape，恰好就是
-            // 該目錄中帶有按鍵事件的全部檔案，不多不少——因此它所指名的條件已經成立。
+            // 放在**這裡**而非第一次嘗試之前，如此只用滑鼠的檔案所走的路徑——`SetWindowPos(HWND_TOPMOST)`
+            // 搭配單純的 `SetForegroundWindow`——就不會被動到。
             //
-            // 放在**這裡**而非第一次嘗試之前，如此已經可行的路徑就不會被動到。`SetWindowPos(HWND_TOPMOST)`
-            // 搭配單純的 `SetForegroundWindow`，正是 #52 結案時讓鍵盤檔案得以運作的組合，而今天仍有
-            // 15 個滑鼠檔案靠它通過；把改動放在它之前，等於為了修三個而讓那十五個全部走上未經測試的路徑。
-            //
-            // 本段不主張的事：它會成功。在 2026-08-27 的試驗中它毫無作用，而那次試驗的對象正是以
-            // Ctrl-Q 動作檔驅動的 P10——今天失敗的三個之一。附加很可能再次失敗，因為此處持有前景的是
-            // Program Manager（桌面 shell），我們要加入的是 explorer.exe 的輸入佇列。仍然加上它的理由
-            // 是：另一個選項是三個檔案根本無法執行，而「一次被量測過的第二嘗試」勝過「一次只剩懊悔的
-            // 第一嘗試」。
+            // 它不保證成功：以 Ctrl-Q 動作檔驅動 P10 的一次試驗中它毫無作用，而此處持有前景的常是
+            // Program Manager(桌面 shell),要加入的是 explorer.exe 的輸入佇列。
+            // `takeForegroundByAttachingInput(to:)` 無論成敗都會回報結果。
             //
             // 設定 SCUI_NO_ATTACH_INPUT=1 可在執行期停用此路徑，使「有/無」的對照只需一份建置。
             if actions.contains(where: \.needsKeyboardFocus),
@@ -433,8 +382,7 @@
             // cannot proceed: it would type into another application. A mouse-only
             // file can, because `SendInput` posts by coordinate to whatever is on
             // top there, and `SetWindowPos(HWND_TOPMOST)` above already put our
-            // window on top. This is what the doc comment on this method has said
-            // all along; the code simply stopped doing it.
+            // window on top, which is what the doc comment on this method says.
             //
             // Said out loud rather than passed over. The pin makes the run valid,
             // not identical: a window that never took the foreground behaves
@@ -446,8 +394,7 @@
             //
             // 按鍵事件會送往持有焦點者，因此會按鍵的檔案無法繼續：它會打字到別的應用程式裡。只用滑鼠的
             // 檔案則可以，因為 `SendInput` 是依座標投遞給該處最上層的視窗，而上方的
-            // `SetWindowPos(HWND_TOPMOST)` 已經把我方視窗放到最上層。這正是本方法的文件註解一直以來
-            // 所寫的內容；只是程式碼不再那樣做了。
+            // `SetWindowPos(HWND_TOPMOST)` 已經把我方視窗放到最上層，這正是本方法的文件註解所寫的內容。
             //
             // 明確說出，而非略過。置頂讓這次執行有效，但不代表兩者相同：一個始終未取得前景的視窗，
             // 對其內部任何與焦點相關的東西，行為都會不同；而拿這次執行去和「確實取得前景」的那次比較的
@@ -465,6 +412,23 @@
                 "this file presses keys, and a key event goes to whichever window has focus"
             )
         }
+
+        /// `nonisolated(unsafe)` for the same reason the rest of this project uses
+        /// it on once-only flags -- see `P11Diagnostics.didAnnounceRender`. A replay
+        /// runs on one thread and the flag exists only to keep the console from
+        /// being hidden twice; the cost of a race here is a second `ShowWindow` on
+        /// an already hidden window.
+        /// 使用 `nonisolated(unsafe)` 的理由與本專案其他「只執行一次」的旗標相同——參見
+        /// `P11Diagnostics.didAnnounceRender`。重放在單一執行緒上進行，此旗標的存在只是為了避免主控台
+        /// 被隱藏兩次；此處競態的代價，不過是對一個已經隱藏的視窗再呼叫一次 `ShowWindow`。
+        nonisolated(unsafe) private static var didHideConsole = false
+        /// Buttons pressed by `mousedown` and not yet released: while one is, a
+        /// `move` is SendInput, so the toolkit sees a drag (see `move(to:in:)`).
+        /// `mousedown` 按下、尚未放開的按鍵數：只要有一個,`move` 就走 SendInput,toolkit 才看得到拖曳。
+        nonisolated(unsafe) private static var heldButtons = 0
+        /// The driven window when the held button went down; see `currentWindowIdentity`.
+        /// 按住的按鍵按下時被驅動的視窗;見 `currentWindowIdentity`。
+        nonisolated(unsafe) private static var identityAtPress = 0
 
         /// Hides this process's OWN console window, and only its own.
         ///
@@ -486,11 +450,10 @@
         /// from a shell the console belongs to that shell and is shared, and hiding
         /// it would take away the operator's terminal.
         ///
-        /// The same test and the same reasoning as `testapp/P6.swift`, which solved
-        /// this for itself in `hideOwnConsoleOnce` and recorded that the "jump to
-        /// the terminal" people saw was P6's own console. It was solved for one app
-        /// and left for the other forty-two; this is the replay path, so every app
-        /// driven by an action file gets it.
+        /// The same test and the same reasoning as `testapp/P6.swift`, which does
+        /// this for itself in `hideOwnConsoleOnce` and records that the "jump to
+        /// the terminal" people saw was P6's own console. This is the replay path,
+        /// so every app driven by an action file gets it.
         ///
         /// 隱藏**本行程自己的**主控台視窗，且僅限自己的。
         ///
@@ -508,39 +471,18 @@
         /// 只為本行程而存在。若是從 shell 啟動，主控台屬於該 shell 且為多方共用，隱藏它等於奪走操作者
         /// 的終端機。
         ///
-        /// 與 `testapp/P6.swift` 相同的判斷與相同的理由——它在 `hideOwnConsoleOnce` 中為自己解決了這
-        /// 件事，並記載了使用者所看到的「跳到 terminal」其實是 P6 自己的主控台。那次只為一支 app 解決，
-        /// 其餘四十二支被留了下來；此處是重放路徑，因此每一支由動作檔驅動的 app 都會得到它。
-        /// `nonisolated(unsafe)` for the same reason the rest of this project uses
-        /// it on once-only flags -- see `P11Diagnostics.didAnnounceRender`. A replay
-        /// runs on one thread and the flag exists only to keep the console from
-        /// being hidden twice; the cost of a race here is a second `ShowWindow` on
-        /// an already hidden window.
-        /// 使用 `nonisolated(unsafe)` 的理由與本專案其他「只執行一次」的旗標相同——參見
-        /// `P11Diagnostics.didAnnounceRender`。重放在單一執行緒上進行，此旗標的存在只是為了避免主控台
-        /// 被隱藏兩次；此處競態的代價，不過是對一個已經隱藏的視窗再呼叫一次 `ShowWindow`。
-        nonisolated(unsafe) private static var didHideConsole = false
-        /// Buttons pressed by `mousedown` and not yet released: while one is, a
-        /// `move` is SendInput, so the toolkit sees a drag (see `move(to:in:)`).
-        /// `mousedown` 按下、尚未放開的按鍵數：只要有一個,`move` 就走 SendInput,toolkit 才看得到拖曳。
-        nonisolated(unsafe) private static var heldButtons = 0
-        /// The driven window when the held button went down; see `currentWindowIdentity`.
-        /// 按住的按鍵按下時被驅動的視窗;見 `currentWindowIdentity`。
-        nonisolated(unsafe) private static var identityAtPress = 0
-
+        /// 與 `testapp/P6.swift` 相同的判斷與相同的理由——它在 `hideOwnConsoleOnce` 中為自己處理這件事，
+        /// 並記載了使用者所看到的「跳到 terminal」其實是 P6 自己的主控台。此處是重放路徑，因此每一支由
+        /// 動作檔驅動的 app 都會得到它。
         private func hideOwnConsoleOnce() {
             guard !Self.didHideConsole else { return }
             Self.didHideConsole = true
 
             // Reported, because a silent return here is the whole failure mode this
-            // function exists to stop. The first run after adding it printed NO
-            // console line at all and two files passed; that is not evidence the
-            // fix worked, it is evidence that nothing was observed -- and reading
-            // the pass as a fix is the exact mistake catalogued half a dozen times
-            // in mistakes.csv2.
-            // 加上回報，因為「安靜地返回」正是本函式存在所要阻止的那一種失敗。加入本函式後的第一次執行
-            // **一行 console 訊息都沒有印**，而兩個檔案都通過了；那不是「修正生效」的證據，而是「什麼
-            // 都沒被觀察到」的證據——把通過讀成修正，正是 mistakes.csv2 中已記錄六次的同一個錯誤。
+            // function exists to stop: a run that prints no console line and passes
+            // is evidence that nothing was observed, not that the fix worked.
+            // 加上回報，因為「安靜地返回」正是本函式存在所要阻止的那一種失敗：一次沒有印出任何 console
+            // 訊息卻通過的執行，是「什麼都沒被觀察到」的證據，而不是「修正生效」的證據。
             guard let console = GetConsoleWindow() else {
                 ActionFileReplay.report("this process has no console window to hide")
                 return
@@ -576,10 +518,10 @@
         /// of its life -- if that one blocks, this one blocks with it -- and the
         /// early return on success is exactly the path where forgetting is easiest.
         ///
-        /// Reports on BOTH outcomes rather than only on failure. This call has
-        /// already been added once, measured to do nothing, and removed; a silent
-        /// success would leave the next reader unable to tell whether it is
-        /// carrying the run or is dead weight again.
+        /// Reports on BOTH outcomes rather than only on failure. This call is not
+        /// known to help (a trial with P10 changed nothing); a silent success would
+        /// leave the next reader unable to tell whether it is carrying the run or
+        /// is dead weight.
         ///
         /// 加入前景視窗的輸入佇列、再要求一次，並且無論結果如何都回報。
         ///
@@ -591,20 +533,16 @@
         /// 程式綁在一起——對方一旦阻塞，本行程也隨之阻塞——而「成功時提早返回」正是最容易忘記解除的
         /// 那條路徑。
         ///
-        /// 成功與失敗**都**回報，而非只在失敗時出聲。這個呼叫曾經被加入、被量出毫無作用、然後被移除；
-        /// 若成功時保持沉默，下一位讀者將無從分辨它究竟是撐起了這次執行，還是又一次成了無用的重量。
+        /// 成功與失敗**都**回報，而非只在失敗時出聲。這個呼叫並不確定有幫助(以 P10 做的一次試驗中它毫無
+        /// 作用);若成功時保持沉默，下一位讀者將無從分辨它究竟是撐起了這次執行，還是無用的重量。
         private func takeForegroundByAttachingInput(to window: HWND) -> Bool {
-            // EVERY exit from here reports, including the two early ones. The first
-            // measurement of this function produced no line at all on a run where
-            // it must have been called -- the file presses keys and the foreground
-            // was never taken -- and a silent return is indistinguishable from a
-            // function that was never reached. That ambiguity cost an attempt to
-            // explain a result that had no evidence behind it either way.
+            // EVERY exit from here reports, including the two early ones. A silent
+            // return is indistinguishable from a function that was never reached,
+            // and a run that presses keys and never takes the foreground has to
+            // say which of the two happened.
             //
-            // 從此處起的**每一條**退出路徑都會回報，包含那兩條提早返回的。本函式的第一次量測，在一次
-            // 它必然被呼叫到的執行上（該檔案會按鍵、且前景始終未取得）竟然一行都沒有輸出；而「安靜地
-            // 返回」與「根本沒被執行到」是無法分辨的。那份歧義，換來了一次為「兩邊都沒有證據」的結果
-            // 所做的解釋。
+            // 從此處起的**每一條**退出路徑都會回報，包含那兩條提早返回的。「安靜地返回」與「根本沒被執行到」
+            // 是無法分辨的，而一次會按鍵、前景卻始終未取得的執行，必須說明是兩者中的哪一個。
             guard let foreground = GetForegroundWindow() else {
                 // Documented as the case where a foreground change is ALLOWED, so
                 // reaching here and still having failed is worth seeing.
@@ -645,40 +583,39 @@
 
             // **A failed attach is not a failed request. Ask anyway, then look.**
             //
-            // This used to `return false` the moment `AttachThreadInput` failed,
-            // which judges the MECHANISM rather than the OUTCOME -- and the
-            // mechanism can be unavailable while the outcome is still reachable.
+            // A failed attach must not `return false` on its own: that judges the
+            // MECHANISM rather than the OUTCOME -- and the mechanism can be
+            // unavailable while the outcome is still reachable.
             // `SetForegroundWindow` is permitted for several reasons besides an
             // attached input queue: the calling process was the last to receive
             // input, no window currently holds the foreground, or the foreground is
             // being released.
             //
-            // Measured 2026-09-16: driving P20-ctrl-k-shortcut.actions failed with
-            // `AttachThreadInput ... failed (87)` -- ERROR_INVALID_PARAMETER, not
+            // Measured 2026-09-16: driving P20-ctrl-k-shortcut.actions,
+            // `AttachThreadInput` failed with 87 -- ERROR_INVALID_PARAMETER, not
             // the ACCESS_DENIED the comment above anticipates -- because the
             // foreground was a `ConsoleWindowClass` window belonging to
             // PowerToys.Awake.exe, and a console host thread cannot be attached to.
-            // The replay then refused a file it had every chance of running.
+            // Refusing there would refuse a file that can run.
             //
-            // The verification loop below was already the honest part of this
-            // function; it now covers both paths, so the answer comes from reading
-            // `GetForegroundWindow()` back rather than from whether a helper call
-            // returned true.
+            // The verification loop below covers both paths, so the answer comes
+            // from reading `GetForegroundWindow()` back rather than from whether a
+            // helper call returned true.
             //
             // **一次失敗的 attach,不等於一次失敗的請求。先照樣提出請求,然後去看結果。**
             //
-            // 這裡原本在 `AttachThreadInput` 一失敗就 `return false`,那是在判定**機制**、而不是判定
-            // **結果**——而機制不可用時,結果仍然可能是拿得到的。除了「輸入佇列已附加」之外,
+            // attach 失敗時不可以就此 `return false`:那是在判定**機制**、而不是判定**結果**——而
+            // 機制不可用時,結果仍然可能是拿得到的。除了「輸入佇列已附加」之外,
             // `SetForegroundWindow` 在數種情況下同樣被允許:呼叫端行程是最後一個收到輸入的、
             // 目前沒有任何視窗持有前景、或前景正在被釋放。
             //
-            // 2026-09-16 實測:驅動 P20-ctrl-k-shortcut.actions 時以
-            // `AttachThreadInput ... failed (87)` 失敗——那是 ERROR_INVALID_PARAMETER,**不是**上方註解
-            // 所預期的 ACCESS_DENIED——因為當時的前景是 PowerToys.Awake.exe 的一個 `ConsoleWindowClass`
-            // 視窗,而 console host 的執行緒是附加不上去的。於是 replay 拒絕了一個它其實完全有機會跑完的檔案。
+            // 2026-09-16 實測:驅動 P20-ctrl-k-shortcut.actions 時,`AttachThreadInput` 以 87
+            // 失敗——那是 ERROR_INVALID_PARAMETER,**不是**上方註解所預期的 ACCESS_DENIED——因為當時的
+            // 前景是 PowerToys.Awake.exe 的一個 `ConsoleWindowClass` 視窗,而 console host 的執行緒是
+            // 附加不上去的。在那裡拒絕,就是拒絕一個其實跑得完的檔案。
             //
-            // 下方那個驗證迴圈本來就是本函式最誠實的部分;它現在涵蓋兩條路徑,因此答案來自「把
-            // `GetForegroundWindow()` 讀回來」,而不是來自「某個輔助呼叫有沒有回傳 true」。
+            // 下方的驗證迴圈涵蓋兩條路徑,因此答案來自「把 `GetForegroundWindow()` 讀回來」,
+            // 而不是來自「某個輔助呼叫有沒有回傳 true」。
             let attached = AttachThreadInput(ownThread, foreignThread, true)
             if !attached {
                 ActionFileReplay.report(
@@ -729,13 +666,12 @@
         /// 使用者接下來所做的每一件事之上。`testapp/P6.swift` 從另一個角度記錄了相同的代價：持續強制
         /// 置頂會使控制項無法點選，也會讓檔案選取對話框跑到視窗後面。
         public func finishReplay() {
-            // EVERY window, not `ownWindow()`'s pick, and the difference is a
-            // regression this caught on 2026-09-04. `prepareForReplay` pins whatever
-            // `ownWindow()` returned BEFORE the replay -- the main window. Once
-            // `ownWindow()` learned to follow a dialog, the two calls stopped naming
-            // the same window whenever a file left a dialog open: the sheet had its
-            // topmost cleared, which it never had, and the main window kept the
-            // topmost it was given -- pinned over everything the user did next, which
+            // EVERY window, not `ownWindow()`'s pick. `prepareForReplay` pins
+            // whatever `ownWindow()` returned BEFORE the replay -- the main window.
+            // Since `ownWindow()` follows a dialog, the two calls name different
+            // windows whenever a file leaves a dialog open: clearing only the pick
+            // would clear the sheet, which was never pinned, and leave the main
+            // window topmost -- pinned over everything the user does next, which
             // is exactly what the comment below says must not happen.
             //
             // Clearing it on a window that never had it is a no-op, so the list costs
@@ -743,11 +679,11 @@
             // matters more than it looks: remembering would mean mutable state on a
             // `Sendable` type, and the stateless version cannot get it wrong.
             //
-            // **每一個**視窗，而非 `ownWindow()` 的選擇；這個差別是本次（2026-09-04）抓到的一個回歸。
-            // `prepareForReplay` 釘住的是重放**之前** `ownWindow()` 回傳的那一個——主視窗。而在
-            // `ownWindow()` 學會追隨對話框之後，只要某份檔案結束時仍留著對話框，這兩個呼叫就不再指向
-            // 同一個視窗：被解除釘選的是那個從未被釘選的 sheet，而主視窗保留了它被賦予的 topmost——
-            // 壓在使用者接下來所做的每一件事之上，正是下方註解明文禁止的情況。
+            // **每一個**視窗，而非 `ownWindow()` 的選擇。`prepareForReplay` 釘住的是重放**之前**
+            // `ownWindow()` 回傳的那一個——主視窗。由於 `ownWindow()` 會追隨對話框，只要某份檔案結束時
+            // 仍留著對話框，這兩個呼叫就指向不同的視窗：只解除所選視窗的釘選，解除的會是那個從未被釘選的
+            // sheet,而主視窗保留了它被賦予的 topmost——壓在使用者接下來所做的每一件事之上，正是下方
+            // 註解明文禁止的情況。
             //
             // 對從未被釘選的視窗解除釘選是 no-op，因此這份清單不花任何代價，並且免去了「記住釘了哪一
             // 個」的需要。這比看起來重要：記住它意味著要在一個 `Sendable` 型別上放可變狀態，而無狀態
@@ -772,26 +708,19 @@
             // that dialog: the check ran while it was still mapping, and nothing
             // looks again.
             //
-            // This cost a false finding on 2026-09-04 and is the reason the line
-            // exists. `finishReplay` used to call `ownWindow()`, which dumped as a
-            // side effect. Replacing it with the `visibleWindows()` loop above --
-            // correct in itself, and a real fix -- silently removed the only
-            // observation point after the last action. Three runs of a one-click
-            // file then showed no sheet, three runs of a two-click file showed one,
-            // and that read exactly like "the first click is consumed". It was not.
-            // The click had always worked; the instrument had stopped. Re-measured
-            // with one extra sleep row so a check ran after the sheet mapped: 3/3.
+            // This line is also the only observation point after the last
+            // action. Without it, a one-click file showed no sheet in three runs
+            // and a two-click file showed one, which reads exactly like "the first
+            // click is consumed". It was not: with one extra sleep row so a check
+            // ran after the sheet mapped, the one-click file scored 3/3.
             //
             // 最後一次觀察，而它必須在此，否則有一整類檔案根本無法被判定。identity 是在每個動作
             // **之前**檢查的，因此一份「最後一個動作是等待對話框的 sleep」的檔案，永遠不會觀察到
             // 那個對話框：檢查發生在它還在 map 的時候，而之後沒有任何東西再看一眼。
             //
-            // 這在 2026-09-04 換來了一個**假發現**，也正是這幾行存在的理由。`finishReplay` 原本
-            // 呼叫 `ownWindow()`，而後者會順帶輸出傾印。把它換成上方的 `visibleWindows()` 迴圈
-            // ——那本身是正確的，也是一項真正的修正——卻**靜默地**移除了最後一個動作之後唯一的
-            // 觀測點。接著單擊版檔案三次執行都看不到 sheet、雙擊版三次都看得到，而那讀起來完全就像
-            // 「第一次點擊被吞掉了」。它並沒有。點擊一直都有效，是儀器停了。加一列 sleep 讓檢查在
-            // sheet map 之後執行，重新量測：3/3。
+            // 這幾行也是最後一個動作之後唯一的觀測點。少了它，單擊版檔案三次執行都看不到 sheet、雙擊版
+            // 三次都看得到，而那讀起來完全就像「第一次點擊被吞掉了」。它並沒有：加一列 sleep 讓檢查在
+            // sheet map 之後執行，單擊版得到 3/3。
             if let largest = largestByArea(of: windows) {
                 reportWindowChoice(candidates: windows, chosen: innermostModal(over: largest))
             }
@@ -940,9 +869,9 @@
                     )
 
                 case .orientation:
-                    // A phone and tablet verb (2026-09-29, added from the Mac side
-                    // for iOS). A desktop window has a size, not an orientation.
-                    // 手機與平板的動作(2026-09-29 由 Mac 這一側為 iOS 加入)。桌面視窗有尺寸,沒有方向。
+                    // A phone and tablet verb, used on iOS. A desktop window has a
+                    // size, not an orientation.
+                    // 手機與平板的動作，用於 iOS。桌面視窗有尺寸,沒有方向。
                     throw SynthesiserError.unsupported(
                         "orient: a desktop window has no device orientation; resize it instead"
                     )
@@ -1029,16 +958,13 @@
 
         /// Drops any window that is OWNED by another candidate.
         ///
-        /// Added 2026-09-05, when Direct Composition became GtkBackend's default and
-        /// broke an action file that had worked for weeks.
-        ///
         /// With DComp, GTK creates a second window per toplevel: a `GdkWin32GL`
         /// surface holding the GL content, owned by the real `gdkSurfaceToplevel`.
-        /// The two are the SAME SIZE, so "largest by area" is a tie -- and the tie
-        /// was going to the GL surface, whose origin is (0, 0) while the toplevel's
-        /// is (26, 17). Every frame-relative coordinate was therefore converted
-        /// against the wrong origin and every click landed 26 left and 17 up of
-        /// where the file said.
+        /// The two are the SAME SIZE, so "largest by area" is a tie -- and without
+        /// this the tie goes to the GL surface, whose origin is (0, 0) while the
+        /// toplevel's is (26, 17). Every frame-relative coordinate is then converted
+        /// against the wrong origin and every click lands 26 left and 17 up of
+        /// where the file says.
         ///
         /// It failed the way this whole directory is written to prevent. Most
         /// targets are large enough to absorb 17px, so nearly every action file kept
@@ -1048,16 +974,13 @@
         ///
         /// Ownership rather than class name. `GdkWin32GL` is what this instance is,
         /// but a rule naming it would be a rule about one toolkit's current
-        /// spelling. "A window owned by another window I can also see is not the one
+        /// spelling. "A window owned by another visible window is not the one
         /// the user is looking at" is true of tooltips, GL surfaces and helper
         /// windows alike. If every candidate is owned, the list is returned
         /// unchanged rather than emptied, because an empty list here is a thrown
         /// error and a wrong window still beats no window.
         ///
         /// 移除任何「被另一個候選者所擁有」的視窗。
-        ///
-        /// 於 2026-09-05 新增，當時 Direct Composition 成為 GtkBackend 的預設值，並弄壞了一份已經
-        /// 正常運作數週的動作檔。
         ///
         /// 啟用 DComp 後，GTK 會為每個 toplevel 額外建立一個視窗：一個承載 GL 內容的 `GdkWin32GL`
         /// surface，由真正的 `gdkSurfaceToplevel` 所擁有。兩者**尺寸相同**，因此「面積最大」是平手
@@ -1071,7 +994,7 @@
         /// 單一個不穩定的測試。
         ///
         /// 以「所有權」而非類別名稱判斷。`GdkWin32GL` 是此次的具體樣貌，但以它命名的規則，會是一條
-        /// 關於「某個 toolkit 目前拼法」的規則。「一個被我同樣看得見的另一視窗所擁有的視窗，不會是
+        /// 關於「某個 toolkit 目前拼法」的規則。「一個由另一個可見視窗所擁有的視窗，不會是
         /// 使用者正在看的那一個」——這對 tooltip、GL surface 與各種輔助視窗同樣成立。若所有候選者
         /// 都被擁有，則原樣返回而非清空，因為此處清空等同於拋出錯誤，而「選錯視窗」仍勝過「沒有視窗」。
         private func preferringOwners(among windows: [HWND]) -> [HWND] {
@@ -1111,16 +1034,14 @@
 
         /// Every visible top-level window belonging to this process.
         ///
-        /// Split out of ``ownWindow()`` when ``finishReplay()`` needed the whole list
-        /// rather than the winner. Not a tidy-up: the two callers want different
-        /// things from the same enumeration, and duplicating it would have given
-        /// `finishReplay` a second copy to drift from.
+        /// Shared by ``ownWindow()`` and ``finishReplay()``, which want different
+        /// things from the same enumeration -- the winner and the whole list.
+        /// Duplicating it would give `finishReplay` a second copy to drift from.
         ///
         /// 本行程所有可見的 top-level 視窗。
         ///
-        /// 在 ``finishReplay()`` 需要「整份清單」而非「勝出者」時，自 ``ownWindow()`` 抽出。這不是
-        /// 順手整理：兩個呼叫端對同一次列舉想要的東西不同，而複製一份會讓 `finishReplay` 多出一份
-        /// 可供漂移的副本。
+        /// 由 ``ownWindow()`` 與 ``finishReplay()`` 共用，兩者對同一次列舉想要的東西不同——勝出者與
+        /// 整份清單。複製一份會讓 `finishReplay` 多出一份可供漂移的副本。
         private func visibleWindows() -> [HWND] {
             let collector = WindowCollector()
             let context = Unmanaged.passUnretained(collector).toOpaque()
@@ -1217,29 +1138,27 @@
                       // visibleWindows() 也因同樣理由略過它們。
                       className(of: popup) != "GdkWin32GL",
                       IsWindowVisible(popup),
-                      // A dialog is SMALLER than what it covers. Added 2026-09-05,
-                      // after Direct Composition became GtkBackend's default: GTK then
-                      // gives each toplevel a `GdkWin32GL` content surface, registered
-                      // as that toplevel's enabled popup and exactly the same size.
-                      // Without this test the walk stepped off the real window onto
-                      // its own content surface, whose origin is (0, 0) rather than
-                      // the toplevel's, and every frame-relative coordinate converted
-                      // against the wrong origin.
+                      // A dialog is SMALLER than what it covers. With Direct
+                      // Composition, GtkBackend's default, GTK gives each toplevel a
+                      // `GdkWin32GL` content surface, registered as that toplevel's
+                      // enabled popup and exactly the same size. Without this test the
+                      // walk steps off the real window onto its own content surface,
+                      // whose origin is (0, 0) rather than the toplevel's, and every
+                      // frame-relative coordinate converts against the wrong origin.
                       //
                       // Size is the right discriminator because it is the same
-                      // property this function was written for: the comment above
-                      // records that `largestByArea` always picked the owner, BECAUSE
+                      // property this function exists for: the comment above
+                      // records that `largestByArea` always picks the owner, BECAUSE
                       // a dialog is smaller. A popup that is not smaller is not the
                       // thing this walk is looking for.
                       //
-                      // 對話框比它所覆蓋的東西**小**。此條件於 2026-09-05 新增，起因是 Direct
-                      // Composition 成為 GtkBackend 的預設值：此後 GTK 會為每個 toplevel 配上一個
-                      // `GdkWin32GL` 內容 surface，它被登記為該 toplevel 的 enabled popup，且尺寸
-                      // 完全相同。少了這項判斷，這趟走訪就會從真正的視窗踏上它自己的內容 surface
-                      // ——後者的原點是 (0, 0) 而非 toplevel 的原點——於是每一個 frame 相對座標都以
+                      // 對話框比它所覆蓋的東西**小**。在 Direct Composition(GtkBackend 的預設值)之下,
+                      // GTK 會為每個 toplevel 配上一個 `GdkWin32GL` 內容 surface，它被登記為該 toplevel 的
+                      // enabled popup，且尺寸完全相同。少了這項判斷，這趟走訪就會從真正的視窗踏上它自己的
+                      // 內容 surface——後者的原點是 (0, 0) 而非 toplevel 的原點——於是每一個 frame 相對座標都以
                       // 錯誤的原點換算。
                       //
-                      // 以尺寸作為判準是正確的，因為那正是本函式當初被寫出來所依據的同一項性質：
+                      // 以尺寸作為判準是正確的，因為那正是本函式所依據的同一項性質：
                       // 上方的說明記載著 `largestByArea` 總是選中擁有者，**正因為**對話框比較小。
                       // 一個不比較小的 popup，不是這趟走訪要找的東西。
                       isSmaller(realWindow(behind: popup, unless: current), than: current)
@@ -1252,11 +1171,11 @@
         /// A Direct Composition content surface resolved back to the window it draws
         /// for; anything else returned unchanged.
         ///
-        /// **The size guard above is not enough, and this is the run that proved
-        /// it.** That guard was written on 2026-09-05 for one shape: a toplevel's
-        /// OWN content surface, which is exactly the same size, so `isSmaller`
-        /// rejects it. It says nothing about ANOTHER window's content surface, which
-        /// is smaller than the window we are standing on and sails straight through.
+        /// **The size guard above is not enough.** It handles one shape: a
+        /// toplevel's OWN content surface, which is exactly the same size, so
+        /// `isSmaller` rejects it. It says nothing about ANOTHER window's content
+        /// surface, which is smaller than the window we are standing on and sails
+        /// straight through.
         ///
         /// Measured 2026-09-10 driving P50 with a popover open. Four windows exist:
         ///
@@ -1269,34 +1188,34 @@
         ///
         /// `GW_ENABLEDPOPUP` on the main window returns the TOPMOST enabled owned
         /// popup, which once the popover is up is `0x1cc0650` -- the popover's
-        /// surface, not the popover. It is smaller than the main window, so the walk
-        /// stepped onto it and the replay reported
+        /// surface, not the popover. It is smaller than the main window, so without
+        /// this the walk steps onto it and the replay reports
         /// `re-measured geometry frame=(0.0, 0.0)`. Every `origin=frame` coordinate
-        /// after that point was then converted against (0,0) instead of (104,99).
+        /// after that point is then converted against (0,0) instead of (104,99).
         ///
-        /// **Nothing failed.** The replay ran on, and the visible symptom was
+        /// **Nothing fails.** The replay runs on, and the visible symptom is
         /// `origin=popover, but no popover is open` several rows later -- because
-        /// `popoverWindow(over:)` was then searching for popups owned by a content
+        /// `popoverWindow(over:)` is then searching for popups owned by a content
         /// surface, which owns nothing. A message about popovers, produced by a
         /// z-order walk, three rows away from the cause.
         ///
         /// Resolved by ownership rather than by class name, for the reason
         /// `preferringOwners` already states: `GdkWin32GL` is this toolkit's current
         /// spelling, and a rule naming it would be a rule about a spelling. "A window
-        /// owned by another window I can also see is not the one to drive" holds for
+        /// owned by another visible window is not the one to drive" holds for
         /// content surfaces, tooltips and helper windows alike.
         ///
         /// 把一個 Direct Composition 的內容 surface 解析回它所繪製的那個視窗;其他情況原樣回傳。
         ///
-        /// **上方的尺寸防護不夠,而這正是證明它不夠的那一次執行。** 該防護於 2026-09-05 為**一種**形狀
-        /// 而寫:一個 toplevel **自己的**內容 surface,尺寸完全相同,因此 `isSmaller` 會擋下它。它對
-        /// **別的視窗的**內容 surface 什麼都沒說,而後者比我們當下所站的視窗小,於是長驅直入。
+        /// **上方的尺寸防護不夠。** 它處理的是**一種**形狀:一個 toplevel **自己的**內容 surface,
+        /// 尺寸完全相同,因此 `isSmaller` 會擋下它。它對**別的視窗的**內容 surface 什麼都沒說,
+        /// 而後者比我們當下所站的視窗小,於是長驅直入。
         ///
         /// 2026-09-10 在 popover 開啟的狀態下驅動 P50 實測。當時存在四個視窗(見上方英文區塊)。
         /// 對主視窗呼叫 `GW_ENABLEDPOPUP` 回傳的是**最上層**的 enabled owned popup,而 popover 一旦升起,
-        /// 那就是 `0x1cc0650`——**popover 的 surface,不是 popover**。它比主視窗小,於是走訪踏了上去,
-        /// 而重放回報 `re-measured geometry frame=(0.0, 0.0)`。自該點之後,每一個 `origin=frame` 座標
-        /// 都以 (0,0) 而非 (104,99) 換算。
+        /// 那就是 `0x1cc0650`——**popover 的 surface,不是 popover**。它比主視窗小,少了這一步,走訪就會
+        /// 踏上去,而重放回報 `re-measured geometry frame=(0.0, 0.0)`。自該點之後,每一個 `origin=frame`
+        /// 座標都以 (0,0) 而非 (104,99) 換算。
         ///
         /// **沒有任何東西失敗。** 重放繼續進行,而看得見的症狀是好幾列之後的
         /// 「`origin=popover`,但沒有 popover 開啟」——因為 `popoverWindow(over:)` 此時是在尋找
@@ -1304,7 +1223,7 @@
         /// 由一次 z 序走訪產生,距離成因三列之遙。
         ///
         /// 以**所有權**而非類別名稱解析,理由 `preferringOwners` 已經寫過:`GdkWin32GL` 是這個 toolkit
-        /// 目前的拼法,而以它命名的規則會是一條關於拼法的規則。「一個被我同樣看得見的另一視窗所擁有的
+        /// 目前的拼法,而以它命名的規則會是一條關於拼法的規則。「一個由另一個可見視窗所擁有的
         /// 視窗,不是該驅動的那一個」——這對內容 surface、tooltip 與各種輔助視窗同樣成立。
         private func realWindow(behind popup: HWND, unless current: HWND) -> HWND {
             guard let owner = GetWindow(popup, UINT(GW_OWNER)),
@@ -1340,54 +1259,47 @@
 
         /// Dumps every candidate this call weighed, and which one won.
         ///
-        /// Written to answer ONE question with a measurement instead of a guess: why
-        /// the four apps that raise a modal dialog (P1, P5, P18, P31) cannot be
-        /// driven. It answered it on the first run, and corrected two guesses that
-        /// had been written down as if they were findings:
+        /// It answers with a measurement why the four apps that raise a modal
+        /// dialog (P1, P5, P18, P31) could not be driven, and it rules out two
+        /// plausible explanations:
         ///
         ///   - "the click lands on a window the modal has disabled" -- FALSE. With
         ///     P1's sheet up, the owner measures `enabled=true`. GTK4 does its own
         ///     modality with a grab and does not call `EnableWindow` on Win32.
-        ///   - "`GW_ENABLEDPOPUP` is ineffective here" -- FALSE, and this is the one
-        ///     that cost the four apps. The owner reports
-        ///     `enabledPopup=0x...26d072c`, which is exactly the sheet. The earlier
-        ///     attempt was removed for being ineffective without this dump to say
-        ///     whether the call had answered; it had.
+        ///   - "`GW_ENABLEDPOPUP` is ineffective here" -- FALSE. The owner reports
+        ///     `enabledPopup=0x...26d072c`, which is exactly the sheet. Without this
+        ///     dump there is no way to see whether the call answered.
         ///
-        /// What is actually wrong is the GEOMETRY, and largest-area is why: the sheet
+        /// What was actually wrong is the GEOMETRY, and largest-area is why: the sheet
         /// measures 428x174 against the owner's 648x549, so the owner wins, and every
         /// `origin=frame` coordinate is then resolved against the owner's frame at
         /// (78,78) instead of the sheet's at (188,265). The click is placed on the
         /// owner, where GTK's grab discards it, and the app looks like it ignored the
         /// input.
         ///
-        /// Kept after the fix, not deleted with it: it is what distinguishes "the
-        /// popup was not found" from "the popup was found and the click still missed"
-        /// the next time, and those two need opposite investigations.
+        /// It distinguishes "the popup was not found" from "the popup was found and
+        /// the click still missed", and those two need opposite investigations.
         ///
         /// Behind `--debug` because `ownWindow` runs per event, and
         /// `ActionFileReplay.report` says a per-event line belongs behind the flag.
         ///
         /// 傾印本次呼叫權衡過的每一個候選視窗，以及勝出者。
         ///
-        /// 寫它是為了用**量測**而非猜測回答**一個**問題：那四支會開啟 modal dialog 的 app
-        /// （P1、P5、P18、P31）為何無法被驅動。它在第一次執行就給出了答案，並且更正了兩個「被當成發現
-        /// 寫下來」的猜測：
+        /// 它以**量測**回答那四支會開啟 modal dialog 的 app(P1、P5、P18、P31)為何無法被驅動，
+        /// 並排除了兩個看似合理的解釋：
         ///
         ///   - 「點擊落在一個已被 modal 停用的視窗上」——**假**。P1 的 sheet 開啟時，其擁有者實測為
         ///     `enabled=true`。GTK4 以自己的 grab 處理 modality，並不會在 Win32 上呼叫
         ///     `EnableWindow`。
-        ///   - 「`GW_ENABLEDPOPUP` 在此無效」——**假**，而這一項正是那四支 app 的代價所在。擁有者
-        ///     回報 `enabledPopup=0x...26d072c`，那正是該 sheet。先前那次嘗試在沒有這份傾印可以判斷
-        ///     「該呼叫究竟有沒有回答」的情況下，就以無效為由被移除；它其實回答了。
+        ///   - 「`GW_ENABLEDPOPUP` 在此無效」——**假**。擁有者回報 `enabledPopup=0x...26d072c`，那正是
+        ///     該 sheet。少了這份傾印，就無從判斷該呼叫究竟有沒有回答。
         ///
         /// 真正錯的是**幾何**，而「取最大面積」正是原因：sheet 為 428x174，擁有者為 648x549，於是
         /// 擁有者勝出，接著每一個 `origin=frame` 座標都改以擁有者位於 (78,78) 的框架、而非 sheet 位於
         /// (188,265) 的框架來解析。點擊被放在擁有者身上，被 GTK 的 grab 丟棄，而 app 看起來就像忽略了
         /// 那個輸入。
         ///
-        /// 修好之後保留，而非隨修正一併刪除：下一次它是用來分辨「popup 沒被找到」與「popup 找到了但
-        /// 點擊仍然落空」的東西，而這兩者需要的是相反方向的追查。
+        /// 它能分辨「popup 沒被找到」與「popup 找到了但點擊仍然落空」，而這兩者需要的是相反方向的追查。
         ///
         /// 放在 `--debug` 之後，因為 `ownWindow` 是逐事件執行的，而 `ActionFileReplay.report`
         /// 已載明逐事件的輸出應置於該旗標之後。
@@ -1704,66 +1616,48 @@
                 }
             }
 
-            // `SetCursorPos` takes a physical screen coordinate, so multiple
-            // monitors need no arithmetic here. Worth stating, because what this
-            // replaced did need it and got it wrong once: a `SendInput` with
-            // `MOUSEEVENTF_ABSOLUTE` normalises against a rectangle, and the
-            // rectangle has to be the VIRTUAL DESKTOP (`SM_XVIRTUALSCREEN` and
-            // friends) rather than the primary monitor. Using the primary one put
-            // every click on the wrong screen whenever the window was not on it.
-            // The bug is gone with the code, and the lesson would have gone too.
-            //
-            // Status 5 here is ERROR_ACCESS_DENIED and means a locked desktop or a
-            // higher-integrity window in front. `testapp/ui-lock.zsh` matches on
-            // that status rather than on the name of whichever call reported it,
-            // precisely so this change of call did not silence it.
-            //
-            // `SetCursorPos` 接受的是實體螢幕座標，因此多螢幕在此不需要任何換算。值得寫明，是因為
-            // 它所取代的做法確實需要換算，而且曾經算錯過一次：帶 `MOUSEEVENTF_ABSOLUTE` 的
-            // `SendInput` 需要對一個矩形做正規化，而那個矩形必須是**虛擬桌面**（`SM_XVIRTUALSCREEN`
-            // 等），不是主螢幕。用主螢幕會導致「視窗不在其上時，每一次點擊都落在錯的螢幕」。缺陷隨著
-            // 那段程式碼一起消失，而那個教訓本來也會一起消失。
-            //
-            // 此處的狀態碼 5 是 ERROR_ACCESS_DENIED，代表桌面被鎖定，或前方站著一個完整性等級更高的
-            // 視窗。`testapp/ui-lock.zsh` 比對的是該狀態碼，而非「回報它的是哪一個呼叫」的名稱——正是
-            // 為了讓這次呼叫的更換不會使它失聲。
             // **The cursor's POSITION is the test, not either call's return value.**
             //
-            // `SetCursorPos` began returning false for every coordinate on
-            // 2026-09-16 -- a point 20pt inside our own window failed exactly as the
-            // real ones did -- with `GetLastError()` reporting 0, which names no
-            // cause at all. Ruled out by measurement, not by argument: the same
-            // failure on BOTH backends (so not backend code); both processes in
-            // Console 1 alongside explorer (so not a session mismatch); a normal
-            // unlocked desktop capture (so not the lock screen); and the
-            // synthesiser reverted to its pre-2026-09-16 version, which failed
-            // identically (so not that day's foreground change).
+            // `SetCursorPos` takes a physical screen coordinate, so multiple
+            // monitors need no arithmetic. It can also return false for every
+            // coordinate with `GetLastError()` reporting 0, which names no cause.
+            // Measured 2026-09-16, a point 20pt inside our own window failed
+            // exactly as the real ones did, and measurement ruled out the obvious
+            // causes: the same failure on BOTH backends (so not backend code);
+            // both processes in Console 1 alongside explorer (so not a session
+            // mismatch); a normal unlocked desktop capture (so not the lock
+            // screen); and an earlier version of this synthesiser failed
+            // identically (so not a recent change here).
             //
             // `SendInput` with `MOUSEEVENTF_ABSOLUTE` is a different route to the
             // same place and is tried when the first one refuses. It normalises
             // against the VIRTUAL DESKTOP -- `SM_XVIRTUALSCREEN` and friends, not
-            // the primary monitor. That distinction is the bug this file once had
-            // and removed with the code; it is restored here with the lesson
-            // attached, because using the primary monitor puts every event on the
-            // wrong screen whenever the window is not on it.
+            // the primary monitor: using the primary monitor puts every event on
+            // the wrong screen whenever the window is not on it.
             //
             // Then `GetCursorPos` decides. Either call may lie about what it did;
             // where the cursor actually is cannot.
             //
+            // Status 5 here is ERROR_ACCESS_DENIED and means a locked desktop or a
+            // higher-integrity window in front. `testapp/ui-lock.zsh` matches on
+            // that status rather than on the name of whichever call reported it.
+            //
             // **判準是游標的最終位置,不是任何一個呼叫的回傳值。**
             //
-            // `SetCursorPos` 自 2026-09-16 起對**每一個**座標都回傳 false——一個位於我方視窗內 20pt 的點,
-            // 失敗方式與真實座標完全相同——而 `GetLastError()` 回報 0,等於沒有指出任何成因。以量測排除,
-            // 而非以論證排除:兩個 backend 上同樣失敗(故非 backend 程式碼);兩個行程都與 explorer 同在
-            // Console 1(故非 session 錯開);桌面擷圖是正常且未鎖定的(故非鎖定畫面);以及把本合成器
-            // 還原成 2026-09-16 之前的版本後**同樣失敗**(故非當日那次前景改動)。
+            // `SetCursorPos` 接受的是實體螢幕座標，因此多螢幕在此不需要任何換算。它也可能對**每一個**座標
+            // 都回傳 false,而 `GetLastError()` 回報 0,等於沒有指出任何成因。2026-09-16 實測時，一個位於我方
+            // 視窗內 20pt 的點，失敗方式與真實座標完全相同，而量測排除了顯而易見的成因：兩個 backend 上同樣失敗
+            // (故非 backend 程式碼);兩個行程都與 explorer 同在 Console 1(故非 session 錯開);桌面擷圖是正常
+            // 且未鎖定的(故非鎖定畫面);以及本合成器的較早版本**同樣失敗**(故非此處最近的改動)。
             //
             // 帶 `MOUSEEVENTF_ABSOLUTE` 的 `SendInput` 是通往同一個目的地的另一條路,在第一條被拒絕時採用。
-            // 它是對**虛擬桌面**做正規化——`SM_XVIRTUALSCREEN` 那一組,而不是主螢幕。那個區別正是本檔
-            // 曾經有過、並隨程式碼一起移除的缺陷;此處把它連同教訓一起帶回來,因為用主螢幕會導致
+            // 它是對**虛擬桌面**做正規化——`SM_XVIRTUALSCREEN` 那一組,而不是主螢幕:用主螢幕會導致
             // 「視窗不在其上時,每一個事件都落在錯的螢幕」。
             //
             // 最後由 `GetCursorPos` 裁決。兩個呼叫都可能謊報自己做了什麼;而游標**實際在哪裡**不會。
+            //
+            // 此處的狀態碼 5 是 ERROR_ACCESS_DENIED，代表桌面被鎖定，或前方站著一個完整性等級更高的
+            // 視窗。`testapp/ui-lock.zsh` 比對的是該狀態碼，而非「回報它的是哪一個呼叫」的名稱。
             if !SetCursorPos(Int32(position.x), Int32(position.y)) {
                 let setCursorPosError = Int32(GetLastError())
                 sendAbsoluteMouseMove(to: position)
@@ -1882,11 +1776,10 @@
             // beside it because "foreground" and "active" are not the same state and
             // a click can be eaten by a mismatch between them.
             //
-            // Added 2026-09-04 for the one thing the candidate dump could not
-            // explain: P1's FIRST synthesised click does nothing (0/3), while the
-            // same click repeated works (3/3) and a `move` first does not help
-            // (0/3). Everything already printed looked correct on the failing runs,
-            // which is exactly when a new fact is needed rather than more thought.
+            // Evidence for printing it: P1's FIRST synthesised click did nothing
+            // (0/3), while the same click repeated worked (3/3) and a `move` first
+            // did not help (0/3), with everything else in the dump looking
+            // correct on the failing runs.
             //
             // 即將送出的那個點擊，究竟會由**誰**收到——這與「游標在哪裡」是不同的問題，也正是
             // 「一次按壓落在虛無中」時無人回答的那個問題。
@@ -1897,20 +1790,17 @@
             // `GetActiveWindow` 並列印出，是因為「前景」與「作用中」並非同一個狀態，而一次點擊
             // 可能正是被兩者之間的不一致吃掉的。
             //
-            // 2026-09-04 新增，為的是候選傾印無法解釋的那一件事：P1 的**第一次**合成點擊毫無作用
-            // （0/3），而同一個點擊重複一次就成功（3/3），先 `move` 則沒有幫助（0/3）。在失敗的那些
-            // 執行中，已經印出的每一項看起來都是正確的——而那正是需要一個**新事實**、而非更多推理的
-            // 時候。
+            // 印出它的依據:P1 的**第一次**合成點擊毫無作用(0/3),而同一個點擊重複一次就成功(3/3),
+            // 先 `move` 則沒有幫助(0/3);在失敗的那些執行中，傾印裡的其他每一項看起來都是正確的。
             let target = WindowFromPoint(POINT(x: Int32(screen.x), y: Int32(screen.y)))
             let root = target.map { GetAncestor($0, UINT(GA_ROOT)) } ?? nil
             let foreground = GetForegroundWindow()
             let active = GetActiveWindow()
 
-            // Through the one writer, rather than a second copy of it. Both copies
-            // carried the same truncate-on-failure bug; one of them was fixed and
-            // the other would not have been.
-            // 走同一個寫入器，而非它的第二份副本。兩份副本帶著同一個「失敗即清空」的缺陷，
-            // 修好其中一份時，另一份不會跟著被修。
+            // Through the one writer, rather than a second copy of it, so a fix to
+            // the writer (such as its truncate-on-failure bug) reaches this path too.
+            // 走同一個寫入器，而非它的第二份副本，使寫入器的修正(例如「失敗即清空」的缺陷)也會
+            // 涵蓋這條路徑。
             ActionFileReplay.report(
                 "move \(point.origin.rawValue)=(\(point.x), \(point.y)) "
                     + "screen=(\(screen.x), \(screen.y)) \(cursorDescription) "
@@ -1925,23 +1815,18 @@
         /// Stops the replay when the point about to be clicked belongs to another
         /// process.
         ///
-        /// Added 2026-09-10, and it enforces something this file has printed for six
-        /// days without acting on.
-        ///
-        /// `hitClass` has been in the move dump since 2026-09-04. On 2026-09-10 two
-        /// consecutive runs of P50's popover sweep printed
-        /// `hitClass=Chrome_RenderWidgetHostHWND`, which says in as many words that
-        /// the click about to be sent would land in a browser -- and the replay
-        /// carried on, clicked into Chrome, and then failed several rows later with
-        /// "origin=popover, but no popover is open". That message is true and
-        /// completely misleading: the popover is not open BECAUSE the click that
-        /// would have opened it went to another application. It was read as a
-        /// popover defect first.
+        /// The move dump already prints `hitClass`, but printing is not acting:
+        /// two runs of P50's popover sweep printed
+        /// `hitClass=Chrome_RenderWidgetHostHWND` -- the click about to be sent
+        /// would land in a browser -- and the replay carried on, clicked into
+        /// Chrome, and then failed several rows later with "origin=popover, but no
+        /// popover is open". That message is true and completely misleading: the
+        /// popover is not open BECAUSE the click that would have opened it went to
+        /// another application, and it reads as a popover defect.
         ///
         /// This is defect #46's shape one layer up. #46 was `SetForegroundWindow`
-        /// unchecked -- asking and not looking. Here the looking was done, printed,
-        /// and then not acted on, which is worse: the evidence was in the log the
-        /// whole time.
+        /// unchecked -- asking and not looking. Here the looking is done and must
+        /// also be acted on.
         ///
         /// **Separate from `reportMouseMove`, and that is the point.** The reporter
         /// returns early unless `--debug` was passed, so a check living inside it
@@ -1955,16 +1840,14 @@
         ///
         /// 當即將被點擊的那個點屬於**另一個行程**時中止重放。
         ///
-        /// 2026-09-10 加入,而它所執行的正是本檔已經印了六天、卻從未據以行動的那件事。
+        /// 移動傾印本來就會印出 `hitClass`,但印出不等於據以行動:P50 popover 掃描有兩次執行都印出
+        /// `hitClass=Chrome_RenderWidgetHostHWND`——即將送出的這次點擊會落在一個瀏覽器裡——而重放
+        /// 繼續進行、點進了 Chrome,然後在好幾列之後以「origin=popover,但沒有 popover 開啟」失敗。
+        /// 那個訊息**是真的,而且極度誤導**:popover 沒有開啟,正是**因為**那個本該開啟它的點擊跑到
+        /// 別的應用程式去了,而它讀起來像是 popover 的缺陷。
         ///
-        /// `hitClass` 自 2026-09-04 起就在移動傾印中。2026-09-10,P50 popover 掃描連續兩次執行都印出
-        /// `hitClass=Chrome_RenderWidgetHostHWND`——那已經明說「即將送出的這次點擊會落在一個瀏覽器
-        /// 裡」——而重放繼續進行、點進了 Chrome,然後在好幾列之後以「origin=popover,但沒有 popover
-        /// 開啟」失敗。那個訊息**是真的,而且極度誤導**:popover 沒有開啟,正是**因為**那個本該開啟它
-        /// 的點擊跑到別的應用程式去了。它一開始確實被讀成了 popover 的缺陷。
-        ///
-        /// 這是缺陷 #46 的形狀高了一層。#46 是 `SetForegroundWindow` 未經檢查——問了卻不看。此處是
-        /// **看了、印了,然後沒有據以行動**,而那更糟:證據一直都在 log 裡。
+        /// 這是缺陷 #46 的形狀高了一層。#46 是 `SetForegroundWindow` 未經檢查——問了卻不看。此處
+        /// 看了之後還必須據以行動。
         ///
         /// **與 `reportMouseMove` 分開,而這正是重點。** 該回報函式在未傳入 `--debug` 時會提早返回,
         /// 因此把檢查放在它裡面,保護到的恰好是「已經有人在盯著」的那些執行,其餘一個都保護不到。
@@ -2142,25 +2025,23 @@
         /// Whether any modifier is down RIGHT NOW, asked of Windows rather than
         /// tracked here.
         ///
-        /// Tracking was the first attempt and the compiler refused it:
-        /// `Win32Synthesiser` is `Sendable`, so a mutable stored property is an
-        /// error, and `perform(_:in:)` is called once per action with no loop of its
-        /// own to hold the state in. Asking is better anyway. An action file spells
-        /// a shortcut as a SEQUENCE -- `keydown,control`, `key,q`, `keyup,control` --
-        /// so a tracked set would only know about modifiers this synthesiser itself
-        /// sent, and would be wrong about one the operator was physically holding.
-        /// `GetKeyState`'s high bit is the actual state of the key.
+        /// Asked rather than tracked. An action file spells a shortcut as a
+        /// SEQUENCE -- `keydown,control`, `key,q`, `keyup,control` -- so a tracked
+        /// set would only know about modifiers this synthesiser itself sent, and
+        /// would be wrong about one the operator was physically holding.
+        /// `GetKeyState`'s high bit is the actual state of the key. (A screen
+        /// reader's chord needs the replay's own record as well; see
+        /// `heldByReplay`.)
         ///
         /// Shift counts. `shift` + `a` must produce `A`, and only the virtual-key
         /// path applies the keyboard layout; the Unicode path would send a bare `a`.
         ///
         /// 是否**此刻**有任何修飾鍵按著——向 Windows 詢問，而非在此追蹤。
         ///
-        /// 追蹤是第一次的做法，而編譯器拒絕了它：`Win32Synthesiser` 是 `Sendable`，因此可變的儲存屬性是錯誤；
-        /// 而 `perform(_:in:)` 每個動作被呼叫一次，本身沒有可容納該狀態的迴圈。何況「詢問」本來就更好。動作檔
-        /// 是以**序列**拼出快捷鍵的——`keydown,control`、`key,q`、`keyup,control`——因此一份被追蹤的集合只會
-        /// 知道本合成器自己送出的修飾鍵，對於操作者實體按著的那一個則會判斷錯誤。`GetKeyState` 的最高位元
-        /// 就是該鍵的真實狀態。
+        /// 採用詢問而非追蹤。動作檔是以**序列**拼出快捷鍵的——`keydown,control`、`key,q`、`keyup,control`——
+        /// 因此一份被追蹤的集合只會知道本合成器自己送出的修飾鍵，對於操作者實體按著的那一個則會判斷錯誤。
+        /// `GetKeyState` 的最高位元就是該鍵的真實狀態。(螢幕閱讀器的組合鍵還需要重放自己的紀錄；見
+        /// `heldByReplay`。)
         ///
         /// Shift 也算在內。`shift` + `a` 必須產生 `A`，而只有 virtual-key 路徑會套用鍵盤配置；Unicode 路徑
         /// 送出的會是一個單純的 `a`。
@@ -2177,8 +2058,8 @@
         /// 2026-10-08 replaying P69-narrator-walk.actions: `keydown,capsLock`, `key,0`,
         /// `keyup,capsLock` made Narrator say "not a Narrator command", because the
         /// `0` went out as a Unicode character (VK_PACKET) rather than the 0 key.
-        /// Adding VK_CAPITAL and VK_INSERT to `anyModifierHeld` was tried first and
-        /// changed NOTHING on a rebuilt P69: Narrator swallows Caps Lock in its
+        /// Adding VK_CAPITAL and VK_INSERT to `anyModifierHeld` does not help (it
+        /// changed NOTHING on a rebuilt P69): Narrator swallows Caps Lock in its
         /// low-level hook, so this thread's `GetKeyState` never sees it down. The
         /// replay knows what it pressed, so it asks itself. The same chord sent as
         /// virtual keys (a separate SendInput tool) read the item's advanced info.
@@ -2186,8 +2067,8 @@
         ///
         /// 本次重放以 `keydown` 按下、尚未放開的鍵。對螢幕閱讀器的組合鍵，只問 Windows 不夠。2026-10-08 重放
         /// P69-narrator-walk.actions 實測:`keydown,capsLock`、`key,0`、`keyup,capsLock` 讓 Narrator 回應「not a
-        /// Narrator command」,因為 `0` 是以 Unicode 字元(VK_PACKET)而非 0 鍵送出。先試過把 VK_CAPITAL 與
-        /// VK_INSERT 加進 `anyModifierHeld`,重建 P69 後**毫無改變**:Narrator 在低階 hook 中吃掉 Caps Lock,
+        /// Narrator command」,因為 `0` 是以 Unicode 字元(VK_PACKET)而非 0 鍵送出。把 VK_CAPITAL 與
+        /// VK_INSERT 加進 `anyModifierHeld` 沒有幫助(重建 P69 後**毫無改變**):Narrator 在低階 hook 中吃掉 Caps Lock,
         /// 本執行緒的 `GetKeyState` 永遠看不到它被按下。重放自己知道按了什麼，所以問自己。同一組合以 virtual
         /// key 送出(另一支 SendInput 工具)時，則讀出了該項目的進階資訊。static 與 `nonisolated(unsafe)` 的
         /// 理由與 `focusedWindowBits` 相同。
@@ -2241,38 +2122,20 @@
             input.ki.wVk = WORD(code)
 
             // The scan code is filled in because a keyboard message should carry
-            // one -- NOT because it fixed anything here. Read the next paragraph
-            // before citing this line as a cause.
-            //
-            // MEASURED 2026-09-09, AND THE HYPOTHESIS WAS WRONG. `wScan` was 0
-            // before this, and the theory was that GDK's Win32 backend derives the
-            // character from the scan code and keyboard state rather than from the
-            // virtual key, so a zero scan code would translate to the wrong letter.
-            // P36 was built with the fix and re-driven: the result did not change
-            // at all. Typing `a` then `b` into the focused GtkEntry still produces
-            // exactly ONE glyph, still not a letter, and the four sibling fields
-            // bound to the same `@State` still show their placeholders. Whatever is
-            // wrong with #116, this is not it.
-            //
-            // Kept rather than reverted: sending wVk without wScan is wrong on its
-            // own terms, and reverting would leave a second defect in place for the
-            // next person to find. Kept ANNOTATED rather than silent, because a
-            // plausible fix with no note attached is exactly what gets cited later
-            // as the explanation.
+            // one -- NOT because it fixes anything here. It did not fix #116:
+            // P36 re-driven with it still turns `a` then `b` typed into the
+            // focused GtkEntry into exactly ONE glyph, not a letter, and the four
+            // sibling fields bound to the same `@State` still show their
+            // placeholders. So the theory that GDK derives the character from the
+            // scan code is not the cause; do not cite this line as one. It stays
+            // because sending wVk without wScan is wrong on its own terms.
             //
             // MAPVK_VK_TO_VSC is 0, spelled out rather than passed as a literal.
             //
-            // 此處填入 scan code，是因為一則鍵盤訊息本來就該攜帶它——**而不是**因為它修好了什麼。在把這一行
-            // 當成原因引用之前，請先讀下一段。
-            //
-            // 2026-09-09 實測，而該假設是錯的。此改動之前 `wScan` 為 0，當時的理論是：GDK 的 Win32 後端由
-            // scan code 與鍵盤狀態（而非只由 virtual key）推導字元，因此 scan code 為零會被翻譯成錯的字母。
-            // P36 帶著這個修正重新建置並重跑：**結果完全沒有變化**。對取得焦點的 GtkEntry 輸入 `a` 再 `b`，
-            // 仍然只產生**一個**字符、仍然不是字母，而綁定同一個 `@State` 的另外四個欄位仍顯示 placeholder。
-            // #116 的問題不論是什麼，都不是這裡。
-            //
-            // 保留而不還原：只送 wVk 而不送 wScan 本身就是錯的，還原只會把第二個缺陷留給下一個人發現。
-            // 保留但**加註**而非默默留著，因為「一個看起來合理、卻沒有附註的修正」正是日後會被拿來當成解釋的東西。
+            // 此處填入 scan code，是因為一則鍵盤訊息本來就該攜帶它——**而不是**因為它修好了什麼。它沒有修好
+            // #116:帶著它重跑 P36,對取得焦點的 GtkEntry 輸入 `a` 再 `b`,仍然只產生**一個**字符、仍然不是字母，
+            // 而綁定同一個 `@State` 的另外四個欄位仍顯示 placeholder。因此「GDK 由 scan code 推導字元」這個
+            // 理論不是原因；不要把這一行當成原因引用。保留它，是因為只送 wVk 而不送 wScan 本身就是錯的。
             //
             // MAPVK_VK_TO_VSC 的值為 0，此處寫出名稱而非直接傳字面值。
             let mapVKToVSC: UINT = 0 // MAPVK_VK_TO_VSC

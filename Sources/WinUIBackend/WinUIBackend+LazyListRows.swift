@@ -10,13 +10,9 @@ import WinUI
 // ——因此 `registerUpdateCallback` 收的是一個 closure literal,而這個 import 正是讓那個名字進入作用域的東西。
 @preconcurrency import WindowsFoundation
 
-// **The rows here did not render at all until 2026-09-16, and the memory
-// measurement could not see it. That is why this note is long.**
-//
-// The saving was real from the start -- 10,000 rows at 143 MB against 328 MB
-// eager, with a control -- and the list drew nothing. Containers virtualized,
-// the provider was called, the numbers were right, the screen was blank. Only a
-// screenshot separated a working list from a broken one.
+// **Why the content is applied the way it is.** A list here can virtualize
+// correctly, call the provider, measure right (10,000 rows at 143 MB against
+// 328 MB eager) and draw nothing; only a screenshot shows the difference.
 //
 // Four arrangements were measured before one worked. They are kept because each
 // looked correct, and because the first three are what a reader would naturally
@@ -44,18 +40,8 @@ import WinUI
 // The eager path never hit this, which is what made it such a good control: it
 // builds its own `ListViewItem`s, and those have no template.
 //
-// Two probes did the work, and both were cheap. Reading the container back after
-// the assignment is what ruled out "the assignment failed"; reading
-// `row.widget.parent` is what ruled out "the widget is already parented". Three
-// hypotheses were guessed before the first probe was written, and all three were
-// wrong.
-//
-// **此處的那些列直到 2026-09-16 為止根本沒有算繪出來,而記憶體量測看不見這件事。**
-// 這正是本註解寫得這麼長的理由。
-//
-// 那個節省從一開始就是真的——一萬列 143 MB,對照 eager 的 328 MB,而且有對照組——**而清單什麼都
-// 沒畫**。容器有虛擬化、provider 有被呼叫、數字都對、畫面是空的。只有截圖能把「會動的清單」與
-// 「壞掉的清單」分開。
+// **為什麼內容要這樣套用。** 這裡的清單可以虛擬化正確、呼叫 provider、量測也對(一萬列 143 MB,對照
+// eager 的 328 MB),卻什麼都沒畫；只有截圖看得出差別。
 //
 // 在其中一種成功之前,量過四種安排。它們被保留下來,因為每一種看起來都是對的,而且前三種正是讀者
 // 會自然而然再試一次的東西:
@@ -74,10 +60,6 @@ import WinUI
 //
 // eager 路徑從未遇上這件事,而那正是它作為對照組如此好用的原因:它是自己建 `ListViewItem` 的,
 // 而那些沒有 template。
-//
-// 真正解決問題的是兩個探針,而且兩個都很便宜。「指派之後把容器讀回來」排除了「指派失敗」;
-// 「讀 `row.widget.parent`」排除了「該 widget 已經有 parent」。在寫下第一個探針之前,我猜了三次,
-// 而三次全錯。
 extension WinUIBackend: BackendFeatures.LazyListRows {
     /// Points the ListView at the framework instead of at an eager array.
     ///
@@ -182,20 +164,19 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
             // **Dropping the content is only half of it.** The widget stops
             // being shown, but the framework still holds the view-graph node
             // that built it, keyed by row index, and nothing here told it
-            // otherwise. That is what `LazyListRowLifetimes` is for, and until
-            // 2026-09-16 this backend did not conform: the nodes were bounded
-            // only by `List.swift`'s 4000-row backstop cache, so a list scrolled
-            // through ten thousand rows kept four thousand nodes alive that no
-            // container had referenced for a long time.
+            // otherwise. That is what `LazyListRowLifetimes` is for: without
+            // it the nodes are bounded only by `List.swift`'s 4000-row backstop
+            // cache, so a list scrolled through ten thousand rows keeps four
+            // thousand nodes alive that no container has referenced for a long
+            // time.
             //
             // 被回收的容器正在離場;丟掉它的內容能讓框架的列節點被釋放。少了這一步,內容——以及它的
             // 節點——會被它最後所持有的那個容器釘住。
             //
             // **丟掉內容只是其中一半。** 那個 widget 不再被顯示,但框架仍然握著當初建出它的那個
             // view-graph 節點(以列索引為鍵),而這裡沒有任何東西通知過它。那正是
-            // `LazyListRowLifetimes` 的用途;而直到 2026-09-16 為止,本 backend 並未 conform 它:
-            // 那些節點只被 `List.swift` 的 4000 列兜底快取所限制,於是一份被捲過一萬列的清單,
-            // 會留著四千個「早已沒有任何容器引用」的節點。
+            // `LazyListRowLifetimes` 的用途：少了它，那些節點只被 `List.swift` 的 4000 列兜底快取所限制，
+            // 於是一份被捲過一萬列的清單，會留著四千個「早已沒有任何容器引用」的節點。
             if args.inRecycleQueue {
                 args.itemContainer?.content = nil
                 let index = Int(args.itemIndex)
@@ -205,46 +186,18 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
                 return
             }
 
-            // **Phase 0 belongs to ListViewBase, and neither fighting it nor
-            // pre-empting it works. Both were measured on 2026-09-16.**
+            // **Phase 0 belongs to ListViewBase; neither fighting it nor
+            // pre-empting it works** (see the note at the top of this file).
+            // Content assigned in phase 0 is overwritten by the control's own
+            // preparation, and `args.handled = true` skips the part that
+            // presents the content. So the content is applied in a LATER phase,
+            // through the callback WinUI provides for exactly this, after the
+            // control has finished.
             //
-            // Assigning the content during phase 0 and returning: the control's
-            // own preparation runs AFTERWARDS and assigns `Content` from the
-            // data item, so every row rendered as its placeholder index -- "0",
-            // "1", "2" -- where GtkBackend rendered "row 0 revision 1".
-            //
-            // Setting `args.handled = true` to stop that: preparation is skipped
-            // wholesale, including the part that PRESENTS the content. A probe
-            // read the container straight back and found `content=Canvas`, so
-            // the assignment had worked -- and the list drew nothing at all.
-            // Content present, never shown.
-            //
-            // **Neither failure was visible in the memory measurement**, which
-            // is the reason this comment is long. Containers were virtualized
-            // and the provider was called in both cases, so 10,000 rows measured
-            // flat at 143 MB against 328 eager either way. Right size, right
-            // cost, wrong content. Only a screenshot separated them.
-            //
-            // So the content is applied in a LATER phase, through the callback
-            // WinUI provides for exactly this, after the control has finished.
-            //
-            // **phase 0 屬於 `ListViewBase`,而「與它相爭」和「搶在它之前」兩者都行不通——
-            // 兩者都在 2026-09-16 量過。**
-            //
-            // 在 phase 0 指派內容然後返回:該控制項自己的準備工作是**在那之後**才跑,並用 data item
-            // 去指派 `Content`,於是每一列都算繪成它的佔位索引——「0」「1」「2」——而 GtkBackend
-            // 算繪出來的是「row 0 revision 1」。
-            //
-            // 改設 `args.handled = true` 去阻止它:準備工作被整份跳過,**包含「把內容呈現出來」的那一部分**。
-            // 探針把容器直接讀回來,得到 `content=Canvas`,可見那次指派是成功的——而清單什麼都沒畫出來。
-            // 內容在,但從未被顯示。
-            //
-            // **這兩種失敗在記憶體量測中都看不見**,而那正是本註解寫得這麼長的理由。兩種情況下容器都有
-            // 虛擬化、provider 都有被呼叫,因此一萬列在兩種情況下都平穩地量到 143 MB(對照 eager 的
-            // 328 MB)。尺寸對、成本對、內容錯。只有截圖能把它們分開。
-            //
-            // 因此內容改在**較晚的 phase** 套用——透過 WinUI 正為此提供的那個 callback,在該控制項
-            // 完成自己的工作之後。
+            // **phase 0 屬於 `ListViewBase`,「與它相爭」和「搶在它之前」都行不通**(見本檔開頭的註記)。
+            // 在 phase 0 指派的內容會被控制項自己的準備工作覆蓋，而 `args.handled = true` 會跳過「把內容
+            // 呈現出來」的那一部分。因此內容改在**較晚的 phase** 套用——透過 WinUI 正為此提供的那個
+            // callback,在該控制項完成自己的工作之後。
             if args.phase == 0 {
                 try? args.registerUpdateCallback { _, laterArgs in
                     MainActor.assumeIsolated {
@@ -296,9 +249,9 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
         traceLazyRow("prepare index=\(index)")
     }
 
-    // **~~The row a container holds has to be recorded on the way in, because
-    // a container can be rebound in place with no recycle event.~~ Both halves
-    // of that were measured false on 2026-09-16, and both looked right.**
+    // **No record of which row a container holds is kept, and there is no
+    // rebind path.** Both were tried on 2026-09-16 and measured unnecessary or
+    // wrong.
     //
     // Two recordings were tried and neither is in this file any more:
     //
@@ -324,8 +277,7 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
     // ranges are exactly the rows abandoned by the two scrolls -- 1-25 on the
     // jump to the end, 9964-9999 on the way back to the top.
     //
-    // **~~容器持有哪一列必須在放進去時記下來,因為容器可能在沒有回收事件的情況下就地重新綁定。~~
-    // 這句話的兩半都在 2026-09-16 被量成假的,而兩者看起來都對。**
+    // **不記錄容器持有哪一列，也沒有 rebind 路徑。** 兩者都在 2026-09-16 試過，量測結果是不需要或是錯的。
     //
     // 試過兩種記錄方式,而兩者都已不在本檔案中:
     //

@@ -9,8 +9,7 @@ import WinUI
 /// Canvas" (exit 132) from `TextField(...).inspect(.afterUpdate) { ... }`.
 /// `TextField`'s body goes through `TextFieldStyle`, so the widget on its node
 /// is the Canvas container every widget here is wrapped in, and the TextBox is
-/// inside it. AppKitBackend and UIKitBackend had the same defect and the same
-/// fix (queue M8); this was the one machine that could not be checked from there.
+/// inside it. AppKitBackend and UIKitBackend had the same defect and the same fix (queue M8).
 ///
 /// Logical children first, then the visual tree. `.onCreate` runs before the
 /// widget is attached, when VisualTreeHelper can still report no children for a
@@ -27,8 +26,7 @@ import WinUI
 /// 2026-09-17 實測:P4 在 WinUI 上死於「AnyWidget used with incompatible widget type TextBox;
 /// actual widget type is Canvas」(exit 132),來源是 `TextField(...).inspect(.afterUpdate) { ... }`。
 /// `TextField` 的 body 經過 `TextFieldStyle`,因此它節點上的 widget 是本 backend 包住每個 widget 的
-/// Canvas 容器,TextBox 在它裡面。AppKitBackend 與 UIKitBackend 有同一個缺陷、同一個修法(queue M8);
-/// 這是那邊唯一檢查不到的機器。
+/// Canvas 容器,TextBox 在它裡面。AppKitBackend 與 UIKitBackend 有同一個缺陷、同一個修法(queue M8)。
 ///
 /// 先走邏輯子節點,再走 visual tree。`.onCreate` 在 widget 掛上之前執行,那時 VisualTreeHelper 對 Panel
 /// 可能還回報沒有子節點,所以 Panel 的 `children`、Border 的 `child`、ContentControl 的 `content` 直接走。

@@ -13,12 +13,12 @@
 ///
 /// So: the scenes marked `.presented` open, and where none is marked the first
 /// scene opens unless it is `.suppressed`. A scene cannot decide that in its own
-/// initialiser, which is where each used to: it does not know what follows it.
-/// Every `WindowGroup` opened a window that way, two for two groups (P93).
+/// initialiser: it does not know what follows it, and deciding there opens a
+/// window for every `WindowGroup`, two for two groups (P93).
 ///
 /// app 啟動時開哪些視窗場景，由全部場景一起決定。在 SwiftUI 上量到的結果如上表:標了 `.presented` 的場景會開;
-/// 都沒標時只開第一個場景，除非它是 `.suppressed`。單一場景在自己的初始化式裡做不了這個決定，因為它不知道後面還有什麼;
-/// 以前每個 `WindowGroup` 都各開一個視窗(P93 兩個 group 就是兩個)。
+/// 都沒標時只開第一個場景，除非它是 `.suppressed`。單一場景在自己的初始化式裡做不了這個決定，因為它不知道後面還有什麼:
+/// 那樣決定的話，每個 `WindowGroup` 都會各開一個視窗(P93 兩個 group 就是兩個)。
 @MainActor
 enum SceneLaunch {
     private struct Candidate {

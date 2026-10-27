@@ -22,11 +22,9 @@ extension WinUIBackend: BackendFeatures.AngularGradients {
 /// A canvas that draws a conic gradient into a bitmap of its own.
 ///
 /// Neither XAML nor the composition layer has a conic brush -- `LinearGradientBrush`
-/// and `RadialGradientBrush` are the only two, which is why this backend had the
-/// other two gradients and not this one. Missing the conformance was not a mild
-/// degradation: `@CastBackend` turns it into
-/// `fatalError("'WinUIBackend' does not implement 'AngularGradients'")`, so an
-/// `AngularGradient` aborted the app on Windows.
+/// and `RadialGradientBrush` are the only two. Without this conformance
+/// `@CastBackend` would turn an `AngularGradient` into
+/// `fatalError("'WinUIBackend' does not implement 'AngularGradients'")`.
 ///
 /// So the gradient is rasterised in software and shown through a `WriteableBitmap`,
 /// the same mechanism `updateImageView` already uses for image data. The angle
@@ -73,14 +71,12 @@ final class AngularGradientCanvas: WinUI.Canvas {
         // A nil end angle means a full turn (the documented default). With an end
         // angle the stops occupy only that sweep, so they are rescaled into it.
         //
-        // `adjustedStops` does the rescaling. This used to do it inline -- and
-        // said so, citing the GTK backend, which had copied the same mistake:
-        // multiplying by `sweep / 360` without `abs` sends every location
-        // negative when the end angle precedes the start angle. `color(at:)`
-        // then finds no stop above any position in 0..<1 and returns the last
-        // stop's color for every pixel, so a reversed sweep rasterised as one
-        // flat block. Measured 2026-08-27 with P27's "Sweep reversed" sample,
-        // where GtkBackend drew the gradient and this drew flat red.
+        // `adjustedStops` does the rescaling, with `abs`: multiplying by
+        // `sweep / 360` without it sends every location negative when the end
+        // angle precedes the start angle. `color(at:)` then finds no stop above
+        // any position in 0..<1 and returns the last stop's color for every
+        // pixel, so a reversed sweep rasterises as one flat block (P27's "Sweep
+        // reversed" sample drew flat red, 2026-08-27).
         let sweep = (gradient.endAngle?.degrees).map { $0 - gradient.startAngle.degrees } ?? 360
         let stops = gradient.adjustedStops.map {
             Stop(

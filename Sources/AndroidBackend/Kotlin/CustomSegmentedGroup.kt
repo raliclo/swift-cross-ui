@@ -17,12 +17,11 @@ import android.widget.RadioGroup
  * Android has no platform segmented control (Material's button toggle group is a
  * library, not the platform), so this is a horizontal RadioGroup -- which already
  * gives single choice, keyboard and accessibility semantics -- with the radio
- * dots removed and each button drawn as a bordered segment. Until 2026-09-29 the
- * style was `fatalError("Unsupported picker style")`.
+ * dots removed and each button drawn as a bordered segment.
  *
  * `.segmented` 在 Android 上:一列相連的分段,選中的那一段填色。Android 平台本身沒有分段控制項(Material 的 button
  * toggle group 是函式庫,不是平台),所以這是一個水平的 RadioGroup——它本來就提供單選、鍵盤與無障礙語意——拿掉圓點、
- * 把每顆按鈕畫成有邊框的一段。2026-09-29 之前這個樣式是 `fatalError`。
+ * 把每顆按鈕畫成有邊框的一段。
  */
 class CustomSegmentedGroup(activity: Activity) : RadioGroup(activity) {
     init {

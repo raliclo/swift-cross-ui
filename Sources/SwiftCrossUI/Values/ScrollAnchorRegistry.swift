@@ -95,11 +95,10 @@ public final class ScrollAnchorRegistry {
         // Android through the child's parent chain. So asking all of them is
         // correct, not merely harmless.
         //
-        // An earlier draft had the closure return Bool so this could stop at
-        // the first one that acted. It did not compile -- the requirement
-        // returns Void -- and making it return Bool would have changed the
-        // protocol on six backends to save iterating over the one or two scroll
-        // views a reader typically holds.
+        // The closure returns Void, as the requirement does. Returning Bool so
+        // this could stop at the first one that acted would change the protocol
+        // on six backends to save iterating over the one or two scroll views a
+        // reader typically holds.
         //
         // 每一個容器都會被問到,而只有持有該 widget 的那一個會動作。
         //
@@ -107,9 +106,8 @@ public final class ScrollAnchorRegistry {
         // ——AppKit 與 UIKit 用 `isDescendant(of:)`、GTK 靠 `compute_point` 失敗、Android 靠子元件的
         // parent 鏈。因此「全部都問」是正確的,而不只是無害的。
         //
-        // 先前的草稿讓該 closure 回傳 Bool,好讓此處能在「第一個動作的容器」停下來。那編不過——
-        // 該 requirement 回傳的是 Void——而為了省下「走訪一個 reader 通常持有的那一兩個捲動視圖」
-        // 就去改動六個 backend 的 protocol,並不划算。
+        // 該 closure 回傳 Void,與 requirement 相同。若改回傳 Bool,好讓此處能在「第一個動作的容器」停下來，
+        // 就得為了省下「走訪一個 reader 通常持有的那一兩個捲動視圖」去改動六個 backend 的 protocol,並不划算。
         for scroller in scrollers {
             scroller.perform(widget, anchor)
         }

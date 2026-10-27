@@ -214,7 +214,7 @@ extension BackendFeatures {
     /// ``TableColumn`` here is a `(RowValue) -> Content` closure with no key
     /// path and no comparator, so nothing between the click and the app knows
     /// how two rows compare. SwiftUI can sort because its columns are declared
-    /// with `value:`; ours cannot, and pretending otherwise would mean sorting
+    /// with `value:`; this package's cannot, and pretending otherwise would mean sorting
     /// by the rendered text.
     ///
     /// **Every header is clickable while a sort handler is installed.** There is
@@ -233,7 +233,7 @@ extension BackendFeatures {
     /// **它只回報,不排序。** backend 說出使用者點了哪一欄;由 **app** 重新排列自己的資料。
     /// 這不是偷懶——此處的 ``TableColumn`` 是一個 `(RowValue) -> Content` closure,**沒有 key path、
     /// 也沒有 comparator**,因此在「點擊」與「app」之間,沒有任何一層知道兩列該怎麼比較。
-    /// SwiftUI 能排序,是因為它的欄位以 `value:` 宣告;我們的不行,而假裝可以,等於拿**算繪出來的
+    /// SwiftUI 能排序,是因為它的欄位以 `value:` 宣告;本套件的欄位不行,而假裝可以,等於拿**算繪出來的
     /// 文字**去排序。
     ///
     /// **只要安裝了 sort handler,每一個標題都可點。** 沒有逐欄的退出選項,理由相同:在沒有

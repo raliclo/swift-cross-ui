@@ -135,13 +135,12 @@ extension Slider {
 // `NSSegmentedControl` for `.segmented`, `NSView` for `.radioGroup` and
 // `.wheel`, whose controls are this backend's own. Asking for a type the
 // picker's style does not create stops with the widget tree, as every other
-// `.inspect` here does. Restored 2026-10-06.
+// `.inspect` here does.
 //
 // 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
 // 第一種給預設 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
 // 給其他樣式用——`.segmented` 是 `NSSegmentedControl`,`.radioGroup` 與 `.wheel` 是本 backend 自己的
 // 控制項，用 `NSView`。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
-// 2026-10-06 恢復。
 extension Picker {
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,

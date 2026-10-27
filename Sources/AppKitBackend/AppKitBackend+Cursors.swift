@@ -77,23 +77,19 @@ final class NSCursorTarget: NSView {
 
     override var isFlipped: Bool { true }
 
-    /// **Every `-cursor: trackingArea rebuilt` line this class has ever printed said
-    /// `window key=false`, and `updateTrackingAreas` is only called again on a bounds change.**
-    ///
-    /// The area is therefore registered once, during layout, while the window has not been
-    /// activated yet -- and `.activeInKeyWindow` is about the window's state, so an area added in
-    /// that state is the one candidate the instrument pointed at that had not been tried.
-    /// Re-registering when the window becomes key costs one notification and removes the question.
+    /// **Re-registers the tracking area when the window becomes key.** The area is registered
+    /// during layout, before the window has been activated (every `-cursor: trackingArea rebuilt`
+    /// line reads `window key=false`), and `updateTrackingAreas` is only called again on a bounds
+    /// change. `.activeInKeyWindow` is about the window's state, so re-registering once the
+    /// window is key costs one notification and removes an area added in the wrong state.
     ///
     /// `NSKeyEventTarget` watches the same notification for the same shape of reason: something
     /// that must be claimed cannot be claimed before the window is key.
     ///
-    /// **本類別印出過的每一行 `-cursor: trackingArea rebuilt` 都寫著 `window key=false`,
-    /// 而 `updateTrackingAreas` 只有在 bounds 改變時才會再被呼叫。**
-    ///
-    /// 也就是說那塊區域只在排版期間註冊過一次,而當時視窗還沒有被啟用;而 `.activeInKeyWindow`
-    /// 講的正是視窗的狀態——「在那個狀態下加入的區域」,是儀器所指向、而尚未被嘗試過的唯一候選。
-    /// 在視窗成為 key 時重新註冊,代價是一個通知,而那個問題就沒了。
+    /// **在視窗成為 key 時重新註冊 tracking area。** 那塊區域是在排版期間、視窗尚未被啟用時註冊的
+    /// (每一行 `-cursor: trackingArea rebuilt` 都寫著 `window key=false`),而 `updateTrackingAreas`
+    /// 只有在 bounds 改變時才會再被呼叫。`.activeInKeyWindow` 講的正是視窗的狀態,因此在視窗成為 key
+    /// 時重新註冊,代價是一個通知,而「在錯誤狀態下加入的區域」就被換掉了。
     ///
     /// `NSKeyEventTarget` 基於同樣形狀的理由監看同一個通知:一個必須被認領的東西,
     /// 在視窗成為 key 之前認領不了。
@@ -149,10 +145,8 @@ final class NSCursorTarget: NSView {
         // should not repaint the pointer for an app the user is not in.
         // 用 `.activeInKeyWindow` 而不是 `.activeAlways`:一個背景視窗不該替「使用者並不在其中的 app」
         // 去改變指標樣子。
-        // `.mouseEnteredAndExited` is here for `mouseExited` below, and it was added on
-        // 2026-09-22 after a measurement contradicted this file.
-        // `.mouseEnteredAndExited` 是為了下面的 `mouseExited` 而加的,加入時間是 2026-09-22
-        // ——在一次量測推翻了本檔的說法之後。
+        // `.mouseEnteredAndExited` is here for `mouseExited` below.
+        // `.mouseEnteredAndExited` 是為了下面的 `mouseExited` 而加的。
         let area = NSTrackingArea(
             rect: bounds,
             options: [.cursorUpdate, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
@@ -167,37 +161,36 @@ final class NSCursorTarget: NSView {
         )
     }
 
-    /// **The only place the cursor is set, and the first version had two more.**
+    /// **The only place the cursor is set.**
     ///
     /// `NSCursor.set()` is GLOBAL: it changes the pointer until something else
-    /// changes it back, and a plain text view changes nothing. The first version
-    /// also called it from `mouseEntered` and from the property's `didSet`, so
-    /// the crosshair survived the pointer leaving the view. `cursorUpdate` is
+    /// changes it back, and a plain text view changes nothing. Calling it from
+    /// `mouseEntered` or from the property's `didSet` as well lets the
+    /// crosshair survive the pointer leaving the view. `cursorUpdate` is
     /// the cooperative half of the same API: AppKit sends it to the view under
     /// the pointer as the pointer moves, and when no view claims the cursor it
     /// restores the arrow itself. Handling only this means the region is exactly
     /// the tracking area and nothing has to be undone on the way out.
     ///
-    /// **VERIFIED on macOS on 2026-09-27**: `actions/mac/P72-cursor.actions` reports crosshair over
+    /// **Verified on macOS on 2026-09-27**: `actions/mac/P72-cursor.actions` reports crosshair over
     /// the mesh view and arrow over the label above it, three runs out of three, and a
-    /// `screencapture -C` taken during each row shows the same.
+    /// `screencapture -C` taken during each row shows the same. A wrong reading there came from
+    /// the harness, not this class: a hover wait inside `onMain` (`RunLoop.run(until:)` does not
+    /// give queued events to `sendEvent`), and action-file coordinates taken from a
+    /// superview-relative frame. That file's header has both.
     ///
-    /// This class was not what was wrong, and none of the ten candidates eliminated from
-    /// 2026-09-22 on was either. The 2026-09-22 version of this comment had already named the
-    /// symptom exactly -- "the mouse-moved from the first row is processed during the second
-    /// row's pause" -- and every attempt at it then waited LONGER, when the wait was the problem:
-    /// it ran inside `onMain`, and `RunLoop.run(until:)` does not give queued events to
-    /// `sendEvent`. The other cause was the action file's coordinates, "corrected" on 2026-09-23
-    /// from a superview-relative frame. That file's header has both.
+    /// **唯一設定游標的地方。**
+    ///
+    /// `NSCursor.set()` 是**全域**的:它會改變指標直到別的東西把它改回來,而一個普通的文字 view 什麼都不改。
+    /// 若也在 `mouseEntered` 或屬性的 `didSet` 中呼叫它,十字會在指標離開 view 之後依然留著。`cursorUpdate`
+    /// 是同一個 API 中合作的那一半:AppKit 會隨著指標移動把它送給指標底下的 view,沒有 view 認領游標時
+    /// 它會自己還原箭頭。只處理這一個,區域就正好是 tracking area,離開時也不必復原任何東西。
     ///
     /// **macOS 上已於 2026-09-27 驗證**:`actions/mac/P72-cursor.actions` 在 mesh view 上回報十字、在它
-    /// 上方的標籤上回報箭頭,三次中三次;而每一列執行期間拍下的 `screencapture -C` 顯示的也一樣。
-    ///
-    /// 出錯的不是這個類別,而自 2026-09-22 起被排除的十個候選也都不是。2026-09-22 版的這段註解其實已經
-    /// 精確說出了症狀——「第一列的 mouse-moved 是在第二列的暫停期間才被處理」——而當時的每一次嘗試都是
-    /// 等**更久**,但問題正出在那個等待上:它跑在 `onMain` 裡,而 `RunLoop.run(until:)` 不會把佇列中的
-    /// 事件交給 `sendEvent`。另一個成因是動作檔的座標:2026-09-23 依據一個「相對於父 view」的 frame
-    /// 把它「修正」掉了。兩者都記在該檔案的檔頭。
+    /// 上方的標籤上回報箭頭,三次中三次;而每一列執行期間拍下的 `screencapture -C` 顯示的也一樣。那裡出現
+    /// 錯誤讀數時,成因在測試工具而不在這個類別:一個跑在 `onMain` 裡的 hover 等待(`RunLoop.run(until:)`
+    /// 不會把佇列中的事件交給 `sendEvent`),以及取自「相對於父 view」之 frame 的動作檔座標。兩者都記在
+    /// 該檔案的檔頭。
     override func cursorUpdate(with event: NSEvent) {
         cursor.set()
         Self.report(
@@ -206,8 +199,7 @@ final class NSCursorTarget: NSView {
         )
     }
 
-    /// **The instrument this class did not have, and the absence of which cost four attempts at
-    /// the wrong problem.**
+    /// **Separates the two reasons a cursor reading can be wrong.**
     ///
     /// `actions/mac/P72-cursor.actions` reads the cursor back after moving the pointer, and when the
     /// answer is wrong there are two entirely different reasons: the pointer never reached this
@@ -219,7 +211,7 @@ final class NSCursorTarget: NSView {
     /// `AppKitBackend+HitTesting.swift`'s `-hittest:` lines are, and for the same reason: that is
     /// the stream the action file's own lines already use.
     ///
-    /// **本類別原本沒有的那個儀器,而它的缺席讓四次嘗試都花在錯的問題上。**
+    /// **區分游標讀數出錯的兩種理由。**
     ///
     /// `actions/mac/P72-cursor.actions` 會在移動指標之後把游標讀回來;而當答案是錯的時,可能有兩個
     /// 截然不同的理由:指標根本沒有抵達這個 view,或者它抵達了而讀數是過期的。從外面看,那是同一個症狀。
@@ -235,28 +227,21 @@ final class NSCursorTarget: NSView {
 
     /// **Only a log line. AppKit puts the arrow back by itself, measured 2026-09-27.**
     ///
-    /// This used to call `NSCursor.arrow.set()`, on the grounds that nothing else could restore
-    /// the arrow, and cited a 2026-09-22 `hover` reading of a crosshair over plain text. That
-    /// reading was the one-row-late artefact `AppKitSynthesiser`'s hover wait produced, so it
-    /// measured nothing. Measured properly -- the reset removed, pointer moved off the mesh view
-    /// onto the label above it -- the reading is arrow and a `screencapture -C` shows an arrow.
-    /// The claim above `cursorUpdate`, that AppKit restores the arrow when no view claims the
-    /// cursor, was right all along.
+    /// With no reset here and the pointer moved off the mesh view onto the label above it, the
+    /// reading is arrow and a `screencapture -C` shows an arrow: AppKit restores the arrow when no
+    /// view claims the cursor, as `cursorUpdate` relies on.
     ///
-    /// The forced reset was removed rather than kept as harmless, because it is not: a pointer
-    /// leaving this view for one that claims its own cursor could have that cursor overwritten
-    /// by an exit arriving after the other view's update.
+    /// Calling `NSCursor.arrow.set()` here is not harmless: a pointer leaving this view for one
+    /// that claims its own cursor could have that cursor overwritten by an exit arriving after the
+    /// other view's update.
     ///
     /// **只留一行 log。AppKit 會自己把箭頭放回去,2026-09-27 實測。**
     ///
-    /// 這裡原本會呼叫 `NSCursor.arrow.set()`,理由是「沒有別的東西能還原箭頭」,並引用 2026-09-22 一次
-    /// `hover` 在純文字上讀到十字的讀數。那個讀數正是 `AppKitSynthesiser` 的 hover 等待所產生的「晚一列」
-    /// 假象,因此它什麼也沒量到。正確地量——拿掉那個還原、把指標從 mesh view 移到它上方的標籤——
-    /// 讀數是箭頭,`screencapture -C` 拍到的也是箭頭。`cursorUpdate` 上方那段說法(沒有 view 認領游標時
-    /// AppKit 會自己還原箭頭)從頭到尾都是對的。
+    /// 這裡不做還原、把指標從 mesh view 移到它上方的標籤時,讀數是箭頭,`screencapture -C` 拍到的也是
+    /// 箭頭:沒有 view 認領游標時 AppKit 會自己還原箭頭,`cursorUpdate` 正是依賴這一點。
     ///
-    /// 那個強制還原被拿掉、而不是當成無害的東西留著,因為它並非無害:指標離開本 view、進入一個自己
-    /// 認領游標的 view 時,一個晚於對方更新才到的離開事件,可能把對方的游標蓋掉。
+    /// 在這裡呼叫 `NSCursor.arrow.set()` 並非無害:指標離開本 view、進入一個自己認領游標的 view 時,
+    /// 一個晚於對方更新才到的離開事件,可能把對方的游標蓋掉。
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         Self.report("mouseExited")

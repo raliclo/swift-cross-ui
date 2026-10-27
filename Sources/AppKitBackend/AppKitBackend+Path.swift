@@ -19,11 +19,11 @@ extension AppKitBackend {
         /// A shape takes a click where it is drawn, as in SwiftUI: a stroke-only
         /// shape on its stroke, anything else inside its path. NSView's own
         /// answer is the whole frame, so a stroked outline over a row of controls
-        /// swallowed every click inside it -- P41's `.rows` minus and plus, under
-        /// the field's border overlay, never stepped on AppKit (2026-10-20).
+        /// would swallow every click inside it (P41's `.rows` minus and plus,
+        /// under the field's border overlay).
         /// 形狀在畫出來的地方接收點擊，與 SwiftUI 相同：只有描邊的形狀看描邊線，其他看路徑內部。NSView 自己的答案是整個
-        /// frame,所以蓋在一列控制項上的描邊外框會吞掉框內每一次點擊——P41 `.rows` 的減號與加號在欄位外框 overlay
-        /// 底下，在 AppKit 上從未調整過(2026-10-20)。
+        /// frame,所以蓋在一列控制項上的描邊外框會吞掉框內每一次點擊(例如 P41 `.rows` 的減號與加號,
+        /// 位於欄位外框 overlay 底下)。
         override func hitTest(_ point: NSPoint) -> NSView? {
             guard let path, !isHidden, alphaValue > 0 else { return nil }
             let local = superview.map { convert(point, from: $0) } ?? point

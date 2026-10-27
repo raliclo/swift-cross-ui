@@ -13,16 +13,15 @@
 /// the choice is made by asking ``BaseAppBackend/supportsMultipleWindows``
 /// rather than by hard-coding either.
 ///
-/// The single-window path is not a fallback added for tidiness. Measured
-/// 2026-09-09: `AndroidBackend.createWindow` returns a fresh `Window()` value
-/// with a `TODO` beside it, so a window-based Settings there would be silently
-/// invisible -- and CLAUDE.md rules that out, since a truthful report of a
-/// missing feature is not the same as a working one.
+/// The single-window path is not a fallback added for tidiness: where no second
+/// window can open, a window-based Settings would be silently invisible -- and
+/// CLAUDE.md rules that out, since a truthful report of a missing feature is not
+/// the same as a working one.
 ///
 /// | backend | `supportsMultipleWindows` | how settings appear |
 /// | --- | --- | --- |
-/// | AppKit, Gtk, WinUI | true | a separate window |
-/// | UIKit, Android | false | a sheet over the current window |
+/// | AppKit, Gtk, WinUI, Android | true | a separate window |
+/// | UIKit | `UIApplication.supportsMultipleScenes` | a window on iPad, a sheet over the current window on iPhone |
 ///
 /// 一個承載 app 設定的 scene,由 ``EnvironmentValues/openSettings`` 顯示。
 ///
@@ -30,9 +29,8 @@
 /// 的獨立視窗;沒有多視窗時,它是蓋在既有視窗上的一個 sheet。兩者都是真正的呈現,而這個選擇來自詢問
 /// ``BaseAppBackend/supportsMultipleWindows``,而不是把其中一種寫死。
 ///
-/// 單視窗那條路不是為了整齊而補上的退路。2026-09-09 實測:`AndroidBackend.createWindow` 回傳的是一個
-/// 旁邊還留著 `TODO` 的新 `Window()` 值,因此在那裡以視窗為基礎的 Settings 會靜默地隱形——而
-/// CLAUDE.md 排除了這種做法,因為「如實回報一項缺失的功能」與「擁有一項可運作的功能」是兩回事。
+/// 單視窗那條路不是為了整齊而補上的退路：沒有第二個視窗可開時，以視窗為基礎的 Settings 會靜默地隱形——而
+/// CLAUDE.md 排除了這種做法，因為「如實回報一項缺失的功能」與「擁有一項可運作的功能」是兩回事。
 public struct Settings<Content: View>: WindowingScene {
     public typealias Node = SettingsNode<Content>
 

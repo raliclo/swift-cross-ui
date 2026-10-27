@@ -18,26 +18,19 @@ import UIKit
 /// CoreAnimation 是繞著 `anchorPoint`（預設為中心）套用 layer 的 transform，而傳入的 transform
 /// 是繞該 widget 原點的。
 ///
-/// **A note that used to stand here said `VisualEffects` was deliberately not
-/// implemented on iOS.** Its premise was right and its conclusion was wrong,
-/// and both are worth keeping in view. `CALayer.filters` really does not
-/// composite on iOS -- the property is in the header and Core Image takes no
-/// part in iOS layer compositing, measured twice on P39 -- and the note went on
-/// to conclude that six of the seven effects therefore had no path. They had
-/// one: apply the filters to a rendering of the subtree rather than to the live
-/// layer. `UIKitBackend+VisualEffects.swift` does that, and all nine of P39's
-/// cells now differ from the control.
+/// **`VisualEffects` is implemented on iOS too, by another route.**
+/// `CALayer.filters` does not composite on iOS -- the property is in the
+/// header and Core Image takes no part in iOS layer compositing, measured
+/// twice on P39 -- so `UIKitBackend+VisualEffects.swift` applies the filters
+/// to a rendering of the subtree rather than to the live layer, and all nine
+/// of P39's cells differ from the control. A measured platform limitation is
+/// only a limitation of the route taken. See `bugs/bug-UIkit.md`.
 ///
-/// A measured platform limitation is still only a limitation of the route
-/// taken. See `bugs/bug-UIkit.md`.
-///
-/// **此處原本有一段說明，寫著 iOS 上刻意不實作 `VisualEffects`。** 它的前提是對的、結論是錯的，
-/// 而兩者都值得留在眼前。`CALayer.filters` 在 iOS 上確實不參與合成——該屬性存在於標頭中，而
-/// Core Image 並不參與 iOS 的 layer 合成，此事在 P39 上量過兩次——但那段說明接著推論「因此七種效果
-/// 中有六種無路可走」。它們有路：把 filter 套用在「子樹的算繪結果」上，而非套用在即時的 layer 上。
-/// `UIKitBackend+VisualEffects.swift` 就是這麼做的，而 P39 的九個格子現在全都與對照格不同。
-///
-/// 一項量測到的平台限制，終究只是「所走那條路」的限制。詳見 `bugs/bug-UIkit.md`。
+/// **iOS 上同樣實作了 `VisualEffects`,只是走另一條路。** `CALayer.filters` 在 iOS 上不參與
+/// 合成——該屬性存在於標頭中,而 Core Image 並不參與 iOS 的 layer 合成,此事在 P39 上量過兩次——
+/// 因此 `UIKitBackend+VisualEffects.swift` 把 filter 套用在「子樹的算繪結果」上,而非即時的 layer 上,
+/// 而 P39 的九個格子全都與對照格不同。一項量測到的平台限制,只是「所走那條路」的限制。
+/// 詳見 `bugs/bug-UIkit.md`。
 extension UIKitBackend: BackendFeatures.GeometricEffects {
     public func createGeometricEffectContainer(wrapping child: Widget) -> Widget {
         let container = createContainer()

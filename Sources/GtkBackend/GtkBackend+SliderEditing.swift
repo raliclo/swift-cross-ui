@@ -6,10 +6,10 @@ import GtkCHelpers
 /// on the scale, ended when it comes up -- and makes a press on the trough jump
 /// the slider there and drag it, as `NSSlider` does.
 ///
-/// **A capture-phase `EventControllerLegacy`, not a gesture.** This used to be
-/// a capture-phase `GestureClick`, and `GtkScale` claims the sequence for its
-/// own drag the moment the button goes down, which denies every other gesture
-/// on it: the click's `end` came at the press, not the release. Measured on
+/// **A capture-phase `EventControllerLegacy`, not a gesture.** A capture-phase
+/// `GestureClick` does not work: `GtkScale` claims the sequence for its own
+/// drag the moment the button goes down, which denies every other gesture on
+/// it, so the click's `end` came at the press, not the release. Measured on
 /// GtkBackend on macOS (P61, 2026-10-16): a drag from the thumb logged began,
 /// then ended, then the three values. A legacy controller is not a gesture, a
 /// claim does not cancel it -- the shape `GtkTouchHold`
@@ -27,7 +27,7 @@ import GtkCHelpers
 /// to GtkRange.
 ///
 /// 回報 `Slider` 的編輯狀態(按鍵或手指在 scale 上按下為開始、放開為結束),並讓軌道上的按下把滑塊跳到該處並可拖曳，
-/// 與 `NSSlider` 相同。用 capture 階段的 `EventControllerLegacy`,不用手勢：原本的 capture 階段 `GestureClick` 在
+/// 與 `NSSlider` 相同。用 capture 階段的 `EventControllerLegacy`,不用手勢：capture 階段的 `GestureClick` 在
 /// `GtkScale` 一按下就 claim 序列時被否決，它的 `end` 在按下時就來了(P61,2026-10-16,macOS 上的 GtkBackend:從把手
 /// 拖曳記下 began、ended,然後才是三個值)。軌道:GtkRange 只有在 `gtk-primary-button-warps-slider` 開啟時才跳到按下處，
 /// 否則以 page increment 翻頁，而這個 scale 的 page increment 是 0。macOS 上的 GDK 依捲軸偏好設定它，此處讀到 0:P61

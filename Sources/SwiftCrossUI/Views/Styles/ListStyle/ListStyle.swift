@@ -1,20 +1,14 @@
-// This replaces `Environment/ListStyle.swift`, which held an
-// `@_spi(Backends) enum ListStyle` and has been deleted rather than emptied:
-// SwiftPM derives object file names from the basename, so two files called
-// `ListStyle.swift` in one target fail the build with "multiple producers".
-// Found the moment this file was added.
+// The only file named `ListStyle.swift` in this target: SwiftPM derives object
+// file names from the basename, so a second one (such as the former
+// `Environment/ListStyle.swift`) fails the build with "multiple producers".
 //
-// 本檔取代了 `Environment/ListStyle.swift`——該檔曾持有 `@_spi(Backends) enum ListStyle`，此處選擇
-// 將其刪除而非清空：SwiftPM 以 basename 決定目的檔名稱，因此同一個 target 中出現兩個
-// `ListStyle.swift` 會以「multiple producers」使建置失敗。此事在本檔加入的當下即被發現。
+// 本 target 中唯一名為 `ListStyle.swift` 的檔案:SwiftPM 以 basename 決定目的檔名稱，因此再出現
+// 一個(例如先前的 `Environment/ListStyle.swift`)會以「multiple producers」使建置失敗。
 
 /// A type that specifies the appearance of all lists within a view hierarchy.
 ///
-/// The fourth style to take ``PickerStyle``'s shape, and the one that was not
-/// worth converting until it did something. Until 2026-08-27 `ListStyle` was an
-/// `@_spi(Backends)` enum that `SplitView` set and no backend read, so a public
-/// `.listStyle(_:)` would have been a call that provably did nothing. It reaches
-/// GtkBackend now.
+/// The fourth style to take ``PickerStyle``'s shape. Every shipped backend
+/// reads it, through ``EnvironmentValues/backendListStyle``.
 ///
 /// Unlike ``PickerStyle`` and ``DatePickerStyle`` this has no `makeView`. A list
 /// style changes how the backend's own list widget is drawn; it does not
@@ -25,10 +19,8 @@
 ///
 /// 用於指定某個 view 階層中所有清單外觀的型別。
 ///
-/// 這是第四個採用 ``PickerStyle`` 形狀的樣式，也是「在它真的做事之前不值得轉換」的那一個。直到
-/// 2026-08-27 為止，`ListStyle` 都還是一個 `@_spi(Backends)` 的 enum，由 `SplitView` 設定而無任何
-/// backend 讀取——因此公開的 `.listStyle(_:)` 會是一個「可證明什麼也不做」的呼叫。它現在會抵達
-/// GtkBackend。
+/// 第四個採用 ``PickerStyle`` 形狀的樣式。每個已發布的 backend 都會讀取它
+/// (經由 ``EnvironmentValues/backendListStyle``)。
 ///
 /// 與 ``PickerStyle`` 及 ``DatePickerStyle`` 不同，此處沒有 `makeView`。清單樣式改變的是「backend
 /// 自己的清單 widget 如何被繪製」，而不是用一個 view 去取代它；也沒有「以一般 view 組成自訂樣式」

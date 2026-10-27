@@ -14,22 +14,20 @@
 /// **塞得下幾欄就是幾欄**——因此單一個 adaptive 項目在寬視窗上可能成為五欄、在窄視窗上成為兩欄。
 /// 這正是欄位解析必須接收「被建議的寬度」、而不能只是該陣列自身屬性的原因。
 ///
-/// **The sizes are `Double`, and they were `Int` until task #108.** SwiftUI's
-/// are `CGFloat`, which cost two things here. The loud one: `.fixed(100.5)` and
+/// **The sizes are `Double`, where SwiftUI's are `CGFloat`.** Integers would
+/// cost two things. The loud one: `.fixed(100.5)` and
 /// `GridItem(.flexible(minimum: 100, maximum: .infinity))` -- the commonest grid
 /// line in SwiftUI source, because `.infinity` is how SwiftUI spells "no
-/// maximum" -- did not compile. The quiet one: an integer division split the
-/// proposed width, so on a fractional display scale the columns could not sum to
-/// their container and the remainder was dropped rather than distributed.
-/// Integer literals still compile unchanged: `GridItem(.fixed(96))` is what P48
-/// and P51 write today.
+/// maximum" -- would not compile. The quiet one: an integer division would split
+/// the proposed width, so on a fractional display scale the columns could not
+/// sum to their container and the remainder would be dropped rather than
+/// distributed. Integer literals still compile: `GridItem(.fixed(96))`.
 ///
-/// **這些尺寸的型別是 `Double`，在任務 #108 之前則是 `Int`。** SwiftUI 用的是 `CGFloat`，而此處為此
-/// 付出了兩項代價。明顯的那一項：`.fixed(100.5)` 與
-/// `GridItem(.flexible(minimum: 100, maximum: .infinity))`——由於 SwiftUI 是用 `.infinity` 表達
-/// 「沒有上限」，後者正是 SwiftUI 原始碼中最常見的那一行格線宣告——都編不過。安靜的那一項：整數
-/// 除法會切分被建議的寬度，因此在非整數的顯示縮放下，各欄無法加總回其容器，餘數是被丟掉而不是被
-/// 分配掉。整數字面量仍照舊編得過：`GridItem(.fixed(96))` 正是 P48 與 P51 今天所寫的形式。
+/// **這些尺寸的型別是 `Double`,對應 SwiftUI 的 `CGFloat`。** 若用整數會付出兩項代價。明顯的那一項:
+/// `.fixed(100.5)` 與 `GridItem(.flexible(minimum: 100, maximum: .infinity))`——由於 SwiftUI 是用
+/// `.infinity` 表達「沒有上限」，後者正是 SwiftUI 原始碼中最常見的那一行格線宣告——都會編不過。安靜的
+/// 那一項：整數除法會切分被建議的寬度，因此在非整數的顯示縮放下，各欄無法加總回其容器，餘數會被丟掉
+/// 而不是被分配掉。整數字面量仍編得過:`GridItem(.fixed(96))`。
 public struct GridItem: Sendable {
     public enum Size: Sendable {
         /// Exactly this many points wide.
@@ -176,13 +174,13 @@ public struct LazyVGrid<Content: View>: View {
         // there subtracts half the difference between the column and the grid --
         // for three 257pt columns and a 787pt child, that is 265 points of
         // leftward shift, which puts the first column off the left edge. The
-        // screenshot showed columns and rows in the right shape with the first
+        // symptom is columns and rows in the right shape with the first
         // column simply absent, which reads as cells that failed to render.
         //
         // 只有一個子節點,表示這個格線自己並不排列任何東西:那個子節點是 ForEach 或 Group、它已經
         // 消費了該計畫,而它回報的是整個格線的尺寸。把它放進第 0 欄並置中,等於減去「欄寬與格線寬度
         // 之差」的一半——以三個 257 點的欄與一個 787 點的子節點來說,那是 265 點的左移,足以把第一欄
-        // 推出畫面左緣。當時的截圖顯示欄與列的形狀都正確,只是第一欄整個不見了,那讀起來像是那些
+        // 推出畫面左緣。其症狀是欄與列的形狀都正確,只是第一欄整個不見了,那讀起來像是那些
         // 儲存格沒有被繪製出來。
         if layoutable.count == 1 {
             let childResult = layoutable[0].computeLayout(
@@ -263,21 +261,16 @@ public struct LazyVGrid<Content: View>: View {
             axis: .vertical,
             alignment: GridLaneAlignment(alignment),
             spacing: spacing,
-            // Handed over untouched. Until task #108 this line was
-            // `proposedWidth.flatMap { $0.isFinite ? Int($0.rounded(.down)) : nil }`
-            // -- both halves of that are gone, but only one of them for a good
-            // reason. The truncation is gone because the sizes are `Double` now.
-            // The `isFinite` test is NOT gone: it moved one level down to
-            // `available`, which is where the `Int` conversions that would trap
-            // on it now live. Read the comment there before assuming an infinite
-            // proposal is harmless just because nothing converts it here.
+            // Handed over untouched: the sizes are `Double`, so nothing here
+            // truncates. The `isFinite` test lives one level down, in
+            // `available` (`GridLayoutPlan`), which is where the `Int`
+            // conversions that would trap on an infinite value live. Read the
+            // comment there before assuming an infinite proposal is harmless
+            // just because nothing converts it here.
             //
-            // 原樣傳遞。在任務 #108 之前，這一行是
-            // `proposedWidth.flatMap { $0.isFinite ? Int($0.rounded(.down)) : nil }`
-            // ——它的兩個部分都不見了，但只有其中一個是有好理由的。截斷之所以消失，是因為尺寸現在
-            // 已是 `Double`。而 `isFinite` 測試**並沒有**消失：它下沉了一層，移到 `available`，
-            // 也就是那些「會因它而 trap 的 `Int` 轉換」現在所在之處。在因為「此處已無任何轉換」
-            // 而認定無限的提案無害之前，請先讀該處的註解。
+            // 原樣傳遞:尺寸是 `Double`,此處沒有任何截斷。`isFinite` 測試在下一層,即
+            // `available`(`GridLayoutPlan`),也就是那些「會因無限值而 trap 的 `Int` 轉換」所在之處。
+            // 在因為「此處已無任何轉換」而認定無限的提案無害之前，請先讀該處的註解。
             proposedCrossExtent: proposedWidth
         )
     }

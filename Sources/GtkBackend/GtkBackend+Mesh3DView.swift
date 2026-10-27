@@ -4,8 +4,7 @@ import Gtk
 @_spi(Backends) import SwiftCrossUI
 
 /// `Mesh3DView` on GTK: a `Gtk.Mesh3DGLView` (GtkGLArea) drawing with core GL
-/// 3.3. Until 2026-10-06 GtkBackend did not declare `Mesh3DViews`, so a
-/// Mesh3DView drew nothing on Linux and on Windows under GTK.
+/// 3.3.
 ///
 /// The scene is packed the way AndroidBackend packs it -- nine floats per
 /// vertex, one draw entry per mesh, triangle indices offset into the shared
@@ -13,8 +12,7 @@ import Gtk
 /// has `GL_UNSIGNED_INT` everywhere, so the 16-bit fallback GLES 2 needs has no
 /// reason to exist here. Depth range is OpenGL's, -1...1.
 ///
-/// GTK 上的 `Mesh3DView`:一個以 core GL 3.3 繪製的 `Gtk.Mesh3DGLView`(GtkGLArea)。2026-10-06 之前
-/// GtkBackend 沒有宣告 `Mesh3DViews`,所以 Mesh3DView 在 Linux 以及 Windows 的 GTK 下什麼都不畫。場景的打包
+/// GTK 上的 `Mesh3DView`:一個以 core GL 3.3 繪製的 `Gtk.Mesh3DGLView`(GtkGLArea)。場景的打包
 /// 方式與 AndroidBackend 相同——每個頂點九個 float、每個 mesh 一筆繪製項、三角形索引偏移到共用的頂點陣列——
 /// 只是索引一律 32 位元:core GL 3.3 到處都有 `GL_UNSIGNED_INT`,GLES 2 需要的 16 位元退路在這裡沒有存在理由。
 /// 深度範圍是 OpenGL 的 -1...1。

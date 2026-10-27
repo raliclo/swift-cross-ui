@@ -9,11 +9,6 @@ import WinUI
         /// to the label is, as the middle of it in points from the window's
         /// client origin. Win32Synthesiser then clicks there.
         ///
-        /// Until 2026-10-22 WinUIBackend set no locator, so a `taplabel` row
-        /// reached Win32Synthesiser and was refused ("this synthesiser has no
-        /// view tree to search") -- a feature AppKit and GTK had and this
-        /// backend did not.
-        ///
         /// What is searched, in order: the open popups of the window's XamlRoot,
         /// newest first (a sheet is a ContentDialog, a popover a flyout; both
         /// live there and sit above the content), then the window content.
@@ -29,9 +24,7 @@ import WinUI
         /// `client` row.
         ///
         /// 為本 backend 回答 `taplabel`:第一段顯示中、文字等於該標籤者在哪裡，以它的中心、距視窗 client 原點的點數
-        /// 表示。Win32Synthesiser 接著在那裡點擊。2026-10-22 之前 WinUIBackend 沒有設定定位器，於是 `taplabel`
-        /// 一列會走到 Win32Synthesiser 並被拒絕(「this synthesiser has no view tree to search」)——AppKit 與
-        /// GTK 有、這個 backend 沒有的功能。
+        /// 表示。Win32Synthesiser 接著在那裡點擊。
         ///
         /// 搜尋順序：先找視窗 XamlRoot 中開著的 popup,由新到舊(sheet 是 ContentDialog、popover 是 flyout,兩者都
         /// 住在那裡，並蓋在內容之上),再找視窗內容。比對對象：文字等於標籤的 TextBlock 或 TextBox。顯示字串的

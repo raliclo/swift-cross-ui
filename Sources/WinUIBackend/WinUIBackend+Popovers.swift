@@ -12,11 +12,9 @@ import WindowsFoundation
 /// itself uses for exactly this, and `showAt(_:)` takes the anchor directly --
 /// which is the parameter the whole protocol exists for.
 ///
-/// **The arrow is NOT the Flyout's.** This comment used to list "the beak" among
-/// the things `Flyout` handles, and it draws none. The user reported it on
-/// 2026-09-17 ("There is no arrow"), looking at P50 captures where the panel
-/// was a plain rectangle, while GtkPopover beside it drew its beak. The arrow
-/// is drawn by `PopoverArrow` below.
+/// **The arrow is NOT the Flyout's.** `Flyout` draws no beak (P50 captures,
+/// 2026-09-17: a plain rectangle, while GtkPopover beside it drew one). The
+/// arrow is drawn by `PopoverArrow` below.
 ///
 /// 為 WinUI 實作的 `.popover`，建構於 `Flyout` 之上。
 ///
@@ -24,9 +22,8 @@ import WindowsFoundation
 /// 外部關閉、定位、在螢幕邊緣翻轉與陰影全部留給呼叫端。`Flyout` 則是 Windows 自己就用於
 /// 此事的控制項，而 `showAt(_:)` 直接接受錨點——那正是整個 protocol 之所以存在的那個參數。
 ///
-/// **箭頭不是 Flyout 畫的。** 這段註解原本把「尖角」列為 `Flyout` 會處理的東西之一,而它一個也沒畫。
-/// 使用者 2026-09-17 回報(「There is no arrow」):P50 擷圖裡面板只是一個矩形,而旁邊的 GtkPopover
-/// 畫出了尖角。箭頭由下方的 `PopoverArrow` 繪製。
+/// **箭頭不是 Flyout 畫的。** `Flyout` 不畫尖角(2026-09-17 的 P50 擷圖：面板只是一個矩形，而旁邊的
+/// GtkPopover 畫出了尖角)。箭頭由下方的 `PopoverArrow` 繪製。
 extension WinUIBackend {
     @MainActor
     public final class Popover {
@@ -74,41 +71,26 @@ extension WinUIBackend {
                 self?.arrow.hide()
             }
             // `closed` fires for both user and programmatic dismissals and
-            // carries nothing to tell them apart. It no longer needs to: the
+            // carries nothing to tell them apart, and it does not need to: the
             // handler runs on both, which is SwiftUI's rule -- `onDismiss:` runs
-            // when the presentation ends however it ended -- and is what
-            // AppKitBackend already did, since `NSPopover.performClose` runs
-            // `popoverDidClose`. There used to be an `isProgrammaticDismissal`
-            // flag here suppressing the programmatic case, and it made three
-            // shipped backends disagree about one callback.
+            // when the presentation ends however it ended -- and what
+            // AppKitBackend does, since `NSPopover.performClose` runs
+            // `popoverDidClose`. Sheets follow the same rule; see
+            // `WinUIBackend+Sheets.swift`.
             //
             // Firing on both does not loop; the argument is written out in
             // `GtkBackend+Popovers.swift`, and rests on `PopoverModifier`
             // clearing `children.popover` immediately after `dismissPopover` and
             // only entering that branch when `isPresented` is already false.
             //
-            // NOTE `Sheet.isProgrammaticDismissal` in `WinUIBackend+Sheets.swift`
-            // is the same flag for the same reason and has NOT been changed
-            // here. SwiftUI's `sheet(isPresented:onDismiss:)` fires on both paths
-            // too, so sheets look misaligned in the same way -- but that is a
-            // separate change with its own five backends to check, and pretending
-            // this one covered it would be worse than saying so.
-            //
-            // 使用者關閉與程式關閉都會觸發 `closed`，且它沒有攜帶任何足以區分兩者的資訊；而現在它也
-            // 不需要區分：兩種情況下 handler 都會執行，那正是 SwiftUI 的規則——無論 presentation 以
-            // 何種方式結束，`onDismiss:` 都會執行——也正是 AppKitBackend 原本的行為，因為
-            // `NSPopover.performClose` 會執行 `popoverDidClose`。此處原本有一個
-            // `isProgrammaticDismissal` 旗標壓住程式化的那一條路，導致三個已發布的 backend 對同一個
-            // 回呼各說各話。
+            // 使用者關閉與程式關閉都會觸發 `closed`，且它沒有攜帶任何足以區分兩者的資訊；而它也不需要區分：
+            // 兩種情況下 handler 都會執行，那正是 SwiftUI 的規則——無論 presentation 以何種方式結束，
+            // `onDismiss:` 都會執行——也正是 AppKitBackend 的行為，因為 `NSPopover.performClose` 會執行
+            // `popoverDidClose`。sheet 遵循同一規則；見 `WinUIBackend+Sheets.swift`。
             //
             // 兩條路都觸發不會造成迴圈；完整論證寫在 `GtkBackend+Popovers.swift`，其依據是
             // `PopoverModifier` 在呼叫 `dismissPopover` 之後立刻清掉 `children.popover`，而且只有在
             // `isPresented` 已經為 false 時才會進入該分支。
-            //
-            // 注意：`WinUIBackend+Sheets.swift` 中的 `Sheet.isProgrammaticDismissal` 是同一個旗標、
-            // 同樣的理由，而此處**並未**一併更動。SwiftUI 的 `sheet(isPresented:onDismiss:)` 同樣在
-            // 兩條路上都會觸發，因此 sheet 也存在同一種偏差——但那是另一項變更，有它自己的五個
-            // backend 要檢查，而假裝這次一併解決了會比說清楚更糟。
             flyout.closed.addHandler { [weak self] _, _ in
                 guard let self else { return }
                 self.dismissHandler?()
@@ -126,12 +108,9 @@ extension WinUIBackend {
         size: SIMD2<Int>,
         // Qualified for the same reason GtkBackend's is: `UWP.Color` and
         // `SwiftCrossUI.Color` are both in scope here and the bare name is
-        // ambiguous. Both files needed it and only one got it on the first
-        // pass -- the fix was written, its reason was written down, and the
-        // sibling two directories away was not checked.
-        // 需要限定名稱,理由與 GtkBackend 那份相同:此處 `UWP.Color` 與 `SwiftCrossUI.Color` 同時
-        // 在 scope,裸名有歧義。兩個檔案都需要,而第一次只有一個改到——修正寫了、理由也寫了,
-        // 卻沒去看兩層目錄外的那個同類檔案。
+        // ambiguous.
+        // 需要限定名稱，理由與 GtkBackend 那份相同：此處 `UWP.Color` 與 `SwiftCrossUI.Color` 同時
+        // 在 scope,裸名有歧義。
         backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
@@ -195,46 +174,26 @@ extension WinUIBackend {
     public func presentPopover(_ popover: Popover, relativeTo anchor: Widget, window: Window) {
         popover.flyout.xamlRoot = window.content.xamlRoot
 
-        // With no preference from the app: `.bottom`, below the anchor. That is
-        // what the other four backends do; the Mac side aligned AppKit to it on
-        // the same day (cf4a4a88), and one app should not open its popover on a
-        // different side on one platform for no reason anybody chose. That
-        // commit's comment says WinUI's Flyout "auto-places below where it
-        // fits". It does not, as the next paragraph measures.
+        // With no preference from the app: `.bottom`, below the anchor, as the
+        // other four backends do (AppKit aligned to it in cf4a4a88).
         //
-        // 沒有 app 的偏好時:`.bottom`,錨點下方。另外四個 backend 都這樣做,Mac 端同日也把 AppKit 對齊到
-        // 這一側(cf4a4a88);同一支 app 不該因為沒人選過的理由,在某個平台上把 popover 開在另一側。那個
-        // commit 的註解說 WinUI 的 Flyout「自動放在放得下的下方」——並不是,見下一段的量測。
-        //
-        // **This used to be `.auto`, and `.auto` showed NOTHING.** Measured
+        // Not `.auto`: with `.auto` the flyout showed NOTHING. Measured
         // 2026-09-17 on P50: with no arrowEdge, both panels logged
-        // `popover ... shown` and neither appeared. An out-of-process UIA dump
-        // had no PANEL node, and a window capture and a desktop capture both
-        // showed no panel. The runs covered PANEL BETA, PANEL ALPHA, and ALPHA
-        // cycled through every edge back to none, 0 of 3 each. The positive
-        // control: with `.trailing` set, the same dump found `PANEL ALPHA`, so the
-        // probe can see an open flyout. Changing only this fallback to a side
-        // made both panels appear. The 2026-09-16 verification drove only SET
-        // preferences, which is how the default path went unexercised. `.auto`
-        // had been here since dea9ccff.
+        // `popover ... shown` and neither appeared -- no PANEL node in an
+        // out-of-process UIA dump, none in window or desktop captures, 0 of 3
+        // runs each. Positive control: with `.trailing`, the same dump found
+        // `PANEL ALPHA`. A fixed side is not rigid either: `.bottom` on a
+        // button with no room below flips the panel ABOVE it (2026-09-16). The
+        // sided values are preferences, and XAML moves the flyout when they do
+        // not fit.
         //
-        // The reason `.auto` was chosen does not hold either. That comment said a
-        // fixed side "would be honoured even where there is no room". Measured
-        // the day before, on this backend: `.bottom` on a button with no room
-        // below flipped the panel ABOVE it. The sided values are preferences, and
-        // XAML moves the flyout when they do not fit, so the side is not the
-        // BACKEND's choice in any way that matters.
+        // 沒有 app 的偏好時:`.bottom`,錨點下方，與另外四個 backend 相同(AppKit 於 cf4a4a88 對齊到這一側)。
         //
-        // **這裡原本是 `.auto`,而 `.auto` 什麼都不顯示。** 2026-09-17 以 P50 實測:不帶 arrowEdge 時,
-        // 兩塊面板都記下 `popover ... shown`,卻都沒有出現——行程外 UIA dump 沒有 PANEL 節點,視窗擷取與
-        // 桌面擷取都沒有面板(PANEL BETA、PANEL ALPHA、以及把 ALPHA 循環一圈回到 none,各 0/3)。正向對照:
-        // 設為 `.trailing` 時同一份 dump 找得到 `PANEL ALPHA`,證明探針看得到打開的 flyout。**只把這個
-        // 預設值改成某一側**,兩塊面板就都出現了。2026-09-16 的驗收只驅動了**有設定**的偏好,預設路徑
-        // 因此從未被走過;`.auto` 自 dea9ccff 起就在這裡。
-        //
-        // 當初選 `.auto` 的理由也不成立。那段註解說釘死的一側「在沒有空間的地方也會被忠實遵守」;而前一天
-        // 在本 backend 上量到:下方沒有空間的按鈕設 `.bottom`,面板被翻到**上方**。有方向的值是**偏好**,
-        // 放不下時 XAML 會移動 flyout。
+        // 不用 `.auto`:`.auto` 什麼都不顯示。2026-09-17 以 P50 實測：不帶 arrowEdge 時，兩塊面板都記下
+        // `popover ... shown`,卻都沒有出現——行程外 UIA dump 沒有 PANEL 節點，視窗擷取與桌面擷取都沒有
+        // 面板，各 0/3。正向對照：設為 `.trailing` 時同一份 dump 找得到 `PANEL ALPHA`。釘死一側也不會僵硬：
+        // 下方沒有空間的按鈕設 `.bottom`,面板會被翻到**上方**(2026-09-16)。有方向的值是**偏好**,放不下時
+        // XAML 會移動 flyout。
         popover.flyout.placement = popover.preferredPlacement ?? .bottom
         popover.anchor = anchor
 

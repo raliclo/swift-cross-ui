@@ -20,7 +20,7 @@ import Gtk
 /// 一個 `Slider`。此處改為透過 `gtk_popover_set_child` 附上一個普通的 widget，那正是 `GtkPopover`
 /// 被設計來承擔的用途，也正是它自己的文件在談到「dialog-like behavior」時所建議者。
 extension GtkBackend {
-    /// A `GtkPopover` plus the bookkeeping GTK does not do for us.
+    /// A `GtkPopover` plus the bookkeeping GTK does not do itself.
     ///
     /// Two things live here rather than on the `GtkPopover`:
     ///
@@ -33,16 +33,11 @@ extension GtkBackend {
     ///   clicking away, and `dismissPopover` -- which can both fire for a single
     ///   opening.
     ///
-    /// A third field used to live here -- `isProgrammaticDismissal`, recording
-    /// WHICH of those two paths a `closed` signal came from, so that
-    /// `dismissPopover` could suppress the caller's `onDismiss:`. It is gone.
+    /// Which of the two paths a `closed` signal came from is not recorded:
     /// SwiftUI runs `onDismiss:` when the presentation ends however it ended,
-    /// AppKitBackend already did that (`NSPopover.performClose` runs
-    /// `popoverDidClose`), and keeping the flag left three shipped backends
-    /// disagreeing about one callback. Distinguishing the paths is no longer
-    /// something this type needs to do.
+    /// as AppKitBackend does (`NSPopover.performClose` runs `popoverDidClose`).
     ///
-    /// 一個 `GtkPopover`，外加 GTK 不會替我們做的記帳工作。
+    /// 一個 `GtkPopover`，外加 GTK 不會代勞的記帳工作。
     ///
     /// 有兩樣東西放在此處而非放在 `GtkPopover` 上：
     ///
@@ -52,11 +47,8 @@ extension GtkBackend {
     /// - **popover 是否仍被 parent 著。** `removeFromAnchor` 必須恰好執行一次，而通往「已關閉的
     ///   popover」有兩條路——使用者點擊外部，以及 `dismissPopover`——兩者可能在同一次開啟中都觸發。
     ///
-    /// 此處原本還有第三個欄位——`isProgrammaticDismissal`，用來記錄某次 `closed` 是從上述兩條路的
-    /// 哪一條來的，好讓 `dismissPopover` 能壓住呼叫端的 `onDismiss:`。它已經被移除。SwiftUI 是
-    /// 「無論 presentation 以何種方式結束，`onDismiss:` 都會執行」，AppKitBackend 本來就是這樣做的
-    /// （`NSPopover.performClose` 會執行 `popoverDidClose`），而保留該旗標的結果，是三個已發布的
-    /// backend 對同一個回呼各說各話。區分那兩條路已不再是本型別需要做的事。
+    /// 不記錄某次 `closed` 是從上述兩條路的哪一條來的:SwiftUI 是「無論 presentation 以何種方式結束，
+    /// `onDismiss:` 都會執行」，AppKitBackend 也是如此（`NSPopover.performClose` 會執行 `popoverDidClose`）。
     @MainActor
     public final class Popover {
         let popover: Gtk.Popover
@@ -101,14 +93,11 @@ extension GtkBackend {
             // `onDismiss` fires on BOTH paths to a closed popover -- the user
             // clicking away, and `dismissPopover`. That matches SwiftUI, where
             // `onDismiss:` runs when the presentation ends however it ended,
-            // and it is what AppKitBackend already did, since `NSPopover`'s
-            // `performClose` runs `popoverDidClose`. This backend used to
-            // suppress the programmatic case behind an `isProgrammaticDismissal`
-            // flag, which made three shipped backends disagree about the same
-            // callback.
+            // and AppKitBackend, since `NSPopover`'s `performClose` runs
+            // `popoverDidClose`.
             //
             // Firing on both paths does not loop, and the reason is in
-            // `PopoverModifier`: the programmatic branch (`:164`) nils
+            // `PopoverModifier`: the programmatic branch nils
             // `children.popover` immediately after calling `dismissPopover`, and
             // it is only entered when `isPresented` is ALREADY false. So the
             // `handleDismiss` this closure reaches runs the caller's closure
@@ -116,12 +105,11 @@ extension GtkBackend {
             // over a `false` -- no state change, so no further update.
             //
             // `onDismiss` 在通往「已關閉的 popover」的**兩條**路上都會觸發——使用者點擊外部，以及
-            // `dismissPopover`。這與 SwiftUI 一致：無論presentation 以何種方式結束，`onDismiss:`
-            // 都會執行；這也正是 AppKitBackend 原本的行為，因為 `NSPopover` 的 `performClose`
-            // 會執行 `popoverDidClose`。本 backend 過去以 `isProgrammaticDismissal` 旗標壓住
-            // 程式化的那一條路，導致三個已發布的 backend 對同一個回呼各說各話。
+            // `dismissPopover`。這與 SwiftUI 一致：無論 presentation 以何種方式結束，`onDismiss:`
+            // 都會執行；也與 AppKitBackend 一致，因為 `NSPopover` 的 `performClose` 會執行
+            // `popoverDidClose`。
             //
-            // 兩條路都觸發不會造成迴圈，理由在 `PopoverModifier` 裡：程式化分支（`:164`）在呼叫
+            // 兩條路都觸發不會造成迴圈，理由在 `PopoverModifier` 裡：程式化分支在呼叫
             // `dismissPopover` 之後立刻把 `children.popover` 設為 nil，而且該分支只有在
             // `isPresented` **已經**為 false 時才會進入。因此本 closure 所抵達的 `handleDismiss`
             // 會執行呼叫端的 closure 一次、把三個已是 nil 的欄位再清一次，並在一個 `false` 上寫入
@@ -138,14 +126,14 @@ extension GtkBackend {
         /// Records what GTK actually receives on an open popover, so that "the
         /// click did nothing" can be split into the three things it might be.
         ///
-        /// Task #111. A synthesised click measured as landing ON the popover
-        /// (`WindowFromPoint` returned the popover's own toplevel) produces no
-        /// action, and the two mechanisms first proposed for it were both
-        /// refuted: the synthesiser posts nothing to a chosen window -- it uses
-        /// `SetCursorPos` + `SendInput`, which the system routes from the cursor
-        /// position -- and the foreground window was ruled out in the surprising
-        /// direction, since the click that DID work was made while another
-        /// application held the foreground.
+        /// Task #111: a synthesised click measured as landing ON the popover
+        /// (`WindowFromPoint` returned the popover's own toplevel) produced no
+        /// action. The synthesiser uses `SetCursorPos` + `SendInput`, which the
+        /// system routes from the cursor position, and the foreground window was
+        /// not the cause either: the click that DID work was made while another
+        /// application held the foreground. (The cause turned out to be an
+        /// overlaid `GtkDrawingArea` claiming the clicks; see
+        /// `createPathWidget` in GtkBackend.swift.)
         ///
         /// What is left is a question about delivery, and it cannot be answered
         /// from outside the process. These two controllers answer it:
@@ -158,7 +146,7 @@ extension GtkBackend {
         ///   cursor.
         /// - both fire -> GTK has the event and it is being lost between the
         ///   popover and the button inside it, which is a propagation problem
-        ///   and entirely ours.
+        ///   and entirely this backend's.
         ///
         /// Both are in the CAPTURE phase deliberately. Capture runs from the
         /// toplevel down BEFORE the target widget's own handlers, so a probe
@@ -171,11 +159,10 @@ extension GtkBackend {
         /// 記錄 GTK 在一個已開啟的 popover 上究竟收到了什麼，好把「按了沒有反應」拆成它可能
         /// 是的那三件事。
         ///
-        /// 任務 #111。一次被實測為**落在 popover 上**的合成點擊（`WindowFromPoint` 回傳的
-        /// 正是 popover 自己的 toplevel）沒有產生任何動作，而最初為它提出的兩種機制都已被
-        /// 推翻：合成器並不會把事件 post 給某個選定的視窗——它用的是 `SetCursorPos` 與
-        /// `SendInput`，由系統依游標位置路由——而前景視窗則是以令人意外的方向被排除的，因為
-        /// **成功**的那一次點擊，是在另一個應用程式持有前景時發出的。
+        /// 任務 #111:一次被實測為**落在 popover 上**的合成點擊（`WindowFromPoint` 回傳的正是 popover 自己的
+        /// toplevel）沒有產生任何動作。合成器用的是 `SetCursorPos` 與 `SendInput`，由系統依游標位置路由，
+        /// 而前景視窗也不是原因：**成功**的那一次點擊，是在另一個應用程式持有前景時發出的。(成因後來查明是
+        /// 覆蓋其上的 `GtkDrawingArea` 吃掉了點擊;見 GtkBackend.swift 的 `createPathWidget`。)
         ///
         /// 剩下的是一個關於「事件送達」的問題，而它無法從行程外部回答。這兩個 controller
         /// 回答它：
@@ -185,7 +172,7 @@ extension GtkBackend {
         /// - 兩者皆無 → 無論 `WindowFromPoint` 怎麼說游標底下是哪個視窗，都沒有任何東西
         ///   抵達 popover 的 surface。
         /// - 兩者皆有 → GTK 拿到了事件，而它是在 popover 與其中的按鈕之間遺失的；那是一個
-        ///   傳播問題，並且完全屬於我們自己。
+        ///   傳播問題，並且完全屬於本 backend。
         ///
         /// 兩者都刻意置於 CAPTURE 階段。capture 由 toplevel 向下執行，**早於**目標 widget
         /// 自己的處理常式，因此位於該階段的探針即使在下方的東西會吃掉事件時也看得到它——而
@@ -195,30 +182,18 @@ extension GtkBackend {
         private func installInputProbe() {
             guard DebugFeatures.isEnabled else { return }
 
-            // CAPTURE, and the control that says this probe is not itself the
-            // bug was run on 2026-09-09 before any of it was reported.
+            // CAPTURE, and checked not to be the cause of what it measures: a
+            // capture-phase GtkGestureClick can CLAIM the event sequence, and a
+            // claimed sequence never reaches the child button. Re-run with the
+            // phase set to `.bubble`, where an ancestor gesture cannot pre-empt
+            // the target, the result was IDENTICAL (four presses reported, no
+            // button action, counter still 0; 2026-09-09). Capture is kept
+            // because it can see an event the target would have swallowed.
             //
-            // The worry is real: a capture-phase GtkGestureClick can CLAIM the
-            // event sequence, and a claimed sequence never reaches the child
-            // button. If that happened, this probe would be the cause of the
-            // silence it exists to measure. So the whole sweep was re-run with
-            // the phase set to `.bubble`, where an ancestor gesture cannot
-            // pre-empt the target -- and the result was IDENTICAL: four presses
-            // reported, no button action, counter still 0.
-            //
-            // So the probe is exonerated and capture is kept, because capture is
-            // the phase that can see an event the target would have swallowed,
-            // which is the distinction this whole thing exists to make.
-            //
-            // 用 CAPTURE;而「這個探針本身不是那個 bug」的對照,已於 2026-09-09 在任何回報之前執行過。
-            //
-            // 那份疑慮是真的:capture 階段的 `GtkGestureClick` 可能**認領**事件序列,而被認領的序列
-            // 永遠到不了子按鈕。若真如此,這個探針就會是「它自己被建來量測的那份沉默」的成因。因此
-            // 整個掃描以 `.bubble` 重跑了一次——在該階段,祖先的 gesture 無法搶在目標之前——而結果
-            // **完全相同**:四次按壓皆有回報、按鈕無動作、計數器仍為 0。
-            //
-            // 探針因此洗清嫌疑,並保留 capture,因為 capture 才是「看得見目標本會吞掉之事件」的那個
-            // 階段,而那正是這整套東西所要區分的事。
+            // 用 CAPTURE,並已確認它不是它所量測之現象的成因:capture 階段的 `GtkGestureClick` 可能
+            // **認領**事件序列,而被認領的序列永遠到不了子按鈕。以 `.bubble` 重跑——在該階段,祖先的
+            // gesture 無法搶在目標之前——結果**完全相同**(四次按壓皆有回報、按鈕無動作、計數器仍為 0;
+            // 2026-09-09)。保留 capture,因為它看得見目標本會吞掉的事件。
             let press = GestureClick()
             press.propagationPhase = .capture
             press.pressed = { [weak self] _, nPress, x, y in
@@ -232,8 +207,7 @@ extension GtkBackend {
             }
             popover.addEventController(press)
 
-            // The SECOND press probe, on the CONTENT rather than on the popover,
-            // and it is the whole point of this round.
+            // The SECOND press probe, on the CONTENT rather than on the popover.
             //
             // The first probe established that GTK receives the press on the
             // popover. That leaves the loss somewhere between the popover and
@@ -250,7 +224,7 @@ extension GtkBackend {
             // Capture phase again, for the reason above: a bubble probe cannot
             // tell "swallowed" from "never arrived".
             //
-            // **第二個 press 探針，掛在 CONTENT 而非 popover 上，而這是本輪的重點。**
+            // **第二個 press 探針，掛在 CONTENT 而非 popover 上。**
             //
             // 第一個探針確立了 GTK 收得到落在 popover 上的按壓。於是遺失發生在 popover 與按鈕之間
             // ——那是好幾層 widget 的跨度，而「在那裡面某處」不是一個機制。這一個在同一次執行中就把
@@ -308,7 +282,7 @@ extension GtkBackend {
         /// Names the widget GTK would deliver this point to, and the chain from
         /// it up to the popover.
         ///
-        /// This is the measurement the previous round could not make. A probe
+        /// This is the measurement a probe cannot make. A probe
         /// says an event ARRIVED somewhere; `gtk_widget_pick` says where GTK
         /// would SEND it, which is a different question and the one that decides
         /// whether a button ever sees the press. GTK routes a button event to
@@ -330,7 +304,7 @@ extension GtkBackend {
         ///
         /// 指出 GTK 會把這個點交付給哪一個 widget，以及從它往上到 popover 的整條鏈。
         ///
-        /// 這是上一輪做不到的量測。探針說的是事件**抵達**了某處；`gtk_widget_pick` 說的是 GTK
+        /// 這是探針做不到的量測。探針說的是事件**抵達**了某處；`gtk_widget_pick` 說的是 GTK
         /// 會把它**送往**何處——那是不同的問題，而且是決定「按鈕究竟看不看得到這次按壓」的那一個。
         /// GTK 正是把按鍵事件路由給 `pick` 所回傳的那個 widget，因此：回傳按鈕 → 路由正確，遺失
         /// 在 gesture/handler 而非 hit testing；回傳某個容器 → hit testing 停在那裡，而型別名稱
@@ -398,10 +372,10 @@ extension GtkBackend {
         }
 
         /// The GObject type name, which is what makes a pick chain readable --
-        /// `GtkButton` versus `GtkPassthroughFixed` is the entire answer this
-        /// round is after, and a pointer value is not it.
-        /// GObject 的型別名稱，那正是讓一條 pick 鏈可讀的東西——`GtkButton` 與
-        /// `GtkPassthroughFixed` 之別就是本輪要的全部答案，而一個指標值不是。
+        /// `GtkButton` versus `GtkPassthroughFixed` is the answer a pick chain
+        /// is read for, and a pointer value does not give it.
+        /// GObject 的型別名稱，那正是讓一條 pick 鏈可讀的東西——讀 pick 鏈要的就是 `GtkButton` 與
+        /// `GtkPassthroughFixed` 之別，而一個指標值給不出這個答案。
         private static func typeName(of widget: UnsafeMutablePointer<GtkWidget>) -> String {
             let instance = UnsafeMutableRawPointer(widget)
                 .assumingMemoryBound(to: GTypeInstance.self)
@@ -426,9 +400,9 @@ extension GtkBackend {
         size: SIMD2<Int>,
         // Qualified, because `Gtk.Color` and `SwiftCrossUI.Color` are both in
         // scope in this module and the bare name is ambiguous. `updateSheet`
-        // already spells it out for the same reason (GtkBackend.swift:5236).
+        // already spells it out for the same reason.
         // 需要限定名稱,因為本 module 中 `Gtk.Color` 與 `SwiftCrossUI.Color` 同時在 scope,裸名有歧義。
-        // `updateSheet` 早已基於相同理由寫全(GtkBackend.swift:5236)。
+        // `updateSheet` 早已基於相同理由寫全。
         backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
@@ -475,7 +449,7 @@ extension GtkBackend {
         // can only reach `.class` colours the RIM and leaves the interior at the
         // theme's own dark grey.
         //
-        // MEASURED, and this is the run that caught it. `.presentationBackground(.green)`
+        // MEASURED. `.presentationBackground(.green)`
         // through `Widget.css` produced a green BORDER around a still-dark
         // panel. The wiring was correct and the target was wrong -- and without
         // a positive control in a colour no theme here draws, "the app asked for
@@ -492,7 +466,7 @@ extension GtkBackend {
         // 節點上繪製 popover 的填色,而是畫在 `contents` 子節點上。因此一條只到得了 `.class` 的規則,
         // 只會為**邊緣**上色,內部仍是主題自己的深灰。
         //
-        // **實測,而這正是抓到它的那一次執行。** 透過 `Widget.css` 送出的
+        // **實測。** 透過 `Widget.css` 送出的
         // `.presentationBackground(.green)`,產出的是「一圈綠色邊框 + 依然深色的面板」。線路是對的,
         // 目標是錯的——而若沒有一個「此處任何主題都不會畫出的顏色」作為陽性對照,
         // 「app 什麼都沒要求」與「顏色落在錯的節點上」看起來都只是一個普通的 popover。
@@ -514,10 +488,10 @@ extension GtkBackend {
             // An empty sheet, not a rule setting some "default" colour: only
             // GTK knows what the theme would have drawn, and naming a colour
             // here would be this backend overruling the theme -- the mistake
-            // `GtkBackend.swift:5129` documents at length.
+            // the note in `cssProperties` in GtkBackend.swift documents at length.
             // 載入一份**空的** stylesheet,而不是寫一條「預設顏色」的規則:只有 GTK 知道主題原本會
-            // 畫什麼,在此指名一個顏色等於由本 backend 蓋過主題——那正是 `GtkBackend.swift:5129`
-            // 用很長篇幅記載的那個錯誤。
+            // 畫什麼,在此指名一個顏色等於由本 backend 蓋過主題——那正是 GtkBackend.swift 中 `cssProperties`
+            // 的註解用很長篇幅記載的那個錯誤。
             popover.popover.loadCSSText(from: "")
         }
 

@@ -1,15 +1,15 @@
 import Foundation
 
 // SVG `<text>` is drawn by the platform's own text engine, not by a font
-// bundled here: the user chose that on 2026-10-09 for size (no font file in the
-// library) and for every script the platform can show, Chinese included. The
+// bundled here: for size (no font file in the library) and for every script
+// the platform can show, Chinese included. The
 // core asks a backend for a coverage mask of the text and composites it with the
 // SVG's own colour, opacity and paint order, so a backend only has to know how
 // glyphs look and where they go. The price is that text differs a little from
 // platform to platform, since each uses its own fonts.
 //
-// SVG 的 `<text>` 由平台自己的文字引擎繪製，而不是由打包在這裡的字型繪製：使用者在 2026-10-09 為了
-// 大小(程式庫裡不放字型檔)以及平台能顯示的每一種文字(包括中文)而選擇了這種做法。核心向 backend 要一張
+// SVG 的 `<text>` 由平台自己的文字引擎繪製，而不是由打包在這裡的字型繪製：為了大小(程式庫裡不放字型檔)
+// 以及平台能顯示的每一種文字(包括中文)。核心向 backend 要一張
 // 文字的覆蓋率遮罩，再以 SVG 自己的顏色、不透明度與繪製順序合成，因此 backend 只需知道字形長什麼樣、
 // 放在哪裡。代價是文字在各平台之間略有差異，因為每個平台都用自己的字型。
 

@@ -2,29 +2,15 @@ import UIKit
 
 @_spi(Backends) import SwiftCrossUI
 
-/// The button-style `Toggle`, which UIKitBackend did not have.
+/// The button-style `Toggle`, the default toggle style.
 ///
-/// `createToggle`, `updateToggle` and `setState(ofToggle:)` were three
-/// `fatalError`s under a heading reading "Unimplemented Features". Measured on
-/// the iOS Simulator 2026-09-02: six of the forty-six test apps -- P12, P13,
-/// P16, P21, P23 and P26 -- died within a second of launch on
-/// `UIKitBackend: createToggle() not implemented`, which is a quarter of
-/// everything that reached a window.
+/// `.toggleStyle(.switch)` goes through `createSwitch`; every other toggle
+/// comes here, so P12, P13, P16, P21, P23 and P26 all depend on it.
 ///
-/// `createSwitch` was already implemented, so switch-styled toggles worked
-/// throughout. That is what made this look like a niche gap rather than the
-/// largest one: an app using `.toggleStyle(.switch)` was fine and an app using
-/// the default was not.
+/// 按鈕樣式的 `Toggle`，也就是預設的 toggle 樣式。
 ///
-/// 按鈕樣式的 `Toggle`，UIKitBackend 先前並沒有它。
-///
-/// `createToggle`、`updateToggle` 與 `setState(ofToggle:)` 原本是三個位於「Unimplemented
-/// Features」標題之下的 `fatalError`。2026-09-02 於 iOS 模擬器上實測：四十六支測試 app 中有六支
-/// ——P12、P13、P16、P21、P23、P26——在啟動一秒內即因
-/// `UIKitBackend: createToggle() not implemented` 而終止，佔所有能開出視窗者的四分之一。
-///
-/// `createSwitch` 早已實作，因此 switch 樣式的 toggle 自始至終都正常。這正是它看起來像一個冷僻缺口、
-/// 而非最大缺口的原因：使用 `.toggleStyle(.switch)` 的 app 沒事，使用預設樣式的則不然。
+/// `.toggleStyle(.switch)` 走 `createSwitch`;其他所有 toggle 都走這裡，因此 P12、P13、P16、
+/// P21、P23 與 P26 都依賴它。
 final class ToggleWidget: WrapperWidget<UIButton> {
     var onChange: ((Bool) -> Void)?
 

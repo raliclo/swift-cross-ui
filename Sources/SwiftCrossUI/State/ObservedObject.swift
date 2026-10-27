@@ -114,19 +114,19 @@ public struct ObservedObject<Value: ObservableObject>: ObservableProperty {
         // 與 ``StateObject`` 正確的做法——會把這個 view 釘死在它最初看到的那個物件上，並靜默忽略
         // 父層此後交給它的每一個。
         //
-        // **Every new object is adopted, as in SwiftUI (2026-10-07).** From
-        // 2026-09-28 an object nobody else held was refused, so that an inline
-        // `@ObservedObject var m = Model()` kept its data when the view was
-        // re-created. That also refused a parent's `Child(model: Model(item))` --
-        // a fresh object the parent does not keep -- and pinned the child to
-        // the first one it saw: a row showing stale data after its item
-        // changed (review, Codex). The two cases cannot be told apart at run
-        // time. A view that owns its object uses `@StateObject`, which keeps it
-        // across re-creation; `@ObservedObject` observes what it is given.
-        // **每個新物件都會被採用，與 SwiftUI 相同(2026-10-07)。** 自 2026-09-28 起，沒有別人持有的物件會被拒絕，
-        // 好讓內嵌的 `@ObservedObject var m = Model()` 在 view 重建時保住資料。但這同時拒絕了父層的
+        // **Every new object is adopted, as in SwiftUI.** Refusing an object
+        // nobody else holds would let an inline `@ObservedObject var m = Model()`
+        // keep its data when the view is re-created, but it would also refuse a
+        // parent's `Child(model: Model(item))` -- a fresh object the parent does
+        // not keep -- and pin the child to the first one it saw: a row showing
+        // stale data after its item changed. The two cases cannot be told apart
+        // at run time. A view that owns its object uses `@StateObject`, which
+        // keeps it across re-creation; `@ObservedObject` observes what it is
+        // given.
+        // **每個新物件都會被採用，與 SwiftUI 相同。** 拒絕沒有別人持有的物件，雖能讓內嵌的
+        // `@ObservedObject var m = Model()` 在 view 重建時保住資料，卻也會拒絕父層的
         // `Child(model: Model(item))`——一個父層不保留的新物件——讓子 view 釘在它看到的第一個物件上：項目改了，
-        // 列仍顯示舊資料(review,Codex)。兩種情況在執行期無法分辨。自己擁有物件的 view 用 `@StateObject`,
+        // 列仍顯示舊資料。兩種情況在執行期無法分辨。自己擁有物件的 view 用 `@StateObject`,
         // 它在重建時保留物件;`@ObservedObject` 觀察它被給的東西。
         let incomingStorage = box.value
         let carried = previousValue.box.value

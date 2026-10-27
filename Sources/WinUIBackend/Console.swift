@@ -20,34 +20,30 @@ extension WinUIBackend {
         // and taking those over is not "attaching to the parent's console" --
         // it is discarding what the caller asked for.
         //
-        // MEASURED 2026-09-04, and the old order made this worse than it looks.
-        // `releaseConsole()` ran FIRST and UNCONDITIONALLY, and it does
-        // `freopen_s("NUL:", "w", stderr)`. When `AttachConsole` then failed --
-        // which is exactly what happens with no parent console, so from a pipe,
-        // a service, or a detached process -- stderr was left pointing at NUL
-        // and every byte the app wrote was thrown away. Not redirected
-        // elsewhere: destroyed. P35-WinUI.exe produced 0 bytes on both streams
-        // through a pipe while still writing its own log file, and the -GPU
-        // line added in this session vanished the same way.
+        // The order matters. `releaseConsole()` does
+        // `freopen_s("NUL:", "w", stderr)`, and `AttachConsole` fails whenever
+        // there is no parent console -- from a pipe, a service, or a detached
+        // process. Releasing first and unconditionally therefore left stderr
+        // pointing at NUL and destroyed every byte the app wrote: measured
+        // 2026-09-04, P35-WinUI.exe produced 0 bytes on both streams through a
+        // pipe while still writing its own log file.
         //
-        // The cost of that was not just lost output. A check whose result is
-        // discarded cannot fail, so it cannot pass either: "-GPU 2 printed
-        // nothing" was read as possible evidence about adapter selection when
-        // it was evidence about nothing at all.
+        // The cost was not just lost output. A check whose result is discarded
+        // cannot fail, so it cannot pass either: "-GPU 2 printed nothing" was
+        // read as evidence about adapter selection when it was evidence about
+        // nothing at all.
         //
         // 若呼叫端刻意做了重導，就完全不要動它。`./app > out.txt 2>&1` 與 `./app | grep x` 都會把
         // 標準控制代碼設成檔案或管線，而接手它們並不是「附加到父行程的主控台」——那是把呼叫端所
         // 要求的東西丟掉。
         //
-        // **2026-09-04 實測**，而舊有的順序讓情況比表面更糟。`releaseConsole()` 是**最先**且
-        // **無條件**執行的，而它會做 `freopen_s("NUL:", "w", stderr)`。當其後的 `AttachConsole`
-        // 失敗時——那正是「沒有父主控台」時會發生的事，也就是從管線、服務或分離的行程啟動時——
-        // stderr 就停在 NUL，app 寫出的每一個位元組都被丟棄。不是被導到別處：是被銷毀。
-        // P35-WinUI.exe 透過管線執行時兩個串流都是 0 位元組，卻仍然寫出了自己的 log 檔；本次
-        // session 新增的 -GPU 行也是以同樣的方式消失的。
+        // 順序很重要：`releaseConsole()` 會做 `freopen_s("NUL:", "w", stderr)`，而沒有父主控台時
+        // (管線、服務、分離的行程)`AttachConsole` 一定會失敗。若先無條件釋放，stderr 就停在 NUL，
+        // app 寫出的每一個位元組都被銷毀：2026-09-04 實測，P35-WinUI.exe 透過管線執行時兩個串流
+        // 都是 0 位元組，卻仍寫出了自己的 log 檔。
         //
-        // 它的代價不只是輸出遺失。**一個結果會被丟棄的檢查無法失敗，因此也無法通過**：
-        // 「-GPU 2 什麼都沒印」曾被當成關於介面卡選擇的可能證據，而它其實什麼都不是。
+        // 代價不只是輸出遺失。**一個結果會被丟棄的檢查無法失敗，因此也無法通過**：「-GPU 2 什麼
+        // 都沒印」曾被當成關於介面卡選擇的證據，而它其實什麼都不是。
         guard !standardStreamIsRedirected() else { return }
 
         try Self.releaseConsole()

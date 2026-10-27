@@ -129,10 +129,10 @@ extension AndroidBackend {
     // the system font scale still applies. It used to read the theme's
     // TextAppearance_DeviceDefault sizes -- body 18sp against iOS's 17pt -- so
     // Android text ran about 6% wider and wrapped earlier (P4, 2026-10-09;
-    // user's decision to align with iOS).
+    // Android aligns with iOS).
     // 這裡沒有 `resolveTextStyle`:Android 採用 core 的行動裝置字級表，與 UIKit 相同的點數(內文 17、title 28、largeTitle 34…),
     // 以 sp 計，所以系統字型縮放仍然生效。它原本讀取主題的 TextAppearance_DeviceDefault 字級——內文 18sp,iOS 是 17pt——
-    // 因此 Android 的文字寬約 6%、較早斷行(P4,2026-10-09;使用者決定與 iOS 對齊)。
+    // 因此 Android 的文字寬約 6%、較早斷行(P4,2026-10-09;Android 與 iOS 對齊)。
 }
 
 extension TextView {

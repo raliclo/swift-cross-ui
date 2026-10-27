@@ -5,14 +5,11 @@ import WinUI
 import WindowsFoundation
 
 // `defaultTableRowContentHeight` and `defaultTableCellVerticalPadding` are not
-// here: they were already declared on the type in WinUIBackend.swift, beside the
-// other metrics, left over from an earlier attempt at this feature that was
-// removed down to those two lines. Declaring them again here is an "invalid
-// redeclaration", which is how they were found.
+// here: they are declared on the type in WinUIBackend.swift, beside the other
+// metrics, and declaring them again here is an "invalid redeclaration".
 //
-// `defaultTableRowContentHeight` 與 `defaultTableCellVerticalPadding` 不在此處：它們早已與其他度量
-// 一同宣告於 WinUIBackend.swift 之中，是先前一次「僅剩這兩行」的實作嘗試所遺留。在此重複宣告會得到
-// 「invalid redeclaration」——它們正是這樣被發現的。
+// `defaultTableRowContentHeight` 與 `defaultTableCellVerticalPadding` 不在此處：它們與其他度量一同宣告於
+// WinUIBackend.swift 之中，在此重複宣告會得到「invalid redeclaration」。
 extension WinUIBackend: BackendFeatures.Tables {
     public func createTable() -> Widget {
         WinUITable()
@@ -445,8 +442,8 @@ final class WinUITable: WinUI.Grid {
     /// **A flag rather than searching `children` for it.** Reading an element
     /// back out of a WinRT collection hands you a fresh Swift wrapper around the
     /// same COM object, so `===` against the one we hold can be false for the
-    /// element that IS there -- measured on this backend's lazy rows the same
-    /// day, where one wrapper address served six different rows. The search
+    /// element that IS there -- measured on this backend's lazy rows, where
+    /// one wrapper address served six different rows. The search
     /// would then never find it, insert a second copy, and keep going.
     ///
     /// Cleared in ``rebuildChildren(rowHeights:)``, which empties the
@@ -456,7 +453,7 @@ final class WinUITable: WinUI.Grid {
     ///
     /// **用一個旗標,而不是去 `children` 裡尋找它。** 從 WinRT collection 讀回一個元素,拿到的是
     /// 圍繞同一個 COM 物件的**全新 Swift wrapper**,因此拿 `===` 去比對我們手上那個,對於
-    /// **確實在裡面**的那個元素也可能是 false——同一天在本 backend 的 lazy rows 上量到過:
+    /// **確實在裡面**的那個元素也可能是 false——在本 backend 的 lazy rows 上量到過:
     /// 一個 wrapper 位址先後服務了六個不同的列。那樣的搜尋會永遠找不到它、於是插入第二份,然後繼續。
     ///
     /// 在 ``rebuildChildren(rowHeights:)`` 中清除,因為那裡會清空整個 collection。

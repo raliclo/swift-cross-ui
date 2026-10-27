@@ -9,13 +9,13 @@ import Gtk
 /// the engine where GTK laid the box out, is written once in ``GtkWebViewHost``.
 /// macOS conforms with WKWebView (GtkBackend+WebViewMac.swift). Windows (WebView2
 /// over the window's HWND) and Linux (WebKitGTK, a GtkWidget appended to the box)
-/// are still the C hosts in gtk_webview2.c and gtk_webkit.c until they are ported
-/// to this protocol and run on those machines (queue item 23).
+/// are still the C hosts in gtk_webview2.c and gtk_webkit.c; porting them to this
+/// protocol, and testing them on those platforms, is queue item 23.
 ///
 /// GtkBackend 在 GTK box 中承載的瀏覽器引擎：網頁視圖中與平台有關的那一半。用一個 protocol,讓每個平台只寫
 /// 自己的部分(哪個引擎、怎麼放進視窗),而每個平台都需要的部分(讓引擎待在 GTK 排好的 box 位置)只在
 /// ``GtkWebViewHost`` 寫一次。macOS 以 WKWebView 實作;Windows(覆蓋在 HWND 上的 WebView2)與 Linux
-/// (加進 box 的 WebKitGTK)在移植到本 protocol 並於那些機器上實測之前，仍是 C 版本(queue 第 23 項)。
+/// (加進 box 的 WebKitGTK)仍是 C 版本;把它們移植到本 protocol 並在那些平台上測試，是 queue 第 23 項。
 protocol GtkWebEngine: AnyObject {
     /// Called with each new top-level URL. 每個新的頂層 URL 都會呼叫。
     var onNavigate: ((URL) -> Void)? { get set }

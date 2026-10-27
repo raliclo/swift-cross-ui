@@ -15,20 +15,21 @@ import androidx.core.graphics.PathParser
  * https://github.com/google/material-design-icons. The path data below is theirs,
  * unchanged; each is in a 960 x 960 box whose top is at y = -960.
  *
- * They replace the `android.R.drawable` icons the symbols used to resolve to: bitmaps of
- * several sizes and two eras, mostly filled, some grey artwork that a tint turned into a
- * silhouette. Beside UIKit's SF Symbols in P47 the grid lined up and the symbols did not
- * (2026-10-10). SF Symbols may not be shipped on Android; Material's outlines are the
- * nearest set that may.
+ * They are used rather than the `android.R.drawable` icons: bitmaps of several sizes and
+ * two eras, mostly filled, some grey artwork that a tint turns into a silhouette. Beside
+ * UIKit's SF Symbols in P47 those left the grid lined up and the symbols not (2026-10-10).
+ * SF Symbols may not be shipped on Android; Material's outlines are the nearest set that
+ * may.
  *
- * Keyed by `SystemSymbol.name`. A name with no entry here falls back as before.
+ * Keyed by `SystemSymbol.name`. A name with no entry here falls back to the
+ * `android.R.drawable` icon.
  *
  * Android 上的系統符號，取自 Google 的 Material Symbols(Outlined、字重 300(最接近 SF Symbols 的 regular)、24 px),以 Apache License 2.0 授權——
  * https://github.com/google/material-design-icons。下面的路徑資料是他們的，未經修改；每一個都在 960 x 960 的框裡,
- * 框的頂端在 y = -960。它們取代了這些符號原本解析到的 `android.R.drawable` 圖示：大小不一、分屬兩個年代的點陣圖，多為
+ * 框的頂端在 y = -960。之所以不用 `android.R.drawable` 圖示：那些是大小不一、分屬兩個年代的點陣圖，多為
  * 實心，有些是灰階圖稿、上色後只剩輪廓。在 P47 裡與 UIKit 的 SF Symbols 並排時，格線對得上，符號對不上(2026-10-10)。
  * SF Symbols 不能隨 Android 發布;Material 的線條圖示是可以發布的當中最接近的一套。以 `SystemSymbol.name` 為鍵；
- * 這裡沒有的名稱照舊退回原本的做法。
+ * 這裡沒有的名稱退回 `android.R.drawable` 圖示。
  */
 object MaterialSymbols {
     @JvmStatic fun has(name: String): Boolean = paths.containsKey(name)

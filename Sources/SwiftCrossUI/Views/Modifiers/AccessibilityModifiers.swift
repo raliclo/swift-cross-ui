@@ -150,19 +150,18 @@ struct AccessibilityModifier<Content: View>: TypeSafeView {
         )
 
         // A conformance check rather than `@CastBackend`, which expands to
-        // `fatalError`. The five backends convert one at a time -- the same
-        // arrangement `ScrollingLists` and `LazyListRows` are under -- and
-        // taking an app down because a label could not be set would be far
-        // worse than the label being missing.
+        // `fatalError`. All five shipped backends conform; for any other
+        // backend, taking an app down because a label could not be set would
+        // be far worse than the label being missing.
         //
         // But it warns, and that is not decoration. A wrong or absent screen
         // reader label is invisible to everyone who is not using a screen
         // reader, including whoever wrote it, so silence here is the one
         // outcome that would never be reported.
         //
-        // 使用 conformance 檢查,而不是 `@CastBackend`——後者會展開成 `fatalError`。五個 backend
-        // 是一次轉一個的(與 `ScrollingLists`、`LazyListRows` 相同的安排),而「因為設不了一個標籤
-        // 就把 app 拖垮」會遠比「標籤不見了」更糟。
+        // 使用 conformance 檢查,而不是 `@CastBackend`——後者會展開成 `fatalError`。五個已發布的
+        // backend 都 conform;對其他 backend 而言,「因為設不了一個標籤就把 app 拖垮」會遠比
+        // 「標籤不見了」更糟。
         //
         // 但它會警告,而那不是裝飾。一個錯誤或缺失的螢幕閱讀器標籤,對每一個沒在用螢幕閱讀器的人
         // 都是隱形的——包括寫下它的那個人——因此在此保持沉默,是唯一一種永遠不會被回報的結果。

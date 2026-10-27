@@ -3,16 +3,16 @@
 ///
 /// **It exists because a parent cannot see its grandchildren any other way.**
 /// `ViewLayoutResult` takes `childResults` in an initialiser and keeps only the
-/// merged preferences -- checked 2026-09-10, and it is what rules out the
-/// obvious plan of reading the cell widths back out of each row's result. The
+/// merged preferences, which rules out the obvious plan of reading the cell
+/// widths back out of each row's result. The
 /// preference channel is the one upward path that already works, so the row
 /// packs what it measured into one of these and the grid unpacks it.
 ///
 /// 一個 ``GridRow`` 量到的東西，向上回報，好讓它的 ``Grid`` 決定各欄的寬度。
 ///
 /// **它之所以存在，是因為父層沒有別的方式看得見它的孫節點。** `ViewLayoutResult` 只在 initialiser
-/// 中接收 `childResults`，而它保留下來的只有合併後的 preferences——這是 2026-09-10 查證過的，也正是
-/// 它排除了「從每一列的結果讀回儲存格寬度」這個顯而易見的做法。preference 是這棵樹上唯一已經在運作
+/// 中接收 `childResults`,而它保留下來的只有合併後的 preferences——這排除了「從每一列的結果讀回
+/// 儲存格寬度」這個顯而易見的做法。preference 是這棵樹上唯一已經在運作
 /// 的向上通道，因此由列把它量到的東西打包成一個這種值，再由格線拆開。
 public struct GridRowMeasurement: Equatable, Sendable {
     /// One entry per cell, in declaration order.

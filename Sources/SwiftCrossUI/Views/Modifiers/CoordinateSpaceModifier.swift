@@ -27,9 +27,9 @@ extension View {
 /// Publishes its own origin under a name, for descendants to measure against.
 ///
 /// **It delegates its layout to `TupleView1` instead of building a container of
-/// its own, which is the shape `PreferenceModifier` already uses.** The first
-/// version created a widget and positioned the child inside it; the entire
-/// subtree then rendered as nothing at all -- no crash, no warning, an empty
+/// its own, which is the shape `PreferenceModifier` already uses.** Creating
+/// a widget and positioning the child inside it renders the entire
+/// subtree as nothing at all -- no crash, no warning, an empty
 /// area where a box had been. A view whose `body` is the child directly does
 /// not give `layoutableChildren` the child, it gives the child's children, and
 /// everything after that is arranged one level too deep.
@@ -37,7 +37,7 @@ extension View {
 /// 把自己的原點以一個名稱發布出去，供後代據以量測。
 ///
 /// **它把版面委派給 `TupleView1`，而不是自己蓋一個容器——那正是 `PreferenceModifier` 已在使用的形狀。**
-/// 第一版自己建了一個 widget 並把子節點放進去;結果整棵子樹**什麼都沒算繪出來**——沒有崩潰、沒有警告，
+/// 自己建一個 widget 並把子節點放進去，整棵子樹會**什麼都沒算繪出來**——沒有崩潰、沒有警告，
 /// 原本是一個盒子的地方變成一片空白。一個 `body` 直接就是子節點的 view，交給 `layoutableChildren` 的
 /// 並不是那個子節點，而是那個子節點的**子節點們**，其後的每一件事都深了一層。
 struct CoordinateSpaceContainer<Content: View>: View {

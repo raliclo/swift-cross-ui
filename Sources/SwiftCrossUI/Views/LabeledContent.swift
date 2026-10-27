@@ -1,8 +1,7 @@
 /// A label paired with a value, with the value pushed to the trailing edge.
 ///
 /// Composed from `HStack`, `Text` and `Spacer`, so it needs nothing from any
-/// backend. See ``Stepper`` for why that property decided the order this batch
-/// of parity work was done in.
+/// backend.
 ///
 /// The `Spacer` is the whole difference from writing the two views side by
 /// side, and it is what `testapp/P33.swift`'s hand-built approximation left
@@ -11,8 +10,7 @@
 ///
 /// 一個標籤配上一個值，值被推到尾端邊緣。
 ///
-/// 由 `HStack`、`Text` 與 `Spacer` 組合而成，不需要任何 backend 支援。這項性質為何決定了這批
-/// parity 工作的先後順序，見 ``Stepper``。
+/// 由 `HStack`、`Text` 與 `Spacer` 組合而成，不需要任何 backend 支援。
 ///
 /// 那個 `Spacer` 正是它與「把兩個 view 並排寫」的全部差別，也正是 `testapp/P33.swift` 手工近似
 /// 版本所遺漏的東西：少了它，值會貼著標籤而不是貼著尾端邊緣，而一整欄這樣的項目就不會對齊。

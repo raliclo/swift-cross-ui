@@ -74,13 +74,10 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
      * `ScrollOffsetReporting` (scrollTransition and co.). Swift reads the
      * offset back through [contentOffsetX] / [contentOffsetY], because a
      * `SwiftAction` takes no arguments -- the shape `FrameClockCallback` uses.
-     * `onScrollChanged` rather than `setOnScrollChangeListener`, which is
-     * API 23 and this backend also builds for API 18.
      *
      * 任一捲動視圖每次捲動後呼叫，供 `ScrollOffsetReporting`(scrollTransition 等)使用。Swift 透過
      * [contentOffsetX] / [contentOffsetY] 讀回位移，因為 `SwiftAction` 不帶參數——與
-     * `FrameClockCallback` 相同的形狀。用 `onScrollChanged` 而非 `setOnScrollChangeListener`,
-     * 後者需要 API 23,而本 backend 也為 API 18 建置。
+     * `FrameClockCallback` 相同的形狀。
      */
     private var scrollAction: SwiftAction? = null
 

@@ -1,9 +1,9 @@
 /// What a shape is painted with, resolved down to what a backend can act on.
 ///
-/// `renderPath` took two `Color.Resolved` and nothing else, which is why
-/// `Circle().fill(LinearGradient(...))` did not exist: gradients reach a backend
-/// as whole rectangular widgets on a separate protocol, so there was no way to
-/// clip one to a shape. This is the value that closes that gap.
+/// Gradients otherwise reach a backend as whole rectangular widgets on a
+/// separate protocol, with no way to clip one to a shape. Carrying this value
+/// through `renderPath` is what makes `Circle().fill(LinearGradient(...))`
+/// possible.
 ///
 /// Deliberately an enum and not a `ShapeStyle` protocol. SwiftUI's `ShapeStyle`
 /// has a wide conformance surface, and building the wide part before the narrow
@@ -11,23 +11,21 @@
 /// turned into protocols only after they did something (#63, #64), and that
 /// order worked. The protocol is #31.
 ///
-/// Angular was left out at first: XAML has no conic brush, which is why
-/// `WinUIBackend+AngularGradient.swift` exists as a workaround, and starting
-/// with the hardest case would have stalled the easy ones. It was added on
-/// 2026-10-20 (`angularGradient`); WinUI's shape fill is still to do.
+/// Angular is included (`angularGradient`) although XAML has no conic brush:
+/// WinUIBackend rasterises it with `ConicGradientBrush` (the gradient view has
+/// its own workaround in `WinUIBackend+AngularGradient.swift`).
 ///
 /// 一個形狀被塗上什麼，解析到 backend 能據以行動的程度。
 ///
-/// `renderPath` 只收兩個 `Color.Resolved`，別無其他，這正是
-/// `Circle().fill(LinearGradient(...))` 不存在的原因：漸層是以整塊矩形 widget、經由另一個
-/// protocol 抵達 backend 的，因此沒有辦法把它裁進一個形狀裡。本型別就是用來補上這個缺口的值。
+/// 漸層若以整塊矩形 widget、經由另一個 protocol 抵達 backend,就沒有辦法把它裁進一個形狀裡；
+/// 讓本型別經由 `renderPath` 傳遞，`Circle().fill(LinearGradient(...))` 才得以存在。
 ///
 /// 刻意採用 enum 而非 `ShapeStyle` protocol。SwiftUI 的 `ShapeStyle` 有很寬的 conformance 面，
 /// 而在窄的部分能動之前先蓋寬的部分，順序是反的——`DatePickerStyle` 與 `ListStyle` 都是在它們
 /// 真的做了事之後才轉為 protocol（#63、#64），那個順序是可行的。protocol 本身是 #31。
 ///
-/// angular 原本刻意不含：XAML 沒有 conic brush，這正是 `WinUIBackend+AngularGradient.swift` 作為
-/// 變通存在的原因。它在 2026-10-20 加入(見 `angularGradient`),WinUI 的形狀填色仍待完成。
+/// angular 也包含在內(`angularGradient`),儘管 XAML 沒有 conic brush:WinUIBackend 以
+/// `ConicGradientBrush` 把它點陣化(漸層 view 另有 `WinUIBackend+AngularGradient.swift` 的變通做法)。
 public enum ResolvedFillStyle: Sendable {
     case color(Color.Resolved)
 
@@ -106,14 +104,12 @@ public enum ResolvedFillStyle: Sendable {
 
     /// The colour the gradient actually has at location 0.5.
     ///
-    /// **Not the stop nearest 0.5, which is what this did until 2026-09-04 and
-    /// which returned the first colour for the commonest gradient there is.**
-    /// `Gradient(colors: [.red, .blue])` has stops at 0.0 and 1.0; both are
-    /// exactly 0.5 away, `min(by:)` keeps the first of an equal pair, and the
-    /// "midpoint" was red. That is the outcome the note above this function
-    /// says must not happen -- flattening a two-stop gradient to its first
-    /// colour reads as the gradient having been ignored -- so the intent was
-    /// right and only the arithmetic was wrong.
+    /// **Not the stop nearest 0.5, which returns the first colour for the
+    /// commonest gradient there is.** `Gradient(colors: [.red, .blue])` has stops
+    /// at 0.0 and 1.0; both are exactly 0.5 away, `min(by:)` keeps the first of
+    /// an equal pair, and the "midpoint" would be red. That is the outcome the
+    /// note above this function says must not happen -- flattening a two-stop
+    /// gradient to its first colour reads as the gradient having been ignored.
     ///
     /// Interpolating removes the tie rather than breaking it, and it is also
     /// the more truthful answer: 0.5 of a red-to-blue ramp is the purple a
@@ -127,11 +123,10 @@ public enum ResolvedFillStyle: Sendable {
     ///
     /// 此漸層在位置 0.5 處實際所具有的顏色。
     ///
-    /// **不是「最接近 0.5 的 stop」——那是本函式在 2026-09-04 之前的做法，而它對最常見的漸層
-    /// 回傳的是第一個顏色。** `Gradient(colors: [.red, .blue])` 的 stop 位於 0.0 與 1.0；兩者距
-    /// 0.5 都恰好是 0.5，而 `min(by:)` 在相等時保留前者，於是「中點」是紅色。那正是本函式上方那段
-    /// 說明所指「不可以發生」的結果——把雙 stop 的漸層壓成它的第一個顏色，讀起來像漸層被忽略了
-    /// ——因此當初的意圖是對的，錯的只有算術。
+    /// **不是「最接近 0.5 的 stop」,因為那對最常見的漸層會回傳第一個顏色。**
+    /// `Gradient(colors: [.red, .blue])` 的 stop 位於 0.0 與 1.0;兩者距 0.5 都恰好是 0.5,而
+    /// `min(by:)` 在相等時保留前者，於是「中點」會是紅色。那正是本函式上方那段說明所指「不可以發生」
+    /// 的結果——把雙 stop 的漸層壓成它的第一個顏色，讀起來像漸層被忽略了。
     ///
     /// 內插是「消除」這個平手，而不是「打破」它；而且它也是更誠實的答案：一段紅到藍的漸變在 0.5
     /// 處，正是一個畫得出該漸層的 backend 會放在那裡的紫色。
@@ -159,10 +154,8 @@ public enum ResolvedFillStyle: Sendable {
         }
 
         // A gradient entirely on one side of 0.5 has no midpoint to find; its
-        // nearest end is the honest answer, and it is the case the old
-        // "clustered at one end" note was really about.
-        // 一個整段都落在 0.5 同一側的漸層，沒有中點可找；離它最近的那一端就是誠實的答案，而那正是
-        // 舊註解所說「聚集在某一端」真正指的情況。
+        // nearest end is the honest answer.
+        // 一個整段都落在 0.5 同一側的漸層，沒有中點可找；離它最近的那一端就是誠實的答案。
         guard first.location < 0.5 else { return first.color.resolve(in: environment) }
         guard last.location > 0.5 else { return last.color.resolve(in: environment) }
 

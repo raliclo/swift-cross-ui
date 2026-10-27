@@ -5,110 +5,41 @@ import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
 extension GtkBackend {
-    // A placeholder web view, not a real one.
+    // How each platform gets a web view:
     //
-    // GtkBackend did not conform to `BackendFeatures.WebViews` at all, and a
-    // missing conformance is not a degradation: `@CastBackend` expands to
-    // `fatalError("'GtkBackend' does not implement 'BackendFeatures.WebViews'")`,
-    // so an app containing a `WebView` aborted the moment that view was laid
-    // out -- on Linux and on Windows `-gtk4` alike. An app cannot guard against
-    // that; there is no way to ask a backend what it supports before using it.
+    //   - macOS: WKWebView kept over the GTK box (GtkBackend+WebEngine.swift,
+    //     +WebViewMac.swift); Homebrew has no WebKitGTK.
+    //   - Windows: `WebViewHost`, a GTK widget that GTK lays out, with a
+    //     WebView2 browser kept over it as a child of the window's HWND
+    //     (gtk_webview2.c).
+    //   - Linux and WSL: WebKitGTK 6.0 loaded with dlopen (gtk_webkit.c), so no
+    //     build dependency is added. A machine without libwebkitgtk-6.0-4 gets a
+    //     frame naming the package.
     //
-    // Rendering web content needs WebKitGTK, which would mean adding
-    // `webkitgtk-6.0` to Package.swift as a system dependency. That changes what
-    // every person building this project has to have installed -- it is not
-    // available on this machine, for instance -- so it is a packaging decision
-    // rather than a fix for the crash, and the two are separable.
+    // `webkitgtk-6.0` cannot be a plain system dependency: it is installable on
+    // Linux (`apt-cache policy libwebkitgtk-6.0-dev` on Ubuntu 26.04) but has no
+    // Windows port (nothing in gvsbuild's C:/gtk4), so a hard dependency would
+    // stop the Windows GTK build from configuring (measured 2026-09-04).
     //
-    // What this does instead is what the project already does for optional
-    // features (see the no-op defaults on `HitTesting`, `Clipping` and
-    // `DragAndDrop`): conform, and degrade in a way the author can see. A
-    // labelled placeholder is preferred over a silent blank -- a blank area
-    // looks like a layout bug, whereas the text says which feature is missing
-    // and why. When a WebKitGTK implementation lands it replaces this file.
+    // The labelled placeholder below is only for Windows builds made without
+    // WebView2.h. A label rather than a blank, because a blank area looks like
+    // a layout bug, whereas the text says which feature is missing and why.
     //
-    // DECISION, 2026-09-04: `webkitgtk-6.0` CANNOT be a plain system dependency,
-    // and the reason is not cost or taste. It is measured:
+    // 各平台取得 web view 的方式:
     //
-    //   Linux (WSL, Ubuntu 26.04) `apt-cache policy libwebkitgtk-6.0-dev`
-    //     -> Candidate: 2.52.6-0ubuntu0.26.04.1     available, installable
-    //   Windows (gvsbuild, C:/gtk4) `ls C:/gtk4/bin/*webkit*`, and pkg-config
-    //     -> nothing at all                          WebKitGTK has no Windows port
+    //   - macOS:覆蓋在 GTK box 上的 WKWebView(GtkBackend+WebEngine.swift、+WebViewMac.swift);
+    //     Homebrew 沒有 WebKitGTK。
+    //   - Windows:`WebViewHost`,一個由 GTK 排版的 widget,WebView2 瀏覽器以視窗 HWND 子視窗的形式
+    //     保持覆蓋在它上面(gtk_webview2.c)。
+    //   - Linux 與 WSL:以 dlopen 載入 WebKitGTK 6.0(gtk_webkit.c),因此不增加建置相依。沒有
+    //     libwebkitgtk-6.0-4 的機器會得到一個寫出套件名稱的框。
     //
-    // GtkBackend ships on Linux, on WSL AND on Windows. Adding the dependency
-    // unconditionally would take the Windows GTK build from "renders a labelled
-    // placeholder" to "does not configure", which is strictly worse and breaks a
-    // shipped target to fix a different one. So the decision is not yes/no; the
-    // question had a hidden third answer.
+    // `webkitgtk-6.0` 不能成為單純的系統相依:它在 Linux 上可安裝(Ubuntu 26.04 上的
+    // `apt-cache policy libwebkitgtk-6.0-dev`),但沒有 Windows 版本(gvsbuild 的 C:/gtk4 中完全沒有),
+    // 因此硬性相依會讓 Windows 的 GTK 建置無法 configure(2026-09-04 實測)。
     //
-    // What it has to be instead, and this is the shape any implementation must
-    // take: a CONDITIONAL dependency, present where the platform has it, with
-    // the Windows GTK build keeping a real implementation of its own. Windows
-    // does have an engine -- WebView2, which `WinUIBackend+WebView.swift`
-    // already drives -- and GTK4 on Windows can hand out an HWND for its
-    // surface, so hosting WebView2 as a child of that HWND is the route. That is
-    // work, not a flag, and it is why this file still exists.
-    //
-    // What is NOT acceptable, per this project's rules: leaving the placeholder
-    // as the permanent answer on three of the six shipped platforms. It is a
-    // truthful report of a missing feature, which is not the same as a feature.
-    //
-    // **決策，2026-09-04：`webkitgtk-6.0` 不能成為單純的系統相依**，理由不是成本或喜好，而是實測：
-    //
-    //   Linux（WSL、Ubuntu 26.04）`apt-cache policy libwebkitgtk-6.0-dev`
-    //     -> Candidate: 2.52.6-0ubuntu0.26.04.1      有，可安裝
-    //   Windows（gvsbuild、C:/gtk4）`ls C:/gtk4/bin/*webkit*` 與 pkg-config
-    //     -> 完全沒有                                 WebKitGTK 沒有 Windows 版本
-    //
-    // GtkBackend 同時出貨於 Linux、WSL **與 Windows**。無條件加入該相依，會讓 Windows 的 GTK 建置
-    // 從「畫出一個有說明文字的佔位」變成「根本無法 configure」——那是為了修好某個目標而弄壞另一個
-    // 已出貨的目標，嚴格來說更糟。因此這個決策不是「要或不要」；這個問題有一個被忽略的第三種答案。
-    //
-    // 它必須改成什麼，而任何實作也都得是這個形狀：**條件式相依**，在平台具備時才引入，而 Windows
-    // 的 GTK 建置保有它自己的真實實作。Windows 確實有引擎——WebView2，
-    // `WinUIBackend+WebView.swift` 已經在驅動它——而 GTK4 在 Windows 上能交出其 surface 的 HWND，
-    // 因此「把 WebView2 掛為該 HWND 的子視窗」就是那條路。那是工作量，不是一個旗標，而這正是本檔
-    // 至今仍存在的原因。
-    //
-    // 依本專案規則**不可接受**的是：把這個佔位當成六個已出貨平台中三個的永久答案。它是對一項缺失
-    // 功能的如實回報，而那與「擁有一項功能」是兩回事。
-    //
-    // 這是一個佔位用的 web view，而非真正的 web view。
-    //
-    // GtkBackend 先前完全沒有 conform `BackendFeatures.WebViews`，而缺少 conformance 並非降級：
-    // `@CastBackend` 會展開為 `fatalError("'GtkBackend' does not implement ...")`，因此含有
-    // `WebView` 的 app 會在該 view 進行版面配置的當下中止——Linux 與 Windows `-gtk4` 皆然。app
-    // 無法對此設防；沒有任何方式可在使用某功能前詢問 backend 是否支援它。
-    //
-    // 要真正繪製網頁內容需要 WebKitGTK，那意味著必須把 `webkitgtk-6.0` 加入 Package.swift 作為
-    // 系統相依。這會改變每一位建置本專案者所需安裝的東西——例如本機上就沒有它——因此那是一個
-    // 封裝決策，而非此崩潰的修正，兩者可以分開處理。
-    //
-    // 此處改為採用本專案對選配功能既有的做法（見 `HitTesting`、`Clipping` 與 `DragAndDrop` 的
-    // no-op 預設實作）：先 conform，並以作者看得見的方式降級。此處選擇「有文字說明的佔位」而非
-    // 「靜默空白」——空白區域看起來像版面 bug，而文字會說出缺少的是哪一個功能、以及原因。待
-    // WebKitGTK 的實作完成時，即可取代此檔案。
-
-    // ============================================================
-    // 2026-09-17: WINDOWS HAS THE REAL IMPLEMENTATION the decision above called
-    // for. `WebViewHost` below is a GTK widget that GTK lays out, with a WebView2
-    // browser kept over it as a child of the window's HWND (gtk_webview2.c).
-    // Measured before this: P38 on Windows -gtk4 showed the placeholder text and
-    // "Navigations reported: 0" (results.csv2, p38-gtk4-test-20260917-082518.png).
-    //
-    // ~~The placeholder below is still what Linux and WSL get~~ -- superseded the
-    // same day: Linux and WSL load WebKitGTK 6.0 with dlopen (gtk_webkit.c), so
-    // no build dependency is added and the 2026-09-04 constraint still holds. A
-    // machine without libwebkitgtk-6.0-4 gets a frame naming the package. The
-    // placeholder below is now only for Windows builds made without WebView2.h.
-    //
-    // 2026-09-17:**Windows 已有上面那段決策所要求的真實實作。** 下方的 `WebViewHost` 是一個由 GTK
-    // 排版的 widget,WebView2 瀏覽器以視窗 HWND 子視窗的形式保持覆蓋在它上面(gtk_webview2.c)。
-    // 在此之前實測:P38 於 Windows -gtk4 顯示佔位文字與「Navigations reported: 0」。
-    //
-    // ~~下方的佔位仍是 Linux 與 WSL 所得到的~~——同日已被取代:Linux 與 WSL 以 dlopen 載入
-    // WebKitGTK 6.0(gtk_webkit.c),因此不增加建置相依,2026-09-04 的限制依然成立。沒有
-    // libwebkitgtk-6.0-4 的機器會得到一個寫出套件名稱的框。下方的佔位現在只給沒有 WebView2.h 的 Windows 建置。
+    // 下方有文字說明的佔位只給沒有 WebView2.h 的 Windows 建置。用文字而不是空白，因為空白區域看起來像
+    // 版面 bug,而文字會說出缺少的是哪一個功能、以及原因。
     public func createWebView() -> Widget {
         #if os(macOS)
             // WebKit itself, kept over the box (GtkBackend+WebEngine.swift, +WebViewMac.swift).
@@ -182,14 +113,14 @@ extension GtkBackend {
 /// The GTK box a web view lives in: on Windows WebView2 is kept over it, on
 /// Linux/WSL the WebKitWebView is appended to it.
 ///
-/// A `Box` rather than the `Label` the first Windows version used, because on
+/// A `Box` rather than a `Label`, because on
 /// Linux the browser is a real GtkWidget that has to go INSIDE the host, and a
 /// label cannot hold children. The C side still puts a label in the box when
 /// the engine cannot start, so the frame says what is missing.
 ///
 /// web view 所在的 GTK box:在 Windows 上 WebView2 覆蓋其上,在 Linux/WSL 上 WebKitWebView 被加進去。
 ///
-/// 用 `Box` 而非第一版 Windows 所用的 `Label`,因為在 Linux 上瀏覽器是真正的 GtkWidget,必須放進
+/// 用 `Box` 而非 `Label`,因為在 Linux 上瀏覽器是真正的 GtkWidget,必須放進
 /// host **裡面**,而 label 不能有子元件。引擎無法啟動時,C 端仍會在 box 裡放一個 label 說明缺了什麼。
 final class WebViewHost: Gtk.Box {
     var onNavigate: ((URL) -> Void)?

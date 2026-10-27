@@ -1,6 +1,6 @@
 import Foundation
 
-// `<image>` referring to a file, and `<image>` of an SVG (2026-10-10).
+// `<image>` referring to a file, and `<image>` of an SVG.
 //
 // A file is read only when the document itself came from a file, and only
 // from that file's folder or below: an absolute path, a `../` that climbs out,
@@ -13,7 +13,7 @@ import Foundation
 // it stays vector at any size and its text still goes to the platform's text
 // engine. What it cannot draw is reported against the `<image>`.
 //
-// 參照檔案的 `<image>`,以及內容為 SVG 的 `<image>`(2026-10-10)。
+// 參照檔案的 `<image>`,以及內容為 SVG 的 `<image>`。
 //
 // 只有當文件本身來自檔案時才讀取檔案，而且只讀該檔案所在的資料夾及其子資料夾：絕對路徑、往外爬的 `../`
 // 或網路位址都會被拒絕並回報。一張會畫圖片的 SVG 不應該成為讀取磁碟上其他東西的途徑；來自網路的圖片則會

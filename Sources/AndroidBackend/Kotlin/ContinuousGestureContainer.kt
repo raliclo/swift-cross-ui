@@ -64,25 +64,24 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) : View
      * Pixels to points, because `DragGestureValue` is documented in points and a `MotionEvent` is
      * in pixels.
      *
-     * **This was missing until 2026-09-23 and nothing reported it.** AndroidBackend lays out in
-     * points multiplied by this same density -- a `.frame(width: 340, height: 240)` measures 892 x
-     * 630 pixels at density 2.625 -- and `AndroidSynthesiser` multiplies an action file's points by
-     * it on the way in. Handing `event.x` over unscaled made every drag distance 2.625 times too
-     * large on that device and a different wrong number on the next one, which reads as an
-     * over-sensitive gesture rather than as a unit mistake. Found while writing
-     * `ScrollGestureContainer`, which had the conversion from its first line.
+     * AndroidBackend lays out in points multiplied by this same density -- a
+     * `.frame(width: 340, height: 240)` measures 892 x 630 pixels at density 2.625 -- and
+     * `AndroidSynthesiser` multiplies an action file's points by it on the way in. Handing
+     * `event.x` over unscaled makes every drag distance 2.625 times too large on that device and a
+     * different wrong number on the next one, which reads as an over-sensitive gesture rather than
+     * as a unit mistake. `ScrollGestureContainer` makes the same conversion.
      *
      * Only the drag needs it. A magnification is a ratio of two spans and a rotation is an angle;
-     * both cancel the units out, which is why they were right all along.
+     * both cancel the units out.
      *
      * 像素換算成點,因為 `DragGestureValue` 是以點為單位載明的,而 `MotionEvent` 是像素。
      *
-     * **在 2026-09-23 之前這件事是缺的,而沒有任何東西回報過它。** AndroidBackend 的排版就是 「點乘上這同一個 density」——`.frame(width:
-     * 340, height: 240)` 在 density 2.625 下量到 892 x 630 像素——而 `AndroidSynthesiser` 在入口處把動作檔的點乘上它。把
-     * `event.x` 未經換算 交出去,會讓那台裝置上每一段拖曳距離都大 2.625 倍,換一台就是另一個錯數字;那讀起來像 「手勢太敏感」,而不像一個單位錯誤。它是在寫
-     * `ScrollGestureContainer` 時被發現的 ——那一支從第一行就有這個換算。
+     * AndroidBackend 的排版就是「點乘上這同一個 density」——`.frame(width: 340, height: 240)` 在
+     * density 2.625 下量到 892 x 630 像素——而 `AndroidSynthesiser` 在入口處把動作檔的點乘上它。把
+     * `event.x` 未經換算交出去,會讓那台裝置上每一段拖曳距離都大 2.625 倍,換一台就是另一個錯數字;那讀起來像
+     * 「手勢太敏感」,而不像一個單位錯誤。`ScrollGestureContainer` 做的是同一個換算。
      *
-     * 只有拖曳需要它。縮放是兩個 span 的比值、旋轉是一個角度,兩者都把單位約掉了 ——那正是它們一直都是對的原因。
+     * 只有拖曳需要它。縮放是兩個 span 的比值、旋轉是一個角度,兩者都把單位約掉了。
      */
     private val density: Float
         get() = resources.displayMetrics.density

@@ -6,12 +6,7 @@
     /// Revealing a file and choosing where to save one -- both through the
     /// system document browser, which is iOS's file manager.
     ///
-    /// Neither existed until 2026-09-30, so `revealFile` was nil and
-    /// `chooseFileSaveDestination` warned once and returned nil on iOS.
-    ///
     /// 顯示一個檔案，以及選擇檔案要存到哪裡——兩者都經由系統的文件瀏覽器，也就是 iOS 的檔案管理員。
-    /// 2026-09-30 之前兩者都不存在，因此在 iOS 上 `revealFile` 是 nil，而
-    /// `chooseFileSaveDestination` 只會警告一次並回傳 nil。
     extension UIKitBackend: BackendFeatures.RevealFiles, BackendFeatures.FileSaveDialogs {
         public struct HandoffError: Error, CustomStringConvertible {
             public let description: String

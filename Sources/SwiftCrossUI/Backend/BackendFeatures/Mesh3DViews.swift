@@ -16,8 +16,7 @@ extension BackendFeatures {
     /// `backend is any BackendFeatures.Mesh3DViews` to put the answer on screen
     /// -- which is what P72 does. That is not a licence to leave it unimplemented:
     /// `CLAUDE.md` is explicit that the five shipped backends implement every
-    /// feature, and the order here (Apple first, the rest later) is a schedule
-    /// rather than a policy.
+    /// feature, and all five conform.
     ///
     /// 一個「內容是由 backend 算繪的 3D 場景」的 view(M10)。
     ///
@@ -30,8 +29,7 @@ extension BackendFeatures {
     /// **採 conformance 檢查,與 ``TableSelection``、``PopoverArrowEdges`` 相同。** 尚未實作的 backend
     /// 照常建置,``Mesh3DView`` 會畫一個空盒子並說一次,而應用程式可以用
     /// `backend is any BackendFeatures.Mesh3DViews` 把答案印在畫面上——P72 正是這麼做。這不是「可以不實作」
-    /// 的許可:`CLAUDE.md` 明寫五個已發布的 backend 都要實作每一項功能,而此處的順序(Apple 先、其餘後補)
-    /// 是一份時程,不是一項政策。
+    /// 的許可:`CLAUDE.md` 明寫五個已發布的 backend 都要實作每一項功能,而它們全都 conform。
     @MainActor
     public protocol Mesh3DViews<Widget>: Core {
         /// A view that will show a 3D scene.

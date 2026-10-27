@@ -26,7 +26,7 @@ public struct Button<Label: View> {
     /// ``BackendFeatures/ButtonPressState``, the handler writes them here, and
     /// because this is a `@State` the write reaches ``ViewGraphNode`` the way
     /// every other state change does: `forEachField` observed this property's
-    /// publisher when the node was created (`ViewGraphNode.swift:135`), so
+    /// publisher when the node was created (see `ViewGraphNode`'s initialiser), so
     /// `didChange.send()` schedules `bottomUpUpdate()`, which re-enters
     /// ``computeLayout(_:children:proposedSize:environment:backend:)`` on this
     /// same value and rebuilds the configuration from the new flag. Nothing
@@ -41,7 +41,7 @@ public struct Button<Label: View> {
     /// **這正是讓 ``ButtonStyleConfiguration/isPressed`` 不只是一個常數的東西。** backend 透過
     /// ``BackendFeatures/ButtonPressState`` 回報狀態轉換，handler 把它寫進這裡；而因為這是一個
     /// `@State`，該次寫入抵達 ``ViewGraphNode`` 的路徑，與其他任何狀態改變完全相同：節點建立時
-    /// `forEachField` 已經觀察了本屬性的 publisher（`ViewGraphNode.swift:135`），因此
+    /// `forEachField` 已經觀察了本屬性的 publisher（見 `ViewGraphNode` 的建構），因此
     /// `didChange.send()` 會排入 `bottomUpUpdate()`，後者在同一個值上重新進入
     /// ``computeLayout(_:children:proposedSize:environment:backend:)``，並依新的旗標重建
     /// configuration。這條路徑沒有任何按鈕專屬之處，而那正是重點——按下就是一次普通的狀態改變，
@@ -158,7 +158,7 @@ extension Button: TypeSafeView {
         label()
     }
 
-    /// **``AnyView`` rather than `Label`, since 2026-09-08.**
+    /// **``AnyView`` rather than `Label`.**
     ///
     /// A custom ``ButtonStyle``'s `Body` is an associated type reached through
     /// an existential, so its concrete type is not knowable here and the child
@@ -177,7 +177,7 @@ extension Button: TypeSafeView {
     /// notices the type mismatch and rebuilds the child node instead of
     /// silently rendering the old one.
     ///
-    /// **自 2026-09-08 起為 ``AnyView``，而非 `Label`。**
+    /// **為 ``AnyView``，而非 `Label`。**
     ///
     /// 自訂 ``ButtonStyle`` 的 `Body` 是透過 existential 取得的關聯型別，其具體型別在此處無從得知，
     /// 因此子節點必須被抹除型別。`Children` 是靜態的關聯型別，不可能「在沒有人套用樣式的日子裡」是

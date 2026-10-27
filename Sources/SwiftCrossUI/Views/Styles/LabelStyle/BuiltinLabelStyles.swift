@@ -20,16 +20,12 @@
 
 /// A label style that shows both the title and the icon.
 ///
-/// **This is ``Label``'s body as it stood before ``LabelStyle`` existed**, moved
-/// rather than rewritten: the `HStack(spacing: 6)`, the icon first and the title
-/// second. Nothing that renders a label today changes appearance, because this
-/// is the same expression reached by the same default.
+/// **``Label``'s default layout**: the `HStack(spacing: 6)`, the icon first and
+/// the title second, reached through ``DefaultLabelStyle``.
 ///
 /// 同時顯示標題與圖示的 label 樣式。
 ///
-/// **這就是 ``LabelStyle`` 出現之前 ``Label`` 的 body**，是搬移而非重寫：同樣的
-/// `HStack(spacing: 6)`、同樣是圖示在前、標題在後。今日任何一個 label 的外觀都不會改變，因為這是
-/// 由同一個預設值抵達的同一個表達式。
+/// **``Label`` 的預設版面**：`HStack(spacing: 6)`、圖示在前、標題在後，經由 ``DefaultLabelStyle`` 抵達。
 public struct TitleAndIconLabelStyle: LabelStyle {
     public nonisolated init() {}
 
@@ -50,9 +46,8 @@ extension LabelStyle where Self == TitleAndIconLabelStyle {
 ///
 /// The context-dependent behaviour SwiftUI gives `.automatic` -- icon-only
 /// inside a toolbar, for instance -- has no equivalent here, and this is not a
-/// stand-in waiting for one. ``Label``'s own note has said since it was written
-/// that the title-and-icon layout *is* the correct default rather than a
-/// placeholder for one, and that is what this renders.
+/// stand-in waiting for one: the title-and-icon layout *is* the correct default
+/// rather than a placeholder for one, and that is what this renders.
 ///
 /// It renders it by calling ``TitleAndIconLabelStyle`` rather than repeating its
 /// body. Two copies of `HStack(spacing: 6)` would be two things that can drift,
@@ -62,8 +57,8 @@ extension LabelStyle where Self == TitleAndIconLabelStyle {
 /// 隨當前情境調整的 label 樣式。
 ///
 /// SwiftUI 賦予 `.automatic` 的情境相依行為——例如在 toolbar 中只顯示圖示——在此並無對應物，而這並
-/// 不是一個等待被填上的替代品。``Label`` 自身的說明從寫下的那天起就表明：「標題加圖示」的版面**就是**
-/// 正確的預設值，而不是預設值的佔位符；此處繪製的正是它。
+/// 不是一個等待被填上的替代品：「標題加圖示」的版面**就是**正確的預設值，而不是預設值的佔位符；
+/// 此處繪製的正是它。
 ///
 /// 它是透過呼叫 ``TitleAndIconLabelStyle`` 來繪製，而不是把它的 body 抄一遍。兩份
 /// `HStack(spacing: 6)` 就是兩個會各自漂移的東西，而那種漂移是無聲的：`.automatic` 與

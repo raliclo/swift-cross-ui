@@ -59,14 +59,14 @@ public struct EnvironmentValues {
     /// WINDOW draws -- the navigation title, or the toolbar -- without altering
     /// the view's size.
     ///
-    /// **Window chrome was only ever applied during a window layout pass, and a
-    /// state change that does not resize anything never triggers one.** So
-    /// `.navigationTitle(someState)` wrote the title once, at launch, and every
-    /// later value was computed, stored in the preferences and never read:
-    /// measured 2026-09-10 with P50, whose own body showed "TITLE B" while the
-    /// title bar still said "TITLE A" in the same screenshot. Nothing failed --
-    /// `bottomUpUpdate` recomputed the layout, saw the same size, and committed
-    /// without telling anyone above it that a preference had changed.
+    /// **A state change that does not resize anything never triggers a window
+    /// layout pass, so chrome applied only there goes stale.**
+    /// `.navigationTitle(someState)` would write the title once, at launch, and
+    /// every later value would be computed, stored in the preferences and never
+    /// read: measured 2026-09-10 with P50, whose own body showed "TITLE B" while
+    /// the title bar still said "TITLE A" in the same screenshot. Nothing fails --
+    /// `bottomUpUpdate` recomputes the layout, sees the same size, and commits
+    /// without telling anyone above it that a preference has changed.
     ///
     /// Separate from ``onResize`` rather than folded into it, because the two
     /// have different costs and different triggers: a resize is rare and
@@ -76,26 +76,23 @@ public struct EnvironmentValues {
     /// 當某次狀態改變更動了**視窗**所繪製的東西——navigation title 或工具列——但沒有改變該 view 的
     /// 尺寸時，由 view graph 節點呼叫。
     ///
-    /// **視窗外框過去只在「視窗的版面計算」中套用，而一個不改變尺寸的狀態改變根本不會觸發那件事。**
-    /// 因此 `.navigationTitle(某個狀態)` 只在啟動時寫入一次標題，其後每一個值都被算出來、被存進
-    /// preference，然後從未被讀取：2026-09-10 以 P50 實測，同一張截圖裡它自己的內容顯示「TITLE B」，
-    /// 而標題列仍是「TITLE A」。沒有任何東西失敗——`bottomUpUpdate` 重算了版面、看到尺寸相同、
-    /// 於是提交，而沒有告訴它上方的任何人「有一項 preference 改變了」。
+    /// **一個不改變尺寸的狀態改變不會觸發視窗的版面計算，因此只在那裡套用的視窗外框會停滯。**
+    /// `.navigationTitle(某個狀態)` 會只在啟動時寫入一次標題，其後每一個值都被算出來、被存進
+    /// preference,然後從未被讀取:2026-09-10 以 P50 實測正是如此，同一張截圖裡它自己的內容顯示
+    /// 「TITLE B」,而標題列仍是「TITLE A」。沒有任何東西失敗——`bottomUpUpdate` 重算版面、看到
+    /// 尺寸相同、於是提交，而沒有告訴它上方的任何人「有一項 preference 改變了」。
     ///
     /// 與 ``onResize`` 分開而不是併入其中，因為兩者的成本與觸發條件都不同：resize 罕見且會讓整個視窗
     /// 重新排版，而這一個只在外框簽章真的不同時才觸發，對多數狀態改變而言那是從不。
     /// **Named for what it does, not for the one thing that first needed it.**
-    /// It was `onWindowChromeChange` until 2026-09-10, when `GeometryReader`
-    /// turned out to need exactly the same thing for a different reason: it
-    /// learns its own position from the backend, and a position is only known
-    /// after the pass that placed it. Two names for one mechanism is one too
-    /// many, and the chrome-specific name would have made the second caller
-    /// look like a misuse.
+    /// `GeometryReader` needs the same thing as the window chrome, for a
+    /// different reason: it learns its own position from the backend, and a
+    /// position is only known after the pass that placed it. A chrome-specific
+    /// name would make that second caller look like a misuse.
     ///
-    /// **以它所做的事命名，而不是以「第一個需要它的東西」命名。** 在 2026-09-10 之前它叫
-    /// `onWindowChromeChange`；那一天 `GeometryReader` 出於完全不同的理由需要同一件事:它從 backend
-    /// 得知自己的位置，而位置要到「放置它的那一輪」之後才會存在。同一個機制有兩個名字就是多了一個，
-    /// 而那個「外框專用」的名字會讓第二個呼叫端看起來像是在誤用它。
+    /// **以它所做的事命名，而不是以「第一個需要它的東西」命名。** `GeometryReader` 出於與視窗外框
+    /// 不同的理由需要同一件事：它從 backend 得知自己的位置，而位置要到「放置它的那一輪」之後才會存在。
+    /// 「外框專用」的名字會讓這第二個呼叫端看起來像是在誤用它。
     @_spi(Backends) public var requestWindowUpdate: @MainActor () -> Void
 
     /// Backing storage for extensible subscript
@@ -206,31 +203,18 @@ public struct EnvironmentValues {
     /// Mustn't change throughout the app's lifecycle.
     ///
     /// **`@_spi(Backends)` rather than internal, so that a test app can reach
-    /// the RUNNING backend.** It was internal, and P64 -- which measures the
-    /// frame clock, a backend requirement with no framework API on top of it
-    /// yet -- worked around that by constructing a fresh `DefaultBackend()`.
-    /// A second backend instance is a guess about which state is per-instance
-    /// and which is per-process, and the guess happens to hold for every clock
-    /// written so far. The SPI removes the guess.
-    ///
-    /// (An earlier version of this note claimed the second instance "broke iOS
-    /// outright". It did not. P64 rendered fine on iOS and I had cropped the
-    /// screenshot above its content. The change stands on the reason above; the
-    /// evidence I first gave for it was my own measurement error.)
+    /// the RUNNING backend.** Without it, P64 -- which measures the frame clock
+    /// directly -- would have to construct a fresh `DefaultBackend()`, and a
+    /// second backend instance is a guess about which state is per-instance and
+    /// which is per-process. The SPI removes the guess.
     ///
     /// 使用中的 backend。
     ///
     /// 在整個 app 生命週期中不得改變。
     ///
     /// **標為 `@_spi(Backends)` 而非 internal，好讓測試 app 能取得**執行中**的那個 backend。**
-    /// 它原本是 internal，而 P64——它量測 frame clock，一個目前還沒有框架 API 蓋在上面的 backend
-    /// requirement——為此改為自行建構一個全新的 `DefaultBackend()`。「另建一個 backend 實例」是在猜
-    /// 哪些狀態是逐實例、哪些是逐行程的，而目前為止所寫的每一個時鐘剛好都讓那個猜測成立。SPI 讓那個
-    /// 猜測不必存在。
-    ///
-    /// (本段先前寫著那個第二實例「在 iOS 上直接壞掉」。並沒有。P64 在 iOS 上算繪正常，是我把截圖
-    /// 裁在它的內容上方了。這項改動仍然成立，理由是上一段;而我最初為它提出的證據，是我自己的量測
-    /// 錯誤。)
+    /// 少了它，直接量測 frame clock 的 P64 就得自行建構一個全新的 `DefaultBackend()`;而「另建一個
+    /// backend 實例」是在猜哪些狀態是逐實例、哪些是逐行程的。SPI 讓那個猜測不必存在。
     @_spi(Backends) public let backend: any BaseAppBackend
 
     /// Presents an 'Open file' dialog fit for selecting a single file.
@@ -1014,8 +998,7 @@ extension EnvironmentValues {
     /// environment.isEnabled` in GtkBackend, and the same shape in the other
     /// four -- because `isEnabled` is ALREADY delivered to menu items this way.
     /// Adding an associated value to `ResolvedMenu.Item.button` instead would
-    /// break all five `switch`es at once, on both machines, so the three
-    /// backends that cannot be compiled here would have to be written blind.
+    /// break all five backends' `switch`es at once.
     ///
     /// **The cost of this choice, stated because it is the kind that goes
     /// quiet:** the environment is inherited, so `.keyboardShortcut` on a
@@ -1030,8 +1013,8 @@ extension EnvironmentValues {
     /// **它走 environment 而不是放進 ``ResolvedMenu/Item``,這是一個決定,不是圖方便。** 五個 backend
     /// 每一個都已經把 `EnvironmentValues` 一路帶進「快捷鍵必須被掛上去」的那一行——GtkBackend 是
     /// `gAction.enabled = environment.isEnabled`,其餘四個形狀相同——因為 `isEnabled` **本來就是**
-    /// 以這種方式送到 menu item 的。改成在 `ResolvedMenu.Item.button` 上增加一個關聯值,會讓五處
-    /// `switch` 在兩台機器上同時編不過,於是這裡編不了的那三個 backend 就得盲寫。
+    /// 以這種方式送到 menu item 的。改成在 `ResolvedMenu.Item.button` 上增加一個關聯值,會讓五個
+    /// backend 的 `switch` 同時編不過。
     ///
     /// **這個選擇的代價,寫明是因為它屬於會靜下來的那一類:** environment 是繼承的,因此把
     /// `.keyboardShortcut` 加在**容器**上,會讓它裡面的每一個控制項都拿到同一個快捷鍵,而 SwiftUI
@@ -1051,10 +1034,8 @@ extension EnvironmentValues {
 
     /// The built-in display style used by ``Button``.
     ///
-    /// Named `buttonStyle` and typed ``PrimitiveButtonStyle`` since 2026-09-08;
-    /// only the type's name changed. This is the value every backend reads, and
-    /// the vocabulary it is written in -- three cases -- is the backend's, not
-    /// the application's.
+    /// This is the value every backend reads, and the vocabulary it is written
+    /// in -- three cases -- is the backend's, not the application's.
     ///
     /// A custom ``ButtonStyle`` does not appear here. It goes in
     /// ``customButtonStyle`` and ``Button`` overrides *this* value with `.plain`
@@ -1063,7 +1044,6 @@ extension EnvironmentValues {
     ///
     /// 由 ``Button`` 使用的內建顯示樣式。
     ///
-    /// 自 2026-09-08 起名稱為 `buttonStyle`、型別為 ``PrimitiveButtonStyle``；改變的只有型別名稱。
     /// 這是每一個 backend 都會讀取的值，而它所使用的詞彙——三個 case——屬於 backend，而非應用程式。
     ///
     /// 自訂的 ``ButtonStyle`` 不會出現在此處。它放在 ``customButtonStyle``，而在其生效期間 ``Button``

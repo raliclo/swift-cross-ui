@@ -37,14 +37,13 @@ extension AppKitBackend: BackendFeatures.GeometricEffects {
         insert(child, into: container, at: 0)
         // All four edges, so the child takes the container's size.
         //
-        // Measured, after two wrong guesses. With no constraints at all the
-        // cells were blank; with a left and top constraint they were still
-        // blank, and the probe said why:
+        // Measured: with no constraints at all the cells are blank; with only a
+        // left and top constraint they are still blank, and a probe shows why:
         //
         //     container=(0, 0, 200, 109)  child=(0, 109, 0, 0)  childConstraints=0
         //
         // The container is sized correctly and the child has no size at all.
-        // ``VisualEffectModifier``'s commit sizes `widget`, which is this
+        // ``GeometricEffectModifier``'s commit sizes `widget`, which is this
         // container; nothing sizes what is inside it. That is invisible on
         // GtkBackend, where a container sizes its child for you, and it does not
         // arise in the ordinary case either, because there the layout system
@@ -57,10 +56,10 @@ extension AppKitBackend: BackendFeatures.GeometricEffects {
         //
         // 四個邊都釘住，讓子元件取得容器的尺寸。
         //
-        // 這是量出來的，而且是在兩次猜錯之後。完全沒有約束時，各格是空白的；加上 left 與 top 約束
-        // 之後仍然空白，而探測指出了原因（數值如上方英文所示）。
+        // 這是量出來的:完全沒有約束時各格是空白的;只加 left 與 top 約束仍然空白,而探測指出了原因
+        // (數值如上方英文所示)。
         //
-        // 容器的尺寸是正確的，而子元件根本沒有尺寸。``VisualEffectModifier`` 的 commit 設定的是
+        // 容器的尺寸是正確的，而子元件根本沒有尺寸。``GeometricEffectModifier`` 的 commit 設定的是
         // `widget` 的尺寸，也就是這個容器；沒有任何東西為它內部的元件設定尺寸。這在 GtkBackend 上
         // 看不出來，因為那裡的容器會替你調整子元件的尺寸；在一般情況下也不會發生，因為版面系統同時
         // 掌握兩端。由 backend 插入的 pass-through 容器，正是兩者皆無的那個情況。

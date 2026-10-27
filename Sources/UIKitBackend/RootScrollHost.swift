@@ -178,10 +178,10 @@ final class RootScrollHost: UIScrollView {
         }
         // Zero-area subviews are skipped: they draw nothing, and one left at its
         // parent's origin (P6's empty `#if os(Windows)` slot in its top row,
-        // 0 wide at the row's left edge) made the layout start 40 pt left of
-        // the text on iOS while Android started at the text (user's decision,
-        // 2026-10-09). 寬或高為 0 的子 view 不算：它們什麼都不畫，而停在父 view 原點的那一個(P6 頂端那排裡 `#if os(Windows)`
-        // 的空位，寬 0、位於該排左緣)讓 iOS 的版面從文字左邊 40 pt 處開始,Android 則從文字開始(使用者決定,2026-10-09)。
+        // 0 wide at the row's left edge) would make the layout start 40 pt left
+        // of the text on iOS while Android starts at the text.
+        // 寬或高為 0 的子 view 不算：它們什麼都不畫，而停在父 view 原點的那一個(P6 頂端那排裡 `#if os(Windows)`
+        // 的空位，寬 0、位於該排左緣)會讓 iOS 的版面從文字左邊 40 pt 處開始,Android 則從文字開始。
         for subview in view.subviews
         where !subview.isHidden && subview.bounds.width > 0 && subview.bounds.height > 0 {
             let sub = contentBounds(of: subview).offsetBy(
@@ -245,39 +245,39 @@ final class RootScrollHost: UIScrollView {
 
     /// Asks the `RootScrollHost` above `view`, if there is one, to lay out again.
     ///
-    /// **Called whenever the backend moves or resizes a widget, and until
-    /// 2026-09-28 nothing did.** SwiftCrossUI places widgets after the window is
+    /// **Called whenever the backend moves or resizes a widget.** SwiftCrossUI
+    /// places widgets after the window is
     /// up, through `setPosition` and `setSize`, and those change constraints deep
     /// inside the content -- which marks the containers that own them, never this
-    /// host. So the host measured its content once, early, from a hierarchy that
-    /// was not built yet, and kept that answer: probed on P17, the only pass saw a
-    /// box of (-228, -61, 8, 39), set the offset from it, disabled scrolling, and
-    /// never ran again -- the content sat 228 points to the right and nothing below
-    /// y 919 could be reached. The same missing signal is why the first touch used
-    /// to "fix" the layout by moving it: a touch was the only thing that happened
-    /// to request another pass. `setNeedsLayout` coalesces within a run-loop turn,
-    /// so calling it per widget costs one layout, not one per call.
+    /// host. Without this call the host measures its content once, early, from a
+    /// hierarchy that is not built yet, and keeps that answer: probed on P17, the
+    /// only pass saw a box of (-228, -61, 8, 39), set the offset from it, disabled
+    /// scrolling, and never ran again -- the content sat 228 points to the right
+    /// and nothing below y 919 could be reached, until a touch happened to
+    /// request another pass and the layout jumped. `setNeedsLayout` coalesces
+    /// within a run-loop turn, so calling it per widget costs one layout, not one
+    /// per call.
     ///
     /// 請 `view` 上方的 `RootScrollHost`(若有的話)重新排版。
     ///
-    /// **backend 每次移動或改變 widget 尺寸時都會呼叫;2026-09-28 之前沒有任何東西這麼做。**SwiftCrossUI 在
+    /// **backend 每次移動或改變 widget 尺寸時都會呼叫。**SwiftCrossUI 在
     /// 視窗出現之後才透過 `setPosition` 與 `setSize` 放置 widget,而那會改變內容深處的約束——被標記的是擁有
-    /// 那些約束的容器,從來不是這個 host。於是 host 只在很早的時候、從一個還沒建好的階層量了一次內容,然後
+    /// 那些約束的容器,從來不是這個 host。少了這個呼叫,host 只在很早的時候、從一個還沒建好的階層量一次內容,然後
     /// 就一直用那個答案:在 P17 上探測,唯一的一輪看到的 box 是 (-228, -61, 8, 39),依它設了捲動位置、停用了
-    /// 捲動,之後再也沒跑過——內容被擺在右邊 228 點處,y 919 以下的東西都構不到。以前「第一次觸控會移動版面」
-    /// 也是缺了同一個訊號:觸控是唯一碰巧要求再排一次版的東西。`setNeedsLayout` 會在同一輪 run loop 內合併,
+    /// 捲動,之後再也沒跑過——內容被擺在右邊 228 點處,y 919 以下的東西都構不到,直到某次觸控碰巧要求
+    /// 再排一次版、版面跳動。`setNeedsLayout` 會在同一輪 run loop 內合併,
     /// 因此每個 widget 呼叫一次,成本是一次排版,不是每次呼叫一次。
     static func invalidate(containing view: UIView) {
         var candidate: UIView? = view.superview
         while let current = candidate {
             if let host = current as? RootScrollHost {
                 // Not while the host is laying out: the content's layout during that
-                // pass is the host's own doing, and answering it with another pass is
-                // how P2 and P53 hung in rwdView on 2026-09-28 -- each pass set the
-                // content's transform, which laid the content out, which asked for
-                // another pass, and XCUITest waited 600 s for an idle app.
-                // host 排版期間不理會:那一輪裡內容的排版是 host 自己造成的,再回應一輪,正是 P2 與 P53
-                // 在 2026-09-28 於 rwdView 卡住的方式——每一輪都設定內容的 transform,那讓內容重新排版,
+                // pass is the host's own doing, and answering it with another pass
+                // hangs rwdView (P2, P53) -- each pass sets the content's transform,
+                // which lays the content out, which asks for another pass, and
+                // XCUITest waits 600 s for an idle app.
+                // host 排版期間不理會:那一輪裡內容的排版是 host 自己造成的,再回應一輪會讓 rwdView 卡住
+                // (P2、P53)——每一輪都設定內容的 transform,那讓內容重新排版,
                 // 內容又要求再一輪,而 XCUITest 等了 600 秒都等不到 app 閒下來。
                 if !host.isLayingOut {
                     host.setNeedsLayout()
@@ -302,16 +302,16 @@ final class RootScrollHost: UIScrollView {
         isLayingOut = true
         defer { isLayingOut = false }
 
-        // **The content's transform and origin are no longer reset on every pass.**
+        // **The content's transform and origin are not reset on every pass.**
         // `contentBounds` reads the content's own `bounds` and its subviews' frames in
         // the content's coordinates, and neither is affected by a transform on the
         // content itself, so the measurement does not need them cleared. Clearing and
-        // re-applying them each pass made every pass lay the content out again, which
-        // -- once the content's layout started asking the host for a pass -- never
-        // stopped. Each mode below assigns them only when they differ.
-        // **不再於每一輪重設內容的 transform 與 origin。**`contentBounds` 讀的是內容自己的 `bounds` 以及
+        // re-applying them each pass would make every pass lay the content out again,
+        // which -- because the content's layout asks the host for a pass -- never
+        // stops. Each mode below assigns them only when they differ.
+        // **不在每一輪重設內容的 transform 與 origin。**`contentBounds` 讀的是內容自己的 `bounds` 以及
         // 子 view 在內容座標系中的 frame,兩者都不受內容本身 transform 的影響,所以量測不需要把它們清掉。每一輪
-        // 清掉再套回去,會讓每一輪都重新排版內容——而一旦內容的排版開始要求 host 再排一輪,就永遠停不下來。
+        // 清掉再套回去,會讓每一輪都重新排版內容——而內容的排版會要求 host 再排一輪,於是永遠停不下來。
         // 下面各模式只在值不同時才指派。
         // **Lay the content out FIRST, or the box is measured from frames that are not
         // there yet.** A layout pass runs top-down, so this method runs before the
@@ -333,11 +333,10 @@ final class RootScrollHost: UIScrollView {
         // child chain that is not the window's size. Its edge includes any
         // `.padding` the app wrote on its root, so an overflowing layout starts
         // at the padding rather than at the first drawn pixel; without a padding
-        // it hugs the content and changes nothing (user, 2026-10-09: keep the
-        // padding when one is written, on iOS and Android alike).
+        // it hugs the content and changes nothing. iOS and Android alike.
         // App 根 view 的外框——沿著單一子 view 的鏈往下，第一個尺寸不等於視窗的那一層。它的邊緣包含 app 在根上寫的任何
-        // `.padding`,所以溢出的版面從 padding 開始，而不是從第一個繪製的像素;沒寫 padding 時它緊貼內容，什麼都不改變
-        // (使用者,2026-10-09:有寫 padding 就保留,iOS 與 Android 相同)。
+        // `.padding`,所以溢出的版面從 padding 開始，而不是從第一個繪製的像素;沒寫 padding 時它緊貼內容，什麼都不改變。
+        // iOS 與 Android 相同。
         let rootFrame: CGRect? = {
             var view: UIView = content
             var origin = CGPoint.zero
@@ -359,59 +358,57 @@ final class RootScrollHost: UIScrollView {
                 // scroll view's origin. Without this the overflow to the left
                 // is unreachable however large contentSize is.
                 //
-                // **Only a negative extent is shifted, and until 2026-09-27 a
-                // positive one was too -- that was iOS's "only the first
-                // interaction lands".** The first layout pass runs before the
-                // content's children are placed, so the box starts at (0, 0)
-                // and nothing moves. `UIScrollView` lays out again on the first
-                // touch; by then P72's box starts at (26, 30), and shifting by
-                // that moved the whole column 26 points left and 30 up, under
-                // the first tap. Every later row aimed at the launch-time layout
-                // and missed. Content already on screen needs no shift to be
-                // reachable, so it no longer gets one, and the two passes agree.
+                // **Only a negative extent is shifted.** Shifting a positive one
+                // makes only the first interaction land: the first layout pass
+                // runs before the content's children are placed, so the box
+                // starts at (0, 0) and nothing moves. `UIScrollView` lays out
+                // again on the first touch; by then P72's box starts at (26, 30),
+                // and shifting by that moves the whole column 26 points left and
+                // 30 up, under the first tap, so every later row aimed at the
+                // launch-time layout misses. Content already on screen needs no
+                // shift to be reachable, so it gets none, and the two passes agree.
                 //
                 // 平移，使溢出到**左側或上方**的內容落在捲動視圖的原點。少了這一步，無論 contentSize
                 // 多大，左側的溢出都無法觸及。
                 //
-                // **只平移負的延伸;2026-09-27 之前正的也會被平移——那正是 iOS「只有第一次互動生效」。**
+                // **只平移負的延伸。** 連正的也平移，就只有第一次互動會生效：
                 // 第一次版面計算發生在內容的子 view 排好之前,因此 box 從 (0, 0) 開始,什麼都不動。
                 // `UIScrollView` 會在第一次觸控時再算一次版面;那時 P72 的 box 從 (26, 30) 開始,
-                // 按它平移就把整欄往左推 26 點、往上推 30 點——就在第一次點擊的底下。其後每一列瞄準的都是
-                // 啟動時的版面,全部落空。已經在畫面內的內容不需要平移也構得到,所以不再平移它,
+                // 按它平移就把整欄往左推 26 點、往上推 30 點——就在第一次點擊的底下,其後每一列瞄準的都是
+                // 啟動時的版面,全部落空。已經在畫面內的內容不需要平移也構得到,所以不平移它,
                 // 兩次版面計算的結果也就一致了。
                 //
                 // **The overflow goes into `contentInset`, and the content itself never
-                // moves -- until later on 2026-09-27 it was shifted by the overflow.**
-                // A wide app's content is centred in a container wider than the phone,
-                // so it overflows on both sides; when a readout gets longer the
+                // moves.** A wide app's content is centred in a container wider than the
+                // phone, so it overflows on both sides; when a readout gets longer the
                 // container widens and the LEFT overflow grows with it. Shifting the
-                // content by that overflow moved the whole column sideways every time
-                // a label changed length -- measured on P10: "Click me" at x 20.6 at
+                // content by that overflow moves the whole column sideways every time
+                // a label changes length -- measured on P10: "Click me" at x 20.6 at
                 // launch and about 145 after three taps, with the readouts pushed off
                 // the right edge. An inset makes the overflow reachable without
                 // moving anything: the content stays where it is on screen, and only
                 // the range the scroll view can reach changes.
                 //
-                // The scroll position is put at the top-left of the content once, on
-                // the first real box, so launch looks exactly as it did.
+                // The scroll position is put at the top-left of the content until the
+                // first drag (see `userHasScrolled`).
                 //
-                // **溢出放進 `contentInset`,內容本身永遠不動——2026-09-27 稍晚之前,它是依溢出量被平移的。**
+                // **溢出放進 `contentInset`,內容本身永遠不動。**
                 // 寬版 app 的內容置中在一個比手機寬的容器裡,因此兩側都溢出;某個讀數變長時,容器跟著變寬,
                 // **左側**的溢出也跟著變多。依溢出量平移內容,就會在每一次某個標籤長度改變時把整欄往旁邊推
                 // ——於 P10 實測:「Click me」啟動時在 x 20.6,點三下之後約在 145,讀數被推出右邊界。用 inset
                 // 就能構到溢出的部分而不移動任何東西:內容在畫面上留在原地,只有捲動視圖構得到的範圍改變。
                 //
-                // 捲動位置只在第一次拿到真正的 box 時放到內容的左上角一次,所以啟動時的樣子與原本完全相同。
+                // 在第一次拖曳之前,捲動位置都放在內容的左上角(見 `userHasScrolled`)。
                 //
                 // **A layout larger than the screen starts at its content, not at the
-                // blank the centring left (user, 2026-10-11).** P50 asks for 780 x 900
+                // blank the centring left.** P50 asks for 780 x 900
                 // and its content is narrower than that, so it sat centred in the
                 // layout with a blank beside and above it -- 101 pt on iOS and 107 dp
                 // on Android, the difference being the two fonts' widths. On an axis
                 // where the layout is larger than the screen the content is moved over
                 // and hides that blank; the root's own padding is kept. An axis that
                 // fits is left alone, so content centred on the screen stays centred.
-                // **比螢幕大的版面從內容開始，而不是從置中留下的空白開始(使用者,2026-10-11)。**P50 要求 780 x 900,
+                // **比螢幕大的版面從內容開始，而不是從置中留下的空白開始。**P50 要求 780 x 900,
                 // 內容比它窄，所以置中在版面裡，旁邊與上方留有空白——iOS 101 pt、Android 107 dp,差別來自兩種字型的寬度。
                 // 版面比螢幕大的那個軸上，把內容移過去藏起空白；根自己的 padding 保留。塞得下的軸不動，
                 // 所以置中在螢幕上的內容仍然置中。
@@ -422,22 +419,19 @@ final class RootScrollHost: UIScrollView {
                 // Android 則是從它的 safe-area 容器讀到。
                 let widens = (requestedSize?.width ?? 0) > bounds.width
                 // **Vertically the content always starts at the top**, whether or not the
-                // layout fits the screen (user, 2026-10-12: "put all content on the top if
-                // content length is less than screen height, not centred"). A layout
-                // shorter than the screen used to keep the blank its own centring left
-                // above the content; now only a layout narrower than the screen is still
-                // centred, and that is the horizontal axis.
-                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕(使用者,2026-10-12:「內容比螢幕矮時全部放在頂端，
-                // 不要置中」)。比螢幕矮的版面以前會保留它自己置中時留在內容上方的空白;現在只有比螢幕窄的版面仍然置中，
-                // 而那是水平軸。
+                // layout fits the screen: a layout shorter than the screen does not keep
+                // the blank its own centring left above the content. Only a layout
+                // narrower than the screen is still centred, and that is the horizontal axis.
+                // **垂直方向內容一律從頂端開始**,不論版面塞不塞得進螢幕：比螢幕矮的版面不保留它自己置中時留在
+                // 內容上方的空白。只有比螢幕窄的版面仍然置中，而那是水平軸。
                 let heightens = true
-                // **A root that fits the screen is centred on it** (user, 2026-10-12, from
-                // P89): a 440-wide layout does not fit a 411 dp phone, its 392-wide root
-                // does, and starting at the root left the whole surplus on the right.
+                // **A root that fits the screen is centred on it** (P89): a 440-wide
+                // layout does not fit a 411 dp phone, its 392-wide root
+                // does, and starting at the root would leave the whole surplus on the right.
                 // Half of it goes on each side. A root wider than the screen has no
                 // surplus and still starts at its own edge.
-                // **塞得進螢幕的根置中在螢幕上**(使用者,2026-10-12,起因是 P89):440 寬的版面塞不進 411 dp 的手機，
-                // 392 寬的根卻塞得下，而從根開始會把多出來的全留在右邊。現在左右各一半。比螢幕寬的根沒有多餘，仍從自己的邊緣開始。
+                // **塞得進螢幕的根置中在螢幕上**(P89):440 寬的版面塞不進 411 dp 的手機，
+                // 392 寬的根卻塞得下，而從根開始會把多出來的全留在右邊。所以左右各一半。比螢幕寬的根沒有多餘，仍從自己的邊緣開始。
                 let slack = widens ? max((bounds.width - (rootFrame?.width ?? bounds.width)) / 2, 0) : 0
                 let leadX = -min(box.minX, (rootFrame?.minX ?? box.minX) - slack)
                 let leadY = -min(box.minY, rootFrame?.minY ?? box.minY)
@@ -446,11 +440,11 @@ final class RootScrollHost: UIScrollView {
                 // blank is gone. Content that then fits the screen leaves a scroll view
                 // nothing to scroll, and it will not keep an offset for that; moving the
                 // content does not depend on it. The amount is fixed by the layout, so
-                // this is not the per-pass shift by the overflow that was removed on
-                // 2026-09-27; overflow past the origin is still an inset.
+                // this is not a per-pass shift by the overflow (see above); overflow
+                // past the origin is still an inset.
                 // **空白是靠移動內容藏起來的，不是負的 inset。**負的 inset 對 P50 有效，因為它去掉空白後仍然溢出。去掉空白後塞得進螢幕的
                 // 內容，會讓捲動視圖沒有東西可捲，它就不會為此保留位移；移動內容則不依賴這一點。這個量由版面決定，
-                // 所以不是 2026-09-27 移除的那種「每一輪依溢出量平移」;超出原點的溢出仍然放在 inset。
+                // 所以不是「每一輪依溢出量平移」(見上方);超出原點的溢出仍然放在 inset。
                 var shift = CGPoint(
                     x: widens ? min(leadX, 0) : 0,
                     y: heightens ? min(leadY, 0) : 0
@@ -462,20 +456,20 @@ final class RootScrollHost: UIScrollView {
                     right: 0
                 )
                 // **Content that would start under the mode button starts below it.**
-                // Since 2026-10-11 an oversized layout starts at its root, which is the
-                // corner the button rests in; the centring blank used to clear it. Only
+                // An oversized layout starts at its root, which is the corner the
+                // button rests in. Only
                 // the resting place counts -- a dragged button is the user's to place --
                 // and content that already clears it is not moved.
-                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**2026-10-11 起，比螢幕大的版面從根開始，而那正是按鈕停放的角落；
-                // 以前是置中的空白讓開它。只看按鈕的原位——拖走的按鈕由使用者自己擺——已經讓開的內容不動。
+                // **會從模式按鈕底下開始的內容，改從按鈕下方開始。**比螢幕大的版面從根開始，而那正是按鈕停放的角落。
+                // 只看按鈕的原位——拖走的按鈕由使用者自己擺——已經讓開的內容不動。
                 // Measured where the content is SHOWN, which is `overflow` further in than
                 // its frame says: what spills above or to the left of the frame is brought
-                // into view by the inset, not by moving the frame. Left out, the spill was
-                // counted twice (user, 2026-10-12: P2 began 93 pt below the button and
+                // into view by the inset, not by moving the frame. Left out, the spill is
+                // counted twice (P2 began 93 pt below the button and
                 // P6 54 pt, which pushed P6's "Current" row off the screen; Android, which
                 // measures on screen, began both just below the button).
                 // 以內容**顯示**的位置來量——它比 frame 所說的再往內 `overflow`:溢出到 frame 上方或左方的部分是靠 inset 帶進
-                // 畫面，而不是靠移動 frame。漏掉它，溢出量就被算了兩次(使用者,2026-10-12:P2 從按鈕下方 93 pt 處開始、
+                // 畫面，而不是靠移動 frame。漏掉它，溢出量就被算了兩次(P2 從按鈕下方 93 pt 處開始、
                 // P6 從 54 pt 處開始，把 P6 的「Current」那一列擠出螢幕;Android 是在螢幕上量的，兩者都從按鈕正下方開始)。
                 let lead = (rootFrame ?? box).offsetBy(
                     dx: shift.x + overflow.left, dy: shift.y + overflow.top)
@@ -484,13 +478,13 @@ final class RootScrollHost: UIScrollView {
                 {
                     shift.y += avoided.maxY - lead.minY
                 }
-                // **A root ScrollView cut short by the layout grows to the screen** (user,
-                // 2026-10-12, from P21: 720 high on a phone with room below, its last row
+                // **A root ScrollView cut short by the layout grows to the screen**
+                // (P21: 720 high on a phone with room below, its last row
                 // cut through the text on Android). Only when the app's single-child chain
                 // ends in a scroll view that has more content than room -- any other root
                 // keeps the height it asked for, so nothing that is centred moves. Found
                 // once per mode and rotation; the controller lays the app out again.
-                // **被版面截短的根 ScrollView 會長到螢幕的高度**(使用者,2026-10-12,起因是 P21:在下方還有空間的手機上只有
+                // **被版面截短的根 ScrollView 會長到螢幕的高度**(P21:在下方還有空間的手機上只有
                 // 720 高,Android 的最後一列從文字中間被切掉)。只在 app 的單一子 view 鏈以「內容比空間多的捲動視圖」結尾時
                 // 才這麼做——其他的根維持它要求的高度,所以置中的東西都不會動。每個模式、每次旋轉只找一次;由 controller 重新排版。
                 if fillHeight == nil, let requestedSize, requestedSize.height < bounds.height {

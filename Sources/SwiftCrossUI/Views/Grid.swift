@@ -1,13 +1,10 @@
 /// A container that arranges ``GridRow``s one above another.
 ///
 /// Composed from `VStack` and `HStack`, so it needs nothing from any backend.
-/// See ``Stepper`` for why this batch was chosen.
 ///
-/// **Columns ARE aligned across rows, since #120.** Every cell in column two
+/// **Columns ARE aligned across rows.** Every cell in column two
 /// starts at the same x, whatever the first column holds, because the grid
-/// measures every row before it places any of them. This paragraph used to say
-/// the opposite, and said it loudly, because a ragged table compiles and
-/// appears and simply is not a grid.
+/// measures every row before it places any of them.
 ///
 /// How it gets the measurements is worth knowing before extending this: a
 /// parent cannot see its grandchildren. `ViewLayoutResult` takes `childResults`
@@ -25,11 +22,10 @@
 ///
 /// 一個把 ``GridRow`` 由上而下依序排列的容器。
 ///
-/// 由 `VStack` 與 `HStack` 組合而成，不需要任何 backend 支援。本批工作為何如此挑選，見 ``Stepper``。
+/// 由 `VStack` 與 `HStack` 組合而成，不需要任何 backend 支援。
 ///
-/// **自 #120 起，各欄在列與列之間是對齊的。** 無論第一欄裝著什麼，每一列的第二欄都從同一個 x 開始，
-/// 因為這個格線會在放置任何一列之前，先量測每一列。本段過去說的是相反的話、而且說得很大聲——因為
-/// 一張參差不齊的表編得過、顯示得出來，而它就是不是一個格線。
+/// **各欄在列與列之間是對齊的。** 無論第一欄裝著什麼，每一列的第二欄都從同一個 x 開始，
+/// 因為這個格線會在放置任何一列之前，先量測每一列。
 ///
 /// 在擴充本型別之前，值得知道它是怎麼取得那些量測的:父層看不見它的孫節點。`ViewLayoutResult` 只在
 /// initialiser 中接收 `childResults`，保留下來的只有合併後的 preferences，因此是由儲存格經
@@ -88,15 +84,15 @@ public struct Grid<Content: View>: View {
     ///
     /// **Two passes in ONE update, not one pass repeated.** The grid drives its
     /// own rows' `computeLayout`, so it can call them twice before it returns,
-    /// and no re-layout has to be requested from anywhere. That is the whole
-    /// reason this was buildable here while `GeometryProxy.frame(in: .global)`
-    /// was not: positions are a commit-time fact, and cell widths are not.
+    /// and no re-layout has to be requested from anywhere. That is what sets
+    /// it apart from `GeometryProxy.frame(in: .global)`: positions are a
+    /// commit-time fact, and cell widths are not.
     ///
     /// 先量測每一列、決定各欄，然後把各列重新排一次。
     ///
     /// **是在**同一次**更新裡跑兩輪，而不是把一輪重複兩次。** 這個格線自己驅動它那些列的
-    /// `computeLayout`，因此它可以在回傳之前呼叫它們兩次，不需要向任何地方請求重新版面。這正是
-    /// 「本項在此處做得出來、而 `GeometryProxy.frame(in: .global)` 做不出來」的全部原因:位置是
+    /// `computeLayout`，因此它可以在回傳之前呼叫它們兩次，不需要向任何地方請求重新版面。這
+    /// 也是它與 `GeometryProxy.frame(in: .global)` 不同之處:位置是
     /// commit 時才成立的事實，而儲存格寬度不是。
     public func computeLayout<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
@@ -266,9 +262,8 @@ public struct Grid<Content: View>: View {
 /// matching SwiftUI -- a row decides how its own cells sit against one another,
 /// and the grid decides where the rows sit.
 ///
-/// ``Grid`` documents the divergence that matters here: cells are **not**
-/// aligned into columns across rows. Read that before assuming a `GridRow`
-/// lines up with the one above it.
+/// ``Grid`` aligns cells into columns across rows; a `GridRow` used outside
+/// a `Grid` has no columns and lines up with nothing.
 ///
 /// `Grid` 之中的一列儲存格。
 ///
@@ -281,8 +276,7 @@ public struct Grid<Content: View>: View {
 /// 它的 `alignment` 只覆寫 grid 對齊方式中的垂直分量，同樣與 SwiftUI 一致——由列決定自己的儲存格
 /// 彼此如何對齊，由 grid 決定各列位於何處。
 ///
-/// 此處真正重要的差異記載於 ``Grid``：各列之間的儲存格**不會**對齊成欄。在假設某個 `GridRow` 會與
-/// 它上方那一列對齊之前，請先讀該段說明。
+/// ``Grid`` 負責把各列的儲存格對齊成欄;在 `Grid` 之外的 `GridRow` 沒有欄，不會與任何一列對齊。
 public struct GridRow<Content: View>: View {
     @Environment(\.gridHorizontalSpacing) private var inheritedSpacing
     @Environment(\.gridRowAlignment) private var inheritedAlignment

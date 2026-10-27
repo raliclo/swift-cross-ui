@@ -12,10 +12,6 @@ import android.view.ViewGroup
 /**
  * `Table` on Android.
  *
- * Before this class `BackendFeatures.Tables` was unimplemented and the modifier went through
- * `@CastBackend`, which expands to `fatalError`. P23 and P26 did not render a table badly -- they
- * died at launch with "'AndroidBackend' does not implement 'BackendFeatures.Tables'".
- *
  * A grid rather than a `TableLayout`. Android's `TableLayout` sizes its columns from their
  * contents, and the layout system above this has already decided every cell's size and expects the
  * columns to be equal -- which is what UIKitBackend's `TableWidget` does, and taking the same rule
@@ -27,10 +23,6 @@ import android.view.ViewGroup
  * and a single list would make each one need to know what the other had most recently done.
  *
  * Android 上的 `Table`。
- *
- * 在本類別存在之前，`BackendFeatures.Tables` 是未實作的，而相關 modifier 走的是 `@CastBackend` ——該 macro 會展開為
- * `fatalError`。P23 與 P26 並不是「表格畫得不好」，而是直接在啟動時死於 「'AndroidBackend' does not implement
- * 'BackendFeatures.Tables'」。
  *
  * 採用格線而非 `TableLayout`。Android 的 `TableLayout` 會依內容決定各欄寬度，而其上的版面系統早已 決定了每一個 cell 的尺寸，並預期各欄等寬——那正是
  * UIKitBackend 的 `TableWidget` 所做的，而採用 同一條規則意味著兩個手機平台會畫出同樣的表格。`TableLayout` 會從同一棵 view tree

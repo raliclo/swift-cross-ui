@@ -186,26 +186,19 @@ extension Color.Representation {
     }
 }
 
-// ~~`Color` deliberately does NOT conform~~ -- it does now, above, and the note
-// below is kept because the obstacle it describes is real and is what shaped the
-// conformance: a `.system` colour still has no midpoint, and what changed is
-// that a `.rgb` one was never the same question.
+// `Color` conforms above, with one limit: a `.system` colour has no midpoint
+// here. Its components are not known until it is resolved against an
+// environment, and this tween lives inside `@State`, where there is none.
+// Interpolating unresolved representations would invent components for a
+// colour that does not have any yet, and the error would show only under a
+// colour scheme nobody tested. A `.rgb` colour has numbers, so it interpolates.
 //
-// A `Color` here is a `Representation`, which may be a system colour whose
-// components are not known until it is resolved against an environment -- and
-// this tween lives inside `@State`, where there is no environment to resolve
-// against. Interpolating the two representations without resolving them would
-// mean inventing components for a colour that does not have any yet, and the
-// wrongness would show up only under a colour scheme nobody tested.
+// Interpolating system colours becomes possible if resolution moves earlier, or
+// if the tween moves into the view tree where an environment exists.
 //
-// It becomes possible if resolution moves earlier, or if the tween moves into
-// the view tree where an environment exists. Both are larger than this.
+// `Color` 在上方 conform，但有一個限制：`.system` 顏色在這裡沒有中點。其分量在對某個環境 resolve
+// 之前並不知道，而這個補間住在 `@State` 裡面，那裡沒有任何環境。若不 resolve 就對 representation
+// 插值，等於為一個尚未擁有分量的顏色捏造分量，而那個錯誤只會在沒有人測過的配色方案下顯現。`.rgb`
+// 顏色有數值，所以可以插值。
 //
-// `Color` 刻意**不** conform，而理由是一個真正的障礙，不是一個「以後再說」的決定。
-//
-// 此處的 `Color` 是一個 `Representation`，它可能是一個系統色——其分量在對某個環境 resolve 之前並不
-// 知道;而這個補間住在 `@State` 裡面，那裡沒有任何環境可以 resolve。若不 resolve 就對兩個
-// representation 插值，等於為一個「尚未擁有分量」的顏色捏造分量，而那個錯誤只會在沒有人測過的配色
-// 方案下顯現。
-//
-// 若 resolve 的時機往前移，或這個補間移進「有環境存在」的 view 樹裡，它就變得可行。兩者都比這件事大。
+// 若 resolve 的時機往前移，或這個補間移進有環境存在的 view 樹裡，系統色的插值就變得可行。

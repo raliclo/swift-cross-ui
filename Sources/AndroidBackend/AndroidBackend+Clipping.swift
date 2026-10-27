@@ -5,12 +5,10 @@ import SwiftJava
 
 /// `clipped()` on Android.
 ///
-/// Before this file AndroidBackend did not conform, and the modifier goes
-/// through `@CastBackend`, which expands to `fatalError`. Nothing in this tree
-/// had noticed, because no test app used `clipped()` on Android; P44 was
-/// written alongside this file so that something does.
+/// The modifier goes through `@CastBackend`, which expands to `fatalError`
+/// on a backend that does not conform. P44 exercises `clipped()` on Android.
 ///
-/// **Conforming is not the same as implementing here either.** The protocol's
+/// **Conforming is not the same as implementing.** The protocol's
 /// default `createClippedContainer()` returns an ordinary container, so a
 /// backend can conform, stop crashing, and clip nothing -- the shape this
 /// repository's rules exist to prevent, and one this particular protocol makes
@@ -26,11 +24,10 @@ import SwiftJava
 ///
 /// Android 上的 `clipped()`。
 ///
-/// 在本檔存在之前，AndroidBackend 並未實作此 conformance，而該 modifier 走的是 `@CastBackend`
-/// ——它會展開為 `fatalError`。本樹中沒有任何東西察覺到這件事，因為沒有任何測試 app 在 Android 上
-/// 使用過 `clipped()`；P44 是與本檔一同撰寫的，好讓「有東西」用到它。
+/// 該 modifier 走的是 `@CastBackend`——在未實作此 conformance 的 backend 上會展開為 `fatalError`。
+/// P44 在 Android 上使用 `clipped()`。
 ///
-/// **在此處，「符合 conformance」同樣不等於「實作」。** 該 protocol 的預設 `createClippedContainer()`
+/// **「符合 conformance」不等於「實作」。** 該 protocol 的預設 `createClippedContainer()`
 /// 回傳的是一個普通容器，因此一個 backend 可以符合 conformance、不再崩潰，然後什麼都不裁切
 /// ——那正是本倉庫的規則所要防止的形狀，而這個特定的 protocol 使人格外容易在無意間走到那裡。
 ///

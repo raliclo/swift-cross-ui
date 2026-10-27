@@ -1,7 +1,7 @@
 /// A box that visually groups a set of related views under an optional title.
 ///
 /// Composed from `VStack`, `padding` and `border`, so it needs nothing from any
-/// backend. See ``Stepper`` for why this batch was chosen.
+/// backend.
 ///
 /// **This is the box, not the platform's group-box chrome.** SwiftUI's
 /// `GroupBox` draws whatever the platform's own grouping container looks like --
@@ -20,8 +20,7 @@
 ///
 /// 一個帶有可選標題、用來在視覺上把一組相關 view 圈起來的方框。
 ///
-/// 由 `VStack`、`padding` 與 `border` 組合而成，不需要任何 backend 支援。本批工作為何如此挑選，
-/// 見 ``Stepper``。
+/// 由 `VStack`、`padding` 與 `border` 組合而成，不需要任何 backend 支援。
 ///
 /// **這是那個方框，而不是平台自身的 group box 外觀。** SwiftUI 的 `GroupBox` 畫的是該平台自身分組
 /// 容器的樣子——macOS 上是圓角、帶填色、略微內凹的面板，iOS 上則是單純的內縮區塊——連標題的字體與

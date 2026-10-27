@@ -160,10 +160,10 @@ final class NSCustomTapGestureTarget: NSView, NSGestureRecognizerDelegate {
     func longPress(sender: NSPressGestureRecognizer) {
         // GTK emits the event once as soon as the gesture is recognized.
         // AppKit reports `.began`, then `.changed` for every mouse move while
-        // held, then `.ended`. Only `.began` is the long press; a press that
-        // wanders used to report several (2026-10-17, onTapAndLongPressGesture).
+        // held, then `.ended`. Only `.began` is the long press; reacting to the
+        // other states would report a wandering press several times.
         // GTK 在辨識成立時發出一次。AppKit 先報 `.began`,按住移動時每次報 `.changed`,最後 `.ended`。
-        // 只有 `.began` 才是長按;按住時移動過去會回報好幾次(2026-10-17,onTapAndLongPressGesture)。
+        // 只有 `.began` 才是長按;對其他狀態也有反應,按住時移動就會回報好幾次。
         if sender.state == .began {
             longPressHandler?()
         }

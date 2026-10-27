@@ -184,12 +184,12 @@ class AndroidBackendHelpers {
             return null
         }
         // A sheet or popover in front is searched first: touches already reach it
-        // through FrontWindows, but this looked in the activity's own window only,
-        // so `taplabel Close` on P49's cover failed with "no shown view" (2026-10-20).
+        // through FrontWindows, but if only the activity's own window were searched,
+        // `taplabel Close` on P49's cover would fail with "no shown view" (2026-10-20).
         // Its point is given in the activity window's coordinates, which is what
         // FrontWindows.dispatch takes and converts back.
-        // 先找前景的 sheet 或 popover:觸控本來就經 FrontWindows 送得到它，但這裡只找 activity 自己的視窗，所以 P49 cover 上的
-        // `taplabel Close` 以「no shown view」失敗(2026-10-20)。它的點以 activity 視窗座標給出，那正是 FrontWindows.dispatch
+        // 先找前景的 sheet 或 popover:觸控本來就經 FrontWindows 送得到它，若只找 activity 自己的視窗,P49 cover 上的
+        // `taplabel Close` 會以「no shown view」失敗(2026-10-20)。它的點以 activity 視窗座標給出，那正是 FrontWindows.dispatch
         // 接受、並換算回去的座標。
         val front = FrontWindows.focused(activity)
         val inFront = front?.let { find(it) }
@@ -409,22 +409,22 @@ class AndroidBackendHelpers {
     // A ToggleButton (`.toggleStyle(.button)`, the default style) shows on and
     // off only by the colour of a thin underline, and on the API 36 emulator the
     // two looked the same: P12's "Opposite states: they must look different"
-    // failed, and P2/P15's toggles gave no sign of being on. The body is tinted
-    // instead -- the accent when checked, the theme's button colour when not --
+    // failed, and P2/P15's toggles gave no sign of being on. The body shows it
+    // instead -- filled with the accent when checked, clear when not --
     // as UIKit fills a selected button-style toggle.
     // ToggleButton(`.toggleStyle(.button)`,即預設樣式)只靠一條細底線的顏色表示開關，在 API 36 emulator 上兩者
-    // 看起來一樣:P12 的「相反狀態必須看起來不同」不成立,P2/P15 的開關看不出是開的。改為替按鈕本體上色——
-    // 開時 accent,關時主題的按鈕色——如同 UIKit 把選取的按鈕樣式開關填滿。
+    // 看起來一樣:P12 的「相反狀態必須看起來不同」不成立,P2/P15 的開關看不出是開的。改為以按鈕本體表示——
+    // 開時填滿 accent,關時透明——如同 UIKit 把選取的按鈕樣式開關填滿。
     fun styleToggleButton(button: android.widget.ToggleButton) {
         val context = button.context
         val primary = themeColorOf(context, android.R.attr.colorPrimary)
         val density = context.resources.displayMetrics.density
-        // As UIKit draws a button-style toggle (user, 2026-10-09: Android lines
-        // up with iOS): off is a borderless label in the tint, on is the tint
-        // filled behind a white label. The earlier tinted grey Material button
-        // read as "a grey button, slightly purple" beside iOS's blue fill (P12).
-        // 與 UIKit 畫按鈕樣式開關的方式相同(使用者,2026-10-09:Android 對齊 iOS):關是強調色的無框標籤，開是強調色填滿、
-        // 白色標籤。先前那個上了色的灰色 Material 按鈕，在 iOS 的藍色填滿旁邊讀起來只是「偏紫的灰按鈕」(P12)。
+        // As UIKit draws a button-style toggle, so Android lines
+        // up with iOS: off is a borderless label in the tint, on is the tint
+        // filled behind a white label. A tinted grey Material button
+        // reads as "a grey button, slightly purple" beside iOS's blue fill (P12).
+        // 與 UIKit 畫按鈕樣式開關的方式相同,讓 Android 對齊 iOS:關是強調色的無框標籤，開是強調色填滿、
+        // 白色標籤。上了色的灰色 Material 按鈕，在 iOS 的藍色填滿旁邊讀起來只是「偏紫的灰按鈕」(P12)。
         val filled = android.graphics.drawable.GradientDrawable()
         filled.cornerRadius = 6 * density
         filled.setColor(primary)
@@ -432,9 +432,9 @@ class AndroidBackendHelpers {
         // The fill reaches 6 dp past the label on each side without taking part in
         // the layout, as UIKit's does: the two labels of P12's on and off toggles are
         // the same distance apart on both platforms, and iOS's fill is 6 pt wider
-        // than its label at each end where this one was 2 dp (user, 2026-10-12).
+        // than its label at each end (P12, 2026-10-12).
         // 填色在標籤左右各多出 6 dp,而且不參與排版，與 UIKit 相同:P12 的開、關兩個開關的標籤在兩個平台上相距一樣遠，
-        // 而 iOS 的填色兩端各比標籤寬 6 pt,這裡原本只有 2 dp(使用者,2026-10-12)。
+        // 而 iOS 的填色兩端各比標籤寬 6 pt(P12,2026-10-12)。
         val outset = -(6 * density).toInt()
         background.addState(
             intArrayOf(android.R.attr.state_checked),
@@ -475,12 +475,11 @@ class AndroidBackendHelpers {
     }
 
     // A Switch coloured from the SwiftCrossUI scheme rather than the activity
-    // theme: on is colorPrimary (track) with a white thumb; off is the current
-    // foreground at 30% (track) and 70% (thumb). Under preferredColorScheme(.dark)
+    // theme, drawn as iOS's UISwitch (details inside). Under preferredColorScheme(.dark)
     // the light theme's off track was invisible on black and only a grey dot
     // showed, where iOS draws a dark grey track (P15-DARK, 2026-10-09).
-    // 依 SwiftCrossUI 的配色而非 activity 主題替 Switch 上色：開時軌道是 colorPrimary、滑塊白色；關時軌道是目前前景色的 30%、
-    // 滑塊 70%。在 preferredColorScheme(.dark) 下，淺色主題的關閉軌道在黑底上看不見，只剩一個灰點，iOS 則畫出深灰的軌道。
+    // 依 SwiftCrossUI 的配色而非 activity 主題替 Switch 上色，畫成 iOS 的 UISwitch(細節見 styleSwitch 內)。
+    // 在 preferredColorScheme(.dark) 下，淺色主題的關閉軌道在黑底上看不見，只剩一個灰點，iOS 則畫出深灰的軌道(P15-DARK,2026-10-09)。
     fun styleSwitch(switchView: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
         if (switchView !is android.widget.Switch) return
         val key = "$foreground/$enabled"
@@ -494,11 +493,9 @@ class AndroidBackendHelpers {
         // UISwitch as iOS 26 draws it, measured on P21 (2026-10-10): a 63 x 28
         // track, systemGreen when on (#34C759, #30D158 dark) and (120,120,128)
         // at 44% when off -- 197 on white, about 52 on black -- with a 37 x 24
-        // white capsule 2 pt inside either end. Until then this drew the older
-        // 52 x 32 pill with a round thumb in colorPrimary.
+        // white capsule 2 pt inside either end.
         // iOS 26 所畫的 UISwitch,於 P21 量測(2026-10-10):63 x 28 的軌道，開啟時為 systemGreen(#34C759,深色
         // #30D158),關閉時為 44% 的 (120,120,128)——白底上 197、黑底上約 52——上面一個 37 x 24 的白色膠囊，距兩端各 2 pt。
-        // 在此之前畫的是舊版 52 x 32、colorPrimary 的膠囊與圓形滑塊。
         val dark = android.graphics.Color.luminance(foreground) > 0.5f
         val green = if (dark) 0xFF30D158.toInt() else 0xFF34C759.toInt()
         val trackWidth = 63 * density
@@ -581,7 +578,7 @@ class AndroidBackendHelpers {
     // 10 pt corners, secondarySystemFill ((120,120,128) at 16%) when off and
     // systemBlue (#0088FF, #0091FF dark) with a checkmark in the foreground
     // colour when on, the whole control at 40% when disabled. The framework
-    // CheckBox was Material's outlined box (P21, 2026-10-10).
+    // CheckBox is Material's outlined box (P21, 2026-10-10).
     // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16% 的
     // (120,120,128)),開啟時為 systemBlue(#0088FF,深色 #0091FF)加上前景色的勾號，停用時整個控制項 40%。框架的
     // CheckBox 是 Material 的外框方塊(P21,2026-10-10)。
@@ -617,11 +614,11 @@ class AndroidBackendHelpers {
 
     // A progress bar drawn as UIKitBackend's: UIProgressView's .bar style, 3 pt
     // of the tint over a clear track, and without a value a third-width
-    // segment of the tint sliding back and forth (user, 2026-10-10). The
-    // framework's Widget.ProgressBar.Horizontal was a thick yellow bar and a
+    // segment of the tint sliding back and forth. The
+    // framework's Widget.ProgressBar.Horizontal is a thick yellow bar and a
     // grey barber-pole (P29).
     // 進度條畫成 UIKitBackend 的樣子:UIProgressView 的 .bar 樣式，透明軌道上 3 pt 的 tint 色;沒有數值時，一段寬三分之一的
-    // tint 色段來回滑動(使用者,2026-10-10)。框架的 Widget.ProgressBar.Horizontal 是粗的黃色條與灰色斜紋(P29)。
+    // tint 色段來回滑動。框架的 Widget.ProgressBar.Horizontal 是粗的黃色條與灰色斜紋(P29)。
     fun styleProgressBar(bar: android.widget.ProgressBar) {
         val density = bar.context.resources.displayMetrics.density
         val tint = themeColorOf(bar.context, android.R.attr.colorPrimary)
@@ -1030,11 +1027,11 @@ class AndroidBackendHelpers {
     // the first activity before it started, which is the only time
     // registerForActivityResult allows; a later window registers one launcher
     // on its own registry for this one request and unregisters it with the
-    // result. 2026-10-07.
+    // result.
     //
     // 由第一個之後的視窗要求的對話框，從**該**視窗的 activity 啟動，讓 DocumentsUI 回到它，而不是把第一個
     // 視窗的工作帶到前面。上面的 launcher 是在第一個 activity 啟動前註冊的——registerForActivityResult 只允許
-    // 那個時機；之後的視窗則在自己的 registry 上為這一次要求註冊一個 launcher,拿到結果就註銷。2026-10-07。
+    // 那個時機；之後的視窗則在自己的 registry 上為這一次要求註冊一個 launcher,拿到結果就註銷。
     private fun <I, O> launchOnce(
         activity: ScuiWindowActivity,
         contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
@@ -1128,14 +1125,9 @@ class AndroidBackendHelpers {
     // as a borderless button's does; the ripple is the borderless one, so a press
     // still shows.
     //
-    // This replaces setButtonColorScheme, which tinted the grey box for a dark
-    // scheme: with no box there is nothing to tint.
-    //
     // Menu 的按鈕，畫成 UIKitBackend 的樣子：單純的 UIButton,標籤用 tint 色，周圍什麼都沒有。框架的 Button
     // 是填滿的灰色方塊，最小高度 48 dp(P19,2026-10-10:"Open the menu" 是灰底黑字，iOS 是藍字)。標籤色與無框
     // 按鈕一樣由 Swift 端決定;漣漪用無框的那一種，所以按下時仍有回饋。
-    //
-    // 這取代了 setButtonColorScheme——它為深色配色替灰色方塊上 tint;沒有方塊，就沒有東西要 tint。
     fun styleSimpleButton(button: android.widget.Button) {
         val value = TypedValue()
         button.background =
@@ -1196,9 +1188,9 @@ class AndroidBackendHelpers {
     }
 
     // Handing the content to `OverlayService`, which is what keeps it on
-    // screen; that file records the three experiments that led here.
+    // screen; that file explains why a service is needed.
     //
-    // 把內容交給 `OverlayService`——那才是讓它留在畫面上的東西；該檔記錄了走到這一步的三次實驗。
+    // 把內容交給 `OverlayService`——那才是讓它留在畫面上的東西；為何需要一個 service,見該檔。
     fun setWindowFloating(activity: Activity, floating: Boolean): Boolean {
         if (!floating) {
             val returned = OverlayService.stop(activity) ?: return true
@@ -1219,10 +1211,9 @@ class AndroidBackendHelpers {
         // Dark icons in the status and navigation bars over a light window, light ones
         // over a dark one. The bars are transparent (edge to edge), so the framework's
         // default of light icons left the clock and battery white on white: nothing
-        // showed in the status bar of any light-scheme app (seen once the focus
-        // highlight that had greyed every screen was gone, 2026-10-11).
+        // showed in the status bar of any light-scheme app (2026-10-11).
         // 淺色視窗上的狀態列與導覽列用深色圖示，深色視窗上用淺色。這些列是透明的(edge to edge),框架預設的淺色圖示讓時鐘與
-        // 電池成了白底白字：任何淺色配色的 app,狀態列裡什麼都看不到(那層把每個畫面變灰的焦點高亮拿掉之後才看出來,2026-10-11)。
+        // 電池成了白底白字：任何淺色配色的 app,狀態列裡什麼都看不到(2026-10-11)。
         if (Build.VERSION.SDK_INT >= 30) {
             val light =
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
@@ -1234,11 +1225,11 @@ class AndroidBackendHelpers {
     }
 
     // A navigation title as UIKit's navigation bar shows one: under the status bar,
-    // 44 high, centred, semibold 17 in the primary text colour. It was a bare
-    // TextView at the top of the window -- small grey text inside the status bar
+    // 44 high, centred, semibold 17 in the primary text colour. A bare
+    // TextView at the top of the window is small grey text inside the status bar
     // (P50, 2026-10-11).
-    // 導覽標題照 UIKit 導覽列的樣子：在狀態列下方、高 44、置中、半粗體 17、主要文字色。原本是視窗頂端一個未加樣式的
-    // TextView——狀態列裡的灰色小字(P50,2026-10-11)。
+    // 導覽標題照 UIKit 導覽列的樣子：在狀態列下方、高 44、置中、半粗體 17、主要文字色。視窗頂端一個未加樣式的
+    // TextView 會是狀態列裡的灰色小字(P50,2026-10-11)。
     fun styleNavigationTitle(activity: Activity, label: android.widget.TextView) {
         val density = activity.resources.displayMetrics.density
         // The status-bar inset is the root stack's (ShortcutHostLayout), not this label's.
@@ -1260,11 +1251,11 @@ class AndroidBackendHelpers {
     }
 
     // A toolbar as UIKit's navigation bar shows one: 44 high, a symbol per item in the
-    // primary text colour, leading items on the left and the rest on the right. It was
+    // primary text colour, leading items on the left and the rest on the right. The default is
     // a row of grey raised text buttons from the left (P53, 2026-10-12). An item
     // without a symbol, or with a name Material Symbols does not have, shows its label,
     // which is what UIKit does too.
-    // 工具列照 UIKit 導覽列的樣子：高 44、每個項目一個主要文字色的符號、前導項目靠左、其餘靠右。原本是從左排起的一列灰色凸起
+    // 工具列照 UIKit 導覽列的樣子：高 44、每個項目一個主要文字色的符號、前導項目靠左、其餘靠右。框架預設是從左排起的一列灰色凸起
     // 文字按鈕(P53,2026-10-12)。沒有符號、或 Material Symbols 沒有該名稱的項目顯示標籤，UIKit 也是如此。
     fun styleToolbar(activity: Activity, bar: android.widget.LinearLayout) {
         val density = activity.resources.displayMetrics.density
@@ -1376,15 +1367,15 @@ class AndroidBackendHelpers {
     // the content resolver -- the one route the platform gives an app to a
     // document it did not create.
     //
-    // Not /proc/self/fd/N for a descriptor opened on the URI, which was the
-    // first version: measured on the API 36 emulator 2026-09-30 with P75, the
+    // Not /proc/self/fd/N for a descriptor opened on the URI:
+    // measured on the API 36 emulator 2026-09-30 with P75, the
     // write failed with EACCES. Opening that link resolves back to the FUSE
     // path of a file DocumentsUI created, which this app may not open.
     //
     // 為存檔對話框建立的文件提供一個「一般寫入就能用」的路徑。CREATE_DOCUMENT 回傳的是 content://
     // URI，而 Swift 呼叫端用 FileManager 或 Data.write(to:) 寫入目的地，兩者都開不了它。因此呼叫端
     // 拿到的是本 app cache 中的一個檔案；每當該檔案在寫入後被關閉，它的位元組就經由 content resolver
-    // 複製到該文件——那是平台給 app 通往「非自己建立的文件」的唯一途徑。第一版用的是「對該 URI 開啟的
+    // 複製到該文件——那是平台給 app 通往「非自己建立的文件」的唯一途徑。不用「對該 URI 開啟的
     // descriptor 的 /proc/self/fd/N」：2026-09-30 以 P75 於 API 36 emulator 實測，寫入以 EACCES
     // 失敗。開啟那個連結會解析回 DocumentsUI 所建立之檔案的 FUSE 路徑，而本 app 不得開啟它。
     fun stagingPathForSave(activity: Activity, uriString: String, name: String): String? {
@@ -1453,7 +1444,7 @@ class AndroidBackendHelpers {
                 resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (notPersistable: SecurityException) {
                 // A provider without persistable grants still opened; the
-                // session's grant covers a save made while the app runs.
+                // temporary grant covers a save made while the app runs.
                 // 不支援可持久授權的 provider 仍已開啟;本次執行期間的授權涵蓋 app 執行中的存檔。
             }
         }
@@ -1503,13 +1494,13 @@ class AndroidBackendHelpers {
         val resolver: android.content.ContentResolver,
     ) {
         // A SHA-256 of the bytes last copied, so the observer does not copy again
-        // what commitStagedSave already did. It was the file's length and
-        // modification time until 2026-10-22, when a review pointed out that a
-        // save of the same length within the same millisecond, or one that keeps
-        // the modification time, matched the mark: the copy was skipped and the
-        // save reported success while the document kept the old bytes.
-        // 上一次複製之位元組的 SHA-256,好讓 observer 不再重複 commitStagedSave 已做過的複製。2026-10-22 之前它是檔案
-        // 的長度與修改時間；審查指出，同長度且在同一毫秒內的存檔，或保留了修改時間的存檔，會與該記號相符：複製被略過，
+        // what commitStagedSave already did. Not the file's length and
+        // modification time: a save of the same length within the same
+        // millisecond, or one that keeps the modification time, would match
+        // the mark, so the copy would be skipped and the save would report
+        // success while the document kept the old bytes.
+        // 上一次複製之位元組的 SHA-256,好讓 observer 不再重複 commitStagedSave 已做過的複製。不用檔案
+        // 的長度與修改時間：同長度且在同一毫秒內的存檔，或保留了修改時間的存檔，會與該記號相符：複製會被略過，
         // 存檔回報成功，文件卻仍是舊內容。
         var copied: ByteArray? = null
     }
@@ -1550,17 +1541,17 @@ class AndroidBackendHelpers {
     // Copies a staged file into its document now; null when the document holds
     // it, otherwise why not.
     //
-    // **Added 2026-10-14 (todo.md P1).** The observer alone copied after the
-    // write had returned, so saveDocument reported success for a save whose
+    // The observer alone copies after the
+    // write has returned, so saveDocument would report success for a save whose
     // copy then failed -- a deleted document, a write refused, a full disk --
-    // and the failure reached logcat only. The caller now waits for this.
+    // and the failure would reach logcat only. So the caller waits for this.
     //
     // A path that was not staged for a save is not an error: there is nothing
     // to copy, and the file written is the file.
     //
-    // 現在就把代用檔複製到它的文件;文件確實存好時回傳 null,否則回傳原因。**2026-10-14 加入(todo.md P1)。**
+    // 現在就把代用檔複製到它的文件;文件確實存好時回傳 null,否則回傳原因。
     // 只有 observer 時，複製發生在寫入返回之後，所以 saveDocument 對「之後複製失敗」的存檔(文件被刪、寫入被拒、
-    // 磁碟已滿)也回報成功，失敗只到 logcat。呼叫端現在會等這一步。沒有登記為存檔代用檔的路徑不算錯誤：沒有東西要
+    // 磁碟已滿)也會回報成功，失敗只到 logcat。因此呼叫端會等這一步。沒有登記為存檔代用檔的路徑不算錯誤：沒有東西要
     // 複製，寫出的檔案就是那個檔案。
     fun commitStagedSave(path: String): String? {
         val staged =

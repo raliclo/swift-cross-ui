@@ -126,15 +126,13 @@ public final class WinUIBackend:
     BackendFeatures.Toolbars
 {
     // GraphicsAdapters is declared on the extension in
-    // WinUIBackend+GraphicsAdapters.swift, NOT here, and listing it in both
-    // places is `error: redundant conformance` -- which is how this was found on
-    // 2026-09-04. Only the stored property has to live in the class body, since
-    // Swift has no stored properties in extensions. GtkBackend has the same
-    // split for the same reason.
+    // WinUIBackend+GraphicsAdapters.swift, NOT here; listing it in both
+    // places is `error: redundant conformance`. Only the stored property has
+    // to live in the class body, since Swift has no stored properties in
+    // extensions. GtkBackend has the same split for the same reason.
     // GraphicsAdapters 宣告於 WinUIBackend+GraphicsAdapters.swift 的 extension 上，**而非此處**；
-    // 兩邊都列會得到 `error: redundant conformance`——2026-09-04 正是這樣被發現的。只有儲存屬性
-    // 必須放在類別本體，因為 Swift 的 extension 不能有儲存屬性。GtkBackend 基於相同理由採用相同
-    // 的拆法。
+    // 兩邊都列會得到 `error: redundant conformance`。只有儲存屬性必須放在類別本體，因為 Swift 的
+    // extension 不能有儲存屬性。GtkBackend 基於相同理由採用相同的拆法。
 
     /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
     ///
@@ -454,13 +452,9 @@ public final class WinUIBackend:
     /// frame clock 的訂閱 token，以及它所餵養的 handler。
     /// `addHandler` returns an `EventCleanup`, not an `EventRegistrationToken`.
     /// It is a struct carrying the token AND the close action, so unsubscribing
-    /// is `dispose()` rather than a `removeHandler(token)` call -- which is
-    /// what the version that arrived tried to do, and is the whole of the
-    /// second build break this file caused on Windows (2026-09-10).
+    /// is `dispose()` rather than a `removeHandler(token)` call.
     /// `addHandler` 回傳的是 `EventCleanup`,不是 `EventRegistrationToken`。它是一個同時攜帶
-    /// token **與** close action 的 struct,因此取消訂閱是 `dispose()`,而非
-    /// `removeHandler(token)`——後者正是送到的版本所嘗試的做法,也正是本檔在 Windows 上造成的
-    /// 第二個建置中斷的全部內容(2026-09-10)。
+    /// token **與** close action 的 struct,因此取消訂閱是 `dispose()`,而非 `removeHandler(token)`。
     var frameClockToken: EventCleanup?
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
 
@@ -658,10 +652,9 @@ public final class WinUIBackend:
     /// including `preferredColorScheme` and the ambient system one -- rather
     /// than adding a modifier for it.
     ///
-    /// The same `.white`/`.black` the content background uses, so the bar and
-    /// the view under it cannot disagree. The button colours have to be set
-    /// separately: the title bar does not derive them from its own background,
-    /// and left alone they stay at the system default, which is the light pair.
+    /// The scheme goes to `requestedTheme` on the window's grid, and every
+    /// title-bar colour, buttons included, is cleared to the system default so
+    /// Windows draws its own chrome for that scheme; see the body.
     ///
     /// 讓標題列跟隨與內容相同的色彩配置。
     ///
@@ -672,8 +665,8 @@ public final class WinUIBackend:
     /// 任何東西可呼叫。因此此處讀取 SwiftCrossUI 已解析完成的配置——包含 `preferredColorScheme`
     /// 與環境系統配置——而非為它新增一個修飾器。
     ///
-    /// 使用與內容背景相同的 `.white`/`.black`，使標題列與其下方的視圖不可能不一致。按鈕色彩必須另外
-    /// 設定：標題列不會從自身背景推導它們，放著不管就會停留在系統預設，也就是淺色那一組。
+    /// 配置寫入視窗 grid 的 `requestedTheme`,而標題列的每一個顏色(含按鈕)都清回系統預設，
+    /// 讓 Windows 為該配置繪製它自己的視窗裝飾；見函式本體。
     private func applyTitleBarColors(to window: Window, environment: EnvironmentValues) {
         window.grid.requestedTheme = switch environment.colorScheme {
             case .light: .light
@@ -683,26 +676,17 @@ public final class WinUIBackend:
         // Cleared, not set. Every colour here is left at the system default so
         // Windows draws its own chrome for that theme -- #202020 and its own
         // hover and pressed shades -- rather than whatever this file thought a
-        // dark title bar looks like.
-        //
-        // The first version painted them explicitly, in pure black and white,
-        // and it worked: the bar went dark. It was still wrong. Pure black is
-        // not the colour Windows uses, and a title bar that is blacker than
-        // every other window's is a thing an app has decided rather than a thing
-        // it has inherited. AppKitBackend and GtkBackend both already leave the
-        // window background to the platform; WinUIBackend hardcoding `.white`
-        // and `.black` for its own is the odd one out, and this at least does
-        // not extend that to the chrome.
+        // dark title bar looks like. Painting them pure black and white does
+        // make the bar dark, but pure black is not the colour Windows uses, and
+        // a title bar blacker than every other window's is decided by the app
+        // rather than inherited -- the same reason the content background is
+        // `ApplicationPageBackgroundThemeBrush`.
         //
         // 是「清除」而非「設定」。此處每一個顏色都保持系統預設，好讓 Windows 為該主題繪製它自己的
         // 視窗裝飾——#202020 及其自有的 hover 與 pressed 色階——而不是由本檔認定「深色標題列該長
-        // 什麼樣」。
-        //
-        // 第一版是明確指定顏色的，用純黑與純白，而且它確實有效：標題列變深色了。但它仍然是錯的。
-        // 純黑並非 Windows 所使用的顏色，而一條比其他所有視窗都更黑的標題列，是 app「決定」出來的，
-        // 而非「繼承」而來的。AppKitBackend 與 GtkBackend 本來就把視窗背景交給平台；
-        // WinUIBackend 為自身視窗寫死 `.white` 與 `.black` 是其中的異類，而此處至少不把那份異類
-        // 延伸到視窗裝飾上。
+        // 什麼樣」。以純黑與純白明確上色雖然也能讓標題列變深，但純黑並非 Windows 所使用的顏色，
+        // 一條比其他所有視窗都更黑的標題列是 app「決定」出來的、而非「繼承」而來的——內容背景使用
+        // `ApplicationPageBackgroundThemeBrush` 也是同一個理由。
         guard let titleBar = window.appWindow.titleBar else { return }
         titleBar.backgroundColor = nil
         titleBar.foregroundColor = nil
@@ -733,9 +717,8 @@ public final class WinUIBackend:
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         // A full-screen window answers false, as AppKitBackend and GtkBackend
         // do, or the layout system keeps proposing sizes the window will not
-        // take. This was a constant `true` with a TODO beside it.
+        // take.
         // 全螢幕視窗回答 false,與 AppKitBackend、GtkBackend 相同，否則版面系統會不斷提出視窗不會接受的尺寸。
-        // 此處原本是一個恆為 `true` 的值，旁邊附著 TODO。
         window.appWindow.presenter.kind != .fullScreen
     }
 
@@ -873,22 +856,15 @@ public final class WinUIBackend:
             // Only ever fires for the first window, and only when -actionfile
             // was passed. See InputEvent's ActionFileReplay.
             //
-            // WinUIBackend had no -actionfile support at all. The flag was
-            // parsed inside GtkBackend, so Win32Synthesiser -- a Windows
-            // implementation -- was reachable only by running the GTK backend
-            // on Windows, and an app on this backend ignored the flag in
-            // silence. Which backend a Windows build defaults to does not
-            // change that: a backend that quietly does nothing with a flag it
-            // was given is the inconsistency, whether or not it is the one
-            // usually chosen.
+            // Handled here, not only in GtkBackend where the flag was first
+            // parsed: Win32Synthesiser is a Windows implementation, and a
+            // backend that is given a flag and quietly does nothing with it is
+            // inconsistent whether or not it is the default.
             //
             // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
             //
-            // WinUIBackend 過去完全沒有 -actionfile 支援。該旗標是在 GtkBackend 內解析的，因此
-            // Win32Synthesiser——一個 Windows 實作——只能透過「在 Windows 上執行 GTK backend」才取用
-            // 得到，而在本 backend 上執行的 app 會靜默地忽略該旗標。Windows 建置預設採用哪個
-            // backend 並不改變這件事：一個 backend 收到旗標卻安靜地什麼也不做，本身就是不一致，
-            // 無論它是不是通常被選用的那一個。
+            // 在此處理，而非只在最先解析該旗標的 GtkBackend 中處理:Win32Synthesiser 是一個 Windows 實作，
+            // 而一個 backend 收到旗標卻安靜地什麼也不做，本身就是不一致，無論它是不是預設的那一個。
             // `taplabel`: see WinUIBackend+LabelLocator.swift.
             // `taplabel`:見 WinUIBackend+LabelLocator.swift。
             installLabelLocator(for: window)
@@ -967,10 +943,9 @@ public final class WinUIBackend:
     ///
     /// **`VirtualKeyModifiers` is a `typealias` to a C enum with `static var`
     /// members bolted on -- NOT a Swift `OptionSet`** -- so there is no `.union`
-    /// and combining is a bitwise or on `rawValue`. That is the same shape as
-    /// `ManipulationModes`, which cost a build break in this backend's gesture
-    /// file on 2026-09-11 with the message "value of type 'ManipulationModes'
-    /// has no member 'union'". Checked before writing this rather than after.
+    /// and combining is a bitwise or on `rawValue` -- the same shape as
+    /// `ManipulationModes`, where `.union` fails with "value of type
+    /// 'ManipulationModes' has no member 'union'".
     ///
     /// **`.command` becomes Control and `.option` becomes `menu`.** SwiftUI's
     /// default modifier is `.command` because it was written for macOS; Windows
@@ -987,9 +962,8 @@ public final class WinUIBackend:
     ///
     /// **`VirtualKeyModifiers` 是一個指向 C enum、再外掛 `static var` 成員的 `typealias`——
     /// 而不是 Swift 的 `OptionSet`**——因此沒有 `.union`,組合的方式是對 `rawValue` 做位元或。
-    /// 那與 `ManipulationModes` 是同一個形狀,而後者在 2026-09-11 於本 backend 的手勢檔造成了一次
-    /// 建置中斷,訊息是「value of type 'ManipulationModes' has no member 'union'」。此處是**寫之前**
-    /// 查證的,不是之後。
+    /// 那與 `ManipulationModes` 是同一個形狀(對它使用 `.union` 會得到「value of type
+    /// 'ManipulationModes' has no member 'union'」)。
     ///
     /// **`.command` 變成 Control,`.option` 變成 `menu`。** SwiftUI 的預設修飾鍵是 `.command`,
     /// 因為它是為 macOS 寫的;Windows 沒有 Command 鍵,扮演其角色的是 Control,而
@@ -1207,25 +1181,17 @@ public final class WinUIBackend:
         window: Window,
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
-        // `window.scaleFactor` already existed and was already computed from
-        // `GetDpiForMonitor`; it just was not being written anywhere. The TODO
-        // that used to be here said the value was easy but keeping it current
-        // was annoying, and stopped at neither -- so the environment carried 1
-        // on every display, which is not a stale value but a wrong one.
+        // `window.scaleFactor` is computed from `GetDpiForMonitor` and written
+        // to the environment here; without it the environment carries 1 on
+        // every display. Being correct at window creation matters: `Image`
+        // re-renders when this changes, so on a 150% display a wrong 1 renders
+        // at the wrong scale from the first frame. Keeping it current after a
+        // move is `setWindowEnvironmentChangeHandler` below.
         //
-        // Correct at window creation is strictly better than always 1: `Image`
-        // re-renders when this changes, so on a 150% display it was rendering
-        // at the wrong scale from the first frame rather than after a move.
-        // Keeping it current is the remaining half; see
-        // `setWindowEnvironmentChangeHandler` below.
-        //
-        // `window.scaleFactor` 早已存在，也早已由 `GetDpiForMonitor` 算好，只是從未被寫到任何地方。
-        // 原本此處的 TODO 說「值很好取，但要保持更新很麻煩」，結果兩件事都沒做——於是 environment
-        // 在任何顯示器上都帶著 1，那不是一個過期的值，而是一個錯的值。
-        //
-        // 「在建立視窗時正確」嚴格優於「永遠是 1」：`Image` 會在此值變動時重新繪製，因此在 150%
-        // 的顯示器上，它從第一個 frame 起就以錯誤的比例繪製，而不是在視窗被移動之後才出錯。保持
-        // 更新是剩下的那一半，見下方的 `setWindowEnvironmentChangeHandler`。
+        // `window.scaleFactor` 由 `GetDpiForMonitor` 算出，並在此寫入 environment;少了這一步，environment
+        // 在任何顯示器上都帶著 1。在建立視窗時就正確是必要的:`Image` 會在此值變動時重新繪製，因此在 150%
+        // 的顯示器上，錯誤的 1 會讓它從第一個 frame 起就以錯誤的比例繪製。視窗移動後保持更新則由下方的
+        // `setWindowEnvironmentChangeHandler` 負責。
         rootEnvironment
             .with(\.scenePhase, window.isActive ? .active : .inactive)
             .with(\.windowScaleFactor, window.scaleFactor)
@@ -1236,10 +1202,8 @@ public final class WinUIBackend:
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
         // A scale change recomputes the environment the same way activation
-        // does, so `windowScaleFactor` follows the window across displays. It
-        // used to be a TODO: the value was right at creation and stayed there.
-        // 縮放變更與啟用一樣會重新計算 environment,讓 `windowScaleFactor` 隨視窗跨顯示器更新。這裡原本是 TODO:
-        // 值在建立時正確，之後就停在那裡。
+        // does, so `windowScaleFactor` follows the window across displays.
+        // 縮放變更與啟用一樣會重新計算 environment,讓 `windowScaleFactor` 隨視窗跨顯示器更新。
         window.scaleFactorChangeHandler = { [weak self] in
             if let rootHandler = self?.rootEnvironmentChangeHandler {
                 rootHandler()
@@ -1811,10 +1775,8 @@ public final class WinUIBackend:
 
         /// `.listStyle(.sidebar)`: drawn as a NavigationView pane is -- the
         /// pane background resource and 36-pixel rows with tighter padding --
-        /// rather than as a content list. Until 2026-10-07 this backend never
-        /// read `backendListStyle`, so `.sidebar` looked like `.default` here.
+        /// rather than as a content list.
         /// `.listStyle(.sidebar)`:畫成 NavigationView 窗格的樣子——窗格背景資源、36 像素高且內距較緊的列——而非內容清單。
-        /// 2026-10-07 之前本 backend 從未讀取 `backendListStyle`,因此 `.sidebar` 在這裡看起來與 `.default` 無異。
         var isSidebar = false
 
         static let sidebarRowHeight = 36
@@ -1859,34 +1821,15 @@ public final class WinUIBackend:
         /// 好讓框架丟掉那一列的 view-graph 節點。
         var lazyRowReleaseHandler: ((Int) -> Void)?
 
-        // **~~Which row index each realized container is currently showing,
-        // keyed by `ObjectIdentifier`.~~ Measured wrong on 2026-09-16 and
-        // replaced by the container's own `Tag`.**
-        //
-        // `ObjectIdentifier` is the address of the SWIFT object, and the Swift
-        // objects here are wrappers the binding creates around a COM pointer --
-        // a fresh wrapper per access, freed straight after. The trace showed one
-        // address, `0x23c9c588cc0`, being handed out as the container for rows
-        // 2, 3, 4, 5, 6, 7 and then 14 through 18, with no recycle event
-        // between: not one container reused, but several wrappers landing at the
-        // same reused address. A map keyed on that answers a different question
-        // every time it is asked, and it never errors.
-        //
-        // `Tag` lives on the XAML element itself, so it survives whatever the
-        // binding does with wrappers, and it is the property XAML provides for
-        // exactly this. See `lazyRowIndex(of:)`.
-        //
-        // **~~每個已實體化的容器目前顯示哪一列,以 `ObjectIdentifier` 為鍵。~~
-        // 2026-09-16 量出這是錯的,改用容器自己的 `Tag`。**
-        //
-        // `ObjectIdentifier` 取的是 **Swift 物件**的位址,而這裡的 Swift 物件是綁定層圍繞 COM 指標
-        // 所建的 wrapper——每次存取都新建一個、用完立刻釋放。追蹤顯示同一個位址
-        // `0x23c9c588cc0` 被當成第 2、3、4、5、6、7 列,接著第 14 到 18 列的容器交出來,而其間
-        // **沒有任何回收事件**:那不是一個容器被重複使用,而是好幾個 wrapper 落在同一個被重用的位址上。
-        // 以它為鍵的表,每次被詢問時回答的都是另一個問題,而且永遠不會報錯。
-        //
-        // `Tag` 存在於 XAML 元素本身,因此不受綁定層如何處置 wrapper 的影響,而它正是 XAML 為此
-        // 提供的屬性。見 `lazyRowIndex(of:)`。
+        // No per-container record of which row it shows is kept. A map keyed
+        // by `ObjectIdentifier` does not work -- the binding hands out a fresh
+        // Swift wrapper per access, so one address served rows 2-7 and then
+        // 14-18 -- and the container's `Tag` does not round-trip through this
+        // binding. `ContainerContentChanging`'s `itemIndex` is used instead;
+        // see the note in WinUIBackend+LazyListRows.swift.
+        // 不為容器記錄它顯示哪一列。以 `ObjectIdentifier` 為鍵的表行不通——綁定層每次存取都新建一個 Swift
+        // wrapper,同一個位址先後服務了第 2-7 列與第 14-18 列——而容器的 `Tag` 在這個綁定上無法來回。改用
+        // `ContainerContentChanging` 的 `itemIndex`;見 WinUIBackend+LazyListRows.swift 中的註記。
     }
 
     public func createSelectableListView() -> Widget {
@@ -2047,22 +1990,19 @@ public final class WinUIBackend:
                 Double(event?.newValue ?? 0)
             )
         }
-        // **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine cannot build
-        // WinUIBackend, so this is written against the API as documented and
-        // needs verifying on the Windows side. One thing to check, named rather
-        // than left for the compiler: that `pointerCaptureLost` fires at the end
-        // of a drag on `Slider`. It is used instead of `pointerReleased`
+        // `pointerCaptureLost` ends the edit rather than `pointerReleased`,
         // because a drag that leaves the control still ends the edit, and a
         // release outside the slider does not raise `pointerReleased` on it --
         // the same reasoning as UIKit taking `.touchUpOutside` and
-        // `.touchCancel` alongside `.touchUpInside`.
+        // `.touchCancel` alongside `.touchUpInside`. It does fire at the end of
+        // a drag: P61 reads `ended=1` with
+        // `actions/win/P61-drag-the-trough.actions` (2026-09-10).
         //
-        // **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器建不了 WinUIBackend，因此以下是對照文件
-        // 中的 API 寫出來的，需由 Windows 側驗證。有一件事要查，此處明白指名而非留給編譯器：
-        // `Slider` 上的 `pointerCaptureLost` 是否會在一次拖曳結束時觸發。此處採用它而非
-        // `pointerReleased`，因為一次「移出控制項之外」的拖曳仍然結束了那次編輯，而在 slider 之外
-        // 放開並不會在它身上引發 `pointerReleased`——與 UIKit 除了 `.touchUpInside` 之外還要收下
-        // `.touchUpOutside` 與 `.touchCancel` 是同一個道理。
+        // 以 `pointerCaptureLost` 而非 `pointerReleased` 結束編輯，因為一次「移出控制項之外」的拖曳
+        // 仍然結束了那次編輯，而在 slider 之外放開並不會在它身上引發 `pointerReleased`——與 UIKit 除了
+        // `.touchUpInside` 之外還要收下 `.touchUpOutside` 與 `.touchCancel` 是同一個道理。它確實會在
+        // 拖曳結束時觸發:P61 以 `actions/win/P61-drag-the-trough.actions` 讀到 `ended=1`(2026-09-10)。
+        //
         // THE BEGINNING OF AN EDIT DOES NOT COME FROM A POINTER EVENT HERE, and
         // two attempts to make it are recorded below rather than deleted --
         // both compile, and both do nothing.
@@ -2133,10 +2073,8 @@ public final class WinUIBackend:
         slider.maximum = maximum
         environment.apply(to: slider)
         // Rounded to `decimalPlaces` before it is reported, as UIKit, AppKit
-        // and Android do (GTK sets `digits`). Until 2026-10-07 this backend
-        // ignored the argument and reported the raw `Slider.value`.
+        // and Android do (GTK sets `digits`).
         // 回報前先依 `decimalPlaces` 四捨五入，與 UIKit、AppKit、Android 相同(GTK 設定 `digits`)。
-        // 2026-10-07 之前本 backend 忽略這個參數，直接回報原始的 `Slider.value`。
         let scale = pow(10.0, Double(max(0, min(decimalPlaces, 17))))
         internalState.sliderChangeActions[ObjectIdentifier(slider)] = { value in
             onChange((value * scale).rounded(.toNearestOrEven) / scale)
@@ -2227,11 +2165,11 @@ public final class WinUIBackend:
             environment.apply(to: picker)
             picker.actualForegroundColor =
                 environment.foregroundColor?.resolve(in: environment).uwpColor
-            // ComboBoxDropDownBackground is left to the theme. It used to be
-            // forced to flat white or flat rgb(32,32,32), which is Windows 11's
-            // dark value written out by hand -- so it matched only the default
-            // theme, and replaced the acrylic brush everywhere else. The scheme
-            // is already carried by `requestedTheme`, set in `apply(to:)`.
+            // ComboBoxDropDownBackground is left to the theme. Forcing flat
+            // white or flat rgb(32,32,32) -- Windows 11's dark value written out
+            // by hand -- matches only the default theme and replaces the acrylic
+            // brush everywhere else. The scheme is already carried by
+            // `requestedTheme`, set in `apply(to:)`.
 
             if picker.options != options {
                 // Keep the existing WinUI item objects where possible so
@@ -2260,18 +2198,18 @@ public final class WinUIBackend:
             // Font: `environment.apply(to: picker)` above already sets size,
             // weight, style and family, and the drop-down items inherit them --
             // P74 with `.font(.system(size: 22).italic())` showed Apple, Banana and
-            // Cherry at 22 pt italic when open (2026-10-07). A TODO said otherwise.
+            // Cherry at 22 pt italic when open (2026-10-07).
             // 字型:上方的 `environment.apply(to: picker)` 已設定大小、粗細、樣式與家族，下拉項目會繼承——P74 以
-            // `.font(.system(size: 22).italic())` 展開時，三個項目皆為 22 pt 斜體(2026-10-07)。原本的 TODO 說的不對。
+            // `.font(.system(size: 22).italic())` 展開時，三個項目皆為 22 pt 斜體(2026-10-07)。
         } else if let picker = picker as? CustomRadioButtons {
-            // `apply(to:)` is what carries `.disabled` (it sets `isEnabled`), and
-            // this branch never called it: a disabled radioGroup took a click and
-            // changed the selection, and drew undimmed. Found 2026-10-08 by
-            // P74-choose-in-every-style.actions, pressing the disabled group's Green
-            // ("radioGroup -> Green"). The segmented and wheel styles already apply it.
-            // `apply(to:)` 正是傳遞 `.disabled` 的地方(它設定 `isEnabled`),而此分支從未呼叫它：停用的 radioGroup
-            // 接受點擊、改變了選取，且沒有變暗。2026-10-08 由 P74-choose-in-every-style.actions 按下停用群組的 Green
-            // 發現(「radioGroup -> Green」)。segmented 與 wheel 樣式本來就有套用。
+            // `apply(to:)` is what carries `.disabled` (it sets `isEnabled`);
+            // without it a disabled radioGroup takes a click, changes the
+            // selection and draws undimmed (P74-choose-in-every-style.actions,
+            // "radioGroup -> Green", 2026-10-08). The segmented and wheel styles
+            // apply it too.
+            // `apply(to:)` 正是傳遞 `.disabled` 的地方(它設定 `isEnabled`);少了它，停用的 radioGroup 會接受點擊、
+            // 改變選取，且不會變暗(P74-choose-in-every-style.actions 的「radioGroup -> Green」,2026-10-08)。
+            // segmented 與 wheel 樣式也會套用。
             environment.apply(to: picker)
             for i in 0..<min(picker.items.count, options.count) {
                 (picker.items[i] as! TextBlock).text = options[i]
@@ -2351,13 +2289,11 @@ public final class WinUIBackend:
         _ = textEditor.resources.insert("TextControlBackgroundPointerOver", brush)
         _ = textEditor.resources.insert("TextControlBackgroundFocused", brush)
 
-        // TextControlBorderBrushFocused is deliberately NOT blanked here. It was
-        // until 2026-08-28, alongside the two above and under the same comment,
-        // but it is not a decoration -- it is the accent underline that shows
-        // which control has the keyboard, and there is no second indicator
-        // behind it.
+        // TextControlBorderBrushFocused is deliberately NOT blanked here: it is
+        // not a decoration but the accent underline that shows which control
+        // has the keyboard, and there is no second indicator behind it.
         //
-        // Measured on P2, WinUI, Windows 11 dark, with focus proven by typing
+        // Measured with it blanked (P2, WinUI, Windows 11 dark), focus proven by typing
         // (the editor's Length readout went 96 -> 97 and the character appeared,
         // so the keystroke reached it): no accent row anywhere in or below the
         // editor. The control was a TextField in P9 under the same backend and
@@ -2470,9 +2406,8 @@ public final class WinUIBackend:
         }
 
         guard let buffer = try? bitmap.pixelBuffer.buffer else {
-            // This used to be `try! bitmap.pixelBuffer.buffer!`, which crashed
-            // with no diagnostic when it failed. Skip the frame instead so a
-            // failure here is visible (via the console) rather than fatal.
+            // Skip the frame rather than `try!`, which crashed with no
+            // diagnostic; a failure here is visible on the console, not fatal.
             print("WinUIBackend: WriteableBitmap.pixelBuffer.buffer unavailable, skipping frame update")
             return
         }
@@ -2561,9 +2496,8 @@ public final class WinUIBackend:
     ) {
         let splitView = splitView as! CustomSplitView
 
-        // maximumWidth used to be ignored entirely: the signature took it and
-        // the body never read it, so the sidebar could exceed what the layout
-        // system allowed without anything noticing.
+        // Clamped to `maximumWidth` too, so the sidebar cannot exceed what the
+        // layout system allowed.
         let maximumWidth = max(minimumWidth, maximumWidth)
 
         // The minimum is the width the content cannot go below; it is not a
@@ -2710,11 +2644,11 @@ public final class WinUIBackend:
         }
     }
 
-    // Both dialogs go through the Win32 shell `IFileDialog` now; the WinRT
-    // pickers that were here could not take a start folder, a title, hidden
-    // files or a name-field label, and aborted on more than one folder. See
-    // WinUIBackend+FileDialogs.swift for the measurement.
-    // 兩種對話框現在都經由 Win32 shell 的 `IFileDialog`;原本的 WinRT picker 無法指定起始資料夾、標題、
+    // Both dialogs go through the Win32 shell `IFileDialog`: the WinRT pickers
+    // cannot take a start folder, a title, hidden files or a name-field label,
+    // and abort on more than one folder. See WinUIBackend+FileDialogs.swift
+    // for the measurement.
+    // 兩種對話框都經由 Win32 shell 的 `IFileDialog`:WinRT picker 無法指定起始資料夾、標題、
     // 隱藏檔或檔名欄標籤,選多個資料夾還會中止行程。量測記錄見 WinUIBackend+FileDialogs.swift。
     public func showOpenDialog(
         fileDialogOptions: FileDialogOptions,
@@ -2786,16 +2720,14 @@ public final class WinUIBackend:
     static let longPressDuration: TimeInterval = 0.5
 
     public func createTapGestureTarget(wrapping child: Widget, gesture: TapGesture) -> Widget {
-        // `.secondary` and `.longPress` used to reach a `fatalError` here and in
-        // `updateTapGestureTarget`, so `.onTapGesture(gesture: .secondary)` --
-        // a right click -- took the whole application down on this backend
-        // while working on the other four. That is the response CLAUDE.md
-        // rejects most firmly, and it was reachable from one modifier.
+        // `.secondary` and `.longPress` are wired here and in
+        // `updateTapGestureTarget` just as `.primary` is. A `fatalError` for
+        // them would let one `.onTapGesture(gesture: .secondary)` -- a right
+        // click -- take the whole application down.
         //
-        // 過去 `.secondary` 與 `.longPress` 在此處與 `updateTapGestureTarget` 中都會撞上
-        // `fatalError`,因此 `.onTapGesture(gesture: .secondary)`——也就是一次右鍵——會在本 backend
-        // 上讓**整個應用程式終止**,而同一段程式在其他四個 backend 上運作正常。那正是 CLAUDE.md
-        // 拒絕得最堅決的那個回應,而且只要一個 modifier 就構得到。
+        // `.secondary` 與 `.longPress` 在此處與 `updateTapGestureTarget` 中都與 `.primary` 一樣接上事件。
+        // 若它們撞上 `fatalError`,一個 `.onTapGesture(gesture: .secondary)`——也就是一次右鍵——就會讓
+        // **整個應用程式終止**。
         let tapGestureTarget = TapGestureTarget()
         insert(child, into: tapGestureTarget, at: 0)
         tapGestureTarget.child = child
@@ -2833,8 +2765,7 @@ public final class WinUIBackend:
                 // -- a mouse never produces it, by design, because Windows
                 // reserves press-and-hold-with-a-mouse for other things. On a
                 // desktop backend that would have made this gesture untestable
-                // with a mouse and silently dead for most users, which is the
-                // same shape as the `fatalError` it replaces: correct-looking
+                // with a mouse and silently dead for most users: correct-looking
                 // code that does nothing.
                 //
                 // So the duration is timed here. `pointerPressed` starts a
@@ -2844,8 +2775,8 @@ public final class WinUIBackend:
                 //
                 // **不用 `holding`。** WinUI 只為觸控與觸控筆發出 `Holding`——滑鼠**永遠不會**產生
                 // 它,而且那是刻意的,因為 Windows 把「以滑鼠按住不放」保留給別的用途。在桌面
-                // backend 上,那會讓這個手勢無法以滑鼠測試、並對多數使用者靜默失效——那與它所取代的
-                // `fatalError` 是同一種形狀:看起來正確、實際什麼都不做的程式碼。
+                // backend 上,那會讓這個手勢無法以滑鼠測試、並對多數使用者靜默失效:看起來正確、實際
+                // 什麼都不做的程式碼。
                 //
                 // 因此時長在此自行計時。`pointerPressed` 推進一個 generation 並排程回呼;任何結束
                 // 該次按壓的事件都會再推進 generation,而已排程的 closure 便會發現那個數字不是自己的。
@@ -3318,21 +3249,18 @@ public final class WinUIBackend:
     ) {
         let customDatePicker = datePicker as! CustomDatePicker
 
-        // `.hourMinuteAndSecond` used to print "is not supported in WinUIBackend.
-        // Falling back to .hourAndMinute." on every update and show hours and
-        // minutes only. The fallback was not merely incomplete: the bound value
-        // lost its seconds at launch with no user input (P41, 2026-09-17:
-        // 09:46:40 was written back as 09:46:00 before anything was touched).
-        // WinUI's TimePicker has no seconds, so a 00-59 selector now sits beside
-        // it -- the same H:M:S shape GtkBackend draws with spin buttons. Since
-        // 2026-10-20 the whole row, seconds included, is LocaleTimeRow; the
-        // TimePicker is gone (it wrote AM/PM in the app's language, P90).
+        // WinUI's TimePicker has no seconds and writes AM/PM in the app's
+        // language whatever `\.locale` says (P90), so the whole row, seconds
+        // included, is drawn by LocaleTimeRow -- the same H:M:S shape
+        // GtkBackend draws with spin buttons. Falling back to `.hourAndMinute`
+        // is not acceptable: it dropped the bound value's seconds at launch
+        // with no user input (P41, 2026-09-17: 09:46:40 was written back as
+        // 09:46:00).
         //
-        // `.hourMinuteAndSecond` 以前每次更新都印「is not supported in WinUIBackend. Falling back
-        // to .hourAndMinute.」,並且只顯示時與分。那個降級不只是不完整:**綁定值在啟動時、沒有任何
-        // 使用者操作之下就失去了秒數**(P41,2026-09-17:什麼都還沒碰,09:46:40 就被寫回成 09:46:00)。
-        // WinUI 的 TimePicker 沒有秒,所以現在在它旁邊放一個 00–59 的選擇器——與 GtkBackend 用 spin
-        // button 畫出的 H:M:S 同一個形狀。自 2026-10-20 起整列(含秒)由 LocaleTimeRow 繪製，TimePicker 已不再使用。
+        // WinUI 的 TimePicker 沒有秒，而且不管 `\.locale` 怎麼說都以 app 的語言寫上午/下午(P90),
+        // 所以整列(含秒)由 LocaleTimeRow 繪製——與 GtkBackend 用 spin button 畫出的 H:M:S 同一個形狀。
+        // 退回 `.hourAndMinute` 不可接受:**綁定值會在啟動時、沒有任何使用者操作之下就失去秒數**
+        // (P41,2026-09-17:09:46:40 被寫回成 09:46:00)。
         customDatePicker.toggleTimeView(
             shown: components.contains(.hourAndMinute),
             seconds: components.contains(.hourMinuteAndSecond)
@@ -3505,11 +3433,9 @@ extension EnvironmentValues {
 /// Windows 11, Consolas with every Windows since Vista, Courier New with all.
 /// Only this exact family is cleared when the design returns to default, so a
 /// family someone else set -- the icon fonts in WinUIBackend+Symbols.swift --
-/// is left alone. Until 2026-10-07 the design was ignored (a TODO in
-/// `updateTextView`), so `.monospaced` text was proportional on WinUI alone.
+/// is left alone.
 /// `Font.Design.monospaced` 對應的字型家族:Windows 11 內建 Cascadia Mono,Vista 起皆有 Consolas,Courier New 則
 /// 處處皆有。設計回到預設時只清除這個確切的家族，別人設定的家族——WinUIBackend+Symbols.swift 的圖示字型——不受影響。
-/// 2026-10-07 之前設計被忽略(`updateTextView` 中的 TODO),因此 `.monospaced` 文字只在 WinUI 上是比例字型。
 let winUIMonospacedFontFamilies = "Cascadia Mono, Consolas, Courier New"
 
 extension Font.Resolved {
@@ -3552,9 +3478,8 @@ final class CustomComboBox: ComboBox {
     /// The colour `pointerExited` restores, or `nil` to restore the theme's.
     ///
     /// Optional rather than a colour with a default, because no colour means
-    /// "whatever the theme would have used". It defaulted to opaque black,
-    /// which is the wrong answer under a dark theme and was only ever invisible
-    /// because `updatePicker` overwrote it before anyone could hover.
+    /// "whatever the theme would have used". A default such as opaque black
+    /// is wrong under a dark theme.
     var actualForegroundColor: UWP.Color?
 }
 
@@ -4069,12 +3994,10 @@ final class CustomDatePicker: StackPanel {
         date.timeIntervalSince(calendar.startOfDay(for: date))
     }
 
-    /// The bound value's time of day, for a DATE edit to keep. `nil` when no
-    /// time is shown, which keeps the previous behaviour there. It used to be
-    /// `timeView?.selectedTime`, which has no seconds, so picking a day also
-    /// zeroed them.
-    /// 綁定值的時刻,供**日期**編輯保留。未顯示時間時為 `nil`,維持該處原本的行為。以前用的是
-    /// `timeView?.selectedTime`——它沒有秒——所以選一天也會把秒歸零。
+    /// The bound value's time of day, for a DATE edit to keep, so picking a
+    /// day does not zero the seconds. `nil` when no time is shown, which keeps
+    /// the previous behaviour there.
+    /// 綁定值的時刻,供**日期**編輯保留,以免選一天就把秒歸零。未顯示時間時為 `nil`,維持該處原本的行為。
     private var keptTimeOfDay: TimeSpan? {
         guard timeRow != nil else { return nil }
         return TimeSpan(duration: Int64(timeOfDay(date) * ticksPerSecond))
@@ -4137,20 +4060,16 @@ final class CustomDatePicker: StackPanel {
     }
 
     /// The environment's explicit foreground on every part, or the theme's
-    /// when there is none. It was ignored outright (a `TODO(parity)` in
-    /// `updateDatePicker`), with a note that `Foreground` works on `DatePicker`
-    /// and `TimePicker` but not on the two calendar controls. Measured on P41
-    /// with `.foregroundColor(.red)`, 2026-10-07: `Foreground` reddened the
-    /// DatePicker and TimePicker; a `CalendarView`'s day numbers needed
-    /// `CalendarItemForeground`; its month header, a `CalendarDatePicker`'s
-    /// date and the seconds box's selected value needed
-    /// `paintTemplateText()`. Days of the neighbouring months keep the
-    /// theme's dimmed colour, which is how the view marks them.
-    /// environment 明確指定的前景色套到每個部分，沒有時就用主題的。原本完全被忽略(`updateDatePicker` 中的
-    /// `TODO(parity)`),並註明 `Foreground` 對 `DatePicker` 與 `TimePicker` 有效、對兩個日曆控制項無效。2026-10-07 在 P41
-    /// 以 `.foregroundColor(.red)` 實測:`Foreground` 讓 DatePicker 與 TimePicker 變紅;`CalendarView` 的日期數字需要
-    /// `CalendarItemForeground`;其月份標題、`CalendarDatePicker` 的日期與秒數框選中的值需要 `paintTemplateText()`。
-    /// 相鄰月份的日期維持主題的淡色，那是該 view 標示它們的方式。
+    /// when there is none. Measured on P41 with `.foregroundColor(.red)`,
+    /// 2026-10-07: `Foreground` reddened the DatePicker and TimePicker; a
+    /// `CalendarView`'s day numbers needed `CalendarItemForeground`; its month
+    /// header, a `CalendarDatePicker`'s date and the seconds box's selected
+    /// value needed `paintTemplateText()`. Days of the neighbouring months keep
+    /// the theme's dimmed colour, which is how the view marks them.
+    /// environment 明確指定的前景色套到每個部分，沒有時就用主題的。2026-10-07 在 P41 以 `.foregroundColor(.red)` 實測:
+    /// `Foreground` 讓 DatePicker 與 TimePicker 變紅;`CalendarView` 的日期數字需要 `CalendarItemForeground`;其月份標題、
+    /// `CalendarDatePicker` 的日期與秒數框選中的值需要 `paintTemplateText()`。相鄰月份的日期維持主題的淡色，那是該 view
+    /// 標示它們的方式。
     func setForeground(to brush: WinUI.Brush?) {
         foregroundBrush = brush
         func apply(_ control: Control?) {
@@ -4370,14 +4289,12 @@ final class CustomDatePicker: StackPanel {
                     case 1:
                         calendarView.selectedDates.setAt(0, dateTime)
                     default:
-                        // `append` after clearing, not `setAt(0,)`. The old line
-                        // wrote index 0 of a collection that had just been
-                        // emptied. Unreached in practice -- a single-selection
-                        // CalendarView never holds two dates -- which is why it
-                        // survived.
-                        // 清空之後要用 `append` 而非 `setAt(0,)`。原本那一行是在「剛被清空的集合」上
-                        // 寫入索引 0。實務上不會走到——單選的 CalendarView 不會同時持有兩個日期——
-                        // 這也正是它得以存活至今的原因。
+                        // `append` after clearing, not `setAt(0,)`: index 0 of a
+                        // collection that has just been emptied is out of range.
+                        // The path is rarely reached -- a single-selection
+                        // CalendarView never holds two dates.
+                        // 清空之後要用 `append` 而非 `setAt(0,)`:剛被清空的集合沒有索引 0。
+                        // 這條路徑很少走到——單選的 CalendarView 不會同時持有兩個日期。
                         calendarView.selectedDates.clear()
                         calendarView.selectedDates.append(dateTime)
                 }

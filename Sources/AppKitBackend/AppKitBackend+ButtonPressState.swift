@@ -3,19 +3,15 @@ import AppKit
 
 /// `BackendFeatures.ButtonPressState` on AppKit.
 ///
-/// **The state this backend already keeps is unreachable from here, and this
-/// file may not edit the file that keeps it.** `NSCustomButton` tracks a press
-/// exactly the way the contract wants -- `isPressed` set in `mouseDown`,
-/// `isHighlighted` recomputed against `bounds` on every `mouseDragged`, both
-/// cleared in `mouseUp` (`AppKitBackend+Button.swift:199-229`) -- but
-/// `isPressed` is `private` (line 106) and `isHighlighted` is a plain Swift
-/// `var` with a `didSet` (line 110). A plain `var` has no observation hook:
-/// KVO needs `@objc dynamic`, and adding either that or a callback to the
-/// `didSet` means editing `AppKitBackend+Button.swift`, which this change is not
-/// permitted to touch.
+/// **The state the button already keeps is not observable from outside.**
+/// `NSCustomButton` tracks a press exactly the way the contract wants --
+/// `isPressed` set in `mouseDown`, `isHighlighted` recomputed against `bounds`
+/// on every `mouseDragged`, both cleared in `mouseUp` -- but `isPressed` is
+/// `private` and `isHighlighted` is a plain Swift `var` with a `didSet`. A
+/// plain `var` has no observation hook: KVO needs `@objc dynamic`.
 ///
-/// **Nor would hooking it have been enough.** `createSimpleButton()` returns a
-/// bare `NSButton` (`AppKitBackend+Button.swift:6`), which has no
+/// **Nor would hooking it be enough.** `createSimpleButton()` returns a
+/// bare `NSButton`, which has no
 /// `NSCustomButton` in it at all, and the contract admits widgets from both
 /// factories.
 ///
@@ -24,13 +20,13 @@ import AppKit
 /// `.leftMouseUp` and `.mouseMoved`. The monitor returns every event unchanged,
 /// so nothing downstream can be disturbed by it -- which is the reason it was
 /// preferred to an `NSPressGestureRecognizer` on the button. A recogniser
-/// (`AppKitBackend+Gestures.swift:129` uses one for long press) delays primary
+/// (`AppKitBackend+Gestures.swift` uses one for long press) delays primary
 /// mouse events to its view by default, and getting that wrong on a button
 /// means the button stops working, not that a highlight goes missing.
 ///
 /// **The abandon case** is the `.leftMouseDragged` branch, and it is a
-/// transcription of what `NSCustomButton.mouseDragged` already does at
-/// `AppKitBackend+Button.swift:206-216`: while the press is down, the reported
+/// transcription of what `NSCustomButton.mouseDragged` already does: while the
+/// press is down, the reported
 /// value is whether the point is inside `bounds`. Drag off, it reports `false`;
 /// drag back on, `true` again; release anywhere, `false`.
 ///
@@ -47,26 +43,22 @@ import AppKit
 ///
 /// AppKit 上的 `BackendFeatures.ButtonPressState`。
 ///
-/// **這個 backend 已保存的狀態從此處無法取用，而本檔又不得修改保存它的那個檔案。**
-/// `NSCustomButton` 追蹤按壓的方式恰恰就是合約想要的——`mouseDown` 中設定 `isPressed`、每次
-/// `mouseDragged` 都以 `bounds` 重新計算 `isHighlighted`、`mouseUp` 中將兩者清除
-/// （`AppKitBackend+Button.swift:199-229`）——但 `isPressed` 是 `private`（第 106 行），而
-/// `isHighlighted` 是一個帶 `didSet` 的普通 Swift `var`（第 110 行）。普通 `var` 沒有觀察掛勾：
-/// KVO 需要 `@objc dynamic`，而無論是加上它、或在 `didSet` 中加一個 callback，都意味著要編輯
-/// `AppKitBackend+Button.swift`——而本次變更不得碰觸該檔。
+/// **按鈕自己保存的狀態從外面觀察不到。** `NSCustomButton` 追蹤按壓的方式恰恰就是合約想要的——
+/// `mouseDown` 中設定 `isPressed`、每次 `mouseDragged` 都以 `bounds` 重新計算 `isHighlighted`、
+/// `mouseUp` 中將兩者清除——但 `isPressed` 是 `private`,而 `isHighlighted` 是一個帶 `didSet` 的普通
+/// Swift `var`。普通 `var` 沒有觀察掛勾:KVO 需要 `@objc dynamic`。
 ///
-/// **況且就算掛上去也不夠。** `createSimpleButton()` 回傳的是一個純粹的 `NSButton`
-/// （`AppKitBackend+Button.swift:6`），其中根本沒有任何 `NSCustomButton`，而合約承認來自這兩個
-/// 工廠方法的 widget。
+/// **況且就算掛上去也不夠。** `createSimpleButton()` 回傳的是一個純粹的 `NSButton`,其中根本沒有任何
+/// `NSCustomButton`,而合約承認來自這兩個工廠方法的 widget。
 ///
 /// 因此改為從兩種按鈕共處的那條事件串流讀取按壓狀態：一個應用程式層級的 local monitor，監聽
 /// `.leftMouseDown`、`.leftMouseDragged`、`.leftMouseUp` 與 `.mouseMoved`。該 monitor 原封不動地
 /// 回傳每一個事件，因此下游不可能被它干擾——這正是它勝過「在按鈕上掛 `NSPressGestureRecognizer`」
-/// 的理由。gesture recogniser（`AppKitBackend+Gestures.swift:129` 用了一個做長按）預設會延遲送往其
+/// 的理由。gesture recogniser(`AppKitBackend+Gestures.swift` 用了一個做長按)預設會延遲送往其
 /// view 的主要滑鼠事件，而在按鈕上把這件事弄錯，代價是按鈕直接失效，而不只是少了一個高亮。
 ///
-/// **放棄的情況**就是 `.leftMouseDragged` 那一支，而它是 `NSCustomButton.mouseDragged` 於
-/// `AppKitBackend+Button.swift:206-216` 既有作法的謄寫：在按壓期間，回報的值就是「該點是否位於
+/// **放棄的情況**就是 `.leftMouseDragged` 那一支，而它是 `NSCustomButton.mouseDragged` 既有作法的
+/// 謄寫：在按壓期間，回報的值就是「該點是否位於
 /// `bounds` 之內」。拖離則回報 `false`、拖回則再次 `true`、在任何位置放開都是 `false`。
 ///
 /// **哪裡並不精確——如實陳述而非隱藏。** 對一個純粹的 `NSButton`，`NSButtonCell` 會跑一個巢狀的滑鼠
@@ -141,12 +133,12 @@ final class AppKitButtonPressMonitor {
 
         if let existing = entries[key] {
             // Swapped, not replaced. `Button.commit` reinstalls on every update
-            // (`Sources/SwiftCrossUI/Views/Button.swift:349`), and a fresh entry
+            // (where `Button` calls `updateButtonPressHandler`), and a fresh entry
             // would forget a press that is in flight -- the release would then
             // find `reported` already `false` and report nothing, leaving the
             // style latched in the pressed appearance.
             // 是替換 closure 而非替換整筆項目。`Button.commit` 每次更新都會重新安裝
-            // （`Sources/SwiftCrossUI/Views/Button.swift:349`），而一筆全新的項目會忘記正在進行中
+            // (`Button` 的 `updateButtonPressHandler` 安裝處),而一筆全新的項目會忘記正在進行中
             // 的按壓——屆時放開時會發現 `reported` 已是 `false` 而不回報任何東西，讓樣式卡在按下的
             // 外觀上。
             existing.handler = handler
@@ -209,15 +201,15 @@ final class AppKitButtonPressMonitor {
     /// Whether `event` lands inside `entry`'s button.
     ///
     /// The conversion and the bounds test are the ones `NSCustomButton` performs
-    /// on itself at `AppKitBackend+Button.swift:209` and `:221`. Two buttons
+    /// on itself in `mouseDragged` and `mouseUp`. Two buttons
     /// that overlap would both answer `true` for a point in the overlap; this
     /// does not hit-test the view hierarchy, and a layout that stacks two live
     /// buttons on the same pixels would report both as pressed.
     ///
     /// `event` 是否落在 `entry` 的按鈕之內。
     ///
-    /// 此處的座標轉換與 bounds 判斷，就是 `NSCustomButton` 於 `AppKitBackend+Button.swift:209`
-    /// 與 `:221` 對自身所做的那一組。兩顆互相重疊的按鈕，對於重疊區內的一點都會回答 `true`；此處
+    /// 此處的座標轉換與 bounds 判斷，就是 `NSCustomButton` 在 `mouseDragged` 與 `mouseUp`
+    /// 中對自身所做的那一組。兩顆互相重疊的按鈕，對於重疊區內的一點都會回答 `true`；此處
     /// 並不對 view 階層做 hit test，因此一個把兩顆有效按鈕疊在同一批像素上的版面，會把兩者都回報
     /// 為按下。
     private func contains(_ entry: Entry, _ event: NSEvent) -> Bool {

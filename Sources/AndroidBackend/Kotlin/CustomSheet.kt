@@ -16,15 +16,13 @@ import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.MaterialShapeDrawable
 import com.google.android.material.shape.ShapeAppearanceModel
 
-// A Material bottom sheet with SwiftCrossUI's presentation options.
+// A Material bottom sheet with SwiftCrossUI's presentation options: detents,
+// corner radius and the drag indicator.
 //
-// **Detents, corner radius and the drag indicator are implemented, 2026-10-06.**
-// They were ignored before, with comments saying Material could not set a
-// corner radius at run time and that the background broke when the sheet was
-// taller than its contents. Neither holds: the sheet's background is a
-// MaterialShapeDrawable that can be replaced with any corner size, and the
-// background stopped short only because the bottom-sheet frame wrapped its
-// content -- it is now as tall as the largest detent.
+// Material can set a corner radius at run time: the sheet's background is a
+// MaterialShapeDrawable that can be replaced with any corner size. The
+// bottom-sheet frame is as tall as the largest detent, so the background does
+// not stop short when the sheet is taller than its contents.
 //
 // Detents map onto BottomSheetBehavior's resting states, which are at most
 // three: collapsed (peekHeight), half-expanded (halfExpandedRatio) and expanded
@@ -32,10 +30,10 @@ import com.google.android.material.shape.ShapeAppearanceModel
 // negative one is absent. More than three cannot be resting states in Material;
 // AndroidBackend+Sheets.swift picks the smallest, the largest and one between.
 //
-// 帶有 SwiftCrossUI 呈現選項的 Material bottom sheet。**detents、圓角與拖曳指示器已實作(2026-10-06)。**
-// 之前它們被忽略，註解說 Material 無法在執行期設定圓角、sheet 比內容高時背景會壞掉。兩者都不成立：sheet 的
-// 背景是可換成任何圓角的 MaterialShapeDrawable;背景會短一截，只是因為 bottom-sheet 框架包著內容——現在它和
-// 最高的 detent 一樣高。detents 對應到 BottomSheetBehavior 的停靠狀態，最多三個：collapsed(peekHeight)、
+// 帶有 SwiftCrossUI 呈現選項(detents、圓角與拖曳指示器)的 Material bottom sheet。
+// Material 可以在執行期設定圓角:sheet 的背景是可換成任何圓角的 MaterialShapeDrawable。bottom-sheet 框架與
+// 最高的 detent 一樣高，因此 sheet 比內容高時背景不會短一截。
+// detents 對應到 BottomSheetBehavior 的停靠狀態，最多三個：collapsed(peekHeight)、
 // half-expanded(halfExpandedRatio)與 expanded(expandedOffset)。Swift 傳入最多三個 dp 高度，由小到大；
 // 負值表示沒有。超過三個在 Material 裡無法成為停靠狀態；AndroidBackend+Sheets.swift 取最小、最大與中間一個。
 class CustomSheet(var content: View?) : BottomSheetDialogFragment() {

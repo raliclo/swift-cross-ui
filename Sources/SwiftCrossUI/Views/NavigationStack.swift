@@ -72,30 +72,21 @@ public struct NavigationStack<Detail: View>: View {
     /// and a `BackendFeatures` protocol for it would mean a stack with no way
     /// back on any backend that had not implemented it yet.
     ///
-    /// Until this existed a `NavigationStack` could be pushed but never popped:
-    /// `body` rendered only `elements.last`, on every backend, so the only way
-    /// back was whatever the application happened to provide. Measured on P24,
-    /// which pushed to level 3 and then had nowhere to go.
-    ///
     /// The label matches SwiftUI's fallback. SwiftUI shows the previous view's
     /// title and says "Back" when there is none.
     ///
-    /// **Corrected 2026-09-08.** This paragraph used to end *"When
-    /// `View/navigationTitle(_:)` lands, this is where it reads from."* That
-    /// modifier has now landed -- see `NavigationTitleModifier.swift` -- and the
-    /// sentence was still wrong, because it named a reading point that cannot
-    /// work. `navigationTitle` is a ``PreferenceValues`` entry, and a preference
-    /// travels *upward*, out of the destination and past this bar, which is its
-    /// preceding sibling in the same `VStack`. By the time the destination's
-    /// title exists, the bar that would show it has already been laid out. The
-    /// wrong text is quoted rather than deleted because "read it from the
-    /// preference" is the obvious thing to try next, and it does not work.
+    /// **The label cannot be read from `View/navigationTitle(_:)`, though that is
+    /// the obvious thing to try.** `navigationTitle` is a ``PreferenceValues``
+    /// entry, and a preference travels *upward*, out of the destination and past
+    /// this bar, which is its preceding sibling in the same `VStack`. By the time
+    /// the destination's title exists, the bar that would show it has already
+    /// been laid out.
     ///
     /// Labelling this bar needs a value that survives *between* layout passes
     /// -- a store the stack owns, keyed by path depth, written by the
     /// destination and read on the following pass. That is a change to the
     /// stack, not to the modifier, and it is not made here. The window title
-    /// is what `navigationTitle` sets today.
+    /// is what `navigationTitle` sets.
     ///
     /// 只要曾經推入任何內容，就會顯示的返回控制項。
     ///
@@ -103,23 +94,16 @@ public struct NavigationStack<Detail: View>: View {
     /// 不過是一個按鈕加一段文字，此處沒有任何 backend 能做得更好之處；而若為它另立
     /// `BackendFeatures` 協定，只會導致「在尚未實作它的 backend 上，堆疊完全無法返回」。
     ///
-    /// 在此之前，`NavigationStack` 只能推入、無法彈出：`body` 在所有 backend 上都只繪製
-    /// `elements.last`，因此唯一的返回途徑是應用程式自行提供的。此問題於 P24 實測發現——推入至
-    /// 第 3 層後便無路可退。
-    ///
     /// 標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時則顯示「Back」。
     ///
-    /// **2026-09-08 更正。** 本段原本結尾為：*「待 `View/navigationTitle(_:)` 加入後，此處便是它的
-    /// 讀取點。」* 該 modifier 現已加入——見 `NavigationTitleModifier.swift`——而那句話依然是錯的，
-    /// 因為它指出了一個無法運作的讀取點。`navigationTitle` 是一個 ``PreferenceValues`` 項目，而
-    /// preference 是**向上**傳遞的：它從 destination 往外走，越過這條列——這條列在同一個 `VStack`
-    /// 中是它的前一個兄弟節點。當 destination 的標題存在時，本該顯示它的那條列早已完成版面計算。
-    /// 此處引用而非刪除那句錯誤文字，是因為「就從 preference 讀取吧」正是下一個最直覺的嘗試，
-    /// 而它行不通。
+    /// **標籤不能從 `View/navigationTitle(_:)` 讀取，雖然那是最直覺的嘗試。** `navigationTitle` 是一個
+    /// ``PreferenceValues`` 項目，而 preference 是**向上**傳遞的：它從 destination 往外走，越過這條列——
+    /// 這條列在同一個 `VStack` 中是它的前一個兄弟節點。當 destination 的標題存在時，本該顯示它的那條列
+    /// 早已完成版面計算。
     ///
     /// 要為這條列加上標籤，需要一個能**跨越**多次版面計算而存續的值——一個由堆疊自身持有、以路徑
     /// 深度為鍵、由 destination 寫入、於下一次計算時讀取的儲存區。那是對堆疊的修改，而非對 modifier
-    /// 的修改，此處不做。`navigationTitle` 今日所設定的是視窗標題。
+    /// 的修改，此處不做。`navigationTitle` 目前所設定的是視窗標題。
     @ViewBuilder
     private var navigationBar: some View {
         VStack(spacing: 0) {

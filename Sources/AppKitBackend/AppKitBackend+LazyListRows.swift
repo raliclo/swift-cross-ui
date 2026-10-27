@@ -4,10 +4,10 @@ import SwiftCrossUI
 extension AppKitBackend: BackendFeatures.LazyListRows {
     /// Points the table at the framework instead of at an array.
     ///
-    /// **`NSTableView` was already asking per row** -- `tableView(_:viewFor:row:)`
-    /// -- and the delegate answered from a `widgets` array that had every row in
-    /// it. This changes what that answer reads from, and nothing else about the
-    /// table.
+    /// **`NSTableView` already asks per row** -- `tableView(_:viewFor:row:)` --
+    /// so the only difference is what that answer reads from: the provider
+    /// instead of a `widgets` array holding every row. Nothing else about the
+    /// table changes.
     ///
     /// `reloadData` at the end because the count may have changed, and because a
     /// table holding views from the previous provider would otherwise keep
@@ -15,8 +15,8 @@ extension AppKitBackend: BackendFeatures.LazyListRows {
     ///
     /// 讓這個表格改去問框架，而不是去問一個陣列。
     ///
-    /// **`NSTableView` 本來就是逐列詢問的**——`tableView(_:viewFor:row:)`——而那個 delegate 是從一個
-    /// 裝著每一列的 `widgets` 陣列裡回答。這裡改變的是「那個答案從哪裡讀」，表格的其餘一切不變。
+    /// **`NSTableView` 本來就是逐列詢問的**——`tableView(_:viewFor:row:)`——所以只有「那個答案從哪裡讀」
+    /// 不同:從 provider 讀,而不是從裝著每一列的 `widgets` 陣列;表格的其餘一切不變。
     ///
     /// 最後呼叫 `reloadData`，因為列數可能已經改變;也因為一個仍持有前一個 provider 所產出 view 的
     /// 表格，否則會繼續顯示它們。
@@ -47,7 +47,7 @@ extension AppKitBackend: BackendFeatures.LazyListRows {
 }
 
 extension AppKitBackend: BackendFeatures.LazyListRowLifetimes {
-    /// **`NSTableView` already tells us this; nothing had asked.** The row view
+    /// **`NSTableView` already reports this.** The row view
     /// lifecycle -- `didAdd`/`didRemove` -- is the same mechanism that makes
     /// `rowViewForRow` worth recycling, and it reports exactly the moment the
     /// framework needs: a row has stopped owning its content.
@@ -55,7 +55,7 @@ extension AppKitBackend: BackendFeatures.LazyListRowLifetimes {
     /// Replaced, never appended to, for the reason every handler in this
     /// backend carries: `List` installs it on each commit.
     ///
-    /// **`NSTableView` 本來就會說出這件事,只是先前沒有人問。** row view 的生命週期
+    /// **`NSTableView` 本來就會說出這件事。** row view 的生命週期
     /// ——`didAdd`/`didRemove`——與「讓 `rowViewForRow` 值得回收」的是同一套機制,而它回報的
     /// 正是框架需要的那一刻:某一列不再持有它的內容了。
     ///

@@ -4,11 +4,7 @@ import UIKit
 
 /// Closing a window and stacking one above another.
 ///
-/// Neither existed until 2026-09-30: `dismissWindow()` warned once and did
-/// nothing, and `windowLevel(_:)` was substituted with `.normal` and logged.
-///
-/// 關閉一個視窗，以及把一個視窗疊在另一個之上。2026-09-30 之前兩者都不存在：`dismissWindow()`
-/// 只會警告一次、什麼也不做，而 `windowLevel(_:)` 會被替換為 `.normal` 並記錄一筆。
+/// 關閉一個視窗，以及把一個視窗疊在另一個之上。
 extension UIKitBackend: BackendFeatures.WindowClosing {
     private static var closeHandlerKey: UInt8 = 0
 
@@ -95,16 +91,15 @@ extension UIKitBackend: BackendFeatures.WindowLevels {
     /// *including other applications'*, and a UIKit app draws only inside its
     /// own scenes: `UIWindow.windowLevel` orders windows within the app, never
     /// across apps. P37 on iOS shows the consequence -- the app switcher covers
-    /// the window. A first version of this listed `.floating` and mapped it to
-    /// `.normal + 1`; P37 then printed "floating is supported: this window
-    /// should stay in front", which was false, so it was withdrawn the same day
-    /// (2026-09-30).
+    /// the window. Mapping `.floating` to `.normal + 1` would make P37 print
+    /// "floating is supported: this window should stay in front", which is
+    /// false.
     ///
     /// 不列出 `.floating`——那是協定所要求的回答，而不是缺口。WindowLevel 把 floating 定義為位於
     /// 所有視窗之上、**包括其他 app 的**，而 UIKit app 只在自己的 scene 內繪製：`UIWindow.windowLevel`
-    /// 只在 app 內排序，從不跨 app。P37 在 iOS 上呈現了這一點——app 切換器會蓋住視窗。本段第一版曾列出
-    /// `.floating` 並映射為 `.normal + 1`；P37 隨即印出「floating is supported: this window should stay
-    /// in front」，那是假的，因此同日（2026-09-30）撤回。
+    /// 只在 app 內排序，從不跨 app。P37 在 iOS 上呈現了這一點——app 切換器會蓋住視窗。若把
+    /// `.floating` 映射為 `.normal + 1`，P37 會印出「floating is supported: this window should stay
+    /// in front」，而那是假的。
     public nonisolated var supportedWindowLevels: [WindowLevel] {
         [.automatic, .normal]
     }

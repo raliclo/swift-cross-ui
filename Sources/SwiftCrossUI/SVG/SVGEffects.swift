@@ -1,12 +1,12 @@
 import Foundation
 
-// `clip-path` and `mask` (2026-10-10). Both are drawn by the core rasteriser,
+// `clip-path` and `mask`. Both are drawn by the core rasteriser,
 // so every backend has them: the element's nodes go into a layer of their own,
 // the layer is multiplied pixel by pixel by the clip's coverage and the mask's
 // value, and the result is composited at the element's opacity -- the order
 // SVG gives (opacity, clip and mask all act on the element as a whole).
 //
-// `clip-path` 與 `mask`(2026-10-10)。兩者都由核心點陣化器繪製，因此每個 backend 都有：元素的節點畫進
+// `clip-path` 與 `mask`。兩者都由核心點陣化器繪製，因此每個 backend 都有：元素的節點畫進
 // 自己的圖層，圖層逐像素乘上裁切的覆蓋率與遮罩的值，再以元素的不透明度合成——這是 SVG 規定的順序
 // (不透明度、裁切與遮罩都作用在整個元素上)。
 

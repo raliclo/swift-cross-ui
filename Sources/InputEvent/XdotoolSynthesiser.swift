@@ -119,29 +119,13 @@
             // 繪製並回報 1；被指定 `GDK_SCALE=2` 時，GTK 以 2 繪製、X 也看到 2——而它回報 2。
             // Divided by the scale, so that `screenPosition` multiplying the whole
             // sum back leaves the origin where X put it and scales only the point.
-            // Win32Synthesiser has always done this; here it was invisible while
-            // the scale was hard-coded to 1, and became a bug the moment it was not.
-            //
-            // Measured 2026-08-27, before the division existed. A file saying
-            // `move,410,400` under `GDK_SCALE=2` put the cursor at 1204,906 when
-            // 1012,853 was right -- the window origin had been doubled along with
-            // the point. What identified it was that solving for the origin under
-            // `(origin + point) * scale` gave an inset of exactly -38,-59 at both
-            // scales, the same reparenting inset this file documents above, while
-            // solving under `origin + point * scale` gave -38,-59 at scale 1 and
-            // 154,-6 at scale 2. Four digits agreeing across two axes and two
-            // scales is what made that a diagnosis rather than a guess.
+            // Win32Synthesiser does the same. Without the division, `move,410,400`
+            // under `GDK_SCALE=2` landed at 1204,906 instead of 1012,853: the window
+            // origin was doubled along with the point.
             //
             // 先除以該比例，如此 `screenPosition` 把整個總和乘回去時，原點會停在 X 所給的位置，只有
-            // 「點」被縮放。Win32Synthesiser 一向如此；此處在比例被寫死為 1 時看不出來，而一旦不再
-            // 是 1，它立刻成為 bug。
-            //
-            // 於 2026-08-27、在此除法尚不存在時實測。`GDK_SCALE=2` 下，一個寫著 `move,410,400` 的
-            // 檔案把游標放到了 1204,906，而正確答案是 1012,853——視窗原點連同該點一起被加倍了。
-            // 據以指認的關鍵是：以 `(origin + point) * scale` 反解原點，兩種縮放下都得到 -38,-59，
-            // 恰為本檔上方所記載的同一個 reparenting 偏移；而以 `origin + point * scale` 反解，
-            // scale 1 得 -38,-59、scale 2 卻得 154,-6。四個數字在兩個軸、兩種縮放下一致，才使這成為
-            // 一項診斷而非一個猜測。
+            // 「點」被縮放。Win32Synthesiser 也是如此。少了這個除法,`GDK_SCALE=2` 下的 `move,410,400`
+            // 會落在 1204,906 而非 1012,853:視窗原點連同該點一起被加倍了。
             let scale = layoutScale ?? 1
             return WindowGeometry(
                 frameOrigin: ((x - inset.left) / scale, (y - inset.top) / scale),
@@ -286,9 +270,9 @@
                     )
 
                 case .orientation:
-                    // A phone and tablet verb (2026-09-29, added from the Mac side
-                    // for iOS). An X11 window has a size, not an orientation.
-                    // 手機與平板的動作(2026-09-29 由 Mac 這一側為 iOS 加入)。X11 視窗有尺寸,沒有方向。
+                    // A phone and tablet verb, used on iOS. An X11 window has a
+                    // size, not an orientation.
+                    // 手機與平板的動作，用於 iOS。X11 視窗有尺寸,沒有方向。
                     throw SynthesiserError.unsupported(
                         "orient: an X11 window has no device orientation; resize it instead"
                     )
@@ -314,16 +298,13 @@
         /// activated even if its title matches. Same scope as AppKit's
         /// `NSApp.windows.filter { $0.isVisible }`.
         ///
-        /// **THE SECOND HALF IS NOT OPTIONAL, and this is the third platform to
-        /// need it.** Raising the window is the visible part; making
-        /// ``currentWindowIdentity()`` notice is what makes the rows AFTER a
-        /// `focus` mean anything. Without it the focus succeeds, the replay reports
-        /// every action done, and each later coordinate is still converted against
-        /// the window measured before the replay began. AppKit hit this
-        /// (`a8627210`, identity returned the protocol default of 0), Win32 hit a
-        /// different shape of it (identity answered with largest-by-area, and a
-        /// second window is usually smaller), and this file had the AppKit shape:
-        /// no override at all.
+        /// **THE SECOND HALF IS NOT OPTIONAL, on any platform.** Raising the window
+        /// is the visible part; making ``currentWindowIdentity()`` notice is what
+        /// makes the rows AFTER a `focus` mean anything. Without it the focus
+        /// succeeds, the replay reports every action done, and each later
+        /// coordinate is still converted against the window measured before the
+        /// replay began. AppKit and Win32 each needed the same fix (`a8627210` for
+        /// AppKit).
         ///
         /// 讓本行程中標題**完全相符**的視窗上前。
         ///
@@ -335,24 +316,18 @@
         /// 同時使用 `--pid`,使得即便標題相符,屬於其他應用程式的視窗也不會被啟用。範圍與 AppKit 的
         /// `NSApp.windows.filter { $0.isVisible }` 相同。
         ///
-        /// **第二半不是可選的,而這已經是第三個需要它的平台。** 把視窗抬起來是看得見的部分;讓
+        /// **第二半在任何平台上都不是可選的。** 把視窗抬起來是看得見的部分;讓
         /// ``currentWindowIdentity()`` 察覺到它,才是讓 `focus` **之後**那些列具有意義的東西。
         /// 少了它,focus 會成功、replay 會回報每個動作都完成,而其後每一個座標仍然是相對於
-        /// 「重放開始前所量測的那個視窗」換算的。AppKit 撞過這個(`a8627210`,identity 回傳協定預設 0),
-        /// Win32 撞的是它的另一種形狀(identity 以「面積最大」作答,而第二個視窗通常比較小),
-        /// 而本檔是 AppKit 的那一種:**根本沒有覆寫**。
+        /// 「重放開始前所量測的那個視窗」換算的。AppKit 與 Win32 都需要同樣的修正(AppKit 為 `a8627210`)。
         public func focusWindow(titled title: String) throws {
             let pid = ProcessInfo.processInfo.processIdentifier
             // `NSRegularExpression.escapedPattern(for:)` rather than a hand-written
-            // character table, and that is the Mac side's version kept over mine.
-            // We fixed this same compile break independently (123e95f4 and
-            // 53a576f7) and their escape is better: a standard-library function
-            // cannot disagree with itself about which metacharacters exist, and mine
-            // was a list I had typed out.
+            // character table: a standard-library function cannot disagree with
+            // itself about which metacharacters exist, and a hand-typed list can.
             //
-            // 使用 `NSRegularExpression.escapedPattern(for:)` 而非手寫的字元表,而**這是採用 Mac 端的
-            // 版本、捨棄我的**。我們各自獨立修了同一個編譯中斷(123e95f4 與 53a576f7),而他們的跳脫
-            // 更好:一個標準庫函式不可能對「哪些是元字元」與自己意見不合,而我的是一份自己打出來的清單。
+            // 使用 `NSRegularExpression.escapedPattern(for:)` 而非手寫的字元表:一個標準庫函式不可能
+            // 對「哪些是元字元」與自己意見不合，而一份手打的清單可能會。
             let pattern = "^\(NSRegularExpression.escapedPattern(for: title))$"
             // `--all`: with `--pid` and `--name` together xdotool 3.20160805 ORs the
             // conditions by default (`--any`), so this listed every window of the
@@ -453,19 +428,17 @@
         /// the same process does not start pointed at the first one's window --
         /// `ownWindow()` reads this before anything else.
         ///
-        /// At the end, not in `prepareForReplay`, where it was until 2026-10-22.
-        /// The replay loop calls `prepareForReplay` again mid-file when the target
-        /// window changes, and a `focus` row changes it: so the focus was forgotten
-        /// the moment it was taken, the re-measure returned the first window, and
-        /// P81's click meant for window B landed on B's empty area in A's
-        /// coordinates. Its log said "target window changed" with A's frame both
-        /// times; only a desktop capture showed that no sheet ever opened.
+        /// At the end, not in `prepareForReplay`. The replay loop calls
+        /// `prepareForReplay` again mid-file when the target window changes, and a
+        /// `focus` row changes it, so clearing there forgets the focus the moment it
+        /// is taken: the re-measure returns the first window and the next click
+        /// lands in its coordinates (P81's click meant for window B did exactly
+        /// that, and the log showed no failure).
         ///
         /// 重放結束時清除被記住的焦點，使同一行程中的第二次重放不會從「指向第一次那個視窗」開始——`ownWindow()` 最先讀它。
-        /// 放在結束時，而不是 2026-10-22 之前所在的 `prepareForReplay`:目標視窗改變時，重放迴圈會在檔案中途再呼叫一次
-        /// `prepareForReplay`,而 `focus` 列正會改變目標；於是焦點一取得就被忘掉，重新量測回到第一個視窗，P81 要給視窗 B
-        /// 的點擊以 A 的座標落在 B 的空白處。log 兩次都寫「target window changed」,frame 卻都是 A 的；只有桌面截圖看得出
-        /// sheet 從來沒有打開。
+        /// 放在結束時，而不是 `prepareForReplay`:目標視窗改變時，重放迴圈會在檔案中途再呼叫一次
+        /// `prepareForReplay`,而 `focus` 列正會改變目標；在那裡清除，焦點一取得就會被忘掉，重新量測回到第一個視窗，
+        /// 下一次點擊便以它的座標落下(P81 要給視窗 B 的點擊正是如此，而 log 沒有任何失敗)。
         public func finishReplay() {
             Self.forgetFocus()
         }
@@ -506,11 +479,6 @@
             }
         }
 
-        /// This process's own visible window, largest first.
-        ///
-        /// Largest because a GTK app owns more than one X window and the first
-        /// match can be a 1x1 helper -- `drive_xdotool.zsh` hit exactly that and
-        /// captured a single pixel until it started picking by area.
         /// Asks the window manager to make `window` active, and waits at most a
         /// second for it. Never `windowactivate --sync`: that waits for as long as
         /// the WM takes, and WSLg's WM does not answer -- a replay that switched
@@ -528,6 +496,11 @@
             }
         }
 
+        /// This process's own visible window, largest first.
+        ///
+        /// Largest because a GTK app owns more than one X window and the first
+        /// match can be a 1x1 helper -- `drive_xdotool.zsh` hit exactly that and
+        /// captured a single pixel until it started picking by area.
         private func ownWindow() throws -> String {
             let pid = ProcessInfo.processInfo.processIdentifier
             // `search` exits 1 when it matches nothing, so the empty case arrives

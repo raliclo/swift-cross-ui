@@ -6,12 +6,12 @@ import WinUI
 ///
 /// **This file does not touch either button class, and that is not a
 /// concession -- it is the better implementation.** WinUIBackend has two, and
-/// the note at `WinUIBackend+Button.swift:56` explains why neither may be
+/// the note on `ViewLabelCustomButton` in `WinUIBackend+Button.swift` explains why neither may be
 /// deleted: `ViewLabelCustomButton` backs `createButton(wrapping:)`, while
-/// `CustomButton` in `WinUIBackend.swift:2896` still backs `createSimpleButton`,
+/// `CustomButton` in `WinUIBackend.swift` still backs `createSimpleButton`,
 /// `updateSimpleButton` and the menu/flyout `updateButton(_:label:menu:_)`. Both
 /// kinds can be handed to `updateButtonPressHandler`. Hooking the private
-/// `isHighlighted` of the first (`WinUIBackend+Button.swift:83`) would have
+/// `isHighlighted` of the first would have
 /// covered one of the two and left the other silent -- and `ViewLabelCustomButton`
 /// is `fileprivate`, so it is not reachable from here in any case.
 ///
@@ -32,7 +32,7 @@ import WinUI
 /// pointer leaves the button while it is captured, and again on
 /// `PointerCaptureLost`. That is exactly the behaviour
 /// `ViewLabelCustomButton.onPointerMoved` reimplements by hand at
-/// `WinUIBackend+Button.swift:129-150` in order to get a hook into it -- the
+/// in `WinUIBackend+Button.swift` in order to get a hook into it -- the
 /// bounds test there is a copy of the framework's, not an improvement on it. So
 /// press, drag off, release reports `true` then `false`, and dragging back on
 /// reports `true` again.
@@ -40,11 +40,11 @@ import WinUI
 /// WinUI 上的 `BackendFeatures.ButtonPressState`。
 ///
 /// **本檔不碰任何一個按鈕類別，而這並非退讓——它是更好的實作。** WinUIBackend 有兩個按鈕類別，
-/// `WinUIBackend+Button.swift:56` 的註記說明了為何兩者都不得刪除：`ViewLabelCustomButton` 支撐
-/// `createButton(wrapping:)`，而 `WinUIBackend.swift:2896` 的 `CustomButton` 仍支撐
+/// `WinUIBackend+Button.swift` 中 `ViewLabelCustomButton` 的註記說明了為何兩者都不得刪除：`ViewLabelCustomButton` 支撐
+/// `createButton(wrapping:)`，而 `WinUIBackend.swift` 的 `CustomButton` 仍支撐
 /// `createSimpleButton`、`updateSimpleButton` 與 menu/flyout 的 `updateButton(_:label:menu:_)`。
 /// 兩種都可能被交給 `updateButtonPressHandler`。去掛前者那個私有的 `isHighlighted`
-/// （`WinUIBackend+Button.swift:83`）只會涵蓋兩者之一而讓另一者靜默——況且 `ViewLabelCustomButton`
+/// 只會涵蓋兩者之一而讓另一者靜默——況且 `ViewLabelCustomButton`
 /// 是 `fileprivate`，本來就無法從此處取用。
 ///
 /// 兩者皆衍生自 `WinUI.Button`，而後者衍生自 `WinUI.ButtonBase`
@@ -58,16 +58,16 @@ import WinUI
 ///
 /// **放棄的情況由 XAML 自己處理。** `ButtonBase` 會在指標於捕獲期間離開按鈕時清除 `IsPressed`，
 /// 並在 `PointerCaptureLost` 時再次清除。那正是 `ViewLabelCustomButton.onPointerMoved` 於
-/// `WinUIBackend+Button.swift:129-150` 手工重現的行為——該處的邊界判斷是框架行為的複製品，而非改良。
+/// `WinUIBackend+Button.swift` 中手工重現的行為——該處的邊界判斷是框架行為的複製品，而非改良。
 /// 因此「按下、拖離、放開」會回報 `true` 而後 `false`，再拖回按鈕上則會再次回報 `true`。
 ///
 /// **A bare extension, deliberately.** The conformance is declared on the class
-/// itself at `WinUIBackend.swift:131`; naming
+/// itself in `WinUIBackend.swift`; naming
 /// `BackendFeatures.ButtonPressState` again here would be a redundant
 /// conformance and would not compile.
 ///
 /// **刻意採用不帶 conformance 的 extension。** 該 conformance 已宣告於類別本身
-/// （`WinUIBackend.swift:131`）；在此再次寫出 `BackendFeatures.ButtonPressState` 會構成重複
+/// （`WinUIBackend.swift`）；在此再次寫出 `BackendFeatures.ButtonPressState` 會構成重複
 /// conformance 而無法編譯。
 extension WinUIBackend {
     public func updateButtonPressHandler(
@@ -93,7 +93,7 @@ extension WinUIBackend {
 /// returned, so identity is stable for the button's lifetime.
 ///
 /// `Button.commit` reinstalls on every update
-/// (`Sources/SwiftCrossUI/Views/Button.swift:349`), so an existing entry must
+/// (`Sources/SwiftCrossUI/Views/Button.swift`), so an existing entry must
 /// swap its closure rather than register a second callback; registering per
 /// commit would leave a callback per frame attached to the property.
 ///
@@ -103,7 +103,7 @@ extension WinUIBackend {
 /// SwiftCrossUI 交回來的 widget 就是 `createButton` 當初回傳的那個 `WinUI.Button` 實例，因此在該
 /// 按鈕的存活期間，識別是穩定的。
 ///
-/// `Button.commit` 每次更新都會重新安裝（`Sources/SwiftCrossUI/Views/Button.swift:349`），因此既有
+/// `Button.commit` 每次更新都會重新安裝（`Sources/SwiftCrossUI/Views/Button.swift`），因此既有
 /// 項目必須替換它的 closure，而不是再註冊一個 callback；若每次 commit 都註冊，該屬性上便會逐幀累積
 /// callback。
 @MainActor

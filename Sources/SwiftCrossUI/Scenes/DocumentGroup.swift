@@ -17,9 +17,8 @@ import Foundation
 /// opens one untitled document at launch; `openDocument(url)` opens a file in
 /// a window of its own (present `chooseFile(allowedContentTypes:
 /// openDocument.readableContentTypes)` first); `saveDocument()` writes a
-/// window's document back, through the save dialog when it has no file yet
-/// (until 2026-10-06 this paragraph claimed the dialogs and nothing saved at
-/// all). It does NOT yet
+/// window's document back, through the save dialog when it has no file yet.
+/// It does NOT yet
 /// do: autosave, versions, the "unsaved changes" prompt on close, or reopening
 /// the documents that were open last time. Those are each a decision about
 /// behaviour rather than plumbing, and a scene that silently did half of them
@@ -32,8 +31,8 @@ import Foundation
 ///
 /// **它做什麼、不做什麼,在此處說明,而不是留給人去發現。** 它會在啟動時開啟一份未命名文件;`openDocument(url)`
 /// 在獨立視窗開啟檔案(先呈現 `chooseFile(allowedContentTypes: openDocument.readableContentTypes)`);
-/// `saveDocument()` 把視窗的文件寫回，尚無檔案時經由儲存對話框(2026-10-06 之前這段宣稱有對話框，而實際上
-/// 什麼都沒存)。它**尚未**做:自動儲存、版本、關閉時的「尚未儲存」提示,
+/// `saveDocument()` 把視窗的文件寫回，尚無檔案時經由儲存對話框。它**尚未**做:自動儲存、版本、關閉時的
+/// 「尚未儲存」提示，
 /// 以及「重新開啟上次開著的那些文件」。這些每一項都是關於**行為**的決定、而非管線問題;而一個
 /// 「默默做了其中一半」的 scene,會比一個「說清楚自己做了哪一半」的更糟。
 public struct DocumentGroup<Document: FileDocument, Content: View>: Scene {

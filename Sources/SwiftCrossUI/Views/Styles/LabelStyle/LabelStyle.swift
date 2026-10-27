@@ -1,7 +1,7 @@
 /// A type that specifies the appearance of all labels within a view hierarchy.
 ///
-/// Shaped after ``PickerStyle``, which is shaped after SwiftUI. The fifth style
-/// to take that shape, and the first that touches no backend at all: a label
+/// Shaped after ``PickerStyle``, which is shaped after SwiftUI. It touches no
+/// backend at all: a label
 /// style rearranges two views the caller already handed to ``Label``, so there
 /// is nothing to ask a backend for and nothing it could refuse.
 ///
@@ -24,7 +24,7 @@
 ///
 /// 用於指定某個 view 階層中所有 label 外觀的型別。
 ///
-/// 形狀比照 ``PickerStyle``，而後者比照 SwiftUI。這是第五個採用該形狀的樣式，也是第一個完全不觸及
+/// 形狀比照 ``PickerStyle``，而後者比照 SwiftUI。它完全不觸及
 /// backend 的：label style 所做的，只是把呼叫端已經交給 ``Label`` 的兩個 view 重新排列，因此沒有
 /// 東西需要向 backend 索取，backend 也沒有東西可以拒絕。
 ///
@@ -95,7 +95,7 @@ public struct LabelStyleConfiguration {
     /// `call to main actor-isolated initializer 'init(_:)' in a synchronous
     /// nonisolated context`. This costs nothing: the only caller is ``Label``,
     /// which is a `View` and already on the main actor, and ``LabelStyle``
-    /// itself is `@MainActor`. Measured 2026-09-08 -- `swiftc -parse` accepts
+    /// itself is `@MainActor`. `swiftc -parse` accepts
     /// the file without it, so syntax checking does not catch this and a real
     /// build is the only thing that does.
     ///
@@ -105,7 +105,7 @@ public struct LabelStyleConfiguration {
     /// 標記 `@MainActor` 是因為它呼叫 `AnyView.init`，而後者受 main actor 隔離
     /// （`AnyView.swift:15`）。缺少它會導致建置失敗。此標記不帶任何代價：唯一的呼叫端 ``Label``
     /// 是一個 `View`，本來就在 main actor 上，而 ``LabelStyle`` 本身也是 `@MainActor`。
-    /// 2026-09-08 實測：`swiftc -parse` 在沒有它的情況下仍接受本檔，因此語法檢查抓不到這件事，
+    /// `swiftc -parse` 在沒有它的情況下仍接受本檔，因此語法檢查抓不到這件事，
     /// 只有真正的建置才抓得到。
     @MainActor
     init(title: some View, icon: some View) {

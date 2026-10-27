@@ -36,14 +36,14 @@ extension GtkBackend: BackendFeatures.VisualEffects {
 
         // Everything else is drawn by the container itself, in its snapshot
         // (gtk_passthrough_fixed.c): blur, saturation, brightness, contrast,
-        // grayscale, hue, in AppKitBackend's order. Not a CSS `filter` any
-        // more, because CSS `grayscale(1)` is the same grey as `saturate(0)`
-        // and AppKit's is darker -- the user chose AppKit's (P39, 2026-10-16)
-        // -- and because CSS `brightness()` multiplies where SwiftUI adds.
+        // grayscale, hue, in AppKitBackend's order. Not a CSS `filter`, because
+        // CSS `grayscale(1)` is the same grey as `saturate(0)` and AppKit's is
+        // darker -- AppKit's is the reference (P39, 2026-10-16) -- and because
+        // CSS `brightness()` multiplies where SwiftUI adds.
         //
         // 其餘全部由容器自己在 snapshot 中繪製(gtk_passthrough_fixed.c):模糊、飽和度、亮度、對比、
-        // 灰階、色相，順序同 AppKitBackend。不再使用 CSS `filter`,因為 CSS 的 `grayscale(1)` 與
-        // `saturate(0)` 是同一種灰，而 AppKit 的更暗——使用者選擇以 AppKit 為準(P39,2026-10-16)——
+        // 灰階、色相，順序同 AppKitBackend。不使用 CSS `filter`,因為 CSS 的 `grayscale(1)` 與
+        // `saturate(0)` 是同一種灰，而 AppKit 的更暗——以 AppKit 為準(P39,2026-10-16)——
         // 也因為 CSS 的 `brightness()` 是乘法，而 SwiftUI 是加法。
         gtk_passthrough_fixed_set_effect(
             widget.widgetPointer,

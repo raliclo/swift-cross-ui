@@ -32,9 +32,9 @@ import android.widget.PopupWindow
 /// 3. **The fit.** `showAsDropDown` shifts a popup that does not fit, which is
 ///    not the same as moving it to the other side of the anchor: a panel taller
 ///    than the room below gets pushed up until it clears the screen edge, which
-///    can leave it covering the very control it was opened from. UIKit was
-///    aligned on 2026-09-17 to measure the room and ask for the opposite side
-///    instead; this does the same measurement so the two answer alike.
+///    can leave it covering the very control it was opened from. UIKitBackend
+///    measures the room and asks for the opposite side instead; this does the
+///    same measurement so the two answer alike.
 ///
 /// 一個會記住「它被要求出現在錨點哪一側」、會畫出指向該錨點的尾巴、並在面板放不下時改到另一側的
 /// `PopupWindow`。
@@ -49,7 +49,7 @@ import android.widget.PopupWindow
 ///    屬於哪一個控制項」。因此在此處畫出來。
 /// 3. **那個「放得下嗎」。** `showAsDropDown` 會把放不下的 popup **推**進畫面內,那與「把它移到錨點的
 ///    另一側」並不是同一件事:一塊比下方空間更高的面板會被往上推到離開螢幕邊緣為止,而那可能讓它蓋住
-///    當初開啟它的那個控制項。UIKit 已於 2026-09-17 對齊為「量出空間、改要求相反的一側」;此處做同一個
+///    當初開啟它的那個控制項。UIKitBackend 是「量出空間、改要求相反的一側」;此處做同一個
 ///    量測,使兩者答得一樣。
 class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) {
     companion object {
@@ -151,14 +151,14 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
     /// 尾巴,會吃掉它一行內容。
     fun applyArrow(edge: Int, arrowPx: Int, anchorWidthPx: Int, anchorHeightPx: Int) {
         if (edge == EDGE_PLATFORM || arrowPx <= 0) {
-            // A panel without an arrow, never no panel. This used to set a
-            // null background, and a PopupWindow with none is transparent: the
-            // default popover -- no preferred arrow edge, which is what most
-            // code asks for -- drew its text straight over the page beneath it
-            // (P49 on Android, 2026-10-01).
-            // 沒有箭頭的面板，而不是沒有面板。這裡原本把背景設為 null,而沒有背景的 PopupWindow 是
-            // 透明的:預設的 popover(未指定箭頭方向，也是多數程式碼的寫法)把文字直接畫在下方頁面上
-            // (Android 上的 P49,2026-10-01)。
+            // A panel without an arrow, never no panel. A null background
+            // would make the PopupWindow transparent: the default popover --
+            // no preferred arrow edge, which is what most code asks for --
+            // would draw its text straight over the page beneath it (P49 on
+            // Android).
+            // 沒有箭頭的面板，而不是沒有面板。背景設為 null 時，沒有背景的 PopupWindow 是
+            // 透明的:預設的 popover(未指定箭頭方向，也是多數程式碼的寫法)會把文字直接畫在下方頁面上
+            // (Android 上的 P49)。
             setBackgroundDrawable(
                 android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
@@ -202,17 +202,17 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
      * centred on it vertically and kept on screen, with the arrow pointing at
      * the anchor's centre wherever the panel ended up.
      *
-     * `showAsDropDown(anchor, anchorWidth, -anchorHeight)` top-aligned the
-     * panel with the anchor, and when it did not fit Android moved it up on its
-     * own while the arrow stayed where the top-aligned layout put it: P50's
-     * trailing panel sat above its button with the arrow pointing at nothing
-     * (2026-10-04). Here the position is computed and clamped first and the
+     * `showAsDropDown(anchor, anchorWidth, -anchorHeight)` would top-align the
+     * panel with the anchor, and when it did not fit Android would move it up
+     * on its own while the arrow stayed where the top-aligned layout put it:
+     * P50's trailing panel sat above its button with the arrow pointing at
+     * nothing. Here the position is computed and clamped first and the
      * arrow follows it.
      *
      * 把面板顯示在 [anchor] 旁邊(左或右),與它垂直置中並保持在畫面內，箭頭指向 anchor 的中心——不論面板最後
-     * 落在哪裡。原本 `showAsDropDown(anchor, anchorWidth, -anchorHeight)` 讓面板與 anchor 頂端對齊，放不下時
-     * Android 自己把它往上推，而箭頭仍停在頂端對齊時的位置:P50 的 trailing 面板跑到按鈕上方，箭頭什麼也沒指到
-     * (2026-10-04)。這裡先算出並夾住位置，箭頭再跟著它。
+     * 落在哪裡。`showAsDropDown(anchor, anchorWidth, -anchorHeight)` 會讓面板與 anchor 頂端對齊，放不下時
+     * Android 自己把它往上推，而箭頭仍停在頂端對齊時的位置:P50 的 trailing 面板跑到按鈕上方，箭頭什麼也沒指到。
+     * 這裡先算出並夾住位置，箭頭再跟著它。
      */
     fun showBeside(anchor: View, edge: Int, arrowPx: Int) {
         val location = IntArray(2)

@@ -10,11 +10,11 @@ import Foundation
 /// **There are two ways to show settings and the registry holds both, because
 /// which one is available is a property of the backend rather than of the app.**
 /// A backend with multiple windows opens a window; one without presents a sheet
-/// over the window it already has. Android is why the second exists and is not
-/// optional: `AndroidBackend.createWindow` returns a fresh `Window()` value with
-/// a `TODO` beside it, so a window-based Settings there would be **silently
-/// invisible** -- the exact shape CLAUDE.md forbids, since a truthful report of
-/// a missing feature is not the same as a working feature.
+/// over the window it already has. UIKitBackend on an iPhone is why the second
+/// exists and is not optional: `supportsMultipleWindows` is false there, so a
+/// window-based Settings would be **silently invisible** -- the exact shape
+/// CLAUDE.md forbids, since a truthful report of a missing feature is not the
+/// same as a working feature.
 ///
 /// ``Settings`` 這個 scene 把它的內容留在哪裡,以及 ``OpenSettingsAction`` 到哪裡去找「顯示它的辦法」。
 ///
@@ -23,10 +23,10 @@ import Foundation
 /// 有能力動作的那一方負責讀。
 ///
 /// **顯示設定有兩種方式,而 registry 兩種都持有,因為「哪一種可用」是 backend 的性質、不是 app 的。**
-/// 有多視窗的 backend 開一個視窗;沒有的則在既有的視窗上呈現一個 sheet。第二種之所以存在、而且不是選配,
-/// 原因是 Android:`AndroidBackend.createWindow` 回傳的是一個旁邊還留著 `TODO` 的新 `Window()` 值,
-/// 因此在那裡以視窗為基礎的 Settings 會**靜默地隱形**——那正是 CLAUDE.md 所禁止的形狀,因為「如實回報
-/// 一項缺失的功能」與「擁有一項可運作的功能」是兩回事。
+/// 有多視窗的 backend 開一個視窗;沒有的則在既有的視窗上呈現一個 sheet。第二種之所以存在、而且不是選配，
+/// 原因是 iPhone 上的 UIKitBackend:`supportsMultipleWindows` 在那裡是 false,以視窗為基礎的 Settings
+/// 會**靜默地隱形**——那正是 CLAUDE.md 所禁止的形狀，因為「如實回報一項缺失的功能」與「擁有一項可運作的
+/// 功能」是兩回事。
 ///
 /// **Not `@MainActor`, and that is a compiler constraint rather than a choice.**
 /// `EnvironmentValues` builds its defaults in a nonisolated context, so a

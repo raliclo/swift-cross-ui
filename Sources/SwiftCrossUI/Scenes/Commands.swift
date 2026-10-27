@@ -23,15 +23,12 @@ public struct Commands {
     ///
     /// **Menus with the same name are not merged**, as in SwiftUI, where two
     /// `CommandMenu("File")` are two menus and neither is the system's File
-    /// menu (`testapp/reference/swiftui-commands/dupfile.txt`). Until
-    /// 2026-10-13 same-named menus were merged here, and AppKitBackend and
-    /// UIKitBackend merged a menu named like a system menu into it; the user
-    /// chose to follow SwiftUI. An item goes into a system menu through
+    /// menu (`testapp/reference/swiftui-commands/dupfile.txt`). An item goes
+    /// into a system menu through
     /// ``CommandGroup``.
     ///
     /// 把 `newCommands` 疊到 `self` 上:它的選單與群組接在 `self` 的後面。同名的選單不合併，與 SwiftUI 相同——
-    /// 兩個 `CommandMenu("File")` 是兩個選單，也都不是系統的 File 選單。2026-10-13 之前這裡會合併同名選單，
-    /// AppKitBackend 與 UIKitBackend 還會把與系統選單同名的選單併進去;使用者決定照 SwiftUI。要把項目放進系統選單，
+    /// 兩個 `CommandMenu("File")` 是兩個選單，也都不是系統的 File 選單。要把項目放進系統選單，
     /// 用 ``CommandGroup``。
     ///
     /// - Parameter newCommands: The commands to overlay.

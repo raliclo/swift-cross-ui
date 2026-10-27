@@ -93,14 +93,13 @@ extension AppKitBackend {
     }
 
     /// `onDismiss` runs here as well as on Escape, as in SwiftUI: a sheet
-    /// closed by `isPresented = false` notifies too. Until 2026-10-20 only the
-    /// nested children of a dismissed sheet were told, so a nested-sheet test
-    /// passed while the sheet actually dismissed stayed silent (todo.md, "Six
-    /// divergences", item 1). Each sheet now runs its own `onDismiss` once, after
-    /// it has left the screen; the recursion reaches the children.
+    /// closed by `isPresented = false` notifies too. Each sheet runs its own
+    /// `onDismiss` once, after it has left the screen; the recursion reaches the
+    /// children. Notifying only the nested children would let a nested-sheet
+    /// test pass while the sheet actually dismissed stayed silent.
     /// `onDismiss` 在這裡與按 Escape 時都會執行，與 SwiftUI 相同：以 `isPresented = false` 關閉的 sheet 也會通知。
-    /// 2026-10-20 之前只有被關閉之 sheet 的巢狀子 sheet 會收到通知，所以巢狀測試會通過，而真正被關閉的那個 sheet
-    /// 什麼都沒說(todo.md「六項分歧」第 1 項)。現在每個 sheet 在離開畫面後執行自己的 `onDismiss` 一次;遞迴會走到子 sheet。
+    /// 每個 sheet 在離開畫面後執行自己的 `onDismiss` 一次;遞迴會走到子 sheet。若只通知巢狀子 sheet,巢狀測試會通過,
+    /// 而真正被關閉的那個 sheet 什麼都不說。
     public func dismissSheet(_ sheet: NSCustomSheet, window: Window, parentSheet: Sheet?) {
         let parent = parentSheet ?? window
 

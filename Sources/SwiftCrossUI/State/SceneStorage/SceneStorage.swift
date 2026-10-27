@@ -26,7 +26,7 @@ private let sceneStoragePublisherCache: Mutex<[String: Publisher]> = Mutex([:])
 /// under a key prefixed with the scene id: `scene.<id>.<key>`. That is
 /// deliberate rather than a shortcut -- it means this feature adds **no new
 /// backend requirement and no second persistence path**, so it works on all five
-/// backends the day it lands, and a provider that already persists correctly
+/// backends, and a provider that already persists correctly
 /// keeps doing so.
 ///
 /// MEASURED, not assumed (2026-09-09, P59 on AppKit). After typing three times
@@ -64,7 +64,7 @@ private let sceneStoragePublisherCache: Mutex<[String: Publisher]> = Mutex([:])
 ///
 /// 存在哪裡。與 ``AppStorage`` 相同的 ``AppStorageProvider``,索引鍵前綴為 scene id:
 /// `scene.<id>.<key>`。這是刻意的、而非便宜行事——它意味著這項功能**不新增任何 backend requirement,
-/// 也不新增第二條持久化路徑**,因此它落地當天就在五個 backend 上都成立,而一個原本就能正確持久化的
+/// 也不新增第二條持久化路徑**,因此它在五個 backend 上都成立,而一個原本就能正確持久化的
 /// provider 會繼續正確。
 ///
 /// 在視窗之外會怎樣。``EnvironmentValues/sceneID`` 在那裡是 `nil`,而本 wrapper 此時的行為就是單純的

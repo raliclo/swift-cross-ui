@@ -11,16 +11,13 @@
 ///   fires at once rather than on scroll, so code that hangs a network request
 ///   off `onAppear` issues all of them immediately.
 ///
-///   ~~For a thousand rows that is a thousand backend widgets instead of a
-///   screenful.~~ **That comparison was wrong and is kept here because it set
-///   an expectation a faithful implementation could not meet.** SwiftUI's
-///   promise is narrow -- it defers creation, and that is the whole contract.
-///   It does NOT destroy what scrolls away: scroll a thousand-row `LazyVStack`
-///   to the bottom in SwiftUI and a thousand views are live, the same as here.
-///   `List` is the container that recycles, because it is backed by a recycling
-///   platform widget. So the honest statement is "a thousand widgets instead of
-///   as many as have been approached", and the cost that is really saved is at
-///   FIRST render, not in the steady state.
+///   SwiftUI's promise is narrow -- it defers creation, and that is the whole
+///   contract. It does NOT destroy what scrolls away: scroll a thousand-row
+///   `LazyVStack` to the bottom in SwiftUI and a thousand views are live, the
+///   same as here. `List` is the container that recycles, because it is backed
+///   by a recycling platform widget. So a thousand rows here are a thousand
+///   widgets instead of as many as have been approached, and the cost that
+///   laziness really saves is at FIRST render, not in the steady state.
 /// - **Why it exists anyway:** SwiftUI source that says `LazyVStack` should
 ///   compile and should look right, which is parity task #34. An eager stack is
 ///   the correct picture and the wrong performance; refusing to compile is
@@ -41,12 +38,10 @@
 ///   `onAppear` 會同時觸發，而不是隨捲動觸發；把網路請求掛在 `onAppear` 上的程式碼，因此會一口氣
 ///   全部送出。
 ///
-///   ~~一千列就是一千個 backend widget，而非一個畫面的量。~~ **那個對比是錯的，之所以保留在此，
-///   是因為它設下了一個「忠實實作也達不到」的期待。** SwiftUI 的承諾很窄——它延後建立，而那就是
-///   全部的約定。它**不會**銷毀捲出去的東西：在 SwiftUI 中把一千列的 `LazyVStack` 捲到底，同樣有
-///   一千個 view 是活著的，與此處相同。會回收的是 `List`，因為它底下是一個會回收的平台 widget。
-///   因此誠實的說法是「一千個 widget，而非**已被接近過的那些數量**」；真正省下的成本在**首次**
-///   算繪，不在穩態。
+///   SwiftUI 的承諾很窄——它延後建立，而那就是全部的約定。它**不會**銷毀捲出去的東西：在 SwiftUI
+///   中把一千列的 `LazyVStack` 捲到底，同樣有一千個 view 是活著的，與此處相同。會回收的是 `List`，
+///   因為它底下是一個會回收的平台 widget。因此此處的一千列是「一千個 widget，而非**已被接近過的那些
+///   數量**」；惰性真正省下的成本在**首次**算繪，不在穩態。
 /// - **為何仍然提供：** 寫著 `LazyVStack` 的 SwiftUI 原始碼應該編得過、也應該看起來正確，那正是
 ///   parity 任務 #34。一個積極求值的堆疊是「畫面正確、效能不對」；拒絕編譯則兩者皆非。
 ///

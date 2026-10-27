@@ -113,22 +113,18 @@ open class ListView: Widget {
         // 註冊,而此處要避免的是每列 31 KB、不是一個空字串那幾個位元組。WinUI 那一半用 boxed Int32
         // 佔位,理由完全相同。
         // **Every GTK object here imports as `OpaquePointer`, not as a typed
-        // struct, so none of these calls needs a cast.** That was measured, not
-        // assumed: a probe file assigning each call's result to `Int` made the
-        // compiler name the real types -- `gtk_string_list_new`,
+        // struct, so none of these calls needs a cast.** `gtk_string_list_new`,
         // `gtk_single_selection_new` and `gtk_signal_list_item_factory_new` all
         // return `OpaquePointer?`, and only `gtk_list_view_new` returns
-        // `UnsafeMutablePointer<GtkWidget>?`. The first version of this file
-        // wrote `assumingMemoryBound(to: GtkSelectionModel.self)` and similar
-        // throughout and produced 28 errors, all of them that one mistake.
+        // `UnsafeMutablePointer<GtkWidget>?` (confirmed by having the compiler
+        // name each result type). Binding them with `assumingMemoryBound(to:)`
+        // fails to compile.
         //
         // **此處每一個 GTK 物件都是以 `OpaquePointer` 匯入的、而非具型別的 struct,因此這些呼叫
-        // 一個 cast 都不需要。** 這是量出來的、不是假設的:用一個把每個呼叫結果指派給 `Int` 的探針檔,
-        // 讓編譯器把真正的型別講出來——`gtk_string_list_new`、`gtk_single_selection_new` 與
+        // 一個 cast 都不需要。** `gtk_string_list_new`、`gtk_single_selection_new` 與
         // `gtk_signal_list_item_factory_new` 全都回傳 `OpaquePointer?`,只有 `gtk_list_view_new`
-        // 回傳 `UnsafeMutablePointer<GtkWidget>?`。本檔的第一版通篇寫著
-        // `assumingMemoryBound(to: GtkSelectionModel.self)` 之類的東西,產生了 28 個錯誤,而它們
-        // 全部都是同一個錯。
+        // 回傳 `UnsafeMutablePointer<GtkWidget>?`(已讓編譯器逐一講出結果型別確認)。以
+        // `assumingMemoryBound(to:)` 繫結它們會編譯失敗。
         let model = gtk_string_list_new(nil)
         // `gtk_single_selection_new` is (transfer full) on its argument -- read
         // from gtk4-source, not from memory -- so the string list's reference is
@@ -205,10 +201,9 @@ open class ListView: Widget {
     }
 
     /// Whether GTK draws a separator between rows: `GtkListView:show-separators`.
-    /// AdvancedCustomizationExample sets it from `List.inspect`, and without
-    /// this the example did not compile against GtkBackend (2026-10-06).
+    /// AdvancedCustomizationExample sets it from `List.inspect`.
     /// GTK 是否在列之間畫分隔線：`GtkListView:show-separators`。AdvancedCustomizationExample
-    /// 經由 `List.inspect` 設定它；少了這個屬性，該範例在 GtkBackend 下無法編譯(2026-10-06)。
+    /// 經由 `List.inspect` 設定它。
     @GObjectProperty(named: "show-separators") public var showSeparators: Bool
 
     open override func registerSignals() {

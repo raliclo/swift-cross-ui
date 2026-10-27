@@ -6,12 +6,10 @@ import Gtk
 /// GTK 4 has no wheel widget, so this is the shape AppKitBackend's
 /// `WheelPicker` takes on macOS for the same reason: a list in a scrolled
 /// window, five rows tall, single selection, scrolled so the selection is in
-/// view. Until 2026-10-06 `createPicker(style: .wheel)` hit `fatalError`, and
-/// `.wheel` was missing from `supportedPickerStyles`.
+/// view.
 ///
 /// GTK 上的 `PickerStyle.wheel`:一個短的捲動清單，選中其中一列。GTK 4 沒有 wheel 元件，所以採用
 /// AppKitBackend 在 macOS 上基於同樣理由所用的形狀：捲動視窗中的清單，五列高、單選，並捲到讓選取項可見。
-/// 2026-10-06 之前 `createPicker(style: .wheel)` 會撞上 `fatalError`,`supportedPickerStyles` 也沒有 `.wheel`。
 final class WheelPicker: Box {
     static let visibleRows = 5
     static let rowHeight = 30

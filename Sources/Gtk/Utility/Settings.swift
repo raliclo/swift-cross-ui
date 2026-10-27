@@ -16,11 +16,12 @@ public class Settings: GObject {
     ///
     /// A subscription registered through ``registerNotification(named:handler:)``
     /// lives on the wrapper, and ``GObject/deinit`` disconnects every handler
-    /// the wrapper registered (added for issue #588). A wrapper that nobody
-    /// stores is released at the end of the statement that made it, so
-    /// `Settings.default?.registerNotification(...)` used to connect and
+    /// the wrapper registered. A wrapper that nobody stores is released at the
+    /// end of the statement that made it, so without the cache
+    /// `Settings.default?.registerNotification(...)` would connect and
     /// disconnect in the same expression and could never fire. Caching removes
     /// that trap for every caller instead of asking each one to remember it.
+    ///
     /// `nonisolated(unsafe)` because GTK is single-threaded by contract: every
     /// GTK call, including the one that fills this cache, must happen on the
     /// thread that ran `gtk_init`. That is a rule the compiler cannot see, and

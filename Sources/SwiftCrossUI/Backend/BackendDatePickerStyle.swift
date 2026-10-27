@@ -6,12 +6,12 @@
 /// protocol, and a built-in style resolves to one of these through
 /// ``_BuiltinDatePickerStyle``.
 ///
-/// This was `DatePickerStyle` itself until 2026-08-27, which made the two
-/// things one thing and cost the ability to write a custom style at all --
-/// `struct MyStyle: DatePickerStyle` compiles against SwiftUI and could not
-/// compile here. Nothing in the API surface hinted at that, because the call
-/// sites are identical either way: `.datePickerStyle(.compact)` reads the same
-/// whether `.compact` is an enum case or a static on a protocol extension.
+/// Keeping it apart from ``DatePickerStyle`` is what makes a custom style
+/// possible at all: `struct MyStyle: DatePickerStyle` compiles against SwiftUI,
+/// and could not compile if `DatePickerStyle` were this enum. Nothing in the API
+/// surface would hint at that, because the call sites are identical either
+/// way: `.datePickerStyle(.compact)` reads the same whether `.compact` is an
+/// enum case or a static on a protocol extension.
 ///
 /// A backend advertises what it can draw in `supportedDatePickerStyles`, and
 /// ``SwiftCrossUI/View/datePickerStyle(_:)`` substitutes ``automatic`` for
@@ -40,12 +40,9 @@ public enum BackendDatePickerStyle: Sendable, Hashable {
 
     /// A set of scrollable inputs that can be used to select a date.
     ///
-    /// Supported by UIKitBackend, WinUIBackend, and GtkBackend on hosts where
-    /// this case exists -- see ``DateWheel``. Not by AppKitBackend or
-    /// AndroidBackend.
-    ///
-    /// This said "Not by GtkBackend, which has no wheel widget of any kind"
-    /// until f704f304 implemented it and left the sentence behind.
+    /// Supported by UIKitBackend, WinUIBackend, AndroidBackend, and GtkBackend
+    /// on hosts where this case exists -- see ``DateWheel``. Unavailable on
+    /// macOS, so not by AppKitBackend.
     @available(iOS 13.4, macCatalyst 13.4, *)
     @available(macOS, unavailable)
     case wheel

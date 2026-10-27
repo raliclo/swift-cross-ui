@@ -86,13 +86,12 @@ public enum InputAction: Equatable, Sendable {
             case .hover(let point): point
             case .click(_, let point), .doubleClick(_, let point),
                  .mouseDown(_, let point), .mouseUp(_, let point): point
-            // `scroll` names no point on purpose -- ActionFile:176 rejects an
-            // `origin` on a scroll row outright, because scrolling does not move
-            // the pointer and a frame there means the writer expected it to.
+            // `scroll` names no point on purpose: its two columns are wheel
+            // notches (see the `scroll` case in ActionFile), because scrolling
+            // does not move the pointer. Any `origin` on a scroll row is ignored.
             // `sleep` names none for the obvious reason.
-            // `scroll` 刻意不指定座標——ActionFile:176 會直接拒絕 scroll 列上的 `origin`,因為捲動
-            // 並不移動指標,而在該處寫下 frame 即代表撰寫者以為它會移動。`sleep` 不指定座標的理由
-            // 顯而易見。
+            // `scroll` 刻意不指定座標:它的兩個欄位是滾輪格數(見 ActionFile 中的 `scroll`),因為捲動
+            // 並不移動指標;scroll 列上的 `origin` 會被忽略。`sleep` 不指定座標的理由顯而易見。
             // `focus` names no point either: it selects the frame of reference
             // that later points are written against, rather than being written
             // against one itself.
@@ -195,12 +194,11 @@ public enum InputAction: Equatable, Sendable {
     /// against it.
     ///
     /// **Every other action in this file is written against ONE window, and
-    /// before this there was no way to name a second.** `frame` and `client`
-    /// both resolve against whichever window is focused; `popover` is Windows
-    /// only and means a popover, not a window. So an app that opens a second
-    /// window -- a settings window, a document window -- could be photographed
-    /// but not driven: P60's settings window opened on AppKit and the button
-    /// inside it was unreachable from a file.
+    /// without this one there is no way to name a second.** `frame` and
+    /// `client` both resolve against whichever window is focused; `popover`
+    /// means a popover, not a window. So an app that opens a second window -- a
+    /// settings window, a document window -- could be photographed but not
+    /// driven, as with the button inside P60's settings window.
     ///
     /// Nothing else had to change to make the coordinates follow. `replay`
     /// already re-measures the geometry when `currentWindowIdentity()` reports a
@@ -213,10 +211,10 @@ public enum InputAction: Equatable, Sendable {
     ///
     /// 把指名的視窗帶到前景，好讓其後的座標相對於它解析。
     ///
-    /// **本檔中其他每一個動作都是針對「單一視窗」而寫的，而在此之前沒有任何方式能指名第二個。**
-    /// `frame` 與 `client` 都相對於「當下取得焦點的那個視窗」解析；`popover` 僅限 Windows，且它指的是
-    /// popover、不是視窗。因此一個會開出第二個視窗的 app——設定視窗、文件視窗——拍得到卻驅動不了：
-    /// P60 的設定視窗在 AppKit 上開得出來，而其中的按鈕從檔案裡構不著。
+    /// **本檔中其他每一個動作都是針對「單一視窗」而寫的，而少了這個動作就沒有任何方式能指名第二個。**
+    /// `frame` 與 `client` 都相對於「當下取得焦點的那個視窗」解析；`popover` 指的是 popover、不是視窗。
+    /// 因此一個會開出第二個視窗的 app——設定視窗、文件視窗——會拍得到卻驅動不了，例如 P60 的設定視窗
+    /// 中的按鈕。
     ///
     /// 為了讓座標跟著走，其他什麼都不必改。當 `currentWindowIdentity()` 回報視窗不同時，`replay`
     /// 本來就會重新量測 geometry，而焦點一移動它就會如此——因此這個動作只需要移動焦點，其餘由既有的
@@ -246,19 +244,18 @@ public enum InputAction: Equatable, Sendable {
     ///
     /// A coordinate is a claim about one layout. P10's Android file aimed at the
     /// hidden button by position and was re-aimed twice in eight days as the
-    /// page moved under it (2026-10-02, 2026-10-10), the second time at a button
-    /// with 12 of its points on screen. The iOS runner has had `taplabel` since
-    /// 2026-10-02; AndroidSynthesiser finds the view in the activity's tree and
-    /// scrolls the root to it. The desktop synthesisers post events to the system
-    /// and know no views, so there the backend says where the text is
-    /// (``ActionFileReplay/locateLabel``, set by AppKitBackend, GtkBackend and, since
-    /// 2026-10-22, WinUIBackend) and the replay loop clicks that place. A
+    /// page moved under it, the second time at a button with 12 of its points
+    /// on screen. The iOS runner and AndroidSynthesiser find the view in the
+    /// view tree (Android also scrolls the root to it). The desktop synthesisers
+    /// post events to the system and know no views, so there the backend says
+    /// where the text is (``ActionFileReplay/locateLabel``, set by AppKitBackend,
+    /// GtkBackend and WinUIBackend) and the replay loop clicks that place. A
     /// synthesiser asked directly, with no locator set, refuses the verb with the reason.
     ///
     /// 點顯示這段文字的 view,不論它被排在哪裡；文字寫在 `key` 欄。座標是對某一個版面的主張:P10 的 Android 檔以位置瞄準
-    /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次(2026-10-02、2026-10-10),第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 自
-    /// 2026-10-02 起就有 `taplabel`;AndroidSynthesiser 在 activity 的樹裡找出那個 view,並把根捲到它那裡。桌面合成器把事件
-    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,AppKitBackend、GtkBackend 與 2026-10-22 起的 WinUIBackend 會設定),重放迴圈再點那個位置。沒有設定定位器時，直接被要求的合成器會說明理由後拒絕。
+    /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次，第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 與
+    /// AndroidSynthesiser 在 view 樹裡找出那個 view(Android 並把根捲到它那裡)。桌面合成器把事件
+    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,由 AppKitBackend、GtkBackend 與 WinUIBackend 設定),重放迴圈再點那個位置。沒有設定定位器時，直接被要求的合成器會說明理由後拒絕。
     case tapLabel(String)
 }
 
@@ -342,10 +339,11 @@ public enum Origin: String, Equatable, Sendable {
     /// reading the earlier measurements had to be rescued from -- a miss and a
     /// swallowed event look identical from outside.
     ///
-    /// Windows only so far. `Win32Synthesiser` finds the popover as the visible
+    /// Windows and macOS. `Win32Synthesiser` finds the popover as the visible
     /// top-level OWNED by the window being driven and smaller than it, which is
-    /// what the replay's own window dump has always printed. The other
-    /// synthesisers report it as unavailable rather than guessing.
+    /// what the replay's own window dump has always printed; `AppKitSynthesiser`
+    /// applies the same rule (`popoverWindow(ownedBy:)`). `XdotoolSynthesiser`
+    /// reports it as unavailable rather than guessing.
     ///
     /// 目前開啟於視窗之上的 popover、選單或 modal 的左上角——它是一個被該視窗**擁有的獨立
     /// top-level**,而不是視窗內部的某塊區域。
@@ -360,9 +358,9 @@ public enum Origin: String, Equatable, Sendable {
     /// 退回會把點擊放在主視窗內某個看似合理的位置,而那正是先前的量測必須被搶救出來的那種解讀
     /// ——從外部看,「沒打中」與「被吃掉」一模一樣。
     ///
-    /// 目前僅 Windows。`Win32Synthesiser` 將 popover 認定為「被所驅動視窗擁有、且比它小的可見
-    /// top-level」,那正是重放自己的視窗傾印一直都在印的東西。其他 synthesiser 回報「無法取得」,
-    /// 而不是用猜的。
+    /// 目前為 Windows 與 macOS。`Win32Synthesiser` 將 popover 認定為「被所驅動視窗擁有、且比它小的可見
+    /// top-level」,那正是重放自己的視窗傾印一直都在印的東西;`AppKitSynthesiser` 以同樣的規則認定它
+    /// (`popoverWindow(ownedBy:)`)。`XdotoolSynthesiser` 回報「無法取得」,而不是用猜的。
     case popover
 }
 
@@ -378,12 +376,12 @@ public enum MouseButton: String, Equatable, Sendable {
 /// codes `NSEvent.keyCode` returns -- with the `kVK_` prefix and the `ANSI_`
 /// infix dropped and the first letter lowercased.
 ///
-/// macOS is the source rather than a set invented here, or either of the two
-/// platforms this runs on. It is a real specification with documentation, so an
+/// macOS is the source rather than a set invented here, or the spelling of
+/// Linux or Windows. It is a real specification with documentation, so an
 /// argument about what a name means has somewhere to go; it is complete,
 /// including the keypad and the right-hand modifiers, which an invented list
-/// would have discovered it needed later; and it belongs to the third backend,
-/// so neither Linux nor Windows spelling wins by default.
+/// would have discovered it needed later; and it is neither Linux's nor
+/// Windows', so neither spelling wins by default.
 ///
 /// Two Mac assumptions come with the names and are not accidents of this
 /// implementation:

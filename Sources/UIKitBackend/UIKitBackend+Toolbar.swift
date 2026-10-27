@@ -80,19 +80,16 @@ extension RootViewController {
     func setToolbar(to items: [SwiftCrossUI.ToolbarItem], title: String?) {
         // The bar exists when EITHER was asked for.
         //
-        // Before this, `.navigationTitle` drew nothing on iOS: the title reached
-        // `UINavigationItem` correctly, and the navigation item was only built
-        // inside the `!items.isEmpty` path, so a view with a title and no
-        // toolbar got no bar to put it in. Nothing failed -- the string was
-        // computed, assigned to `rootViewController.title`, and displayed by
-        // nobody.
+        // A bar built only when `!items.isEmpty` leaves a view with a title and
+        // no toolbar with no bar to put the title in: the string reaches
+        // `UINavigationItem` and `rootViewController.title`, nothing fails,
+        // and `.navigationTitle` draws nothing on iOS.
         //
         // 只要**其中之一**被要求了,那條列就存在。
         //
-        // 在此之前,`.navigationTitle` 在 iOS 上什麼都不畫:標題確實正確地抵達了 `UINavigationItem`,
-        // 而那個 navigation item 只在 `!items.isEmpty` 的路徑中被建立,因此一個「有標題、沒有工具列」
-        // 的 view 根本沒有一條列可以放它。沒有任何東西失敗——那個字串被算了出來、被指派給
-        // `rootViewController.title`,然後沒有任何人顯示它。
+        // 若只在 `!items.isEmpty` 時才建立那條列，一個「有標題、沒有工具列」的 view 就沒有一條列可以
+        // 放標題：字串抵達了 `UINavigationItem` 與 `rootViewController.title`,沒有任何東西失敗，
+        // 而 `.navigationTitle` 在 iOS 上什麼都不畫。
         let heading = (title?.isEmpty ?? true) ? nil : title
         guard !items.isEmpty || heading != nil else {
             navigationBar?.removeFromSuperview()

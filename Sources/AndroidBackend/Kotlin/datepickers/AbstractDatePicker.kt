@@ -35,19 +35,17 @@ abstract class AbstractDatePicker(context: Context) : LinearLayout(context) {
     /**
      * Shows [value] in the subclass's two views.
      *
-     * The setter below used to assign `currentValue` and stop there, so a date picker never
-     * displayed the date it was bound to -- it displayed whichever date its widgets were
-     * constructed with, which is today. `.compact` hid this because a `DateButton` reads its own
-     * label from the value it is given; `.graphical` and `.wheel` did not, and `.graphical` was
-     * unreachable on a phone until 2026-09-03, so nothing had looked. P41 shows it plainly: its
-     * wheel read Sep 03 2026 with "2025-08-23" printed underneath.
+     * The setter calls it after assigning `currentValue`. Assigning alone leaves a date picker
+     * showing the date its widgets were constructed with (today) instead of the date it is bound
+     * to. `.compact` does not show the difference, because a `DateButton` reads its own label from
+     * the value it is given; `.graphical` and `.wheel` do (P41: a wheel reading Sep 03 2026 with
+     * "2025-08-23" printed underneath).
      *
      * 把 [value] 顯示在子類別的兩個 view 上。
      *
-     * 下方的 setter 過去只指派 `currentValue` 就結束了，因此日期選擇器從不顯示它所繫結的日期 ——它顯示的是「其 widget
-     * 建構時所帶的日期」，也就是今天。`.compact` 掩蓋了這一點，因為 `DateButton` 會依它所收到的值自行更新標籤；`.graphical` 與 `.wheel`
-     * 則不會，而 `.graphical` 在 2026-09-03 之前在手機上根本無法抵達，因此從來沒有人看過。P41 把它清楚地顯示了出來： 它的滾輪讀作 Sep 03
-     * 2026，而底下印著「2025-08-23」。
+     * setter 在指派 `currentValue` 之後呼叫它。只指派的話，日期選擇器顯示的是「其 widget 建構時所帶的日期」(今天),
+     * 而不是它所繫結的日期。`.compact` 看不出差別，因為 `DateButton` 會依它所收到的值自行更新標籤；`.graphical` 與
+     * `.wheel` 則看得出來(P41:滾輪讀作 Sep 03 2026,而底下印著「2025-08-23」)。
      */
     protected abstract fun applyDate(value: LocalDateTime)
 

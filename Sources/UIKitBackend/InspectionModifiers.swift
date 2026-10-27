@@ -11,8 +11,7 @@ import UIKit
 /// widget type WrapperWidget<UITextField>; actual widget type is
 /// BaseViewWidget", from an `.inspect` closure that is EMPTY on this platform.
 ///
-/// The same defect and the same fix as AppKitBackend's; WinUIBackend has it too
-/// and is the one machine that cannot be checked from here.
+/// The same defect and the same fix as AppKitBackend's and WinUIBackend's.
 ///
 /// 在 `view` 或其子樹中,第一個屬於所要求型別的 view。
 ///
@@ -23,7 +22,7 @@ import UIKit
 /// WrapperWidget<UITextField>; actual widget type is BaseViewWidget」——而那個 `.inspect` closure
 /// 在這個平台上是**空的**。
 ///
-/// 與 AppKitBackend 是同一個缺陷、同一個修法;WinUIBackend 也有,而那是這裡唯一檢查不到的機器。
+/// 與 AppKitBackend、WinUIBackend 是同一個缺陷、同一個修法。
 private func scuiFirstDescendant<T: UIView>(_ type: T.Type, in view: UIView) -> T? {
     if let match = view as? T {
         return match
@@ -134,12 +133,11 @@ extension Slider {
 // for `.radioGroup`, `UIPickerView` for `.wheel` (`UITableView` under Mac
 // Catalyst with the Mac idiom).
 // Asking for a type the picker's style does not create stops with the widget
-// tree, as every other `.inspect` here does. Restored 2026-10-06.
+// tree, as every other `.inspect` here does.
 //
 // 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
 // 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
 // 給其他樣式用——`.segmented`(tvOS 的預設)是 `UISegmentedControl`,`.radioGroup` 是 `UIStackView`,`.wheel` 是 `UIPickerView`(Mac Catalyst 的 Mac 介面下是 `UITableView`)。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
-// 2026-10-06 恢復。
 extension SwiftCrossUI.Picker {
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,

@@ -42,25 +42,18 @@ public struct Group<Content: View>: View {
         // be invisible to the layout system, and it can only manage that by
         // arranging its children the way its parent would have. It inherits
         // orientation, alignment and spacing for exactly this reason -- but a
-        // `ZStack` sets no orientation, so before this branch existed a `Group`
-        // inside one fell back to whatever axis the grandparent used and laid
-        // three views that should have overlapped out in a column.
-        // Upstream's mechanism, taken in place of this tree's own.
+        // `ZStack` sets no orientation, so without this branch a `Group`
+        // inside one would fall back to whatever axis the grandparent used and
+        // lay three views that should overlap out in a column.
         //
-        // `layoutOverlapsChildren` was ours (e90a2b8d, for `Group` inside a
-        // `ZStack`); upstream solved the same problem independently in #728 with
-        // `usesZStackLayout` and a real ZStack layout rather than a plain
-        // overlap. Two flags for one question is one too many, so ours goes and
-        // theirs stays -- it also carries `zStackContentAlignment`, which the
-        // overlap path could not, and this file used to say so as a known
-        // limitation.
+        // Upstream's `usesZStackLayout` (#728) answers this with a real ZStack
+        // layout, which also honours `zStackContentAlignment`. It replaced this
+        // tree's own `layoutOverlapsChildren` flag (e90a2b8d), a plain overlap
+        // that could not align: two flags for one question is one too many.
         //
-        // 採用 upstream 的機制,取代本樹自有的那一套。
-        //
-        // `layoutOverlapsChildren` 是我們的(e90a2b8d,為了 `ZStack` 內的 `Group`);upstream 在
-        // #728 中獨立地解了同一個問題,用的是 `usesZStackLayout` 與一套真正的 ZStack 版面,而非
-        // 單純的重疊。同一個問題有兩個旗標就是多了一個,因此我們的移除、他們的保留——而且他們那套
-        // 還帶著 `zStackContentAlignment`,那是重疊路徑做不到的,本檔過去正是把它記為一項已知限制。
+        // upstream 的 `usesZStackLayout`(#728)以一套真正的 ZStack 版面處理這件事,它同時遵守
+        // `zStackContentAlignment`。它取代了本樹原有的 `layoutOverlapsChildren` 旗標(e90a2b8d)
+        // ——那只是單純的重疊,無法對齊:同一個問題有兩個旗標就是多了一個。
         if environment.usesZStackLayout {
             var cache = (children as? TupleViewChildren)?.stackLayoutCache
                 ?? StackLayoutCache.initial
@@ -104,16 +97,12 @@ public struct Group<Content: View>: View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        // Centred, matching `ZStack`'s own default. A `Group` carries no
-        // alignment of its own, and the parent's is not reachable from here --
-        // `layoutAlignment` is a `StackAlignment`, which describes one axis.
-        // Naming the limitation rather than leaving it implicit: a `ZStack`
-        // with a non-default alignment aligns a bare child correctly and a
-        // grouped one to the centre.
+        // Inside a `ZStack`, aligned by the `zStackContentAlignment` the stack
+        // puts in the environment, so a grouped child lines up the same as a
+        // bare one.
         //
-        // 置中，與 `ZStack` 自身的預設一致。`Group` 本身不帶對齊資訊，而父層的對齊在此處取不到
-        // ——`layoutAlignment` 的型別是 `StackAlignment`，只描述單一軸向。此處明言此限制而不使其
-        // 隱含：帶有非預設對齊的 `ZStack`，對直接子元件會正確對齊，對被 Group 包住的則會置中。
+        // 在 `ZStack` 內時，依該堆疊放進 environment 的 `zStackContentAlignment` 對齊，因此被 Group
+        // 包住的子元件與直接子元件對齊方式相同。
         if environment.usesZStackLayout {
             var zCache = (children as? TupleViewChildren)?.stackLayoutCache
                 ?? StackLayoutCache.initial

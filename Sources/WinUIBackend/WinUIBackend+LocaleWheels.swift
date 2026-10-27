@@ -183,11 +183,10 @@ final class LocaleDateWheel: WinUI.StackPanel {
 /// 12-hour clock -- in the order the locale's `jm` pattern writes them, with
 /// the AM/PM words from `calendar.amSymbol` and `pmSymbol` (上午/下午 in zh_TW).
 ///
-/// ComboBoxes, as the seconds selector beside WinUI's TimePicker already was.
+/// Built from ComboBoxes.
 ///
 /// 時、分、可選的秒，以及 locale 使用 12 小時制時的上午/下午——依 locale 的 `jm` 樣式排列，上午/下午的字樣取自
-/// `calendar.amSymbol` 與 `pmSymbol`(zh_TW 為上午/下午)。使用 ComboBox,與原本放在 WinUI TimePicker 旁的
-/// 秒數選擇器相同。
+/// `calendar.amSymbol` 與 `pmSymbol`(zh_TW 為上午/下午)。以 ComboBox 組成。
 final class LocaleTimeRow: WinUI.StackPanel {
     var onChange: ((_ hour: Int, _ minute: Int, _ second: Int?) -> Void)?
 

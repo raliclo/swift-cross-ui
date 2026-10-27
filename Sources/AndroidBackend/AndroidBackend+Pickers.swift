@@ -6,8 +6,8 @@ import AndroidKit
 // implements BackendFeatures.Pickers
 extension AndroidBackend {
     public var supportedPickerStyles: [BackendPickerStyle] {
-        // `.segmented` from 2026-09-29: `CustomSegmentedGroup`.
-        // `.segmented` 自 2026-09-29 起:`CustomSegmentedGroup`。
+        // `.segmented`: `CustomSegmentedGroup`.
+        // `.segmented`:`CustomSegmentedGroup`。
         [.menu, .radioGroup, .wheel, .segmented]
     }
 

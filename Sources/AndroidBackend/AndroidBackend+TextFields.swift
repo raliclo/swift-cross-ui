@@ -105,7 +105,7 @@ extension AndroidBackend {
         // this too -- always with `.automatic`, because `SecureField` does not
         // set `backendTextFieldStyle`. That costs one `restoreDefaultChrome()`
         // per update and changes nothing, which is the correct behaviour for a
-        // control this task did not extend.
+        // control with no style to choose.
         //
         // 在此 overload 中套用，而非在上方那個私有的共用實作中。`updateTextEditor` 同樣會呼叫該共用
         // 實作，而 `createTextEditor` 是刻意把 EditText 的背景與 padding 歸零的；若在那裡套用文字
@@ -113,7 +113,7 @@ extension AndroidBackend {
         //
         // `updateSecureField` 確實會經過這裡，因此安全欄位也會執行到——且永遠是 `.automatic`，
         // 因為 `SecureField` 不會設定 `backendTextFieldStyle`。其代價是每次更新多一次
-        // `restoreDefaultChrome()`，且不改變任何東西；對一個本次工作未擴充的控制項而言，這正是
+        // `restoreDefaultChrome()`，且不改變任何東西；對一個沒有樣式可選的控制項而言，這正是
         // 正確的行為。
         apply(environment.backendTextFieldStyle, to: editText, key: textField, in: environment)
     }
@@ -127,8 +127,7 @@ extension AndroidBackend {
     /// *is* its background `Drawable`, and the platform look is a drawable the
     /// theme supplies. So the bordered shapes are built rather than selected,
     /// with `GradientDrawable`, which is exactly what this backend's own
-    /// `CustomButton.kt` does for a bordered button (`borderedBackground`,
-    /// around line 66).
+    /// `CustomButton.kt` does for a bordered button (`borderedBackground`).
     ///
     /// Two things follow from the background *being* the border, and both are
     /// easy to get wrong:
@@ -142,7 +141,7 @@ extension AndroidBackend {
     /// - **Everything is in pixels.** `GradientDrawable` takes device pixels,
     ///   not dp, so a 1dp stroke on a 3x screen must be passed as 3. The
     ///   density comes from the display metrics, the same conversion
-    ///   `AndroidBackend+CornerRadius.swift` does around line 27.
+    ///   `AndroidBackend+CornerRadius.swift` does (`AndroidBackend.density`).
     ///
     /// The stroke colour is derived from the environment's foreground colour at
     /// a quarter opacity rather than being a fixed grey, so it follows dark
@@ -150,15 +149,11 @@ extension AndroidBackend {
     /// hard-coded adaptive grey for its button, which only handles the first of
     /// those two.
     ///
-    /// - Note: Unrun. This backend cannot be built or executed on the Windows
-    ///   machine this was written on, so it is implemented against the AndroidKit
-    ///   bindings' declared interface rather than by observing it.
-    ///
     /// Android 是五者中唯一完全沒有邊框屬性的。`EditText` 沒有 `hasFrame`（Gtk）、沒有
     /// `borderThickness`（WinUI）、沒有 `bezelStyle`（AppKit），也沒有 `borderStyle`（UIKit）
     /// ——一個 `View` 的外框**就是**它的背景 `Drawable`，而平台外觀則是主題提供的一個 drawable。
     /// 因此帶邊框的外形是被「建造」而非「挑選」出來的，使用 `GradientDrawable`；本 backend 自己的
-    /// `CustomButton.kt` 為帶邊框按鈕所做的正是同一件事（`borderedBackground`，約第 66 行）。
+    /// `CustomButton.kt` 為帶邊框按鈕所做的正是同一件事（`borderedBackground`）。
     ///
     /// 「背景即邊框」帶來兩項後果，而兩者都很容易弄錯：
     ///
@@ -168,14 +163,11 @@ extension AndroidBackend {
     ///   background getter 的原因。
     /// - **一切都以像素計。** `GradientDrawable` 收的是裝置像素而非 dp，因此 1dp 的描邊在 3 倍螢幕
     ///   上必須以 3 傳入。density 取自 display metrics，與
-    ///   `AndroidBackend+CornerRadius.swift` 約第 27 行所做的換算相同。
+    ///   `AndroidBackend+CornerRadius.swift` 所做的換算(`AndroidBackend.density`)相同。
     ///
     /// 描邊顏色由 environment 的前景色以四分之一不透明度導出，而非固定的灰色，如此便能跟隨深色模式
     /// 以及作用範圍內任何的 `foregroundColor(_:)`。`CustomButton.kt` 為其按鈕使用的是寫死的自適應
     /// 灰，那只處理了上述兩者中的第一項。
-    ///
-    /// - Note: 未實際執行。撰寫本程式碼的 Windows 機器無法建置或執行此 backend，因此它是依據
-    ///   AndroidKit 綁定所宣告的介面實作的，而非靠觀察其行為。
     /// The style last applied to each field. 每個欄位上次套用的樣式。
     @MainActor static let textFieldStyles = LastSet<String>()
     @MainActor static var relayoutPending = false

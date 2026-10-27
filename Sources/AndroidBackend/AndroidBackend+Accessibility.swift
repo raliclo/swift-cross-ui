@@ -114,7 +114,7 @@ extension AndroidBackend: BackendFeatures.Accessibility {
     /// neither knows about the other.
     /// 這個 widget 的 delegate;第一次被索取時才安裝。
     ///
-    /// 重複使用而非replace,如此設定提示才不會靜默地丟掉片刻前設定的值——那兩個 modifier 是各自
+    /// 重複使用而非替換,如此設定提示才不會靜默地丟掉片刻前設定的值——那兩個 modifier 是各自
     /// 獨立的 view,彼此並不知道對方存在。
     private func delegate(for widget: Widget) -> SwiftAccessibilityDelegate {
         if let existing = widget.getAccessibilityDelegate()?.as(SwiftAccessibilityDelegate.self) {
@@ -139,15 +139,15 @@ extension AndroidBackend: BackendFeatures.Accessibility {
     ///
     /// **Verifying this needs `uiautomator dump --compressed`, not the plain
     /// dump.** `UiAutomation` sets `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`, so the
-    /// plain dump lists views a screen reader would never reach -- it showed
-    /// `decorative` as present and this looked broken for an hour while the flag
-    /// was in fact being set on the right container. The compressed dump is the
+    /// plain dump lists views a screen reader would never reach -- it shows
+    /// `decorative` as present even when the flag is set on the right
+    /// container. The compressed dump is the
     /// one that answers the question being asked.
     ///
     /// **要驗證這件事,必須用 `uiautomator dump --compressed`,而不是普通的 dump。**
     /// `UiAutomation` 會設定 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,因此普通的 dump 會列出螢幕閱讀器
-    /// 永遠抵達不了的 view——它顯示 `decorative` 存在,於是這看起來壞了一小時,而那個旗標其實一直
-    /// 都正確地設在正確的容器上。compressed 的那一份才是回答這個問題的那一份。
+    /// 永遠抵達不了的 view——即使那個旗標已設在正確的容器上,它仍顯示 `decorative` 存在。
+    /// compressed 的那一份才是回答這個問題的那一份。
     public func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool) {
         widget.setImportantForAccessibility(
             hidden

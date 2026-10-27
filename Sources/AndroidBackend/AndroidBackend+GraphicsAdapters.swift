@@ -15,32 +15,14 @@ extension AndroidBackend: BackendFeatures.GraphicsAdapters {
     /// current EGL context; making one here means `eglInitialize` and
     /// `eglTerminate` on `EGL_DEFAULT_DISPLAY`, which is the display the app is
     /// already rendering through. Terminating it is a documented way to break
-    /// other users of the same display, and this machine cannot run Android to
-    /// find out whether it does. "Qualcomm SM8350" instead of "Adreno 660" is a
+    /// other users of the same display, and whether it does so on Android has
+    /// not been tested. "Qualcomm SM8350" instead of "Adreno 660" is a
     /// worse name; a black window is a worse bug.
     ///
     /// If someone with a device wants the real name, the shape is a Kotlin
     /// helper that creates a pbuffer surface on its OWN display connection and
     /// never terminates the default one. It belongs next to the other helpers in
     /// `Sources/AndroidBackend/Kotlin/`.
-    ///
-    /// **COMPILES HERE, since 2026-09-11.** It did not for a while, and the reason
-    /// was never this file: the host toolchain was Swift 6.4 while the installed
-    /// Android SDK was 6.3.3, so every Android build failed with module-format
-    /// errors naming files nobody here wrote. `testapp/compile.zsh` now finds a
-    /// matching toolchain and says which one it picked.
-    ///
-    /// Compiling is not running. Nothing in this file has been executed on a
-    /// device or an emulator, and the checks below are still the checks.
-    ///
-    /// **自 2026-09-11 起，此處編得過。** 它曾有一段時間編不過，而理由從來不在這個檔案:主機的
-    /// toolchain 是 Swift 6.4，而安裝的 Android SDK 是 6.3.3，因此每一次 Android 建置都以
-    /// 「module 格式」錯誤失敗，指名的是一些此處沒有人寫過的檔案。`testapp/compile.zsh` 現在會找出
-    /// 相符的 toolchain，並說出它選了哪一個。
-    ///
-    /// 編得過不等於跑得起來。本檔中沒有任何東西曾在裝置或模擬器上執行過，而下方那些要查的項目，
-    /// 依然要查。
-    ///
     ///
     /// 一台 Android 裝置所擁有的那一張 GPU，以它的 System-on-Chip 命名。
     ///
@@ -51,8 +33,8 @@ extension AndroidBackend: BackendFeatures.GraphicsAdapters {
     /// **這個名字是 SoC、不是 GPU，而那是一次刻意的退讓。** GPU 自己的名字來自
     /// `glGetString(GL_RENDERER)`，那需要一個當前的 EGL context;在此處造一個，意味著要對
     /// `EGL_DEFAULT_DISPLAY` 呼叫 `eglInitialize` 與 `eglTerminate`——而那正是這個 app 正在用來算繪的
-    /// 那個 display。終止它是「弄壞同一個 display 的其他使用者」的一種有記載的方式，而這台機器跑不了
-    /// Android 來查明它會不會。「Qualcomm SM8350」而不是「Adreno 660」是比較差的名字;一個全黑的視窗
+    /// 那個 display。終止它是「弄壞同一個 display 的其他使用者」的一種有記載的方式，而它在 Android 上是否
+    /// 會如此尚未測試過。「Qualcomm SM8350」而不是「Adreno 660」是比較差的名字;一個全黑的視窗
     /// 是比較嚴重的缺陷。
     ///
     /// 若有裝置的人想要真正的名字，形狀是一個 Kotlin 輔助類別:它在**自己的** display 連線上建立一個

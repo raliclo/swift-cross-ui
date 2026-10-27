@@ -96,14 +96,11 @@ extension AndroidBackend {
         // and a view that has not been added to a parent has none -- so the
         // call returns having done nothing, silently, and the symbol is laid
         // out with space reserved for it and nothing drawn in that space.
-        // That is what the first attempt at this fix did, and the screenshot
-        // afterwards was identical to the one before it.
         //
         // 必須在 `insert` 之後,絕不能在之前。`setSize` 的第一行是
         // `guard let layoutParams = widget.getLayoutParams() else { return }`,
         // 而一個尚未被加入父層的 view 沒有 layout params——於是該呼叫什麼都沒做就返回了,
-        // 而且是靜默的,結果就是符號的位置被保留了空間、空間裡卻什麼都沒畫。這正是本修正第一次
-        // 嘗試時所做的事,而其後的截圖與修正前那張一模一樣。
+        // 而且是靜默的,結果就是符號的位置被保留了空間、空間裡卻什麼都沒畫。
         //
         // Computed rather than remembered: the size depends only on the symbol
         // and the environment, both of which are arguments here, so there is no

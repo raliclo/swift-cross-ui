@@ -86,13 +86,10 @@ extension BackendFeatures {
     /// widths and unrelated to this.*
     ///
     /// **Conformance-checked, not `@CastBackend`.** The other continuous
-    /// gestures use the macro, which expands to `fatalError`, and they can
-    /// because every shipped backend implements them. This one lands on AppKit
-    /// and UIKit first, so three backends would meet that `fatalError` on the
-    /// day it arrived -- the cost `CLAUDE.md` records from 2026-09-02. A view
-    /// with no conformance renders its content and reports no scrolls, and says
-    /// so once. That is a schedule, not a policy: the five shipped backends owe
-    /// this.
+    /// gestures use the macro, which expands to `fatalError`. A backend with no
+    /// conformance (one outside the shipped set) renders the view's content,
+    /// reports no scrolls and says so once, rather than taking the app down.
+    /// All five shipped backends conform.
     ///
     /// 一個滾輪、一次觸控板兩指捲動,或觸控表面的對應動作——送到一個 **view**,而不是送到一個捲動容器。
     ///
@@ -103,10 +100,8 @@ extension BackendFeatures {
     /// `NSDisabledScrollView.scrollWheel` 只是 NSTableView 寬度的變通,與此無關。*
     ///
     /// **採 conformance 檢查,而不是 `@CastBackend`。** 其他幾個連續手勢用的是那個 macro(它展開為
-    /// `fatalError`),而它們可以那樣做,是因為每個已發布的 backend 都實作了它們。這一個先落在 AppKit 與
-    /// UIKit,因此落地當天會有三個 backend 撞上那個 `fatalError`——那正是 `CLAUDE.md` 記載的 2026-09-02
-    /// 的代價。沒有 conformance 的情況下,那個 view 會照常繪製它的內容、不回報任何捲動,並且說一次。
-    /// 那是一份時程,不是一項政策:五個已發布的 backend 都欠這一項。
+    /// `fatalError`)。沒有 conformance 的 backend(已發布集合以外的那些)會照常繪製那個 view 的內容、
+    /// 不回報任何捲動,並且說一次,而不是讓整個 app 終止。五個已發布的 backend 全都 conform。
     @MainActor
     public protocol ScrollGestures: Core {
         func createScrollGestureTarget(wrapping child: Widget) -> Widget

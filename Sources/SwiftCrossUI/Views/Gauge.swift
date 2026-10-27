@@ -1,7 +1,7 @@
 /// A value shown against the range it lies in.
 ///
 /// Composed from `VStack`, `HStack` and ``ProgressView``'s bar, so it needs
-/// nothing from any backend. See ``Stepper`` for why this batch was chosen.
+/// nothing from any backend.
 ///
 /// **Linear only.** SwiftUI also has circular and accessory styles, which are
 /// drawn shapes rather than arrangements of existing views; those belong with
@@ -10,8 +10,7 @@
 ///
 /// 一個相對於其所在範圍呈現的數值。
 ///
-/// 由 `VStack`、`HStack` 與 ``ProgressView`` 的長條組合而成，不需要任何 backend 支援。本批工作
-/// 為何如此挑選，見 ``Stepper``。
+/// 由 `VStack`、`HStack` 與 ``ProgressView`` 的長條組合而成，不需要任何 backend 支援。
 ///
 /// **僅有線性樣式。** SwiftUI 另有圓形與 accessory 樣式，那些是繪製出來的形狀，而非既有 view 的
 /// 排列；它們屬於 `GaugeStyle` 的範疇，此處不宣稱擁有。此處提供的是桌面上 SwiftUI 的 `.automatic`

@@ -14,14 +14,14 @@ import android.widget.FrameLayout
 // Compositing effects, as one RenderEffect over the subtree.
 //
 // RenderEffect is API 31, which is why minSDK was raised from 28 -- see
-// androidContainer/Bundler.android.toml. It is the only public way to blur or
+// testapp/androidContainer/Bundler.android.toml. It is the only public way to blur or
 // colour-adjust a live View subtree; everything else on Android either
 // rasterises the view yourself or applies to a single drawable.
 //
 // 合成效果，實作為套用於整個子樹的單一 RenderEffect。
 //
 // RenderEffect 屬於 API 31，這正是 minSDK 由 28 調升的原因——見
-// androidContainer/Bundler.android.toml。它是公開 API 中唯一能對一棵活的 View 子樹進行模糊或色彩
+// testapp/androidContainer/Bundler.android.toml。它是公開 API 中唯一能對一棵活的 View 子樹進行模糊或色彩
 // 調整的方式；Android 上其餘的做法，不是要自行把 view 光柵化，就是只能作用於單一 drawable。
 class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
 
@@ -93,8 +93,8 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // Grayscale through a shader when the platform has one (API 33), so it
         // is the grey AppKitBackend draws: CIColorMonochrome tinted 0.5 grey in
         // Core Image's linear working space, which maps luminance through an
-        // overlay and comes out darker than saturation 0 -- the user chose
-        // AppKit's (P39, 2026-10-16). A ColorMatrix is linear in the sRGB
+        // overlay and comes out darker than saturation 0 -- AppKit's grey is
+        // the reference (P39, 2026-10-16). A ColorMatrix is linear in the sRGB
         // values and cannot draw that curve, so on API 31 and 32 grayscale
         // stays the desaturation in the matrix below, the same grey as
         // saturation 0. Hue rotation then has to come after the shader, as on
@@ -102,7 +102,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         //
         // 平台有 shader 時(API 33)以 shader 繪製灰階，使它成為 AppKitBackend 畫出的那種灰：在 Core Image
         // 線性工作空間中以 0.5 灰上色的 CIColorMonochrome,會把亮度經過 overlay 映射，比 saturation 0
-        // 更暗——使用者選擇以 AppKit 為準(P39,2026-10-16)。ColorMatrix 對 sRGB 數值是線性的，畫不出
+        // 更暗——以 AppKit 為準(P39,2026-10-16)。ColorMatrix 對 sRGB 數值是線性的，畫不出
         // 那條曲線，因此在 API 31 與 32 上灰階仍是下方矩陣中的去飽和，與 saturation 0 同一種灰。色相旋轉
         // 必須在 shader 之後(與 AppKit 相同),所以改用它自己的矩陣。
         val greyShader =

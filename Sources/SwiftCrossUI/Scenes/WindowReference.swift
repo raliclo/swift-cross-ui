@@ -243,19 +243,19 @@ final class WindowReference<SceneType: WindowingScene> {
             // the default size changed would resize the window (which is incorrect
             // behaviour).
             //
-            // The title is deliberately *not* set here. It used to be, and that
-            // left two writers for one property: this one, and the
-            // `navigationTitle` preference applied after layout. Two writers
-            // meant the scene title won on any pass that carried a new scene
-            // and lost on every other, so a `.navigationTitle` would appear and
-            // then be overwritten by the scene's own title on the next resize.
-            // There is now exactly one application point, below, and
-            // `scene.title` is its fallback.
+            // The title is deliberately *not* set here. Setting it here as well
+            // would leave two writers for one property: this one, and the
+            // `navigationTitle` preference applied after layout. With two writers
+            // the scene title wins on any pass that carries a new scene and loses
+            // on every other, so a `.navigationTitle` would appear and then be
+            // overwritten by the scene's own title on the next resize. There is
+            // exactly one application point, below, and `scene.title` is its
+            // fallback.
             //
-            // 此處刻意**不**設定標題。它原本在這裡設定，而那讓同一個屬性有了兩個寫入者：這一處，
-            // 以及在版面計算之後套用的 `navigationTitle` preference。兩個寫入者意謂著：在任何帶有
+            // 此處刻意**不**設定標題。若在這裡也設定，同一個屬性就有了兩個寫入者：這一處，
+            // 以及在版面計算之後套用的 `navigationTitle` preference。有兩個寫入者時，在任何帶有
             // 新 scene 的計算中由 scene 標題勝出，在其餘每一次計算中則落敗，因此 `.navigationTitle`
-            // 會先出現、再於下一次縮放時被 scene 自己的標題覆蓋。現在只有下方唯一一個套用點，
+            // 會先出現、再於下一次縮放時被 scene 自己的標題覆蓋。套用點只有下方唯一一個，
             // 而 `scene.title` 是它的後備值。
             scene = newScene
         }
@@ -272,21 +272,21 @@ final class WindowReference<SceneType: WindowingScene> {
                 // The scene is NOT recomputed and the content re-lays out its kept
                 // bodies (`reusesBodies`). The content resized because a node in it
                 // changed, and that node already applied the change; recomputing the
-                // scene built the root view and every view below it anew on each
-                // such resize (P45 on 2026-09-28: its model constructed 8 times in
-                // one run). Upstream's TODO here asked exactly whether this works.
-                // 不重算 scene,內容重新排版保存的 body(`reusesBodies`)。內容改變尺寸是因為其中某個節點變了,而那個
-                // 節點已經套用過;重算 scene 會在每一次這種改變時重建根 view 與其下的每一個 view(2026-09-28 的 P45:
-                // 一次執行建構了 8 次 model)。上游在此留的 TODO 問的正是這件事行不行得通。
+                // scene would build the root view and every view below it anew on
+                // each such resize (P45 on 2026-09-28: its model constructed 8 times
+                // in one run).
+                // 不重算 scene,內容重新排版保存的 body(`reusesBodies`)。內容改變尺寸是因為其中某個節點變了，而那個
+                // 節點已經套用過；重算 scene 會在每一次這種改變時重建根 view 與其下的每一個 view(2026-09-28 的 P45:
+                // 一次執行建構了 8 次 model)。
                 self.update(
                     nil,
                     proposedWindowSize: backend.size(ofWindow: window),
                     needsWindowSizeCommit: false,
                     backend: backend,
                     environment: environment.with(\.reusesBodies, true),
-                    // The two sibling call sites -- the resize handler and the
-                    // environment-change handler -- both pass this, and this one
-                    // did not, so it took the default of `false`. That permits
+                    // Passed as at the two sibling call sites -- the resize
+                    // handler and the environment-change handler. Without it the
+                    // default of `false` applies. That permits
                     // the restart below, which re-proposes `clampedWindowSize`:
                     // the content's size when offered zero width, which for a
                     // page of text is a very tall, very narrow column. On a
@@ -295,7 +295,7 @@ final class WindowReference<SceneType: WindowingScene> {
                     // nothing and the content is then centred against a window
                     // that does not exist.
                     //
-                    // Measured on the Android emulator with P12, 2026-09-03.
+                    // Measured on the Android emulator with P12, 2026-09-03, without it.
                     // At rest the update reported proposed (411, 841) against
                     // content (350, 678). After a state change that made the
                     // content wider: proposed (411, 5558), content (409, 678),
@@ -306,14 +306,14 @@ final class WindowReference<SceneType: WindowingScene> {
                     // do it; the tenth, where the number needs a second digit,
                     // did.
                     //
-                    // 它的兩個兄弟呼叫點——resize handler 與環境變更 handler——都會傳這個參數，
-                    // 而此處沒有傳，於是取了預設值 `false`。那使下方的重啟得以執行，重新提議
+                    // 它的兩個兄弟呼叫點——resize handler 與環境變更 handler——也都傳這個參數。
+                    // 少了它就會取預設值 `false`,使下方的重啟得以執行，重新提議
                     // `clampedWindowSize`：也就是「內容在被提議寬度 0 時的尺寸」，對一個文字頁面
                     // 而言那是一根極高極窄的長條。在可調整大小的 backend 上，視窗會真的變成那樣，
                     // 一切正常；在不能調整的 backend 上，`setSize(ofWindow:)` 什麼都不做，而內容
                     // 接著就被對著一個並不存在的視窗置中。
                     //
-                    // 2026-09-03 於 Android emulator 上以 P12 實測。靜止時該次更新回報
+                    // 2026-09-03 於 Android emulator 上以 P12 實測(未傳此參數時)。靜止時該次更新回報
                     // proposed (411, 841)、content (350, 678)。在一次讓內容變寬的狀態變更之後：
                     // proposed (411, 5558)、content (409, 678)，而 `size(ofWindow:)` 兩次都仍
                     // 回答 411 x 841。內容因而被放在 y = (5558 - 678) / 2 = 2440 點——在一個
@@ -554,36 +554,30 @@ final class WindowReference<SceneType: WindowingScene> {
                 // 能夠決定「那條列究竟該不該出現」的東西。
                 let heading = finalContentResult.preferences.navigationTitle
 
-                // No equality guard, and that is a correction rather than an
-                // omission.
-                //
-                // It used to skip when `items == lastAppliedToolbar`, and
-                // `ToolbarItem`'s `==` compares `label` and `systemImage` and
-                // deliberately ignores the action -- a closure cannot be
-                // compared. So a toolbar whose buttons kept their labels while
-                // their actions captured new data was judged unchanged, and the
-                // backend kept the closures from the previous state. Pressing
-                // "Delete" then deleted the row that used to be selected.
+                // No equality guard. `ToolbarItem`'s `==` compares `label` and
+                // `systemImage` and deliberately ignores the action -- a closure
+                // cannot be compared. Skipping when `items == lastAppliedToolbar`
+                // would judge a toolbar whose buttons kept their labels while
+                // their actions captured new data unchanged, and the backend
+                // would keep the closures from the previous state: pressing
+                // "Delete" would delete the row that used to be selected.
                 //
                 // Nothing about that fails: the labels are right, the button
                 // works, and it acts on stale data.
                 //
-                // The guard existed to avoid rebuilding the chrome on every
-                // update. That cost belongs to the backends, which can compare
-                // what they already have -- and each of them already does, so
-                // this call is cheap when nothing changed.
+                // Avoiding a rebuild of the chrome on every update is the
+                // backends' job: each compares what it already has, so this
+                // call is cheap when nothing changed.
                 //
-                // 此處沒有相等性守衛,而那是一項更正、不是一項疏漏。
+                // 此處沒有相等性守衛。`ToolbarItem` 的 `==` 比較的是 `label` 與 `systemImage`,並刻意忽略
+                // action——閉包無法比較。若在 `items == lastAppliedToolbar` 時跳過，一個「按鈕標籤沒變、
+                // 但 action 捕捉了新資料」的工具列會被判定為未改變，而 backend 會繼續持有前一個狀態的
+                // 那些閉包：按下「Delete」刪掉的，會是**先前**被選取的那一列。
                 //
-                // 它原本會在 `items == lastAppliedToolbar` 時跳過,而 `ToolbarItem` 的 `==` 比較的是
-                // `label` 與 `systemImage`,並刻意忽略 action——閉包無法比較。因此一個「按鈕標籤沒變、
-                // 但 action 捕捉了新資料」的工具列會被判定為未改變,而 backend 會繼續持有前一個狀態的
-                // 那些閉包。按下「Delete」刪掉的,會是**先前**被選取的那一列。
+                // 這件事沒有任何一處會失敗：標籤是對的、按鈕能用，而它作用在過期的資料上。
                 //
-                // 這件事沒有任何一處會失敗:標籤是對的、按鈕能用,而它作用在過期的資料上。
-                //
-                // 那個守衛的用意是避免每次更新都重建外框。那份成本屬於 backend,而它們可以比較自己
-                // 手上已有的東西——而且每一個都已經這麼做了,因此在沒有改變時這個呼叫是廉價的。
+                // 避免每次更新都重建外框是 backend 的工作：每一個都會比較自己手上已有的東西，因此在沒有
+                // 改變時這個呼叫是廉價的。
                 backend.setToolbar(
                     ofWindow: window as! NewBackend.Window,
                     to: items,
@@ -632,9 +626,9 @@ final class WindowReference<SceneType: WindowingScene> {
         }
 
         // Apply after the first show, not before it. GTK's platform handle does
-        // not exist until the window is realized, so the old "apply before
-        // show, then remember it as applied" path could silently drop an
-        // initial `.floating` request. Keep reasserting `.floating`, because a
+        // not exist until the window is realized, so applying before show and
+        // remembering it as applied could silently drop an initial `.floating`
+        // request. Keep reasserting `.floating`, because a
         // backend resize may replace the platform window and lose topmost
         // state. Do not reassert unchanged `.automatic` or `.normal`: on
         // Windows those can map to `HWND_NOTOPMOST`, which undoes the temporary

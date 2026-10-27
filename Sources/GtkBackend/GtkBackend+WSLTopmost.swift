@@ -10,7 +10,7 @@
     /// advertises no `_NET_WM_STATE_ABOVE` -- its `_NET_SUPPORTED` lists
     /// MOVERESIZE, STATE, FULLSCREEN, MAXIMIZED_VERT/HORZ, ACTIVE_WINDOW and
     /// FRAME_EXTENTS only (xprop, 2026-10-21) -- and Wayland lets no client
-    /// raise itself. So, as the user chose, the backend asks Windows: through
+    /// raise itself. So the backend asks Windows: through
     /// WSL interop it runs powershell.exe, which finds the Windows window by its
     /// title -- WSLg titles it "<GTK title> (<distro>)" -- and calls
     /// `SetWindowPos(HWND_TOPMOST)` (or `HWND_NOTOPMOST` to undo it). The call
@@ -21,7 +21,7 @@
     /// WSL 下的 `.floating`,在視窗的 Windows 那一側完成。WSLg 把每個 Linux 視窗都畫成一個獨立的 Windows 視窗，而 Linux
     /// 這一側無法把它抬高:WSLg 的 X 視窗管理員(Weston WM)沒有宣告 `_NET_WM_STATE_ABOVE`——它的 `_NET_SUPPORTED` 只有
     /// MOVERESIZE、STATE、FULLSCREEN、MAXIMIZED_VERT/HORZ、ACTIVE_WINDOW 與 FRAME_EXTENTS(xprop,2026-10-21)——而 Wayland
-    /// 不讓任何 client 自行置頂。因此依使用者的選擇，由 backend 請 Windows 來做：透過 WSL 互通執行 powershell.exe,以標題
+    /// 不讓任何 client 自行置頂。因此由 backend 請 Windows 來做：透過 WSL 互通執行 powershell.exe,以標題
     /// 找到 Windows 視窗(WSLg 把它命名為「<GTK 標題> (<發行版>)」),再呼叫 `SetWindowPos(HWND_TOPMOST)`(取消時用
     /// `HWND_NOTOPMOST`)。不等待這個呼叫:PowerShell 啟動約需一秒，而且腳本會重試三秒，因為 Windows 視窗比 GTK 自己的
     /// 視窗稍晚出現。

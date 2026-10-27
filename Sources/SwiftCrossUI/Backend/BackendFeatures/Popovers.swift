@@ -123,10 +123,9 @@ extension BackendFeatures {
     ///
     /// Separate from ``Popovers`` and conformance-checked, like
     /// ``Containers/LazyListRows`` and ``TableSelection``: a backend that does
-    /// not implement it draws exactly the popover it draws today, on whichever
+    /// not implement it draws the popover unchanged, on whichever
     /// side the platform picks. Adding a parameter to `presentPopover` instead
-    /// would have broken all five conformances at once, and four of those five
-    /// cannot be compiled from here -- the shape mistakes.md entry 10 is about.
+    /// would break all five conformances at once.
     ///
     /// 一種「可以被詢問要出現在錨點哪一側」的 popover(#109)。
     ///
@@ -140,9 +139,8 @@ extension BackendFeatures {
     /// 且各有自己的邊緣規則。邊的偏好是**伴隨**它,而不是取代它。
     ///
     /// 與 ``Popovers`` 分開並採 conformance 檢查,做法同 ``Containers/LazyListRows`` 與
-    /// ``TableSelection``:未實作它的 backend,畫出來的 popover 與今天完全相同、由平台自行決定側邊。
-    /// 若改成在 `presentPopover` 上加參數,則會**一次弄壞五個 conformance**,而其中四個在此處根本
-    /// 編不動——那正是 mistakes.md 第 10 條所講的形狀。
+    /// ``TableSelection``:未實作它的 backend,畫出來的 popover 不變、由平台自行決定側邊。
+    /// 若改成在 `presentPopover` 上加參數,則會**一次弄壞五個 conformance**。
     @MainActor
     public protocol PopoverArrowEdges<Popover>: Popovers {
         /// Asks for `popover` to appear on `edge` of its anchor, if it fits.

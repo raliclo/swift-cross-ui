@@ -28,7 +28,7 @@ import SwiftJava
 /// `Key` 旁邊,正好會招來上方那段 import 註解所談的那種混淆。
 private typealias AndroidKeyEvent = AndroidView.KeyEvent
 
-/// Replaying an action file on Android, by posting touches into our own
+/// Replaying an action file on Android, by posting touches into the app's own
 /// activity.
 ///
 /// The other three synthesisers reach a system API directly -- `SendInput`,
@@ -43,16 +43,13 @@ private typealias AndroidKeyEvent = AndroidView.KeyEvent
 /// application, which is the failure `SendInput` and XTEST can have and cannot
 /// report.
 ///
-/// **Keys, since 2026-09-22.** This file used to refuse them, on the grounds
-/// that a keycode mapping nothing exercised was not worth writing. `.onKeyPress`
-/// on Android made something exercise it, so the mapping is here now: ``Key`` to
-/// `KeyEvent`'s keycodes, with the held modifiers tracked so that a `keydown`
-/// for shift reaches the next row as a meta state. The keys Android genuinely
-/// has no code for -- F13 through F20 -- are refused BY NAME rather than the
-/// whole verb being refused, so a file that uses F5 works and a file that uses
-/// F13 is told which row is the problem.
+/// **Keys.** ``Key`` maps to `KeyEvent`'s keycodes, with the held modifiers
+/// tracked so that a `keydown` for shift reaches the next row as a meta state.
+/// The keys Android genuinely has no code for -- F13 through F20 -- are refused
+/// BY NAME rather than the whole verb being refused, so a file that uses F5
+/// works and a file that uses F13 is told which row is the problem.
 ///
-/// 在 Android 上重放動作檔——把觸控事件投遞進我們自己的 activity。
+/// 在 Android 上重放動作檔——把觸控事件投遞進 app 自己的 activity。
 ///
 /// 另外三個 synthesiser 各自直接取用一個系統 API——`SendInput`、經由子行程的 XTEST、AppKit
 /// ——而 `InputEvent` 有能力自行建構它們。Android 的事件則要進入一個由 `Activity` 所擁有的 view
@@ -63,11 +60,9 @@ private typealias AndroidKeyEvent = AndroidView.KeyEvent
 /// 自己的視窗。此處的任何東西都無法驅動另一個應用程式——而那正是 `SendInput` 與 XTEST 可能發生、
 /// 且無法回報的失敗。
 ///
-/// **按鍵,自 2026-09-22 起。** 本檔過去拒絕按鍵,理由是「一份沒有任何東西會去驗證的 keycode 對照表
-/// 不值得寫」。Android 上的 `.onKeyPress` 讓它有東西可驗了,因此那份對照表現在在這裡:``Key`` 對到
-/// `KeyEvent` 的 keycode,並追蹤被按住的修飾鍵,好讓一列 shift 的 `keydown` 能以 meta state 的形式
-/// 抵達下一列。Android 確實沒有對應碼的那些鍵——F13 到 F20——是**逐一具名**拒絕的,而不是整個動作
-/// 一起拒絕;因此用到 F5 的檔案能跑,用到 F13 的檔案會被告知是哪一列有問題。
+/// **按鍵。** ``Key`` 對到 `KeyEvent` 的 keycode,並追蹤被按住的修飾鍵,好讓一列 shift 的 `keydown`
+/// 能以 meta state 的形式抵達下一列。Android 確實沒有對應碼的那些鍵——F13 到 F20——是**逐一具名**拒絕的,
+/// 而不是整個動作一起拒絕;因此用到 F5 的檔案能跑,用到 F13 的檔案會被告知是哪一列有問題。
 final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// Points to pixels.
     ///
@@ -125,13 +120,12 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     private var settled = false
 
     /// The window a `focus` row named, by token; `nil` is the first window, where
-    /// every file starts. Since e71a8327 each later window is an activity of its
-    /// own, so a file that opens one has a second place to press -- and until
-    /// 2026-10-20 no way to get there: `focus` threw, and P81's `taplabel sheet`
-    /// pressed window A's button with window B in front.
-    /// `focus` 列所指名的視窗(以 token 記);`nil` 是第一個視窗，每個檔案都從那裡開始。自 e71a8327 起之後的每個視窗
-    /// 都是自己的 activity,所以開了第二個視窗的檔案有第二個地方可按——而 2026-10-20 之前沒有辦法過去:`focus`
-    /// 會 throw,P81 的 `taplabel sheet` 在 window B 位於前景時按到的是 window A 的按鈕。
+    /// every file starts. Each later window is an activity of its own, so a file
+    /// that opens one has a second place to press; without `focus`, P81's
+    /// `taplabel sheet` would press window A's button with window B in front.
+    /// `focus` 列所指名的視窗(以 token 記);`nil` 是第一個視窗，每個檔案都從那裡開始。之後的每個視窗都是自己的
+    /// activity,所以開了第二個視窗的檔案有第二個地方可按；少了 `focus`,P81 的 `taplabel sheet` 會在 window B
+    /// 位於前景時按到 window A 的按鈕。
     private var focusedToken: String?
 
     /// The focused window. Main thread only. / 目前聚焦的視窗。只能在主執行緒呼叫。
@@ -407,17 +401,11 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 是「對無物的釋放」，而接收了該次按壓的 view 永遠等不到它結束。
     private var pressDownTime: Int64?
 
-    /// `throws`, because `screenPosition(of:)` does.
-    ///
-    /// The same break that hit `AppKitSynthesiser` and for the same reason: this
-    /// file is Android-only, so a `try` added inside a non-throwing function is
-    /// invisible on every machine that cannot build this backend. Found
-    /// 2026-09-10 by the first Android build after the merge.
-    /// `throws`，因為 `screenPosition(of:)` 會 throw。
-    ///
-    /// 與擊中 `AppKitSynthesiser` 的是同一個破壞、理由也相同：本檔僅限 Android，因此「在不會 throw 的
-    /// 函式裡加上 `try`」在任何建不了本 backend 的機器上都看不見。2026-09-10 由合併後的第一次
-    /// Android 建置發現。
+    /// `throws`, because `screenPosition(of:)` does. This file is Android-only,
+    /// so a `try` inside a non-throwing function here is invisible to every
+    /// build that does not include this backend.
+    /// `throws`，因為 `screenPosition(of:)` 會 throw。本檔僅限 Android，因此「在不會 throw 的函式裡
+    /// 加上 `try`」在任何不含本 backend 的建置中都看不見。
     /// Pixels the replay has scrolled the root host by itself, to reach points
     /// that started off screen. Subtracted from every later point, because the
     /// file did not know about that scroll.
@@ -632,7 +620,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
     /// Move a mouse pointer there and report the cursor Android would draw.
     ///
-    /// **`onResolvePointerIcon` is Android's own answer, not ours, and that is the whole value of
+    /// **`onResolvePointerIcon` is Android's own answer, not this backend's, and that is the whole value of
     /// this verb.** `AndroidBackend+Cursors.swift` calls `View.setPointerIcon`; checking that the
     /// setter was called proves nothing about which view the pointer is over. `ViewGroup`'s
     /// implementation hit-tests down to the child under the coordinates, asks it, and falls back
@@ -653,7 +641,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 把一個滑鼠指標移到那裡,並回報 Android 會畫出的游標。
     ///
-    /// **`onResolvePointerIcon` 是 Android 自己的答案、不是我們的,而那正是這個動作的全部價值。**
+    /// **`onResolvePointerIcon` 是 Android 自己的答案、不是本 backend 的,而那正是這個動作的全部價值。**
     /// `AndroidBackend+Cursors.swift` 呼叫的是 `View.setPointerIcon`;而「確認 setter 被呼叫過」
     /// 對「指標正位於哪個 view 之上」什麼也證明不了。`ViewGroup` 的實作會往下 hit-test 到座標底下的
     /// 子 view、問它,然後才退回自己的圖示——因此在 decor view 上以一個 hover 事件呼叫它,同時檢驗了
@@ -793,15 +781,13 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// **Android does not remember this for you, and neither does the window.** A synthesised
     /// `KeyEvent` carries its own `metaState` field, and nothing infers it from earlier events --
     /// so a `keydown,shift` followed by `key,upArrow` delivers an arrow with no shift unless the
-    /// bit is carried here. That is exactly the shape of the AppKit defect found on 2026-09-19,
-    /// where a modifier was released before the event that was supposed to carry it.
+    /// bit is carried here.
     ///
     /// 一個 `keydown` 列所留下、仍被按住的 meta state。
     ///
     /// **Android 不會替你記住它,那個視窗也不會。** 一個合成的 `KeyEvent` 自帶 `metaState` 欄位,
     /// 而沒有任何東西會從先前的事件推導它——因此 `keydown,shift` 之後接 `key,upArrow`,送出的會是一個
-    /// **沒有** shift 的方向鍵,除非那個位元由此處帶過去。那正是 2026-09-19 在 AppKit 上找到的缺陷的
-    /// 形狀:一個修飾鍵在「本該帶著它的那個事件」之前就被放開了。
+    /// **沒有** shift 的方向鍵,除非那個位元由此處帶過去。
     private var heldModifiers: Int32 = 0
 
     private var keyActionDown: Int32 {
@@ -875,20 +861,16 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             )
         }
 
-        // **Both edges happen BEFORE the event is built, and the release is the one that was
-        // wrong first.** A real keyboard's shift-down carries META_SHIFT_ON and its shift-UP does
-        // not: Android clears the bit as it generates the release, so the event that says "shift
-        // came up" reports shift not held. The first version here removed the bit after
-        // dispatching, and the app printed `MODIFIERS up shift=true` -- a release that still
-        // claims to be held, which reads as a stuck modifier rather than as a synthesiser bug.
-        // AppKitSynthesiser had the identical defect on 2026-09-19 and its fix was the identical
-        // move.
-        // **兩個邊緣都發生在事件被建構**之前**,而「放開」那一邊正是一開始寫錯的那個。** 實體鍵盤的
-        // shift-down 帶有 META_SHIFT_ON,而它的 shift-**up** 沒有:Android 在產生放開事件的同時就
-        // 清掉那個位元,因此「shift 放開了」這個事件回報的是「shift 未被按住」。此處第一版是在投遞
-        // **之後**才移除那個位元,於是 app 印出 `MODIFIERS up shift=true`——一次「仍宣稱被按住」的放開,
-        // 讀起來像是修飾鍵卡住,而不像 synthesiser 的臭蟲。AppKitSynthesiser 在 2026-09-19 有一模一樣
-        // 的缺陷,而它的修法也一模一樣。
+        // **Both edges happen BEFORE the event is built.** A real keyboard's shift-down carries
+        // META_SHIFT_ON and its shift-UP does not: Android clears the bit as it generates the
+        // release, so the event that says "shift came up" reports shift not held. Removing the
+        // bit after dispatching makes the app print `MODIFIERS up shift=true` -- a release that
+        // still claims to be held, which reads as a stuck modifier rather than as a synthesiser
+        // bug. AppKitSynthesiser orders it the same way.
+        // **兩個邊緣都發生在事件被建構**之前**。** 實體鍵盤的 shift-down 帶有 META_SHIFT_ON,而它的
+        // shift-**up** 沒有:Android 在產生放開事件的同時就清掉那個位元,因此「shift 放開了」這個事件回報的是
+        // 「shift 未被按住」。若在投遞**之後**才移除那個位元,app 會印出 `MODIFIERS up shift=true`——一次
+        // 「仍宣稱被按住」的放開,讀起來像是修飾鍵卡住,而不像 synthesiser 的臭蟲。AppKitSynthesiser 的順序相同。
         if let bit = Self.modifierBit(for: key) {
             if action == keyActionDown {
                 heldModifiers |= bit
@@ -1235,15 +1217,15 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// the activity, on the main thread.
     ///
     /// The single-contact `dispatch` above stays as it is: it is what every
-    /// click, drag and scroll goes through, it has been driven on a device for
-    /// weeks, and the five-argument `obtain` it calls cannot express a second
-    /// contact. This is the fourteen-argument overload, which takes the
-    /// contacts as arrays of `PointerProperties` and `PointerCoords`.
+    /// click, drag and scroll goes through, and the five-argument `obtain` it
+    /// calls cannot express a second contact. This is the fourteen-argument
+    /// overload, which takes the contacts as arrays of `PointerProperties` and
+    /// `PointerCoords`.
     ///
     /// 建構一個帶有任意個接觸點的 `MotionEvent`,並在主執行緒上交給該 activity。
     ///
-    /// 上面那個單接觸點的 `dispatch` 維持原樣:每一次點擊、拖曳與捲動都走它,它已經在實機上被驅動了
-    /// 好幾週,而它所呼叫的五參數 `obtain` 表達不出第二個接觸點。此處用的是十四參數的多載,它以
+    /// 上面那個單接觸點的 `dispatch` 維持原樣:每一次點擊、拖曳與捲動都走它,而它所呼叫的五參數
+    /// `obtain` 表達不出第二個接觸點。此處用的是十四參數的多載,它以
     /// `PointerProperties` 與 `PointerCoords` 的陣列接收那些接觸點。
     @discardableResult
     private func dispatchContacts(
@@ -1306,14 +1288,13 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         return down
     }
 
-    /// To the activity, or -- when a sheet or popover of this app has focus --
-    /// to that window instead. Until 2026-10-01 every touch went to the
-    /// activity, so a tap aimed inside a sheet pressed whatever lay behind it
-    /// (P60's "+1"). Platform menus and dropdowns are not reachable this way
-    /// and are still reported.
-    /// 交給 activity;若本 app 的某個 sheet 或 popover 有焦點，則改交給那個視窗。2026-10-01 之前
-    /// 每一次觸控都交給 activity,因此瞄準 sheet 內部的點擊按到的是它後方的東西(P60 的「+1」)。
-    /// 平台的選單與下拉仍無法以此碰到，照樣會回報。
+    /// To the activity, or -- when another window of this app has focus: a
+    /// sheet, popover, menu or dropdown -- to that window instead (FrontWindows.kt).
+    /// Sent only to the activity, a tap aimed inside a sheet would press
+    /// whatever lay behind it (P60's "+1"). A front window that cannot be found
+    /// is reported.
+    /// 交給 activity;若本 app 的另一個視窗有焦點(sheet、popover、選單或下拉),則改交給那個視窗(FrontWindows.kt)。
+    /// 若一律交給 activity,瞄準 sheet 內部的點擊會按到它後方的東西(P60 的「+1」)。找不到的前方視窗會被回報。
     private static func deliver(
         _ event: MotionEvent,
         activity: Activity,
@@ -1379,41 +1360,22 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let dispatched = Self.onMainThread {
             guard let activity = self.targetActivity() else { return false }
 
-            // A popup is a different window, which the activity's dispatch cannot reach. Since 2026-10-21 FrontWindows finds it through WindowInspector and `deliver` below hands the event to it; what follows is how it was before.
-            //
-            // `Activity.dispatchTouchEvent` delivers to this activity's window.
-            // A Spinner's dropdown and a `PopupMenu` are separate windows owned
-            // by the WindowManager, and Android offers an app no public way to
-            // address another window's view: the API that reaches whatever is
-            // on top is `Instrumentation.sendPointerSync`, which needs
-            // INJECT_EVENTS, a signature permission. Neither popup is even ours
-            // to hold a reference to -- `Spinner(MODE_DROPDOWN)` builds its own
-            // `ListPopupWindow` and `PopupMenu` its own helper, both private.
-            //
-            // So the event goes nowhere, and until 2026-09-04 it went nowhere
-            // silently: the second click of a file that opened a picker and
-            // then chose from it did nothing at all, and the only evidence was
-            // a screenshot that looked like the app had ignored its input. That
-            // is why the four existing Android files that open a picker or a
-            // menu -- P2, P17, P19, P20 -- each stop after one click.
+            // A popup is a different window, which the activity's dispatch cannot
+            // reach: `Activity.dispatchTouchEvent` delivers only to this activity's
+            // window, and the platform builds menus and Spinner dropdowns as private
+            // windows of its own. FrontWindows finds the focused one through
+            // WindowInspector and `deliver` below hands the event to it; when it
+            // finds none, `reportPopupOnce` says so rather than the click silently
+            // doing nothing.
             //
             // Losing window focus is the signal, and it is exact: an activity
             // has window focus unless another window has taken it, which for
             // this app means a popup.
             //
-            // 彈出視窗是另一個視窗，而 activity 的 dispatch 抵達不了它。自 2026-10-21 起 FrontWindows 以 WindowInspector 找到它，下面的 deliver 交給它;以下說明的是之前的情況。
-            //
-            // `Activity.dispatchTouchEvent` 只會投遞到本 activity 的視窗。Spinner 的下拉與
-            // `PopupMenu` 是由 WindowManager 持有的獨立視窗，而 Android 沒有提供 app 任何公開方式
-            // 去定址另一個視窗的 view：能抵達「當下位於最上層者」的 API 是
-            // `Instrumentation.sendPointerSync`，它需要 INJECT_EVENTS——一個簽章層級的權限。而且
-            // 這兩種彈出視窗都不是我們能持有參照的東西——`Spinner(MODE_DROPDOWN)` 會自建
-            // `ListPopupWindow`，`PopupMenu` 會自建其 helper，兩者皆為私有。
-            //
-            // 因此該事件哪裡也沒去，而在 2026-09-04 之前它是靜默地哪裡也沒去：一份「先開啟選擇器、
-            // 再從中選取」的檔案，其第二次點擊完全沒有作用，而唯一的證據是一張「看起來像 app 忽略了
-            // 輸入」的截圖。這正是既有的四份「會開啟選擇器或選單」的 Android 檔案——P2、P17、P19、
-            // P20——每一份都在一次點擊之後就停止的原因。
+            // 彈出視窗是另一個視窗，而 activity 的 dispatch 抵達不了它:`Activity.dispatchTouchEvent`
+            // 只會投遞到本 activity 的視窗，而選單與 Spinner 下拉是平台自建的私有視窗。FrontWindows 以
+            // WindowInspector 找到有焦點的那一個，由下面的 `deliver` 交給它；找不到時由 `reportPopupOnce`
+            // 說出來，而不是讓那次點擊靜默地毫無作用。
             //
             // 失去視窗焦點就是那個訊號，而且它是精確的：一個 activity 除非有另一個視窗奪走了焦點，
             // 否則就擁有視窗焦點；而對這支 app 而言，那個「另一個視窗」就是彈出視窗。
@@ -1486,25 +1448,9 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 採同步方式，使某個事件在下一個被建構之前就已送達：以非同步方式投遞的按壓，可能被它自己的
     /// 釋放事件超車。
-    /// The `default:` parameter is gone, and it had never been reachable.
-    ///
-    /// It seeded a `var` that `DispatchQueue.main.sync` then overwrote
-    /// unconditionally -- `sync` does not return until the closure has run, so
-    /// the seed was read by nothing, ever. What surfaced it was Swift 6:
-    /// capturing that `var` across `sync` needs the closure to be `Sendable`,
-    /// which made the compiler ask what the generic parameter was, and the
-    /// answer was that the whole dance could be one `return`.
-    ///
     /// `Result: Sendable` is a real constraint rather than a formality -- the
     /// value crosses a thread boundary -- and both call sites pass a `Double`
     /// and a `Bool`.
-    ///
-    /// `default:` 參數已移除,而它從來就到不了。
-    ///
-    /// 它為一個 `var` 設了初值,而 `DispatchQueue.main.sync` 隨後會無條件覆寫它——`sync` 在 closure
-    /// 跑完之前不會回傳,因此那個初值從頭到尾沒有被任何東西讀過。把它揭出來的是 Swift 6:跨越 `sync`
-    /// 捕捉那個 `var`,要求該 closure 是 `Sendable`,於是編譯器追問那個泛型參數是什麼——而答案是,
-    /// 整套動作可以縮成一個 `return`。
     ///
     /// `Result: Sendable` 是一個真實的約束、不是形式:那個值會跨越執行緒邊界。兩個呼叫端分別傳的是
     /// 一個 `Double` 與一個 `Bool`。
@@ -1517,25 +1463,22 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         return DispatchQueue.main.sync { MainActor.assumeIsolated { body() } }
     }
 
-    /// Asynchronous delivery was tried and changed nothing, which is worth
-    /// recording because it was tried for a plausible wrong reason.
+    /// Asynchronous delivery was tried and changed nothing; it is recorded
+    /// because it looks like a plausible fix for a blanked window.
     ///
-    /// A synthesised tap appeared to blank P12's window, so the update running
-    /// nested inside a block already on the main queue looked like the cause,
-    /// and `DispatchQueue.main.async` looked like the fix. It made no
-    /// difference. The real cause was a mis-derived coordinate: 299 points at
-    /// density 2.625 is 785 pixels, and "Increment counter" is at 942 -- 785 is
-    /// the tab row. Pressing a tab button empties the window, and
-    /// `adb shell input tap` on the same button does it too, so it is
-    /// AndroidBackend's and not this file's. See `bugs/bug-Android.md`.
+    /// The window P12 lost after a synthesised tap was not a delivery problem:
+    /// a mis-derived coordinate (299 points at density 2.625 is 785 pixels, the
+    /// tab row, not "Increment counter" at 942) pressed a tab button, and the
+    /// window emptied because of AndroidBackend's `MATCH_PARENT` sentinel bug
+    /// (see `layoutLength` in AndroidBackend.swift). `adb shell input tap` on
+    /// the same button did the same. See `bugs/bug-Android.md`.
     ///
-    /// 非同步投遞試過了，什麼都沒改變；這件事值得記下來，因為當初嘗試它的理由聽起來很合理，卻是錯的。
+    /// 非同步投遞試過了，什麼都沒改變；之所以記下來，是因為它看起來像是「視窗被清空」的合理解法。
     ///
-    /// 合成的觸控看似會清空 P12 的視窗，於是「更新嵌套在一個已於 main queue 上執行的區塊之內」看起來
-    /// 就像是原因，而 `DispatchQueue.main.async` 看起來就像是解法。它毫無作用。真正的原因是一個算錯的
-    /// 座標：299 點在 density 2.625 下是 785 像素，而「Increment counter」位於 942——785 落在分頁列上。
-    /// 按下分頁按鈕會清空視窗，而在同一個按鈕上執行 `adb shell input tap` 也會，因此那屬於
-    /// AndroidBackend，不屬於本檔。詳見 `bugs/bug-Android.md`。
+    /// P12 在一次合成觸控之後失去的視窗並不是投遞的問題：一個算錯的座標(299 點在 density 2.625 下
+    /// 是 785 像素，落在分頁列上，而不是位於 942 的「Increment counter」)按到了分頁按鈕，而視窗被清空
+    /// 是因為 AndroidBackend 的 `MATCH_PARENT` 哨兵值錯誤(見 AndroidBackend.swift 的 `layoutLength`)。
+    /// 在同一個按鈕上執行 `adb shell input tap` 結果相同。詳見 `bugs/bug-Android.md`。
 }
 
 /// Sheets and popovers in front of the activity -- see FrontWindows.kt.

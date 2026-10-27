@@ -8,15 +8,15 @@ import SwiftJava
 /// body is `AnyView(style.makeView(...))`, so the widget on its node is a plain
 /// container and `widget.into()` as an `EditText` traps. P4 died at launch on
 /// Android with "AnyWidget used with incompatible widget type EditText; actual
-/// widget type is View" (2026-10-02) -- the defect UIKitBackend and
-/// AppKitBackend were fixed for, missed here. Searching is a strict
+/// widget type is View" (2026-10-02); UIKitBackend and AppKitBackend search
+/// the same way. Searching is a strict
 /// generalisation of casting: a widget that already is the type matches first.
 ///
 /// 在 `view` 或其子樹中，第一個(以 Java 的意義)屬於 `T` 的 view。**一個 view 的 widget 已經不一定是它所
 /// 命名的那個控制項了。** `TextField` 的 body 是 `AnyView(style.makeView(...))`,因此它節點上的 widget 是
 /// 一般容器，把 `widget.into()` 當成 `EditText` 會 trap。P4 在 Android 上一啟動就死於「AnyWidget used with
-/// incompatible widget type EditText; actual widget type is View」(2026-10-02)——UIKitBackend 與
-/// AppKitBackend 曾為此修過，這裡漏了。搜尋是轉型的嚴格推廣：本身就是該型別的 widget 第一個就會符合。
+/// incompatible widget type EditText; actual widget type is View」(2026-10-02);UIKitBackend 與
+/// AppKitBackend 也以同樣方式搜尋。搜尋是轉型的嚴格推廣：本身就是該型別的 widget 第一個就會符合。
 @MainActor
 private func androidFirstDescendant<T: AnyJavaObject>(_ type: T.Type, in view: AndroidKit.View) -> T? {
     if let match = view.as(T.self) {
@@ -92,12 +92,11 @@ extension Text {
 // meaning it had; the second takes the type, for the other styles --
 // `RadioGroup` for `.radioGroup` and `.segmented`, `NumberPicker` for `.wheel`.
 // Asking for a type the picker's style does not create stops with the widget
-// tree, as every other `.inspect` here does. Restored 2026-10-06.
+// tree, as every other `.inspect` here does.
 //
 // 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
 // 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
 // 給其他樣式用——`.radioGroup` 與 `.segmented` 是 `RadioGroup`,`.wheel` 是 `NumberPicker`。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
-// 2026-10-06 恢復。
 extension SwiftCrossUI.Picker {
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,

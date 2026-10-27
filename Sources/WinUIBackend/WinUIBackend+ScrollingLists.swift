@@ -16,8 +16,9 @@ import WinUI
 /// reported the SUM of every row height as the list's size to SwiftCrossUI's
 /// own layout system, and that is what grew the window. It reports
 /// `min(height, proposed)` only for a backend that conforms to this protocol,
-/// so on WinUI the conformance is most of the fix and this method is the
-/// smaller part of it.
+/// so on WinUI the conformance is the whole fix (656x16224 at 400 rows
+/// without it, 656x739 with it); see `setViewportHeight` for why its body
+/// changes nothing today.
 ///
 /// 為 WinUI 實作的 `BackendFeatures.ScrollingLists`(#117)。
 ///
@@ -29,21 +30,7 @@ import WinUI
 /// **conformance 真正換到的東西,而那不是捲動。** 捲動本來就在。缺的是:`Views/List.swift` 過去
 /// 把「每一列高度的**總和**」當作這個清單的尺寸回報給 SwiftCrossUI 自己的排版系統,而那才是把視窗
 /// 撐大的原因。它只對「符合本 protocol」的 backend 回報 `min(height, proposed)`,因此在 WinUI 上,
-/// conformance 本身就是這次修正的大半,而本方法是其中較小的那一部分。
-///
-/// **Corrected 2026-09-09, before this file was ever committed.** The sentence
-/// above hedged with "most of the fix" and "the smaller part of it". Both were
-/// too generous, and the measurement is in `setViewportHeight` below: the
-/// conformance is the WHOLE fix here (656x16224 at 400 rows without it,
-/// 656x739 with it), and the method's body is inert today. The distinction
-/// matters because "smaller part" invites a reader to assume the body does
-/// something, which is the shape this project keeps finding in its own docs.
-///
-/// **2026-09-09 更正,在本檔被 commit 之前。** 上面那句話用了「大半」與「較小的那一部分」來打折,
-/// 而兩者都說得太寬厚;量測結果就寫在下方的 `setViewportHeight` 裡:在這裡 conformance 是**全部**
-/// 的修正(400 列時,沒有它是 656x16224,有它是 656x739),而該方法的本體今天是惰性的。這個區別
-/// 之所以重要,是因為「較小的那一部分」會誘使讀者假設本體有在做事——而那正是本專案一再在自己文件裡
-/// 找到的形狀。
+/// conformance 本身就是全部的修正(400 列時,沒有它是 656x16224,有它是 656x739);本方法的本體今天為何不改變任何東西，見 `setViewportHeight`。
 extension WinUIBackend: BackendFeatures.ScrollingLists {
     public func setViewportHeight(ofSelectableListView listView: Widget, to height: Int) {
         let listView = listView as! CustomListView
@@ -66,9 +53,7 @@ extension WinUIBackend: BackendFeatures.ScrollingLists {
         // future caller stops setting an explicit height the ListView goes back
         // to measuring its content, the window grows, and #117 returns with no
         // error anywhere. But that is a guard against a change nobody has made,
-        // NOT something you can observe now -- and an earlier draft of this
-        // comment claimed the composition as a present benefit, which the
-        // measurement above refutes.
+        // NOT something you can observe now.
         //
         // If you are here because this method looks pointless: it is not the
         // method that fixes WinUI, it is the CONFORMANCE. Measured the same day
@@ -85,7 +70,7 @@ extension WinUIBackend: BackendFeatures.ScrollingLists {
         // 它仍然被保留,但身分是**上限**而非**修正**。`maxHeight` 會與 `setSize` 所做的事疊合而非
         // 與之競爭;若未來某個呼叫端不再設定明確高度,ListView 就會回頭量測自己的內容,視窗隨之長高,
         // 而 #117 會在沒有任何錯誤訊息的情況下回來。但那是在防一個**還沒有人做出的改動**,
-        // **不是**現在觀察得到的效果——而本註解的前一個版本把那個疊合寫成當下的好處,已被上述量測推翻。
+        // **不是**現在觀察得到的效果。
         //
         // 若你是因為覺得這個方法沒有意義而讀到這裡:修好 WinUI 的不是這個方法,是那個
         // **conformance**。同一天以「移除整個檔案」實測:50 列 656x2224、400 列 656x16224。

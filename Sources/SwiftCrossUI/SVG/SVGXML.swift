@@ -5,15 +5,14 @@
 // 2026-10-09: the swift.org 6.4.0 Android SDK carries `libFoundationXML.so`
 // and `libxml2`), but using it would make every app that shows an image link
 // libxml2 and ship one more shared library -- on Android and Windows that is
-// a packaging change per app, and the Windows side cannot be checked from the
-// Mac where this was written. SVG needs elements, attributes, text, comments,
+// a packaging change per app. SVG needs elements, attributes, text, comments,
 // CDATA and the five predefined entities; that is a few hundred lines, and the
 // same lines then run on every backend.
 //
 // 一個給 SVG 用的小型 XML 讀取器。刻意不使用 Foundation 的 `XMLParser`:`FoundationXML` 在五個
 // 已發布平台上確實都有(2026-10-09 查過:swift.org 6.4.0 Android SDK 帶有 `libFoundationXML.so`
 // 與 `libxml2`),但用它會讓每一支顯示影像的 app 連結 libxml2、多帶一個共享函式庫——在 Android 與
-// Windows 上那是每支 app 的打包變更，而 Windows 那一側無法從寫這段程式的 Mac 上查證。SVG 只需要
+// Windows 上那是每支 app 的打包變更。SVG 只需要
 // 元素、屬性、文字、註解、CDATA 與五個預先定義的實體；那是幾百行，而且同樣的這幾百行會在每一個
 // backend 上執行。
 

@@ -16,9 +16,8 @@ import android.view.accessibility.AccessibilityNodeInfo
  * an override that copies them onto the node. That matters for what it rules out: there is no
  * lifetime question, no thread question, and nothing to leak.
  *
- * `stateDescription` rides along rather than staying on `View.setStateDescription`, because that
- * one arrived in API 30 and this reaches the same field from API 26. One place for both also means
- * a view cannot end up with its hint on the node and its value on the view.
+ * `stateDescription` rides along rather than staying on `View.setStateDescription`: with one place
+ * for both, a view cannot end up with its hint on the node and its value on the view.
  *
  * 承載 Android 放在**節點**上、而非放在 view 上的那些無障礙屬性。
  *
@@ -32,9 +31,8 @@ import android.view.accessibility.AccessibilityNodeInfo
  * 複製到節點上的 override。這一點的重要性在於它排除了什麼:沒有生命週期問題、沒有執行緒問題,也沒有
  * 任何東西會洩漏。
  *
- * `stateDescription` 搭這班車,而不是留在 `View.setStateDescription` 上,因為後者是 API 30 才有的,
- * 而這條路從 API 26 就能抵達同一個欄位。兩者放在同一個地方,也意味著一個 view 不會落得「提示在節點上、
- * 值在 view 上」。
+ * `stateDescription` 搭這班車,而不是留在 `View.setStateDescription` 上:兩者放在同一個地方,一個 view
+ * 就不會落得「提示在節點上、值在 view 上」。
  */
 class SwiftAccessibilityDelegate : View.AccessibilityDelegate() {
     private var hint: String? = null

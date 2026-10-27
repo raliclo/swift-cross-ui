@@ -431,8 +431,6 @@ public class Table: ScrolledWindow {
                 ?? cellPosition(atX: x, y: y)
         else { return }
 
-        // Row 0 is the header; a click there is not a row selection.
-        // 第 0 列是標題;點在那裡不是一次列選取。
         // Row 0 is the header, and it is not a dead zone: a click there is a
         // SORT request when anybody asked for one. The row and the column come
         // out of the same `queryChild` call, so this costs nothing beyond the

@@ -27,14 +27,14 @@ public struct Toggle: View {
     }
 
     public var body: some View {
-        // Routed through the style, as `Picker` and `DatePicker` are. What used
-        // to be here is now `_BuiltinToggleImplementation`, reached by the three
+        // Routed through the style, as `Picker` and `DatePicker` are. The built-in
+        // rendering is `_BuiltinToggleImplementation`, reached by the three
         // built-in styles; a style written outside this module draws whatever it
         // likes instead. `AnyView` because the style is existential and its
         // `Body` is not known here.
         //
-        // 交由 style 繪製，與 `Picker`、`DatePicker` 相同。原本位於此處的內容現在是
-        // `_BuiltinToggleImplementation`，由三個內建 style 取用；而在本模組之外撰寫的 style 則
+        // 交由 style 繪製，與 `Picker`、`DatePicker` 相同。內建的繪製是 `_BuiltinToggleImplementation`,
+        // 由三個內建 style 取用；而在本模組之外撰寫的 style 則
         // 想畫什麼就畫什麼。使用 `AnyView`，因為此處的 style 是 existential，其 `Body` 型別在這裡
         // 無從得知。
         AnyView(
@@ -51,10 +51,7 @@ public struct Toggle: View {
     }
 }
 
-// `ToggleStyle` used to be a struct here, with three static members and a
-// nested `@_spi(Backends) enum Style`. It is now a protocol in
-// Views/Styles/ToggleStyle/, and that nested enum lives on as
-// `BackendToggleStyle` in Backend/.
-// `ToggleStyle` 過去是此處的一個 struct，帶有三個 static 成員與一個巢狀的
-// `@_spi(Backends) enum Style`。它現已成為 Views/Styles/ToggleStyle/ 中的 protocol，而那個巢狀
-// enum 則以 `BackendToggleStyle` 之名存續於 Backend/ 之中。
+// `ToggleStyle` is a protocol in Views/Styles/ToggleStyle/. The backend's
+// vocabulary is `BackendToggleStyle` in Backend/.
+// `ToggleStyle` 是 Views/Styles/ToggleStyle/ 中的 protocol。backend 的詞彙是
+// Backend/ 中的 `BackendToggleStyle`。

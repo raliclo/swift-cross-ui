@@ -17,9 +17,6 @@ import SwiftJava
 /// colour. That is worth knowing wherever the default is still in use; it is no
 /// longer in use here.
 ///
-/// The warning it logs was also invisible: an Android app's `print` does not
-/// reach logcat, so on this platform the degradation was silent as well.
-///
 /// 在 Android 上把漸層畫進形狀裡，而不是把它壓平。
 ///
 /// 若沒有這個 overload，`BackendFeatures.Paths` 會提供一個預設實作：把兩種樣式都壓成單一顏色並發出
@@ -29,9 +26,6 @@ import SwiftJava
 /// 它以 `min(by:)` 取「位置最接近 0.5」的 stop。對於常見的雙 stop 漸層，兩個 stop 距 0.5 都恰好是
 /// 0.5，`min(by:)` 保留第一個，於是「中點」就是起始色。在任何仍在使用該預設實作的地方，這件事都值得
 /// 知道；而此處已不再使用它。
-///
-/// 它所記錄的那則警告同樣是看不見的：Android app 的 `print` 不會抵達 logcat，因此在這個平台上，
-/// 該降級連警告都是靜默的。
 extension AndroidBackend {
     public func renderPath(
         _ path: Path,
@@ -41,12 +35,12 @@ extension AndroidBackend {
         overrideStrokeStyle: StrokeStyle?,
         environment: EnvironmentValues
     ) {
-        // The flat call first, so every Paint property is set exactly as it was
-        // before this file existed. A gradient is a Shader on top of that
+        // The flat call first, so every Paint property is set exactly as the
+        // flat style sets it. A gradient is a Shader on top of that
         // colour, and the colour is what remains if the shader cannot be built
         // -- a zero-extent path, a zero radius.
         //
-        // 先呼叫平面色的版本，使每一個 Paint 屬性都與本檔存在之前完全相同地被設定。漸層是疊在該顏色
+        // 先呼叫平面色的版本，使每一個 Paint 屬性都與平面樣式所設定的完全相同。漸層是疊在該顏色
         // 之上的一個 Shader，而當該 shader 無法被建構時（範圍為零的路徑、半徑為零），留下的就是
         // 這個顏色。
         renderPath(
