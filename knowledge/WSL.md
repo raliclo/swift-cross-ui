@@ -21,7 +21,7 @@ checkout with `zsh testapp/test.zsh Pn --wsl`. Written 2026-10-24.
 ## Harness
 
 - [harness.md](WSL/harness.md) -- what one `test.zsh --wsl` run does, the rules for crossing `wsl.exe`, exit codes 1/6/7/64, the sweep and measuring tools.
-- [wsl-checkout.md](WSL/wsl-checkout.md) -- `/home/lowei/proj/swift-cross-ui` is a non-git copy fed by `rsync_WSL.zsh`; deletions do not propagate.
+- [wsl-checkout.md](WSL/wsl-checkout.md) -- `/home/<user>/proj/swift-cross-ui` is a non-git copy fed by `rsync_WSL.zsh`; deletions do not propagate.
 
 ## Setup and host
 
@@ -59,7 +59,7 @@ GtkBackend 以 Linux GTK 4 的形式執行於 Windows 機器上的 WSL2(Ubuntu 2
 ## Harness
 
 - [harness.md](WSL/harness.md)——一次 `test.zsh --wsl` 做了什麼、穿越 `wsl.exe` 的規則、結束碼 1/6/7/64、sweep 與量測工具。
-- [wsl-checkout.md](WSL/wsl-checkout.md)——`/home/lowei/proj/swift-cross-ui` 是由 `rsync_WSL.zsh` 餵送的非 git 複本；刪除不會傳播。
+- [wsl-checkout.md](WSL/wsl-checkout.md)——`/home/<user>/proj/swift-cross-ui` 是由 `rsync_WSL.zsh` 餵送的非 git 複本；刪除不會傳播。
 
 ## 安裝與主機
 

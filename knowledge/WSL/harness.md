@@ -29,13 +29,13 @@ zsh testapp/test.zsh P10 --wsl --actionfile testapp/actions/wsl/P10-taplabel.act
 4. `wsl_renderer_preflight`: `eglinfo` must match `-render`
    ([gpu-and-renderer.md](gpu-and-renderer.md)).
 5. Unless `-n`: `rsync_WSL.zsh`, then `compile.zsh Pn` inside
-   `/home/lowei/proj/swift-cross-ui` ([wsl-checkout.md](wsl-checkout.md)).
+   `/home/<user>/proj/swift-cross-ui` ([wsl-checkout.md](wsl-checkout.md)).
    `SCUI_DEBUG=1` is set when an action file is given; without it the
    `-actionfile` flag is not compiled in. A failed build exits 1 and prints
    the log tail (`run_build`); before 9cd24054 it launched the previous binary
    and returned 0.
 6. Launch from `testapp/output` in the WSL checkout with
-   `SCUI_DEBUG_EVENTS_DIR=/home/lowei/proj/swift-cross-ui/testapp/debug-events
+   `SCUI_DEBUG_EVENTS_DIR=/home/<user>/proj/swift-cross-ui/testapp/debug-events
    GDK_BACKEND=x11 GTK_CSD=1`, the render environment, `SCUI_GTK_COLOR_SCHEME=dark`
    and `TEST_APP_ENV`; stdout and stderr go to a log
    in the WSL `testapp/output`.
@@ -55,7 +55,7 @@ zsh testapp/test.zsh P10 --wsl --actionfile testapp/actions/wsl/P10-taplabel.act
   sees one word) and no `(z)` (`-lc` takes only the first word as the
   command). Quote a value with a space inside `TEST_APP_ARGS` itself.
 - An action file is re-rooted onto the WSL checkout
-  (`/home/lowei/proj/swift-cross-ui/testapp/<relative>`), never `/mnt/c/...`,
+  (`/home/<user>/proj/swift-cross-ui/testapp/<relative>`), never `/mnt/c/...`,
   which would replay whatever the Windows copy holds; a path outside
   `testapp/` is refused (exit 64).
 
@@ -81,7 +81,7 @@ zsh testapp/test.zsh P10 --wsl --actionfile testapp/actions/wsl/P10-taplabel.act
 
 ## Limits
 
-- The distribution name `Ubuntu` and the path `/home/lowei/...` are written
+- The distribution name `Ubuntu` and the path `/home/<user>/...` are written
   into the scripts.
 - With the Windows desktop locked, input still replays over X11 but Windows
   Graphics Capture of WSLg windows is unreliable; use log lines as evidence or
@@ -109,11 +109,11 @@ WSL 測試由 Windows 端驅動，不是在 WSL 內執行。`test.zsh` 在 Windo
 2. `wslg_keeper`:keeper 視窗、copy mode 檢查、結束碼 7([copy-mode.md](copy-mode.md))。
 3. `wslg_portal_display`:給 portal 顯示變數([file-dialog-portal.md](file-dialog-portal.md))。
 4. `wsl_renderer_preflight`:`eglinfo` 必須符合 `-render`([gpu-and-renderer.md](gpu-and-renderer.md))。
-5. 除非加 `-n`:先 `rsync_WSL.zsh`,再於 `/home/lowei/proj/swift-cross-ui` 內執行 `compile.zsh Pn`
+5. 除非加 `-n`:先 `rsync_WSL.zsh`,再於 `/home/<user>/proj/swift-cross-ui` 內執行 `compile.zsh Pn`
    ([wsl-checkout.md](wsl-checkout.md))。給了動作檔時會設 `SCUI_DEBUG=1`;少了它 `-actionfile` 旗標根本不會被編入。
    建置失敗以 1 結束並印出記錄尾段(`run_build`);9cd24054 之前會啟動上一次的執行檔並回傳 0。
 6. 在 WSL checkout 的 `testapp/output` 中啟動，環境為
-   `SCUI_DEBUG_EVENTS_DIR=/home/lowei/proj/swift-cross-ui/testapp/debug-events GDK_BACKEND=x11 GTK_CSD=1`、算繪環境與
+   `SCUI_DEBUG_EVENTS_DIR=/home/<user>/proj/swift-cross-ui/testapp/debug-events GDK_BACKEND=x11 GTK_CSD=1`、算繪環境與
    `SCUI_GTK_COLOR_SCHEME=dark` 加上 `TEST_APP_ENV`;stdout 與 stderr 寫入 WSL 端 `testapp/output` 的記錄。
 7. 1 秒時在 Windows 端以 `wincap.exe` 擷取，等待 app 在 Linux 端事件 log 中的標記(`wait_for_marker_wsl`),讓視窗
    停留 showtime(預設 30 秒),再擷取一次,`pkill` 該 app,經由 `wsl.exe` 讀回並印出 renderer 與摘要行。
@@ -125,7 +125,7 @@ WSL 測試由 Windows 端驅動，不是在 WSL 內執行。`test.zsh` 在 Windo
 - 每個 `wsl.exe` 呼叫都加 `MSYS2_ARG_CONV_EXCL='*'`,否則 MSYS 會在送出時改寫 POSIX 路徑。
 - app 參數以單一字串交給 `zsh -lc`:不能用 `(q)`(內層 shell 只看到一個詞),也不能用 `(z)`(`-lc` 只把第一個詞當
   命令)。含空白的值要在 `TEST_APP_ARGS` 內自行加引號。
-- 動作檔會重新指向 WSL checkout(`/home/lowei/proj/swift-cross-ui/testapp/<相對路徑>`),絕不用 `/mnt/c/...`——那會
+- 動作檔會重新指向 WSL checkout(`/home/<user>/proj/swift-cross-ui/testapp/<相對路徑>`),絕不用 `/mnt/c/...`——那會
   重放 Windows 那份當下恰好的版本;`testapp/` 以外的路徑一律拒絕(結束碼 64)。
 
 ## 結束碼
@@ -147,7 +147,7 @@ WSL 測試由 Windows 端驅動，不是在 WSL 內執行。`test.zsh` 在 Windo
 
 ## 限制
 
-- 發行版名稱 `Ubuntu` 與路徑 `/home/lowei/...` 寫死在腳本中。
+- 發行版名稱 `Ubuntu` 與路徑 `/home/<user>/...` 寫死在腳本中。
 - Windows 桌面鎖定時，輸入仍會經 X11 重放，但 Windows Graphics Capture 擷取 WSLg 視窗並不可靠；以 log 行為證據，
   或在解鎖後重跑(results.csv2,2026-10-20 的列)。
 - 在 WSL 內執行一支自己會呼叫 `wsl.exe` 的個別測試腳本，會經 interop 繞出去再回來;test_P26.zsh 現在會偵測自己已在

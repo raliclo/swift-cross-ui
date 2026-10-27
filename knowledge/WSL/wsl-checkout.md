@@ -1,4 +1,4 @@
-# The WSL checkout: /home/lowei/proj/swift-cross-ui is a copy, not a repo
+# The WSL checkout: /home/<user>/proj/swift-cross-ui is a copy, not a repo
 
 Written 2026-10-24 from `testapp/rsync_WSL.zsh`,
 testapp/gtk-test-plan-findings.md ("the WSL checkout is a separate, stale
@@ -7,7 +7,7 @@ copy") and `testapp/test_support/test_common.zsh`.
 ## What
 
 The Windows machine has two trees. The Windows checkout is the git repository
-where edits land. `/home/lowei/proj/swift-cross-ui` inside WSL is a separate
+where edits land. `/home/<user>/proj/swift-cross-ui` inside WSL is a separate
 copy with no `.git`, restored by rsync after an earlier incident. It holds the
 Linux `.build` (about 1.2 GB when noted), `.compile-work*` and
 `testapp/output`, and every WSL build and launch happens there. The apps write
@@ -59,14 +59,14 @@ Each include exists because its absence once failed silently:
 
 ---
 
-# WSL checkout:/home/lowei/proj/swift-cross-ui 是複本，不是 repo
+# WSL checkout:/home/<user>/proj/swift-cross-ui 是複本，不是 repo
 
 2026-10-24 依 `testapp/rsync_WSL.zsh`、testapp/gtk-test-plan-findings.md(「WSL 的 checkout 是另一份、且會過期的
 複本」)與 `testapp/test_support/test_common.zsh` 寫成。
 
 ## 是什麼
 
-Windows 機器上有兩棵樹。Windows checkout 是編輯落地的 git repo。WSL 內的 `/home/lowei/proj/swift-cross-ui` 是另一份
+Windows 機器上有兩棵樹。Windows checkout 是編輯落地的 git repo。WSL 內的 `/home/<user>/proj/swift-cross-ui` 是另一份
 複本，沒有 `.git`,是先前事件後以 rsync 還原的。它存放 Linux 的 `.build`(記錄當時約 1.2 GB)、`.compile-work*` 與
 `testapp/output`,每一次 WSL 建置與啟動都在那裡。app 的事件 log 寫在該複本的 `testapp/debug-events`。
 
