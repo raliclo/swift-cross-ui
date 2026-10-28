@@ -3277,3 +3277,41 @@ Set 2026-09-17. Pick these up only when nothing above is open.
   (GTK 經 AccessKit 是 `FullDescription` 與 Value pattern);`no_duplicate_text` 則是在要求 GTK 做一件它不該做
   的事(未設標籤的按鈕靠內容算名字)。真正剩下的一項是 `Text` 的標籤覆寫,已記入 `todo-Gtk.md` 交上游。
   目前計分:WinUI 18/18、GTK 18 項中 14 項通過。
+
+- [ ] **GTK 4.24.1 evaluation: three things to finish (Windows, 2026-10-29).**
+  Measured with gvsbuild 2026.10.0 unpacked at `C:/gtk4-424` and selected with
+  `GTK4_PREFIX=C:/gtk4-424`; that build has no AccessKit (0 symbols), so it is
+  a test runtime, not a replacement for `C:/gtk4-accesskit` (4.22.4).
+  - **Emoji drawn as hex boxes, still on 4.24.1.** P103 under both runtimes
+    (`p103-windows-final-20261029-005233.png` on 4.22.4,
+    `p103-windows-final-20261029-013735.png` on 4.24.1): U+1F17F, U+2708 and
+    U+2764 are boxes on both. All three default to text presentation, so the
+    fix is ours (fix-list item 5): a U+FE0F, or a font fallback to Segoe UI
+    Emoji. Also seen: 4.24.1 draws Segoe UI Emoji's COLRv1 glyphs (gradient,
+    3D), 4.22.4 the flat ones.
+  - **P97 start, only 3 rounds.** Interleaved, minimum of 3 per cell: warm-up
+    on 0.27 s on both versions, off 0.36 (4.22.4) / 0.34 (4.24.1); spread
+    0.27-0.94. So 4.24 did not make the first frame faster and the warm-up
+    stays, but 3 rounds is short of the 10 a load-bearing number needs. Script:
+    scratchpad `p97_gtk_compare.zsh`; the starts are the `ROW linear 1s` lines
+    of `testapp/debug-events/p97-timing.log` (the harness sets
+    SCUI_DEBUG_EVENTS_DIR, so a caller's own value is overridden).
+  - [x] **The device use-after-free on 4.24.1**: settled later on 2026-10-29 -- not fixed in 4.24.1, the workaround stays; see `todo-Gtk.md`.
+  - **M4's held adapter watch (scui-m4held), one leak to report.** GUIDs and
+    DXCore slots match the 10.0.22621.0 SDK headers; a WSL probe called list
+    slot 5 (IsStale 0) and factory slots 5/6/7 (supported 1, register hr 0
+    cookie 1, unregister hr 0). But `scui_dxcore_register` drops its cookie and
+    never unregisters, so every stale list adds one registration.
+
+- [ ] **GTK 4.24.1 評估：三件待完成(Windows,2026-10-29)。** 以 gvsbuild 2026.10.0(`C:/gtk4-424`,
+  `GTK4_PREFIX=C:/gtk4-424`)量測；該建置沒有 AccessKit(0 個符號),只是測試用 runtime,不能取代 4.22.4 的
+  `C:/gtk4-accesskit`。
+  - **emoji 畫成 hex 方框，4.24.1 依舊。** P103 兩個 runtime 下 U+1F17F、U+2708、U+2764 都是方框；三者預設都是
+    文字呈現，修正在我們這邊(修正清單第 5 項):加 U+FE0F,或改走 Segoe UI Emoji 的字型後援。另外 4.24.1 畫的是
+    Segoe UI Emoji 的 COLRv1 字形(漸層、立體),4.22.4 是平面的。
+  - **P97 start 只跑了 3 輪。** 交錯、各格取最小值:warm-up 開兩版皆 0.27 秒，關 0.36(4.22.4)/0.34(4.24.1);
+    分布 0.27-0.94。4.24 沒有讓首幀變快,warm-up 保留；但 3 輪不足以支撐結論，要補到 10 輪。
+  - [x] **4.24.1 上的裝置 use-after-free**:已定案(2026-10-29 稍後),4.24.1 沒有修好、保護保留；見 `todo-Gtk.md`。
+  - **M4 暫存的介面卡監看(scui-m4held),有一個洩漏要回報。** GUID 與 DXCore 槽位都與 SDK 標頭相符,WSL 探針實際
+    呼叫 list 槽 5 與 factory 槽 5/6/7 皆正常；但 `scui_dxcore_register` 丟掉 cookie、從不 unregister,每次清單
+    stale 都多一個註冊。

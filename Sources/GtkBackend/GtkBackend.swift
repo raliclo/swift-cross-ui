@@ -1096,8 +1096,14 @@ public final class GtkBackend:
 
             // Before any window can receive touch: a device removed while a
             // gesture still points at it crashes GTK. See the declaration.
+            // `SCUI_GTK_KEEP_REMOVED_DEVICES=0` turns it off, to test whether a
+            // newer GTK still needs it (as SCUI_GTK_WARMUP=0 does for the warm-up).
             // 必須在任何視窗能收到觸控之前:裝置在手勢仍指著它時被移除,會讓 GTK 崩潰。詳見宣告處。
-            scui_retain_removed_devices()
+            // `SCUI_GTK_KEEP_REMOVED_DEVICES=0` 可關閉它，用來測試較新的 GTK 是否仍需要
+            // (與 SCUI_GTK_WARMUP=0 之於 warm-up 相同)。
+            if ProcessInfo.processInfo.environment["SCUI_GTK_KEEP_REMOVED_DEVICES"] != "0" {
+                scui_retain_removed_devices()
+            }
 
             // Before the app's first view, not after: Button measures its padding
             // once, from a probe button, and caches it (measureBorderedButtonPadding),
