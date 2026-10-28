@@ -48,7 +48,7 @@ Index as of 2026-10-24; each line links one topic.
 - GTK: first hardware present ~0.3 s inside GTK (2026-10-20); emoji without glyphs (2026-10-19); fractional-scale look (2026-10-23); popover menu arrow-key start (queue row 24a); GDK device bug not reported upstream (2026-10-24).
 - WinUI: `.graphical` calendar stays English (2026-10-20); P41 taller than the screen at 125% (2026-10-20); WinAppSDK still a preview (#204).
 - Video: fixed 960x540 area, no WARP fallback on `.display`, no zero-copy, A/V drift at 3x; P6-v2 pickers on GTK (2026-10-24).
-- Harness: Win32 `forgetFocus()` mid-file unverified; the remote-desktop disconnect experiment (2026-10-24). (`test.zsh` never running check_wsl_host.zsh: fixed in a92edee1, verified 2026-10-29.) (winmin.exe built by test_common.zsh when missing: 2026-10-29.)
+- Harness: the remote-desktop disconnect experiment (2026-10-24). (`test.zsh` never running check_wsl_host.zsh: fixed in a92edee1, verified 2026-10-29.) (winmin.exe built by test_common.zsh when missing: 2026-10-29.) (Win32 `forgetFocus()` moved to finishReplay and P81 window B verified: 2026-10-29.)
 - Speech output of Narrator/NVDA (queue row 8, 2026-10-23).
 
 ---
@@ -102,5 +102,5 @@ Index as of 2026-10-24; each line links one topic.
 - GTK:GTK 內部第一次硬體 present 約 0.3 秒(2026-10-20);沒有字形的 emoji(2026-10-19);分數縮放下的外觀(2026-10-23);popover 選單方向鍵的起點(queue 第 24a 列);GDK 裝置錯誤未回報上游(2026-10-24)。
 - WinUI:`.graphical` 月曆仍是英文(2026-10-20);125% 下 P41 比螢幕高(2026-10-20);WinAppSDK 仍是預覽版(#204)。
 - 影片：固定 960x540 的區域、`.display` 沒有 WARP 後備、沒有零複製、3 倍速時影音漂移;GTK 上 P6-v2 的選擇器(2026-10-24)。
-- 測試工具:Win32 在檔案中途 `forgetFocus()` 未驗證；遠端桌面中斷連線的實驗(2026-10-24)。(test.zsh 從不執行 check_wsl_host.zsh:a92edee1 已修正,2026-10-29 驗證。)(winmin.exe 不存在時由 test_common.zsh 建置:2026-10-29。)
+- 測試工具:遠端桌面中斷連線的實驗(2026-10-24)。(test.zsh 從不執行 check_wsl_host.zsh:a92edee1 已修正,2026-10-29 驗證。)(winmin.exe 不存在時由 test_common.zsh 建置:2026-10-29。)(Win32 的 `forgetFocus()` 已移到 finishReplay,P81 視窗 B 已驗證:2026-10-29。)
 - Narrator/NVDA 的語音輸出(queue 第 8 列,2026-10-23)。

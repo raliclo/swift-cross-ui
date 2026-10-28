@@ -275,12 +275,21 @@
         public func prepareForReplay(_ actions: [InputAction]) throws {
             hideOwnConsoleOnce()
 
-            // Before `ownWindow()`, not after: the remembered focus steers it, so a
-            // stale one from a previous replay in the same process would decide
-            // which window this replay pins and measures.
-            // 放在 `ownWindow()` 之前而非之後:被記住的焦點會左右它,因此同一行程中前一次重放留下的
-            // 陳舊值,會決定這一次重放要釘住並量測哪一個視窗。
-            Self.forgetFocus()
+            // The remembered focus is cleared in `finishReplay`, not here. The
+            // replay loop calls this again mid-file when the target window
+            // changes, and a `focus` row changes it, so clearing here forgot the
+            // focus the moment it was taken -- the defect XdotoolSynthesiser had
+            // and fixed in 83196598. On Win32 it was never seen to fail a file:
+            // a pre-fix P81 run's desktop capture could not show WinUI's sheet (a
+            // popup inside the window), so it proved nothing either way. After
+            // the move, P81-sheet-from-window-b passes, read with uia_rects: a
+            // Popup "sheet from window B" under window B, nothing under A
+            // (2026-10-29).
+            // 記住的焦點在 `finishReplay` 清除，不在這裡。目標視窗改變時，重放迴圈會在檔案中途再呼叫這裡一次，
+            // 而 `focus` 列正會改變它，所以在這裡清除等於焦點剛取得就忘了——XdotoolSynthesiser 有過的缺陷，
+            // 於 83196598 修正。Win32 上從未見它讓檔案失敗：修正前 P81 的桌面截圖看不到 WinUI 的 sheet(視窗內的
+            // popup),因此兩邊都證明不了。移動之後,P81-sheet-from-window-b 通過，以 uia_rects 讀取：視窗 B 底下
+            // 有 Popup「sheet from window B」,A 底下沒有(2026-10-29)。
 
             let window = try ownWindow()
 
@@ -666,6 +675,12 @@
         /// 使用者接下來所做的每一件事之上。`testapp/P6.swift` 從另一個角度記錄了相同的代價：持續強制
         /// 置頂會使控制項無法點選，也會讓檔案選取對話框跑到視窗後面。
         public func finishReplay() {
+            // A focus must not outlive the file that asked for it: a second
+            // replay in this process would otherwise start pointed at this
+            // one's window. Here rather than in `prepareForReplay`; see there.
+            // 焦點不可活得比要求它的檔案更久，否則同一行程的下一次重放會從指向這次那個視窗的狀態開始。
+            // 放在這裡而非 `prepareForReplay`,理由見該處。
+            Self.forgetFocus()
             // EVERY window, not `ownWindow()`'s pick. `prepareForReplay` pins
             // whatever `ownWindow()` returned BEFORE the replay -- the main window.
             // Since `ownWindow()` follows a dialog, the two calls name different
@@ -1547,10 +1562,10 @@
             focusedWindowBits = Int(bitPattern: window)
         }
 
-        /// Cleared at the start of every replay, so a focus cannot outlive the file
+        /// Cleared at the end of every replay (`finishReplay`), so a focus cannot outlive the file
         /// that asked for it. Two replays in one process would otherwise have the
         /// second start pointed at the first one's window.
-        /// 在每次重放開始時清除,使一次 focus 無法活得比要求它的那個檔案更久。否則同一行程中的兩次重放,
+        /// 在每次重放結束時(`finishReplay`)清除,使一次 focus 無法活得比要求它的那個檔案更久。否則同一行程中的兩次重放,
         /// 第二次會從「指向第一次那個視窗」的狀態開始。
         private static func forgetFocus() {
             focusLock.lock()

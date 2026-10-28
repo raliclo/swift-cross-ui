@@ -74,6 +74,10 @@ suspect, not a proven cause. Open: the disconnect experiment (2026-10-24).
 - Open: `prepareForReplay` calls `forgetFocus()` again when a `focus` row
   changes the window mid-file; XdotoolSynthesiser moved its reset to
   `finishReplay` for that reason (83196598). Unverified on Win32.
+  **Done 2026-10-29**: Win32Synthesiser now clears it in `finishReplay` too.
+  P81-sheet-from-window-b passes after the move (uia_rects: the sheet popup
+  under window B, nothing under A). A pre-fix failure on Win32 was not shown:
+  the pre-fix desktop capture cannot see WinUI's in-window sheet popup.
 
 ---
 
@@ -134,3 +138,5 @@ Chrome 遠端桌面(`remoting_host.exe`)只回報、從不停止；它是嫌疑�
 - `Sources/InputEvent/README.md` 仍說 Windows 上未實作 `hover`;其實已實作。
 - 未解決:`focus` 列在檔案中途換視窗時,`prepareForReplay` 會再呼叫一次 `forgetFocus()`;XdotoolSynthesiser 正是
   為此把重設移到 `finishReplay`(83196598)。Win32 上未驗證。
+  **2026-10-29 完成**:Win32Synthesiser 也改在 `finishReplay` 清除。移動後 P81-sheet-from-window-b 通過(uia_rects:sheet
+  popup 在視窗 B 底下,A 底下沒有)。Win32 上修正前的失敗沒有被證實：修正前的桌面截圖看不到 WinUI 視窗內的 sheet popup。
