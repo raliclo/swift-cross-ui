@@ -16,6 +16,12 @@ Checked 2026-10-24 against commits and Sources/AndroidBackend.
   1 s fallback; a launch from a picker result otherwise left the tablet's main
   stage empty (68a3f89c).
 - Back or `close(window:)` finishes the activity and runs the close handler.
+  `windowDismissBehavior(.disabled)` makes Back (key and gesture) do nothing;
+  `windowResizeBehavior(.disabled)` starts a later window as
+  `ScuiFixedSizeWindowActivity` (`resizeableActivity="false"`) and takes any
+  window out of free-form; `preferredWindowMinimizeBehavior(.disabled)` asks
+  for screen pinning (AndroidBackend+WindowBehaviors.swift; P113,
+  test_support/p113_back_android.zsh, 2026-10-27).
 - The manifest gives both activities `configChanges` for orientation, size,
   ui mode, density, font scale, locale and more, so these reach
   `onConfigurationChanged` instead of destroying the activity and restarting
@@ -67,7 +73,10 @@ from window B, results.csv2 2026-10-20/21), P49 (cover and sheet on tablet36,
   關閉、縮放與環境 handler 都是每個視窗各自一份(原本是單一的 static,第二個視窗會拿到第一個的)。
 - 只有在平板或多視窗模式下才加 `LAUNCH_ADJACENT`。在手機上它會把視窗放進分割畫面的側邊區，跑到螢幕外(c8a533e8)。
 - 相鄰的 activity 要等開啟者取得視窗焦點才啟動(1 秒後備);否則從 picker 結果啟動時，平板的主區域會是空的(68a3f89c)。
-- 返回鍵或 `close(window:)` 會結束 activity 並執行關閉 handler。
+- 返回鍵或 `close(window:)` 會結束 activity 並執行關閉 handler。`windowDismissBehavior(.disabled)` 讓返回(按鍵與手勢)
+  不起作用;`windowResizeBehavior(.disabled)` 讓後續視窗以 `ScuiFixedSizeWindowActivity`(`resizeableActivity="false"`)啟動，
+  並讓任何視窗離開自由視窗;`preferredWindowMinimizeBehavior(.disabled)` 會要求螢幕固定(AndroidBackend+WindowBehaviors.swift;
+  P113、test_support/p113_back_android.zsh,2026-10-27)。
 - manifest 給兩種 activity 都設了 `configChanges`(方向、大小、ui mode、密度、字體縮放、語系等),讓這些變更送到
   `onConfigurationChanged`,而不是銷毀 activity、重啟 Swift app(f41c1b07)。密度快取也在那裡清除。
 - `ProcessInfo.processName` 在進入點以 application label 設定；程序本身是 `app_process64`,選單曾顯示為「Hide app_process64」

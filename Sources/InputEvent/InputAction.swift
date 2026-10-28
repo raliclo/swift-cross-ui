@@ -434,6 +434,16 @@ public enum Key: String, Equatable, Sendable, CaseIterable {
     case tab
     case `return`
 
+    /// The Back key. Not a `kVK_*` name, because a Mac keyboard has no Back key;
+    /// it is the platform's own: Android's system Back (`KEYCODE_BACK`), the
+    /// Back key on Windows (`VK_BROWSER_BACK`) and on X11 (`XF86Back`). macOS and
+    /// iOS have no such key and refuse it rather than press a stand-in. See
+    /// README.md, "back".
+    /// 返回鍵。不是 `kVK_*` 名稱，因為 Mac 鍵盤沒有返回鍵；它是平台自己的:Android 的系統返回(`KEYCODE_BACK`)、
+    /// Windows 的返回鍵(`VK_BROWSER_BACK`)與 X11 的(`XF86Back`)。macOS 與 iOS 沒有這個鍵，會拒絕它，而不是按一個
+    /// 替代品。見 README.md 的「back」。
+    case back
+
     case leftArrow
     case rightArrow
     case upArrow

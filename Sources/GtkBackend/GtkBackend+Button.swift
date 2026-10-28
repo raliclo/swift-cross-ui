@@ -41,48 +41,26 @@ extension GtkBackend {
         button.label = label
         button.clicked = { _ in action() }
 
-        // GTK's own class for a destructive action, so the button gets whatever
-        // the current theme uses to warn -- red on Adwaita -- rather than a
-        // colour this backend picked. `.cancel` gets nothing: GTK has no class
-        // for it and inventing one would be this backend's opinion rather than
-        // the platform's.
-        //
-        // Removed as well as added. The widget is reused across updates, so a
-        // button that stops being destructive has to stop looking destructive;
-        // only adding would make the styling a one-way door.
-        //
-        // Upstream's `updateSimpleButton` does not have this block. Keep it when
-        // merging upstream changes to this method: without it a destructive
-        // button simply stops turning red, and nothing fails.
-        //
-        // 使用 GTK 自有的「破壞性動作」樣式類別，如此該按鈕便會採用當前主題用來示警的樣式——在
-        // Adwaita 上是紅色——而非由本 backend 自行挑選的顏色。`.cancel` 則不套用任何東西：GTK 沒有
-        // 對應的類別，而自行發明一個，那會是本 backend 的主張而非平台的主張。
-        //
-        // 此處會「移除」而不只是「加入」。widget 會在多次更新之間被重複使用，因此一個不再具有破壞性
-        // 的按鈕，也必須不再看起來具有破壞性；只加不移會讓這個樣式變成一扇單向門。
-        //
-        // upstream 版的 `updateSimpleButton` 沒有這一段。合併 upstream 對本方法的修改時要保留它：少了它，
-        // 破壞性按鈕只會單純不再變紅，而沒有任何東西失敗。
-        if environment.buttonRole == .destructive {
-            gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
-        } else {
-            gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
+        // A destructive button keeps the ordinary bezel and only its label turns
+        // red, the same as `updateButton` below and as AppKit (P82). GTK's
+        // `destructive-action` class is not used: it fills the whole button red
+        // with white text, so a menu button and an ordinary button with the same
+        // role would look different. The class is still removed, because a
+        // widget reused from an older build of this method may carry it.
+        // An app's own colour wins over the destructive red.
+        // 危險按鈕保留一般外框、只把標籤畫成紅色，與下方的 `updateButton` 及 AppKit 相同(P82)。不使用 GTK 的
+        // `destructive-action` 類別：它會把整顆按鈕填成紅底白字，讓同一個 role 的選單按鈕與一般按鈕看起來不一樣。
+        // 仍然移除這個類別，因為沿用自舊版本方法的 widget 可能還帶著它。app 自己指定的顏色優先於危險紅。
+        gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
+        var labelEnvironment = environment
+        if environment.buttonRole == .destructive, environment.foregroundColor == nil,
+            let destructive = destructiveButtonLabelColor(in: environment)
+        {
+            labelEnvironment = labelEnvironment.with(\.foregroundColor, destructive)
         }
 
         button.css.set(
-            properties: cssProperties(
-                for: environment,
-                isControl: true,
-                // Stand aside for a role, so GTK's own class can paint it. See
-                // the note in cssProperties: this backend's provider outranks
-                // the theme, so styling the button and adding a style class at
-                // the same time means the class loses silently.
-                // 為 role 讓路，使 GTK 自己的類別能夠繪製它。詳見 cssProperties 中的說明：本
-                // backend 的 provider 位階高於主題，因此「同時樣式化按鈕又加上樣式類別」會讓該類別
-                // 靜默落敗。
-                deferToThemeStyleClass: environment.buttonRole == .destructive
-            ),
+            properties: cssProperties(for: labelEnvironment, isControl: true),
             clear: true
         )
     }

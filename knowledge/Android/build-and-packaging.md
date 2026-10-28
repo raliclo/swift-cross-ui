@@ -50,8 +50,9 @@ the Kotlin compiles once and the next app reuses it. The namespace is fixed:
 `MainActivity` and the shim's JNI symbol are the same for every app; only the
 application id differs.
 
-`SCUI_ANDROID_RELEASE=1` builds the R8-shrunk, non-debuggable release variant with
-compressed native libraries instead; size, speed and build time are in android-setting.md.
+The R8-shrunk, non-debuggable release variant with compressed native libraries is
+the default; `SCUI_ANDROID_RELEASE=0` builds debug. Size, speed, build time and the replay
+comparison are in android-setting.md.
 
 ## Rules
 
@@ -130,7 +131,7 @@ compressed native libraries instead; size, speed and build time are in android-s
 因此 Kotlin 只編一次，下一支 app 直接重用。namespace 固定:`MainActivity` 與 shim 的 JNI 符號對每支 app 都相同，只有
 application id 不同。
 
-`SCUI_ANDROID_RELEASE=1` 改建經 R8 縮減、不可除錯、原生函式庫壓縮的 release 版本；大小、速度與建置時間見 android-setting.md。
+預設建置經 R8 縮減、不可除錯、原生函式庫壓縮的 release 版本;`SCUI_ANDROID_RELEASE=0` 改建 debug。大小、速度、建置時間與重播比較見 android-setting.md。
 
 ## 規則
 

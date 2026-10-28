@@ -186,7 +186,20 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     private static func windowChromeSignature(of preferences: PreferenceValues) -> String {
         let title = preferences.navigationTitle ?? ""
         let toolbar = preferences.toolbarItems.map(\.label).joined(separator: "\u{1f}")
-        return "\(title)\u{1e}\(toolbar)"
+        // The three window behaviours too: `WindowReference` applies them from the
+        // same preferences. Without them a toggle bound to
+        // `preferredWindowMinimizeBehavior` reached the backend only when the
+        // change happened to resize the content (P113 on Android, 2026-10-27:
+        // the state read `minimizable=true`, `setBehaviors` was not called).
+        // 也包含三項視窗行為:`WindowReference` 從同一份 preference 套用它們。少了它們，綁定到
+        // `preferredWindowMinimizeBehavior` 的開關只有在改變恰好讓內容改變尺寸時才會到達 backend
+        //(2026-10-27 Android 上的 P113:狀態讀到 `minimizable=true`,`setBehaviors` 沒有被呼叫)。
+        let behaviors = [
+            preferences.windowDismissBehavior,
+            preferences.preferredWindowMinimizeBehavior,
+            preferences.windowResizeBehavior,
+        ].map { $0.map { "\($0)" } ?? "-" }.joined(separator: ",")
+        return "\(title)\u{1e}\(toolbar)\u{1e}\(behaviors)"
     }
 
     /// - Parameter reusingBodies: True when a child's resize started this update,
@@ -257,7 +270,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             // committed state change would make each one re-lay-out the whole
             // window, which is what `onResize` costs and why it is rare. The
             // signature covers exactly what `WindowReference` applies from
-            // preferences -- the title and the toolbar's labels.
+            // preferences -- the title, the toolbar's labels and the window behaviours.
             //
             // 一次不改變尺寸的狀態改變，仍然可能改變**視窗**所繪製的東西，而那件事必須被往上帶。
             // 否則 `.navigationTitle(某個狀態)` 只會在啟動時寫入它的第一個值，其後每一個
@@ -266,7 +279,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             //
             // 採比較而非無條件通知：若每一次已提交的狀態改變都通知，等於讓每一次都重排整個視窗，
             // 而那正是 `onResize` 的成本、也是它罕見的原因。這個簽章涵蓋的，恰好是 `WindowReference`
-            // 會從 preference 中套用的東西——標題與工具列的標籤。
+            // 會從 preference 中套用的東西——標題、工具列的標籤與視窗行為。
             let signature = Self.windowChromeSignature(of: newLayout.preferences)
             if signature != lastWindowChromeSignature {
                 lastWindowChromeSignature = signature

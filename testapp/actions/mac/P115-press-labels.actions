@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# P115 on macOS (AppKit and GTK): Toggle(isOn:label:) in the switch / checkbox / button styles and Link(destination:label:) with two-view labels.
+# Each control is pressed by the text inside its label (taplabel) -- a click on the label itself.
+# Pass: the log has switch -> true / checkbox -> true / button -> true / string -> true / link opened p115://link-label in that order; the final capture shows all four toggles on (the view-label and string-label button toggles drawn alike) and link presses: 1.
+# P115 在 macOS (AppKit and GTK) 上:以兩個 view 組成標籤的 Toggle(三種樣式)與 Link。每個控制項都以其標籤裡的文字點擊(taplabel),也就是點擊標籤本身。
+sleep,,,,,,1500000,let P115 settle,macos
+taplabel,,,,,Switch label,,click the switch's label: switch -> true,macos
+sleep,,,,,,1000000,,macos
+taplabel,,,,,Checkbox label,,click the checkbox's label: checkbox -> true,macos
+sleep,,,,,,1000000,,macos
+taplabel,,,,,Button label,,click the label inside the button toggle: button -> true,macos
+sleep,,,,,,1000000,,macos
+taplabel,,,,,String button,,the string-label button toggle beside it for comparison: string -> true,macos
+sleep,,,,,,1000000,,macos
+taplabel,,,,,Link label,,click the link's label: link opened p115://link-label,macos
+sleep,,,,,,1500000,,macos

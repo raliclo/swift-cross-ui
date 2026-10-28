@@ -105,8 +105,7 @@ extension AppKitBackend: BackendFeatures.GraphicsAdapters {
         set {
             adapterRemovedHandler = newValue
             guard newValue != nil, metalDeviceObserver == nil else { return }
-            var observer: NSObjectProtocol?
-            _ = MTLCopyAllDevicesWithObserver(handler: { _, notification in
+            let (_, observer) = MTLCopyAllDevicesWithObserver(handler: { _, notification in
                 guard notification == .wasRemoved else { return }
                 MainActor.assumeIsolated {
                     AppKitBackend.currentAdapterRemovedHandler?()

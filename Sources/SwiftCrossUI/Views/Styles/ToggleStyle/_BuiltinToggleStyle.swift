@@ -24,6 +24,22 @@ extension ToggleStyle where Self: _BuiltinToggleStyle {
         )
     }
 
+    public func makeView(
+        label: AnyView,
+        labelText: String,
+        isOn: Binding<Bool>,
+        environment: EnvironmentValues
+    ) -> AnyView {
+        AnyView(
+            _BuiltinToggleImplementation(
+                style: _asBackendToggleStyle(backend: environment.backend),
+                label: labelText,
+                labelView: label,
+                isOn: isOn
+            )
+        )
+    }
+
     // `isSupported` is deliberately not overridden here, and the three built-in
     // styles take `ToggleStyle`'s default `true`.
     //

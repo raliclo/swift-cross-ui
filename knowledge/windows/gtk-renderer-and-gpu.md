@@ -9,10 +9,16 @@ P66, P96, P97, P107; 2026-10-19 to 2026-10-23).
 
 GtkBackend appends `dcomp` to `GDK_DEBUG` before GTK starts (since c3137522,
 2026-09-05). That gives `GskGLRenderer` on WGL OpenGL 4.6. Without DComp, GDK
-on Windows falls back to `GskCairoRenderer`, which cannot draw transform nodes
-(P40 drew 47,873 hotpink pixels on Cairo, 0 with DComp).
+on Windows falls back to `GskCairoRenderer`, which is software. It draws a
+transform node only from category 2D up, and a transform handed over as a matrix
+is filed UNKNOWN and painted hotpink (P40 drew 47,873 hotpink pixels on Cairo
+before the 2026-10-28 fix, 0 with DComp).
 
-- Opt out: `-GPU 0` or `SCUI_GTK_DCOMP=0`. `setGeometricEffect` declines on Cairo.
+- Opt out: `-GPU 0` or `SCUI_GTK_DCOMP=0`. Since 2026-10-28 `setGeometricEffect`
+  applies the transform on Cairo too (`AffineTransform2D` writes the matrix as
+  translate, rotate and scale steps). Verified on macOS GTK with
+  `GSK_RENDERER=cairo`; the Windows `-GPU 0` run is still pending (the Windows
+  machine was unreachable on 2026-10-27/28).
 - **Crash guard:** requesting DComp without GL segfaults rather than degrading.
   The request is skipped when `GDK_DISABLE` contains `gl`, and when the only
   adapters are the Microsoft Basic Display Adapter / Basic Render Driver.
@@ -60,7 +66,7 @@ lost its menu bar (P92, fixed in 27449b63).
 
 - A cold direct launch still spends about 0.3 s in the window's first hardware
   present inside GTK: P97 0.42-0.48 s with DComp against 0.19-0.23 s with
-  `GDK_DISABLE=dcomp`. DComp cannot be dropped (no GL, no transforms). Open in
+  `GDK_DISABLE=dcomp`. DComp cannot be dropped (no OpenGL for `GLArea` without it). Open in
   GTK, last checked 2026-10-20.
 - With the AMD display adapter disabled in Device Manager, DXGI listed WARP
   first and WGL fell back to "GDI Generic" OpenGL 1.1; a `GLArea` then reports
@@ -78,10 +84,13 @@ P40、P66、P96、P97、P107;2026-10-19 至 2026-10-23)寫成。
 ## 預設開啟 Direct Composition
 
 GtkBackend 在 GTK 啟動前把 `dcomp` 加進 `GDK_DEBUG`(自 c3137522,2026-09-05)。如此得到跑在 WGL OpenGL 4.6
-上的 `GskGLRenderer`。沒有 DComp 時,Windows 上的 GDK 退回 `GskCairoRenderer`,它畫不出 transform 節點(P40 在
-Cairo 上有 47,873 個 hotpink 像素，開 DComp 為 0)。
+上的 `GskGLRenderer`。沒有 DComp 時,Windows 上的 GDK 退回軟體的 `GskCairoRenderer`。它只畫類別為 2D 以上的
+transform 節點，而以矩陣交出的變換一律被歸為 UNKNOWN 並畫成 hotpink(P40 在 2026-10-28 修正前於 Cairo 上
+有 47,873 個 hotpink 像素，開 DComp 為 0)。
 
-- 關閉:`-GPU 0` 或 `SCUI_GTK_DCOMP=0`。在 Cairo 上 `setGeometricEffect` 會拒絕。
+- 關閉:`-GPU 0` 或 `SCUI_GTK_DCOMP=0`。自 2026-10-28 起，`setGeometricEffect` 在 Cairo 上也會套用變換
+  (`AffineTransform2D` 把矩陣寫成平移、旋轉與縮放步驟)。已在 macOS GTK 以 `GSK_RENDERER=cairo` 驗證;
+  Windows 的 `-GPU 0` 執行仍待補(2026-10-27/28 Windows 主機無法連線)。
 - **防當機：**沒有 GL 卻要求 DComp 會直接 segfault,而不是降級。`GDK_DISABLE` 含 `gl`,或唯一的 adapter 是
   Microsoft Basic Display Adapter / Basic Render Driver 時，就不提出要求。
 - `GSK_RENDERER=vulkan` 會被靜默忽略:gvsbuild 建置時沒有 Vulkan。`GSK_RENDERER=cairo` 可用。
@@ -115,6 +124,6 @@ GPU 算繪器的第一幀約需 0.2 秒，使在 `onAppear` 開始的動畫延�
 ## 限制
 
 - 冷啟動仍有約 0.3 秒花在 GTK 內部視窗的第一次硬體 present:P97 開 DComp 為 0.42–0.48 秒,`GDK_DISABLE=dcomp`
-  為 0.19–0.23 秒。DComp 不能拿掉(沒有 GL 就沒有 transform)。屬 GTK 內部問題，仍未解決，最後檢查 2026-10-20。
+  為 0.19–0.23 秒。DComp 不能拿掉(沒有它就沒有 OpenGL 可供 `GLArea` 使用)。屬 GTK 內部問題，仍未解決，最後檢查 2026-10-20。
 - 在裝置管理員停用 AMD 顯示卡時,DXGI 把 WARP 列在第一個,WGL 退回「GDI Generic」OpenGL 1.1,`GLArea` 便回報
   沒有 GL 實作(P72,2026-10-07;34677da8、08939ad9)。把 GL 失敗當成 backend 錯誤之前，先確認顯示卡狀態。

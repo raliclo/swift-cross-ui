@@ -51,6 +51,10 @@ checked 2026-10-24. Files live in `testapp/actions/android/` (147 files,
   `SOURCE_MOUSE` hover event: it proves which icon Android resolves at a point,
   not that a cursor is drawn (the AVD has no pointer device).
 - F13-F20 have no Android keycode and are refused by name.
+- `key back` posts `KEYCODE_BACK`, which reaches the `OnBackPressedDispatcher`
+  through the activity's `onKeyUp`, with the same result as `adb shell input
+  keyevent KEYCODE_BACK` (P113-back.actions, 2026-10-28). The back gesture is
+  not covered.
 
 ## Front windows
 
@@ -113,6 +117,8 @@ Sources/AndroidBackend/AndroidSynthesiser.swift 與 Kotlin/FrontWindows.kt,2026-
 - 游標動詞以 `SOURCE_MOUSE` 的 hover 事件在 decor 上呼叫 `onResolvePointerIcon`:它證明的是 Android 在該點會選哪個圖示，
   不是游標有被畫出來(這個 AVD 沒有指標裝置)。
 - F13–F20 在 Android 沒有 keycode,會依名稱拒絕。
+- `key back` 投遞 `KEYCODE_BACK`,經 activity 的 `onKeyUp` 到達 `OnBackPressedDispatcher`,與 `adb shell input keyevent
+  KEYCODE_BACK` 結果相同(P113-back.actions,2026-10-28)。返回手勢不在其內。
 
 ## 前景視窗
 

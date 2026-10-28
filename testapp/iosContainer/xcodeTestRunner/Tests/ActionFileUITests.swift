@@ -88,6 +88,12 @@ final class ActionFileUITests: XCTestCase {
             case "end": return XCUIKeyboardKey.end.rawValue
             case "pageUp": return XCUIKeyboardKey.pageUp.rawValue
             case "pageDown": return XCUIKeyboardKey.pageDown.rawValue
+            // iOS has no Back key. The closest things -- a navigation controller's edge
+            // swipe, Escape dismissing a presentation -- are a gesture and another key, which
+            // a file can already write as such (`mousedown`/`move`/`mouseup`, `escape`); refused.
+            // iOS 沒有返回鍵。最接近的——navigation controller 的邊緣滑動、Escape 關閉呈現——是一個手勢與另一個鍵，動作檔本來
+            // 就能照實寫出(`mousedown`/`move`/`mouseup`、`escape`);拒絕。
+            case "back": return nil
             default: return nil
         }
     }

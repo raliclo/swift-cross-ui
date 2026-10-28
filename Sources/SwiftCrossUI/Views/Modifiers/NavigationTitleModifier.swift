@@ -10,22 +10,23 @@ extension View {
     /// parity work it was added alongside. See ``View/safeAreaInset(edge:spacing:content:)``.
     ///
     /// **Where the title actually goes, per platform.** SwiftUI puts it in the
-    /// navigation bar on iOS and in the *window* title on macOS. There is no
-    /// third answer available here: `setTitle(ofWindow:to:)` is the one title
-    /// API every backend has, so the window is where this writes on all of
-    /// them. On Android and iOS, where the platform window has no visible
-    /// title bar, the value still reaches the backend and still names the
-    /// window for the system (task switcher, accessibility); it is not
-    /// discarded, and it is not drawn on screen either.
+    /// navigation bar on iOS and in the *window* title on macOS.
+    /// `setTitle(ofWindow:to:)` is the title API every backend has, so the
+    /// window is where this writes on all of them, and it names the window for
+    /// the system (task switcher, accessibility). On iOS and Android, where the
+    /// platform window has no visible title bar, the same value also reaches
+    /// the backend's own navigation bar through
+    /// `setToolbar(ofWindow:to:title:)`: UIKitBackend's `UINavigationBar`, and
+    /// AndroidBackend's title row above the content.
     ///
-    /// **What this does *not* yet do, stated so it is not met as a surprise:**
-    /// it does not retitle ``NavigationStack``'s back bar. That bar is a
-    /// sibling *above* the destination in the same layout pass, and a
-    /// preference travels upward -- the title of the view being pushed is not
-    /// known until after the bar it would label has already been laid out.
-    /// Closing that gap needs a value that survives between passes, not another
-    /// preference, and it is deliberately not smuggled in here. The bar's
-    /// label therefore remains SwiftUI's fallback, "Back".
+    /// **``NavigationStack``'s back control.** The title of a screen inside a
+    /// stack also becomes the label of the control that returns to it: one
+    /// level down the back bar reads "‹ " and the root view's title, further
+    /// down the previous destination's, and SwiftUI's fallback "Back" when
+    /// that screen has no title. The stack records each screen's title when the
+    /// screen is committed and reads it when the next screen is pushed on top
+    /// -- the title is a preference travelling upward and cannot reach the bar
+    /// above it in the same pass. See ``NavigationStack``.
     ///
     /// - Parameter title: The title to give the enclosing window.
     /// - Returns: A view with the ``PreferenceValues/navigationTitle``
@@ -41,16 +42,15 @@ extension View {
     /// 見 ``View/safeAreaInset(edge:spacing:content:)``。
     ///
     /// **標題實際落在哪裡，依平台而定。** SwiftUI 在 iOS 上把它放進導覽列，在 macOS 上放進**視窗**
-    /// 標題。此處沒有第三種答案可選：`setTitle(ofWindow:to:)` 是每個 backend 都具備的唯一標題 API，
-    /// 因此在所有 backend 上它都寫入視窗。在 Android 與 iOS 上，平台視窗沒有可見的標題列，該值仍會
-    /// 送達 backend，仍會為系統（工作切換器、輔助使用）命名該視窗；它既沒有被丟棄，也不會被畫在
-    /// 螢幕上。
+    /// 標題。`setTitle(ofWindow:to:)` 是每個 backend 都具備的標題 API,因此在所有 backend 上它都寫入視窗，並為系統
+    /// (工作切換器、輔助使用)命名該視窗。在 iOS 與 Android 上，平台視窗沒有可見的標題列，同一個值也會經由
+    /// `setToolbar(ofWindow:to:title:)` 送到 backend 自己的導覽列:UIKitBackend 的 `UINavigationBar`,以及
+    /// AndroidBackend 內容上方的標題列。
     ///
-    /// **它目前**不**做什麼，寫在此處以免日後撞見：** 它不會替 ``NavigationStack`` 的返回列改標題。
-    /// 那條列在同一次版面計算中是位於 destination **上方**的兄弟節點，而 preference 是向上傳遞的
-    /// ——被推入的 view 的標題，要到那條本該標示它的列已完成版面之後才會為人所知。要補上這個缺口，
-    /// 需要的是一個能跨越多次計算而存續的值，而不是再一個 preference，因此此處刻意不夾帶。該列的
-    /// 標籤因而維持 SwiftUI 的後備文字「Back」。
+    /// **``NavigationStack`` 的返回控制項。** 位於堆疊中的畫面，其標題也會成為返回該畫面之控制項的標籤:推入一層後，
+    /// 返回列顯示「‹ 」加上根 view 的標題，更深時顯示前一個 destination 的標題，而該畫面沒有標題時顯示 SwiftUI 的後備
+    /// 文字「Back」。堆疊在每個畫面 commit 時記下它的標題，並在下一個畫面被推到它上面時讀取——標題是向上傳遞的
+    /// preference,在同一次計算中無法抵達位於其上方的那條列。見 ``NavigationStack``。
     ///
     /// - Parameter title: 要給予外層視窗的標題。
     /// - Returns: 一個已設定 ``PreferenceValues/navigationTitle`` preference 的 view。

@@ -1,4 +1,4 @@
-# R8 rules for the release build (build.gradle.kts, SCUI_ANDROID_RELEASE=1).
+# R8 rules for the release build (build.gradle.kts; the harness default, SCUI_ANDROID_RELEASE=0 for debug).
 #
 # Swift reaches Java through JNI by class and member name, which R8 cannot see,
 # so anything Swift names must keep its name and members. That is all of our own

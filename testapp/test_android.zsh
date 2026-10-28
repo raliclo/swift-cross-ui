@@ -34,7 +34,9 @@ Usually reached as: zsh testapp/test.zsh <Pn> --android
 That uses the same flags as every other platform.
 
 Default: compile and bundle a fresh Android APK in RELEASE, then install and
-launch it. `--debug-build` uses debug instead.
+launch it. `--debug-build` uses debug instead. That is the Swift build; the
+Gradle variant is release by default too (R8, not debuggable), and
+SCUI_ANDROID_RELEASE=0 packages the debug variant (package_android.zsh).
 
 Release is the default because Android was the only platform here that was not:
 compile.zsh has used release everywhere else all along, and the debug default

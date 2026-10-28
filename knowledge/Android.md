@@ -8,7 +8,7 @@ Index as of 2026-10-24; each line links one topic.
 - [Toolchain setup](Android/toolchain-setup.md) -- Swift 6.4.0 from swift.org, one Android SDK, NDK r30, `--build-system native`, Gradle 8.13 / AGP 8.13.0 against newest stable.
 - [Building and packaging](Android/build-and-packaging.md) -- compile.zsh, then package_android.zsh into one shared Gradle project; no Swift Bundler; exports map; the stale-APK trap.
 - [APK size](Android/apk-size.md) -- P96's 113 MB debug APK: ICU 38.2 MB, libP96 33.1 MB (23 MB AndroidKit), what came off, what is left.
-- [Debug and release builds](Android/android-setting.md) -- SCUI_ANDROID_RELEASE=1: R8, not debuggable, compressed libs; APK 113 -> 37 MB, launch 2.5x faster; build time; toolchain versions.
+- [Debug and release builds](Android/android-setting.md) -- release is the harness default (SCUI_ANDROID_RELEASE=0 for debug): R8, not debuggable, compressed libs; APK 113 -> 37 MB, launch 2.5x faster; replays match debug; toolchain versions.
 - [swift-java from the raliclo fork](Android/swift-java-fork.md) -- AndroidKit and its bindings, raliclo/swift-java on develop, the identity warning.
 
 ## Emulator and harness
@@ -52,7 +52,7 @@ AndroidBackend、Android 模擬器、Gradle 打包與動作檔重播。2026-10-2
 - [工具鏈安裝](Android/toolchain-setup.md)——swift.org 的 Swift 6.4.0、只裝一個 Android SDK、NDK r30、`--build-system native`、Gradle 8.13 / AGP 8.13.0 與最新穩定版對照。
 - [建置與打包](Android/build-and-packaging.md)——先 compile.zsh,再由 package_android.zsh 打包進一個共用的 Gradle 專案；不用 Swift Bundler;匯出符號表；舊 APK 的陷阱。
 - [APK 大小](Android/apk-size.md)——P96 的 113 MB debug APK:ICU 38.2 MB、libP96 33.1 MB(其中 AndroidKit 23 MB),已拿掉什麼、還剩什麼。
-- [Debug 與 release 建置](Android/android-setting.md)——SCUI_ANDROID_RELEASE=1:R8、不可除錯、原生函式庫壓縮；APK 113 → 37 MB,啟動快約 2.5 倍；建置時間；工具鏈版本。
+- [Debug 與 release 建置](Android/android-setting.md)——release 是 harness 預設(SCUI_ANDROID_RELEASE=0 改用 debug):R8、不可除錯、原生函式庫壓縮；APK 113 → 37 MB,啟動快約 2.5 倍；重播結果與 debug 一致；工具鏈版本。
 - [swift-java 改用 fork](Android/swift-java-fork.md)——AndroidKit 與其綁定、develop 分支的 raliclo/swift-java、識別衝突警告。
 
 ## 模擬器與 harness

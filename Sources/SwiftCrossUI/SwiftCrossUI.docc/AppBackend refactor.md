@@ -143,6 +143,8 @@ comprehensive-ish list of changes:
   - ~~``BackendFeatures/WindowBehaviors``: all backends~~ -- corrected 2026-09-09 to: all backends
     except AndroidBackend. UIKitBackend does conform
     (`Sources/UIKitBackend/UIKitBackend+Window.swift:256`).
+    - Corrected 2026-10-27: AndroidBackend conforms too
+      (`Sources/AndroidBackend/AndroidBackend+WindowBehaviors.swift`), so all five backends do.
 
 - Note: The list above was re-measured on 2026-09-09 against the five shipped backends. To regenerate
   it, note that conformances are declared in two different places and a grep for only one of them
@@ -165,9 +167,10 @@ no longer missing, and the line of code offered here as something a user might w
 app is now literally in the repository, at
 `Sources/WinUIBackend/WinUIBackend+Sheets.swift:10`, as of 2026-09-08. Written out in user code
 today it would be a duplicate conformance and would not compile. Pick a feature that a backend
-genuinely lacks if you need a live example -- as of 2026-10-24, `WindowBehaviors` on AndroidBackend
-would do (`RevealFiles`, the example given on 2026-09-09, reached UIKitBackend and AndroidBackend in
-`1b87257f`).
+genuinely lacks if you need a live example. Neither earlier example still works: `WindowBehaviors`
+on AndroidBackend, given on 2026-10-24, is implemented in
+`Sources/AndroidBackend/AndroidBackend+WindowBehaviors.swift` (2026-10-27), and `RevealFiles`,
+given on 2026-09-09, reached UIKitBackend and AndroidBackend in `1b87257f`.
 
 Of course, we'd want to encourage people to upstream such code into the main project, but this is
 still a useful thing for people to be able to do. It'd also slightly reduce the (admittedly not

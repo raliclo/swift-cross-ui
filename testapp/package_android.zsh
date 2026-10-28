@@ -229,6 +229,11 @@ url_filters = "".join(
     f"                <data android:scheme=\"{scheme}\" />\n"
     "            </intent-filter>\n"
     for scheme in settings.get("url_schemes", []))
+# ScuiFixedSizeWindowActivity: a later window that must not be resized (windowResizeBehavior(.disabled)).
+# resizeableActivity exists only here, in the manifest, so the non-resizable window is a second
+# activity declaration (Sources/AndroidBackend/Kotlin/WindowBehaviors.kt).
+# ScuiFixedSizeWindowActivity:不可縮放的後續視窗(windowResizeBehavior(.disabled))。resizeableActivity 只存在於這裡的
+# manifest,所以不可縮放的視窗是第二個 activity 宣告(Sources/AndroidBackend/Kotlin/WindowBehaviors.kt)。
 text = f'''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -250,6 +255,11 @@ text = f'''<?xml version="1.0" encoding="utf-8"?>
             android:name="dev.swiftcrossui.androidbackend.ScuiWindowActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection" />
+        <activity
+            android:name="dev.swiftcrossui.androidbackend.ScuiFixedSizeWindowActivity"
+            android:exported="false"
+            android:resizeableActivity="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection" />
         <service
             android:name="dev.swiftcrossui.androidbackend.OverlayService"
             android:exported="false"
@@ -268,12 +278,15 @@ EOF
 application_id="dev.swiftcrossui.testapp.${${app//-/}:l}"
 version_code="$(git -C "$repo_root" rev-list --count HEAD)"
 
-# SCUI_ANDROID_RELEASE=1: the release build -- R8-shrunk, not debuggable, native
-# libraries compressed -- instead of debug. Opt-in while its size and speed are
-# measured against debug (2026-10-24); debug stays the default until then.
-# SCUI_ANDROID_RELEASE=1:改建 release(R8 縮減、不可除錯、原生函式庫壓縮)而非 debug。在與 debug 比較大小與速度
-# 期間(2026-10-24)為選用，在那之前預設仍是 debug。
-if [[ ${SCUI_ANDROID_RELEASE:-0} == 1 ]]; then
+# The release build by default -- R8-shrunk, not debuggable, native libraries
+# compressed; SCUI_ANDROID_RELEASE=0 builds debug instead (a debuggable APK, for
+# run-as or a Java debugger). Made the default after action-file replays of ten
+# apps matched between the builds, in app log lines and in final captures
+# (knowledge/Android/android-setting.md).
+# 預設建置 release(R8 縮減、不可除錯、原生函式庫壓縮);SCUI_ANDROID_RELEASE=0 改建 debug(可除錯的 APK,供 run-as 或 Java
+# 除錯器使用)。十支 app 的動作檔重播在兩種建置之間的 app log 與最終擷圖都一致之後，才改成預設
+# (knowledge/Android/android-setting.md)。
+if [[ ${SCUI_ANDROID_RELEASE:-1} != 0 ]]; then
     build_type=release
     gradle_props+=(-PscuiCompressNativeLibs=true)
 else

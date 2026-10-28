@@ -677,8 +677,6 @@ public final class AndroidBackend: BaseAppBackend {
         maximum maximumSize: SIMD2<Int>?
     ) {}
 
-    //    public func setBehaviors(ofWindow window: Void, closable: Bool, minimizable: Bool, resizable: Bool) {}
-
     public func setResizeHandler(
         ofWindow window: Window,
         to action: @escaping (_ newSize: SIMD2<Int>) -> Void

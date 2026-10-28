@@ -110,9 +110,8 @@
                 gsk_path_unref(path)
             }
             var offset = graphene_point_t(x: 3.5, y: 2.25)
-            var matrix = graphene_matrix_t()
-            graphene_matrix_init_from_2d(&matrix, 0.866, 0.5, -0.5, 0.866, 0, 0)
-            let transform = gsk_transform_matrix(gsk_transform_translate(nil, &offset), &matrix)
+            let transform = AffineTransform2D(a: 0.866, b: 0.5, c: -0.5, d: 0.866, tx: 0, ty: 0)
+                .appending(to: gsk_transform_translate(nil, &offset))
             gtk_snapshot_save(snapshot)
             gtk_snapshot_transform(snapshot, transform)
             gtk_snapshot_append_color(snapshot, &grey, &bounds)

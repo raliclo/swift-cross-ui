@@ -372,11 +372,15 @@ when `-GPU 2` or above is passed.
 
 **Three consequences, all measured 2026-08-29 and all of which have bitten:**
 
-1. **Transforms.** `GskCairoRenderer` cannot draw a transform node and paints
-   flat hotpink `rgb(255,105,180)` instead, losing the content entirely.
-   `GskGLRenderer` draws it. This was recorded as "GTK 4 cannot render
-   transformed widgets" — it is the *software fallback* that cannot, which is a
-   different claim. See `bugs/Gtk4-bugs.md`.
+1. **Transforms.** A transform handed over as a matrix was painted flat hotpink
+   `rgb(255,105,180)` by `GskCairoRenderer`, losing the content entirely;
+   `GskGLRenderer` drew it. The cause is not the software fallback as such but
+   the transform's category: `gsk_transform_matrix` is always filed UNKNOWN, and
+   cairo draws only categories from 2D up. Since 2026-10-28 GtkBackend writes
+   transforms as translate, rotate and scale steps (`AffineTransform2D`), which
+   cairo draws -- verified on macOS GTK with `GSK_RENDERER=cairo`; the Windows
+   `-GPU 0` run is still pending (the Windows machine was unreachable on
+   2026-10-27/28). See `bugs/Gtk4-bugs.md`.
 2. **gdigrab window capture stops working.** A DComp-composited window cannot
    be read by gdigrab's BitBlt path. `screenshot.zsh -w` no longer uses that
    path on Windows/WSLg; it uses wincap /
@@ -417,10 +421,12 @@ NVIDIA GeForce RTX 4060 Laptop GPU——兩者皆為透過原生 WGL 的 OpenGL 
 
 **三項於 2026-08-29 實測的後果，每一項都咬過人：**
 
-1. **變換。** `GskCairoRenderer` 畫不出 transform node，會改畫成一整片 hotpink
-   `rgb(255,105,180)`，內容完全喪失；`GskGLRenderer` 則畫得出來。此事曾被記錄為「GTK 4 無法繪製
-   被變換的 widget」——實際上是**軟體後備**畫不出來，那是另一個不同的主張。詳見
-   `bugs/Gtk4-bugs.md`。
+1. **變換。** 原先以矩陣交出的變換在 `GskCairoRenderer` 上會被畫成一整片 hotpink
+   `rgb(255,105,180)`，內容完全喪失；`GskGLRenderer` 則畫得出來。原因不在軟體後備本身，而在變換的
+   類別:`gsk_transform_matrix` 一律被歸為 UNKNOWN，而 cairo 只畫 2D 以上的類別。自 2026-10-28 起，
+   GtkBackend 把變換寫成平移、旋轉與縮放步驟(`AffineTransform2D`),cairo 也畫得出來——已在 macOS GTK
+   以 `GSK_RENDERER=cairo` 驗證，Windows 的 `-GPU 0` 執行仍待補(2026-10-27/28 Windows 主機無法連線)。
+   詳見 `bugs/Gtk4-bugs.md`。
 2. **gdigrab 視窗擷取會失效。** 經 DComp 合成的視窗無法被 gdigrab 的 BitBlt 路徑讀取。
    `screenshot.zsh -w` 在 Windows/WSLg 上不再使用該路徑；它直接使用 wincap /
    `PrintWindow(PW_RENDERFULLCONTENT)`。若 wincap 無法擷取指定視窗，指令會直接失敗；

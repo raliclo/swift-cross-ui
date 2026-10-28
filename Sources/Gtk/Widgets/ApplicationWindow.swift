@@ -15,20 +15,12 @@ public class ApplicationWindow: Window {
     public override func registerSignals() {
         super.registerSignals()
 
-        let handler2:
-            @convention(c) (
-                UnsafeMutableRawPointer,
-                gboolean,
-                UnsafeMutableRawPointer
-            ) -> Void = { _, value1, data in
-                SignalBox1<gboolean>.run(data, value1)
-            }
-        addSignal(
-            name: "notify::is-active",
-            handler: gCallback(handler2)
-        ) { [weak self] (isActive: gboolean) in
+        // `notify::` hands the handler a GParamSpec, not the new value, so the
+        // value is read from the window. See `GObject.addNotificationSignal`.
+        // `notify::` 交給 handler 的是 GParamSpec 而不是新值，所以值從視窗讀取。見 `GObject.addNotificationSignal`。
+        addNotificationSignal(name: "notify::is-active") { [weak self] in
             guard let self else { return }
-            self.notifyIsActive?(isActive != 0)
+            self.notifyIsActive?(self.isActive)
         }
     }
 

@@ -949,7 +949,13 @@ class AndroidBackendHelpers {
             flags = flags or Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT
         }
         val intent =
-            Intent(from, ScuiWindowActivity::class.java)
+            Intent(
+                    from,
+                    // Non-resizable from the start when the window asked for that (WindowBehaviors.kt).
+                    // 視窗要求不可縮放時，一開始就用不可縮放的 activity(WindowBehaviors.kt)。
+                    if (ScuiWindowBehaviors.isResizable(token)) ScuiWindowActivity::class.java
+                    else ScuiFixedSizeWindowActivity::class.java,
+                )
                 .putExtra(ScuiWindowActivity.EXTRA_TOKEN, token)
                 .addFlags(flags)
         // Started once the opening window has focus again. A window opened from a

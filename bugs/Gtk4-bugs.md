@@ -88,6 +88,8 @@ correctly under it, but that is two apps, not a decision.
 **So `setGeometricEffect` declining is now a workaround for a machine
 configuration, not for a platform defect.** Whether to enable dcomp by default
 on Windows, and then implement the transform properly, is an open decision.
+(Both were later done, and since 2026-10-28 the transform is also drawn without
+dcomp -- see the correction below.)
 
 > **Decided and done, 2026-09-05.** Direct Composition is on by default and the
 > transform is applied on Windows through the same CSS path Linux uses.
@@ -112,10 +114,25 @@ on Windows, and then implement the transform properly, is an open decision.
 > a delta of 8. Counting differing pixels without their size would have blocked
 > the change on nothing.
 >
-> `setGeometricEffect` still declines when Direct Composition is not active, and
-> that is now the narrow case rather than the rule: `-GPU 0`, an explicit
-> `GDK_DISABLE=gl`, or no hardware display adapter. Each leaves GTK on
-> `GskCairoRenderer`, where hotpink is still what a transform produces.
+> ~~`setGeometricEffect` still declines when Direct Composition is not active ...~~
+> Superseded on 2026-10-28 (see the correction below): the hotpink came from the
+> transform's category, not from the cairo renderer as such, and the transform is
+> now applied on every renderer.
+>
+> ### Correction, 2026-10-28: not the renderer either -- the transform's category
+>
+> `GskCairoRenderer` does draw 2D transforms. `gsk_transform_node_draw` (GTK
+> 4.22) fills hotpink only when `gsk_transform_get_category(t) <
+> GSK_TRANSFORM_CATEGORY_2D`. `gsk_transform_matrix()` files every matrix as
+> `GSK_TRANSFORM_CATEGORY_UNKNOWN` whatever it contains; CSS `matrix()` and
+> `skew()` become `gsk_transform_matrix` too; and a chain takes its lowest
+> category. GtkBackend handed every transform over as a matrix, so on cairo even
+> a plain offset went hotpink. A 40×30 colour node drawn by GskCairoRenderer (GTK
+> 4.24.1, macOS): a translation matrix gives 1 200 hotpink pixels,
+> `gsk_transform_translate` 0; a 30° rotation matrix 2 205 against
+> `gsk_transform_rotate` 0; a shear matrix 1 560 against `gsk_transform_skew` 0.
+> The fix writes the matrix as translate, rotate and scale steps
+> (`Sources/Gtk/Gsk/AffineTransform2D.swift`).
 >
 > **2026-09-05 已決定並完成。** Direct Composition 改為預設開啟，且 Windows 上的變換改由與
 > Linux 相同的 CSS 路徑套用。
@@ -134,50 +151,52 @@ on Windows, and then implement the transform properly, is an open decision.
 > 沒有任何結構性差異。P25 起初讀起來是 31% 的像素相異，直到量了**幅度**——128,510 個相異像素中
 > 僅 **711** 個差幅超過 8。若只數相異像素而不看其大小，這項改動就會被一件不存在的事擋下來。
 >
-> 當 Direct Composition 未生效時，`setGeometricEffect` 仍會拒絕，而那如今是狹窄的例外而非常態：
-> `-GPU 0`、明確設定的 `GDK_DISABLE=gl`，或沒有硬體顯示介面卡。每一種都會讓 GTK 留在
-> `GskCairoRenderer` 上，而在那裡，變換產生的依然是 hotpink。
+> ~~當 Direct Composition 未生效時，`setGeometricEffect` 仍會拒絕……~~ 已被 2026-10-28 的更正取代(見下)：
+> hotpink 的成因是變換的類別，而非 cairo 繪製器本身；如今變換在每一種繪製器上都會套用。
+>
+> ### 更正(2026-10-28)：也不是繪製器——是變換的「類別」
+>
+> `GskCairoRenderer` 畫得出 2D 變換。`gsk_transform_node_draw`(GTK 4.22)只在
+> `gsk_transform_get_category(t) < GSK_TRANSFORM_CATEGORY_2D` 時才填 hotpink。而 `gsk_transform_matrix()`
+> 不論矩陣內容一律歸為 `GSK_TRANSFORM_CATEGORY_UNKNOWN`；CSS 的 `matrix()` 與 `skew()` 也會變成
+> `gsk_transform_matrix`；一串變換取其最低類別。GtkBackend 的每個變換都以矩陣交出，因此在 cairo 上
+> 連單純的平移都變成 hotpink。以 GskCairoRenderer 繪製一個 40×30 的色塊(GTK 4.24.1，macOS)：
+> 平移矩陣 1,200 個 hotpink 像素，`gsk_transform_translate` 為 0;旋轉 30° 矩陣 2,205 對 `gsk_transform_rotate`
+> 為 0;錯切矩陣 1,560 對 `gsk_transform_skew` 為 0。修正是把矩陣改寫成平移、旋轉與縮放步驟
+> (`Sources/Gtk/Gsk/AffineTransform2D.swift`)。
 
-**Reproduce.**
+**Reproduce (since 2026-10-28).** On Windows, with the software renderer:
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P40
-    ( cd testapp/output && SCUI_PROBE_GTK_TRANSFORM=1 ./P40-gtk4.exe & )
+    ( cd testapp/output && ./P40-gtk4.exe -GPU 0 & )
     zsh testapp/screenshot.zsh -w P40
 
-Then count hotpink pixels in the capture; zero means the bug is gone.
+`GDK_DISABLE=gl` in place of `-GPU 0` exercises the same renderer. Expect zero
+hotpink pixels **and** every tile transformed against the control: offset
+moved, both scales resized, both rotations and the shear turned. A capture with
+zero hotpink and seven untransformed 90×57 tiles is the old decline, not a fix.
+On any platform, `GSK_RENDERER=cairo` forces the same renderer:
 
-**`SCUI_PROBE_GTK_TRANSFORM=1` is not optional, and this is the whole point.**
-Without it `setGeometricEffect` applies nothing — see below — so the capture
-contains zero hotpink pixels whether GTK is broken or fixed, and the count
-reports "the bug is gone" having measured nothing. That is what these steps did
-until 2026-08-29: they were written when the backend still applied the
-transform, and were left unchanged when it stopped.
+    GSK_RENDERER=cairo GSK_DEBUG=renderer TEST_BACKEND=gtk4 zsh testapp/test.zsh P40 --macos
 
-Measured 2026-08-29 on GTK 4.22.4, both ways, so the test is known to
-discriminate rather than assumed to:
+**Status, 2026-10-28.** Verified on macOS GTK 4.24.1 with `GSK_RENDERER=cairo`
+(the log reads `Using renderer 'GskCairoRenderer'`): P40 0 hotpink, all
+seven tiles transformed, the tile pixels within 132 of the GL capture (antialiased
+edges); P30 offset, scale and rotate likewise. **The Windows `-GPU 0` run is
+still pending**: the Windows machine was unreachable on 2026-10-27/28.
 
-| | hotpink pixels | tiles |
-|---|---|---|
-| probe off | 0 | all seven exactly 90×57, untransformed |
-| probe on | 47 873 | six of seven flat hotpink, content gone |
+The former `SCUI_PROBE_GTK_TRANSFORM=1` probe is gone. It forced a CSS
+`matrix()` -- category `UNKNOWN` -- onto the widget to show the hotpink
+whatever the backend did; with the transform now applied on every renderer, the
+plain run is the test.
 
-Check the tiles too, not only the count. A probe that silently fails to apply
-also gives zero, and looks identical to a fix. On the first attempt the probe
-emitted `matrix(…, 40px, 20px)`; CSS `matrix()` takes `<number>`, so the `px`
-made the declaration invalid, GTK dropped it without a word, and the run
-reported zero hotpink with every tile still 90×57.
-
-**How this project degrades.** `GtkBackend.setGeometricEffect` conforms to
-`BackendFeatures.GeometricEffects` and deliberately applies nothing, logging
-once through `debugLogOnce`. Declining beats applying it: an untransformed view
-is still legible and still clickable, whereas a hotpink rectangle has lost
-everything. This is the one case so far where "apply what you can and say so"
-loses to "apply nothing and say so".
-
-Conforming-but-declining rather than not conforming is also deliberate:
-`@CastBackend` turns a *missing* conformance into `fatalError`, so refusing the
-protocol would abort every app that calls `.offset(_:_:)` instead of drawing it
-in the wrong place.
+**How this project handles it (since 2026-10-28).**
+`GtkBackend.setGeometricEffect` applies the transform on every renderer and no
+longer declines. `AffineTransform2D` writes each affine matrix as translate,
+rotate and scale steps, which GSK files as 2D, so `GskCairoRenderer` draws them
+through a cairo matrix. The earlier conforming-but-declining degradation -- an
+untransformed view, logged once -- is not acceptable on a shipped backend under
+CLAUDE.md and has been removed.
 
 **Not GTK-wide.** WinUIBackend implements the same protocol and renders
 rotation, scale and offset correctly, so the protocol shape is sound and this is
@@ -219,16 +238,14 @@ a GTK-side gap.
 （被變換的子樹中僅有一段純 `Text`、無巢狀容器亦無 `Color` view，同樣變成 hotpink）、版本
 （4.22.4 已是最新穩定版，無更新版本可換）。
 
-**重現方式**：指令同上；接著計算截圖中 hotpink 像素的數量，為零即代表此缺陷已消失。
+**重現方式**：指令同上——`-GPU 0`，且不設任何探針環境變數；hotpink 像素必須為 0，而且每一格都必須
+相對對照格依預期變換。截至 2026-10-28，此 Windows 執行仍待補(Windows 主機無法連線)；修正目前只在
+macOS GTK 以 `GSK_RENDERER=cairo` 驗證過。
 
-**本專案的降級方式。** `GtkBackend.setGeometricEffect` 會宣告 conformance 但刻意不做任何事，並透過
-`debugLogOnce` 記錄一次。拒絕執行優於強行套用：未經變換的 view 仍然可讀、仍然可點擊，而一塊
-hotpink 矩形已經失去一切。這是目前唯一一個「盡力套用並明白告知」輸給「什麼都不做但明白告知」的
-情況。
-
-選擇「宣告 conformance 但拒絕執行」而非「不宣告」，同樣是刻意的：`@CastBackend` 會把**缺少的**
-conformance 轉為 `fatalError`，因此若拒絕實作該 protocol，任何呼叫 `.offset(_:_:)` 的 app 都會直接
-中止，而不是把它畫在錯誤的位置。
+**本專案的處理方式(2026-10-28 起)。** `GtkBackend.setGeometricEffect` 在每一種繪製器上都套用變換，
+不再拒絕。`AffineTransform2D` 把每個仿射矩陣寫成平移、旋轉與縮放步驟，GSK 將這些步驟歸為 2D 類別，
+`GskCairoRenderer` 便以 cairo 矩陣畫出它們。先前「宣告 conformance 但拒絕執行」的降級，在 CLAUDE.md
+的規則下對已發布的 backend 並不可接受，現已移除。
 
 **這並非 GTK 以外皆然。** WinUIBackend 實作了同一個 protocol，且能正確繪製旋轉、縮放與位移，因此
 protocol 本身是健全的，這是 GTK 這一側的缺口。

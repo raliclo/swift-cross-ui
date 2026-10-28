@@ -55,11 +55,17 @@ public struct NavigationStack<Detail: View>: View {
         //
         // SwiftUI 的 NavigationStack 不論深度都會填滿被給予的空間；推入只替換該佔位內的內容，不會
         // 移動其周圍的任何東西。此處即是如此。
-        VStack(spacing: 0) {
+        let elements = self.elements
+        return VStack(spacing: 0) {
             if elements.count > 1 {
-                navigationBar
+                navigationBar(
+                    backTitle: titleStore.title(
+                        atDepth: elements.count - 2,
+                        for: elements[elements.count - 2]
+                    )
+                )
             }
-            currentDestination
+            currentDestination(elements)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -72,21 +78,34 @@ public struct NavigationStack<Detail: View>: View {
     /// and a `BackendFeatures` protocol for it would mean a stack with no way
     /// back on any backend that had not implemented it yet.
     ///
-    /// The label matches SwiftUI's fallback. SwiftUI shows the previous view's
-    /// title and says "Back" when there is none.
+    /// **The label is the title of the screen it returns to**, as in SwiftUI:
+    /// the root view's ``View/navigationTitle(_:)`` one level down, the
+    /// previous destination's further down, and "Back" when that screen set no
+    /// title.
     ///
-    /// **The label cannot be read from `View/navigationTitle(_:)`, though that is
-    /// the obvious thing to try.** `navigationTitle` is a ``PreferenceValues``
-    /// entry, and a preference travels *upward*, out of the destination and past
-    /// this bar, which is its preceding sibling in the same `VStack`. By the time
-    /// the destination's title exists, the bar that would show it has already
-    /// been laid out.
+    /// The title cannot be read in the same pass that draws the bar.
+    /// `navigationTitle` is a ``PreferenceValues`` entry, and a preference
+    /// travels *upward*, out of the destination and past this bar, which is its
+    /// preceding sibling in the same `VStack`; by the time a destination's
+    /// title exists, the bar above it has been laid out. The title shown here
+    /// is therefore one that survived *between* passes: ``titleStore``, owned
+    /// by the stack and keyed by path depth, is written by each screen (the
+    /// root included) when it is committed, and read when the next screen is
+    /// pushed on top of it. The screen being returned to was on screen before
+    /// the push, so its title is always there when it is needed.
     ///
-    /// Labelling this bar needs a value that survives *between* layout passes
-    /// -- a store the stack owns, keyed by path depth, written by the
-    /// destination and read on the following pass. That is a change to the
-    /// stack, not to the modifier, and it is not made here. The window title
-    /// is what `navigationTitle` sets.
+    /// Each entry also records which path element wrote it, so a title is
+    /// never shown for a different screen that later took the same depth.
+    /// A screen that has never been on screen -- a path restored from storage
+    /// or assigned several levels at once -- has no entry, and its back control
+    /// says "Back", SwiftUI's own fallback.
+    ///
+    /// **Native navigation bars.** UIKitBackend and AndroidBackend draw the
+    /// *current* title in a bar of their own (`setToolbar(ofWindow:to:title:)`
+    /// on UIKit, the title row of `hasNavigationTitle` on Android). Neither
+    /// draws a back control, so this one is the only one on every backend, and
+    /// it names the previous screen while the native bar names the current
+    /// one.
     ///
     /// 只要曾經推入任何內容，就會顯示的返回控制項。
     ///
@@ -94,21 +113,26 @@ public struct NavigationStack<Detail: View>: View {
     /// 不過是一個按鈕加一段文字，此處沒有任何 backend 能做得更好之處；而若為它另立
     /// `BackendFeatures` 協定，只會導致「在尚未實作它的 backend 上，堆疊完全無法返回」。
     ///
-    /// 標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時則顯示「Back」。
+    /// **標籤是它所要返回的那個畫面的標題**,與 SwiftUI 相同：往下一層時是根 view 的 ``View/navigationTitle(_:)``,
+    /// 更深時是前一個 destination 的標題；該畫面沒有設定標題時則是「Back」。
     ///
-    /// **標籤不能從 `View/navigationTitle(_:)` 讀取，雖然那是最直覺的嘗試。** `navigationTitle` 是一個
-    /// ``PreferenceValues`` 項目，而 preference 是**向上**傳遞的：它從 destination 往外走，越過這條列——
-    /// 這條列在同一個 `VStack` 中是它的前一個兄弟節點。當 destination 的標題存在時，本該顯示它的那條列
-    /// 早已完成版面計算。
+    /// 標題無法在繪製這條列的同一次計算中讀取。`navigationTitle` 是一個 ``PreferenceValues`` 項目，而 preference 是
+    /// **向上**傳遞的：它從 destination 往外走，越過這條列——這條列在同一個 `VStack` 中是它的前一個兄弟節點；當某個
+    /// destination 的標題存在時，它上方的列早已完成版面計算。因此此處顯示的是一個**跨越**多次計算而存續的標題:
+    /// ``titleStore`` 由堆疊持有、以路徑深度為鍵，每個畫面(含根)在 commit 時寫入，並在下一個畫面被推到它上面時讀取。
+    /// 要返回的那個畫面在推入之前就在螢幕上，因此需要它的標題時，標題一定已經在那裡。
     ///
-    /// 要為這條列加上標籤，需要一個能**跨越**多次版面計算而存續的值——一個由堆疊自身持有、以路徑
-    /// 深度為鍵、由 destination 寫入、於下一次計算時讀取的儲存區。那是對堆疊的修改，而非對 modifier
-    /// 的修改，此處不做。`navigationTitle` 目前所設定的是視窗標題。
+    /// 每一筆也記錄是哪個路徑元素寫入的，因此標題絕不會顯示給之後佔用同一深度的另一個畫面。從未出現在螢幕上的畫面——
+    /// 從儲存區還原的路徑、或一次指定好幾層——沒有紀錄，它的返回控制項顯示 SwiftUI 自己的後備文字「Back」。
+    ///
+    /// **原生導覽列。** UIKitBackend 與 AndroidBackend 會在自己的列中畫出**目前**的標題(UIKit 是
+    /// `setToolbar(ofWindow:to:title:)`,Android 是 `hasNavigationTitle` 的那一列標題)。兩者都不畫返回控制項，因此在每個
+    /// backend 上都只有這一個返回控制項，它稱呼前一個畫面，而原生列稱呼目前的畫面。
     @ViewBuilder
-    private var navigationBar: some View {
+    private func navigationBar(backTitle: String?) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                Button("‹ Back") {
+                Button("‹ \(backTitle ?? "Back")") {
                     path.wrappedValue.removeLast()
                 }
                 Spacer()
@@ -119,11 +143,18 @@ public struct NavigationStack<Detail: View>: View {
         }
     }
 
+    /// The top screen, wrapped so that it reports its title to ``titleStore``.
+    /// 最上層的畫面，包裝起來以便向 ``titleStore`` 回報它的標題。
     @ViewBuilder
-    private var currentDestination: some View {
+    private func currentDestination(_ elements: [any Codable]) -> some View {
         if let element = elements.last {
             if let content = child(element) {
-                content
+                NavigationTitleRecorder(
+                    content,
+                    store: titleStore,
+                    depth: elements.count - 1,
+                    element: element
+                )
             } else {
                 fatalError(
                     "Failed to find detail view for \"\(element)\", make sure you have called .navigationDestination for this type."
@@ -133,6 +164,11 @@ public struct NavigationStack<Detail: View>: View {
             Text("Empty navigation path")
         }
     }
+
+    /// The titles the stack's screens reported, read by the back control.
+    /// See ``navigationBar(backTitle:)``.
+    /// 堆疊中各畫面所回報的標題，由返回控制項讀取。見 ``navigationBar(backTitle:)``。
+    @State private var titleStore = NavigationTitleStore()
 
     /// A binding to the current navigation path.
     var path: Binding<NavigationPath>
@@ -237,5 +273,104 @@ public struct NavigationStack<Detail: View>: View {
         }
 
         return child
+    }
+}
+
+/// The navigation titles a ``NavigationStack``'s screens reported, by path
+/// depth, kept between layout passes for the stack's back control.
+///
+/// A reference type held in the stack's `@State`, written while a screen is
+/// committed and read when the stack's body is next computed. Writing it does
+/// not schedule an update: the value is only read for a screen *below* the
+/// top one, and that screen reported its title while it was on top. It is an
+/// `ObservableObject` with no `@Published` property, which is how `@State`
+/// keeps one instance for the life of the stack without observing it.
+///
+/// ``NavigationStack`` 各畫面所回報的導覽標題，以路徑深度為鍵，跨越多次版面計算保存，供堆疊的返回控制項使用。
+///
+/// 一個放在堆疊 `@State` 裡的參考型別，在畫面 commit 時寫入，於堆疊的 body 下一次計算時讀取。寫入它不會排程更新：
+/// 這個值只會為最上層**之下**的畫面讀取，而那個畫面在位於最上層時就已回報了它的標題。它是一個沒有 `@Published` 屬性的
+/// `ObservableObject`,`@State` 因此在堆疊的整個生命期間保有同一個實例，而不觀察它。
+@MainActor
+final class NavigationTitleStore: ObservableObject {
+    private struct Entry {
+        var element: String
+        var title: String?
+    }
+
+    private var entries: [Int: Entry] = [:]
+
+    /// The title the screen at `depth` reported, if `element` is the path
+    /// element that screen was showing.
+    /// 位於 `depth` 的畫面所回報的標題——前提是 `element` 正是該畫面當時所顯示的路徑元素。
+    func title(atDepth depth: Int, for element: any Codable) -> String? {
+        guard let entry = entries[depth], entry.element == Self.key(for: element) else {
+            return nil
+        }
+        return entry.title
+    }
+
+    /// Records the title of the screen at `depth`.
+    /// 記錄位於 `depth` 之畫面的標題。
+    func record(_ title: String?, atDepth depth: Int, for element: any Codable) {
+        entries[depth] = Entry(element: Self.key(for: element), title: title)
+    }
+
+    /// Identifies a path element by its type and its value. Path elements are
+    /// `Codable` but not necessarily `Hashable`, so the description stands in.
+    /// 以型別與值識別一個路徑元素。路徑元素是 `Codable` 但不一定是 `Hashable`,因此以其描述代替。
+    private static func key(for element: any Codable) -> String {
+        "\(String(reflecting: type(of: element))):\(String(describing: element))"
+    }
+}
+
+/// Passes its content through unchanged and records the content's navigation
+/// title in a ``NavigationTitleStore`` when it is committed.
+///
+/// 原樣傳遞其內容，並在 commit 時把內容的導覽標題記錄到 ``NavigationTitleStore``。
+struct NavigationTitleRecorder<Child: View>: View {
+    var body: TupleView1<Child>
+    var store: NavigationTitleStore
+    var depth: Int
+    var element: any Codable
+
+    init(_ child: Child, store: NavigationTitleStore, depth: Int, element: any Codable) {
+        self.body = TupleView1(child)
+        self.store = store
+        self.depth = depth
+        self.element = element
+    }
+
+    func computeLayout<Backend: BaseAppBackend>(
+        _ widget: Backend.Widget,
+        children: any ViewGraphNodeChildren,
+        proposedSize: ProposedViewSize,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) -> ViewLayoutResult {
+        body.computeLayout(
+            widget,
+            children: children,
+            proposedSize: proposedSize,
+            environment: environment,
+            backend: backend
+        )
+    }
+
+    func commit<Backend: BaseAppBackend>(
+        _ widget: Backend.Widget,
+        children: any ViewGraphNodeChildren,
+        layout: ViewLayoutResult,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) {
+        store.record(layout.preferences.navigationTitle, atDepth: depth, for: element)
+        body.commit(
+            widget,
+            children: children,
+            layout: layout,
+            environment: environment,
+            backend: backend
+        )
     }
 }

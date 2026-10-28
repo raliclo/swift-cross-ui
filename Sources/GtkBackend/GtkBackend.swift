@@ -489,12 +489,10 @@ public final class GtkBackend:
     /// Why it matters. On Windows GTK cannot realize its GL
     /// renderer -- `Failed to realize renderer 'GskGLRenderer' for surface
     /// 'GdkWin32Toplevel': OpenGL requires Direct Composition` -- and silently
-    /// falls back to `GskCairoRenderer`, which is software. That fallback is
-    /// what cannot draw a transform node, and paints the hotpink rectangle
-    /// recorded in bugs/Gtk4-bugs.md. With this set, GTK uses `GskGLRenderer`
-    /// and every P40 transform renders correctly: measured 2026-08-29, 47873
-    /// hotpink pixels without it and 0 with it, offset, both scales, both
-    /// rotations, the shear and rotated text all correct.
+    /// falls back to `GskCairoRenderer`, which is software: no OpenGL for
+    /// `GtkGLArea`, and every frame drawn on the CPU. Geometric effects render
+    /// on both renderers (see AffineTransform2D for what the cairo renderer
+    /// needs).
     ///
     /// `GDK_DEBUG=dcomp` is a feature switch rather than a logging category --
     /// GDK lists it as "Enable Direct Composition (Windows)". Appended rather
@@ -506,11 +504,9 @@ public final class GtkBackend:
     ///
     /// 為何重要：在 Windows 上，GTK 無法實現它的 GL 繪製器——
     /// `Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
-    /// OpenGL requires Direct Composition`——並靜默退回到軟體的 `GskCairoRenderer`。
-    /// 正是這個退路畫不出 transform node，於是畫出 bugs/Gtk4-bugs.md 所記載的那片 hotpink。
-    /// 設定本旗標後，GTK 會使用 `GskGLRenderer`，而 P40 的每一項變換都正確繪製：2026-08-29
-    /// 實測，未啟用時 47873 個 hotpink 像素，啟用後為 0；位移、兩種縮放、兩種旋轉、推移與
-    /// 旋轉後的文字全部正確。
+    /// OpenGL requires Direct Composition`——並靜默退回到軟體的 `GskCairoRenderer`:沒有 OpenGL 可供
+    /// `GtkGLArea` 使用，每一幀都由 CPU 繪製。幾何效果在兩種繪製器上都會繪出(cairo 繪製器需要什麼，見
+    /// AffineTransform2D)。
     ///
     /// `GDK_DEBUG=dcomp` 是功能開關而非記錄類別——GDK 自己將它列為
     /// 「Enable Direct Composition (Windows)」。此處採「附加」而非「指派」，以免丟棄既有的
@@ -522,11 +518,10 @@ public final class GtkBackend:
             // hardware"). `-GPU 0` is the software opt-out, and
             // `SCUI_GTK_DCOMP=0` turns off just this.
             //
-            // Without dcomp GTK falls back to GskCairoRenderer, which cannot
-            // draw a transform node, so offset, rotationEffect, scaleEffect and
-            // transformEffect would not apply on Win-gtk4. Measured on P40 with
-            // the transform probe: 76,285 hotpink pixels with dcomp off, 0 with
-            // it on, and every transform correct (2026-09-05). P11, P15-DARK
+            // Without dcomp GTK falls back to GskCairoRenderer, which is
+            // software. Geometric effects render on both: GtkBackend writes
+            // each transform as translate, rotate and scale steps, which the
+            // cairo renderer accepts (see AffineTransform2D). P11, P15-DARK
             // and P25 captured both ways differ only in glyph antialiasing and
             // colour rounding between the cairo and GL renderers: of P25's
             // 128,510 differing pixels, 711 exceed a delta of 8.
@@ -534,9 +529,8 @@ public final class GtkBackend:
             // `>= 1`,亦即 Direct Composition **預設開啟**,與 `DebugFeatures.gpuSelection` 文件中 `1` 的意義
             // (「預設值，要求硬體」)一致。`-GPU 0` 是軟體退路，而 `SCUI_GTK_DCOMP=0` 只關閉這一項。
             //
-            // 沒有 dcomp 時 GTK 會退回 GskCairoRenderer,它畫不出 transform node,於是 offset、rotationEffect、
-            // scaleEffect 與 transformEffect 在 Win-gtk4 上不會套用。於 P40 搭配 transform 探針實測:dcomp 關閉時
-            // 76,285 個 hotpink 像素，開啟時為 0,且每一個變換都正確(2026-09-05)。P11、P15-DARK 與 P25 各擷取兩次
+            // 沒有 dcomp 時 GTK 會退回軟體的 GskCairoRenderer。幾何效果在兩者上都會繪製:GtkBackend 把每個變換寫成
+            // cairo renderer 接受的平移、旋轉與縮放步驟(見 AffineTransform2D)。P11、P15-DARK 與 P25 各擷取兩次
             // 比對，唯一的差異是 cairo 與 GL 兩種 renderer 之間的字形反鋸齒與色彩捨入:P25 的 128,510 個相異像素中，
             // 僅 711 個差幅超過 8。
             let forcedOff = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "0"
@@ -605,39 +599,8 @@ public final class GtkBackend:
             // 使用 `g_setenv` 而非 `setenv`：後者在 Windows 的 Swift 中不在作用域內，而前者正是
             // GDK 自己會讀回的那一個。
             _ = g_setenv("GDK_DEBUG", value, 1)
-            directCompositionEnabled = true
         #endif
     }
-
-    /// Whether this process asked GDK for Direct Composition and got past every
-    /// guard that would have made asking crash.
-    ///
-    /// Read by ``setGeometricEffect(_:ofWidget:)``, which is the whole reason it
-    /// exists. Without Direct Composition GTK falls back to `GskCairoRenderer`,
-    /// which cannot draw a transform node and paints the subtree hotpink
-    /// instead; with it GTK realises `GskGLRenderer` and draws transforms
-    /// correctly. Those are different behaviours, so the transform path has to
-    /// know which one it is running under.
-    ///
-    /// It records what HAPPENED rather than what was asked for. Three things
-    /// can stop the request after the flag says yes -- an explicit
-    /// `GDK_DISABLE=gl`, no hardware display adapter, and `-GPU 0` -- and each
-    /// leaves GTK on the software renderer. Reading the request instead of the
-    /// outcome would put the transform back on exactly the configurations that
-    /// cannot render it.
-    ///
-    /// 本行程是否向 GDK 要求了 Direct Composition，並通過了所有「若貿然要求就會當機」的守衛。
-    ///
-    /// 由 ``setGeometricEffect(_:ofWidget:)`` 讀取，而那正是它存在的全部理由。沒有 Direct
-    /// Composition 時，GTK 會退回 `GskCairoRenderer`，它畫不出 transform node，並改以 hotpink
-    /// 塗滿該子樹；有了它，GTK 會實作 `GskGLRenderer` 並正確繪出變換。兩者行為不同，因此變換
-    /// 路徑必須知道自己正運行在哪一種之下。
-    ///
-    /// 它記錄的是**實際發生的事**，而非「要求了什麼」。即使旗標為是，仍有三件事會中止該要求——
-    /// 明確設定的 `GDK_DISABLE=gl`、沒有硬體顯示介面卡，以及 `-GPU 0`——而每一種都會讓 GTK
-    /// 留在軟體繪製器上。若讀的是「要求」而非「結果」，就會把變換重新開在那些恰好無法繪製它的
-    /// 組態上。
-    nonisolated(unsafe) private(set) static var directCompositionEnabled = false
 
     #if os(Windows)
         /// Whether Windows reports a display adapter that is not a software one.
@@ -1452,6 +1415,13 @@ public final class GtkBackend:
         // the pass that can measure it; the next pass tries again.
         // 仍為零代表配置尚未發生，因此這一輪無法量測；下一輪會再試。
         guard allocated.width > 0, allocated.height > 0 else { return }
+
+        // Once per window. `updateWindow` runs on every layout pass; reporting on
+        // each one would repeat the same lines and, in SCUI_DEBUG builds, queue two
+        // more timers every time. The first real allocation is the reading.
+        // 每個視窗只回報一次。`updateWindow` 每次排版都會執行；每次都回報會重複印出相同的行，而且在 SCUI_DEBUG
+        // 建置中每次都再排兩個計時器。第一次真正的配置就是要的讀數。
+        requestedContentSizes[key] = nil
 
         let shortfallX = requested.x - allocated.width
         let shortfallY = requested.y - allocated.height

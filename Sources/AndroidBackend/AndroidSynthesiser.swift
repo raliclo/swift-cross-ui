@@ -1015,6 +1015,20 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .delete: 67 // KEYCODE_DEL, which is backspace
             case .forwardDelete: 112 // KEYCODE_FORWARD_DEL
             case .escape: 111
+            // KEYCODE_BACK, posted like every other key: a focused sheet first (a Dialog cancels on
+            // Back), then Activity.dispatchKeyEvent -> Activity.onKeyUp -> onBackPressed -> the
+            // OnBackPressedDispatcher, which is where a real Back key lands while the manifest leaves
+            // enableOnBackInvokedCallback unset (it does). Measured 2026-10-28 with
+            // actions/android/P113-back.actions against `adb shell input keyevent KEYCODE_BACK`
+            // (test_support/p113_back_android.zsh): the same "Back ignored" while not closable, and the
+            // same close once closable. With that attribute set, ViewRootImpl hands Back to
+            // OnBackInvokedCallback before the activity sees the key, and this row would not reach it.
+            // KEYCODE_BACK,與其他按鍵一樣投遞：先給有焦點的 sheet(Dialog 收到返回會取消),再經 Activity.dispatchKeyEvent ->
+            // Activity.onKeyUp -> onBackPressed -> OnBackPressedDispatcher;manifest 未設 enableOnBackInvokedCallback(現在就是)
+            // 時，真正的返回鍵也落在那裡。2026-10-28 以 actions/android/P113-back.actions 對照 `adb shell input keyevent
+            // KEYCODE_BACK`(test_support/p113_back_android.zsh)實測：不可關閉時同樣「Back ignored」,可關閉後同樣關閉。設了
+            // 該屬性時,ViewRootImpl 會在 activity 看到按鍵之前就把返回交給 OnBackInvokedCallback,這一列便到不了。
+            case .back: 4
             case .space: 62
             case .tab: 61
             case .return: 66 // KEYCODE_ENTER

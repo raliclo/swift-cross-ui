@@ -292,7 +292,13 @@ public struct EnvironmentValues {
     /// moment).
     @MainActor
     public var openURL: OpenURLAction {
-        OpenURLAction(backend: backend)
+        get {
+            let system = OpenURLAction(backend: backend)
+            return customOpenURL?.resolved(fallingBackTo: system) ?? system
+        }
+        set {
+            customOpenURL = newValue
+        }
     }
 
     /// Opens a window with the specified ID.

@@ -2023,6 +2023,10 @@
                 case .space: code = kVK_Space
                 case .tab: code = kVK_Tab
                 case .return: code = kVK_Return
+                // A Mac has no Back key, and Command-[ is a shortcut some apps bind,
+                // not a key; nil, so the row is refused instead of pressing something else.
+                // Mac 沒有返回鍵，而 Command-[ 是部分 app 綁定的快捷鍵，不是一個鍵;回傳 nil,讓該列被拒絕，而不是按下別的東西。
+                case .back: return nil
                 case .leftArrow: code = kVK_LeftArrow
                 case .rightArrow: code = kVK_RightArrow
                 case .upArrow: code = kVK_UpArrow

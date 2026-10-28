@@ -98,12 +98,6 @@ open class GObject: GObjectRepresentable {
     /// GParamSpec as a SignalBox0 and calls whatever its memory happens to hold
     /// as the closure, which crashes rather than failing to fire. That is the
     /// crash reported when GtkSettings notifications were tried for issue #27.
-    ///
-    /// ``ApplicationWindow`` escapes this only by accident: it subscribes to
-    /// `notify::is-active` through the one-parameter overload, whose handler has
-    /// three C parameters, so `user_data` arrives in the right place. Its
-    /// `gboolean` argument is really the GParamSpec pointer, which is why the
-    /// value it reports is not the property value.
     func addNotificationSignal(name: String, callback: @escaping () -> Void) {
         let box = SignalBox0(callback: callback)
         let handler:

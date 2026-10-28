@@ -117,9 +117,13 @@ open class Fixed: Widget {
 
     private func setChildTransform(_ child: Widget, x: Double, y: Double, matrix m: [Double]) {
         var point = graphene_point_t(x: Float(x), y: Float(y))
-        var matrix = graphene_matrix_t()
-        graphene_matrix_init_from_2d(&matrix, m[0], m[1], m[2], m[3], m[4], m[5])
-        let transform = gsk_transform_matrix(gsk_transform_translate(nil, &point), &matrix)
+        // Steps, not gsk_transform_matrix: a matrix is filed as category UNKNOWN,
+        // and the software renderer paints such a node hotpink. See
+        // AffineTransform2D.
+        // 以步驟而非 gsk_transform_matrix 建立：矩陣會被歸為 UNKNOWN 類別，而軟體 renderer 會把這種節點
+        // 畫成 hotpink。見 AffineTransform2D。
+        let steps = AffineTransform2D(a: m[0], b: m[1], c: m[2], d: m[3], tx: m[4], ty: m[5])
+        let transform = steps.appending(to: gsk_transform_translate(nil, &point))
         gtk_fixed_set_child_transform(castedPointer(), child.widgetPointer, transform)
         gsk_transform_unref(transform)
     }

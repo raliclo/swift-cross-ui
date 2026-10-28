@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P113 on Android: Back (the key row `back`) must not close a window that is not closable, and must once "closable" is on.
+# Pass, read from logcat: "SCUI-WindowBehaviors: Back ignored" twice (the main window, then the second window), then
+# "closable=true" for the second window and the second window gone after the third Back, then "closable=true" for the
+# main window; the final capture is the launcher, because the last Back, with the main window closable, sends the app
+# to the background. Rows press by text, so they hold on any AVD. Written 2026-10-28 on swift-cross-ui-api36b.
+# P113 在 Android 上：返回(按鍵列 `back`)不能關閉不可關閉的視窗，打開「closable」後則要關閉。通過(讀 logcat):
+# 「SCUI-WindowBehaviors: Back ignored」兩次(主視窗、第二個視窗),接著第二個視窗「closable=true」、第三次返回後第二個視窗
+# 消失，再來主視窗「closable=true」;最終擷圖是 launcher,因為最後一次返回時主視窗可關閉,app 被送到背景。以文字按壓，
+# 任何 AVD 都適用。2026-10-28 寫於 swift-cross-ui-api36b。
+sleep,,,,,,2000000,let P113 lay out,android
+key,,,,,back,,Back on the main window while not closable -- it stays,android
+sleep,,,,,,1000000,,android
+taplabel,,,,,open second window,,open the second window,android
+sleep,,,,,,2500000,let the second window come to the front,android
+focus,,,,,,,send the rest to the second window,android,P113 second window
+key,,,,,back,,Back on the second window while not closable -- it stays,android
+sleep,,,,,,1000000,,android
+taplabel,,,,,closable,,turn closable on in the second window,android
+sleep,,,,,,1000000,,android
+key,,,,,back,,Back on the second window now closable -- it closes,android
+sleep,,,,,,2000000,let the main window come back,android
+focus,,,,,,,the main window again,android,P113 window behaviors
+taplabel,,,,,closable,,turn closable on in the main window,android
+sleep,,,,,,1000000,,android
+key,,,,,back,,Back on the main window now closable -- the app goes to the background,android
+sleep,,,,,,1000000,,android

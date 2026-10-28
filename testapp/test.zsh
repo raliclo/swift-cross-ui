@@ -323,7 +323,7 @@ case "$(uname -s)" in
         # test_support/check_wsl_host.zsh for why each matters (2026-10-23).
         # WSL 執行在 Windows 這一側的狀態:vhdx 是否稀疏、C: 剩餘空間、.wslconfig 的記憶體設定。只發警告，
         # 只在有問題時印出；各項的理由見 test_support/check_wsl_host.zsh(2026-10-23)。
-        case " $* " in
+        case " ${forward_args[*]-} " in
             *" --wsl "*|*" --both "*)
                 zsh "$script_dir/test_support/check_wsl_host.zsh" --quiet || true
                 ;;

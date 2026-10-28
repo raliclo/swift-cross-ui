@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 // 「最近使用」裡的一個獨立工作，在平板或折疊機上可在分割畫面中與第一個並排(FLAG_ACTIVITY_LAUNCH_ADJACENT),在桌面
 // 模式的裝置上則是可縮放的獨立視窗。AndroidBackend 在 Swift 中建好視窗內容，以 token 放進 ScuiWindows,再帶著
 // 該 token 啟動此 activity;activity 把內容據為己有。
-class ScuiWindowActivity : AppCompatActivity() {
+open class ScuiWindowActivity : AppCompatActivity() {
     private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +36,9 @@ class ScuiWindowActivity : AppCompatActivity() {
         (content.parent as? ViewGroup)?.removeView(content)
         setContentView(content)
         ScuiWindows.activities[token] = this
+        // Closable, minimizable and resizable, set before the activity existed (WindowBehaviors.kt).
+        // 在 activity 存在之前就設定的 closable、minimizable 與 resizable(WindowBehaviors.kt)。
+        ScuiWindowBehaviors.activityCreated(this, token)
         // The window's size is whatever this activity is given -- full screen,
         // half of a split, a free-form window -- and changes with it, so Swift
         // hears about every new size rather than computing one up front.
@@ -56,6 +59,7 @@ class ScuiWindowActivity : AppCompatActivity() {
             ScuiWindows.contents.remove(token)
             ScuiWindows.titles.remove(token)
             ScuiWindows.onResized.remove(token)
+            ScuiWindowBehaviors.windowClosed(this, token)
             ScuiWindows.onClosed.remove(token)?.call()
         }
         super.onDestroy()
