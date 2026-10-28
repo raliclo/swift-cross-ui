@@ -588,6 +588,21 @@ replay_failures=0
 # 所以每個視窗都能由它的主人還原；`winmin.exe --restore` 可撤銷。
 clear_desktop_windows() {
     local winmin="$script_dir/helper/bin/winmin.exe"
+    local source="$script_dir/winmin.swift"
+    # Built here when missing or older than its source, as touch_gesture.zsh
+    # does for its tool. helper/bin is not tracked, so a fresh checkout had no
+    # winmin.exe, and every run printed "NOT minimised" and went on with the
+    # desktop as it was (found 2026-10-29: helper/bin held no winmin.exe).
+    # About 9 s with swiftc -O.
+    # 不存在或比原始碼舊時在此建置，與 touch_gesture.zsh 對其工具的做法相同。helper/bin 不受版本控制，
+    # 所以新的 checkout 沒有 winmin.exe,每次執行都印出「NOT minimised」並照桌面原樣繼續(2026-10-29 發現：
+    # helper/bin 裡沒有 winmin.exe)。swiftc -O 約需 9 秒。
+    if [[ -f "$source" && ( ! -x "$winmin" || "$source" -nt "$winmin" ) ]]; then
+        printf '==> Desktop: building %s\n' "${winmin:t}"
+        mkdir -p "${winmin:h}"
+        swiftc -O "$source" -o "$winmin" >/dev/null 2>&1 \
+            || printf '!! Desktop: swiftc could not build %s\n' "${winmin:t}" >&2
+    fi
     if [ ! -x "$winmin" ]; then
         printf '==> Desktop: %s missing; windows NOT minimised\n' "${winmin:t}"
         return 0

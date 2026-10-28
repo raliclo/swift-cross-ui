@@ -62,7 +62,9 @@ makes the next acquire wait (300 s).
   `--both` printed the "no WSL distribution named NoSuch" warning and still ran
   the test; `--windows` did not run the check.
 - `helper/bin/winmin.exe` has no build step; when missing, test.zsh only prints
-  "NOT minimised".
+  "NOT minimised". **Fixed 2026-10-29**: `clear_desktop_windows` in
+  test_common.zsh builds it with `swiftc -O testapp/winmin.swift` (about 9 s)
+  when it is missing or older than its source; helper/bin had no winmin.exe at all.
 
 See also [harness-wincap.md](harness-wincap.md),
 [harness-input-injection.md](harness-input-injection.md),
@@ -116,7 +118,7 @@ windows 列)寫成。
   `check_wsl_host.zsh` 從未執行。應改查 `forward_args`(46b6d83e 加入，未驗證)。
   **a92edee1 已修正，2026-10-29 驗證**:以暫時的 `test_support/test_P999.zsh` 加 `TEST_WSL_DISTRO=NoSuch`,`--wsl`
   與 `--both` 都印出「no WSL distribution named NoSuch」警告且照常執行測試;`--windows` 不執行此檢查。
-- `helper/bin/winmin.exe` 沒有建置步驟；不存在時 test.zsh 只印出「NOT minimised」。
+- `helper/bin/winmin.exe` 沒有建置步驟；不存在時 test.zsh 只印出「NOT minimised」。**2026-10-29 已修正**:test_common.zsh 的 `clear_desktop_windows` 在它不存在或比原始碼舊時，以 `swiftc -O testapp/winmin.swift` 建置(約 9 秒);當時 helper/bin 裡根本沒有 winmin.exe。
 
 另見 [harness-wincap.md](harness-wincap.md)、[harness-input-injection.md](harness-input-injection.md)、
 [action-files.md](action-files.md)。
