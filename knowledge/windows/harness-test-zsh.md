@@ -57,6 +57,10 @@ makes the next acquire wait (300 s).
 - `test.zsh:326` tests `case " $* "` for `--wsl`/`--both` after the parse loop
   has shifted every argument away, so `check_wsl_host.zsh` never runs. It should
   test `forward_args` (added in 46b6d83e, not verified).
+  **Fixed in a92edee1 and verified 2026-10-29**: with a throwaway
+  `test_support/test_P999.zsh` and `TEST_WSL_DISTRO=NoSuch`, `--wsl` and
+  `--both` printed the "no WSL distribution named NoSuch" warning and still ran
+  the test; `--windows` did not run the check.
 - `helper/bin/winmin.exe` has no build step; when missing, test.zsh only prints
   "NOT minimised".
 
@@ -110,6 +114,8 @@ windows 列)寫成。
 
 - `test.zsh:326` 在解析迴圈已把所有引數 shift 掉之後，才以 `case " $* "` 檢查 `--wsl`/`--both`,所以
   `check_wsl_host.zsh` 從未執行。應改查 `forward_args`(46b6d83e 加入，未驗證)。
+  **a92edee1 已修正，2026-10-29 驗證**:以暫時的 `test_support/test_P999.zsh` 加 `TEST_WSL_DISTRO=NoSuch`,`--wsl`
+  與 `--both` 都印出「no WSL distribution named NoSuch」警告且照常執行測試;`--windows` 不執行此檢查。
 - `helper/bin/winmin.exe` 沒有建置步驟；不存在時 test.zsh 只印出「NOT minimised」。
 
 另見 [harness-wincap.md](harness-wincap.md)、[harness-input-injection.md](harness-input-injection.md)、
