@@ -1,9 +1,9 @@
 #!/usr/bin/env zsh
-# Builds GTK 4.22.4 with the ACCESSKIT backend on Windows, into its own prefix,
+# Builds GTK 4.24.1 with the ACCESSKIT backend on Windows, into its own prefix,
 # because no published binary has it and without it GtkBackend has no
 # accessibility on this platform at all.
 #
-#   zsh testapp/install_gtk4_accesskit_windows.zsh --source C:/path/to/gtk-4.22.4
+#   zsh testapp/install_gtk4_accesskit_windows.zsh --source testapp/gtk4-source
 #   zsh testapp/install_gtk4_accesskit_windows.zsh --prefix C:/gtk4-accesskit --build C:/gtk4-akbuild
 #   zsh testapp/install_gtk4_accesskit_windows.zsh --help
 #
@@ -14,13 +14,21 @@
 # gvsbuild 2026.8.0, MSYS2 4.24.0, conda-forge 4.22.5 and vcpkg 4.22.5 -- none
 # enable it. GTK's own MSVC CI does (`.gitlab-ci/test-msvc.bat`) but keeps only
 # logs.
+# Rechecked 2026-10-29: gvsbuild 2026.10.0 (GTK 4.24.1) still has `accesskit -
+# Disabled during GTK build` and no accesskit symbol in gtk-4-1.dll.
+# The source used then: testapp/gtk4-source on branch `develop` of
+# https://github.com/raliclo/gtk -- 4.24.1 plus a fix for the touch-device
+# use-after-free (todo-Gtk.md) -- with `--source testapp/gtk4-source`.
+# 2026-10-29 重查:gvsbuild 2026.10.0(GTK 4.24.1)仍是 `accesskit - Disabled during GTK build`,gtk-4-1.dll 裡沒有
+# 任何 accesskit 符號。當時所用的原始碼:testapp/gtk4-source,位於 https://github.com/raliclo/gtk 的 `develop`
+# 分支——4.24.1 加上觸控裝置 use-after-free 的修正(todo-Gtk.md)。
 #
 # WHAT IT BUILDS. Only GTK. Its dependencies come from the bundle already in
 # C:/gtk4 through pkgconf, and nothing is written into that bundle: the result
 # goes to a separate prefix, so a broken build cannot take the working one down.
 # Point an app at it with PATH=C:/gtk4-accesskit/bin;C:/gtk4/bin;...
 #
-# 在 Windows 上建置**啟用 AccessKit** 的 GTK 4.22.4,安裝到獨立前綴——因為沒有任何已發布的二進位檔
+# 在 Windows 上建置**啟用 AccessKit** 的 GTK 4.24.1,安裝到獨立前綴——因為沒有任何已發布的二進位檔
 # 開啟它,而少了它,GtkBackend 在這個平台上完全沒有無障礙支援。
 #
 # 只建 GTK 本身:依賴取自 C:/gtk4 既有的 bundle(經 pkgconf),且不寫入該 bundle。
@@ -57,7 +65,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$source_dir" ]]; then
-    printf 'Give --source <dir>, a GTK 4.22.4 source tree (meson.build at its root).\n' >&2
+    printf 'Give --source <dir>, a GTK 4.24.1 source tree (meson.build at its root).\n' >&2
     exit 2
 fi
 
@@ -119,8 +127,28 @@ export PKG_CONFIG_PATH="${bundle}\\lib\\pkgconfig"
 export CC=clang-cl
 export CXX=clang-cl
 
+# GTK's <tgmath.h> users (4.24.1: gsk/gskturbulencenode.c, gtk/svg/*) do not
+# build with clang-cl against the MSVC CRT: clang's tgmath.h passes
+# `_Complex float` where the CRT declares `_Fcomplex` (`tgmath.h(72,50): error:
+# passing '_Complex float' to parameter of incompatible type '_Fcomplex'`). They
+# use the type-generic names on real numbers only, so a tgmath.h that is just
+# <math.h>, found first through -I, builds them unchanged. Until 2026-10-29 this
+# was an edit to gtk/gtksvg.c inside the source tree, recorded nowhere else.
+# GTK 中用到 <tgmath.h> 的檔案無法以 clang-cl 對 MSVC CRT 建置:clang 的 tgmath.h 傳入 `_Complex float`,而 CRT
+# 宣告的是 `_Fcomplex`。它們只對實數使用型別泛型名稱，所以一個只 include <math.h> 的 tgmath.h,經 -I 優先找到，
+# 就能原封不動地建置。2026-10-29 之前這是對原始碼樹中 gtk/gtksvg.c 的修改，除了那棵樹之外沒有任何紀錄。
+shim="$(cygpath -u "$build")-tgmath"
+mkdir -p "$shim"
+printf '%s\n' '#pragma once' '#include <math.h>' > "$shim/tgmath.h"
+shim_win="$(cygpath -m "$shim")"
+
 printf 'configuring %s -> %s\n' "$source_dir" "$prefix"
-python -m mesonbuild.mesonmain setup "$build" "$source_dir" \
+# A build directory left by a failed run is configured afresh (--wipe) rather
+# than refused; meson otherwise stops with "Directory already configured".
+# 失敗留下的 build 目錄會從頭重新設定(--wipe)而不是被拒絕；否則 meson 會以「Directory already configured」停下。
+reconfigure=()
+[[ -f "$(cygpath -u "$build")/build.ninja" ]] && reconfigure=(--wipe)
+python -m mesonbuild.mesonmain setup "${reconfigure[@]}" "$build" "$source_dir" \
     --prefix "$prefix" --buildtype release \
     -Dintrospection=disabled -Dbuild-tests=false -Dbuild-testsuite=false \
     -Dbuild-demos=false -Dbuild-examples=false \
@@ -128,15 +156,21 @@ python -m mesonbuild.mesonmain setup "$build" "$source_dir" \
     -Dsysprof=disabled -Dglib:sysprof=disabled \
     -Dx11-backend=false -Dwayland-backend=false -Dwin32-backend=true \
     -Daccesskit=enabled -Daccesskit-c:triplet=x86_64-pc-windows-msvc \
-    -Dc_args=-D_USE_MATH_DEFINES \
-    -Df16c=disabled
+    "-Dc_args=['-D_USE_MATH_DEFINES','-I${shim_win}']" \
+    -Df16c=disabled \
+    -Dlibsass:cpp_std=c++17
 
 # `-D_USE_MATH_DEFINES`: GTK adds it only for `cc.get_id() == 'msvc'`, so
 # clang-cl misses it and gsk fails on `M_LN2`.
 # `-Df16c=disabled`: the F16C fast path uses GNU ifunc attributes, which do not
 # exist in COFF, so the link fails on `half_to_float` / `float_to_half`.
+# `-Dlibsass:cpp_std=c++17`: a git checkout builds its theme with sassc, from
+# the libsass subproject, which asks for C++11; the STL of MSVC 14.44.35207
+# then fails in __msvc_bit_utils.hpp with "statement not allowed in constexpr
+# function" (2026-10-29).
 # 前者:GTK 只為 msvc 加上該定義,clang-cl 會漏掉而死在 `M_LN2`。後者:F16C 快路徑用 GNU ifunc,COFF 沒有它,
-# 連結會死在 `half_to_float`。
+# 連結會死在 `half_to_float`。最後一項:git checkout 以 sassc 建置主題,來自要求 C++11 的 libsass 子專案;
+# MSVC 14.44.35207 的 STL 於是在 __msvc_bit_utils.hpp 失敗(「statement not allowed in constexpr function」,2026-10-29)。
 
 ninja -C "$build"
 python -m mesonbuild.mesonmain install -C "$build"

@@ -396,6 +396,7 @@ public final class GtkBackend:
         #endif
         Self.enableDirectCompositionIfRequested()
         Self.enablePerMonitorDPIAwareness()
+        Self.useFontconfigForPango()
         #if os(Linux)
             Self.addWindowsUIFontUnderWSL()
         #endif
@@ -478,6 +479,35 @@ public final class GtkBackend:
     private static func enablePerMonitorDPIAwareness() {
         #if os(Windows)
             g_setenv("GDK_WIN32_PER_MONITOR_HIDPI", "1", 0)
+        #endif
+    }
+
+    /// Asks PangoCairo for its fontconfig font map on Windows, so a character
+    /// followed by U+FE0F is drawn in colour.
+    ///
+    /// `EmojiKeywordModel.displayed` adds U+FE0F to a text-style emoji (🅿 ✈ ❤)
+    /// so it is drawn in colour. Pango then asks for the family `emoji` with
+    /// colour, and the win32 font map resolves neither that nor an explicit
+    /// "Segoe UI Emoji": `couldn't load font "emoji Not-Rotated With-Color 20"`,
+    /// `All font fallbacks failed`, and a hex box -- P103's 🅿 ✈ ❤ on GTK 4.22.4
+    /// and 4.24.1 alike. Measured 2026-10-29 with a small GTK program drawing
+    /// the three with and without U+FE0F in five font families: under the win32
+    /// map every U+FE0F case was a box (15 warnings); under fontconfig all were
+    /// drawn in colour from Segoe UI Emoji, with no warnings, and the plain
+    /// characters stayed monochrome.
+    ///
+    /// `overwrite` is false, so `PANGOCAIRO_BACKEND=win32` still wins.
+    ///
+    /// 在 Windows 上要求 PangoCairo 使用 fontconfig 字型對應，讓後接 U+FE0F 的字元以彩色繪製。
+    /// `EmojiKeywordModel.displayed` 會替文字樣式的 emoji(🅿 ✈ ❤)加上 U+FE0F 以彩色繪製。Pango 接著要求帶顏色的
+    /// `emoji` 家族，而 win32 字型對應既解析不出它，也解析不出明確指定的「Segoe UI Emoji」:先是
+    /// `couldn't load font "emoji Not-Rotated With-Color 20"`、`All font fallbacks failed`,然後畫成 hex 方框——
+    /// P103 的 🅿 ✈ ❤ 在 GTK 4.22.4 與 4.24.1 上都是如此。2026-10-29 以一支小 GTK 程式實測(三個字元帶與不帶
+    /// U+FE0F,五種字型家族):win32 對應下每個帶 U+FE0F 的都是方框(15 則警告);fontconfig 下全部由 Segoe UI Emoji
+    /// 畫成彩色、沒有警告，不帶選擇符的字元仍是單色。`overwrite` 為 false,因此 `PANGOCAIRO_BACKEND=win32` 仍然勝出。
+    private static func useFontconfigForPango() {
+        #if os(Windows)
+            g_setenv("PANGOCAIRO_BACKEND", "fc", 0)
         #endif
     }
 

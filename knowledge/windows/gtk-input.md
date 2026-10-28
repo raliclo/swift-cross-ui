@@ -39,6 +39,30 @@ then a crash: `gdkinput-winpointer.c` frees a touch device still in use.
 (9dd625ac; 10 of 10 runs alive). Listed in todo-Gtk.md; not reported upstream
 (last checked 2026-10-24).
 
+**2026-10-29: still in 4.24.1; root cause found and fixed in our GTK fork.**
+The heading says 4.22.4 because that is where it was found.
+- *The protection* is `scui_retain_removed_devices()` (gtk_device_lifetime.c),
+  called from GtkBackend before any window exists. `SCUI_GTK_KEEP_REMOVED_DEVICES=0`
+  now skips it, to test a GTK without it (4fa61ef2).
+- *Root cause*, read in 4.24.1's source: the virtual core pointer keeps a plain
+  pointer to the physical device that sent the last event
+  (`_gdk_device_virtual_set_active`, gdkinput-winpointer.c) and forwards
+  `query_state` to it. `winpointer_enumerate_devices` drops both references to
+  a removed touch device without resetting it, so the next pointer query on the
+  core pointer reads a freed device. GtkWindow and GdkDisplay do clean up on
+  `device-removed`; the core pointer is the holder that does not.
+- *Fix*: f25d596 on branch `develop` of https://github.com/raliclo/gtk resets
+  the core pointer to the system pointer before the device is freed.
+  `C:/gtk4-accesskit` is built from it.
+- *Measured*, P11 --nested-slider through test.zsh, a touch drag on the
+  vertical slider with the device destroyed at the lift, protection off,
+  builds alternated, touch delivered every run: gvsbuild 4.22.4 died 2/6,
+  gvsbuild 4.24.1 4/6 (both after the critical); with the protection on,
+  4.24.1 6/6 alive. Then 4.24.1 with f25d596 6/6 alive, 0 criticals, against
+  gvsbuild 4.24.1 5/6 dead. The protection stays: other machines run
+  gvsbuild's GTK, and Linux was never measured.
+- Not reported upstream yet: that needs explicit approval (todo-Gtk.md).
+
 ## Other input facts
 
 - GTK on Windows focuses the `TextEditor` at start, so a Tab in an action file
@@ -83,6 +107,21 @@ GDK 會在共用的 tick 上加一毫秒。
 觸控拖曳之後出現 `gdk_device_get_display: assertion 'GDK_IS_DEVICE (device)'`,接著當機:
 `gdkinput-winpointer.c` 釋放了仍在使用的觸控裝置。`gtk_device_lifetime.c` 多取一個永不釋放的參照(9dd625ac;
 10 次執行 10 次存活)。已列入 todo-Gtk.md;尚未回報上游(最後檢查 2026-10-24)。
+
+**2026-10-29:4.24.1 依然存在；根因已找到，並在我們的 GTK fork 修正。** 標題寫 4.22.4,是因為當初在那個版本發現。
+- *保護*是 `scui_retain_removed_devices()`(gtk_device_lifetime.c),由 GtkBackend 在任何視窗存在之前呼叫。現在
+  `SCUI_GTK_KEEP_REMOVED_DEVICES=0` 可略過它，用來測試不靠它的 GTK(4fa61ef2)。
+- *根因*(讀 4.24.1 原始碼):虛擬 core pointer 以裸指標記住送出最後一個事件的實體裝置
+  (`_gdk_device_virtual_set_active`,gdkinput-winpointer.c),並把 `query_state` 轉給它。
+  `winpointer_enumerate_devices` 丟掉被移除觸控裝置的兩個參考，卻沒有重設它，於是下一次對 core pointer 的指標查詢
+  讀到已釋放的裝置。GtkWindow 與 GdkDisplay 都會在 `device-removed` 時清理；沒清理的是 core pointer。
+- *修正*:https://github.com/raliclo/gtk 的 `develop` 分支上的 f25d596,在釋放裝置前把 core pointer 改回 system
+  pointer。`C:/gtk4-accesskit` 即由它建置。
+- *實測*:經 test.zsh 跑 P11 --nested-slider,在垂直滑桿上觸控拖曳、抬起時銷毀裝置，保護關閉、版本交錯、每次觸控
+  都送達:gvsbuild 4.22.4 崩 2/6、gvsbuild 4.24.1 崩 4/6(都在斷言之後);保護開啟時 4.24.1 6/6 存活。接著
+  4.24.1 加 f25d596:6/6 存活、0 個斷言，對照 gvsbuild 4.24.1 崩 5/6。保護保留：其他機器跑的是 gvsbuild 的 GTK,
+  而 Linux 從未量過。
+- 尚未回報上游：那需要明確同意(todo-Gtk.md)。
 
 ## 其他輸入事實
 

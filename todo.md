@@ -3278,40 +3278,65 @@ Set 2026-09-17. Pick these up only when nothing above is open.
   的事(未設標籤的按鈕靠內容算名字)。真正剩下的一項是 `Text` 的標籤覆寫,已記入 `todo-Gtk.md` 交上游。
   目前計分:WinUI 18/18、GTK 18 項中 14 項通過。
 
-- [ ] **GTK 4.24.1 evaluation: three things to finish (Windows, 2026-10-29).**
+- [x] **GTK 4.24.1 evaluation: three things to finish (Windows, 2026-10-29).**
   Measured with gvsbuild 2026.10.0 unpacked at `C:/gtk4-424` and selected with
   `GTK4_PREFIX=C:/gtk4-424`; that build has no AccessKit (0 symbols), so it is
   a test runtime, not a replacement for `C:/gtk4-accesskit` (4.22.4).
-  - **Emoji drawn as hex boxes, still on 4.24.1.** P103 under both runtimes
+  - [x] **Emoji drawn as hex boxes, still on 4.24.1.** P103 under both runtimes
     (`p103-windows-final-20261029-005233.png` on 4.22.4,
     `p103-windows-final-20261029-013735.png` on 4.24.1): U+1F17F, U+2708 and
     U+2764 are boxes on both. All three default to text presentation, so the
     fix is ours (fix-list item 5): a U+FE0F, or a font fallback to Segoe UI
     Emoji. Also seen: 4.24.1 draws Segoe UI Emoji's COLRv1 glyphs (gradient,
     3D), 4.22.4 the flat ones.
-  - **P97 start, only 3 rounds.** Interleaved, minimum of 3 per cell: warm-up
+    **Fixed 2026-10-29, and the fix proposed above was wrong.** U+FE0F is the
+    cause, not the cure: `EmojiKeywordModel.displayed` already adds it, and
+    Pango's win32 font map cannot draw a character followed by it (no `emoji`
+    family; an explicit "Segoe UI Emoji" fails the same way). GtkBackend now
+    defaults `PANGOCAIRO_BACKEND=fc` on Windows; P103 draws 🅿 ✈ ❤ in colour,
+    Chinese as before, no fallback warning
+    (`p103-windows-final-20261029-045945.png`).
+  - [x] **P97 start, only 3 rounds.** Interleaved, minimum of 3 per cell: warm-up
     on 0.27 s on both versions, off 0.36 (4.22.4) / 0.34 (4.24.1); spread
     0.27-0.94. So 4.24 did not make the first frame faster and the warm-up
     stays, but 3 rounds is short of the 10 a load-bearing number needs. Script:
     scratchpad `p97_gtk_compare.zsh`; the starts are the `ROW linear 1s` lines
     of `testapp/debug-events/p97-timing.log` (the harness sets
     SCUI_DEBUG_EVENTS_DIR, so a caller's own value is overridden).
+    **Ten rounds, 2026-10-29** (4.24.1 only, interleaved, scratchpad
+    `p97_rounds.zsh`): warm-up on + fontconfig min 0.12, median 0.14; warm-up
+    off + fontconfig 0.14 / 0.165; warm-up on + win32 0.20 / 0.22. Fontconfig
+    was faster than win32 in every round, so the Pango switch costs nothing
+    here; the warm-up won 7 rounds and tied 3, about 0.02 s -- kept, but it is
+    no longer a large item.
   - [x] **The device use-after-free on 4.24.1**: settled later on 2026-10-29 -- not fixed in 4.24.1, the workaround stays; see `todo-Gtk.md`.
-  - **M4's held adapter watch (scui-m4held), one leak to report.** GUIDs and
+  - [x] **M4's held adapter watch (scui-m4held), one leak to report.** GUIDs and
     DXCore slots match the 10.0.22621.0 SDK headers; a WSL probe called list
     slot 5 (IsStale 0) and factory slots 5/6/7 (supported 1, register hr 0
     cookie 1, unregister hr 0). But `scui_dxcore_register` drops its cookie and
     never unregisters, so every stale list adds one registration.
+    **Fixed 2026-10-29** (in M4's worktree, not committed): the cookie is kept in a static
+    and revoked through factory slot 7, `UnregisterEventNotification`, before the list
+    is replaced; `gcc -fsyntax-only -Wall -Wextra` in WSL is clean.
 
-- [ ] **GTK 4.24.1 評估：三件待完成(Windows,2026-10-29)。** 以 gvsbuild 2026.10.0(`C:/gtk4-424`,
+- [x] **GTK 4.24.1 評估：三件待完成(Windows,2026-10-29)。** 以 gvsbuild 2026.10.0(`C:/gtk4-424`,
   `GTK4_PREFIX=C:/gtk4-424`)量測；該建置沒有 AccessKit(0 個符號),只是測試用 runtime,不能取代 4.22.4 的
   `C:/gtk4-accesskit`。
-  - **emoji 畫成 hex 方框，4.24.1 依舊。** P103 兩個 runtime 下 U+1F17F、U+2708、U+2764 都是方框；三者預設都是
+  - [x] **emoji 畫成 hex 方框，4.24.1 依舊。** P103 兩個 runtime 下 U+1F17F、U+2708、U+2764 都是方框；三者預設都是
     文字呈現，修正在我們這邊(修正清單第 5 項):加 U+FE0F,或改走 Segoe UI Emoji 的字型後援。另外 4.24.1 畫的是
     Segoe UI Emoji 的 COLRv1 字形(漸層、立體),4.22.4 是平面的。
-  - **P97 start 只跑了 3 輪。** 交錯、各格取最小值:warm-up 開兩版皆 0.27 秒，關 0.36(4.22.4)/0.34(4.24.1);
+    **2026-10-29 已修，上面的修法寫錯了。** 方框正是 U+FE0F 造成的:`EmojiKeywordModel.displayed` 本來就會加上它，而
+    Pango 的 win32 字型對應畫不出帶 U+FE0F 的字元(找不到 `emoji` 家族，連明確指定 Segoe UI Emoji 也一樣)。GtkBackend
+    現在在 Windows 上預設 `PANGOCAIRO_BACKEND=fc`;P103 的 🅿 ✈ ❤ 以彩色繪製，中文照常，沒有 fallback 警告
+    (`p103-windows-final-20261029-045945.png`)。
+  - [x] **P97 start 只跑了 3 輪。** 交錯、各格取最小值:warm-up 開兩版皆 0.27 秒，關 0.36(4.22.4)/0.34(4.24.1);
     分布 0.27-0.94。4.24 沒有讓首幀變快,warm-up 保留；但 3 輪不足以支撐結論，要補到 10 輪。
+    **2026-10-29 已補到 10 輪**(只剩 4.24.1,交錯，scratchpad `p97_rounds.zsh`):warm-up 開 + fontconfig
+    最小 0.12、中位 0.14;warm-up 關 + fontconfig 0.14 / 0.165;warm-up 開 + win32 0.20 / 0.22。fontconfig 每輪都
+    比 win32 快;warm-up 7 輪較快、3 輪持平，差距約 0.02 秒——保留，但已不是大項。
   - [x] **4.24.1 上的裝置 use-after-free**:已定案(2026-10-29 稍後),4.24.1 沒有修好、保護保留；見 `todo-Gtk.md`。
-  - **M4 暫存的介面卡監看(scui-m4held),有一個洩漏要回報。** GUID 與 DXCore 槽位都與 SDK 標頭相符,WSL 探針實際
+  - [x] **M4 暫存的介面卡監看(scui-m4held),有一個洩漏要回報。** GUID 與 DXCore 槽位都與 SDK 標頭相符,WSL 探針實際
     呼叫 list 槽 5 與 factory 槽 5/6/7 皆正常；但 `scui_dxcore_register` 丟掉 cookie、從不 unregister,每次清單
     stale 都多一個註冊。
+    **2026-10-29 已修**(在 M4 的 worktree,未 commit):cookie 存成 static,清單更新前先以 factory 槽 7
+    `UnregisterEventNotification` 撤銷;WSL 上 `gcc -fsyntax-only -Wall -Wextra` 無警告。

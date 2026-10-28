@@ -1,6 +1,6 @@
 # windows
 
-Native Windows: WinUIBackend, and GtkBackend on Windows (GTK 4.22.4, `-gtk4`
+Native Windows: WinUIBackend, and GtkBackend on Windows (GTK 4.24.1, 4.22.4 until 2026-10-29; `-gtk4`
 builds, `Pn-gtk4.exe`). WSL is a separate platform (see the WSL index).
 Index as of 2026-10-24; each line links one topic.
 
@@ -18,7 +18,7 @@ Index as of 2026-10-24; each line links one topic.
 
 ## GtkBackend on Windows
 
-- [GTK runtime and -gtk4 builds](windows/gtk-runtime.md) -- gvsbuild GTK 4.22.4 (not MSYS2/vcpkg), the AccessKit build, `.pc` rewriting, gtk_runtime.zsh PATH, WebView2 for WebView.
+- [GTK runtime and -gtk4 builds](windows/gtk-runtime.md) -- gvsbuild GTK 4.24.1 (4.22.4 until 2026-10-29; not MSYS2/vcpkg), the AccessKit build from the raliclo/gtk fork, `.pc` rewriting, gtk_runtime.zsh PATH, WebView2 for WebView.
 - [Renderer and GPU](windows/gtk-renderer-and-gpu.md) -- Direct Composition on by default; per-exe GPU registry policy; the dGPU wake-up stall (P107, accepted); first-frame warm-up in a throwaway window.
 - [Scale, windows and popovers](windows/gtk-windows-scale-and-popovers.md) -- GTK scale 1 vs Win32 1.25; popovers are top-level windows; the single-instance empty log; windows that would not shrink.
 - [Input](windows/gtk-input.md) -- touch plus emulated mouse; VK_PACKET keys as VoidSymbol; the GDK touch-device use-after-free.
@@ -55,7 +55,7 @@ Index as of 2026-10-24; each line links one topic.
 
 # windows
 
-原生 Windows:WinUIBackend,以及 Windows 上的 GtkBackend(GTK 4.22.4、`-gtk4` 建置、`Pn-gtk4.exe`)。WSL 是另一個
+原生 Windows:WinUIBackend,以及 Windows 上的 GtkBackend(GTK 4.24.1,2026-10-29 前為 4.22.4;`-gtk4` 建置、`Pn-gtk4.exe`)。WSL 是另一個
 平台(見 WSL 索引)。2026-10-24 的索引；每行連到一個主題。
 
 ## 工具鏈與建置
@@ -72,7 +72,7 @@ Index as of 2026-10-24; each line links one topic.
 
 ## Windows 上的 GtkBackend
 
-- [GTK runtime 與 -gtk4 建置](windows/gtk-runtime.md)——gvsbuild 的 GTK 4.22.4(非 MSYS2/vcpkg)、AccessKit 建置、`.pc` 改寫、gtk_runtime.zsh 的 PATH、WebView 用 WebView2。
+- [GTK runtime 與 -gtk4 建置](windows/gtk-runtime.md)——gvsbuild 的 GTK 4.24.1(2026-10-29 前為 4.22.4;非 MSYS2/vcpkg)、以 raliclo/gtk fork 建置的 AccessKit 版、`.pc` 改寫、gtk_runtime.zsh 的 PATH、WebView 用 WebView2。
 - [算繪器與 GPU](windows/gtk-renderer-and-gpu.md)——預設開啟 Direct Composition;逐 exe 的 GPU 登錄原則；獨顯喚醒延遲(P107,已接受);在用完即丟的視窗中做第一幀暖機。
 - [縮放、視窗與 popover](windows/gtk-windows-scale-and-popovers.md)——GTK 縮放 1 對 Win32 1.25;popover 是 top-level 視窗；單一實例的空 log;不會縮小的視窗。
 - [輸入](windows/gtk-input.md)——觸控加上模擬滑鼠;VK_PACKET 按鍵變成 VoidSymbol;GDK 觸控裝置的釋放後使用。

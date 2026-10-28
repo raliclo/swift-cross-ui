@@ -21,6 +21,18 @@ testapp/plan/plan-windows-gtk-backend.md and commits 4d76c330, 60a46d8d, a7a933a
   checked). Build notes: clang-cl, not cl (MSVC 19.44 runs out of heap on
   `gtkresources.c`); `-D_USE_MATH_DEFINES -Df16c=disabled`; use the bundle's own
   pkgconf.
+- **2026-10-29: GTK 4.24.1, and 4.22.4 removed.** The two bullets above
+  describe 4.22.4 and gvsbuild 2026.8.0 as they were. Now `C:/gtk4` is
+  gvsbuild 2026.10.0 (GTK 4.24.1, still no AccessKit) and `C:/gtk4-accesskit`
+  is 4.24.1 built from `testapp/gtk4-source` on branch `develop` of
+  https://github.com/raliclo/gtk: 4.24.1 plus f25d596, the fix for the
+  touch-device use-after-free ([Input](gtk-input.md)). Two more build needs:
+  a `tgmath.h` shim on `-I` (clang's tgmath.h and the MSVC CRT disagree on
+  complex types; before this it was an untracked edit to `gtk/gtksvg.c`), and
+  `-Dlibsass:cpp_std=c++17` for the sassc that a git checkout builds its
+  theme with. `install_gtk4_windows.zsh` now moves an install of another
+  release aside to `C:/gtk4-<release>`; until then it printed "already
+  installed" over any version and changed nothing.
 - **WebView2 for `WebView`:** WebKitGTK has no Windows port. The installer puts
   `WebView2.h` under `<prefix>/include/webview2` (NuGet 1.0.3179.45);
   `Sources/GtkCHelpers/gtk_webview2.c` parents a WebView2 into the GTK
@@ -79,6 +91,13 @@ test_support/gtk_runtime.zsh、testapp/plan/plan-windows-gtk-backend.md 與 4d76
   `C:/gtk4-accesskit`(4d76c330,2026-09-18)。沒有任何已發布的二進位檔帶 AccessKit(查過 gvsbuild、MSYS2、
   conda-forge、vcpkg)。建置要點：用 clang-cl 而非 cl(MSVC 19.44 編 `gtkresources.c` 時堆積空間不足);
   `-D_USE_MATH_DEFINES -Df16c=disabled`;使用套件自己的 pkgconf。
+- **2026-10-29:改為 GTK 4.24.1,4.22.4 已移除。** 上面兩條描述的是當時的 4.22.4 與 gvsbuild 2026.8.0。現在
+  `C:/gtk4` 是 gvsbuild 2026.10.0(GTK 4.24.1,仍沒有 AccessKit),`C:/gtk4-accesskit` 是以 `testapp/gtk4-source`
+  建置的 4.24.1——位於 https://github.com/raliclo/gtk 的 `develop` 分支：4.24.1 加上 f25d596,即觸控裝置
+  use-after-free 的修正([輸入](gtk-input.md))。建置另需兩項：放在 `-I` 上的 `tgmath.h` 墊片(clang 的 tgmath.h
+  與 MSVC CRT 對複數型別不相容；在此之前它是對 `gtk/gtksvg.c` 的未追蹤修改),以及給 git checkout 建主題用的 sassc
+  的 `-Dlibsass:cpp_std=c++17`。`install_gtk4_windows.zsh` 現在會把其他發行版的安裝移到 `C:/gtk4-<發行版>`;
+  在此之前，不論版本為何它都印出「already installed」而什麼都不改。
 - **`WebView` 用 WebView2:**WebKitGTK 沒有 Windows 版。安裝程式把 `WebView2.h` 放到
   `<prefix>/include/webview2`(NuGet 1.0.3179.45);`Sources/GtkCHelpers/gtk_webview2.c` 把 WebView2 掛到 GTK
   視窗的 HWND 底下，並在執行期載入 `WebView2Loader.dll`。沒有標頭檔時該檔編成空殼，畫面顯示附說明的佔位文字。

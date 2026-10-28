@@ -95,6 +95,28 @@ the GtkBackend side meanwhile. Nothing here is reported upstream without explici
   93/94`)。4.22.4:6 次崩 2 次，另 1 次出現斷言但存活。4.24.1:6 次崩 4 次，另 1 次出現斷言但存活——同一句
   `GDK_IS_DEVICE` 斷言。對照組 4.24.1 開著保護：6/6 存活、0 個斷言。保護保留，回報對目前版本仍然適用。
 
+  **2026-10-29, last (Windows): root cause, and a fix ready to send.** The
+  holder of the raw pointer is the virtual core pointer: it records the
+  physical device of the last event (`_gdk_device_virtual_set_active`,
+  gdkinput-winpointer.c:396 in 4.24.1) and forwards `query_state` to it, and
+  `winpointer_enumerate_devices` frees a removed device without resetting it.
+  So the earlier "something in the gesture machinery" was a guess, and wrong:
+  GtkWindow's pointer foci and GdkDisplay's pointer info are both cleared on
+  `device-removed`. Fix f25d596 on branch `develop` of
+  https://github.com/raliclo/gtk (a GitHub fork of the GNOME/gtk mirror;
+  there is no GNOME GitLab account) points the core pointer back at the
+  system pointer before the device goes. Measured with the protection off,
+  alternated, six drags each: 4.24.1 with f25d596 6/6 alive and 0 criticals,
+  gvsbuild 4.24.1 5/6 dead. To file: open a merge request on
+  gitlab.gnome.org from this commit, with the standalone reproducer.
+  **2026-10-29 最後(Windows):根因，以及一個可以送出的修正。** 握著裸指標的是虛擬 core pointer:它記下最後一個事件
+  的實體裝置(`_gdk_device_virtual_set_active`,4.24.1 的 gdkinput-winpointer.c:396)並把 `query_state` 轉給它，而
+  `winpointer_enumerate_devices` 釋放被移除的裝置時沒有重設它。所以先前「手勢機制裡有東西」只是猜測，而且猜錯了:
+  GtkWindow 的 pointer focus 與 GdkDisplay 的 pointer info 都會在 `device-removed` 時清掉。https://github.com/raliclo/gtk
+  (GNOME/gtk 鏡像的 GitHub fork;GNOME GitLab 上沒有帳號)`develop` 分支上的 f25d596 在裝置消失前把 core pointer
+  改回 system pointer。保護關閉、交錯、各拖 6 次:4.24.1 加 f25d596 6/6 存活、0 個斷言;gvsbuild 4.24.1 崩 5/6。
+  要回報時：從這個 commit 在 gitlab.gnome.org 開 merge request,附上獨立重現程式。
+
 ---
 
 - [ ] **A label set on a `GtkLabel` never reaches Windows: AccessKit names the

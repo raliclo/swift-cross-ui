@@ -2,7 +2,7 @@
 # Installs an MSVC-built GTK 4 on Windows so GtkBackend can be built there.
 #
 #   zsh testapp/install_gtk4_windows.zsh
-#   zsh testapp/install_gtk4_windows.zsh --prefix C:/gtk4 --version 2026.8.0
+#   zsh testapp/install_gtk4_windows.zsh --prefix C:/gtk4 --version 2026.10.0
 #   zsh testapp/install_gtk4_windows.zsh --show-changes   # audit the .pc edits
 #   zsh testapp/install_gtk4_windows.zsh --help
 #
@@ -102,7 +102,7 @@ set -euo pipefail
 
 script_path="${0:a}"
 prefix="C:/gtk4"
-version="2026.8.0"
+version="2026.10.0"
 show_changes=0
 
 usage() {
@@ -142,6 +142,25 @@ work="${GTK4_DOWNLOAD_DIR:-C:/gtk4-download}"
 
 printf '==> GTK 4 %s -> %s\n' "$version" "$prefix"
 
+# An install of another release is moved aside, not reused and not deleted.
+# "Already installed" used to mean any gtk4.pc at all, so --version 2026.10.0
+# over 2026.8.0 printed it and changed nothing (found 2026-10-29). The release
+# is recorded in .gvsbuild-release; an install from before that file existed is
+# named by gtk4.pc's Version. Close every GTK app first: Windows refuses to
+# move a directory whose DLLs are loaded.
+# 其他發行版的安裝會被移到一旁，既不沿用也不刪除。「already installed」原本只看有沒有 gtk4.pc,所以在
+# 2026.8.0 上指定 --version 2026.10.0 只印出這句、什麼都沒改(2026-10-29 發現)。發行版記錄在 .gvsbuild-release;
+# 該檔出現之前的安裝以 gtk4.pc 的 Version 命名。請先關閉所有 GTK app:DLL 仍被載入時 Windows 不允許移動目錄。
+marker="$prefix/.gvsbuild-release"
+if [ -f "$prefix/lib/pkgconfig/gtk4.pc" ]; then
+    installed="$(cat "$marker" 2>/dev/null || true)"
+    if [ "$installed" != "$version" ]; then
+        tag="${installed:-gtk$(sed -n 's/^Version: *//p' "$prefix/lib/pkgconfig/gtk4.pc" | tr -d '\r')}"
+        printf '==> %s holds %s, not %s: moving it to %s-%s\n' "$prefix" "$tag" "$version" "$prefix" "$tag"
+        mv "$prefix" "$prefix-$tag"
+    fi
+fi
+
 if [ -f "$prefix/lib/pkgconfig/gtk4.pc" ]; then
     printf '    already installed\n'
 else
@@ -157,6 +176,7 @@ else
     # straight into the prefix.
     # 套件解壓後頂層即為 bin/、lib/、include/，因此直接解到 prefix。
     unzip -q -o "$work/$archive" -d "$prefix"
+    printf '%s\n' "$version" > "$marker"
 fi
 
 if [ ! -f "$prefix/lib/pkgconfig/gtk4.pc" ]; then
