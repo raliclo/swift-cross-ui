@@ -68,6 +68,19 @@ public struct NavigationStack<Detail: View>: View {
             currentDestination(elements)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The platform's own Back pops this stack too, while it has anything
+        // pushed; see ``backTarget``.
+        // 只要推入了任何內容，平台自己的返回也會彈出這個堆疊；見 ``backTarget``。
+        .navigationBackRegistration(
+            target: backTarget,
+            canPop: elements.count > 1,
+            pop: { [path] in
+                guard !path.wrappedValue.isEmpty else { return nil }
+                let previous = path.wrappedValue.independentCopy()
+                path.wrappedValue.removeLast()
+                return { path.wrappedValue = previous }
+            }
+        )
     }
 
     /// A back control, shown whenever anything has been pushed.
@@ -169,6 +182,17 @@ public struct NavigationStack<Detail: View>: View {
     /// See ``navigationBar(backTitle:)``.
     /// 堆疊中各畫面所回報的標題，由返回控制項讀取。見 ``navigationBar(backTitle:)``。
     @State private var titleStore = NavigationTitleStore()
+
+    /// This stack as its window's Back sees it -- the system Back and back
+    /// gesture on Android, the left-edge swipe on iOS, Command-[ and the
+    /// mouse's back button on macOS, Alt+Left, the Back key and the mouse's
+    /// back button on GTK and WinUI. While the path is not empty, Back pops it
+    /// as the drawn back control does; see ``NavigationBackRegistry`` for which
+    /// of several stacks it pops.
+    /// 視窗的返回所看到的這個堆疊——Android 的系統返回與返回手勢、iOS 的左緣滑動、macOS 的 Command-[ 與滑鼠返回鍵、
+    /// GTK 與 WinUI 的 Alt+Left、返回鍵與滑鼠返回鍵。路徑不為空時，返回會像畫出的返回控制項一樣彈出它；多個堆疊時彈出
+    /// 哪一個，見 ``NavigationBackRegistry``。
+    @State private var backTarget = NavigationBackTarget()
 
     /// A binding to the current navigation path.
     var path: Binding<NavigationPath>

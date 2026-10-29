@@ -50,6 +50,22 @@ public struct NavigationPath {
     }
 
     /// Creates an empty navigation path.
+    /// A copy that does not share storage with this path.
+    ///
+    /// `Storage` is a class and nothing copies it on write, so `let saved =
+    /// path` followed by `path.removeLast()` changes `saved` too. The undo of
+    /// an interactive Back (NavigationBackNavigation.swift) needs the path as
+    /// it was, so it takes this copy.
+    ///
+    /// 一份不與此路徑共用儲存的副本。`Storage` 是 class,而且沒有任何東西在寫入時複製它，因此 `let saved = path` 之後再
+    /// `path.removeLast()`,`saved` 也會跟著改變。互動式返回的復原(NavigationBackNavigation.swift)需要原本的路徑，所以取這份副本。
+    func independentCopy() -> NavigationPath {
+        var copy = NavigationPath()
+        copy.storage.path = storage.path
+        copy.storage.encodedEntries = storage.encodedEntries
+        return copy
+    }
+
     public init() {}
 
     /// Appends a new value to the end of the path.

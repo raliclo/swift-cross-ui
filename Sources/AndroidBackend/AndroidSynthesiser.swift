@@ -1029,6 +1029,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             // KEYCODE_BACK`(test_support/p113_back_android.zsh)實測：不可關閉時同樣「Back ignored」,可關閉後同樣關閉。設了
             // 該屬性時,ViewRootImpl 會在 activity 看到按鍵之前就把返回交給 OnBackInvokedCallback,這一列便到不了。
             case .back: 4
+            case .leftBracket: 71 // KEYCODE_LEFT_BRACKET
             case .space: 62
             case .tab: 61
             case .return: 66 // KEYCODE_ENTER

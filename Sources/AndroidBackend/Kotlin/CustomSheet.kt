@@ -8,6 +8,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.ComponentDialog
+import androidx.activity.OnBackPressedCallback
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -52,6 +54,48 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
 
     private var root: ViewGroup? = null
     private var dragHandle: View? = null
+
+    /**
+     * BackendFeatures.SheetBackNavigation: Back while the sheet is in front pops a NavigationStack in
+     * it. The callback is on the dialog's own OnBackPressedDispatcher and enabled only while Swift has
+     * a handler; disabled, Back reaches the dialog's own handling, which cancels the sheet only when
+     * it is dismissable (setCancelable), exactly as before. AndroidBackend+BackNavigation.swift.
+     * BackendFeatures.SheetBackNavigation:sheet 在前景時的返回彈出其中的 NavigationStack。callback 掛在 dialog 自己的
+     * OnBackPressedDispatcher 上，只在 Swift 有 handler 時啟用；停用時返回抵達 dialog 自己的處理，只在 sheet 可關閉
+     * (setCancelable)時才取消它，與以往完全相同。
+     */
+    private var backAction: SwiftAction? = null
+    private var backDialog: ComponentDialog? = null
+    private val backCallback =
+        object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                val action = backAction ?: return
+                ScuiBackNavigation.dispatch(action) {
+                    isEnabled = false
+                    val dialog = backDialog ?: return@dispatch
+                    dialog.window?.decorView?.post { dialog.onBackPressedDispatcher.onBackPressed() }
+                }
+            }
+        }
+
+    fun setBackNavigationAction(action: SwiftAction?) {
+        backAction = action
+        attachBackCallback(dialog)
+    }
+
+    private fun attachBackCallback(dialog: Dialog?) {
+        val component = dialog as? ComponentDialog ?: return
+        if (backAction == null) {
+            backCallback.isEnabled = false
+            return
+        }
+        if (backDialog !== component || !backCallback.isEnabled) {
+            backCallback.remove()
+            component.onBackPressedDispatcher.addCallback(component, backCallback)
+            backDialog = component
+        }
+        backCallback.isEnabled = true
+    }
 
     init {
         content?.layoutParams =
@@ -101,6 +145,10 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
 
         dialog.setCancelable(isDismissable)
         dialog.setOnShowListener { apply() }
+
+        // A Back handler set before the dialog existed (BackNavigation.kt).
+        // 在 dialog 存在之前就設定的返回 handler(BackNavigation.kt)。
+        attachBackCallback(dialog)
 
         return dialog
     }

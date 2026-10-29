@@ -1,0 +1,28 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Windows (WinUIBackend; a GtkBackend build on Windows reads platform windows too): the Back key (VK_BROWSER_BACK) and Alt+Left pop the NavigationStack. The mouse back button (XButton1) is not expressible in an action file and is checked by hand.
+# Pushes go through the drawn controls (taplabel); the pops use the keys named in each row. One Back at the root must change nothing.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0); the final capture shows the Fruits screen under a "‹ Home" back control. DRAFT: written on macOS and not yet run on this platform.
+# P114 在 Windows 上(WinUIBackend;Windows 上的 GtkBackend 建置也讀 windows 平台):返回鍵(VK_BROWSER_BACK)與 Alt+Left 彈出 NavigationStack。滑鼠返回鍵(XButton1)無法在動作檔中表達，以手動檢查。草稿：在 macOS 上寫成，尚未在此平台執行。
+# Run 2026-10-29 (Win11) on WinUI and GtkBackend: depths 1 2 3 2 1 0 1 on both; the DRAFT note above is out of date. Sources seen: WinUI APPCOMMAND_BROWSER_BACKWARD (the VK_BROWSER_BACK keydown after it is ignored as the same press) and Alt+Left (WM_SYSKEYDOWN); GtkBackend VK_BROWSER_BACK (keycode 0xA6) and Alt+Left.
+# 2026-10-29 於 WinUI 與 GtkBackend 執行(Win11):兩者深度都是 1 2 3 2 1 0 1;上方的「草稿」說明已過時。看到的來源:WinUI 為 APPCOMMAND_BROWSER_BACKWARD(隨後的 VK_BROWSER_BACK keydown 視為同一次按鍵而忽略)與 Alt+Left(WM_SYSKEYDOWN);GtkBackend 為 VK_BROWSER_BACK(keycode 0xA6)與 Alt+Left。
+sleep,,,,,,1500000,let P114 settle,windows
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key pops Leaf (depth 2),windows
+sleep,,,,,,1200000,,windows
+keydown,,,,,option,,hold Alt,windows
+key,,,,,leftArrow,,Alt+Left pops Untitled (depth 1),windows
+keyup,,,,,option,,,windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key pops Fruits (depth 0),windows
+sleep,,,,,,1200000,,windows
+keydown,,,,,option,,,windows
+key,,,,,leftArrow,,Alt+Left at the root: nothing to pop and no depth is logged,windows
+keyup,,,,,option,,,windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,windows
+sleep,,,,,,1500000,,windows

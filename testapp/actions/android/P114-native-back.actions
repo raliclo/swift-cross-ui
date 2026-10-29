@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Android: the system Back key pops the NavigationStack while it has anything pushed.
+# Pushes go through the drawn controls (taplabel); every pop is `key back` (KEYCODE_BACK, delivered to the activity and its OnBackPressedDispatcher).
+# The file ends with a push, so the app is still in front for the final capture. Back at the root -- which must finish or background the activity as before -- and the back gesture are checked from outside by testapp/test_support/p114_back_android.zsh.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order; the final capture shows the Fruits screen under a "‹ Home" back control.
+# P114 在 Android 上：堆疊推入了內容時，系統返回鍵彈出 NavigationStack。推入用畫出的控制項(taplabel),每次彈出都是 `key back`。檔案以一次推入結束，讓最後擷圖時 app 仍在前景；根層的返回(必須如同以往結束或把 activity 送到背景)與返回手勢由 testapp/test_support/p114_back_android.zsh 從外部檢查。通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,android
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back pops Leaf (depth 2),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back pops Untitled (depth 1),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back pops Fruits (depth 0),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,android
+sleep,,,,,,1500000,,android

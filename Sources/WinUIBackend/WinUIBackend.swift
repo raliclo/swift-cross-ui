@@ -3651,6 +3651,13 @@ public class CustomWindow: WinUI.Window {
     /// Called from the window procedure on `WM_DPICHANGED`; set by
     /// `setWindowEnvironmentChangeHandler`. 由視窗程序在 `WM_DPICHANGED` 時呼叫。
     var scaleFactorChangeHandler: (() -> Void)?
+    /// What Back does in this window, set by `setBackNavigationHandler`; it
+    /// returns whether it went back. See WinUIBackend+BackNavigation.swift.
+    /// 此視窗中「返回」所做的事，由 `setBackNavigationHandler` 設定；它回傳是否返回了。見 WinUIBackend+BackNavigation.swift。
+    var backNavigationHandler: (@MainActor () -> Bool)?
+    /// The sheet shown over this window, if any; while it is presenting, the
+    /// window ignores Back. 顯示在此視窗之上的 sheet;它呈現期間，視窗忽略返回。
+    weak var presentedSheet: WinUIBackend.Sheet?
 
     private(set) var menuBarIsVisible = false
     private(set) var toolbarIsVisible = false
@@ -3678,6 +3685,12 @@ public class CustomWindow: WinUI.Window {
     /// 隔離，也無法 await。在 Swift 6 語言模式下，這是本模組十個錯誤之一，也是其中唯一「標註即是
     /// 答案」而非需要重構的一個。
     private nonisolated(unsafe) static var windowsByHWND: [Int: CustomWindow] = [:]
+
+    /// The window an `HWND` belongs to, for the Back message hook in
+    /// WinUIBackend+BackNavigation.swift. `HWND` 所屬的視窗，供 WinUIBackend+BackNavigation.swift 的返回訊息 hook 使用。
+    static func window(forHWND hwnd: HWND) -> CustomWindow? {
+        windowsByHWND[Int(bitPattern: hwnd)]
+    }
 
     /// The amount of height to subtract off the window height to obtain the
     /// window's available content height.
@@ -3741,6 +3754,10 @@ public class CustomWindow: WinUI.Window {
         grid.children.append(toolbar)
         WinUI.Grid.setRow(toolbar, 1)
         self.content = grid
+        // Alt+Left, the Back key and the mouse's back button; see
+        // WinUIBackend+BackNavigation.swift.
+        // Alt+Left、返回鍵與滑鼠返回鍵；見 WinUIBackend+BackNavigation.swift。
+        installBackNavigation()
 
         // NB: This event fires when the window is activated _or_ deactivated.
         self.activated.addHandler { [weak self] _, args in
@@ -3812,6 +3829,16 @@ public class CustomWindow: WinUI.Window {
         // so the environment is recomputed with `scaleFactor` already current.
         // 視窗移到另一個縮放比例的顯示器，或在設定中改了縮放。於主佇列下一輪回報——那時預設處理已把視窗依新的 DPI
         // 調整好大小——因此重新計算 environment 時，`scaleFactor` 已是新值。
+        // Back from a device that sends WM_APPCOMMAND; the other Back inputs are
+        // taken before dispatch, see WinUIBackend+BackNavigation.swift.
+        // 來自送出 WM_APPCOMMAND 之裝置的返回；其他返回輸入在派送之前就接下，見 WinUIBackend+BackNavigation.swift。
+        if message == UINT(WM_APPCOMMAND), let hwnd,
+           let window = CustomWindow.windowsByHWND[Int(bitPattern: hwnd)],
+           MainActor.assumeIsolated({ WinUIBackNavigation.handleAppCommand(lParam, in: window) })
+        {
+            return 1
+        }
+
         if message == WM_DPICHANGED, let hwnd {
             let key = Int(bitPattern: hwnd)
             DispatchQueue.main.async {

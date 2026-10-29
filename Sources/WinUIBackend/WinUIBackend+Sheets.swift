@@ -22,6 +22,9 @@ extension WinUIBackend: BackendFeatures.Sheets {
     /// `6ec976b2`)。
     public class Sheet: ContentDialog {
         var dismissHandler: (() -> Void)?
+        /// What Back does while this sheet is up, set by
+        /// `setBackNavigationHandler(ofSheet:to:)`. 此 sheet 開著時返回所做的事。
+        var backNavigationHandler: (@MainActor () -> Bool)?
         var nestedSheet: Sheet?
         weak var parentSheet: Sheet?
         weak var window: Window?
@@ -69,6 +72,10 @@ extension WinUIBackend: BackendFeatures.Sheets {
         }
         sheet.keyboardAccelerators.append(accelerator)
         sheet.keyboardAcceleratorPlacementMode = .hidden
+        // Alt+Left, the Back key and the mouse's back button pop a stack in the
+        // sheet; see WinUIBackend+BackNavigation.swift.
+        // Alt+Left、返回鍵與滑鼠返回鍵彈出 sheet 中的堆疊；見 WinUIBackend+BackNavigation.swift。
+        WinUIBackNavigation.install(on: sheet, name: "sheet") { [weak sheet] in sheet?.window }
 
         // The top portion of a ContentDialog (the dialog portion) is an
         // overlay with its own background color. We hide the action portion
@@ -146,6 +153,9 @@ extension WinUIBackend: BackendFeatures.Sheets {
         sheet.xamlRoot = window.content.xamlRoot
         sheet.window = window
         sheet.isPresenting = true
+        // The window ignores Back while this sheet is up; see
+        // WinUIBackend+BackNavigation.swift. sheet 開著時視窗忽略返回；見 WinUIBackend+BackNavigation.swift。
+        window.presentedSheet = sheet
         do {
             let promise = try sheet.showAsync()!
             promise.completed = { [weak self, weak sheet, weak window] _, status in

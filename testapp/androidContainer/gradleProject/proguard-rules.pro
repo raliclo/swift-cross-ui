@@ -5,13 +5,15 @@
 # Kotlin, swift-java's Java side and anything else that is not AndroidX, Material
 # or Kotlin's runtime; and of AndroidX and Material, the classes AndroidBackend's
 # Swift names directly (checked 2026-10-24 against AndroidKit's @JavaClass names:
-# Chip, MaterialButtonToggleGroup, ListAdapter, Variant, plus FragmentActivity).
+# Chip, MaterialButtonToggleGroup, ListAdapter, Variant, plus FragmentActivity, FragmentManager and Fragment
+# from Androidx.swift). A class that appears only in a kept method's signature must keep its name too:
+# with FragmentManager renamed, getSupportFragmentManager() was not found (NoSuchMethodError).
 # The rest of AndroidX and Material is reached through our Kotlin, which R8 reads.
 #
 # R8 的規則，用於 release 建置。Swift 透過 JNI 以類別與成員名稱取用 Java,R8 看不到，所以 Swift 指名的一切都必須保留名稱與成員：
 # 我們自己的全部 Kotlin、swift-java 的 Java 端，以及 AndroidX、Material、Kotlin runtime 以外的一切；AndroidX 與 Material
 # 之中，則是 AndroidBackend 的 Swift 直接指名的類別(2026-10-24 對照 AndroidKit 的 @JavaClass 名稱確認)。其餘的 AndroidX 與
-# Material 經由我們的 Kotlin 取用，R8 讀得到。
+# Material 經由我們的 Kotlin 取用，R8 讀得到。只出現在保留方法簽章裡的類別也必須保留名稱，否則以簽章查找的 JNI 會找不到方法。
 
 -keep class !androidx.**,!com.google.android.material.**,!kotlin.**,!kotlinx.**,** { *; }
 -keep class com.google.android.material.chip.Chip { *; }
@@ -19,5 +21,7 @@
 -keep class com.google.android.material.color.utilities.Variant { *; }
 -keep class androidx.recyclerview.widget.ListAdapter { *; }
 -keep class androidx.fragment.app.FragmentActivity { *; }
+-keep class androidx.fragment.app.FragmentManager { *; }
+-keep class androidx.fragment.app.Fragment { *; }
 -keepclasseswithmembernames class * { native <methods>; }
 -dontwarn **

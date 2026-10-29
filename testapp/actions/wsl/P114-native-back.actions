@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on WSL / Linux GTK: the Back key (XF86Back through xdotool) and Alt+Left pop the NavigationStack. Steps wait 3 s, as P114-back-labels does under WSLg. Mouse button 8 is checked with `xdotool click 8`, not in this file.
+# Pushes go through the drawn controls (taplabel); the pops use the keys named in each row. One Back at the root must change nothing.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0); the final capture shows the Fruits screen under a "‹ Home" back control. DRAFT: written on macOS and not yet run on this platform.
+# P114 在 WSL / Linux GTK 上：返回鍵(經 xdotool 的 XF86Back)與 Alt+Left 彈出 NavigationStack。步驟之間等 3 秒，與 WSLg 下的 P114-back-labels 相同。button 8 以 `xdotool click 8` 檢查，不在本檔中。草稿：在 macOS 上寫成，尚未在此平台執行。
+sleep,,,,,,1500000,let P114 settle,gtk
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),gtk
+sleep,,,,,,3000000,,gtk
+key,,,,,back,,the Back key pops Leaf (depth 2),gtk
+sleep,,,,,,3000000,,gtk
+keydown,,,,,option,,hold Alt,gtk
+key,,,,,leftArrow,,Alt+Left pops Untitled (depth 1),gtk
+keyup,,,,,option,,,gtk
+sleep,,,,,,3000000,,gtk
+key,,,,,back,,the Back key pops Fruits (depth 0),gtk
+sleep,,,,,,3000000,,gtk
+keydown,,,,,option,,,gtk
+key,,,,,leftArrow,,Alt+Left at the root: nothing to pop and no depth is logged,gtk
+keyup,,,,,option,,,gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,gtk
+sleep,,,,,,1500000,,gtk

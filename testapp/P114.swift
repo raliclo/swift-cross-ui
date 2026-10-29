@@ -21,6 +21,19 @@
 // 堆疊為 Home(根)→ Fruits → Untitled(沒有 navigationTitle)→ Leaf;預期的返回標籤:Fruits 上是「‹ Home」、
 // Untitled 上是「‹ Fruits」、Leaf 上是「‹ Back」。動作檔以文字點擊每個控制項(`taplabel`),因此標籤不對的返回控制項
 // 找不到，重放就在那裡失敗。通過條件見上方英文說明。
+//
+// The same stacks answer the platform's own Back (BackendFeatures.BackNavigation):
+// actions/*/P114-native-back*.actions pop with it, and on iOS
+// P114-interactive-back.actions drives the edge swipe that follows the finger.
+// Fruits also has "Open sheet": a sheet with a NavigationStack of its own
+// (Sheet home -> Apples -> Pears), logged as `sheet path -> depth N` and
+// `sheet shown: true|false`; P114-sheet-back.actions checks that Back pops the
+// sheet's stack while the sheet is in front and never the window's under it.
+//
+// 同樣的堆疊也回應平台自己的返回(BackendFeatures.BackNavigation):actions/*/P114-native-back*.actions 用它彈出;iOS 上
+// P114-interactive-back.actions 驅動跟著手指移動的邊緣滑動。Fruits 也有「Open sheet」:一個有自己 NavigationStack 的 sheet
+// (Sheet home → Apples → Pears),記錄為 `sheet path -> depth N` 與 `sheet shown: true|false`;P114-sheet-back.actions 檢查
+// sheet 在前景時返回彈出 sheet 的堆疊，而永遠不彈出它底下視窗的堆疊。
 
 import DefaultBackend
 import Foundation
@@ -68,6 +81,8 @@ struct P114App: App {
 struct P114RootView: View {
     @State var path = NavigationPath()
     @State var depths: [Int] = []
+    @State var showSheet = false
+    @State var sheetPath = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -85,7 +100,7 @@ struct P114RootView: View {
             }
         }
         .navigationDestination(for: String.self) { name in
-            P114Screen(name: name, path: $path)
+            P114Screen(name: name, path: $path, showSheet: $showSheet)
         }
         .onChange(of: depth) {
             depths.append(depth)
@@ -93,12 +108,23 @@ struct P114RootView: View {
                 "path -> depth \(depth): \(depths.map(String.init).joined(separator: " "))"
             )
         }
+        .sheet(isPresented: $showSheet) {
+            P114SheetView(path: $sheetPath, isPresented: $showSheet)
+        }
+        .onChange(of: Self.depth(of: sheetPath)) {
+            P114Log.write("sheet path -> depth \(Self.depth(of: sheetPath))")
+        }
+        .onChange(of: showSheet) {
+            P114Log.write("sheet shown: \(showSheet)")
+        }
     }
 
     /// The path's depth, counted from its `Codable` form, because
     /// `NavigationPath.count` is not public.
     /// 路徑的深度，從其 `Codable` 形式計數，因為 `NavigationPath.count` 不是公開的。
-    var depth: Int {
+    var depth: Int { Self.depth(of: path) }
+
+    static func depth(of path: NavigationPath) -> Int {
         guard
             let data = try? JSONEncoder().encode(path),
             let entries = try? JSONSerialization.jsonObject(with: data) as? [Any]
@@ -114,6 +140,7 @@ struct P114RootView: View {
 struct P114Screen: View {
     var name: String
     var path: Binding<NavigationPath>
+    var showSheet: Binding<Bool>
 
     var body: some View {
         if name == "Untitled" {
@@ -131,6 +158,7 @@ struct P114Screen: View {
                 case "Fruits":
                     Text("Expected back control: ‹ Home")
                     NavigationLink("Open Untitled", value: "Untitled", path: path)
+                    Button("Open sheet") { showSheet.wrappedValue = true }
                 case "Untitled":
                     Text("This screen has no navigationTitle.")
                     Text("Expected back control: ‹ Fruits")
@@ -140,5 +168,41 @@ struct P114Screen: View {
             }
         }
         .padding(16)
+    }
+}
+
+/// The sheet, opened from Fruits: a NavigationStack of its own, so that the
+/// platform's Back pops the sheet's stack while the sheet is in front and
+/// never the window's stack under it. Its depth is logged as
+/// `sheet path -> depth N`, and `sheet shown: true|false` when it opens and
+/// closes.
+/// 從 Fruits 開啟的 sheet:它有自己的 NavigationStack,讓 sheet 在前景時平台的返回彈出 sheet 的堆疊，而永遠不彈出它底下視窗
+/// 的堆疊。深度記錄為 `sheet path -> depth N`,開啟與關閉時記錄 `sheet shown: true|false`。
+struct P114SheetView: View {
+    var path: Binding<NavigationPath>
+    var isPresented: Binding<Bool>
+
+    var body: some View {
+        NavigationStack(path: path) {
+            VStack(spacing: 12) {
+                Text("Sheet screen: Sheet home")
+                NavigationLink("Sheet: open Apples", value: "Apples", path: path)
+                Button("Close sheet") { isPresented.wrappedValue = false }
+            }
+            .padding(16)
+            .navigationTitle("Sheet home")
+        }
+        .navigationDestination(for: String.self) { name in
+            VStack(spacing: 12) {
+                Text("Sheet screen: \(name)")
+                if name == "Apples" {
+                    NavigationLink("Sheet: open Pears", value: "Pears", path: path)
+                }
+                Button("Close sheet") { isPresented.wrappedValue = false }
+            }
+            .padding(16)
+            .navigationTitle(name)
+        }
+        .frame(width: 360, height: 300)
     }
 }

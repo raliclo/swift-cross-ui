@@ -2327,6 +2327,7 @@
                 // also delivers as APPCOMMAND_BROWSER_BACKWARD.
                 // 有返回鍵的鍵盤與滑鼠上的那個鍵,Windows 也會以 APPCOMMAND_BROWSER_BACKWARD 送出。
                 case .back: VK_BROWSER_BACK
+                case .leftBracket: VK_OEM_4 // `[` on a US layout / US 配置上的 `[`
                 case .f1: VK_F1
                 case .f2: VK_F2
                 case .f3: VK_F3

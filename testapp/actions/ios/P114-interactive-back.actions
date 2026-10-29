@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on iOS (UIKitBackend): the left-edge swipe follows the finger and completes or cancels on release, as UINavigationController's does.
+# Steps: push Fruits and Untitled (depth 2). A slow drag to x 120 held still before release: cancelled (the screen slides back; the stack reports a pop and the push that restores it). A slow drag to x 300 held still: past half the 440-point width, completed (depth 1). A short fast throw: completed by speed (depth 0).
+# Pass: the replay reports replayed; the log shows depths 1 2 1 2 1 0 in that order; the final capture shows the Home screen with no back control. Screenshots taken during the holds show the popped screen moved right over the previous one.
+# P114 在 iOS(UIKitBackend)上：左緣滑動跟著手指移動，放開時完成或取消，與 UINavigationController 相同。步驟與通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,ios
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),ios
+sleep,,,,,,1500000,,ios
+mousedown,1,500,screen,left,,,edge swipe,ios
+mouseup,120,500,screen,left,velocity 150 hold 2,,slow drag to 120 then held for 2 s: cancelled (depth 1 then back to 2),ios
+sleep,,,,,,2000000,,ios
+mousedown,1,500,screen,left,,,edge swipe,ios
+mouseup,300,500,screen,left,velocity 150 hold 2,,slow drag to 300 then held for 2 s: completed (depth 1),ios
+sleep,,,,,,2000000,,ios
+mousedown,1,500,screen,left,,,edge swipe,ios
+mouseup,120,500,screen,left,velocity 900,,short fast throw: completed by speed (depth 0),ios
+sleep,,,,,,2000000,,ios

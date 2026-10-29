@@ -444,6 +444,11 @@ public enum Key: String, Equatable, Sendable, CaseIterable {
     /// 替代品。見 README.md 的「back」。
     case back
 
+    /// `[`, `kVK_ANSI_LeftBracket`: the key in that position, which is `[` on a
+    /// US layout. Command-[ is Back in AppKit and UIKit.
+    /// `[`,`kVK_ANSI_LeftBracket`:位於該位置的鍵，在美式配置上是 `[`。Command-[ 在 AppKit 與 UIKit 中是返回。
+    case leftBracket
+
     case leftArrow
     case rightArrow
     case upArrow

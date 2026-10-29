@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on iOS (UIKitBackend): a NavigationStack inside a sheet takes the platform's Back -- the left-edge swipe and Command-[ -- while the sheet is in front, and Back never reaches the window's stack under the sheet.
+# Steps: push Fruits (depth 1); open the sheet; push Apples and Pears in it (sheet depth 2); edge swipe (sheet 1); Command-[ (sheet 0); edge swipe at the sheet root (nothing: the sheet stays and the window stays at depth 1); close the sheet; edge swipe pops the window (depth 0).
+# Pass: the replay reports replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
+# P114 在 iOS(UIKitBackend)上:sheet 在前景時，sheet 內的 NavigationStack 接下平台的返回(左緣滑動與 Command-[),而返回永遠不會抵達 sheet 底下視窗的堆疊。步驟與通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,ios
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Open sheet,,open the sheet,ios
+sleep,,,,,,2000000,,ios
+taplabel,,,,,Sheet: open Apples,,push Apples in the sheet (sheet depth 1),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Sheet: open Pears,,push Pears in the sheet (sheet depth 2),ios
+sleep,,,,,,1200000,,ios
+mousedown,1,500,screen,left,,,edge swipe: touch at the left edge,ios
+mouseup,260,500,screen,left,velocity 800,,pops Pears (sheet depth 1),ios
+sleep,,,,,,1500000,,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,leftBracket,,Command-[ pops Apples (sheet depth 0),ios
+keyup,,,,,command,,,ios
+sleep,,,,,,1500000,,ios
+mousedown,1,500,screen,left,,,edge swipe: touch at the left edge,ios
+mouseup,260,500,screen,left,velocity 800,,at the sheet root: nothing; the window stays at depth 1,ios
+sleep,,,,,,1500000,,ios
+taplabel,,,,,Close sheet,,close the sheet,ios
+sleep,,,,,,2000000,,ios
+mousedown,1,500,screen,left,,,edge swipe: touch at the left edge,ios
+mouseup,260,500,screen,left,velocity 800,,now pops the window (depth 0),ios
+sleep,,,,,,1500000,,ios

@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Android: a NavigationStack inside a sheet takes the system Back while the sheet is in front; at the sheet's root Back does what it did before (this sheet is dismissable, so Back closes it), and Back never reaches the window's stack under the sheet.
+# Steps: push Fruits (depth 1); open the sheet; push Apples and Pears in it (sheet depth 2); key back twice (sheet 1, 0); key back at the sheet root (the sheet closes; the window stays at depth 1); key back pops the window (depth 0).
+# Pass: the replay reports replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
+# P114 在 Android 上:sheet 在前景時，sheet 內的 NavigationStack 接下系統返回；在 sheet 根層時返回維持原本行為(此 sheet 可關閉，所以返回關閉它),且返回永遠不會抵達 sheet 底下視窗的堆疊。步驟與通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,android
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Open sheet,,open the sheet,android
+sleep,,,,,,2000000,,android
+taplabel,,,,,Sheet: open Apples,,push Apples in the sheet (sheet depth 1),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Sheet: open Pears,,push Pears in the sheet (sheet depth 2),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back pops Pears (sheet depth 1),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back pops Apples (sheet depth 0),android
+sleep,,,,,,1200000,,android
+key,,,,,back,,Back at the sheet root closes the dismissable sheet; the window stays at depth 1,android
+sleep,,,,,,2000000,,android
+key,,,,,back,,Back now pops the window (depth 0),android
+sleep,,,,,,1500000,,android

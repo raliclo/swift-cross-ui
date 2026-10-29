@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Windows (WinUI and GtkBackend): a NavigationStack inside a sheet takes the platform's Back while the sheet is in front, and Back never reaches the window's stack under the sheet. From mac/P114-sheet-back.actions, with the Back key (VK_BROWSER_BACK) for one pop and Alt+Left for the other, and Escape instead of Close sheet so the file also checks that Escape still dismisses the sheet.
+# Pass: replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
+# Run 2026-10-29 (Win11): WinUI only now. GtkBackend on Windows runs P114-sheet-back-gtk4.actions; the line above says both because it was written before the GTK sheet turned out to be its own toplevel. WinUI passed once WinUIBackend+LabelLocator.swift walked DependencyObject children (one ContentDialog template node does not cast to UIElement).
+# 2026-10-29 執行(Win11):本檔現在只給 WinUI。Windows 上的 GtkBackend 跑 P114-sheet-back-gtk4.actions;上一行寫兩者,是因為寫的時候還不知道 GTK 的 sheet 是獨立 toplevel。WinUIBackend+LabelLocator.swift 改成走 DependencyObject 子節點後 WinUI 通過(ContentDialog 範本裡有個節點轉不成 UIElement)。
+# P114(Windows,WinUI 與 GtkBackend):sheet 在前景時,sheet 內的 NavigationStack 接下平台的返回，而返回永遠不會抵達 sheet 底下視窗的堆疊。由 mac 版改寫：一次用返回鍵、一次用 Alt+Left,並以 Escape 取代 Close sheet,同時檢查 Escape 仍會關閉 sheet。通過條件見上方英文。
+sleep,,,,,,1500000,let P114 settle,windows
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open sheet,,open the sheet,windows
+sleep,,,,,,2000000,,windows
+taplabel,,,,,Sheet: open Apples,,push Apples in the sheet (sheet depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Sheet: open Pears,,push Pears in the sheet (sheet depth 2),windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key pops Pears (sheet depth 1),windows
+sleep,,,,,,1200000,,windows
+keydown,,,,,option,,,windows
+key,,,,,leftArrow,,Alt+Left pops Apples (sheet depth 0),windows
+keyup,,,,,option,,,windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key at the sheet root: nothing; the window stays at depth 1,windows
+sleep,,,,,,1200000,,windows
+key,,,,,escape,,Escape dismisses the sheet,windows
+sleep,,,,,,2000000,,windows
+key,,,,,back,,the Back key now pops the window (depth 0),windows
+sleep,,,,,,1200000,,windows

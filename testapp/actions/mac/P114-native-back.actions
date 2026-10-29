@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on macOS AppKit: the platform's own Back -- Command-[ -- pops the NavigationStack, as its drawn back control does.
+# Pushes go through the drawn controls (taplabel); every pop is Command-[. One Command-[ at the root must change nothing.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0: the Back at the root pops nothing); the final capture shows the Fruits screen under a "‹ Home" back control.
+# P114 在 macOS AppKit 上：平台自己的返回——Command-[——像畫出的返回控制項一樣彈出 NavigationStack。推入用畫出的控制項(taplabel),每次彈出都用 Command-[;在根層按一次 Command-[ 必須什麼都不改變。通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,macos
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,hold Command,macos
+key,,,,,leftBracket,,Command-[ pops Leaf (depth 2),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ pops Untitled (depth 1),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ pops Fruits (depth 0),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ at the root: nothing to pop and no depth is logged,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,macos
+sleep,,,,,,1500000,,macos

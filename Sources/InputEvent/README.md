@@ -250,6 +250,7 @@ default and neither file reads as the native one.
 | `0`–`9` | from `kVK_ANSI_0`–`9` |
 | `return`, `tab`, `space`, `escape` | |
 | `back` | not a `kVK_*` name: the platform's Back key; **see `back` below** |
+| `leftBracket` | `[` on a US layout (`kVK_ANSI_LeftBracket`); with `command` it is Back in AppKit and UIKit |
 | `delete`, `forwardDelete` | **read the warning below** |
 | `leftArrow`, `rightArrow`, `upArrow`, `downArrow` | |
 | `home`, `end`, `pageUp`, `pageDown` | |
@@ -296,20 +297,26 @@ It is the key a platform itself calls Back, and only that:
 
 It is not Escape, and not Alt-Left or Command-[: those are other keys and
 chords, which a file can already write as what they are. SwiftCrossUI's
-`NavigationStack` draws its own back button and binds no key to it, so on the
-desktop nothing in the framework answers `back`; on Android the system Back is
-what closes a window (`windowDismissBehavior`). On Android the row does not
-cover the back gesture; `testapp/test_support/p113_back_android.zsh` drives that
-with an edge swipe.
+`NavigationStack` answers the platform's Back as well as its own drawn button
+(`BackendFeatures.BackNavigation`): while a stack has anything pushed, `back`
+-- and Alt-Left on GTK and WinUI, Command-[ on macOS -- pops the innermost stack;
+with nothing to pop, Back does what it did before, which on Android is what
+closes a window (`windowDismissBehavior`). Measured 2026-10-29 with P114
+(Android `key back`, macOS Command-[ and GTK Option-Left, iOS); the Windows and
+Linux rows have not been run. On Android the row does not cover the back
+gesture; `testapp/test_support/p113_back_android.zsh` and
+`p114_back_android.zsh` drive that with an edge swipe.
 
 `back` 是平台自己的返回鍵。唯一不取自 `kVK_*` 的名稱，因為 Mac 鍵盤沒有返回鍵；它就是平台自己稱為「返回」的那個鍵，
 僅此而已:Android 是 `KEYCODE_BACK`(與其他按鍵一樣投遞：先給有焦點的 sheet,再給 activity,其 `onKeyUp` 把它交給
 `OnBackPressedDispatcher`;2026-10-28 以 P113 實測，與 `adb shell input keyevent KEYCODE_BACK` 結果相同);Windows 是
 `VK_BROWSER_BACK`、Linux(xdotool)是 `XF86Back`(兩者皆未執行，只做語法檢查);macOS 與 iOS 沒有這個鍵，會拒絕(2026-10-28
 實測)。它不是 Escape,也不是 Alt-Left 或 Command-[——那些是別的鍵與組合，動作檔本來就能照實寫出。SwiftCrossUI 的
-`NavigationStack` 自己畫返回按鈕、沒有綁定任何鍵，所以在桌面上框架裡沒有東西回應 `back`;在 Android 上，系統返回就是關閉
-視窗的方式(`windowDismissBehavior`)。這一列不涵蓋 Android 的返回手勢，那由 `testapp/test_support/p113_back_android.zsh`
-以邊緣滑動驅動。
+`NavigationStack` 除了自己畫的返回按鈕，也接受平台自己的返回(`BackendFeatures.BackNavigation`):只要有堆疊推入了內容，`back`
+——以及 GTK 與 WinUI 上的 Alt-Left、macOS 上的 Command-[——就彈出最內層的堆疊；沒有東西可彈出時，返回照舊，在 Android 上就是關閉視窗的
+方式(`windowDismissBehavior`)。2026-10-29 以 P114 實測(Android 的 `key back`、macOS 的 Command-[ 與 GTK 的 Option-Left、iOS);
+Windows 與 Linux 的列尚未執行。這一列不涵蓋 Android 的返回手勢，那由 `testapp/test_support/p113_back_android.zsh` 與
+`p114_back_android.zsh` 以邊緣滑動驅動。
 
 ### Combinations
 

@@ -94,6 +94,9 @@ final class ActionFileUITests: XCTestCase {
             // iOS 沒有返回鍵。最接近的——navigation controller 的邊緣滑動、Escape 關閉呈現——是一個手勢與另一個鍵，動作檔本來
             // 就能照實寫出(`mousedown`/`move`/`mouseup`、`escape`);拒絕。
             case "back": return nil
+            // `[`, so that Command-[ -- the Back shortcut of UIKit and AppKit -- can be written.
+            // `[`,好讓 Command-[——UIKit 與 AppKit 的返回快捷鍵——能被寫出。
+            case "leftBracket": return "["
             default: return nil
         }
     }

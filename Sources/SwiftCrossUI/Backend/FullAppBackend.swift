@@ -104,6 +104,13 @@ public typealias FullAppBackend =
         // 因為本組合，另外三者是因為它們的類別宣告。只有 AndroidBackend 寫
         // `extension AndroidBackend: BackendFeatures.ButtonPressState`。
         & BackendFeatures.ButtonPressState
+        // The same arrangement as ButtonPressState: AppKitBackend is covered by
+        // this line and implements it in a bare extension; the other four declare
+        // `BackendFeatures.BackNavigation` and `BackendFeatures.SheetBackNavigation` themselves.
+        // 與 ButtonPressState 相同的安排:AppKitBackend 由本行涵蓋，並以不帶 conformance 的 extension 實作；其餘四者自行
+        // 宣告 `BackendFeatures.BackNavigation` 與 `BackendFeatures.SheetBackNavigation`。
+        & BackendFeatures.BackNavigation
+        & BackendFeatures.SheetBackNavigation
 
 /// A typealias for ``FullAppBackend``.
 ///

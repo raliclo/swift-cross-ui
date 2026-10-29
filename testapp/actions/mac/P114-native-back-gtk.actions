@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on macOS, GtkBackend only (TEST_BACKEND=gtk4): GTK's Back shortcut Alt+Left -- Option+Left on a Mac keyboard -- pops the NavigationStack. AppKit does not take Option+Left as Back, so this file fails there by design.
+# Pushes go through the drawn controls (taplabel); every pop is Option+Left. One Option+Left at the root must change nothing.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0); the final capture shows the Fruits screen under a "‹ Home" back control.
+# P114 在 macOS 上，僅限 GtkBackend(TEST_BACKEND=gtk4):GTK 的返回快捷鍵 Alt+Left——Mac 鍵盤上的 Option+Left——彈出 NavigationStack。AppKit 不把 Option+Left 當成返回，所以本檔在那裡依設計會失敗。通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,macos
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,option,,hold Option (Alt),macos
+key,,,,,leftArrow,,Option+Left pops Leaf (depth 2),macos
+keyup,,,,,option,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,option,,,macos
+key,,,,,leftArrow,,Option+Left pops Untitled (depth 1),macos
+keyup,,,,,option,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,option,,,macos
+key,,,,,leftArrow,,Option+Left pops Fruits (depth 0),macos
+keyup,,,,,option,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,option,,,macos
+key,,,,,leftArrow,,Option+Left at the root: nothing to pop and no depth is logged,macos
+keyup,,,,,option,,,macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,macos
+sleep,,,,,,1500000,,macos

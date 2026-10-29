@@ -1,0 +1,28 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on iOS (UIKitBackend): the platform's own Back pops the NavigationStack -- a swipe in from the left edge of the screen, as UINavigationController pops, and Command-[ from a hardware keyboard.
+# Pushes go through the drawn controls (taplabel). Pops: edge swipe, Command-[, edge swipe; then one edge swipe at the root, which must change nothing.
+# The swipes start one point from the screen's left edge (origin screen, so no anchor moves them) and are thrown right at 800 points a second.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0); the final capture shows the Fruits screen under a "‹ Home" back control.
+# P114 在 iOS(UIKitBackend)上：平台自己的返回彈出 NavigationStack——從螢幕左緣向內滑動(與 UINavigationController 相同),以及實體鍵盤的 Command-[。推入用畫出的控制項(taplabel);彈出依序為邊緣滑動、Command-[、邊緣滑動，接著在根層再滑一次，必須什麼都不改變。通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,ios
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),ios
+sleep,,,,,,1200000,,ios
+mousedown,1,500,screen,left,,,edge swipe: touch at the left edge,ios
+mouseup,260,500,screen,left,velocity 800,,thrown right: pops Leaf (depth 2),ios
+sleep,,,,,,1500000,,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,leftBracket,,Command-[ pops Untitled (depth 1),ios
+keyup,,,,,command,,,ios
+sleep,,,,,,1500000,,ios
+mousedown,1,500,screen,left,,,edge swipe,ios
+mouseup,260,500,screen,left,velocity 800,,pops Fruits (depth 0),ios
+sleep,,,,,,1500000,,ios
+mousedown,1,500,screen,left,,,edge swipe at the root,ios
+mouseup,260,500,screen,left,velocity 800,,nothing to pop and no depth is logged,ios
+sleep,,,,,,1500000,,ios
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1) -- the final capture shows ‹ Home,ios
+sleep,,,,,,1500000,,ios

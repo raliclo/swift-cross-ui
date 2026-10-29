@@ -39,6 +39,9 @@ open class ScuiWindowActivity : AppCompatActivity() {
         // Closable, minimizable and resizable, set before the activity existed (WindowBehaviors.kt).
         // 在 activity 存在之前就設定的 closable、minimizable 與 resizable(WindowBehaviors.kt)。
         ScuiWindowBehaviors.activityCreated(this, token)
+        // The Back handler, set before the activity existed (BackNavigation.kt).
+        // 在 activity 存在之前就設定的返回 handler(BackNavigation.kt)。
+        ScuiBackNavigation.activityCreated(this, token)
         // The window's size is whatever this activity is given -- full screen,
         // half of a split, a free-form window -- and changes with it, so Swift
         // hears about every new size rather than computing one up front.
@@ -60,6 +63,7 @@ open class ScuiWindowActivity : AppCompatActivity() {
             ScuiWindows.titles.remove(token)
             ScuiWindows.onResized.remove(token)
             ScuiWindowBehaviors.windowClosed(this, token)
+            ScuiBackNavigation.windowClosed(this, token)
             ScuiWindows.onClosed.remove(token)?.call()
         }
         super.onDestroy()

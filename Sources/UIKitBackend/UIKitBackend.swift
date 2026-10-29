@@ -476,8 +476,11 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     var hasBuiltMainMenu = false
 
     open override var keyCommands: [UIKeyCommand]? {
-        guard !hasBuiltMainMenu, !fallbackKeyCommands.isEmpty else { return nil }
-        return fallbackKeyCommands
+        // Command-[ for Back is not a menu item, so it is published whether or
+        // not a main menu exists; see UIKitBackend+BackNavigation.swift.
+        // 返回用的 Command-[ 不是選單項目，因此不論是否有主選單都公布；見 UIKitBackend+BackNavigation.swift。
+        let commands = (hasBuiltMainMenu ? [] : fallbackKeyCommands) + backNavigationKeyCommands
+        return commands.isEmpty ? nil : commands
     }
 
     public required override init() {

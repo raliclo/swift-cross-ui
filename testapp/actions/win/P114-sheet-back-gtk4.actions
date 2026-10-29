@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Windows (WinUI and GtkBackend): a NavigationStack inside a sheet takes the platform's Back while the sheet is in front, and Back never reaches the window's stack under the sheet. From mac/P114-sheet-back.actions, with the Back key (VK_BROWSER_BACK) for one pop and Alt+Left for the other, and Escape instead of Close sheet so the file also checks that Escape still dismisses the sheet.
+# Pass: replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
+# GtkBackend copy (2026-10-29): a GTK sheet is its own toplevel titled by the executable name (P114-gtk4.exe; P114 under WSL) and taplabel inside it clicked at the main window frame plus the sheet-relative point; the two focus rows move the replay onto the sheet and back. WinUI runs P114-sheet-back.actions: its sheet is a ContentDialog in the same window and needs no focus row (focus matches an exact title and the WinUI window is titled Fruits by then; so focus P114 does not apply). The platform column cannot tell WinUI from GtkBackend on Windows; hence two files.
+# GtkBackend 版(2026-10-29):GTK 的 sheet 是獨立的 toplevel,標題是執行檔名(P114-gtk4.exe;WSL 上是 P114);sheet 內的 taplabel 原本點在「主視窗框架 + sheet 內座標」;兩列 focus 把重放移到 sheet 上再移回來。WinUI 跑 P114-sheet-back.actions:它的 sheet 是同一視窗內的 ContentDialog,不需要 focus 列(focus 要求標題完全相符,而那時 WinUI 視窗標題已是 Fruits,所以 focus P114 不適用)。Windows 上平台欄分不出 WinUI 與 GtkBackend,所以分成兩個檔。
+# P114(Windows,WinUI 與 GtkBackend):sheet 在前景時,sheet 內的 NavigationStack 接下平台的返回，而返回永遠不會抵達 sheet 底下視窗的堆疊。由 mac 版改寫：一次用返回鍵、一次用 Alt+Left,並以 Escape 取代 Close sheet,同時檢查 Escape 仍會關閉 sheet。通過條件見上方英文。
+sleep,,,,,,1500000,let P114 settle,windows
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open sheet,,open the sheet,windows
+sleep,,,,,,2000000,,windows
+focus,,,,,,,the sheet is its own toplevel titled by the executable name (P114-gtk4.exe): later taps resolve against it and keys go to it,windows,P114-gtk4.exe
+taplabel,,,,,Sheet: open Apples,,push Apples in the sheet (sheet depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Sheet: open Pears,,push Pears in the sheet (sheet depth 2),windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key pops Pears (sheet depth 1),windows
+sleep,,,,,,1200000,,windows
+keydown,,,,,option,,,windows
+key,,,,,leftArrow,,Alt+Left pops Apples (sheet depth 0),windows
+keyup,,,,,option,,,windows
+sleep,,,,,,1200000,,windows
+key,,,,,back,,the Back key at the sheet root: nothing; the window stays at depth 1,windows
+sleep,,,,,,1200000,,windows
+key,,,,,escape,,Escape dismisses the sheet,windows
+sleep,,,,,,2000000,,windows
+focus,,,,,,,coordinates and keys go to the main window again (titled by its navigationTitle),windows,Fruits
+key,,,,,back,,the Back key now pops the window (depth 0),windows
+sleep,,,,,,1200000,,windows

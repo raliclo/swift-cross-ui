@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Android, driven by testapp/test_support/p114_back_android.zsh: pushes two screens and then waits, while the script performs the back gesture and Back at the root from outside. Not meant to be run on its own.
+# P114 在 Android 上，由 testapp/test_support/p114_back_android.zsh 驅動：推入兩個畫面後等待，期間由腳本從外部執行返回手勢與根層的返回。不單獨執行。
+sleep,,,,,,1500000,let P114 settle,android
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),android
+sleep,,,,,,1200000,,android
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),android
+sleep,,,,,,30000000,the script swipes and presses Back during this wait,android

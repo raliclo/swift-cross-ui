@@ -26,6 +26,11 @@ public class CustomSheet: JavaObject {
     @JavaMethod
     func setFillsWindow(_ fillsWindow: Bool)
 
+    /// See Kotlin/CustomSheet.kt and AndroidBackend+BackNavigation.swift.
+    /// 見 Kotlin/CustomSheet.kt 與 AndroidBackend+BackNavigation.swift。
+    @JavaMethod
+    func setBackNavigationAction(_ action: SwiftAction?)
+
     // Inherited from BottomSheetDialogFragment
     @JavaMethod
     func dismiss()

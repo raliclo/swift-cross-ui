@@ -2623,6 +2623,149 @@ public class NSCustomWindow: NSWindow {
     var customDelegate = Delegate()
     var persistentUndoManager = UndoManager()
 
+    /// What Back does in this window, set by `setBackNavigationHandler`; it
+    /// returns whether it went back. `nil` while nothing in the window can go
+    /// back, and then Back reaches the window as if this did not exist.
+    ///
+    /// Back on a Mac is Command-[ -- the shortcut Finder and Safari use -- and
+    /// the back button of a mouse that has one, which AppKit reports as
+    /// `otherMouseDown` with `buttonNumber` 3. Command-[ is taken in
+    /// `performKeyEquivalent` after the window's views have declined it;
+    /// AppKit offers a key equivalent to the key window before the main menu,
+    /// so a menu item bound to Command-[ gets it only while nothing can go
+    /// back. The mouse button is taken in `sendEvent`, before any view sees it,
+    /// and so is the trackpad's "Swipe between pages": a `.swipe` event with
+    /// three fingers, a horizontal scroll handed to `trackSwipeEvent` with two.
+    /// None of these is taken while a sheet is attached to the window.
+    ///
+    /// 此視窗中「返回」所做的事，由 `setBackNavigationHandler` 設定；它回傳是否返回了。視窗中沒有任何東西可返回時為
+    /// `nil`,此時返回照常抵達視窗，如同這個屬性不存在。
+    ///
+    /// Mac 上的返回是 Command-[——Finder 與 Safari 所用的快捷鍵——以及有返回鍵的滑鼠上的那個鍵,AppKit 把它回報為
+    /// `buttonNumber` 為 3 的 `otherMouseDown`。Command-[ 在視窗中的 view 都不接之後，於 `performKeyEquivalent` 中接下;
+    /// AppKit 先把快捷鍵交給 key window、再交給主選單，因此綁到 Command-[ 的選單項目只在沒有東西可返回時才收到它。滑鼠鍵在
+    /// `sendEvent` 中接下，早於任何 view 看到它；觸控板的「在頁面之間滑動」也在那裡接下：三指時是 `.swipe` 事件，雙指時是
+    /// 交給 `trackSwipeEvent` 的水平捲動。視窗掛著 sheet 時，這些都不處理。
+    var backNavigationHandler: (@MainActor () -> Bool)?
+
+    public override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if super.performKeyEquivalent(with: event) { return true }
+        guard event.type == .keyDown,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+              event.charactersIgnoringModifiers == "[",
+              attachedSheet == nil,
+              let backNavigationHandler
+        else { return false }
+        return backNavigationHandler()
+    }
+
+    public override func sendEvent(_ event: NSEvent) {
+        // Back never reaches under a sheet: the sheet is a window of its own
+        // with its own handler. 返回永遠不會穿到 sheet 底下:sheet 是自己的視窗，有自己的 handler。
+        if attachedSheet == nil, let backNavigationHandler {
+            switch event.type {
+                case .otherMouseDown where event.buttonNumber == 3:
+                    if backNavigationHandler() { return }
+                case .swipe where event.deltaX > 0:
+                    if backNavigationHandler() { return }
+                case .scrollWheel:
+                    if trackBackSwipe(event) { return }
+                default:
+                    break
+            }
+        }
+        super.sendEvent(event)
+    }
+
+    /// Set between a scroll gesture's `began` and its first event with a
+    /// horizontal or vertical movement, while it may still become a swipe.
+    /// 在一次捲動手勢的 `began` 與其第一個帶有移動量的事件之間設定，此時它仍可能變成滑動返回。
+    private var scrollGestureUndecided = false
+
+    /// The two-finger swipe between pages: a horizontal trackpad scroll with
+    /// the fingers moving right, which AppKit turns into a tracked swipe with
+    /// `trackSwipeEvent` while "Swipe between pages" allows scroll-based
+    /// swipes (`isSwipeTrackingFromScrollEventsEnabled`). Decided on the first
+    /// event of the gesture that moves; a vertical or leftward start, or a
+    /// scroll view under the pointer that can still scroll that way, leaves
+    /// the gesture to the scroll view. Returns whether the event was taken.
+    ///
+    /// 雙指在頁面間滑動：手指向右的水平觸控板捲動;「在頁面之間滑動」允許以捲動觸發時
+    /// (`isSwipeTrackingFromScrollEventsEnabled`),AppKit 以 `trackSwipeEvent` 把它變成被追蹤的滑動。在手勢第一個帶有移動量
+    /// 的事件上決定；垂直或向左開始，或指標下的捲動視圖仍能往那個方向捲，就把手勢留給捲動視圖。回傳事件是否被接下。
+    /// `SCUI_TRACE_BACK_SWIPE=1` prints each step of the two-finger swipe
+    /// decision, for a manual test on a real trackpad.
+    /// `SCUI_TRACE_BACK_SWIPE=1` 印出雙指滑動判斷的每一步，供在實體觸控板上手動測試。
+    private static let tracesBackSwipe = ProcessInfo.processInfo.environment["SCUI_TRACE_BACK_SWIPE"] != nil
+
+    private static func traceBackSwipe(_ message: @autoclosure () -> String) {
+        // stderr, unbuffered: a run ends with the app being killed.
+        // 寫到 stderr(不經緩衝):一次執行以 app 被終止結束。
+        if tracesBackSwipe { FileHandle.standardError.write(Data("SCUI-BackSwipe: \(message())\n".utf8)) }
+    }
+
+    private func trackBackSwipe(_ event: NSEvent) -> Bool {
+        Self.traceBackSwipe(
+            "scroll event phase=\(event.phase.rawValue) momentum=\(event.momentumPhase.rawValue)"
+                + " precise=\(event.hasPreciseScrollingDeltas) dx=\(event.scrollingDeltaX) dy=\(event.scrollingDeltaY)"
+        )
+        if event.phase == .began { scrollGestureUndecided = true }
+        guard scrollGestureUndecided, event.phase == .began || event.phase == .changed else {
+            return false
+        }
+        let dx = event.scrollingDeltaX
+        let dy = event.scrollingDeltaY
+        guard dx != 0 || dy != 0 else { return false }
+        scrollGestureUndecided = false
+        // With natural scrolling the delta follows the fingers; without it,
+        // it is reversed. 自然捲動時 delta 與手指同向；否則相反。
+        let fingersDX = event.isDirectionInvertedFromDevice ? dx : -dx
+        let canScrollBack = scrollViewCanScrollBack(at: event)
+        Self.traceBackSwipe(
+            "scroll phase=\(event.phase.rawValue) dx=\(dx) dy=\(dy) inverted=\(event.isDirectionInvertedFromDevice)"
+                + " enabled=\(NSEvent.isSwipeTrackingFromScrollEventsEnabled) scrollViewCanScrollBack=\(canScrollBack)"
+        )
+        guard NSEvent.isSwipeTrackingFromScrollEventsEnabled,
+              abs(dx) > abs(dy), fingersDX > 0, !canScrollBack
+        else { return false }
+        Self.traceBackSwipe("starting trackSwipeEvent")
+        var wentBack = false
+        event.trackSwipeEvent(
+            options: [.lockDirection, .clampGestureAmount],
+            dampenAmountThresholdMin: -1,
+            max: 1
+        ) { [weak self] amount, phase, complete, _ in
+            Self.traceBackSwipe("tracking amount=\(amount) phase=\(phase.rawValue) complete=\(complete)")
+            // `ended` is the fingers lifting past the threshold; `cancelled`
+            // is the swipe abandoned. `ended` 是手指越過門檻後抬起;`cancelled` 是放棄滑動。
+            if phase == .ended, !wentBack {
+                wentBack = true
+                let popped = self?.backNavigationHandler?() ?? false
+                Self.traceBackSwipe("tracked swipe ended: \(popped ? "popped" : "nothing to pop")")
+            }
+        }
+        return true
+    }
+
+    /// Whether a scroll view under the event can scroll toward its leading
+    /// edge, which is where a rightward swipe of the fingers takes it.
+    /// 事件下方的捲動視圖是否還能往前緣捲動——手指向右滑動正是把它往那裡帶。
+    private func scrollViewCanScrollBack(at event: NSEvent) -> Bool {
+        guard let contentView,
+              let hit = contentView.hitTest(contentView.convert(event.locationInWindow, from: nil))
+        else { return false }
+        var view: NSView? = hit
+        while let current = view {
+            if let scrollView = current as? NSScrollView,
+               scrollView.contentView.bounds.minX > 0
+            {
+                return true
+            }
+            view = current.superview
+        }
+        return false
+    }
+
     /// A reference to the sheet currently presented on top of this window, if any.
     /// If the sheet itself has another sheet presented on top of it, then that doubly
     /// nested sheet gets stored as the sheet's nestedSheet, and so on.

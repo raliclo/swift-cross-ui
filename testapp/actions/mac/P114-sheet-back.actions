@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on macOS (AppKit and GtkBackend): a NavigationStack inside a sheet takes the platform's Back -- Command-[ -- while the sheet is in front, and Back never reaches the window's stack under the sheet.
+# Steps: push Fruits in the window (depth 1); open the sheet; push Apples and Pears in it (sheet depth 2); Command-[ twice (sheet 1, 0); Command-[ at the sheet's root (nothing: the sheet stays and the window stays at depth 1); close the sheet; Command-[ pops the window (depth 0).
+# Pass: the replay reports replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
+# P114 在 macOS(AppKit 與 GtkBackend)上:sheet 在前景時，sheet 內的 NavigationStack 接下平台的返回(Command-[),而返回永遠不會抵達 sheet 底下視窗的堆疊。步驟與通過條件見上方英文說明。
+sleep,,,,,,1500000,let P114 settle,macos
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open sheet,,open the sheet,macos
+sleep,,,,,,2000000,,macos
+taplabel,,,,,Sheet: open Apples,,push Apples in the sheet (sheet depth 1),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Sheet: open Pears,,push Pears in the sheet (sheet depth 2),macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ pops Pears (sheet depth 1),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ pops Apples (sheet depth 0),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ at the sheet root: nothing; the window stays at depth 1,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Close sheet,,close the sheet,macos
+sleep,,,,,,2000000,,macos
+keydown,,,,,command,,,macos
+key,,,,,leftBracket,,Command-[ now pops the window (depth 0),macos
+keyup,,,,,command,,,macos
+sleep,,,,,,1200000,,macos

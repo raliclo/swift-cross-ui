@@ -44,8 +44,10 @@ import WinUI
                     guard let root = window.content, let xamlRoot = root.xamlRoot else {
                         return
                     }
-                    func find(_ element: WinUI.UIElement) -> WinUI.FrameworkElement? {
-                        guard element.visibility == .visible else { return nil }
+                    func find(_ element: WinUI.DependencyObject) -> WinUI.FrameworkElement? {
+                        if let shown = element as? WinUI.UIElement, shown.visibility != .visible {
+                            return nil
+                        }
                         if let block = element as? WinUI.TextBlock,
                             block.actualWidth > 0, block.text == label
                         {
@@ -58,10 +60,12 @@ import WinUI
                         }
                         let count = VisualTreeHelper.getChildrenCount(element)
                         for index in 0..<count {
-                            guard
-                                let child = VisualTreeHelper.getChild(element, index)
-                                    as? WinUI.UIElement
-                            else { continue }
+                            // Not `as? UIElement`: inside a ContentDialog one template node projects
+                            // only as DependencyObject and skipping it dropped the whole sheet
+                            // (P114-sheet-back on 2026-10-29).
+                            // 不用 `as? UIElement`:ContentDialog 裡範本的某個節點只投影為 DependencyObject;
+                            // 跳過它就漏掉整個 sheet(2026-10-29 的 P114-sheet-back)。
+                            guard let child = VisualTreeHelper.getChild(element, index) else { continue }
                             if let found = find(child) { return found }
                         }
                         return nil

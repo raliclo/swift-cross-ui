@@ -699,6 +699,7 @@
                 // The Back key's keysym, as on keyboards and mice that have one.
                 // 返回鍵的 keysym,與有返回鍵的鍵盤和滑鼠相同。
                 case .back: "XF86Back"
+                case .leftBracket: "bracketleft"
                 case .keypadDecimal: "KP_Decimal"
                 case .keypadPlus: "KP_Add"
                 case .keypadMinus: "KP_Subtract"
