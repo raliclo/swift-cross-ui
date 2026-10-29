@@ -44,7 +44,15 @@ struct P41DatePickerStylesApp: App {
     var body: some Scene {
         WindowGroup("P41 date picker styles") {
             #hotReloadable {
-                P41RootView()
+                // In a ScrollView (2026-10-29): the content is about 1136 DIPs
+                // tall, and without one SwiftCrossUI grows the window to fit it,
+                // past the bottom of a 1080-line screen at 125%, where the
+                // .rows cells could not be clicked.
+                // 放進 ScrollView(2026-10-29):內容約 1136 DIP 高，沒有它 SwiftCrossUI 會把視窗撐到容得下內容，
+                // 在 125% 的 1080 線螢幕上超出底部,.rows 那幾格點不到。
+                ScrollView {
+                    P41RootView()
+                }
             }
         }
         .defaultSize(width: 1340, height: 820)
@@ -71,6 +79,14 @@ struct P41RootView: View {
     static let localeOverride: Locale? =
         ProcessInfo.processInfo.environment["SCUI_P41_LOCALE"].map(Locale.init(identifier:))
     @Environment(\.locale) var inheritedLocale
+    @State var chosenLocale: String? = nil
+
+    static let locales = ["launch", "en_US", "zh_TW", "ja_JP", "de_DE"]
+
+    var locale: Locale {
+        chosenLocale.map(Locale.init(identifier:))
+            ?? P41RootView.localeOverride ?? inheritedLocale
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -80,6 +96,22 @@ struct P41RootView: View {
             Text("backend -> \(String(describing: DefaultBackend.self))")
 
             Text("Two cells that look identical mean one style fell back to the other.")
+
+            // Switches every cell's locale in place (2026-10-29), so one run
+            // compares languages and also exercises a locale change on a live
+            // control, which a launch-time SCUI_P41_LOCALE never does. "launch"
+            // goes back to SCUI_P41_LOCALE or the inherited locale.
+            // 就地切換每一格的 locale(2026-10-29),讓一次執行就能比較語言，同時測到「已上畫面的控制項換
+            // locale」——啟動時的 SCUI_P41_LOCALE 永遠測不到這條路。"launch" 回到 SCUI_P41_LOCALE 或繼承的 locale。
+            HStack(spacing: 8) {
+                Text("locale -> \(locale.identifier)")
+                ForEach(P41RootView.locales, id: \.self) { name in
+                    Button(name) {
+                        chosenLocale = name == "launch" ? nil : name
+                        P41Diagnostics.write("locale button -> \(name)")
+                    }
+                }
+            }
 
             // Three styles a row (2026-10-18): the wheel, `.clock` and `.rows` are
             // drawn on every backend now -- in SwiftCrossUI views where the
@@ -144,7 +176,7 @@ struct P41RootView: View {
             }
         }
         .padding(18)
-        .environment(\.locale, P41RootView.localeOverride ?? inheritedLocale)
+        .environment(\.locale, locale)
         .onAppear {
             P41Diagnostics.write("RENDER COMPLETE -- P41 ready for date picker checks")
         }

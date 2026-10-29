@@ -204,6 +204,18 @@ apt-get install -y --no-install-recommends pulseaudio-utils
 # netpbm 用於轉換其輸出，因為沒人打得開的擷取檔算不上證據。
 apt-get install -y --no-install-recommends xdotool x11-utils x11-apps netpbm
 
+# wayland-info, for what the WSLg compositor offers a Wayland client. Added
+# 2026-10-29 to settle two questions with the compositor's own answer: Hide
+# Others has no protocol to act on other clients there (no
+# zwlr_foreign_toplevel_manager_v1 or ext_foreign_toplevel_list_v1 among the
+# 20 globals), and the RDP seat offers "pointer keyboard", no touch -- which is
+# why a touch drag reaches a GTK window under WSLg as a mouse.
+# wayland-info:查看 WSLg 的 compositor 提供給 Wayland client 什麼。2026-10-29 加入，用 compositor 自己的回答回答兩個
+# 問題:Hide Others 在那裡沒有可以操作其他 client 的協定(20 個 global 裡沒有 zwlr_foreign_toplevel_manager_v1 或
+# ext_foreign_toplevel_list_v1);RDP seat 只提供「pointer keyboard」,沒有 touch——這正是 WSLg 下觸控拖曳以滑鼠
+# 抵達 GTK 視窗的原因。
+apt-get install -y --no-install-recommends wayland-utils
+
 # A screen reader, for #123 (queue.md row 8): what Orca actually says about P69
 # is checked from its debug log, with speech-dispatcher's dummy output module so
 # nothing is spoken aloud. The AT-SPI probe reads the tree; only a reader shows

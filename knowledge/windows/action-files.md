@@ -44,6 +44,11 @@ and the app's own log, not by the exit code.
 - Not drivable: OLE drag and drop (P25), native file dialogs under the topmost
   pin (P1, P18 need a person), anything needing the window taller than the
   screen (P41 at 125%).
+  2026-10-29: P41 is in a ScrollView and SwiftCrossUI caps a window at the
+  room on its screen, so P41 fits; what is left is a click whose height
+  follows the window's (P41-change-seconds after scrolling to the bottom).
+  2026-10-29:P41 改放進 ScrollView,SwiftCrossUI 也依螢幕空間封頂視窗，P41 放得下了；剩下的是點擊高度隨視窗高度變動
+  的情況(P41-change-seconds 捲到底後)。
 
 ---
 

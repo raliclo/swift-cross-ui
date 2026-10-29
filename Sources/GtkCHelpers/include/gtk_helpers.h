@@ -327,6 +327,27 @@ double scui_window_display_scale(GtkWidget *window);
 // 亦即此處的 `awareness`。
 char *scui_window_scale_diagnostics(GtkWidget *window);
 
+// The room this window has on its screen, from its current top-left corner to
+// the right and bottom edges of the work area -- the screen without the
+// taskbar, or the panels on X11 -- less its client-side shadow, in GDK units.
+// FALSE where it cannot be told. Implemented in gtk_window_workarea.c.
+//
+// GtkBackend caps a window's default size, and SwiftCrossUI's growth of it to
+// fit its content, at this. Measured 2026-10-29 with P41 at 125% on a
+// 1920x1080 display: the content grew the window to 1471 px, so its last row
+// was below the screen and could not be clicked. From the corner rather than
+// the whole work area, because a window as tall as the work area still runs
+// off the bottom by however far down it was placed. Wayland gives no work
+// area, so there it is the monitor's geometry.
+//
+// 這個視窗在螢幕上的空間：從它目前的左上角，到工作區(扣掉工作列的螢幕,X11 上扣掉面板)的右緣與下緣，再扣掉
+// client-side 陰影，單位為 GDK 單位。取不到時回傳 FALSE。實作位於 gtk_window_workarea.c。
+//
+// GtkBackend 以此作為視窗預設尺寸、以及 SwiftCrossUI 為容納內容而把它撐大時的上限。2026-10-29 以 P41 在 125%、
+// 1920x1080 的螢幕上實測：內容把視窗撐到 1471 px,最後一列落在螢幕下方、點不到。從左上角算而不是用整個工作區，
+// 因為一個工作區那麼高的視窗，放得多低就會超出底部多少。Wayland 不提供工作區，那裡用的是顯示器的範圍。
+gboolean scui_window_screen_space(GtkWidget *window, int *width, int *height);
+
 // The NSWindow behind a realized GTK window on macOS; NULL elsewhere and before
 // the window is realized. Implemented in gtk_window_native_macos.c.
 //

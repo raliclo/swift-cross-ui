@@ -227,6 +227,27 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         )
     }
 
+    /// The screen's visible frame (without the menu bar and the Dock) from the
+    /// window's top-left corner, as a content size. AppKit's y grows upwards,
+    /// so the room runs from the window's top edge down to the visible
+    /// frame's bottom. Written 2026-10-29 on Windows and not compiled there.
+    /// 螢幕的可見範圍(扣掉選單列與 Dock)從視窗左上角起算，換成內容尺寸。AppKit 的 y 向上增加，所以空間是從視窗上緣
+    /// 到可見範圍的下緣。2026-10-29 在 Windows 上寫成，未在那裡編譯。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        guard let screen = window.screen ?? NSScreen.main else { return nil }
+        let visible = screen.visibleFrame
+        let left = min(max(window.frame.minX, visible.minX), visible.maxX)
+        let top = max(min(window.frame.maxY, visible.maxY), visible.minY)
+        let room = NSRect(
+            x: left, y: visible.minY, width: visible.maxX - left, height: top - visible.minY
+        )
+        let content = window.contentRect(forFrameRect: room)
+        return SIMD2(
+            Int(content.width.rounded(.towardZero)),
+            Int(content.height.rounded(.towardZero))
+        )
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         !window.styleMask.contains(.fullScreen)
     }

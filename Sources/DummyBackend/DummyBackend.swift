@@ -368,6 +368,12 @@ public final class DummyBackend:
         window.size
     }
 
+    /// `nil`: a dummy window has no screen.
+    /// `nil`:dummy 視窗沒有螢幕。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        nil
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         true
     }

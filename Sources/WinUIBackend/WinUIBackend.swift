@@ -714,6 +714,44 @@ public final class WinUIBackend:
         return out
     }
 
+    /// The work area of the window's monitor -- the screen without the taskbar
+    /// -- from the window's current top-left corner, less its frame, the menu
+    /// bar and the toolbar, in DIPs. From the corner and not the whole area
+    /// because WinUI places a new window at y 128 at 125%, and a window sized
+    /// to the work area from there still runs 128 px off the bottom.
+    /// 視窗所在顯示器的工作區(扣掉工作列的螢幕),從視窗目前的左上角算起，再扣掉外框、選單列與工具列，單位為 DIP。
+    /// 從左上角算而不是用整個工作區，是因為 WinUI 在 125% 下把新視窗放在 y 128,從那裡開一個工作區高的視窗，底部仍會
+    /// 超出 128 px。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        guard let hwnd = window.getHWND(),
+            let monitor = MonitorFromWindow(hwnd, DWORD(bitPattern: MONITOR_DEFAULTTONEAREST))
+        else { return nil }
+        var info = MONITORINFO()
+        info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
+        var windowRect = RECT()
+        guard GetMonitorInfoW(monitor, &info), GetWindowRect(hwnd, &windowRect) else {
+            return nil
+        }
+        let work = info.rcWork
+        let left = min(max(windowRect.left, work.left), work.right)
+        let top = min(max(windowRect.top, work.top), work.bottom)
+
+        let dpi = GetDpiForWindow(hwnd)
+        let effectiveDPI = dpi == 0 ? UINT(USER_DEFAULT_SCREEN_DPI) : dpi
+        let scaleFactor = Double(effectiveDPI) / Double(USER_DEFAULT_SCREEN_DPI)
+        var frame = RECT(left: 0, top: 0, right: 0, bottom: 0)
+        let style = DWORD(bitPattern: Int32(GetWindowLongPtrW(hwnd, GWL_STYLE)))
+        let extendedStyle = DWORD(bitPattern: Int32(GetWindowLongPtrW(hwnd, GWL_EXSTYLE)))
+        _ = AdjustWindowRectExForDpi(&frame, style, false, extendedStyle, effectiveDPI)
+
+        let width = Double(work.right - left - (frame.right - frame.left)) / scaleFactor
+        let height = Double(work.bottom - top - (frame.bottom - frame.top)) / scaleFactor
+        return SIMD2(
+            Int(width.rounded(.towardZero)),
+            Int(height.rounded(.towardZero)) - window.contentHeightAdjustment
+        )
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         // A full-screen window answers false, as AppKitBackend and GtkBackend
         // do, or the layout system keeps proposing sizes the window will not
@@ -1506,7 +1544,11 @@ public final class WinUIBackend:
                 // If SwiftCrossUI trusts that, the graphical DatePicker style gets
                 // committed as a blank sliver. The fallback is sized for the default
                 // month view: 7 columns, 6 weeks, and the header/navigation row.
-                adjustment = SIMD2(320, 300)
+                // 320x300 cut the last week off and wrapped "Mo" and "We"
+                // (P41, 2026-10-29); 340x360 draws the whole month, as the
+                // locale buttons' re-measured size does.
+                // 320x300 會裁掉最後一週、讓「Mo」「We」折行(P41,2026-10-29);340x360 畫得出整個月，與 locale 按鈕重新量測後的尺寸一樣。
+                adjustment = SIMD2(340, 360)
             } else {
                 // I don't actually know why this is necessary, but without it the
                 // abbreviations for the weekdays wrap, making it taller than it says
@@ -4175,6 +4217,36 @@ final class CustomDatePicker: StackPanel {
                 let calendarView = CalendarView()
                 dateView = .calendarView(calendarView)
                 children.insertAt(0, calendarView)
+                // A new CalendarView draws a blank weekday row and starts the
+                // week on Monday, whatever its Language and the system's first
+                // day (Sunday here); a Language change on the loaded control
+                // redraws both correctly (P41, 2026-10-29: blank at launch
+                // under en_US and zh_TW, right after the locale buttons). So
+                // the Language is changed once after load and set back.
+                // 新建的 CalendarView 會畫出空白的星期列、一週從星期一開始，不論 Language 與系統的每週第一天(本機是週日);
+                // 在已載入的控制項上換一次 Language,兩者都會正確重畫(P41,2026-10-29:啟動時 en_US 與 zh_TW 皆空白，
+                // 按下 locale 按鈕後正確)。因此載入後換一次 Language 再換回來。
+                //
+                // Once only, so that a second Loaded cannot repeat it. On the
+                // next main-loop pass, not in Loaded itself: changed inside
+                // the handler the grid went to January 1. And back to the
+                // selected date afterwards, which the change loses.
+                // 只做一次，以免再次觸發的 Loaded 又重做。在下一輪主迴圈做，不在 Loaded 裡直接做：在 handler 裡換的話，
+                // 格線跑到 January 1。換完要捲回選定日期，因為換語言會把它弄丟。
+                var didReset = false
+                calendarView.loaded.addHandler { [weak calendarView] _, _ in
+                    guard !didReset else { return }
+                    didReset = true
+                    DispatchQueue.main.async { [weak calendarView] in
+                        guard let calendarView else { return }
+                        let language = calendarView.language
+                        calendarView.language = language == "en-GB" ? "en-US" : "en-GB"
+                        calendarView.language = language
+                        if calendarView.selectedDates.size > 0 {
+                            try? calendarView.setDisplayDate(calendarView.selectedDates.getAt(0))
+                        }
+                    }
+                }
                 orientation = .vertical
                 dateChangedEvent = calendarView.selectedDatesChanged.addHandler {
                     [unowned self] _, _ in
@@ -4282,6 +4354,16 @@ final class CustomDatePicker: StackPanel {
 
         switch dateView {
             case .calendarView(let calendarView):
+                // The grid's month and weekday names follow
+                // FrameworkElement.Language, not `\.locale`; without this they
+                // stay in the app's language (English) under
+                // SCUI_P41_LOCALE=zh_TW. BCP-47 wants "zh-TW", not "zh_TW".
+                // 格線的月份與星期名稱取自 FrameworkElement.Language 而非 `\.locale`;少了這行，在
+                // SCUI_P41_LOCALE=zh_TW 下仍是 app 的語言(英文)。BCP-47 要的是 "zh-TW" 而非 "zh_TW"。
+                let language = (calendar.locale ?? .current).identifier(.bcp47)
+                if calendarView.language != language {
+                    calendarView.language = language
+                }
                 calendarView.calendarIdentifier = identifier(for: calendar)
                 switch calendarView.selectedDates.size {
                     case 0:

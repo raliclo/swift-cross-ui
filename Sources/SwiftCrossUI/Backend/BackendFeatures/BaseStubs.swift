@@ -488,6 +488,10 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        todo()
+    }
+
     public func createWindow(withDefaultSize defaultSize: SIMD2<Int>?, id: String) -> Window {
         todo()
     }

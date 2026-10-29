@@ -17,6 +17,24 @@ the locale's numeric pattern.
   the seconds, writing the bound value back at launch; guarded since 2026-09-17.
 - Open: the `.graphical` CalendarView grid stays English (known limit, checked
   2026-10-20).
+  **Fixed 2026-10-29, so "known limit" was wrong**: it had never been tried on
+  CalendarView. `FrameworkElement.Language` set to the locale's BCP-47 tag
+  (zh-TW, not zh_TW) localises the month and weekday names; P41's locale
+  buttons switch en_US / zh_TW / ja_JP / de_DE live. Two more defects showed
+  then, at launch, under every language: a blank weekday row and a Monday-first
+  week (the system says Sunday), until any Language change on the loaded
+  control; and a clipped last week with "Mo" "We" wrapped, from the 320x300
+  0x0 fallback. WinUIBackend now changes the Language once after Loaded (on the
+  next main-loop pass, then back to the selected date) and the fallback is
+  340x360. Dead ends, kept: changing it inside Loaded sent the grid to January
+  1; asking SwiftCrossUI to re-measure (`environment.onResize`) looped, because
+  the measured size is the set width + 20, and grew memory ~130 MB per 3 s.
+  **2026-10-29 已修，「已知限制」是錯的**:從沒在 CalendarView 上試過。把 `FrameworkElement.Language` 設成 locale
+  的 BCP-47 標記(zh-TW 而非 zh_TW)即可在地化月份與星期名稱;P41 的 locale 按鈕可即時切換 en_US / zh_TW / ja_JP / de_DE。
+  接著又冒出兩個缺陷，在啟動時、任何語言下皆然：星期列空白且一週從星期一開始(系統設定是週日),直到已載入的控制項換一次
+  Language 才恢復；以及最後一週被裁、「Mo」「We」折行，來自 320x300 的 0x0 替代尺寸。WinUIBackend 現在於 Loaded 後
+  (下一輪主迴圈)換一次 Language 再捲回選定日期，替代尺寸改為 340x360。保留死路：在 Loaded 裡直接換會讓格線跑到 January 1;
+  要 SwiftCrossUI 重新量測(`environment.onResize`)會無限迴圈——量到的尺寸是設定寬度 + 20——記憶體每 3 秒長約 130 MB。
 
 ## File dialogs
 

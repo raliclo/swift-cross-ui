@@ -189,7 +189,12 @@ final class WindowReference<SceneType: WindowingScene> {
         let proposedWindowSize: SIMD2<Int>
         let usedDefaultSize: Bool
         if isFirstUpdate && isProgramaticallyResizable && !backend.restoresWindowFrames {
-            proposedWindowSize = environment.defaultWindowSize
+            // The default size is a request, not a promise to run off the
+            // screen: capped at the room the window has there (2026-10-29).
+            // 預設尺寸是請求，不是保證可以超出螢幕：以視窗在螢幕上的空間為上限(2026-10-29)。
+            let screen = backend.maximumSizeOnScreen(ofWindow: window)
+            proposedWindowSize = screen.map { pointwiseMin(environment.defaultWindowSize, $0) }
+                ?? environment.defaultWindowSize
             usedDefaultSize = true
         } else {
             proposedWindowSize = cachedWindowSize ?? backend.size(ofWindow: window)
@@ -442,8 +447,16 @@ final class WindowReference<SceneType: WindowingScene> {
         // 都只有一行，所以開得比內容矮的視窗剛好長到那裡，每段說明都畫成一行加刪節號——P44 與 P51,AppKit 與 GTK
         // 皆然(2026-10-18)。以它將有的寬度、不給高度去問，內容會回答文字換行後有多高。上限為要求高度的兩倍，免得
         // 在 nil 高度下沒有邊界的內容(一疊清單)開出比任何螢幕都高的視窗。
+        // Capped at the room the window has on its screen as well (2026-10-29):
+        // twice a request can still pass the bottom of the screen, as P41's
+        // 1471 px did at 125% on 1080 lines. Never below the minimum, which the
+        // `max` keeps; content too tall for the screen needs a ScrollView.
+        // 也以視窗在螢幕上的空間為上限(2026-10-29):兩倍的要求仍可能超出螢幕底部，如 P41 在 125%、1080 線上的
+        // 1471 px。絕不低於最小值，由外層的 `max` 保證；比螢幕還高的內容要放進 ScrollView。
         var grownHeight = minimumWindowSize.height
         if !windowSizeIsFinal, minimumWindowSize.height >= Double(proposedWindowSize.y) {
+            let screenHeight = backend.maximumSizeOnScreen(ofWindow: window).map { Double($0.y) }
+                ?? .infinity
             let width = max(minimumWindowSize.width, Double(proposedWindowSize.x))
             let ideal = viewGraph.computeLayout(
                 with: newScene.map { SettingsHost(content: $0.content()) },
@@ -453,7 +466,7 @@ final class WindowReference<SceneType: WindowingScene> {
             if ideal.isFinite {
                 grownHeight = max(
                     minimumWindowSize.height,
-                    min(ideal, 2 * Double(proposedWindowSize.y))
+                    min(ideal, 2 * Double(proposedWindowSize.y), screenHeight)
                 )
             }
         }

@@ -108,6 +108,30 @@ extension BackendFeatures {
             maximum maximumSize: SIMD2<Int>?
         )
 
+        /// The largest content size, in the units of ``size(ofWindow:)``, that
+        /// the window can have and still fit on its screen from where it is:
+        /// the work area (the screen without the taskbar, dock or panels) from
+        /// the window's top-left corner, less the window's frame.
+        ///
+        /// SwiftCrossUI caps a window's default size, and its growth to fit its
+        /// content, at this -- never below the content's minimum size, and never
+        /// a size the user chose by resizing. Return `nil` where the platform
+        /// sizes windows itself (a phone's screen-filling scene) or cannot say.
+        ///
+        /// Added 2026-10-29: on a 1920x1080 display at 125%, P41's content grew
+        /// its window to 1471 px, so its last row was off the screen and could
+        /// not be clicked.
+        ///
+        /// 視窗從目前位置起、仍能完整放在螢幕上的最大內容尺寸，單位與 ``size(ofWindow:)`` 相同：從視窗左上角起算的
+        /// 工作區(扣掉工作列、Dock 或面板的螢幕),再扣掉視窗外框。SwiftCrossUI 以此作為視窗預設尺寸、以及為容納內容而
+        /// 撐大時的上限——絕不低於內容的最小尺寸，也絕不限制使用者自己拉出來的尺寸。平台自行決定視窗大小(手機上佔滿
+        /// 螢幕的 scene)或無法得知時，回傳 `nil`。2026-10-29 加入：在 125% 的 1920x1080 螢幕上,P41 的內容把視窗撐到
+        /// 1471 px,最後一列落在螢幕外、點不到。
+        ///
+        /// - Parameter window: The window to measure the screen space of.
+        /// - Returns: The largest content size that fits, or `nil`.
+        func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>?
+
         /// Sets the handler for the window's resizing events.
         ///
         /// Setting the resize handler overrides any previous handler.

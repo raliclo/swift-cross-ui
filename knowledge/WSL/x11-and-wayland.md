@@ -74,6 +74,16 @@ purpose.
   WSL row for them is "n/a (WSLg delivers touch as mouse)", not a failure.
   Probe: a GtkEventControllerLegacy that prints each event's type, source and
   emulated flag.
+  Checked against the compositor the same day with `wayland-info`
+  (wayland-utils, installed by install_tool_wsl.zsh since 2026-10-29): WSLg's
+  `wl_seat` "RDP" advertises `pointer keyboard`, no touch. So touch is absent
+  at the protocol, not dropped by GTK.
+- Hide Others cannot be done under WSLg, measured 2026-10-29. Wayland: none of
+  the 20 globals is `zwlr_foreign_toplevel_manager_v1`,
+  `ext_foreign_toplevel_list_v1` or any other protocol that lets a client act
+  on another's windows. X11: WSLg does not honour iconify -- after
+  `xdotool windowminimize` (rc 0) xeyes's `WM_STATE` stayed Normal, and P92
+  under X11 with Ctrl+Alt+H left it Normal too.
 - XDND drag and drop cannot be synthesised with xdotool, and the distro has
   no file manager to drag from (testapp/gtk-test-plan-findings.md).
 
@@ -132,4 +142,9 @@ X11 下不設時,WSLg 畫的是淺色、三顆鈕的伺服器端框;Wayland 下 
   WSL 下單指觸控就是滑鼠：只走觸控的路徑(如 `GtkTouchHold`)在那裡到不了(兩指手勢沒有試),WSL 那一格應寫
   「n/a(WSLg 把觸控當滑鼠送)」,不是失敗。探針：一個印出每個事件類型、source 與 emulated 旗標的
   GtkEventControllerLegacy。
+  同日以 `wayland-info`(install_tool_wsl.zsh 自 2026-10-29 起安裝 wayland-utils)查 compositor 本身：WSLg 的
+  `wl_seat`「RDP」只宣告 `pointer keyboard`,沒有 touch。所以觸控在協定層就不存在，不是 GTK 漏收。
+- Hide Others:WSLg 下無法實作，2026-10-29 實測。Wayland:20 個 global 裡沒有 `zwlr_foreign_toplevel_manager_v1`、
+  `ext_foreign_toplevel_list_v1` 或任何讓 client 操作其他 client 視窗的協定。X11:WSLg 不接受 iconify——連
+  `xdotool windowminimize` 送出(rc 0)後，xeyes 的 `WM_STATE` 仍是 Normal;以 X11 執行 P92 按 Ctrl+Alt+H 也一樣。
 - XDND 拖放無法用 xdotool 合成，發行版也沒有可拖出檔案的檔案管理員(testapp/gtk-test-plan-findings.md)。

@@ -1175,6 +1175,16 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   後續(同日):以 P41 的 SCUI_P41_LOCALE=zh_TW 在 WinUI 與 Windows GTK 檢查。.clock/.rows 本來就正確；WinUI 的
   .compact 改用依 locale 數字樣式產生的 dateFormat(2025/8/24);上午/下午一律依 `jm` 樣式擺放，GtkBackend 已跟進；
   WinUI 滾輪選取置中；GtkBackend 滾輪啟動時停在 1925 的問題已修。.graphical 的月份/星期名稱兩邊都不在地化，屬已知限制。
+  **2026-10-29: WinUI half fixed, so "known limit" was wrong** -- CalendarView had never been given a
+  Language. It now takes the locale's BCP-47 tag, and P41's locale buttons switch it live (en_US,
+  zh_TW, ja_JP, de_DE checked); see knowledge/windows/winui-controls.md for the launch-time blank
+  weekday row it also fixed. **Still open: GtkBackend's GtkCalendar** stays in the process locale
+  (English here under zh_TW). GtkCalendar has no per-widget locale, so it needs either the grid drawn
+  in Swift, as the wheels were, or the process locale -- a gap the project rule does not allow.
+  **2026-10-29:WinUI 修好一半，「已知限制」是錯的**——CalendarView 從沒被設過 Language。現在它取 locale 的 BCP-47 標記，
+  P41 的 locale 按鈕可即時切換(已查 en_US、zh_TW、ja_JP、de_DE);一併修好的啟動時空白星期列見
+  knowledge/windows/winui-controls.md。**仍未解決:GtkBackend 的 GtkCalendar** 仍依行程的 locale(本機在 zh_TW 下仍是英文)。
+  GtkCalendar 沒有逐元件的 locale,所以要嘛像滾輪那樣以 Swift 畫格線，要嘛改行程 locale——專案規則不允許這個缺口。
 - [x] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
   yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
   `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,
@@ -1220,6 +1230,13 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   was retargeted to the seconds column of the .rows picker, which sits below the bottom of this
   laptop's desktop, so the replay cannot reach it here. Run it on a taller display, or scroll first.
   P41-change-seconds 需要較高的螢幕：改點 .rows 的秒數欄後，它在這台筆電的桌面上落在畫面底部之外。
+  **2026-10-29,一半做完**:P41 放進 ScrollView,且 SwiftCrossUI 依視窗在螢幕上的空間封頂(`maximumSizeOnScreen`,
+  五個 backend 都實作),P41 在 125% 下止於工作列上方。剩下：捲到底後 + 的高度跟著視窗高度走，而 WinUI 每開一個視窗就往
+  右下錯開 32 px,所以點擊仍會落空(見該動作檔)。
+  **2026-10-29, half done**: P41 is in a ScrollView and SwiftCrossUI caps a window at the room on its
+  screen (`maximumSizeOnScreen`, all five backends), so P41 ends above the taskbar at 125%. Left: after
+  scrolling to the bottom the + follows the window height, and WinUI cascades each window 32 px, so
+  the click still misses (see the action file).
 
 ---
 

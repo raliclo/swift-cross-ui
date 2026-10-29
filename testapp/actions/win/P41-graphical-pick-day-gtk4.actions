@@ -11,7 +11,13 @@ action,x,y,origin,button,key,micros,note,platform
 # `.graphical -> 2025-08-13`。綁定的是 24 日;13 日是 binding 尚未持有的日子。
 #
 # Coordinates measured off p41-gtk-layout-20260917-074858.png, frame origin.
+# Re-measured 2026-10-29 as (567,361): the old (679,317) was already several
+# cells right of the 13th in the 2026-10-23 capture, and P41 has since gained
+# a row of locale buttons. Off p41-windows-final-20261029-125837.png (1368x888,
+# the same as the window frame); replayed, the log read `.graphical -> 2025-08-13`.
 # 座標量自 p41-gtk-layout-20260917-074858.png,採 frame origin。
+# 2026-10-29 重量為 (567,361):原本的 (679,317) 在 2026-10-23 的擷圖上已落在 13 日右邊好幾格，而 P41 又多了一列 locale
+# 按鈕。量自 p41-windows-final-20261029-125837.png(1368x888,與視窗外框相同),重放後 log 為 `.graphical -> 2025-08-13`。
 sleep,,,,,,3000000,let the window settle and take the foreground,windows
-click,679,317,frame,left,,,click the 13th in the .graphical calendar,windows
+click,567,361,frame,left,,,click the 13th in the .graphical calendar,windows
 sleep,,,,,,1500000,let the binding change reach the log,windows

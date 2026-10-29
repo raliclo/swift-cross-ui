@@ -16,6 +16,10 @@ action,x,y,origin,button,key,micros,note,platform
 # Coordinates measured off p41-layout-20260917-074650.png (942x686), frame
 # origin. A day cell is ~42 px wide, so the few-pixel difference between the
 # capture's bounds and the window frame stays inside the cell.
+# Re-measured 2026-10-29: P41 gained a row of locale buttons, and the calendar
+# now starts on Sunday with a weekday row, so the 13th moved to (574,407) DIPs
+# (off p41-windows-final-20261029-122752.png: the 1677-wide capture plus the
+# 8 px border, divided by 1.25).
 #
 # P41 於 Windows、WinUIBackend:在 `.graphical` 月曆上點一天,日期會不會寫回 binding?
 #
@@ -27,6 +31,8 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 座標量自 p41-layout-20260917-074650.png(942x686),frame origin。日期格約 42 px 寬,擷圖邊界與
 # 視窗外框之間那幾個像素的差距,仍落在格子內。
+# 2026-10-29 重量:P41 多了一列 locale 按鈕，月曆改成週日開始並有星期列，13 日移到 (574,407) DIP(量自
+# p41-windows-final-20261029-122752.png,1677 寬擷圖加 8 px 邊框，除以 1.25)。
 sleep,,,,,,3000000,let the window settle and take the foreground,windows
-click,654,365,frame,left,,,click the 13th in the .graphical calendar,windows
+click,574,407,frame,left,,,click the 13th in the .graphical calendar,windows
 sleep,,,,,,1500000,let the binding change reach the log,windows

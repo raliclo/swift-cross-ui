@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, WinUIBackend: does going back to the launch locale undo a live locale change? (2026-10-29) Clicks zh_TW, then launch; the final capture should be the launch locale again (English here), the .graphical header August 2025. Button centres as in P41-locale-switch.actions.
+# P41(Windows,WinUIBackend):回到啟動時的 locale 能否還原已上畫面的變更?(2026-10-29)先按 zh_TW 再按 launch;最後的截圖應回到啟動時的 locale(本機為英文),.graphical 標題為 August 2025。按鈕中心同 P41-locale-switch.actions。
+sleep,,,,,,3000000,let the window settle,windows
+click,281,155,frame,left,,,locale zh_TW,windows
+sleep,,,,,,1500000,let every cell redraw,windows
+click,141,155,frame,left,,,locale launch -- back to the inherited locale,windows
+sleep,,,,,,1500000,let every cell redraw before the final capture,windows

@@ -450,6 +450,13 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
         window.makeKeyAndVisible()
     }
 
+    /// `nil`: a UIKit window is the scene, sized by the system to its screen
+    /// or split, so there is no default size to cap.
+    /// `nil`:UIKit 的視窗就是 scene,由系統依螢幕或分割畫面決定大小，沒有要封頂的預設尺寸。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        nil
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         #if os(visionOS)
             true

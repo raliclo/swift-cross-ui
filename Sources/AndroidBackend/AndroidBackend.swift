@@ -663,6 +663,13 @@ public final class AndroidBackend: BaseAppBackend {
         return SIMD2(Int(width), Int(height))
     }
 
+    /// `nil`: the activity's window is sized by the system to the screen or the
+    /// split, so there is no default size to cap.
+    /// `nil`:activity 的視窗由系統依螢幕或分割畫面決定大小，沒有要封頂的預設尺寸。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        nil
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         false
     }

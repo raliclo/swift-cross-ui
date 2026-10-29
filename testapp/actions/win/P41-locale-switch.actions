@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, WinUIBackend: does a locale change on live controls redraw every cell? (2026-10-29) Clicks the locale buttons ja_JP then zh_TW; the final capture should show every cell in Chinese, the .graphical month header as 2025年8月. Button centres measured 2026-10-29 with test_support/measure/measure_win.zsh (DIPs, frame origin).
+# P41(Windows,WinUIBackend):在已上畫面的控制項上換 locale,每一格會不會重畫?(2026-10-29)依序按 ja_JP、zh_TW;最後的截圖每一格都應是中文,.graphical 的月份標題為 2025年8月。按鈕中心以 test_support/measure/measure_win.zsh 量得(2026-10-29,DIP,frame 原點)。
+sleep,,,,,,3000000,let the window settle,windows
+click,347,155,frame,left,,,locale ja_JP,windows
+sleep,,,,,,1500000,let every cell redraw,windows
+click,281,155,frame,left,,,locale zh_TW,windows
+sleep,,,,,,1500000,let every cell redraw before the final capture,windows

@@ -1754,6 +1754,30 @@ public final class GtkBackend:
         return SIMD2(size.width, size.height)
     }
 
+    /// The room on the screen from the window's top-left corner
+    /// (`scui_window_screen_space`, gtk_window_workarea.c), less the titlebar and
+    /// the menu bar `setSize` adds to a content size.
+    /// 從視窗左上角起的螢幕空間(`scui_window_screen_space`,gtk_window_workarea.c),再扣掉 `setSize`
+    /// 加在內容尺寸上的標題列與選單列。
+    public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
+        var width: Int32 = 0
+        var height: Int32 = 0
+        guard scui_window_screen_space(window.widgetPointer, &width, &height) != 0 else {
+            return nil
+        }
+        // The chrome `setSize` adds to a content size, worked out the same way.
+        // `setSize` 加在內容尺寸上的裝飾，以同樣的方式算出。
+        let liveHeaderHeight = window.childMeasurements
+            .first { $0.typeName == "GtkHeaderBar" }?
+            .naturalHeight
+        let titlebar =
+            window.titlebarNaturalHeight
+                ?? liveHeaderHeight
+                ?? titlebarAllowances[ObjectIdentifier(window)]
+                ?? 0
+        return SIMD2(Int(width), Int(height) - titlebar - menubarHeight(ofWindow: window))
+    }
+
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
         // A fullscreen window must answer false, or the layout system keeps
         // proposing sizes the compositor will not grant and the two fight.
