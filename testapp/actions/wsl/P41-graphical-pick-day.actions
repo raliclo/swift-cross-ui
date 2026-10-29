@@ -5,6 +5,7 @@ action,x,y,origin,button,key,micros,note,platform
 # ASSERTION IN THE LOG: p41-debug-events.log must gain `.graphical -> 2025-08-13` (the bound day is 24).
 # 2026-10-19: pass three times running (.graphical -> 2025-08-13), the replay's measured client origin equal to the window's real one each time. Three earlier runs, while the machine was heavily loaded, missed the day with no error; the window had not moved after mapping, so that cause is not known.
 # P41(WSL):點 .graphical 月曆的 13 日;log 必須多出 `.graphical -> 2025-08-13`。座標以 AT-SPI 於 WSLg 量測。
+# 2026-10-30: the grid is no longer a GtkCalendar but MonthGrid (GtkBackend+MonthGrid.swift), so the day is found by its text; the coordinates above describe the old widget. 2026-10-30:月曆格改為 MonthGrid,改以文字找那一天；上面的座標描述的是舊元件。
 sleep,,,,,,6000000,let the window settle,gtk
-click,551,247,,left,,,the 13th in the .graphical calendar,gtk
+taplabel,,,,,13,,the 13th in the .graphical calendar (the first "13" in the tree),gtk
 sleep,,,,,,1500000,let the binding change reach the log,gtk

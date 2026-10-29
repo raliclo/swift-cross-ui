@@ -108,6 +108,19 @@ struct ActionFileTests {
         }
     }
 
+    /// `taplabel` with `x,y` clicks that far from the text's centre; without
+    /// them it clicks the centre, as every file before 2026-10-29 expects.
+    /// 帶 `x,y` 的 `taplabel` 點在離文字中心那麼遠的地方；沒有時點中心，與 2026-10-29 之前的每個檔案相同。
+    @Test("taplabel takes an optional offset from the text's centre")
+    func tapLabelOffset() throws {
+        let actions = try ActionFile.parse(
+            "action,x,y,origin,button,key,micros,note\n"
+                + "taplabel,,,,,Open,,\n"
+                + "taplabel,95,-3.5,,,.rows seconds,,"
+        )
+        #expect(actions == [.tapLabel("Open"), .tapLabel(".rows seconds", dx: 95, dy: -3.5)])
+    }
+
     @Test("unknown verbs, buttons and origins each name their line")
     func unknownValuesAreRejected() {
         #expect(throws: ActionFileError.unknownAction("wiggle", line: 2)) {

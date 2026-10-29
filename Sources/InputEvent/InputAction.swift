@@ -256,7 +256,11 @@ public enum InputAction: Equatable, Sendable {
     /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次，第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 與
     /// AndroidSynthesiser 在 view 樹裡找出那個 view(Android 並把根捲到它那裡)。桌面合成器把事件
     /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,由 AppKitBackend、GtkBackend 與 WinUIBackend 設定),重放迴圈再點那個位置。沒有設定定位器時，直接被要求的合成器會說明理由後拒絕。
-    case tapLabel(String)
+    ///
+    /// `dx`,`dy` (the `x`,`y` columns) move the click that many points from the
+    /// text's centre, for a control whose only unique neighbour is a label.
+    /// `dx`、`dy`(`x`、`y` 欄)把點擊從文字中心移動那麼多點，用於唯一可辨識的鄰居是某個標籤的控制項。
+    case tapLabel(String, dx: Double = 0, dy: Double = 0)
 }
 
 extension InputAction {

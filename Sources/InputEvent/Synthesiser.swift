@@ -377,15 +377,18 @@ extension Synthesiser {
             // (Android) or refuses it with the reason.
             // backend 說得出文字在哪裡時,`taplabel` 就是在那裡的一次點擊。沒有定位器時這一列交給 `perform`,
             // 由它處理(Android)或說明理由後拒絕。
-            if case .tapLabel(let label) = action, let locate = ActionFileReplay.locateLabel {
+            if case .tapLabel(let label, let dx, let dy) = action, let locate = ActionFileReplay.locateLabel {
                 guard let place = locate(label) else {
                     throw SynthesiserError.unsupported(
                         "taplabel: no shown view has the text \"\(label)\""
                     )
                 }
-                ActionFileReplay.report("taplabel \"\(label)\" is at (\(place.x), \(place.y))")
+                ActionFileReplay.report(
+                    "taplabel \"\(label)\" is at (\(place.x), \(place.y))"
+                        + (dx == 0 && dy == 0 ? "" : ", clicked at offset (\(dx), \(dy))")
+                )
                 try perform(
-                    .click(.left, at: Point(x: place.x, y: place.y, origin: .client)),
+                    .click(.left, at: Point(x: place.x + dx, y: place.y + dy, origin: .client)),
                     in: try currentWindowGeometry()
                 )
                 continue

@@ -142,7 +142,13 @@ mkdir -p "$run_dir"
 
 rows=()
 for app in "${apps[@]}"; do
-    MSYS2_ARG_CONV_EXCL='*' taskkill.exe -f -im "P*.exe" >/dev/null 2>&1 || true
+    # Only the test apps (P<digits>[-WinUI|-gtk4].exe), by PID. `-im "P*.exe"` also matched
+    # Playwright.exe and killed another session's WebKit browsers (2026-10-30).
+    # 只殺測試 app(P<數字>[-WinUI|-gtk4].exe),依 PID。`-im "P*.exe"` 也會命中 Playwright.exe,曾殺掉另一個工作階段的 WebKit 瀏覽器(2026-10-30)。
+    tasklist //FO CSV //NH | while IFS=, read -r image_name image_pid _; do
+        image_name=${image_name//\"/}; image_pid=${image_pid//\"/}
+        [[ $image_name =~ '^P[0-9]+(-WinUI|-gtk4)?\.exe$' ]] && taskkill.exe -f -pid $image_pid >/dev/null 2>&1
+    done
     # A named directory rather than `mktemp -d`. The first run of this script
     # used mktemp, worked for a three-app trial, and then failed on the full
     # sweep with `command not found: mktemp` -- the packaged zsh here does not

@@ -348,8 +348,12 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 try dispatchKey(key, action: keyActionDown)
                 try dispatchKey(key, action: keyActionUp)
 
-            case .tapLabel(let label):
-                let position = try reveal(label: label)
+            case .tapLabel(let label, let dx, let dy):
+                // The offset is in points from the centre, as on the desktop;
+                // MotionEvent takes pixels.
+                // 位移以點為單位、自中心起算，與桌面相同;MotionEvent 用的是像素。
+                let centre = try reveal(label: label)
+                let position = (x: centre.x + dx * density, y: centre.y + dy * density)
                 lastPoint = position
                 let downTime = try dispatch(action: actionDown, at: position, downTime: nil)
                 _ = try dispatch(action: actionUp, at: position, downTime: downTime)

@@ -6708,6 +6708,17 @@ final class RadioGroupPicker: Box {
 /// ``TimeRow``. Either may be absent, and a picker asked for neither is empty,
 /// which is what was asked for.
 ///
+/// **Since 2026-10-30 neither section below describes the grid.** The
+/// `.graphical` grid and the compact popover are a ``MonthGrid``, drawn from
+/// `environment.calendar` and `environment.locale`. It has the right names
+/// and first weekday, honours `range` by disabling days outside it, keeps the
+/// browsed month apart from the selection, and follows a non-Gregorian
+/// calendar. The sections are kept as the record of why `GtkCalendar` was
+/// replaced; the last one could not be fixed while it was used.
+/// **2026-10-30 起，下面兩節都不再描述 grid。**`.graphical` 的格子與精簡樣式的彈出框是 ``MonthGrid``,依
+/// `environment.calendar` 與 `environment.locale` 繪製：名稱與一週的第一天正確，以停用範圍外的日子遵循 `range`,
+/// 瀏覽中的月份與選取分開，也遵循非公曆。保留這兩節作為換掉 `GtkCalendar` 的理由紀錄；最後一節在使用它時無法修正。
+///
 /// # What a GtkCalendar can actually hold
 ///
 /// The obvious implementation -- hand GTK a `GDateTime` and read one back -- is
@@ -6787,7 +6798,7 @@ final class DatePickerWidget: Box {
     }
 
     private var contents: Contents?
-    private var grid: Gtk.Calendar?
+    private var grid: MonthGrid?
     private var button: CompactDatePicker?
     private var wheel: DateWheel?
     private var timeRow: TimeRow?
@@ -6802,8 +6813,18 @@ final class DatePickerWidget: Box {
     /// Gregorian regardless of `environment.calendar`, because the grid is:
     /// feeding it, say, a Buddhist year would print 2569 over a Gregorian
     /// month.
+    /// (Before 2026-10-30, when the grid was a `GtkCalendar`. ``MonthGrid``
+    /// is drawn in `displayCalendar` and reports a `Date`, so this one now only
+    /// converts.) / (2026-10-30 之前 grid 是 `GtkCalendar` 時。``MonthGrid`` 以
+    /// `displayCalendar` 繪製並回報 `Date`,所以這個現在只負責轉換。)
     private var gregorian = Foundation.Calendar(identifier: .gregorian)
 
+    /// **Out of date since 2026-10-30:** the grid is a ``MonthGrid`` drawn in
+    /// `displayCalendar`, so it honours the calendar and its locale too. This
+    /// is still the calendar the binding is composed in; the grid hands back
+    /// a day, which ``daySelected(_:)`` converts.
+    /// **2026-10-30 起已過時:**grid 是以 `displayCalendar` 畫的 ``MonthGrid``,也遵循 calendar 與其 locale。
+    /// 這仍是組成 binding 所用的 calendar;grid 交回一天，由 ``daySelected(_:)`` 轉換。
     /// Used only for the compact button's label, where a `DateFormatter` can
     /// honour a non-Gregorian calendar even though the grid cannot.
     private var displayCalendar = Foundation.Calendar.current
@@ -6927,15 +6948,16 @@ final class DatePickerWidget: Box {
     /// `GtkCalendar` 日期改變的每一種方式，而不只是 `day-selected`。月份與年份箭頭會把選取的日子移到新的
     /// 月份，之後再點那一天不會發出任何訊號，因為它已經是選取狀態——於是 P41 的選擇器顯示 9 月 24 日被選取，
     /// 綁定卻仍是 2025-08-24(2026-10-16)。
-    private func wireDateChanges(of grid: Gtk.Calendar) {
-        let changed: (Gtk.Calendar) -> Void = { [weak self] grid in
-            self?.daySelected(shownBy: grid)
+    ///
+    /// Since 2026-10-30 the grid is a ``MonthGrid``, which reports a day only
+    /// when one is clicked; its arrows browse without choosing. The note above
+    /// describes the `GtkCalendar` it replaced.
+    /// 2026-10-30 起 grid 是 ``MonthGrid``,只在點了某一天時回報；它的箭頭只瀏覽、不選取。上面的說明描述的是被它取代的
+    /// `GtkCalendar`。
+    private func wireDateChanges(of grid: MonthGrid) {
+        grid.onPick = { [weak self] day in
+            self?.daySelected(day)
         }
-        grid.daySelected = changed
-        grid.nextMonth = changed
-        grid.prevMonth = changed
-        grid.nextYear = changed
-        grid.prevYear = changed
     }
 
     private func install(_ contents: Contents) {
@@ -6950,7 +6972,7 @@ final class DatePickerWidget: Box {
 
         switch contents.presentation {
             case .grid:
-                let grid = Gtk.Calendar()
+                let grid = MonthGrid()
                 wireDateChanges(of: grid)
                 // Adding is what registers the signal (see Widget.parentWidget),
                 // so the handler has to be in place first.
@@ -6996,31 +7018,20 @@ final class DatePickerWidget: Box {
 
     /// Writes ``date`` into whichever widgets are installed.
     private func applyDate() {
-        let parts = gregorian.dateComponents(
-            [.year, .month, .day, .hour, .minute, .second],
-            from: date
-        )
-        guard
-            let year = parts.year, let month = parts.month, let dayOfMonth = parts.day,
-            let hour = parts.hour, let minute = parts.minute, let second = parts.second
-        else {
+        let parts = gregorian.dateComponents([.hour, .minute, .second], from: date)
+        guard let hour = parts.hour, let minute = parts.minute, let second = parts.second else {
             return
         }
 
-        let wanted = DateComponents(year: year, month: month, day: dayOfMonth)
-        if let grid = grid ?? button?.grid, grid.selectedDay != wanted {
-            // Only when it differs. GTK would ignore an identical write anyway
-            // -- `calendar_select_day_internal` returns early -- so this saves a
-            // GDateTime per layout pass rather than changing what happens.
-            //
-            // It does not, and cannot, spare a user who is browsing: the browsed
-            // month lives in the same field as the selection, so it genuinely
-            // does differ, and this write is what pulls them back. See the note
-            // on the class.
-            isApplyingDate = true
-            grid.selectDay(year: year, month: month, day: dayOfMonth)
-            isApplyingDate = false
-        }
+        // The grid keeps its browsed month apart from the selection and moves it
+        // only when the selected day changes, so this write on every layout pass
+        // no longer pulls a browsing user back. It was a GtkCalendar until
+        // 2026-10-30, whose one field held both (see the note on the class).
+        // grid 把瀏覽中的月份與選取分開保存，只在選取的日子改變時移動它，所以每次版面配置的這次寫入不再把正在瀏覽
+        // 的使用者拉回來。2026-10-30 之前它是 GtkCalendar,用同一個欄位存兩者(見類別上的說明)。
+        var gridCalendar = displayCalendar
+        gridCalendar.timeZone = timeZone
+        (grid ?? button?.grid)?.show(selection: date, range: range, calendar: gridCalendar)
 
         button?.label = formatted(date)
         wheel?.apply(date)
@@ -7029,10 +7040,10 @@ final class DatePickerWidget: Box {
 
     /// Takes the day the wheel reports and keeps the time this picker holds.
     ///
-    /// Same split as ``daySelected(shownBy:)``: the wheel chooses a day and
+    /// Same split as ``daySelected(_:)``: the wheel chooses a day and
     /// knows nothing about the time of day, so composing them here is what stops
     /// picking a date from resetting the clock to midnight.
-    /// 與 ``daySelected(shownBy:)`` 相同的分工：滾輪選的是日期，對當日時間一無所知，因此在此處
+    /// 與 ``daySelected(_:)`` 相同的分工：滾輪選的是日期，對當日時間一無所知，因此在此處
     /// 合成兩者，正是「選日期不會把時間重設為午夜」的原因。
     private func wheelPicked(_ picked: Date) {
         guard !isApplyingDate else { return }
@@ -7049,10 +7060,10 @@ final class DatePickerWidget: Box {
         report(components)
     }
 
-    private func daySelected(shownBy grid: Gtk.Calendar) {
+    private func daySelected(_ picked: Date) {
         guard !isApplyingDate else { return }
 
-        let day = grid.selectedDay
+        let day = gregorian.dateComponents([.year, .month, .day], from: picked)
 
         // The time of day comes from the picker's own copy, not from the
         // widget, which has just thrown its own away.
@@ -7287,7 +7298,7 @@ final class TimeRow: Box {
 }
 
 final class CompactDatePicker: MenuButton {
-    let grid = Gtk.Calendar()
+    let grid = MonthGrid()
 
     init() {
         super.init(gtk_menu_button_new())

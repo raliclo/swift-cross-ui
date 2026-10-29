@@ -234,7 +234,13 @@ public enum ActionFile {
                 guard let label = value(5), !label.isEmpty else {
                     throw ActionFileError.missingKey(verb: verb, line: line)
                 }
-                return .tapLabel(label)
+                // `x,y`, when given, is an offset in points from the text's centre:
+                // a control beside a label that is the only unique text near it
+                // (P41-change-seconds: the seconds field's "+" next to ".rows
+                // seconds", 2026-10-29). The origin column does not apply.
+                // 有 `x,y` 時，它是自文字中心起算、以點為單位的位移：用於旁邊只有某個標籤是唯一文字的控制項
+                // (P41-change-seconds:".rows seconds" 旁邊秒數欄的「+」,2026-10-29)。origin 欄不適用。
+                return .tapLabel(label, dx: point?.x ?? 0, dy: point?.y ?? 0)
             case "focus":
                 // Column 9 (`target`), a tenth column older files do not have.
                 // `value(_:)` returns nil for an index past the end, so every

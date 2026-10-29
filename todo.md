@@ -1263,6 +1263,21 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   P41 的 locale 按鈕可即時切換(已查 en_US、zh_TW、ja_JP、de_DE);一併修好的啟動時空白星期列見
   knowledge/windows/winui-controls.md。**仍未解決:GtkBackend 的 GtkCalendar** 仍依行程的 locale(本機在 zh_TW 下仍是英文)。
   GtkCalendar 沒有逐元件的 locale,所以要嘛像滾輪那樣以 Swift 畫格線，要嘛改行程 locale——專案規則不允許這個缺口。
+  **2026-10-30: GtkBackend fixed by drawing the grid in Swift.** `.graphical` and the compact
+  popover are now MonthGrid (GtkBackend+MonthGrid.swift): GtkCalendar computes its names once per
+  process from the C locale and its first weekday is a private field set only at init
+  (gtkcalendar.c:303-304, :246), so it could not be fixed in place. Checked under WSLg with P41's
+  buttons, xdotool clicks and X11 captures: ja_JP shows 2025年8月 and 日..土 from Sunday, de_DE
+  shows Mo..So from Monday (no de_DE locale installed in WSL), and the selected day is filled. The
+  same widget keeps the browsed month apart from the selection, disables days outside `range` and
+  follows a non-Gregorian calendar. The win/wsl GTK pick-day files now use `taplabel 13`; WSL passes
+  (`.graphical -> 2025-08-13`), and so does Windows GTK (taplabel 13 at (551,401)); a Windows GTK capture after the ja_JP button shows 2025年8月 and 日..土 as on WSL.
+  **2026-10-30:GtkBackend 以 Swift 畫格線修好。**`.graphical` 與精簡樣式的彈出框現在是 MonthGrid
+  (GtkBackend+MonthGrid.swift):GtkCalendar 每個行程只依 C locale 算一次名稱，一週第一天是只在 init 設定的私有欄位
+  (gtkcalendar.c:303-304、:246),無法就地修正。已在 WSLg 以 P41 的按鈕、xdotool 點擊與 X11 擷圖檢查:ja_JP 顯示
+  2025年8月、從週日起的 日..土;de_DE 顯示從週一起的 Mo..So(WSL 未安裝 de_DE locale);選取的日子有底色。同一元件也把
+  瀏覽月份與選取分開、停用 `range` 以外的日子、遵循非公曆。win/wsl 的 GTK 選日檔改用 `taplabel 13`;WSL 通過
+  (`.graphical -> 2025-08-13`),Windows GTK 也通過(taplabel 13 位於 (551,401));按 ja_JP 後的 Windows GTK 擷圖與 WSL 相同,顯示 2025年8月 與 日..土。
 - [x] **onContinuousHover reports nothing.** P88: drags count, but no hover report (pointer: not
   yet, hover reports: 0). With --debug the handler's diagnostics (WinUIBackend+InputTargets.swift,
   `createPointerHoverTarget`) logged nothing, so `PointerMoved` never reaches the hover target,
@@ -1304,7 +1319,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   reads count: 1 on WinUI and Windows GTK (P60's log: settings incremented to 1). / 已結案：兩個
   backend 都有獨立的 Settings 視窗，在裡面按 +1 後主視窗 count 變成 1。
 
-- [ ] **P41-change-seconds needs a taller screen.** 2026-10-21: actions/win/P41-change-seconds.actions
+- [x] **P41-change-seconds needs a taller screen.** 2026-10-21: actions/win/P41-change-seconds.actions
   was retargeted to the seconds column of the .rows picker, which sits below the bottom of this
   laptop's desktop, so the replay cannot reach it here. Run it on a taller display, or scroll first.
   P41-change-seconds 需要較高的螢幕：改點 .rows 的秒數欄後，它在這台筆電的桌面上落在畫面底部之外。
@@ -1315,6 +1330,15 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   screen (`maximumSizeOnScreen`, all five backends), so P41 ends above the taskbar at 125%. Left: after
   scrolling to the bottom the + follows the window height, and WinUI cascades each window 32 px, so
   the click still misses (see the action file).
+  **2026-10-30, done.** `taplabel` takes an optional x,y offset in points from the text's centre
+  (desktop replay loop, AndroidSynthesiser, the iOS runner), and the file now clicks
+  `taplabel,236,28,,,.rows seconds`: the label moves with its row, so the window height no longer
+  matters. Passed three times on WinUI, with two different window heights: `.rows seconds -> 09:46:41`
+  and nothing before the click. The drawn + sits at (230,28), but a sweep showed it takes clicks at
+  234-238 (see the action file).
+  **2026-10-30,完成。**`taplabel` 可選帶 x,y 位移(自文字中心起算的點數;桌面重放、AndroidSynthesiser、iOS runner),
+  檔案改點 `taplabel,236,28,,,.rows seconds`:標籤跟著它那一列移動，視窗高度不再有影響。WinUI 上通過三次，涵蓋兩種視窗
+  高度:`.rows seconds -> 09:46:41`,點擊前沒有任何變更。畫出的 + 在 (230,28),但掃描顯示它在 234-238 接受點擊(見動作檔)。
 
 ---
 

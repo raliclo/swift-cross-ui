@@ -169,3 +169,22 @@ the GtkBackend side meanwhile. Nothing here is reported upstream without explici
   `accesskit_node_set_label`,但同一個函式接著為 `GtkLabel` 呼叫 `add_single_text_layout` 掛上 Pango 文字,
   而送到 UIA 的名稱取自那些文字。該由 adapter 優先採用明確標籤,還是 GTK 在已設標籤時不掛文字,是要問上游的。
   **GtkBackend 端(原判斷「不需要改」,已由上方 2026-10-20 的更正取代)**:`setAccessibilityLabel` 已經設了該屬性,在 AT-SPI 上也是對的。
+
+---
+
+- [ ] **The Win32 IME filter outlives its context: `GTK_IS_IM_CONTEXT_IME (data)` fails (GTK 4.24.1,
+      Windows).** Seen 2026-10-29 while typing into a text field: P114's Leaf TextField on Windows GTK
+      (P114-textfield-back.actions, keys End, x, Left, y, then Alt+Left). Each key printed three or more
+      `Gtk-CRITICAL **: gtk_im_context_ime_message_filter: assertion 'GTK_IS_IM_CONTEXT_IME (data)'
+      failed`; the field still took the text and the app lived. Not seen on WinUI or WSL. **Unverified
+      reading of the source** (gtk/gtkimcontextime.c in 4.24.1): focus_in adds
+      `gtk_im_context_ime_message_filter` with the context as `data` (:645), focus_out removes it
+      (:742) but returns early before that on one focus-behaviour path (`if (context_ime->focus)
+      return;`, around :727), and the filter checks its data at :943 -- so a context finalised while
+      its filter is still registered would produce exactly this. Not yet reproduced standalone or
+      traced to a specific path. **GtkBackend side**: nothing yet.
+      Win32 的 IME 過濾器活得比它的 context 久(GTK 4.24.1,Windows)。2026-10-29 在 Windows GTK 上對 P114 Leaf 的
+      TextField 打字時，每個按鍵印出三次以上 `GTK_IS_IM_CONTEXT_IME (data)` 斷言失敗；欄位仍收到文字,app 存活。
+      WinUI 與 WSL 沒有。**對原始碼的未驗證解讀**:focus_in 以 context 為 `data` 加入過濾器(:645),focus_out
+      移除它(:742),但某條焦點行為路徑在那之前提早 return(約 :727),過濾器在 :943 檢查 data——context 在過濾器
+      仍註冊時被釋放就會正好如此。尚未以獨立程式重現，也未追到具體路徑。**GtkBackend 端**:目前沒做任何事。

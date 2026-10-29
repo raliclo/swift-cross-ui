@@ -18,6 +18,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標量自 p41-gtk-layout-20260917-074858.png,採 frame origin。
 # 2026-10-29 重量為 (567,361):原本的 (679,317) 在 2026-10-23 的擷圖上已落在 13 日右邊好幾格，而 P41 又多了一列 locale
 # 按鈕。量自 p41-windows-final-20261029-125837.png(1368x888,與視窗外框相同),重放後 log 為 `.graphical -> 2025-08-13`。
+# 2026-10-30: the grid is no longer a GtkCalendar but MonthGrid (GtkBackend+MonthGrid.swift), so the day is found by its text instead of a frame coordinate. 2026-10-30:月曆格改為 MonthGrid,改以文字找那一天，而非框架座標。
 sleep,,,,,,3000000,let the window settle and take the foreground,windows
-click,567,361,frame,left,,,click the 13th in the .graphical calendar,windows
+taplabel,,,,,13,,click the 13th in the .graphical calendar (the first "13" in the tree),windows
 sleep,,,,,,1500000,let the binding change reach the log,windows

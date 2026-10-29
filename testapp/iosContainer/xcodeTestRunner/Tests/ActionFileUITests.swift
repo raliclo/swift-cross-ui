@@ -364,7 +364,16 @@ final class ActionFileUITests: XCTestCase {
                             action.line
                         )
                     }
-                    element.tap()
+                    // `x,y` given: that many points from the centre, as on the
+                    // desktop and Android (P41-change-seconds, 2026-10-29).
+                    // 有 `x,y` 時：自中心移動那麼多點，與桌面及 Android 相同(P41-change-seconds,2026-10-29)。
+                    if action.x == 0 && action.y == 0 {
+                        element.tap()
+                    } else {
+                        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                            .withOffset(CGVector(dx: action.x, dy: action.y))
+                            .tap()
+                    }
                     FileHandle.standardError.write(
                         Data("-actionfile: tapped '\(action.key)'\n".utf8)
                     )
