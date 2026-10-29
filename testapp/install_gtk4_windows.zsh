@@ -357,6 +357,26 @@ fi
 printf '    WebView2.h        : %s/include/webview2/WebView2.h\n' "$prefix"
 printf '    WebView2Loader.dll: %s/bin/WebView2Loader.dll\n' "$prefix"
 
+# Font cache, built now rather than by the first GTK app. GtkBackend makes Pango
+# use fontconfig on Windows (PANGOCAIRO_BACKEND=fc, for colour emoji), and
+# fontconfig scans every system font the first time it runs for a user, into
+# %LOCALAPPDATA%\fontconfig\cache. Measured 2026-10-29, 497 fonts: 0.73 s with
+# no cache, 0.09 s with one. A new fontconfig version keeps a separate cache
+# (cache-11 for 4.22.4's, cache-12 for 4.24.1's), so an upgrade pays it again.
+# Cheap when the cache is current, so it runs every time; a failure only costs
+# that first launch, so it warns instead of stopping the install.
+# 字型快取，在這裡先建好，而不是讓第一個 GTK app 去建。GtkBackend 在 Windows 上讓 Pango 改用 fontconfig
+# (PANGOCAIRO_BACKEND=fc,為了彩色 emoji),而 fontconfig 每個使用者第一次執行時會掃描所有系統字型，寫進
+# %LOCALAPPDATA%\fontconfig\cache。2026-10-29 實測,497 個字型：沒有快取 0.73 秒，有快取 0.09 秒。新版
+# fontconfig 用另一份快取(4.22.4 是 cache-11,4.24.1 是 cache-12),所以升級後會再付一次。快取已是最新時
+# 幾乎不花時間，所以每次都跑；失敗只是讓第一次啟動慢一點，所以只警告、不中止安裝。
+printf '\n==> Font cache (fontconfig)\n'
+if [ -x "$prefix/bin/fc-cache.exe" ] && PATH="$prefix/bin:$PATH" "$prefix/bin/fc-cache.exe"; then
+    printf '    %s fonts cached\n' "$(PATH="$prefix/bin:$PATH" "$prefix/bin/fc-list.exe" 2>/dev/null | wc -l | tr -d ' ')"
+else
+    printf '    fc-cache did not run; the first GTK app will build the cache instead\n' >&2
+fi
+
 # pkg-config has to be told where to look, and the DLLs have to be on PATH at
 # run time. These are printed rather than written to a profile, because which
 # shell and which profile is the caller's business.
