@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Windows: NavigationStack's back control is labelled with the title of the screen it returns to and says Back when that screen has no title.
+# Every press is by text (taplabel). A back control with any other label is not found and the replay fails at that row.
+# Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 2; the final capture shows the Untitled screen under a "‹ Fruits" back control.
+# P114 在 Windows 上:返回控制項以要返回之畫面的標題命名，該畫面沒有標題時顯示 Back。每一次點擊都以文字進行(taplabel),標籤不對的返回控制項找不到，重放就在那一列失敗。
+sleep,,,,,,1500000,let P114 settle,windows
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,‹ Back,,Leaf's back control: Untitled set no title so it says Back (depth 2),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,‹ Fruits,,Untitled's back control names Fruits (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,‹ Home,,Fruits' back control names the root's title Home (depth 0),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Fruits,,push Fruits again (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Untitled,,push Untitled again (depth 2) -- the final capture shows ‹ Fruits,windows
+sleep,,,,,,1500000,,windows

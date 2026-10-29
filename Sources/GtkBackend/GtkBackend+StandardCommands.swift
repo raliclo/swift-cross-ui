@@ -1,6 +1,7 @@
 import CGtk
 import Foundation
 import Gtk
+import GtkCHelpers
 import SwiftCrossUI
 
 /// The standard commands on GTK, for the menus ``Scene/enableMenu(_:)`` turns on.
@@ -11,12 +12,14 @@ import SwiftCrossUI
 /// GTK's own context menu reaches them; a widget without the action ignores it.
 ///
 /// Services is a submenu saying none apply, Help says there is none, Hide minimizes
-/// and Show All brings the windows back; on macOS these go to the application object.
+/// and Show All brings the windows back; Hide Others minimizes the other applications' windows
+/// on Windows and X11; on macOS these go to the application object.
 ///
 /// GTK 上的標準指令，供 ``Scene/enableMenu(_:)`` 打開的選單使用。GTK 沒有自己的選單可以借用，所以每一項都在這裡執行。
 /// 編輯指令以 GTK 文字元件所安裝的 action(`clipboard.cut`、`text.undo` 等)送給聚焦的 widget,GTK 自己的內容選單
 /// 也是這樣呼叫它們;沒有該 action 的 widget 會忽略。Services 是寫著「沒有可用服務」的子選單，Help 說明沒有說明書，
-/// Hide 把視窗最小化、Show All 把它們帶回來;在 macOS 上這些交給 application 物件。
+/// Hide 把視窗最小化、Show All 把它們帶回來;Hide Others 在 Windows 與 X11 上把其他 app 的視窗最小化;在 macOS 上這些交給
+/// application 物件。
 extension GtkBackend: BackendFeatures.StandardCommands {
     /// On macOS the GTK menu bar model becomes the screen's menu bar, whose first
     /// menu is the app menu. Without the default items that menu held only the
@@ -28,12 +31,19 @@ extension GtkBackend: BackendFeatures.StandardCommands {
 
     public func hasStandardCommand(_ command: StandardCommand) -> Bool {
         switch command {
-            // Hide Others needs the other apps' windows, which GTK cannot reach; on macOS the
-            // application object can. Elsewhere it is left out: on Windows it would need the
-            // platform's own calls, which are not written.
-            // 「Hide Others」需要碰到其他 app 的視窗，GTK 做不到;macOS 上 application 物件可以。其他系統上不提供:
-            // Windows 上需要平台自己的呼叫，而那尚未實作。
-            case .hideOthers: Self.isDarwin
+            // Hide Others needs the other applications' windows, which GTK itself cannot reach:
+            // macOS's application object hides them, and on Windows and X11 gtk_hide_others.c
+            // minimizes them through the platform. Under Wayland a client cannot: every request it
+            // makes names its own surfaces (xdg_toplevel.set_minimized minimizes only its own), and
+            // the protocols that give a client the others' toplevels are extensions for shells and
+            // docks that GDK does not use -- ext-foreign-toplevel-list only lists them, and
+            // wlr-foreign-toplevel-management, which can minimize, is what a compositor may offer.
+            // 「Hide Others」需要碰到其他 app 的視窗,GTK 本身做不到:macOS 由 application 物件隱藏它們,Windows 與 X11
+            // 由 gtk_hide_others.c 經平台把它們最小化。Wayland 下 client 做不到：它的每個請求都只指向自己的 surface
+            // (xdg_toplevel.set_minimized 只最小化自己),而讓 client 取得其他 toplevel 的協定是給 shell 與 dock 用的擴充，
+            // GDK 不使用——ext-foreign-toplevel-list 只能列出,能最小化的 wlr-foreign-toplevel-management 則看 compositor
+            // 是否提供。
+            case .hideOthers: Self.isDarwin || scui_hide_others_supported() != 0
             default: true
         }
     }
@@ -103,9 +113,18 @@ extension GtkBackend: BackendFeatures.StandardCommands {
                     for window in windows { gtk_window_minimize(pointer(window)) }
                 }
             case .hideOthers:
-                _ = Self.sendToApplication("hideOtherApplications:")
+                // The other applications out of the way: macOS hides them; on Windows and X11
+                // their windows are minimized, as Win+Home does (gtk_hide_others.c).
+                // 讓其他 app 讓開:macOS 上隱藏它們;Windows 與 X11 上把它們的視窗最小化，與 Win+Home 相同
+                // (gtk_hide_others.c)。
+                if !Self.sendToApplication("hideOtherApplications:") {
+                    _ = scui_hide_other_applications()
+                }
             case .showAll:
+                // Back: the windows Hide Others minimized, then this app's own, which Hide minimized.
+                // 回來:先是 Hide Others 最小化的視窗，再是本 app 自己被 Hide 最小化的視窗。
                 if !Self.sendToApplication("unhideAllApplications:") {
+                    _ = scui_show_hidden_applications()
                     for window in windows { window.present() }
                 }
             case .help:

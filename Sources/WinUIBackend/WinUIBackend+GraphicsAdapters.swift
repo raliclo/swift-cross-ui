@@ -185,3 +185,65 @@ extension WinUIBackend: BackendFeatures.GraphicsAdapters {
     }
 
 }
+/// What fires ``WinUIBackend/adapterRemoved``: the adapter the window renders
+/// on, by LUID, compared with the adapters DXGI lists each time its adapter
+/// enumeration changes (adapter_watch.cpp).
+///
+/// The adapter in use is DXGI's first hardware adapter: the XAML compositor
+/// takes the adapter DXGI would choose on its own (see `applyAdapter(_:)` above),
+/// and this backend's own composition device is created with no adapter named
+/// (composition_surface.cpp), which is the same one. After a removal the
+/// watch moves to whichever adapter DXGI then lists first, the one the
+/// compositor recreates its device on.
+///
+/// 觸發 ``WinUIBackend/adapterRemoved`` 的機制：視窗繪製所用的介面卡，以 LUID 表示，每當 DXGI 的介面卡列舉改變，就與
+/// DXGI 重新列出的介面卡比對(adapter_watch.cpp)。
+///
+/// 使用中的介面卡是 DXGI 的第一張硬體介面卡:XAML compositor 取的是 DXGI 自己會選的那一張(見上方的 `applyAdapter(_:)`),
+/// 本 backend 自己的 composition device 也不指定介面卡而建立(composition_surface.cpp),是同一張。移除之後，監看改為
+/// DXGI 當時列在第一的介面卡，也就是 compositor 重建 device 所在的那一張。
+@MainActor
+enum WinUIAdapterRemoval {
+    private static weak var backend: WinUIBackend?
+    private static var watch: GraphicsAdapterRemovalWatch<UInt64>?
+
+    /// Starts watching, once; later calls only change the backend told.
+    /// 開始監看(只做一次);之後的呼叫只改變要通知的 backend。
+    static func start(for backend: WinUIBackend) {
+        self.backend = backend
+        guard watch == nil else { return }
+        watch = GraphicsAdapterRemovalWatch(inUse: hardwareAdapters().first)
+        // adapter_watch.cpp calls back on a thread-pool thread.
+        // adapter_watch.cpp 在 thread pool 執行緒上回呼。
+        _ = scui_dxgi_watch_adapters {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { WinUIAdapterRemoval.check() }
+            }
+        }
+    }
+
+    /// Lists the adapters again and fires the handler if the one in use is gone.
+    /// 重新列出介面卡；使用中的那一張不見了就觸發 handler。
+    static func check() {
+        guard var current = watch else { return }
+        let present = hardwareAdapters()
+        let removed = current.update(present: present)
+        if removed {
+            current.rearm(inUse: present.first)
+        }
+        watch = current
+        if removed {
+            backend?.adapterRemoved?()
+        }
+    }
+
+    /// The LUIDs of the hardware adapters DXGI lists, in DXGI's order.
+    /// DXGI 所列硬體介面卡的 LUID,依 DXGI 的順序。
+    static func hardwareAdapters() -> [UInt64] {
+        var entries = [scui_dxgi_adapter_identity](
+            repeating: scui_dxgi_adapter_identity(), count: 16
+        )
+        let count = Int(scui_dxgi_hardware_adapters(&entries, Int32(entries.count)))
+        return entries.prefix(count).map(\.luid)
+    }
+}

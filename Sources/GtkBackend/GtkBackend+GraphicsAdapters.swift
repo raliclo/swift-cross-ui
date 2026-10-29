@@ -299,3 +299,144 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
         }
     #endif
 }
+/// What fires ``GtkBackend/adapterRemoved``: the adapter GTK renders on, by a
+/// key its platform keeps stable, compared with the adapters listed again each
+/// time the platform says the set may have changed (gtk_adapter_watch.c, and
+/// Metal's device observer on macOS, as AppKitBackend uses).
+///
+/// The adapter in use is the one each platform's GL puts this process on:
+/// - Windows: the first adapter DXGI orders for this executable's
+///   UserGpuPreferences value -- the policy `applyAdapter` writes and the one
+///   Windows applies to an OpenGL process.
+/// - WSL: the DXCore adapter Mesa's d3d12 driver picks, the first whose name
+///   contains `MESA_D3D12_DEFAULT_ADAPTER_NAME` (ignoring case), otherwise the
+///   first listed.
+/// - Linux: the DRM card `DRI_PRIME` names, otherwise the boot GPU; nothing under
+///   `LIBGL_ALWAYS_SOFTWARE`, where no GPU can go away.
+/// - macOS: Metal's system default device, which GDK's OpenGL context runs on.
+///
+/// GL context loss is not the signal, because GTK cannot report it: GDK 4's
+/// public GdkGLContext API (gdkglcontext.h, 4.24.1) has no way to ask for a
+/// context with reset notification, and without one KHR_robustness's
+/// glGetGraphicsResetStatus always answers GL_NO_ERROR.
+///
+/// 觸發 ``GtkBackend/adapterRemoved`` 的機制:GTK 繪製所用的介面卡，以平台保持穩定的鍵值表示，每當平台表示
+/// 「集合可能變了」就與重新列出的介面卡比對(gtk_adapter_watch.c;macOS 上則用 Metal 的裝置 observer,與
+/// AppKitBackend 相同)。
+///
+/// 使用中的介面卡，就是各平台的 GL 把本行程放上去的那一張:
+/// - Windows:DXGI 依本執行檔 UserGpuPreferences 值排出的第一張——即 `applyAdapter` 寫入、Windows 套用在 OpenGL
+///   行程上的政策。
+/// - WSL:Mesa 的 d3d12 驅動所挑的 DXCore 介面卡，即名稱包含 `MESA_D3D12_DEFAULT_ADAPTER_NAME`(不分大小寫)的第一張，
+///   否則是清單第一張。
+/// - Linux:`DRI_PRIME` 指名的 DRM 卡，否則是開機用的 GPU;`LIBGL_ALWAYS_SOFTWARE` 下沒有，因為沒有 GPU 會消失。
+/// - macOS:Metal 的系統預設裝置,GDK 的 OpenGL context 就跑在它上面。
+///
+/// 不以 GL context 遺失作為訊號，因為 GTK 無法回報它:GDK 4 公開的 GdkGLContext API(gdkglcontext.h,4.24.1)沒有任何
+/// 方式要求帶 reset 通知的 context,而沒有它時 KHR_robustness 的 glGetGraphicsResetStatus 永遠回答 GL_NO_ERROR。
+@MainActor
+enum GtkAdapterRemoval {
+    private static weak var backend: GtkBackend?
+    private static var watch: GraphicsAdapterRemovalWatch<String>?
+    #if os(macOS)
+        /// Metal holds its observer weakly; this token is the owner.
+        /// Metal 以弱參考持有 observer;這個 token 才是擁有者。
+        private static var observer: NSObject?
+    #endif
+
+    /// Starts watching, once; later calls only change the backend told.
+    /// 開始監看(只做一次);之後的呼叫只改變要通知的 backend。
+    static func start(for backend: GtkBackend) {
+        self.backend = backend
+        guard watch == nil else { return }
+        watch = GraphicsAdapterRemovalWatch(inUse: inUseAdapter())
+        #if os(macOS)
+            observer = MTLCopyAllDevicesWithObserver { _, _ in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { GtkAdapterRemoval.check() }
+                }
+            }.observer
+        #else
+            // gtk_adapter_watch.c calls back on the GTK main thread.
+            // gtk_adapter_watch.c 在 GTK 主執行緒上回呼。
+            _ = scui_adapter_watch_start {
+                MainActor.assumeIsolated { GtkAdapterRemoval.check() }
+            }
+        #endif
+    }
+
+    /// Lists the adapters again and fires the handler if the one in use is gone.
+    /// 重新列出介面卡；使用中的那一張不見了就觸發 handler。
+    static func check() {
+        guard var current = watch else { return }
+        let removed = current.update(present: presentAdapters())
+        if removed {
+            current.rearm(inUse: inUseAdapter())
+        }
+        watch = current
+        if removed {
+            backend?.adapterRemoved?()
+        }
+    }
+
+    static func inUseAdapter() -> String? {
+        #if os(Windows)
+            let preference = GtkBackend.executablePath()
+                .flatMap { GtkBackend.readGpuPreference(for: $0) } ?? 0
+            let luid = scui_dxgi_preferred_adapter_luid(Int32(preference))
+            return luid == 0 ? nil : String(luid, radix: 16)
+        #elseif os(macOS)
+            return MTLCreateSystemDefaultDevice().map { String($0.registryID) }
+        #else
+            let environment = ProcessInfo.processInfo.environment
+            let identities = adapterIdentities()
+            if !identities.isEmpty {
+                let wanted = environment["MESA_D3D12_DEFAULT_ADAPTER_NAME"]?.lowercased() ?? ""
+                let chosen =
+                    identities.first { !wanted.isEmpty && $0.name.lowercased().contains(wanted) }
+                    ?? identities.first
+                return chosen.map { String($0.luid, radix: 16) }
+            }
+            if environment["LIBGL_ALWAYS_SOFTWARE"] == "1" {
+                return nil
+            }
+            let cards = GtkBackend.drmCards()
+            if let prime = environment["DRI_PRIME"], prime.hasPrefix("pci-"),
+                let card = cards.first(where: {
+                    "pci-" + $0.busID.replacingOccurrences(of: ":", with: "_")
+                        .replacingOccurrences(of: ".", with: "_") == prime
+                })
+            {
+                return card.busID
+            }
+            return cards.first?.busID
+        #endif
+    }
+
+    static func presentAdapters() -> [String] {
+        #if os(Windows)
+            return adapterIdentities().map { String($0.luid, radix: 16) }
+        #elseif os(macOS)
+            return MTLCopyAllDevices().map { String($0.registryID) }
+        #else
+            let identities = adapterIdentities()
+            if !identities.isEmpty {
+                return identities.map { String($0.luid, radix: 16) }
+            }
+            return GtkBackend.drmCards().map(\.busID)
+        #endif
+    }
+
+    #if !os(macOS)
+        static func adapterIdentities() -> [(luid: UInt64, name: String)] {
+            var entries = [scui_adapter_identity](repeating: scui_adapter_identity(), count: 16)
+            let count = Int(scui_adapter_identities(&entries, Int32(entries.count)))
+            return entries.prefix(count).map { entry in
+                let name = withUnsafeBytes(of: entry.name) { raw in
+                    String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+                }
+                return (luid: UInt64(entry.luid), name: name)
+            }
+        }
+    #endif
+}

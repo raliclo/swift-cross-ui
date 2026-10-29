@@ -543,6 +543,69 @@ typedef struct {
 // 填入 DXCore 所列、支援 D3D12 的介面卡(最多 capacity 個)並回傳個數;WSL 以外沒有 libdxcore.so,回傳 0。
 int scui_dxcore_adapters(scui_dxcore_adapter *out, int capacity);
 
+// Hide Others and Show All where macOS's application object is not there to do
+// them (gtk_hide_others.c).
+//
+// Windows: every visible top-level window of another process that is not owned,
+// not a tool window, not cloaked, has a minimise box and is not the desktop or
+// the taskbar is minimised without activation -- the effect of Win+Home -- and
+// remembered. A window of an elevated process is out of reach: Windows refuses
+// the request from a lower integrity level, as it does for Win+Home's caller.
+// X11: every client the window manager lists (_NET_CLIENT_LIST, or the windows
+// carrying WM_STATE under the root) that is not this process's, not a dock,
+// desktop or other special type, not transient and not already iconic is sent
+// WM_CHANGE_STATE IconicState (XIconifyWindow) and remembered.
+// Returns how many were asked; -1 where this is not possible here.
+//
+// 在沒有 macOS application 物件代勞之處的 Hide Others 與 Show All(gtk_hide_others.c)。
+// Windows:其他行程中可見、頂層、沒有擁有者、不是工具視窗、沒有被 cloak、有最小化鈕、且不是桌面或工作列的視窗，
+// 一律不啟用地最小化——即 Win+Home 的效果——並記下來。提升權限行程的視窗碰不到:Windows 拒絕較低完整性層級的請求，
+// 對 Win+Home 的呼叫者也一樣。
+// X11:視窗管理員所列的每個 client(_NET_CLIENT_LIST,或 root 底下帶 WM_STATE 的視窗),只要不屬於本行程、不是 dock、
+// 桌面或其他特殊類型、不是 transient、也還沒圖示化，就送出 WM_CHANGE_STATE IconicState(XIconifyWindow)並記下來。
+// 回傳送出請求的數量；此處不可能做到時回傳 -1。
+int scui_hide_other_applications(void);
+// Restores the windows Hide Others minimised that are still minimised, and
+// forgets them; how many, or -1 as above.
+// 還原 Hide Others 所最小化、且仍是最小化的視窗，然後忘掉它們；回傳數量，或同上回傳 -1。
+int scui_show_hidden_applications(void);
+// TRUE on Windows and on an X11 display; FALSE under Wayland and on macOS, where
+// the application object does it instead.
+// Windows 與 X11 顯示上為 TRUE;Wayland 下與 macOS 上為 FALSE(macOS 由 application 物件代勞)。
+gboolean scui_hide_others_supported(void);
+
+// One graphics adapter by the identity its platform keeps stable while it is
+// present: the DXGI LUID on Windows, the DXCore LUID under WSL
+// (gtk_adapter_watch.c).
+// 一張繪圖介面卡，以平台在它存在期間保持穩定的識別表示:Windows 上是 DXGI 的 LUID,WSL 下是 DXCore 的 LUID
+// (gtk_adapter_watch.c)。
+typedef struct {
+    guint64 luid;
+    char name[128];
+} scui_adapter_identity;
+
+// The hardware adapters DXGI lists (Windows) or DXCore lists (WSL), in the
+// platform's order; how many. 0 on Linux without DXCore and on macOS.
+// DXGI(Windows)或 DXCore(WSL)所列的硬體介面卡，依平台順序；回傳個數。沒有 DXCore 的 Linux 與 macOS 上為 0。
+int scui_adapter_identities(scui_adapter_identity *out, int capacity);
+// Windows: the LUID of the first hardware adapter DXGI orders for a
+// GpuPreference (0 unspecified, 1 minimum power, 2 high performance), the scale
+// UserGpuPreferences uses; 0 when there is none, and elsewhere.
+// Windows:DXGI 依某個 GpuPreference(0 未指定、1 省電、2 高效能，與 UserGpuPreferences 同一刻度)排出的第一張硬體
+// 介面卡的 LUID;沒有時，以及其他平台上，為 0。
+guint64 scui_dxgi_preferred_adapter_luid(int preference);
+// Starts listening for the adapter set changing and calls `changed` on the GTK
+// main thread each time it may have. Returns what it listens to: 0 nothing, 1
+// DXCore list polled every 2 s, 2 a DXGI or DXCore notification, 3 kernel
+// uevents (Linux with DRM cards). Later calls replace `changed` only.
+// 開始監聽介面卡集合的變化，每次可能變化時在 GTK 主執行緒上呼叫 `changed`。回傳監聽的對象:0 無、1 每 2 秒輪詢
+// DXCore 清單、2 DXGI 或 DXCore 的通知、3 核心 uevent(有 DRM 顯示卡的 Linux)。之後的呼叫只替換 `changed`。
+int scui_adapter_watch_start(void (*changed)(void));
+// Whether one kernel uevent message (NUL-separated fields) is a drm or pci
+// device being removed or unbound from its driver. Linux only; FALSE elsewhere.
+// 一則核心 uevent 訊息(以 NUL 分隔的欄位)是否為 drm 或 pci 裝置被移除或與驅動解除綁定。僅 Linux;其他平台為 FALSE。
+gboolean scui_uevent_is_adapter_removal(const char *message, int length);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

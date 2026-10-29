@@ -99,6 +99,32 @@ void *scui_composition_graphics_device(void *compositor);
 // Draws width*height premultiplied BGRA pixels into a CompositionDrawingSurface
 // (its IUnknown); 1 on success. / 把 width*height 個預乘 BGRA 像素畫進 CompositionDrawingSurface;成功時為 1。
 int scui_drawing_surface_fill(void *surface, int width, int height, const uint8_t *bgra);
+
+// One hardware adapter DXGI lists, by the LUID it keeps while present
+// (adapter_watch.cpp). / DXGI 所列的一張硬體介面卡，以它存在期間保持不變的 LUID 表示(adapter_watch.cpp)。
+typedef struct {
+    uint64_t luid;
+    char name[128];
+} scui_dxgi_adapter_identity;
+// The hardware adapters DXGI lists, in DXGI's order (software ones left out); how many.
+// DXGI 所列的硬體介面卡，依 DXGI 的順序(不含軟體介面卡);回傳個數。
+int scui_dxgi_hardware_adapters(scui_dxgi_adapter_identity *out, int capacity);
+// Calls `changed` on a thread-pool thread whenever DXGI's adapter enumeration
+// changes (IDXGIFactory7::RegisterAdaptersChangedEvent); 1 when registered, 0
+// when it could not be. Later calls replace `changed` only.
+// 每當 DXGI 的介面卡列舉改變(IDXGIFactory7::RegisterAdaptersChangedEvent),在 thread pool 執行緒上呼叫 `changed`;
+// 註冊成功回傳 1,無法註冊回傳 0。之後的呼叫只替換 `changed`。
+int scui_dxgi_watch_adapters(void (*changed)(void));
+
+// Hide Others: every other process's visible, unowned, non-tool, uncloaked
+// top-level window with a minimise box, except the desktop and the taskbar, is
+// minimised without activation -- the effect of Win+Home -- and remembered; how
+// many. Show All restores the remembered ones still minimised; how many
+// (hide_others.cpp).
+// Hide Others:其他行程中可見、沒有擁有者、不是工具視窗、沒有被 cloak、有最小化鈕的頂層視窗(桌面與工作列除外)一律
+// 不啟用地最小化——即 Win+Home 的效果——並記下來；回傳數量。Show All 還原記下且仍最小化的視窗；回傳數量(hide_others.cpp)。
+int scui_win32_hide_other_applications(void);
+int scui_win32_show_hidden_applications(void);
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,7 @@
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import WinAppSDK
+import WinUIInterop
 // `@preconcurrency` for `FocusManager.gotFocus`, a class property swift-winui does not annotate;
 // the same answer as WinUIBackend+FrameClock.swift gives for `CompositionTarget.rendering`.
 // `@preconcurrency` 是為了 `FocusManager.gotFocus`(swift-winui 未加註的 class property),與 FrameClock 檔相同。
@@ -15,22 +16,22 @@ import WinAppSDK
 /// carry out, so a `CommandGroup` placed beside a standard item found nothing
 /// to stand beside (queue item 2, 2026-10-19). Item for item it follows
 /// GtkBackend+StandardCommands.swift: the text commands go to the focused text
-/// box, the window commands to the active window, and the macOS-only ones
-/// (Hide Others) are not offered.
+/// box, the window commands to the active window, and Hide Others minimizes the
+/// other applications' windows as Win+Home does.
 ///
 /// ``CommandGroup`` 放進選單列的標準指令——Undo、Copy、Close、Minimize、Quit 等——以 WinUI app 的方式執行。
 ///
 /// WinUIBackend 早已經由 `ApplicationMenus` 畫出選單列；少了這個 conformance,SwiftCrossUI 無從得知 WinUI 能執行
 /// 哪些標準項目，於是放在標準項目旁邊的 `CommandGroup` 找不到可以並列的對象(queue 第 2 項,2026-10-19)。逐項比照
-/// GtkBackend+StandardCommands.swift：文字指令交給有焦點的文字框，視窗指令交給作用中的視窗，只屬於 macOS 的
-/// (Hide Others)不提供。
+/// GtkBackend+StandardCommands.swift：文字指令交給有焦點的文字框，視窗指令交給作用中的視窗,Hide Others
+/// 像 Win+Home 一樣把其他 app 的視窗最小化。
 extension WinUIBackend: BackendFeatures.StandardCommands {
     public func hasStandardCommand(_ command: StandardCommand) -> Bool {
         WinUITextCommandTarget.watch()
-        return switch command {
-            case .hideOthers: false
-            default: true
-        }
+        // Every standard command, Hide Others included: hide_others.cpp minimizes the
+        // other applications' windows the way Win+Home does.
+        // 每個標準指令都提供,Hide Others 也是:hide_others.cpp 像 Win+Home 一樣把其他 app 的視窗最小化。
+        return true
     }
 
     public func performStandardCommand(_ command: StandardCommand) {
@@ -90,7 +91,14 @@ extension WinUIBackend: BackendFeatures.StandardCommands {
                 showInformation("About \(ProcessInfo.processInfo.processName)", in: active)
             case .hide:
                 for window in windows { try? presenter(window)?.minimize() }
+            case .hideOthers:
+                // The other applications' windows minimized, as Win+Home does (hide_others.cpp).
+                // 把其他 app 的視窗最小化，與 Win+Home 相同(hide_others.cpp)。
+                _ = scui_win32_hide_other_applications()
             case .showAll:
+                // Back: the windows Hide Others minimized, then this app's own.
+                // 回來:先是 Hide Others 最小化的視窗，再是本 app 自己的視窗。
+                _ = scui_win32_show_hidden_applications()
                 for window in windows {
                     if presenter(window)?.state == .minimized {
                         try? presenter(window)?.restore()
@@ -102,12 +110,10 @@ extension WinUIBackend: BackendFeatures.StandardCommands {
                     "Help isn’t available for \(ProcessInfo.processInfo.processName).",
                     in: active
                 )
-            case .hideOthers, .newWindow, .services:
-                // Hide Others is macOS's; New Window is resolved by SwiftCrossUI
-                // into the window group's own item; Services has nothing behind
-                // it here, as on GtkBackend.
-                // Hide Others 屬於 macOS;New Window 由 SwiftCrossUI 解析為 window group 自己的項目；
-                // Services 在此沒有任何對應，與 GtkBackend 相同。
+            case .newWindow, .services:
+                // New Window is resolved by SwiftCrossUI into the window group's own
+                // item; Services has nothing behind it here, as on GtkBackend.
+                // New Window 由 SwiftCrossUI 解析為 window group 自己的項目;Services 在此沒有任何對應，與 GtkBackend 相同。
                 break
         }
     }

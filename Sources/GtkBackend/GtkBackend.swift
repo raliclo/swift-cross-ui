@@ -1084,18 +1084,21 @@ public final class GtkBackend:
     /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
     ///
     /// Here rather than in the conformance because a Swift extension cannot add
-    /// stored properties. Not yet signalled by this backend: GTK on Windows has
-    /// no adapter-removal notification wired up, so nothing calls it. Declared
-    /// anyway, because the protocol is what makes the gap visible instead of
-    /// leaving each backend to invent its own answer.
+    /// stored properties. Assigning a handler starts the watch that calls it
+    /// (`GtkAdapterRemoval` in GtkBackend+GraphicsAdapters.swift): DXGI's
+    /// adapters-changed event on Windows, DXCore under WSL, kernel uevents on
+    /// Linux, Metal's device observer on macOS.
     ///
     /// ``BackendFeatures/GraphicsAdapters/adapterRemoved`` 的儲存空間。
     ///
-    /// 之所以放在此處而非 conformance 中，是因為 Swift 的 extension 無法新增 stored property。
-    /// 本 backend 目前**尚未**發出此訊號：Windows 上的 GTK 並未接上任何介面卡移除通知，因此不會有
-    /// 東西呼叫它。仍然宣告它，是因為協定的作用正是讓這個缺口「看得見」，而不是任由各 backend
-    /// 各自發明答案。
-    public var adapterRemoved: (() -> Void)?
+    /// 之所以放在此處而非 conformance 中，是因為 Swift 的 extension 無法新增 stored property。指派 handler
+    /// 就會啟動呼叫它的監看(GtkBackend+GraphicsAdapters.swift 中的 `GtkAdapterRemoval`):Windows 上是 DXGI 的
+    /// adapters-changed 事件,WSL 下是 DXCore,Linux 上是核心 uevent,macOS 上是 Metal 的裝置 observer。
+    public var adapterRemoved: (() -> Void)? {
+        didSet {
+            if adapterRemoved != nil { GtkAdapterRemoval.start(for: self) }
+        }
+    }
 
     var globalCSSProvider: CSSProvider?
 
