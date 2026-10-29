@@ -80,6 +80,9 @@ public final class AnimationDriver: @unchecked Sendable {
     /// How many tweens are in flight, for tests. / 進行中的補間數，供測試使用。
     var activeTweenCount: Int { tweens.count }
 
+    /// Counts starts; see `Tween.serial`. 計數啟動次數；見 `Tween.serial`。
+    private var nextSerial: UInt64 = 0
+
     private struct Tween {
         var animation: Animation
         var startTime: Double?
@@ -94,6 +97,10 @@ public final class AnimationDriver: @unchecked Sendable {
         /// Called once when the tween reaches its end (not when cancelled or replaced).
         /// 補間抵達終點時呼叫一次(被取消或取代時不呼叫)。
         var finish: (() -> Void)? = nil
+        /// Which start this is. `tick` checks it so that a tween cancelled or
+        /// replaced during a frame is not written back from the snapshot.
+        /// 這是哪一次啟動。`tick` 檢查它，使本幀中被取消或取代的補間不會從快照寫回。
+        var serial: UInt64
     }
 
     private init() {}
@@ -134,8 +141,10 @@ public final class AnimationDriver: @unchecked Sendable {
         // 群組時這也重要：先結束會讓該群組的計數短暫歸零，可能在替代的補間尚未加入時就執行它的 completion。
         let replaced = tweens.removeValue(forKey: key)
         group?.tweenStarted()
+        nextSerial &+= 1
         tweens[key] = Tween(
-            animation: animation, startTime: nil, apply: apply, group: group, finish: finish
+            animation: animation, startTime: nil, apply: apply, group: group, finish: finish,
+            serial: nextSerial
         )
         replaced?.group?.tweenEnded()
         startClockIfNeeded()
@@ -253,6 +262,13 @@ public final class AnimationDriver: @unchecked Sendable {
         var reports: [(AnimationGroup, TweenClock.State)] = []
         var ended: [AnimationGroup] = []
         for (key, tween) in tweens {
+            // The loop walks a snapshot, and callbacks earlier in this frame
+            // (`finish`, a group's completion) can cancel or replace a later
+            // tween. Writing that one back on its first frame revived it: it kept
+            // animating and ended its group a second time (review, 2026-10-29).
+            // 迴圈走的是快照，而本幀稍早的回呼(`finish`、群組的 completion)可能取消或取代後面的補間。
+            // 在它的第一幀把它寫回會讓它復活：繼續動畫，並第二次結束它的群組(審查,2026-10-29)。
+            guard tweens[key]?.serial == tween.serial else { continue }
             var tween = tween
             // The clock's origin is the backend's, so the first tick is what
             // defines t=0 rather than whenever `start` happened to be called.

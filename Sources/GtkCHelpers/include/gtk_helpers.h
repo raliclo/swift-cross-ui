@@ -605,6 +605,14 @@ int scui_adapter_watch_start(void (*changed)(void));
 // device being removed or unbound from its driver. Linux only; FALSE elsewhere.
 // 一則核心 uevent 訊息(以 NUL 分隔的欄位)是否為 drm 或 pci 裝置被移除或與驅動解除綁定。僅 Linux;其他平台為 FALSE。
 gboolean scui_uevent_is_adapter_removal(const char *message, int length);
+// Appends a filled and a stroked path (a rectangle and a circle in `bounds`)
+// for the renderer warm-up. Nothing on GTK before 4.14, which has no GskPath;
+// see gtk_renderer_warmup.c.
+// 為 renderer 預熱附加一條填色與一條描邊路徑(`bounds` 中的矩形與圓)。GTK 4.14 之前沒有 GskPath,
+// 此時什麼也不做；見 gtk_renderer_warmup.c。
+void scui_snapshot_append_warmup_paths(
+    GtkSnapshot *snapshot, const graphene_rect_t *bounds, const GdkRGBA *color
+);
 
 #ifdef __cplusplus
 }

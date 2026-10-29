@@ -28,6 +28,79 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### Code review follow-up / 程式碼審查待辦 (2026-10-29, Windows)
+
+Eight review findings, checked against 0ee42a2f and all still present there;
+fixed on top of 69997aa6. Items 1-3 are reproduced on the old code and pass on
+the new. Items 4-8 are fixed from the source, and 6 was not seen to happen.
+SwiftCrossUITests on Windows: 380 tests in 52 suites passed, 1 known issue, with
+`SCUI_HOST_BACKENDS_ONLY=1 swift test --scratch-path .build-hosttest
+--test-product swift-cross-uiPackageTests --filter SwiftCrossUITests`. Built:
+WinUI P6, P41, P86; Windows GTK P41; WSL GTK P41.
+
+八項審查發現，以 0ee42a2f 核對時全部仍在；修正建立在 69997aa6 之上。第 1-3 項已在舊程式上重現，在新程式上通過。第 4-8 項
+依原始碼修正，其中第 6 項沒有觀察到實際發生。Windows 上的 SwiftCrossUITests:52 個 suite 共 380 個測試通過，1 個 known
+issue(指令同上)。已建置:WinUI 的 P6、P41、P86;Windows GTK 的 P41;WSL GTK 的 P41。
+
+- [x] **1. P6: children inherited every inheritable handle.** `P6WindowlessProcess`
+  used `CreateProcessW(bInheritHandles: true)` with a plain STARTUPINFOW, so
+  ffmpeg, spawned while the zstd -> ffmpeg pipe's write end was open, held a copy
+  of it and its stdin never reached end-of-stream. Now a
+  `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` of the three std handles. Reproduced: a 2 s
+  `.y4m.zst` with `-f <file> -autoplay`, then `tasklist` every 3 s. Old build:
+  2 ffmpeg still running at 15 s. New build: 0 from 6 s on.
+  P6 子行程繼承了每一個可繼承的 handle,ffmpeg 因此持有 zstd -> ffmpeg 管線寫入端的副本，等不到 EOF。現在以 handle 清單
+  只交出三個標準 handle。已重現：舊版 15 秒時仍有 2 個 ffmpeg,新版 6 秒起為 0。
+- [x] **2. A tween cancelled during a frame came back.** `AnimationDriver.tick`
+  walks a snapshot, and on a tween's first frame wrote it back unconditionally.
+  Each tween now has a serial, and the loop skips an entry that is no longer the
+  stored one. Test: "A tween cancelled in the frame of its first tick stays
+  cancelled" (AnimationLifetimeTests) failed on the old code with 2 issues and
+  passes on the new.
+  一幀之內被取消的補間會復活。現在每個補間有序號，迴圈跳過已不是存著那一個的項目。新測試在舊程式上失敗(2 個 issue),新程式通過。
+- [x] **3. The adapter watch stayed at `nil` after an empty list.** Re-armed
+  with `present.first` of an empty list, it never fired again. `update` now takes
+  a required `adopting:` and follows the adapter in use once one is back. The
+  old test "Nothing identified in use never fires" had pinned the defect; it is
+  now "..., and nothing to adopt, never fires", next to a new test for the
+  return.
+  介面卡清單清空後監看停在 `nil`。`update` 現在必須帶 `adopting:`,介面卡回來後就跟著它。舊測試把這個缺陷當成預期固定下來，
+  已改名，旁邊加了新測試。
+- [ ] **4. Android: a save read the whole file into memory.** `copyStaged` used
+  `readBytes()`, and the OutOfMemoryError it throws for a large document is an
+  Error, which `catch (Exception)` does not catch. Now streamed in 64 KB chunks
+  through a DigestInputStream. **Not compiled**: there is no Kotlin compiler on
+  this host. It needs compileDebugKotlin and a P75 save on the Mac.
+  Android 存檔把整個檔案讀進記憶體。現在以 64 KB 分塊經 DigestInputStream 串流。**尚未編譯**:本機沒有 Kotlin 編譯器，
+  需要在 Mac 上跑 compileDebugKotlin 與一次 P75 存檔。
+- [x] **5. GTK warm-up called GTK 4.14 API without a guard.** The path part
+  moved to `scui_snapshot_append_warmup_paths` in GtkCHelpers, behind
+  `GTK_CHECK_VERSION(4, 14, 0)`. None of the three targets is older than 4.14
+  (Windows 4.24.1, Ubuntu 26.04), so this is a build fix for other hosts. It
+  was not compiled against an old GTK.
+  GTK 預熱直接呼叫 4.14 API。路徑部分移到 GtkCHelpers,包在 `GTK_CHECK_VERSION(4, 14, 0)` 之後。三個目標都不舊於 4.14,
+  這是給其他主機的建置修正；未對舊版 GTK 編譯過。
+- [x] **6. WinUI min/max limits written before WinUI's own procedure.** Now
+  WinUI's procedure runs first, then the limits, and the message returns 0.
+  **Not seen to happen.** With the old order, SetWindowPos to 120 x 120 on P41
+  gave 1681 x 120 (the minimum width held). The new order gives the same.
+  WinUI 的大小限制在 WinUI 自己的 procedure 之前寫入。現在順序相反並回傳 0。**沒有觀察到實際發生**:舊順序下 P41 的
+  最小寬度也成立，新順序結果相同。
+- [x] **7. Console set-up could leave stdout at NUL or on an unread pipe.** The
+  buffer size is now best effort. A failed redirect falls back to an unfiltered
+  console. `CONOUT$` is opened before stdout moves onto the filter pipe, and the
+  pipe ends are closed on failure. Not exercised: the failures cannot be
+  induced from here, and the normal path ran in every WinUI launch above.
+  Console 初始化可能讓 stdout 停在 NUL 或沒人讀的管線上。失敗路徑無法在此誘發，未實際執行；一般路徑在上述每次 WinUI 啟動中都有跑到。
+- [x] **8. Swap chain and device leaks on error paths.** `setSwapChain` failure
+  now releases the new swap chain, in both `RawD3D11Device` and
+  `D3D11VideoSurface`. Init releases a lone device or context, and releases both
+  when the factory fails. Beyond the report: `RawD3D11Device` had no `deinit` at
+  all, so every Mesh3DView device leaked its device, context, factory and swap
+  chain. It has one now. P86 builds; not measured with a leak counter.
+  Swap chain 與 device 在錯誤路徑上洩漏，已補上釋放。報告之外:`RawD3D11Device` 完全沒有 `deinit`,Mesh3DView 的每個
+  device 都會洩漏，現已補上。P86 可建置；未用洩漏計數量測。
+
 ### Code review follow-up / 程式碼審查待辦 (2026-10-22, Windows)
 
 Four review findings. Items 2-4 are reproduced and their fixes verified by a

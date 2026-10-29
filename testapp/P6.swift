@@ -2806,18 +2806,81 @@ final class P6WindowlessProcess: @unchecked Sendable {
         let nullDevice = try Self.openNullDevice()
         defer { CloseHandle(nullDevice) }
 
-        var startupInfo = STARTUPINFOW()
-        startupInfo.cb = DWORD(MemoryLayout<STARTUPINFOW>.size)
-        startupInfo.dwFlags = DWORD(STARTF_USESTDHANDLES)
-        startupInfo.hStdInput = standardInput ?? nullDevice
-        startupInfo.hStdOutput = standardOutput ?? nullDevice
-        startupInfo.hStdError = standardError ?? nullDevice
+        var startupInfo = STARTUPINFOEXW()
+        startupInfo.StartupInfo.cb = DWORD(MemoryLayout<STARTUPINFOEXW>.size)
+        startupInfo.StartupInfo.dwFlags = DWORD(STARTF_USESTDHANDLES)
+        startupInfo.StartupInfo.hStdInput = standardInput ?? nullDevice
+        startupInfo.StartupInfo.hStdOutput = standardOutput ?? nullDevice
+        startupInfo.StartupInfo.hStdError = standardError ?? nullDevice
 
-        for handle in [startupInfo.hStdInput, startupInfo.hStdOutput, startupInfo.hStdError] {
+        // The child inherits these three handles and nothing else. With a plain
+        // STARTUPINFOW and bInheritHandles it got every inheritable handle in
+        // P6, among them the write end of another child's pipe: ffmpeg spawned
+        // while the zstd -> ffmpeg pipe was still open held a copy of its write
+        // end, so its stdin never reached end-of-stream, ffmpeg never exited and
+        // stopping playback waited on it. A handle list makes the inheritance
+        // explicit. Duplicates are refused (ERROR_INVALID_PARAMETER), and two of
+        // the three are often the same null device, hence the dedupe.
+        // 子行程只繼承這三個 handle。以前用一般的 STARTUPINFOW 加 bInheritHandles,子行程會拿到 P6 裡
+        // 每一個可繼承的 handle,包括另一個子行程管線的寫入端:在 zstd -> ffmpeg 管線還開著時生成的
+        // ffmpeg 持有該寫入端的副本，於是它的 stdin 永遠等不到串流結束,ffmpeg 不會結束，停止播放
+        // 就一直等它。handle 清單讓繼承變成明確指定。清單不接受重複(ERROR_INVALID_PARAMETER),而三個
+        // 之中常有兩個是同一個 null 裝置，所以先去重。
+        var inherited: [HANDLE] = []
+        for handle in [
+            startupInfo.StartupInfo.hStdInput,
+            startupInfo.StartupInfo.hStdOutput,
+            startupInfo.StartupInfo.hStdError,
+        ] {
+            guard let handle, !inherited.contains(handle) else { continue }
             _ = SetHandleInformation(
                 handle, DWORD(HANDLE_FLAG_INHERIT), DWORD(HANDLE_FLAG_INHERIT)
             )
+            inherited.append(handle)
         }
+
+        var attributeBytes: SIZE_T = 0
+        _ = InitializeProcThreadAttributeList(nil, 1, 0, &attributeBytes)
+        let attributeStorage = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(attributeBytes), alignment: MemoryLayout<UInt64>.alignment
+        )
+        defer { attributeStorage.deallocate() }
+        let attributeList = LPPROC_THREAD_ATTRIBUTE_LIST(attributeStorage)
+        guard InitializeProcThreadAttributeList(attributeList, 1, 0, &attributeBytes) else {
+            throw P6PlayerError.processFailed(
+                executable.lastPathComponent, Int32(bitPattern: GetLastError())
+            )
+        }
+        defer { DeleteProcThreadAttributeList(attributeList) }
+        // PROC_THREAD_ATTRIBUTE_HANDLE_LIST is a function-like macro that does
+        // not import into Swift; its value is ProcThreadAttributeHandleList (2)
+        // with PROC_THREAD_ATTRIBUTE_INPUT (0x20000).
+        // PROC_THREAD_ATTRIBUTE_HANDLE_LIST 是類函式巨集，匯入不到 Swift;它的值是
+        // ProcThreadAttributeHandleList(2)加上 PROC_THREAD_ATTRIBUTE_INPUT(0x20000)。
+        let handleListAttribute = DWORD_PTR(0x0002_0002)
+        // The list keeps a pointer to this buffer until CreateProcessW reads it,
+        // so it is allocated here rather than borrowed for one closure.
+        // 清單會保留指向這塊緩衝區的指標，直到 CreateProcessW 讀取為止，所以在這裡配置，
+        // 而不是只在一個閉包內借用。
+        let handleBuffer = UnsafeMutablePointer<HANDLE>.allocate(capacity: inherited.count)
+        handleBuffer.initialize(from: inherited, count: inherited.count)
+        defer { handleBuffer.deallocate() }
+        guard
+            UpdateProcThreadAttribute(
+                attributeList,
+                0,
+                handleListAttribute,
+                handleBuffer,
+                SIZE_T(inherited.count * MemoryLayout<HANDLE>.size),
+                nil,
+                nil
+            )
+        else {
+            throw P6PlayerError.processFailed(
+                executable.lastPathComponent, Int32(bitPattern: GetLastError())
+            )
+        }
+        startupInfo.lpAttributeList = attributeList
 
         let commandLine = Self.commandLine(executable: executable, arguments: arguments)
         var information = PROCESS_INFORMATION()
@@ -2832,18 +2895,23 @@ final class P6WindowlessProcess: @unchecked Sendable {
                 )
             )
             return mutableCommandLine.withUnsafeMutableBufferPointer { buffer in
-                CreateProcessW(
-                    nil,
-                    buffer.baseAddress,
-                    nil,
-                    nil,
-                    true,
-                    DWORD(CREATE_NO_WINDOW) | DWORD(CREATE_UNICODE_ENVIRONMENT),
-                    nil,
-                    nil,
-                    &startupInfo,
-                    &information
-                )
+                withUnsafeMutablePointer(to: &startupInfo) { extended in
+                    extended.withMemoryRebound(to: STARTUPINFOW.self, capacity: 1) { plain in
+                        CreateProcessW(
+                            nil,
+                            buffer.baseAddress,
+                            nil,
+                            nil,
+                            true,
+                            DWORD(CREATE_NO_WINDOW) | DWORD(CREATE_UNICODE_ENVIRONMENT)
+                                | DWORD(EXTENDED_STARTUPINFO_PRESENT),
+                            nil,
+                            nil,
+                            plain,
+                            &information
+                        )
+                    }
+                }
             }
         }
 

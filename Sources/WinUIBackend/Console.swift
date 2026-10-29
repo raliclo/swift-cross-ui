@@ -49,9 +49,39 @@ extension WinUIBackend {
         try Self.releaseConsole()
         // -1 attaches to parent's console
         if AttachConsole(DWORD(bitPattern: -1)) {
-            try Self.adjustConsoleBuffer(1024)
-            try Self.redirectConsoleIO()
+            // From here stdin, stdout and stderr are at NUL, so a step that
+            // throws must not leave them there: the caller logs the error and
+            // carries on, and every later print was lost -- or, if stdout had
+            // already been moved onto the filter pipe, written into a pipe nobody
+            // read, which blocks the app once its 64 KB fill (review, 2026-10-29).
+            // The buffer size is only the scrollback, so its failure is ignored;
+            // any other failure falls back to the console without the filter.
+            // 從這裡起 stdin、stdout、stderr 都在 NUL,所以丟出錯誤的步驟不能把它們留在那裡：呼叫端記下錯誤就繼續，
+            // 之後的每一次輸出都會遺失——若 stdout 已經被接到過濾管線，則寫進一條沒人讀的管線，管線的 64 KB 寫滿後
+            // app 就被卡住(審查,2026-10-29)。緩衝區大小只影響捲動範圍，失敗就略過；其他失敗則退回不經過濾的主控台。
+            try? Self.adjustConsoleBuffer(1024)
+            do {
+                try Self.redirectConsoleIO()
+            } catch {
+                Self.redirectToConsoleUnfiltered()
+                throw error
+            }
         }
+    }
+
+    /// The fallback when the filtered redirect fails: stdout and stderr straight
+    /// to the console, with the backdrop noise left in.
+    /// 過濾式重導失敗時的退路:stdout 與 stderr 直接接到主控台，背景雜訊照樣出現。
+    private static func redirectToConsoleUnfiltered() {
+        var fp = UnsafeMutablePointer<FILE>?.none
+        if freopen_s(&fp, "CONOUT$", "w", stdout) == 0 {
+            setvbuf(stdout, nil, _IONBF, 0)
+            SetStdHandle(
+                STD_OUTPUT_HANDLE,
+                UnsafeMutableRawPointer(bitPattern: _get_osfhandle(_fileno(stdout)))
+            )
+        }
+        _ = freopen_s(&fp, "CONOUT$", "w", stderr)
     }
 
     /// Whether stdout or stderr already points at a file or a pipe.
@@ -130,7 +160,22 @@ extension WinUIBackend {
         let readEnd = pipeEnds[0]
         let writeEnd = pipeEnds[1]
 
+        // The console first, and stdout moved onto the pipe only once the
+        // reader can start. In the other order a failed `fopen_s` left stdout on
+        // a pipe that nothing drained (review, 2026-10-29).
+        // 先開主控台，等讀取端確定能啟動才把 stdout 接到管線。順序相反時,`fopen_s` 一失敗,stdout 就留在一條沒有
+        // 人排空的管線上(審查,2026-10-29)。
+        var consoleFile = UnsafeMutablePointer<FILE>?.none
+        guard fopen_s(&consoleFile, "CONOUT$", "w") == 0, let console = consoleFile else {
+            _close(readEnd)
+            _close(writeEnd)
+            throw Error(message: "Failed to open console for filtered output")
+        }
+
         guard _dup2(writeEnd, _fileno(stdout)) == 0 else {
+            fclose(console)
+            _close(readEnd)
+            _close(writeEnd)
             throw Error(message: "Failed to redirect stdout to console filter pipe")
         }
         // The pipe isn't a console, so the CRT switches stdout to full
@@ -144,10 +189,6 @@ extension WinUIBackend {
             UnsafeMutableRawPointer(bitPattern: _get_osfhandle(writeEnd))
         )
 
-        var consoleFile = UnsafeMutablePointer<FILE>?.none
-        guard fopen_s(&consoleFile, "CONOUT$", "w") == 0, let console = consoleFile else {
-            throw Error(message: "Failed to open console for filtered output")
-        }
         let consoleAddress = UInt(bitPattern: console)
 
         Thread.detachNewThread {

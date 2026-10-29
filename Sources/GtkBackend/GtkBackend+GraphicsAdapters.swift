@@ -369,7 +369,7 @@ enum GtkAdapterRemoval {
     /// 重新列出介面卡；使用中的那一張不見了就觸發 handler。
     static func check() {
         guard var current = watch else { return }
-        let removed = current.update(present: presentAdapters())
+        let removed = current.update(present: presentAdapters(), adopting: inUseAdapter())
         if removed {
             current.rearm(inUse: inUseAdapter())
         }

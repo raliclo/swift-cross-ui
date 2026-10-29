@@ -304,11 +304,42 @@ public final class RawD3D11Device {
             }
         )
         guard let device, let context else {
+            // One without the other: release the one that came back.
+            // 只回來其中一個：釋放回來的那一個。
+            if let device { _ = device.pointee.lpVtbl.pointee.Release(device) }
+            if let context { _ = context.pointee.lpVtbl.pointee.Release(context) }
             throw D3D11Error.failed("D3D11CreateDevice returned a null device", S_OK)
+        }
+        // The factory before the stored properties. A throw after the device and
+        // context were stored left an initializer that never reached deinit, so
+        // both leaked (review, 2026-10-29).
+        // 先取得 factory,再設定儲存屬性。device 與 context 存好之後才丟出錯誤，初始化器就到不了 deinit,
+        // 兩者因此洩漏(審查,2026-10-29)。
+        let factory: UnsafeMutablePointer<IDXGIFactory2>
+        do {
+            factory = try RawD3D11Device.obtainFactory(from: device)
+        } catch {
+            _ = context.pointee.lpVtbl.pointee.Release(context)
+            _ = device.pointee.lpVtbl.pointee.Release(device)
+            throw error
         }
         self.device = device
         self.context = context
-        self.factory = try RawD3D11Device.obtainFactory(from: device)
+        self.factory = factory
+    }
+
+    /// Releases what this owns. There was no deinit, so every device Mesh3DView
+    /// replaced kept its device, context, factory and swap chain (review,
+    /// 2026-10-29). The panel holds its own reference to the swap chain it shows.
+    /// 釋放本物件擁有的東西。以前沒有 deinit,所以 Mesh3DView 每換掉一個 device,舊的 device、context、factory
+    /// 與 swap chain 都留著(審查,2026-10-29)。面板對它顯示的 swap chain 另有自己的參照。
+    deinit {
+        if let swapChain {
+            _ = swapChain.pointee.lpVtbl.pointee.Release(swapChain)
+        }
+        _ = context.pointee.lpVtbl.pointee.Release(context)
+        _ = device.pointee.lpVtbl.pointee.Release(device)
+        _ = factory.pointee.lpVtbl.pointee.Release(factory)
     }
 
     /// Walks device -> DXGI adapter -> DXGI factory, the standard way to get
@@ -393,9 +424,16 @@ public final class RawD3D11Device {
             throw D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
         }
 
-        try panel.setSwapChain(
-            UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
-        )
+        // Released when the panel refuses it, as in D3D11VideoSurface.
+        // 面板不接受時釋放，與 D3D11VideoSurface 相同。
+        do {
+            try panel.setSwapChain(
+                UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
+            )
+        } catch {
+            _ = created.pointee.lpVtbl.pointee.Release(created)
+            throw error
+        }
 
         self.swapChain = created
         self.width = width
@@ -799,11 +837,28 @@ public final class D3D11VideoSurface {
             }
         )
         guard let device, let context else {
+            // One without the other: release the one that came back.
+            // 只回來其中一個：釋放回來的那一個。
+            if let device { _ = device.pointee.lpVtbl.pointee.Release(device) }
+            if let context { _ = context.pointee.lpVtbl.pointee.Release(context) }
             throw D3D11Error.failed("D3D11CreateDevice returned null", S_OK)
+        }
+        // The factory before the stored properties. A throw after the device and
+        // context were stored left an initializer that never reached deinit, so
+        // both leaked (review, 2026-10-29).
+        // 先取得 factory,再設定儲存屬性。device 與 context 存好之後才丟出錯誤，初始化器就到不了 deinit,
+        // 兩者因此洩漏(審查,2026-10-29)。
+        let factory: UnsafeMutablePointer<IDXGIFactory2>
+        do {
+            factory = try RawD3D11Device.makeFactory(from: device)
+        } catch {
+            _ = context.pointee.lpVtbl.pointee.Release(context)
+            _ = device.pointee.lpVtbl.pointee.Release(device)
+            throw error
         }
         self.device = device
         self.context = context
-        self.factory = try RawD3D11Device.makeFactory(from: device)
+        self.factory = factory
     }
 
     /// Finds the adapter matching `gpu`, and describes every adapter found.
@@ -983,9 +1038,19 @@ public final class D3D11VideoSurface {
         guard let created else {
             throw D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
         }
-        try panel.native.setSwapChain(
-            UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
-        )
+        // Released when the panel refuses it: nothing else holds it, and a
+        // failure here repeats on every resize, each one leaking a swap chain
+        // with its two buffers (review, 2026-10-29).
+        // 面板不接受時要釋放：沒有別的東西持有它，而這裡的失敗會在每次調整大小時重複，每一次都洩漏一個
+        // 帶兩個緩衝區的 swap chain(審查,2026-10-29)。
+        do {
+            try panel.native.setSwapChain(
+                UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
+            )
+        } catch {
+            _ = created.pointee.lpVtbl.pointee.Release(created)
+            throw error
+        }
         swapChain = created
 
         // Staging usage keeps the texture CPU-writable and legal as a

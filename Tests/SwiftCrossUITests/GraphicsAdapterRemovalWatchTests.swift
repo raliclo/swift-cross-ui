@@ -10,8 +10,11 @@ import Testing
 /// One enumeration fed to the watch. A function, because `#expect` cannot take a
 /// mutating call on its operand.
 /// 餵給 watch 的一份列舉。寫成函式，因為 `#expect` 的運算元不能是 mutating 呼叫。
-private func fire(_ watch: inout GraphicsAdapterRemovalWatch<String>, _ present: [String]) -> Bool {
-    watch.update(present: present)
+private func fire(
+    _ watch: inout GraphicsAdapterRemovalWatch<String>, _ present: [String],
+    adopting: String? = nil
+) -> Bool {
+    watch.update(present: present, adopting: adopting)
 }
 
 @Suite("Graphics adapter removal")
@@ -60,10 +63,32 @@ struct GraphicsAdapterRemovalWatchTests {
         #expect(fire(&watch, []) == true)
     }
 
-    @Test("Nothing identified in use never fires")
+    @Test("Nothing identified in use, and nothing to adopt, never fires")
     func nothingInUse() {
         var watch = GraphicsAdapterRemovalWatch<String>(inUse: nil)
         #expect(fire(&watch, []) == false)
         #expect(fire(&watch, ["1f2a3"]) == false)
+    }
+
+    /// The review finding of 2026-10-29. Before `adopting`, the test above was
+    /// named "Nothing identified in use never fires" and pinned the defect as
+    /// intended: a watch re-armed with the empty list's `nil` stayed there, and
+    /// the GPU that came back was never watched.
+    /// 2026-10-29 的審查發現。在有 `adopting` 之前，上面那個測試名為「Nothing identified in use never fires」,
+    /// 把這個缺陷當成預期行為固定下來：以空清單的 `nil` 重新設定的監看會停在那裡，回來的 GPU 永遠不會被監看。
+    @Test("A watch left with nothing in use follows the adapter that comes back")
+    func adoptsAfterAnEmptyList() {
+        var watch = GraphicsAdapterRemovalWatch(inUse: "1f3b0")
+        // A driver reset: only the software adapter, which is filtered out.
+        // 驅動程式重設：只剩被濾掉的軟體介面卡。
+        #expect(fire(&watch, []) == true)
+        watch.rearm(inUse: nil)
+        #expect(fire(&watch, [], adopting: nil) == false)
+        #expect(watch.inUse == nil)
+        // The GPU is back and is what the backend renders on now.
+        // GPU 回來了，backend 現在就在它上面繪製。
+        #expect(fire(&watch, ["1f3b1"], adopting: "1f3b1") == false)
+        #expect(watch.inUse == "1f3b1")
+        #expect(fire(&watch, []) == true)
     }
 }

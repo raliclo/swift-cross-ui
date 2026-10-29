@@ -3812,6 +3812,17 @@ public class CustomWindow: WinUI.Window {
            let info = UnsafeMutableRawPointer(bitPattern: Int(lParam))?
                .assumingMemoryBound(to: MINMAXINFO.self)
         {
+            // WinUI's own procedure first, then the limits, so ours are the last
+            // word. They used to be written first and the message then forwarded,
+            // which left WinUI free to rewrite them (review, 2026-10-29). Not seen
+            // to happen: measured the same day, P41's minimum width held with the
+            // old order (SetWindowPos to 120 x 120 gave 1681 x 120).
+            // 先跑 WinUI 自己的 procedure,再寫入限制，讓我們的值是最後的決定。以前是先寫入再轉送，WinUI 因此
+            // 可以改寫它們(審查,2026-10-29)。實際上沒看到發生：同一天量測，舊順序下 P41 的最小寬度仍成立
+            // (SetWindowPos 到 120 x 120 得到 1681 x 120)。
+            if let originalWindowProc = window.originalWindowProc {
+                _ = CallWindowProcW(originalWindowProc, hwnd, message, wParam, lParam)
+            }
             let minimumWindowSize = window.windowTrackingSize(forContentSize: window.minimumContentSize)
             info.pointee.ptMinTrackSize.x = minimumWindowSize.x
             info.pointee.ptMinTrackSize.y = minimumWindowSize.y
@@ -3821,6 +3832,7 @@ public class CustomWindow: WinUI.Window {
                 info.pointee.ptMaxTrackSize.x = maximumWindowSize.x
                 info.pointee.ptMaxTrackSize.y = maximumWindowSize.y
             }
+            return 0
         }
 
         // The window moved to a display with another scale, or the scale was

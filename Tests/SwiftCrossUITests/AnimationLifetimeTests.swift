@@ -112,4 +112,53 @@ struct AnimationLifetimeTests {
             #expect(driver.activeTweenCount == 0)
         }
     }
+
+    /// The review finding of 2026-10-29: `tick` walks a snapshot of the tweens,
+    /// and on a tween's first frame wrote it back unconditionally. A tween that
+    /// another tween's `finish` cancelled earlier in the same frame came back to
+    /// life, kept animating, and ended its group a second time. Twenty tweens,
+    /// because the snapshot's order is the dictionary's: with one, it passes
+    /// whenever that one happens to come before the cancelling tween.
+    /// 2026-10-29 的審查發現:`tick` 走的是補間的快照，而在補間的第一幀會無條件寫回。同一幀中稍早被另一個
+    /// 補間的 `finish` 取消的補間因此復活、繼續動畫，並第二次結束它的群組。用二十個，因為快照的順序就是字典的順序:
+    /// 只用一個時，只要它剛好排在取消它的補間之前，測試就會通過。
+    @Test("A tween cancelled in the frame of its first tick stays cancelled")
+    func cancelledInItsFirstFrameStaysCancelled() {
+        withManualClock { driver, clock in
+            let events = Events()
+            let cancelledKeys = (0..<20).map { _ in UUID() }
+            var appliedAfterCancel = 0
+            var cancelled = false
+
+            driver.start(
+                key: UUID(), animation: .linear(duration: 1), group: nil,
+                apply: { _ in },
+                finish: {
+                    cancelled = true
+                    for key in cancelledKeys { driver.cancel(key: key) }
+                }
+            )
+            clock.advance(to: 0)
+            clock.advance(to: 0.5)
+
+            // Started now, so their first tick is the one where the first tween ends.
+            // 在此時啟動，因此它們的第一次 tick 正是第一個補間結束的那一次。
+            let group = AnimationGroup(animation: .linear(duration: 1)) {
+                events.lines.append("group done")
+            }
+            for key in cancelledKeys {
+                driver.start(key: key, animation: .linear(duration: 1), group: group) { _ in
+                    if cancelled { appliedAfterCancel += 1 }
+                }
+            }
+            group.close()
+
+            clock.advance(to: 1)
+            clock.advance(to: 1.5)
+            clock.advance(to: 3)
+            #expect(driver.activeTweenCount == 0)
+            #expect(appliedAfterCancel == 0)
+            #expect(events.lines == ["group done"])
+        }
+    }
 }

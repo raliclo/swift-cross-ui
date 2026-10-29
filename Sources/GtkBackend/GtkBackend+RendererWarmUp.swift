@@ -1,6 +1,7 @@
 #if os(Windows) || os(Linux)
     import CGtk
     import Foundation
+    import GtkCHelpers
     import Gtk
 
     extension GtkBackend {
@@ -95,20 +96,12 @@
 
             // A filled and a stroked path, as GtkBackend draws Shapes with GSK
             // path nodes, and a fill under the transform Fixed.setChildMatrix
-            // builds.
+            // builds. The paths are drawn in C, behind GTK_CHECK_VERSION(4, 14, 0):
+            // called from here they did not compile on an older GTK.
             // 填色與描邊的路徑(GtkBackend 以 GSK 路徑節點繪製 Shape),以及 Fixed.setChildMatrix
-            // 所建變換下的填色。
-            let builder = gsk_path_builder_new()
-            gsk_path_builder_add_rect(builder, &bounds)
-            var centre = graphene_point_t(x: 32, y: 32)
-            gsk_path_builder_add_circle(builder, &centre, 20)
-            if let path = gsk_path_builder_free_to_path(builder) {
-                gtk_snapshot_append_fill(snapshot, path, GSK_FILL_RULE_WINDING, &grey)
-                let stroke = gsk_stroke_new(2)
-                gtk_snapshot_append_stroke(snapshot, path, stroke, &grey)
-                gsk_stroke_free(stroke)
-                gsk_path_unref(path)
-            }
+            // 所建變換下的填色。路徑在 C 裡畫，放在 GTK_CHECK_VERSION(4, 14, 0) 之後：從這裡呼叫時，
+            // 較舊的 GTK 編譯不過。
+            scui_snapshot_append_warmup_paths(snapshot, &bounds, &grey)
             var offset = graphene_point_t(x: 3.5, y: 2.25)
             let transform = AffineTransform2D(a: 0.866, b: 0.5, c: -0.5, d: 0.866, tx: 0, ty: 0)
                 .appending(to: gsk_transform_translate(nil, &offset))

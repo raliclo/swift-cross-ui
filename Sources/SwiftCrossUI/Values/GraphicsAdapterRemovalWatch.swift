@@ -28,8 +28,9 @@
 @_spi(Backends)
 public struct GraphicsAdapterRemovalWatch<Key: Hashable & Sendable>: Sendable {
     /// The adapter in use, or `nil` when nothing removable is in use (software
-    /// rendering, or no adapter could be identified); then nothing fires.
-    /// 使用中的介面卡；沒有可移除的介面卡在使用中時(軟體繪製，或認不出任何介面卡)為 `nil`,此時不會觸發。
+    /// rendering, or no adapter could be identified); then nothing fires until
+    /// ``update(present:adopting:)`` finds one in use.
+    /// 使用中的介面卡；沒有可移除的介面卡在使用中時(軟體繪製，或認不出任何介面卡)為 `nil`,直到 ``update(present:adopting:)`` 找到使用中的介面卡之前都不會觸發。
     public private(set) var inUse: Key?
 
     /// Whether ``update(present:)`` has reported the current ``inUse`` gone.
@@ -42,9 +43,28 @@ public struct GraphicsAdapterRemovalWatch<Key: Hashable & Sendable>: Sendable {
 
     /// Takes a fresh enumeration and returns `true` exactly once: the first
     /// time the adapter in use is not in it.
+    ///
+    /// While nothing is in use, `adopting` is asked for the adapter in use now
+    /// and the watch follows it from this enumeration on. Without that, a watch
+    /// re-armed while the list was empty -- a driver reset that left only the
+    /// software adapter -- or started that way stayed at `nil` for good, and
+    /// the adapter that came back was never reported when it went (review,
+    /// 2026-10-29). It is required, not defaulted, so a backend cannot leave it
+    /// out by accident.
+    ///
     /// 接受一份新的列舉，只回傳一次 `true`:使用中的介面卡第一次不在其中的時候。
-    public mutating func update(present: some Sequence<Key>) -> Bool {
-        guard let inUse, !hasFired else { return false }
+    ///
+    /// 沒有介面卡在使用中時，會向 `adopting` 詢問現在使用中的介面卡，並從這次列舉起監看它。少了這一步，一個在
+    /// 清單為空時重新設定(驅動程式重設後只剩軟體介面卡)或以此狀態啟動的監看會永遠停在 `nil`,回來的那張介面卡
+    /// 之後消失時也不會回報(審查,2026-10-29)。此參數為必填而非預設值，讓 backend 不會不小心漏掉。
+    public mutating func update(
+        present: some Sequence<Key>, adopting candidate: @autoclosure () -> Key?
+    ) -> Bool {
+        guard let inUse else {
+            rearm(inUse: candidate())
+            return false
+        }
+        guard !hasFired else { return false }
         if present.contains(inUse) { return false }
         hasFired = true
         return true

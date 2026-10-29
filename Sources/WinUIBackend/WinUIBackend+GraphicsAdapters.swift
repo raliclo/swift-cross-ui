@@ -227,7 +227,7 @@ enum WinUIAdapterRemoval {
     static func check() {
         guard var current = watch else { return }
         let present = hardwareAdapters()
-        let removed = current.update(present: present)
+        let removed = current.update(present: present, adopting: present.first)
         if removed {
             current.rearm(inUse: present.first)
         }

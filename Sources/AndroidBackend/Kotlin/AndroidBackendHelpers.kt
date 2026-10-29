@@ -1565,28 +1565,61 @@ class AndroidBackendHelpers {
         return copyStaged(staged, force = true)
     }
 
-    // The bytes are read once, and the same bytes are both hashed and written, so
-    // what is marked as copied is exactly what reached the document.
-    // 位元組只讀一次，雜湊與寫入用的是同一份，因此記為「已複製」的正是送進文件的內容。
+    // The bytes written are the bytes hashed: the copy runs through a
+    // DigestInputStream, so what is marked as copied is exactly what reached the
+    // document.
+    // 寫入的位元組就是被雜湊的位元組：複製經過 DigestInputStream,因此記為「已複製」的正是送進文件的內容。
+    //
+    // Streamed in fixed-size chunks, not read whole. `readBytes()` held the
+    // entire file on the Java heap, so a document of a few hundred MB threw
+    // OutOfMemoryError -- an Error, which the `catch (Exception)` below does not
+    // catch, so the app crashed, on the FileObserver thread too (review,
+    // 2026-10-29).
+    // 以固定大小分塊串流，而不是整份讀入。`readBytes()` 把整個檔案放在 Java heap 上，數百 MB 的文件會丟出
+    // OutOfMemoryError——那是 Error,下方的 `catch (Exception)` 接不到，app 因而當掉,FileObserver
+    // 執行緒上也一樣(審查,2026-10-29)。
     // `force` is for an explicit save: it always writes, so the document matches
     // the file even if something else changed the document since the last copy.
-    // `force` 用於明確的存檔：一律寫入，即使上次複製之後文件被別的東西改過，文件也會與檔案一致。
+    // Without it the file is hashed first, and an unchanged file is not written.
+    // `force` 用於明確的存檔：一律寫入，即使上次複製之後文件被別的東西改過，文件也會與檔案一致。沒有 `force` 時
+    // 先雜湊檔案，內容沒變就不寫。
     private fun copyStaged(staged: StagedSave, force: Boolean = false): String? =
         synchronized(staged) {
             try {
-                val bytes = staged.file.readBytes()
-                val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
-                if (!force && staged.copied?.contentEquals(digest) == true) return@synchronized null
+                if (!force) {
+                    val current = sha256(staged.file)
+                    if (staged.copied?.contentEquals(current) == true) return@synchronized null
+                }
                 val output =
                     staged.resolver.openOutputStream(staged.uri, "wt")
                         ?: return@synchronized "could not open ${staged.uri} for writing"
-                output.use { it.write(bytes) }
-                staged.copied = digest
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                output.use { sink ->
+                    java.security.DigestInputStream(staged.file.inputStream(), digest).use {
+                        it.copyTo(sink, copyChunkBytes)
+                    }
+                }
+                staged.copied = digest.digest()
                 null
             } catch (error: Exception) {
                 "could not copy the save to ${staged.uri}: $error"
             }
         }
+
+    private val copyChunkBytes = 1 shl 16
+
+    private fun sha256(file: File): ByteArray {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(copyChunkBytes)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest()
+    }
 
     // Both return null on success and a sentence on failure, so the Swift side
     // can throw something a person can read instead of a bare `false`.
