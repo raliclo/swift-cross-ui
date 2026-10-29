@@ -352,7 +352,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 // The offset is in points from the centre, as on the desktop;
                 // MotionEvent takes pixels.
                 // 位移以點為單位、自中心起算，與桌面相同;MotionEvent 用的是像素。
-                let centre = try reveal(label: label)
+                let centre = try reveal(label: label, offset: (Int32(dx * density), Int32(dy * density)))
                 let position = (x: centre.x + dx * density, y: centre.y + dy * density)
                 lastPoint = position
                 let downTime = try dispatch(action: actionDown, at: position, downTime: nil)
@@ -458,16 +458,17 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// Where the view showing `label` is, after scrolling the root so that it is
     /// on screen. The position is read from the view itself, so it holds whatever
     /// the layout has become. 顯示 `label` 的 view 在哪裡(先把根捲到讓它在螢幕上)。位置讀自 view 本身，所以不論版面變成怎樣都成立。
-    private func reveal(label: String) throws -> (x: Double, y: Double) {
+    /// `offset` is the pixel offset an offset taplabel presses at; the point it names is scrolled into view with the label. `offset` 是帶位移的 taplabel 要按的像素位移；它所指的點會和標籤一起被捲進畫面。
+    private func reveal(label: String, offset: (x: Int32, y: Int32)) throws -> (x: Double, y: Double) {
         let found = Self.onMainThread { () -> [Int32] in
             guard
                 let window = self.targetWindow(),
                 let content = window.content
             else { return [] }
             let helpers = AndroidBackendHelpers(environment: AndroidBackend.env)
-            let centre = helpers.centreOfLabel(self.targetActivity(), label)
+            let centre = helpers.centreOfLabel(self.targetActivity(), label, offset.x, offset.y)
             guard centre.count == 2 else { return [] }
-            let moved = helpers.rootScrollReveal(content, centre[0], centre[1])
+            let moved = helpers.rootScrollReveal(content, centre[0] + offset.x, centre[1] + offset.y)
             guard moved.count == 2 else { return centre }
             return [centre[0] - moved[0], centre[1] - moved[1], moved[0], moved[1]]
         }

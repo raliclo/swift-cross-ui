@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Android: does a user edit of a SECONDS field reach the binding, and does nothing write back at launch? The Android copy of win/P41-change-seconds.actions (2026-10-30).
+# TWO ASSERTIONS, both in the log (logcat [P41] lines): before the press no line containing ` -> `; after it exactly `.rows seconds -> 09:46:41` (only the seconds move, 40 -> 41).
+# The offset is WinUI's (236,28) points from the label's centre: the .rows row is laid out in points, and an Android capture put the seconds + at about (233,27). The row is far off screen at launch (bottom of P41's own ScrollView, right of the screen); taplabel scrolls every scroll view the label and the offset point sit in until both show (AndroidBackendHelpers.bringIntoView, 2026-10-30). Before that the root host alone could not reach it and the press landed elsewhere.
+# P41(Android):使用者改秒數欄會不會抵達 binding,以及啟動時有沒有寫回?win/P41-change-seconds.actions 的 Android 版(2026-10-30)。通過：按之前 log 沒有任何 ` -> `,按之後恰為 `.rows seconds -> 09:46:41`。位移沿用 WinUI 的 (236,28) 點：.rows 那一列以點排版,Android 擷圖上秒數的 + 約在 (233,27)。啟動時那一列遠在畫面外(P41 自己的 ScrollView 底部、螢幕右方);taplabel 會把標籤與位移點所在的每一層捲動視圖捲到兩者都看得見(2026-10-30 起)。
+sleep,,,,,,4000000,let the window settle; the launch-time assertion is read here,android
+taplabel,236,28,,,.rows seconds,,+ on the seconds field of .rows seconds -- 40 becomes 41 (236 points right of and 28 below the label's centre),android
+sleep,,,,,,1500000,let the binding change reach the log,android

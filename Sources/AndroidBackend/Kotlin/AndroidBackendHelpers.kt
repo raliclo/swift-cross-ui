@@ -163,14 +163,31 @@ class AndroidBackendHelpers {
         return view.parent == null
     }
 
+    // Scrolls every scroll view the label sits in -- an app's own ScrollView as well
+    // as the root host -- until the label is visible, as XCUITest does on iOS before
+    // it taps. The root host alone could not reach a label inside a ScrollView past
+    // that ScrollView's own bottom: P41's `.rows seconds` stayed off screen and the
+    // tap landed elsewhere (2026-10-30). The rectangle also holds the point `dx`,`dy`
+    // pixels from the centre that an offset taplabel presses, with a 24 dp margin. Nothing moves when it already shows.
+    // 把標籤所在的每一層捲動視圖——app 自己的 ScrollView 與根宿主——捲到標籤看得見，如同 iOS 上 XCUITest 點擊前
+    // 所做的。只捲根宿主時，位於某個 ScrollView 內、超出該 ScrollView 底部的標籤永遠到不了:P41 的 `.rows seconds`
+    // 一直在畫面外，點擊落到別處(2026-10-30)。範圍也包含帶位移的 taplabel 要按的那一點(自中心 `dx`,`dy` 像素),外加 24 dp 邊界。已經看得見時什麼也不動。
+    private fun bringIntoView(view: View, dx: Int, dy: Int) {
+        val margin = (24 * view.resources.displayMetrics.density).toInt()
+        val rect = android.graphics.Rect(0, 0, view.width, view.height)
+        rect.union(view.width / 2 + dx, view.height / 2 + dy)
+        rect.inset(-margin, -margin)
+        view.requestRectangleOnScreen(rect, true)
+    }
+
     // RootScrollHost.reveal for the host `view` sits in, or 0,0 when it is in
     // none. 取 `view` 所在宿主的 RootScrollHost.reveal,沒有宿主時為 0,0。
     // For the action file's `taplabel`: where the first shown TextView (a Button is
     // one) with exactly this text is, as the middle of it on screen. Empty when
-    // nothing shows it. The view may be past the screen's edge; the caller scrolls.
+    // nothing shows it. Scrolled into view first (bringIntoView); the caller's root reveal adds a margin.
     // 供動作檔的 `taplabel` 使用：第一個顯示中、文字完全相同的 TextView(Button 也是)在哪裡，以它在螢幕上的中心表示。
-    // 沒有 view 顯示它時為空。該 view 可能在螢幕邊緣之外；由呼叫端負責捲動。
-    fun centreOfLabel(activity: Activity, label: String): IntArray {
+    // 沒有 view 顯示它時為空。會先把它捲進畫面(bringIntoView);呼叫端的根 reveal 再補上邊界。
+    fun centreOfLabel(activity: Activity, label: String, dx: Int, dy: Int): IntArray {
         fun find(view: View): View? {
             if (view.visibility != View.VISIBLE) return null
             if (view is android.widget.TextView && view.text?.toString() == label) return view
@@ -196,6 +213,7 @@ class AndroidBackendHelpers {
         if (inFront != null) {
             val decorOrigin = IntArray(2)
             val viewOrigin = IntArray(2)
+            bringIntoView(inFront, dx, dy)
             activity.window.decorView.getLocationOnScreen(decorOrigin)
             inFront.getLocationOnScreen(viewOrigin)
             return intArrayOf(
@@ -211,6 +229,7 @@ class AndroidBackendHelpers {
         // window sits at the screen origin, where the two agree.
         // 用視窗內座標而非螢幕座標：觸控以視窗座標送進 activity,而分割畫面中之後的視窗從 x 1290 px 開始，用螢幕位置會按到
         // 視窗外(P81 的 window B,2026-10-20)。第一個視窗位於螢幕原點，兩者相同。
+        bringIntoView(found, dx, dy)
         found.getLocationInWindow(origin)
         return intArrayOf(origin[0] + found.width / 2, origin[1] + found.height / 2)
     }
