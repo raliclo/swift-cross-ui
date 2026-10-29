@@ -141,6 +141,7 @@ struct P114Screen: View {
     var name: String
     var path: Binding<NavigationPath>
     var showSheet: Binding<Bool>
+    @State var note = "ab cd"
 
     var body: some View {
         if name == "Untitled" {
@@ -165,6 +166,12 @@ struct P114Screen: View {
                     NavigationLink("Open Leaf", value: "Leaf", path: path)
                 default:
                     Text("Expected back control: ‹ Back")
+                    // Leaf's field. On macOS Option+Left inside it moves one word and is
+                    // not Back; elsewhere no field uses Alt+Left, so it still goes Back.
+                    // P114-textfield-alt-left.actions types into it.
+                    // Leaf 的文字框。macOS 上在框內按 Option+Left 是往左一個字，不是返回；其他平台的文字框不用 Alt+Left,所以仍然返回。P114-textfield-alt-left.actions 在其中輸入。
+                    TextField("Note", text: $note)
+                        .onChange(of: note) { P114Log.write("note: \"\(note)\"") }
             }
         }
         .padding(16)

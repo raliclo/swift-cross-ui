@@ -1,8 +1,8 @@
 action,x,y,origin,button,key,micros,note,platform
 # P114 on macOS, GtkBackend only (TEST_BACKEND=gtk4): GTK's Back shortcut Alt+Left -- Option+Left on a Mac keyboard -- pops the NavigationStack. AppKit does not take Option+Left as Back, so this file fails there by design.
-# Pushes go through the drawn controls (taplabel); every pop is Option+Left. One Option+Left at the root must change nothing.
+# Pushes go through the drawn controls (taplabel); the pop off Leaf is Command-[ and every other pop is Option+Left. GTK puts the focus in Leaf's text field when Leaf is pushed, and Option+Left with the caret in a field moves one word, as in any Mac text field (2026-10-29). One Option+Left at the root must change nothing.
 # Pass: the replay reports replayed; the log shows depths 1 2 3 2 1 0 1 in that order (no second 0); the final capture shows the Fruits screen under a "‹ Home" back control.
-# P114 在 macOS 上，僅限 GtkBackend(TEST_BACKEND=gtk4):GTK 的返回快捷鍵 Alt+Left——Mac 鍵盤上的 Option+Left——彈出 NavigationStack。AppKit 不把 Option+Left 當成返回，所以本檔在那裡依設計會失敗。通過條件見上方英文說明。
+# P114 在 macOS 上，僅限 GtkBackend(TEST_BACKEND=gtk4):GTK 的返回快捷鍵 Alt+Left——Mac 鍵盤上的 Option+Left——彈出 NavigationStack。從 Leaf 返回用 Command-[:推入 Leaf 時 GTK 把焦點放進它的文字框，而插入點在文字框內時 Option+Left 往左移一個字，與任何 Mac 文字框相同(2026-10-29)。AppKit 不把 Option+Left 當成返回，所以本檔在那裡依設計會失敗。通過條件見上方英文說明。
 sleep,,,,,,1500000,let P114 settle,macos
 taplabel,,,,,Open Fruits,,push Fruits (depth 1),macos
 sleep,,,,,,1200000,,macos
@@ -10,9 +10,9 @@ taplabel,,,,,Open Untitled,,push Untitled (depth 2),macos
 sleep,,,,,,1200000,,macos
 taplabel,,,,,Open Leaf,,push Leaf (depth 3),macos
 sleep,,,,,,1200000,,macos
-keydown,,,,,option,,hold Option (Alt),macos
-key,,,,,leftArrow,,Option+Left pops Leaf (depth 2),macos
-keyup,,,,,option,,,macos
+keydown,,,,,command,,hold Command,macos
+key,,,,,leftBracket,,"Command-[ pops Leaf (depth 2): Leaf's text field has focus on GTK, and Option+Left inside it moves one word (P114-textfield-alt-left)",macos
+keyup,,,,,command,,,macos
 sleep,,,,,,1200000,,macos
 keydown,,,,,option,,,macos
 key,,,,,leftArrow,,Option+Left pops Untitled (depth 1),macos

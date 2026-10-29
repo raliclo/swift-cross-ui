@@ -2646,7 +2646,12 @@ public class NSCustomWindow: NSWindow {
     /// AppKit 先把快捷鍵交給 key window、再交給主選單，因此綁到 Command-[ 的選單項目只在沒有東西可返回時才收到它。滑鼠鍵在
     /// `sendEvent` 中接下，早於任何 view 看到它；觸控板的「在頁面之間滑動」也在那裡接下：三指時是 `.swipe` 事件，雙指時是
     /// 交給 `trackSwipeEvent` 的水平捲動。視窗掛著 sheet 時，這些都不處理。
-    var backNavigationHandler: (@MainActor () -> Bool)?
+    ///
+    /// `final`, so no subclass vtable names it: under Xcode's Swift 6.2 NSCustomSheet's
+    /// metadata named the getter as `@MainActor @Sendable` while it was defined without
+    /// them, and the test bundle failed to link (2026-10-30). 標為 `final`,讓子類別的 vtable 不必
+    /// 引用它:Xcode 的 Swift 6.2 下 NSCustomSheet 的 metadata 以 `@MainActor @Sendable` 的名稱引用 getter,定義卻不含這兩者，測試 bundle 因而無法連結(2026-10-30)。
+    final var backNavigationHandler: (@MainActor () -> Bool)?
 
     public override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if super.performKeyEquivalent(with: event) { return true }

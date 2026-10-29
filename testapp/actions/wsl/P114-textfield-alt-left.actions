@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on WSL GTK (X11): Alt+Left with the caret in a text field still goes Back. On Linux and Windows a text field moves by word with Ctrl+Left and has no Alt+Left binding, so the key bubbles past GtkText to the Back controller, as in GNOME apps and browsers. (On macOS Option+Left is the field's word move instead; see mac/P114-textfield-alt-left.actions.) Steps wait 3 s: under WSLg a push takes about 3 s to land.
+# Pass: replayed; the log shows depths 1 2 3, note: "ab cdx" (the field had the keys), then depth 2 -- and the note never changes after that.
+# P114(WSL GTK,X11):插入點在文字框內時 Alt+Left 仍然返回。Linux 與 Windows 的文字框用 Ctrl+Left 逐字移動，沒有綁定 Alt+Left,所以按鍵越過 GtkText 傳到返回控制器，與 GNOME app 及瀏覽器相同(macOS 上 Option+Left 則是文字框的逐字移動，見 mac 版)。通過條件見上方英文。
+sleep,,,,,,4000000,"let P114 settle: under WSLg 1.5 s missed the first taplabel twice, 4 s worked (2026-10-29)",gtk
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),gtk
+sleep,,,,,,3000000,,gtk
+taplabel,,,,,ab cd,,focus Leaf's text field (it holds ab cd),gtk
+sleep,,,,,,800000,,gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),gtk
+sleep,,,,,,400000,,gtk
+key,,,,,x,,type x at the end: note ab cdx proves the field has the keys,gtk
+sleep,,,,,,600000,,gtk
+keydown,,,,,option,,hold Alt,gtk
+key,,,,,leftArrow,,Alt+Left with the caret in the field: Back pops Leaf (depth 2) -- no text field uses Alt+Left here,gtk
+keyup,,,,,option,,,gtk
+sleep,,,,,,3000000,,gtk

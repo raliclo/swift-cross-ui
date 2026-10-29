@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on Windows, WinUI and GtkBackend: Alt+Left with the caret in a text field still goes Back. A Windows text field moves by word with Ctrl+Left and has no Alt+Left binding; GtkBackend reads Alt+Left in the bubble phase after GtkText, WinUI from its WH_GETMESSAGE hook, and both pop, as Explorer and browsers do. (On macOS Option+Left is the field's word move instead; see mac/P114-textfield-alt-left.actions.)
+# Pass: replayed; the log shows depths 1 2 3, note: "ab cdx" (the field had the keys), then depth 2 -- and the note never changes after that.
+# P114(Windows,WinUI 與 GtkBackend):插入點在文字框內時 Alt+Left 仍然返回。Windows 文字框用 Ctrl+Left 逐字移動，沒有綁定 Alt+Left;GtkBackend 在 GtkText 之後的 bubble phase 讀 Alt+Left,WinUI 由 WH_GETMESSAGE hook 讀，兩者都彈出，與檔案總管及瀏覽器相同(macOS 上則是文字框的逐字移動，見 mac 版)。通過條件見上方英文。
+sleep,,,,,,1500000,let P114 settle,windows
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),windows
+sleep,,,,,,1200000,,windows
+taplabel,,,,,ab cd,,focus Leaf's text field (it holds ab cd),windows
+sleep,,,,,,800000,,windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),windows
+sleep,,,,,,400000,,windows
+key,,,,,x,,type x at the end: note ab cdx proves the field has the keys,windows
+sleep,,,,,,600000,,windows
+keydown,,,,,option,,hold Alt,windows
+key,,,,,leftArrow,,Alt+Left with the caret in the field: Back pops Leaf (depth 2) -- no text field uses Alt+Left here,windows
+keyup,,,,,option,,,windows
+sleep,,,,,,1200000,,windows

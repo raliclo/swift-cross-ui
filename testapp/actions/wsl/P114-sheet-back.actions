@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note,platform
+action,x,y,origin,button,key,micros,note,platform,target
 # P114 on WSL GTK (X11): a NavigationStack inside a sheet takes the platform's Back while the sheet is in front, and Back never reaches the window's stack under the sheet. From mac/P114-sheet-back.actions, with the Back key (XF86Back) for one pop and Alt+Left for the other, and Escape instead of Close sheet so the file also checks that Escape still dismisses the sheet. On X11 the GTK sheet is a separate toplevel, so `focus` rows move the replay to it and back; without them a sheet-local point was clicked in the main window (2026-10-29). Steps wait 3 s: under WSLg a push takes about 3 s to land (2026-10-29).
 # Pass: replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet path -> depth 1, 2, 1, 0, sheet shown: false, path -> depth 0 -- and no other path or sheet line.
 # P114(WSL GTK,X11):sheet 在前景時,sheet 內的 NavigationStack 接下平台的返回，而返回永遠不會抵達 sheet 底下視窗的堆疊。由 mac 版改寫：一次用返回鍵、一次用 Alt+Left,並以 Escape 取代 Close sheet,同時檢查 Escape 仍會關閉 sheet。X11 上 GTK 的 sheet 是獨立的 toplevel,所以用 `focus` 列把重播切到 sheet 再切回來。通過條件見上方英文。

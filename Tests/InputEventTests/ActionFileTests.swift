@@ -262,6 +262,9 @@ struct ActionFileTests {
         for verb in runnerOnlyVerbs {
             #expect(runnerSource.contains("case \"\(verb)\":"), "iOS runner no longer handles \(verb)")
         }
+        #expect(
+            runnerSource.contains(#"action.origin == "screen""#),
+            "iOS runner no longer handles the screen origin")
 
         var parsed = 0
         for (directory, platform) in platforms.sorted(by: { $0.key < $1.key }) {
@@ -276,7 +279,16 @@ struct ActionFileTests {
                     text = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
                         .map { row in
                             let verb = row.prefix { $0 != "," }
-                            return runnerOnlyVerbs.contains(String(verb)) ? "" : String(row)
+                            if runnerOnlyVerbs.contains(String(verb)) { return "" }
+                            // The `screen` origin, likewise the runner's alone (points from the
+                            // screen's corner, through SpringBoard), is read as `client` so the
+                            // rest of the row is still checked. Anchored on the verb and two
+                            // unquoted coordinates, so a note can never match.
+                            // `screen` origin 同樣只有 runner 認得(自螢幕角落起算，經由 SpringBoard),
+                            // 以 `client` 解讀，讓該列其餘部分仍受檢查。比對錨定在動詞與兩個不含引號的座標上，說明欄不可能誤中。
+                            return String(row).replacingOccurrences(
+                                of: #"^([a-z]+,[^,"]*,[^,"]*,)screen,"#, with: "$1client,",
+                                options: .regularExpression)
                         }
                         .joined(separator: "\n")
                 }

@@ -1959,12 +1959,12 @@ public final class GtkBackend:
             // 是 GTK 實際繪製時所用的 buffer scale——而在 Windows 上，這正是它與 `GetDpiForWindow`
             // 產生分歧之處：125% 時 Windows 回報 1.25，GTK 卻是以 1 排版。在此把這個數字交出去，才
             // 使得一個動作檔在任何顯示縮放下都代表同一件事。詳見 InputEvent 的 WindowGeometry.scale。
-            // `taplabel`: the first mapped GtkLabel or GtkButton with that text, as the
+            // `taplabel`: the first mapped GtkLabel, GtkButton or GtkEntry with that text, as the
             // middle of it in the surface -- the widget's bounds in the window plus the
             // surface transform, which is where client-side decoration puts the
             // window inside its surface. Asked from the replay thread, answered on
             // the GTK thread.
-            // `taplabel`:第一個已 map、文字相同的 GtkLabel 或 GtkButton,以它在 surface 中的中心表示——即 widget 在視窗內的
+            // `taplabel`:第一個已 map、文字相同的 GtkLabel、GtkButton 或 GtkEntry,以它在 surface 中的中心表示——即 widget 在視窗內的
             // 邊界加上 surface transform(client-side decoration 把視窗放在 surface 裡的位置)。由重放執行緒詢問、在 GTK 執行緒回答。
             nonisolated(unsafe) let root = window.widgetPointer
             ActionFileReplay.locateLabel = { [weak self] label in
@@ -1990,6 +1990,16 @@ public final class GtkBackend:
                                UnsafeMutableRawPointer(widget)
                                    .assumingMemoryBound(to: GtkButton.self)
                            ),
+                           String(cString: text) == label
+                        {
+                            return widget
+                        }
+                        // A text field matches by its text, as NSTextField and WinUI's
+                        // TextBox do, so a file can focus one (P114-textfield-alt-left).
+                        // 文字框以其文字比對，與 NSTextField 及 WinUI 的 TextBox 相同，讓動作檔能聚焦它
+                        // (P114-textfield-alt-left)。
+                        if g_type_check_instance_is_a(instance, gtk_entry_get_type()) != 0,
+                           let text = gtk_editable_get_text(OpaquePointer(widget)),
                            String(cString: text) == label
                         {
                             return widget

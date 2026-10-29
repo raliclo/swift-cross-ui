@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 2853**
+**Runs recorded / 已記錄的執行筆數: 2869**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL                 | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android     | macos_gtk4<br>macOS·gtk4     | note<br>備註 |
 |---------------|------------------------------|--------------------------------|----------------------------|------------------------------|------------------------|------------------------|------------------------------|--------------|
@@ -150,5 +150,5 @@ zsh matrix_coverage/coverage.zsh
 | P111          | capture log 2026-10-19       | capture log 2026-10-19         | pass 2026-10-22            | pass 2026-10-22              | pass 2026-10-23        | pass 2026-10-22        | pass 2026-10-23              |              |
 | P112          | pass 2026-10-20              | pass 2026-10-20                | pass 2026-10-22            | pass 2026-10-20              | pass 2026-10-23        | pass 2026-10-20        | pass 2026-10-23              |              |
 | P113          | \x2D                         | \x2D                           | \x2D                       | failed 2026-10-28            | failed 2026-10-28      | pass 2026-10-29        | \x2D                         |              |
-| P114          | capture n/a 2026-10-29       | capture n/a 2026-10-29         | capture n/a 2026-10-29     | capture n/a 2026-10-29       | capture n/a 2026-10-29 | capture n/a 2026-10-29 | capture n/a 2026-10-29       |              |
+| P114          | capture n/a 2026-10-30       | capture n/a 2026-10-30         | capture n/a 2026-10-30     | n/a 2026-10-30               | capture n/a 2026-10-29 | capture n/a 2026-10-29 | capture n/a 2026-10-29       |              |
 | P115          | pass 2026-10-29              | pass 2026-10-29                | capture n/a 2026-10-29     | pass 2026-10-27              | pass 2026-10-27        | pass 2026-10-27        | pass 2026-10-27              |              |

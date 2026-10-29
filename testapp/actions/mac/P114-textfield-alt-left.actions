@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on macOS, AppKit and GtkBackend: Option+Left with the caret in a text field belongs to the field (one word left), never to Back. GtkBackend takes Option+Left as Back elsewhere, so this checks that the field gets it first; AppKit does not use Option+Left for Back and is the control.
+# Pass: replayed; the log shows depths 1 2 3, then note: "ab xcd" -- and no depth 2 after the 3.
+# P114 在 macOS 上(AppKit 與 GtkBackend):插入點在文字框內時,Option+Left 屬於文字框(往左一個字),永遠不是返回。GtkBackend 在別處把 Option+Left 當成返回，本檔檢查文字框先拿到它;AppKit 不用 Option+Left 返回，作為對照。通過條件見上方英文。
+sleep,,,,,,1500000,let P114 settle,macos
+taplabel,,,,,Open Fruits,,push Fruits (depth 1),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Untitled,,push Untitled (depth 2),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,Open Leaf,,push Leaf (depth 3),macos
+sleep,,,,,,1200000,,macos
+taplabel,,,,,ab cd,,focus Leaf's text field (it holds ab cd),macos
+sleep,,,,,,800000,,macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+key,,,,,rightArrow,,caret to the end (extra presses stay at the end),macos
+sleep,,,,,,400000,,macos
+keydown,,,,,option,,hold Option,macos
+key,,,,,leftArrow,,Option+Left inside the field: the caret moves one word left (before cd); no pop,macos
+keyup,,,,,option,,,macos
+sleep,,,,,,600000,,macos
+key,,,,,x,,type x at the caret: ab xcd if the caret moved by a word,macos
+sleep,,,,,,1200000,,macos
