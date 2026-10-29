@@ -62,7 +62,18 @@ purpose.
 ## Limits
 
 - Touch: whether WSLg forwards touch to X11 clients is unverified (queue.md
-  row 4, 2026-10-23).
+  row 4, 2026-10-23). **Measured 2026-10-29: it does not, and not to Wayland
+  clients either.** A one-finger touch drag injected with
+  `testapp/touch_gesture.zsh drag` into a GTK 4.22.4 window under WSLg reached
+  the window as a mouse: one BUTTON_PRESS, 20 MOTION, one BUTTON_RELEASE, source
+  `mouse`, `gdk_event_get_pointer_emulated` 0, and no GDK_TOUCH_* event, under
+  both `GdkWaylandDisplay` and `GdkX11Display`. The same tool delivers real
+  touch to Windows GTK (GDK_TOUCH_UPDATE, P11 the same day), so the conversion
+  is WSLg's. So under WSL one finger is a mouse: touch-only paths
+  (`GtkTouchHold`) cannot be reached there (two fingers not tried), and a
+  WSL row for them is "n/a (WSLg delivers touch as mouse)", not a failure.
+  Probe: a GtkEventControllerLegacy that prints each event's type, source and
+  emulated flag.
 - XDND drag and drop cannot be synthesised with xdotool, and the distro has
   no file manager to drag from (testapp/gtk-test-plan-findings.md).
 
@@ -113,5 +124,12 @@ X11 下不設時,WSLg 畫的是淺色、三顆鈕的伺服器端框;Wayland 下 
 
 ## 限制
 
-- 觸控:WSLg 是否把觸控轉給 X11 client,尚未驗證(queue.md 第 4 列,2026-10-23)。
+- 觸控:WSLg 是否把觸控轉給 X11 client,尚未驗證(queue.md 第 4 列,2026-10-23)。**2026-10-29 實測：不會，
+  轉給 Wayland client 也不會。** 以 `testapp/touch_gesture.zsh drag` 對 WSLg 下的 GTK 4.22.4 視窗注入單指觸控拖曳，
+  視窗收到的是滑鼠：一次 BUTTON_PRESS、20 次 MOTION、一次 BUTTON_RELEASE,source 為 `mouse`、
+  `gdk_event_get_pointer_emulated` 為 0,沒有任何 GDK_TOUCH_* 事件,`GdkWaylandDisplay` 與 `GdkX11Display`
+  皆同。同一個工具對 Windows GTK 送得出真正的觸控(GDK_TOUCH_UPDATE,同日 P11),所以轉換是 WSLg 做的。因此在
+  WSL 下單指觸控就是滑鼠：只走觸控的路徑(如 `GtkTouchHold`)在那裡到不了(兩指手勢沒有試),WSL 那一格應寫
+  「n/a(WSLg 把觸控當滑鼠送)」,不是失敗。探針：一個印出每個事件類型、source 與 emulated 旗標的
+  GtkEventControllerLegacy。
 - XDND 拖放無法用 xdotool 合成，發行版也沒有可拖出檔案的檔案管理員(testapp/gtk-test-plan-findings.md)。

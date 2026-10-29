@@ -31,7 +31,7 @@ checkout with `zsh testapp/test.zsh Pn --wsl`. Written 2026-10-24.
 ## Open as of 2026-10-24
 
 - The remaining first-frame wait under d3d12 (about 560 ms): needs a persistent d3d12 cache in Mesa.
-- Whether WSLg forwards touch to X11 clients: unverified.
+- Whether WSLg forwards touch to X11 clients: unverified. **Measured 2026-10-29: it does not, nor to Wayland clients** -- one finger arrives as a mouse (WSL/x11-and-wayland.md, Limits).
 - Whether the installed portal makes live colour-scheme changes visible to GTK under WSLg: unmeasured.
 - Orca speech for #123 (P69 transcript): tools installed 2026-10-23, transcript not taken.
 
@@ -69,6 +69,6 @@ GtkBackend 以 Linux GTK 4 的形式執行於 Windows 機器上的 WSL2(Ubuntu 2
 ## 至 2026-10-24 仍未解決
 
 - d3d12 下剩下的第一幀等待(約 560 毫秒):需要 Mesa 為 d3d12 提供持久快取。
-- WSLg 是否把觸控轉給 X11 client:未驗證。
+- WSLg 是否把觸控轉給 X11 client:未驗證。**2026-10-29 已量測：不會，Wayland 也不會**——單指觸控以滑鼠送達(見 WSL/x11-and-wayland.md「限制」)。
 - 已安裝的 portal 是否讓 GTK 在 WSLg 下看得到即時的配色變更：未量測。
 - #123 的 Orca 語音(P69 逐字稿):工具已於 2026-10-23 安裝，逐字稿尚未取得。
