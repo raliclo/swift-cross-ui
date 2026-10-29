@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Windows: the mesh view's context menu, "Reset the camera".
+# Written 2026-10-08 from the macOS file of the same name, re-measured (window
+# 536x819, WinUIBackend, 100% scale; mesh centre (268,283), see
+# P72-stop-and-check.csv). The camera is moved first: Reset sets dist back to
+# 3.40, its launch value, so without a move the capture could not show it did
+# anything.
+# Pass: the capture reads "scrolls: 1 ... dist 3.40", and the log has CONTEXT MENU.
+# P72(Windows):mesh view 的右鍵選單 "Reset the camera"。2026-10-08 依 macOS 同名檔重新量測。先移動相機:Reset
+# 會把 dist 設回 3.40,也就是啟動時的值，不先移動的話截圖看不出它做了什麼。通過：截圖為 scrolls 1、dist 3.40,
+# log 有 CONTEXT MENU。
+# 2026-10-30: the positions above were about 29 pt too far down at 125% scale (x
+# matched). Re-measured from a wincap capture: mesh centre (251,250) frame; Stop
+# the clock is a taplabel row now.
+# 2026-10-30:以上位置在 125% 縮放下 y 都偏下約 29 pt(x 正確)。依 wincap 擷圖重新量測:mesh 中心為
+# frame (251,250);Stop the clock 改為 taplabel 列。
+# 2026-10-30: no Down before Return. The macOS file presses Down to highlight the
+# first item, but WinUI opens a MenuFlyout from a right click with the first item
+# already focused, so Down went to "Snapshot" (measured: Down, Return wrote
+# SNAPSHOT, not CONTEXT MENU). Escape closes it, so the keys do reach the menu.
+# 2026-10-30:Return 之前不按 Down。macOS 版先按 Down 選第一項，但 WinUI 以右鍵打開 MenuFlyout 時第一項已取得
+# 焦點，Down 會移到 "Snapshot"(實測:Down、Return 寫出 SNAPSHOT,不是 CONTEXT MENU)。Escape 能關閉選單，
+# 所以按鍵確實送進了選單。
+sleep,,,,,,1500000,let P72 lay out,windows
+taplabel,,,,,Stop the clock,,stop the clock first so the readout is stable,windows
+sleep,,,,,,500000,,windows
+move,251,250,frame,,,,onto the mesh view,windows
+sleep,,,,,,300000,,windows
+scroll,0,5,,,,,five notches: the camera comes closer and dist drops below 3.40,windows
+sleep,,,,,,800000,,windows
+click,251,250,frame,right,,,secondary click on the mesh view -- the context menu must open,windows
+sleep,,,,,,1200000,let the menu open,windows
+key,,,,,return,,"activate 'Reset the camera' -- dist must read 3.40 again with scrolls 1",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

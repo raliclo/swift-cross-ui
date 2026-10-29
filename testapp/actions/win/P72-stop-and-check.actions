@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Windows: scroll zoom, export, snapshot, auto-spin, stop/check, keys.
+# Written 2026-10-08 from the macOS file of the same name, re-measured: UIA
+# centres minus the window origin, WinUIBackend, 100% scale, window 536x819.
+# The mesh view has no UIA name; (268,283) is the middle of its 340x240 drawable,
+# between "mesh view supported" (y=143) and "renderer" (y=415).
+# Difference from macOS: a WinUI button takes keyboard focus when clicked, so the
+# mesh is clicked before the arrow keys -- otherwise Up goes to "Check again".
+# Pass, read from the final capture: "scrolls: 2" with dist back at 3.40;
+# "glTF: N bytes" N > 0; "snap: WxH n col" non-zero; "Auto spin: off";
+# "clock ticks: ... (stopped)"; "frames at the stop: X   at the check: Y";
+# "keys: 2 ... high 2.40" (1.30 + 0.1 + 1.0).
+# P72(Windows):滾輪縮放、匯出、快照、自動旋轉、停止／檢查、按鍵。2026-10-08 依 macOS 同名檔重新量測：
+# UIA 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 536x819。mesh view 沒有 UIA 名稱;(268,283) 是它 340x240
+# 繪圖區的中央。與 macOS 的差別:WinUI 按鈕被點擊時會取得鍵盤焦點，所以按方向鍵前先點 mesh——否則 Up 會送到
+# "Check again"。通過(讀最終截圖):scrolls 2 且 dist 回到 3.40;glTF 位元組 > 0;snap 非零;Auto spin: off;
+# clock 已停止；有 frames at the stop / at the check;keys 2、high 2.40(1.30 + 0.1 + 1.0)。
+# 2026-10-30: the positions above were wrong when replayed at 125% scale -- every y
+# was about 29 pt too far down (x matched). Re-measured from a wincap capture (window 534x759
+# pt, 125%): mesh centre (251,250) frame, the drawable spanning y 130-370. The
+# buttons are now taplabel rows, so they no longer depend on the layout.
+# 2026-10-30:以上位置在 125% 縮放重放時是錯的——每個 y 都偏下約 29 pt(x 正確)。依 wincap 擷圖重新量測
+# (視窗 534x759 pt,125%):mesh 中心為 frame (251,250),繪圖區 y 130-370。按鈕改為 taplabel 列，不再依賴版面。
+sleep,,,,,,2000000,let the clock run so the count is plainly moving first,windows
+move,251,250,frame,,,,put the pointer over the mesh view -- a scroll goes where the pointer is,windows
+sleep,,,,,,300000,,windows
+scroll,0,5,,,,,five notches towards the user: the camera must come CLOSER,windows
+sleep,,,,,,400000,,windows
+scroll,0,-5,,,,,and five back: the distance must return to 3.40,windows
+sleep,,,,,,400000,,windows
+taplabel,,,,,Export .glb,,"Export .glb -- glTF must report a byte count",windows
+sleep,,,,,,300000,,windows
+taplabel,,,,,Snapshot,,"Snapshot -- reads the mesh view's own pixels back",windows
+sleep,,,,,,300000,,windows
+taplabel,,,,,Auto spin: on,,"Auto spin: on -> off; the orbit must keep going",windows
+sleep,,,,,,1000000,,windows
+taplabel,,,,,Stop the clock,,"Stop the clock -- writes STOPPED at frame N",windows
+sleep,,,,,,1500000,"1.5s of nothing: frames would keep climbing if the view drove itself",windows
+taplabel,,,,,Check again,,"Check again -- writes CHECK at frame M and the delta",windows
+sleep,,,,,,500000,,windows
+click,251,250,frame,left,,,give the mesh view keyboard focus (WinUI buttons keep it),windows
+sleep,,,,,,300000,,windows
+key,,,,,upArrow,,plain Up -- height must rise by 0.1,windows
+sleep,,,,,,300000,,windows
+keydown,,,,,shift,,,windows
+key,,,,,upArrow,,Shift-Up -- the step must be 1.0 rather than 0.1,windows
+keyup,,,,,shift,,,windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

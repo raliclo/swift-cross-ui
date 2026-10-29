@@ -191,10 +191,7 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1)
                 setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1)
             } else {
-                // 0000:03:00.0 is spelled pci-0000_03_00_0. / 0000:03:00.0 寫作 pci-0000_03_00_0。
-                let prime = "pci-" + card.busID.replacingOccurrences(of: ":", with: "_")
-                    .replacingOccurrences(of: ".", with: "_")
-                setenv("DRI_PRIME", prime, 1)
+                setenv("DRI_PRIME", Self.primeName(busID: card.busID), 1)
             }
             return .applied
         #endif
@@ -234,8 +231,10 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
         /// the one the firmware booted on first, which is what GL picks unasked.
         /// /sys/class/drm 底下的顯示卡(card0、card1……,不含其接頭),韌體開機所用的那張排第一，
         /// 也就是不指定時 GL 會選的那張。
-        static func drmCards() -> [DRMCard] {
-            let root = "/sys/class/drm"
+        /// `root` is a parameter for the tests, which build a fake tree
+        /// (GtkDRMCardTests); everything else reads the real one.
+        /// `root` 是給測試用的參數，測試會建一棵假的目錄樹(GtkDRMCardTests);其他呼叫都讀真正的那棵。
+        static func drmCards(root: String = "/sys/class/drm") -> [DRMCard] {
             let names = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
             func read(_ path: String) -> String? {
                 (try? String(contentsOfFile: path, encoding: .utf8))?
@@ -296,6 +295,14 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
                 )
             }
             return cards
+        }
+
+        /// The `DRI_PRIME` value Mesa takes for a PCI bus ID: 0000:03:00.0 is
+        /// spelled pci-0000_03_00_0.
+        /// Mesa 接受的 PCI 匯流排位址 `DRI_PRIME` 值:0000:03:00.0 寫作 pci-0000_03_00_0。
+        static func primeName(busID: String) -> String {
+            "pci-" + busID.replacingOccurrences(of: ":", with: "_")
+                .replacingOccurrences(of: ".", with: "_")
         }
     #endif
 }
@@ -402,10 +409,7 @@ enum GtkAdapterRemoval {
             }
             let cards = GtkBackend.drmCards()
             if let prime = environment["DRI_PRIME"], prime.hasPrefix("pci-"),
-                let card = cards.first(where: {
-                    "pci-" + $0.busID.replacingOccurrences(of: ":", with: "_")
-                        .replacingOccurrences(of: ".", with: "_") == prime
-                })
+                let card = cards.first(where: { GtkBackend.primeName(busID: $0.busID) == prime })
             {
                 return card.busID
             }

@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Windows: the mesh view's crosshair cursor belongs to the view.
+# Written 2026-10-08 from the macOS file of the same name, re-measured (window
+# 536x819, WinUIBackend, 100% scale). The `hover` verb reads back the cursor
+# Windows draws at the point; the replay report carries both readings.
+# Pass: the mesh centre (268,283) reports crosshair, the label above it
+# (156,143, "mesh view supported") reports arrow.
+# P72(Windows):mesh view 的十字游標屬於該 view。2026-10-08 依 macOS 同名檔重新量測。`hover` 讀回 Windows 在
+# 該點畫的游標，重放報告會列出兩次讀數。通過:mesh 中心 (268,283) 回報 crosshair,上方標籤 (156,143) 回報 arrow。
+# 2026-10-30: replayed at 125% scale, (156,143) landed inside the mesh view and
+# reported crosshair -- every y above was about 29 pt too far down (x matched).
+# Re-measured from a wincap capture (window 534x759 pt): mesh centre (251,250),
+# the label at (155,114), both frame.
+# 2026-10-30:以 125% 縮放重放時,(156,143) 落在 mesh view 裡，回報 crosshair——以上每個 y 都偏下約 29 pt
+# (x 正確)。依 wincap 擷圖重新量測(視窗 534x759 pt):mesh 中心 (251,250),標籤 (155,114),皆為 frame。
+sleep,,,,,,6000000,"let P72 lay out, and let Windows drop the app-starting cursor (arrow + hourglass), which otherwise shows over the label",windows
+hover,251,250,frame,,,,pointer onto the centre of the mesh view -- must report crosshair,windows
+sleep,,,,,,500000,,windows
+hover,155,114,frame,,,,"pointer onto the label above it -- must report arrow, proving the crosshair is the view's",windows
+sleep,,,,,,3000000,,windows

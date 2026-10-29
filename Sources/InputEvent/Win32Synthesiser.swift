@@ -800,6 +800,22 @@
                         reading = Self.cursorName()
                         if reading != before { break }
                     }
+                    // Then wait for it to settle: the first new reading can be a cursor
+                    // WinUI shows only on the way. Measured 2026-10-30 (P72, P80): the
+                    // label outside every target read `other` straight after the
+                    // crosshair, while a probe a few seconds later found the shared
+                    // IDC_ARROW handle there. 200 ms unchanged, within the same 2 s.
+                    // 接著等它穩定：第一個新讀數可能是 WinUI 只在切換途中顯示的游標。2026-10-30 實測(P72、P80):
+                    // 所有目標之外的標籤緊接在十字之後讀到 `other`,幾秒後的探測卻在那裡讀到共用的 IDC_ARROW
+                    // handle。在同一個 2 秒內，要連續 200 ms 不變。
+                    var steady = 0
+                    while reading != before, elapsed < 2000, steady < 10 {
+                        Thread.sleep(forTimeInterval: 0.02)
+                        elapsed += 20
+                        let next = Self.cursorName()
+                        steady = next == reading ? steady + 1 : 0
+                        reading = next
+                    }
                     var landed = POINT()
                     _ = GetCursorPos(&landed)
                     ActionFileReplay.report(
@@ -1546,6 +1562,11 @@
                 ("resizeVertical", 32645),   // IDC_SIZENS
                 ("notAllowed", 32648),       // IDC_NO
                 ("wait", 32514),             // IDC_WAIT
+                // The arrow with an hourglass Windows shows while a process it
+                // launched has not yet gone idle. It read as `other` on P72's label
+                // hovered 2 s after launch (2026-10-30).
+                // 行程啟動後尚未進入閒置時，Windows 顯示的箭頭加沙漏。P72 啟動 2 秒後 hover 標籤時讀成 `other`(2026-10-30)。
+                ("appStarting", 32650),      // IDC_APPSTARTING
             ]
             for (name, id) in known {
                 let resource = UnsafePointer<WCHAR>(bitPattern: UInt(id))
@@ -2156,7 +2177,24 @@
             let mapVKToVSC: UINT = 0 // MAPVK_VK_TO_VSC
             input.ki.wScan = WORD(MapVirtualKeyW(UINT(code), mapVKToVSC))
 
-            input.ki.dwFlags = up ? DWORD(KEYEVENTF_KEYUP) : 0
+            // Arrows, Insert/Delete, Home/End, Page Up/Down, keypad /, the right-hand
+            // Ctrl and Alt, the Windows keys and Menu are extended keys: without the
+            // flag their scan code is the keypad's (VK_UP maps to 0x48, keypad 8), and
+            // with NumLock on Windows wraps a Shift-held one in a fake Shift-up and
+            // Shift-down. P72-stop-and-check measured it on 2026-10-30: MODIFIERS down,
+            // MODIFIERS up, KEY 2 shift=no step 0.1, MODIFIERS down -- Shift-Up moved
+            // by 0.1 instead of 1.0.
+            // 方向鍵、Insert/Delete、Home/End、Page Up/Down、數字鍵盤的 /、右側 Ctrl 與 Alt、Windows 鍵與選單鍵
+            // 都是 extended key:沒有這個旗標時，它們的 scan code 就是數字鍵盤的(VK_UP 對應 0x48,即數字鍵盤 8),
+            // NumLock 開著時 Windows 會在按住 Shift 的這類按鍵前後插入假的 Shift 放開與按下。2026-10-30 於
+            // P72-stop-and-check 量到:MODIFIERS down、MODIFIERS up、KEY 2 shift=no step 0.1、MODIFIERS down——
+            // Shift-Up 只移動 0.1 而不是 1.0。
+            let extendedKeys = [
+                VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_INSERT, VK_DELETE, VK_HOME, VK_END,
+                VK_PRIOR, VK_NEXT, VK_DIVIDE, VK_RCONTROL, VK_RMENU, VK_LWIN, VK_RWIN, VK_APPS,
+            ]
+            let extended = extendedKeys.contains(code) ? DWORD(KEYEVENTF_EXTENDEDKEY) : 0
+            input.ki.dwFlags = (up ? DWORD(KEYEVENTF_KEYUP) : 0) | extended
             try dispatch(&input)
         }
 
