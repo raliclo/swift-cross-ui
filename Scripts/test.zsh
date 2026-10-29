@@ -65,4 +65,17 @@ zsh Scripts/check_android_build.zsh || exit 1
 # 兩者都源於「本套件含有這台主機建不起來的 target」，而那正是一個跨平台工具組的意義所在。伸手去用
 # `swift build` 的人會拿到兩個並非自己造成的失敗，而最自然的讀法是「我把樹弄壞了」。請用本腳本；
 # 要針對特定平台，請用 `testapp/compile.zsh`。
-swift test --test-product swift-cross-uiPackageTests "$@"
+
+# On macOS, GtkCHelpers' GL files include <epoxy/gl.h>, and gtk4.pc lists epoxy
+# as a private requirement, so the pkg-config cflags SwiftPM applies never name
+# Homebrew's include directory. testapp/compile.zsh -gtk4 passes it for the same
+# reason. Without it this script stopped on `'epoxy/gl.h' file not found`
+# before any test ran (2026-10-30).
+# macOS 上 GtkCHelpers 的 GL 檔案 include <epoxy/gl.h>,而 gtk4.pc 把 epoxy 列為 private requirement,
+# 所以 SwiftPM 套用的 pkg-config cflags 從不提及 Homebrew 的 include 目錄。testapp/compile.zsh -gtk4
+# 出於同樣的理由傳入它。少了它，本腳本會在任何測試執行前停在 `'epoxy/gl.h' file not found`(2026-10-30)。
+host_flags=()
+if [ "$(uname -s)" = Darwin ] && command -v brew >/dev/null 2>&1; then
+    host_flags=(-Xcc "-I$(brew --prefix)/include")
+fi
+swift test --test-product swift-cross-uiPackageTests "${host_flags[@]}" "$@"
