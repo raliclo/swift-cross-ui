@@ -66,13 +66,18 @@ issue(指令同上)。已建置:WinUI 的 P6、P41、P86;Windows GTK 的 P41;WSL
   return.
   介面卡清單清空後監看停在 `nil`。`update` 現在必須帶 `adopting:`,介面卡回來後就跟著它。舊測試把這個缺陷當成預期固定下來，
   已改名，旁邊加了新測試。
-- [ ] **4. Android: a save read the whole file into memory.** `copyStaged` used
+- [x] **4. Android: a save read the whole file into memory.** `copyStaged` used
   `readBytes()`, and the OutOfMemoryError it throws for a large document is an
   Error, which `catch (Exception)` does not catch. Now streamed in 64 KB chunks
-  through a DigestInputStream. **Not compiled**: there is no Kotlin compiler on
-  this host. It needs compileDebugKotlin and a P75 save on the Mac.
-  Android 存檔把整個檔案讀進記憶體。現在以 64 KB 分塊經 DigestInputStream 串流。**尚未編譯**:本機沒有 Kotlin 編譯器，
-  需要在 Mac 上跑 compileDebugKotlin 與一次 P75 存檔。
+  through a DigestInputStream. Built and run on the Mac (2026-10-29, API 36
+  emulator, heap limit 192 MB): compileReleaseKotlin and compileDebugKotlin
+  pass; P75 saves read back "saved by P75" in release and debug. A 300 MB staged
+  file written with `run-as dd` reached the document in about 4 s with a
+  matching SHA-256 and the app still running; the same bytes renamed over it
+  were not copied again (document mtime unchanged); a later small write was.
+  Android 存檔把整個檔案讀進記憶體。現在以 64 KB 分塊經 DigestInputStream 串流。2026-10-29 在 Mac 上建置並執行(API 36
+  emulator,heap 上限 192 MB):compileReleaseKotlin 與 compileDebugKotlin 通過;P75 存檔讀回 "saved by P75"。300 MB 的
+  代用檔約 4 秒抵達文件,SHA-256 相符,app 仍在執行；相同位元組換名蓋回時不再複製，之後的小檔寫入照常複製。
 - [x] **5. GTK warm-up called GTK 4.14 API without a guard.** The path part
   moved to `scui_snapshot_append_warmup_paths` in GtkCHelpers, behind
   `GTK_CHECK_VERSION(4, 14, 0)`. None of the three targets is older than 4.14

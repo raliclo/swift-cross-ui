@@ -232,7 +232,7 @@ if [ "$do_apk" -eq 1 ]; then
     print "==> Building $app for Android"
     ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
         ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
-        ANDROID_TRIPLE="$android_triple" SWIFT_BIN="$swift_bin" \
+        ANDROID_TRIPLE="$android_triple" SWIFT_BIN="$swift_bin" BUILD_CONFIG="${BUILD_CONFIG:-release}" \
         SCUI_ANDROID=1 zsh "$script_dir/compile.zsh" -android "$app"
 
     print "==> Packaging $app APK"
