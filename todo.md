@@ -1339,6 +1339,7 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   **2026-10-30,完成。**`taplabel` 可選帶 x,y 位移(自文字中心起算的點數;桌面重放、AndroidSynthesiser、iOS runner),
   檔案改點 `taplabel,236,28,,,.rows seconds`:標籤跟著它那一列移動，視窗高度不再有影響。WinUI 上通過三次，涵蓋兩種視窗
   高度:`.rows seconds -> 09:46:41`,點擊前沒有任何變更。畫出的 + 在 (230,28),但掃描顯示它在 234-238 接受點擊(見動作檔)。
+  **Correction, 2026-10-30 later:** "takes clicks at 234-238" is not a WinUI offset. The capture-to-points conversion counted the invisible resize border wincap crops (about 7.2 DIP); without it the drawn + is at (236,28) too. The TextBlock and its tap target coincide (read from the visual tree). **稍後更正:**「在 234-238 接受點擊」不是 WinUI 的偏移：擷圖換算成點數時多算了 wincap 會裁掉的隱形調整邊框(約 7.2 DIP);不算它，畫出的 + 也在 (236,28)。TextBlock 與點擊目標位置一致(讀自 visual tree)。
 
 ---
 

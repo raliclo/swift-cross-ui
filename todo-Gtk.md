@@ -188,3 +188,28 @@ the GtkBackend side meanwhile. Nothing here is reported upstream without explici
       WinUI 與 WSL 沒有。**對原始碼的未驗證解讀**:focus_in 以 context 為 `data` 加入過濾器(:645),focus_out
       移除它(:742),但某條焦點行為路徑在那之前提早 return(約 :727),過濾器在 :943 檢查 data——context 在過濾器
       仍註冊時被釋放就會正好如此。尚未以獨立程式重現，也未追到具體路徑。**GtkBackend 端**:目前沒做任何事。
+      **2026-10-30, later: the reading above is confirmed and the path found, read in the 4.24.1
+      source.** `gtk_widget_unparent` defers the focus move (`_gtk_window_unset_focus_and_default`,
+      gtkwindow.c:5378-5397) but unroots at once (gtkwidget.c:2724-2728), so a focused field is
+      already out of its window when its focus-out comes. `surface_from_widget` then returns NULL and
+      `gtk_im_context_ime_focus_out` returns at :695, before the filter removal at :742. Dispose
+      (:261-269) never removes it either, and the multicontext drops its delegate without a
+      focus-out (gtkimmulticontext.c:212-215). Three criticals per key are one stale entry times
+      WM_KEYDOWN, WM_CHAR and WM_KEYUP. It is a use-after-free: the filter runs on freed memory.
+      **GtkBackend side (2026-10-30):** removing a child now first clears the window's focus when it
+      is inside that child (`scui_release_focus_within`, Sources/GtkCHelpers/gtk_focus_release.c,
+      called from `remove(childAt:from:)` and `removeAllChildren(of:)`), so the focus-out arrives
+      while the field still has its surface. Measured on P114-textfield-alt-left (Windows GTK): a
+      control build without it printed 18 criticals, the fixed build 0, with the same result
+      (`note: "ab cdx"`, then 3 -> 2); native-back and back-labels unchanged; WSL unchanged.
+      **Upstream fix to propose (not filed):** in focus_out, remove the filter even without a surface
+      (keep the display from focus_in), and remove it in dispose while `focus` is still TRUE. A
+      standalone reproducer: focus an entry, `gtk_box_remove` it while holding a ref, grab focus
+      elsewhere, unref, then type. Unverified whether upstream has fixed it after 4.24.1.
+      **2026-10-30 稍後：以 4.24.1 原始碼確認了上面的解讀並找到路徑。**`gtk_widget_unparent` 延後移動焦點，卻立刻
+      unroot,所以持有焦點的欄位在收到 focus-out 時已離開視窗;`surface_from_widget` 回傳 NULL,focus_out 在 :695 返回，
+      走不到 :742 的移除。dispose 也不移除,multicontext 丟棄 delegate 時不送 focus-out。每鍵三個斷言＝一個殘留項目 ×
+      WM_KEYDOWN、WM_CHAR、WM_KEYUP。這是 use-after-free。**GtkBackend 端(2026-10-30):**移除子元件前，若視窗焦點在其中
+      就先清掉(`scui_release_focus_within`),讓 focus-out 在欄位仍有 surface 時送達。P114-textfield-alt-left(Windows GTK):
+      對照組 18 個斷言，修正後 0 個，結果相同；其他回歸與 WSL 不變。**可提議的上游修正(未送出)**:focus_out 在沒有
+      surface 時也移除過濾器，並在 dispose 時移除。上游在 4.24.1 之後是否已修，未查證。

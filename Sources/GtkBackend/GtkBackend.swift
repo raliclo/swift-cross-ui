@@ -3462,6 +3462,12 @@ public final class GtkBackend:
 
     public func removeAllChildren(of container: Widget) {
         let container = container as! Fixed
+        // The focus first, while the children are still in the window; see
+        // scui_release_focus_within in gtk_helpers.h.
+        // 先處理焦點，趁子元件還在視窗裡；見 gtk_helpers.h 的 scui_release_focus_within。
+        for child in container.children {
+            scui_release_focus_within(child.widgetPointer)
+        }
         container.removeAllChildren()
     }
 
@@ -3478,6 +3484,8 @@ public final class GtkBackend:
     public func remove(childAt index: Int, from container: Widget) {
         let container = container as! Fixed
         let child = container.children[index]
+        // See removeAllChildren(of:). / 見 removeAllChildren(of:)。
+        scui_release_focus_within(child.widgetPointer)
         container.remove(child)
     }
 

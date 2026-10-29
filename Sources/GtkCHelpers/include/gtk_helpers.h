@@ -613,6 +613,21 @@ gboolean scui_uevent_is_adapter_removal(const char *message, int length);
 void scui_snapshot_append_warmup_paths(
     GtkSnapshot *snapshot, const graphene_rect_t *bounds, const GdkRGBA *color
 );
+// Clears the window's focus when it is `widget` or inside it, so the focus-out
+// arrives while the widget is still in its window. GtkBackend calls it before
+// removing a child. Without it, a focused text field that was removed took
+// its focus-out only after it had left the window: on Windows,
+// gtk_im_context_ime_focus_out returns early when the widget has no surface
+// (gtkimcontextime.c:695 in 4.24.1) and never removes its message filter
+// (:742), so the filter outlived the freed IME context and printed
+// `GTK_IS_IM_CONTEXT_IME (data)` criticals on every message (P114, 2026-10-30).
+// See todo-Gtk.md.
+// 當視窗焦點是 `widget` 或在它裡面時清掉焦點，讓 focus-out 在元件還在視窗裡時送達。GtkBackend 在移除子元件前呼叫。
+// 少了它，被移除的、持有焦點的文字欄位要等離開視窗後才收到 focus-out:在 Windows 上，元件沒有 surface 時
+// gtk_im_context_ime_focus_out 提早 return(4.24.1 的 gtkimcontextime.c:695),不會移除訊息過濾器(:742),
+// 過濾器因而活得比已釋放的 IME context 久，每則訊息都印出 `GTK_IS_IM_CONTEXT_IME (data)` 斷言(P114,2026-10-30)。
+// 見 todo-Gtk.md。
+void scui_release_focus_within(GtkWidget *widget);
 
 #ifdef __cplusplus
 }
