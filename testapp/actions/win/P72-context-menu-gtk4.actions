@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Windows GtkBackend: the mesh view's context menu, "Reset the camera".
+# Same steps and positions as P72-context-menu.actions (WinUI), measured 2026-10-30
+# at 125% scale, except the keys. GTK opens the popover menu from a right click with
+# no item focused (capture 2026-10-30: both items unhighlighted), so Return alone did
+# nothing (no CONTEXT MENU in the log). Down focuses the first item, as on macOS.
+# Pass: the capture reads "scrolls: 1 ... dist 3.40", and the log has CONTEXT MENU.
+# P72(Windows GtkBackend):mesh view 的右鍵選單 "Reset the camera"。步驟與位置同 P72-context-menu.actions
+# (WinUI,2026-10-30 於 125% 縮放量測)，只有按鍵不同。GTK 以右鍵打開 popover 選單時沒有任何項目取得焦點
+# (2026-10-30 擷圖：兩項都未反白)，所以只按 Return 沒有作用(log 沒有 CONTEXT MENU)。Down 會選到第一項，與 macOS 相同。
+# 通過：截圖為 scrolls 1、dist 3.40,log 有 CONTEXT MENU。
+sleep,,,,,,1500000,let P72 lay out,windows
+taplabel,,,,,Stop the clock,,stop the clock first so the readout is stable,windows
+sleep,,,,,,500000,,windows
+move,251,250,frame,,,,onto the mesh view,windows
+sleep,,,,,,300000,,windows
+scroll,0,5,,,,,five notches: the camera comes closer and dist drops below 3.40,windows
+sleep,,,,,,800000,,windows
+click,251,250,frame,right,,,secondary click on the mesh view -- the context menu must open,windows
+sleep,,,,,,1200000,let the menu open,windows
+key,,,,,downArrow,,focus the first item -- GTK opens the menu with none focused,windows
+sleep,,,,,,300000,,windows
+key,,,,,return,,"activate 'Reset the camera' -- dist must read 3.40 again with scrolls 1",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows
