@@ -162,6 +162,11 @@ gallium driver. Related:
 `d3d12_screen.cpp` has no `disk_cache`, `d3d12_pipeline_state.cpp` still sets
 `pCachedBlob = NULL` in both places, and nothing calls `GetCachedBlob`.
 
+Re-checked 2026-10-30 at `main` 77452b90: still no `disk_cache` in
+`d3d12_screen.cpp`, `pCachedBlob = NULL` at lines 405 and 549 of
+`d3d12_pipeline_state.cpp`, no `GetCachedBlob`; no new issue or merge request
+about a d3d12 shader or PSO cache since 2026-10-20.
+
 ## Regression
 
 Not known; this does not look like a regression, rather a cache that was never
