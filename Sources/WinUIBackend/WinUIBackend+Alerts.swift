@@ -103,7 +103,7 @@ extension WinUIBackend: BackendFeatures.Alerts {
                     // Read here, where the operation's type is inferred.
                     // 在此讀取，此處 operation 的型別由推論而得。
                     var result: ContentDialogResult?
-                    var failure: (any Error)?
+                    var failure: (any Swift.Error)?
                     if status == .completed, let operation {
                         do {
                             result = try operation.getResults()
@@ -121,7 +121,7 @@ extension WinUIBackend: BackendFeatures.Alerts {
             }
         }
 
-        private func handleCompletion(result: ContentDialogResult?, failure: (any Error)?) {
+        private func handleCompletion(result: ContentDialogResult?, failure: (any Swift.Error)?) {
             isShowing = false
             let reason = pendingHideReason
             pendingHideReason = nil
