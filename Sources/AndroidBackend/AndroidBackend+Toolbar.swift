@@ -3,6 +3,11 @@ import AndroidView
 @_spi(Backends) import SwiftCrossUI
 import SwiftJava
 
+// Every JNI or WinRT call in the bindings throws, and these are calls that cannot fail at runtime, so
+// force tries are allowed in this file, as in the rest of the backend.
+// 綁定裡每個 JNI 或 WinRT 呼叫都會 throw,而這些呼叫在執行期不會失敗，所以本檔與 backend 其他檔一樣允許 force try。
+// swiftlint:disable force_try
+
 /// A row of buttons above the content.
 ///
 /// **Not `android.widget.Toolbar`, and that was measured rather than assumed.**

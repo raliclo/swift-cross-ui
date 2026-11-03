@@ -48,6 +48,16 @@ public struct Angle: Hashable, Sendable {
     public static func - (lhs: Self, rhs: Self) -> Self {
         Angle(radians: lhs.radians - rhs.radians)
     }
+
+    /// Adds an angle in place. / 就地加上一個角度。
+    public static func += (lhs: inout Self, rhs: Self) {
+        lhs = lhs + rhs
+    }
+
+    /// Subtracts an angle in place. / 就地減去一個角度。
+    public static func -= (lhs: inout Self, rhs: Self) {
+        lhs = lhs - rhs
+    }
 }
 
 extension Angle {

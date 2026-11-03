@@ -15,6 +15,11 @@ disabled_rules:
 
 line_length: 140
 type_body_length: 400
+# Four-member tuples (a rect, an RGBA pixel, matrix columns) are the natural shape in the backends;
+# more than five is an error. / 四個成員的 tuple(矩形、RGBA 像素、矩陣的欄)在 backend 裡是自然的形狀；超過五個才算錯誤。
+large_tuple:
+  warning: 3
+  error: 5
 
 included:
   - Sources

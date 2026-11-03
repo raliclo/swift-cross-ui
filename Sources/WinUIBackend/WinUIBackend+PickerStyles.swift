@@ -3,6 +3,11 @@ import UWP
 @preconcurrency import WindowsFoundation
 import WinUI
 
+// Every JNI or WinRT call in the bindings throws, and these are calls that cannot fail at runtime, so
+// force tries are allowed in this file, as in the rest of the backend.
+// 綁定裡每個 JNI 或 WinRT 呼叫都會 throw,而這些呼叫在執行期不會失敗，所以本檔與 backend 其他檔一樣允許 force try。
+// swiftlint:disable force_try
+
 /// `.segmented` on WinUI: a row of mutually exclusive `ToggleButton`s.
 ///
 /// WinUI 3 ships no segmented control (the Community Toolkit's `Segmented` is

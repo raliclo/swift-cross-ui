@@ -16,8 +16,8 @@
 # - lint:SwiftLint。
 # iOS 與 Android 在本機的模擬器上測試，不在這裡。
 #
-# Swift 6.4 everywhere, the version the local machines use.
-# 各平台都用 Swift 6.4,與本機相同。
+# Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
+# since its installer has no plain 6.4 download. / 各平台都用 Swift 6.4,與本機相同；Windows 的安裝程式沒有單純的 6.4 下載，所以指定確切版本 6.4.2。
 name: CI
 
 on:
@@ -85,11 +85,11 @@ jobs:
     - name: Setup VS Dev Environment
       uses: seanmiddleditch/gha-setup-vsdevenv@v5
 
-    - name: Install Swift 6.4
+    - name: Install Swift 6.4.2
       uses: compnerd/gha-setup-swift@v0.3.0
       with:
-        branch: swift-6.4-release
-        tag: 6.4-RELEASE
+        branch: swift-6.4.2-release
+        tag: 6.4.2-RELEASE
 
     - name: Swift version
       run: swift --version

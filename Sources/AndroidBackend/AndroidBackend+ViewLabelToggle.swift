@@ -2,6 +2,11 @@ import AndroidKit
 import SwiftJava
 @_spi(Backends) import SwiftCrossUI
 
+// Every JNI or WinRT call in the bindings throws, and these are calls that cannot fail at runtime, so
+// force tries are allowed in this file, as in the rest of the backend.
+// 綁定裡每個 JNI 或 WinRT 呼叫都會 throw,而這些呼叫在執行期不會失敗，所以本檔與 backend 其他檔一樣允許 force try。
+// swiftlint:disable force_try
+
 /// The Kotlin `ViewLabelToggleButton`: a button-style toggle whose label is a
 /// SwiftCrossUI view, drawn as the string-label toggle is (see the Kotlin file).
 /// Kotlin 的 `ViewLabelToggleButton`:標籤為 SwiftCrossUI view 的按鈕樣式 toggle,畫法與字串標籤 toggle 相同(見 Kotlin 檔)。

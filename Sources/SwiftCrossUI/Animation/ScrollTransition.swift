@@ -189,7 +189,7 @@ public struct ScrollTransitionEffect: Equatable, Sendable {
 
     public func hueRotation(_ angle: Angle) -> Self {
         var copy = self
-        copy.visual.hueRotation = copy.visual.hueRotation + angle
+        copy.visual.hueRotation += angle
         return copy
     }
 
@@ -216,7 +216,7 @@ public struct ScrollTransitionEffect: Equatable, Sendable {
 
     public func rotationEffect(_ angle: Angle, anchor: UnitPoint = .center) -> Self {
         var copy = self
-        copy.geometric.rotation = copy.geometric.rotation + angle
+        copy.geometric.rotation += angle
         copy.geometric.anchor = anchor
         return copy
     }
