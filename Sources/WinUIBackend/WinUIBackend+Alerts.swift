@@ -200,10 +200,14 @@ extension WinUIBackend: BackendFeatures.Alerts {
             let sheet = suspendedSheet
             suspendedSheet = nil
             if let window, let backend {
-                // Alert completions arrive on the UI thread, where the backend lives.
-                // alert 的完成處理在 UI 執行緒上到達，也就是 backend 所在之處。
+                // Alert completions arrive on the UI thread, where the backend lives, so the
+                // window and sheet never leave it; nonisolated(unsafe) says so to region checking.
+                // alert 的完成處理在 UI 執行緒上到達，也就是 backend 所在之處，因此 window 與 sheet 從未離開該執行緒；
+                // nonisolated(unsafe) 把這件事告訴 region 檢查。
+                nonisolated(unsafe) let uiWindow = window
+                nonisolated(unsafe) let resumedSheet = sheet
                 MainActor.assumeIsolated {
-                    backend.presentSheets(afterAlertsIn: window, suspended: sheet)
+                    backend.presentSheets(afterAlertsIn: uiWindow, suspended: resumedSheet)
                 }
             }
         }
