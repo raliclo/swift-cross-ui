@@ -46,6 +46,13 @@ extension WinUIBackend {
         // 呼叫端能判斷「是否需要呼叫本函式」；在此再判斷一次，等於把同一個判斷複製到第二個地方，
         // 而那兩處可能互相矛盾。
         window.toolbar.children.clear()
+        // The old buttons' actions go with them; the window holds the current
+        // buttons, since their click handlers capture them weakly.
+        // 舊按鈕的 action 跟著它們一起拿掉;視窗持有目前的按鈕，因為它們的點擊 handler 以弱參照捕獲它們。
+        for old in window.toolbarButtons {
+            internalState.buttonClickActions[ObjectIdentifier(old)] = nil
+        }
+        window.toolbarButtons = []
 
         guard !items.isEmpty else {
             window.setToolbarVisible(false)
@@ -57,7 +64,9 @@ extension WinUIBackend {
         }
 
         for item in ordered {
-            window.toolbar.children.append(makeToolbarButton(for: item))
+            let button = makeToolbarButton(for: item)
+            window.toolbarButtons.append(button)
+            window.toolbar.children.append(button)
         }
 
         window.setToolbarVisible(true)
@@ -123,8 +132,9 @@ extension WinUIBackend {
         internalState.buttonClickActions[ObjectIdentifier(button)] = {
             MainActor.assumeIsolated { action() }
         }
-        button.click.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        // `button` weakly: the button holds this handler. button 以弱參照捕獲:button 持有這個 handler。
+        button.click.addHandler { [weak internalState, weak button] _, _ in
+            guard let internalState, let button else { return }
             internalState.buttonClickActions[ObjectIdentifier(button)]?()
         }
 

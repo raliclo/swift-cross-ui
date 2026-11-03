@@ -33,7 +33,13 @@ extension AndroidBackend: BackendFeatures.PointerHover {
         action: @escaping (PointerHoverPhase) -> Void
     ) {
         guard let container = target.as(PointerHoverContainer.self) else { return }
+        // Weakly, through Java: the container holds this action. See `JavaWeakReference`.
+        // 經由 Java 弱參照:容器持有這個 action。見 `JavaWeakReference`。
+        let weakContainer = JavaWeakReference(container, environment: Self.env)
         let report = { @MainActor in
+            guard let container = weakContainer.get()?.as(PointerHoverContainer.self) else {
+                return
+            }
             if container.getInside() {
                 action(
                     .active(

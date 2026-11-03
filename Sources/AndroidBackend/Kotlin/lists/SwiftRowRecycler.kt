@@ -3,6 +3,7 @@ package dev.swiftcrossui.androidbackend.lists
 import android.view.View
 import android.widget.AbsListView
 import dev.swiftcrossui.androidbackend.SwiftAction
+import dev.swiftcrossui.androidbackend.SwiftObject
 
 /**
  * Reports the moment a row's view is scrapped, for
@@ -41,6 +42,10 @@ import dev.swiftcrossui.androidbackend.SwiftAction
  */
 class SwiftRowRecycler(private val adapter: CustomListAdapter) : AbsListView.RecyclerListener {
     var action: SwiftAction? = null
+
+    /** The Swift handler `action` reports to, boxed, so a later commit can replace it in place. */
+    /** `action` 回報的 Swift handler,裝箱，好讓之後的 commit 原地替換它。 */
+    var watch: SwiftObject? = null
 
     var lastReleasedPosition = -1
         private set

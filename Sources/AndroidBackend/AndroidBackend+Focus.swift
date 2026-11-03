@@ -21,19 +21,18 @@ extension SwiftFocusChangeListener {
 /// The Swift side of the focus listener's id.
 ///
 /// A JNI native method carries no captured state, so the handler cannot travel
-/// with the listener object; it lives here and the listener carries a key. Same
-/// arrangement as `LazyListProviders`.
+/// with the listener object; it lives here and the listener carries a key.
 ///
-/// `nonisolated(unsafe)` for the reason that one gives: every access is on the
+/// `nonisolated(unsafe)` because every access is on the
 /// Android main thread -- registration from a layout pass, reporting from a view
 /// callback -- and the type is not reachable from anywhere else.
 ///
 /// 那個 focus listener 的 id 在 Swift 這一側的部分。
 ///
 /// 一個 JNI native method 不帶任何被捕捉的狀態,因此 handler 無法隨著那個 listener 物件一起移動;
-/// 它住在這裡,而 listener 帶著一把鍵。與 `LazyListProviders` 是同一種安排。
+/// 它住在這裡,而 listener 帶著一把鍵。
 ///
-/// `nonisolated(unsafe)` 的理由與那邊給的相同:每一次存取都在 Android 主執行緒上——註冊來自一次
+/// 之所以 `nonisolated(unsafe)`:每一次存取都在 Android 主執行緒上——註冊來自一次
 /// 版面計算,回報來自一次 view 回呼——而這個型別在別處無從觸及。
 enum FocusHandlers {
     /// One watched widget: what to call, and what it last answered.

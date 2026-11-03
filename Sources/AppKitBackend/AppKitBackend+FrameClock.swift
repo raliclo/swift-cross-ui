@@ -23,17 +23,78 @@ extension AppKitBackend: BackendFeatures.FrameClocks {
     ///
     /// 其下那個計時器誠實地說明自己比較差:它以固定 60 Hz 觸發，因此在 120 Hz 顯示器上每隔一幀就重複
     /// 一次。那是一個**看得出來**的差別，而不是一個錯誤的結果，而且它只影響 macOS 12 與 13。
+    ///
+    /// The link comes from a window's view and stops when that window goes
+    /// away, so it is not tied to whichever window was key at the start: when
+    /// its window closes the clock moves to another visible window, or to the
+    /// timer when none is left, and a window becoming key while the timer runs
+    /// brings the display link back.
+    ///
+    /// link 來自某個視窗的 view,而那個視窗消失時它就停了，所以它不綁在開始時剛好是 key 的那個視窗上：
+    /// 它的視窗關閉時，時鐘移到另一個可見的視窗；一個都不剩時改用計時器；計時器運作期間若有視窗成為
+    /// key,就換回 display link。
     public func startFrameClock(handler: @escaping @MainActor (Double) -> Void) {
         stopFrameClock()
         frameClockHandler = handler
+        attachFrameClock(excluding: nil)
 
-        if #available(macOS 14, *), let view = NSApp.keyWindow?.contentView {
+        let target = FrameClockTarget.shared
+        target.windowObservers = [
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                // Only the identity crosses into the main-actor block; the
+                // window itself is the one held as `sourceWindow`.
+                // 只有識別值跨進 main actor 區塊；視窗本身就是 `sourceWindow` 所持有的那一個。
+                let closingID = (notification.object as AnyObject?).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    guard let self, let source = FrameClockTarget.shared.sourceWindow,
+                        closingID == ObjectIdentifier(source)
+                    else { return }
+                    self.attachFrameClock(excluding: source)
+                }
+            },
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, FrameClockTarget.shared.sourceWindow == nil else { return }
+                    self.attachFrameClock(excluding: nil)
+                }
+            },
+        ]
+    }
+
+    /// Replaces the link or timer, keeping the handler: a display link from a
+    /// visible window other than `excluded` on macOS 14 and up, else the timer.
+    /// 替換 link 或計時器，保留 handler:macOS 14 以上用 `excluded` 以外某個可見視窗的 display
+    /// link,否則用計時器。
+    func attachFrameClock(excluding excluded: NSWindow?) {
+        if #available(macOS 14, *), let link = frameClockLink as? CADisplayLink {
+            link.invalidate()
+        }
+        frameClockLink = nil
+        frameClockTimer?.invalidate()
+        frameClockTimer = nil
+        FrameClockTarget.shared.sourceWindow = nil
+
+        let candidates = [NSApp.keyWindow, NSApp.mainWindow].compactMap { $0 } + NSApp.windows
+        let window = candidates.first { window in
+            window !== excluded && window.isVisible && window.contentView != nil
+        }
+
+        if #available(macOS 14, *), let window, let view = window.contentView {
             let link = view.displayLink(
                 target: FrameClockTarget.shared,
                 selector: #selector(FrameClockTarget.tick(_:))
             )
             link.add(to: .main, forMode: .common)
             frameClockLink = link
+            FrameClockTarget.shared.sourceWindow = window
         } else {
             let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { _ in
                 MainActor.assumeIsolated {
@@ -48,6 +109,12 @@ extension AppKitBackend: BackendFeatures.FrameClocks {
     }
 
     public func stopFrameClock() {
+        let target = FrameClockTarget.shared
+        for observer in target.windowObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        target.windowObservers = []
+        target.sourceWindow = nil
         if #available(macOS 14, *), let link = frameClockLink as? CADisplayLink {
             link.invalidate()
         }
@@ -79,6 +146,14 @@ extension AppKitBackend: BackendFeatures.FrameClocks {
 @MainActor
 final class FrameClockTarget: NSObject {
     static let shared = FrameClockTarget()
+
+    /// The window whose display the link follows; nil while the timer runs.
+    /// display link 所跟隨的顯示器所屬的視窗；計時器運作時為 nil。
+    weak var sourceWindow: NSWindow?
+
+    /// The window-close and become-key observers of the running clock.
+    /// 運作中的時鐘之「視窗關閉」與「成為 key」observer。
+    var windowObservers: [NSObjectProtocol] = []
 
     /// Typed as `Any` so this file compiles against macOS 12, where
     /// `CADisplayLink` does not exist as an AppKit type at all. The cast back is

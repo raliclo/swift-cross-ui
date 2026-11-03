@@ -237,6 +237,17 @@ extension UIKitBackend {
             hasVerticalScrollBar: hasVerticalScrollBar,
             hasHorizontalScrollBar: hasHorizontalScrollBar
         )
+        // The bounce flags, mapped as AppKitBackend maps them to scroll
+        // elasticity: `.allowed` there bounces even when the content fits, which
+        // is `alwaysBounce*` here, and an axis that may not bounce does not.
+        // `bounces` is one switch for both axes, so it is on when either is.
+        // 回彈旗標，對應方式與 AppKitBackend 對應到捲動彈性相同：那裡的 `.allowed` 在內容放得下時
+        // 也會回彈，也就是這裡的 `alwaysBounce*`;不允許回彈的軸就不回彈。`bounces` 是兩軸共用的
+        // 一個開關，所以任一軸允許時就打開。
+        let uiScrollView = scrollViewWidget.scrollView
+        uiScrollView.bounces = bounceHorizontally || bounceVertically
+        uiScrollView.alwaysBounceHorizontal = bounceHorizontally
+        uiScrollView.alwaysBounceVertical = bounceVertically
     }
 
     public func createTooltipContainer(wrapping child: Widget) -> Widget {

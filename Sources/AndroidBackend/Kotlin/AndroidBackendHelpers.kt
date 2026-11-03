@@ -945,6 +945,8 @@ class AndroidBackendHelpers {
         token: String,
         title: String,
         content: View,
+        widthDp: Int,
+        heightDp: Int,
         onClosed: SwiftAction,
         onResized: SwiftAction,
     ) {
@@ -993,7 +995,7 @@ class AndroidBackendHelpers {
         // 在有焦點的視窗中按「new document」則會分割畫面，視窗 1 在 MAIN、新視窗在 SIDE。焦點要等選擇器的關閉轉場結束
         // 才會回來。最多等一秒，焦點一直沒回來時視窗仍會開啟。
         if (from.hasWindowFocus()) {
-            from.startActivity(intent)
+            from.startActivity(intent, launchOptions(from, widthDp, heightDp))
             return
         }
         val decor = from.window.decorView
@@ -1003,7 +1005,7 @@ class AndroidBackendHelpers {
             if (!started) {
                 started = true
                 decor.viewTreeObserver.removeOnWindowFocusChangeListener(listener)
-                from.startActivity(intent)
+                from.startActivity(intent, launchOptions(from, widthDp, heightDp))
             }
         }
         listener =
@@ -1012,6 +1014,53 @@ class AndroidBackendHelpers {
             }
         decor.viewTreeObserver.addOnWindowFocusChangeListener(listener)
         decor.postDelayed({ start() }, 1000)
+    }
+
+    /**
+     * The launch bounds for a window that asked for a size, as `startActivity` options: placed
+     * 32 dp in from the opening window's corner. The system honours them in free-form mode and
+     * ignores them elsewhere (ActivityOptions.setLaunchBounds). Null without a size.
+     *
+     * 要求了尺寸的視窗之啟動邊界，作為 `startActivity` 的選項：放在距開啟它的視窗角落 32 dp 處。系統在自由視窗模式下會採用，
+     * 其他情況則忽略(ActivityOptions.setLaunchBounds)。沒有尺寸時為 null。
+     */
+    private fun launchOptions(from: Activity, widthDp: Int, heightDp: Int): android.os.Bundle? {
+        if (widthDp <= 0 || heightDp <= 0) return null
+        val density = from.resources.displayMetrics.density
+        val origin = IntArray(2)
+        from.window.decorView.getLocationOnScreen(origin)
+        val left = origin[0] + Math.round(32 * density)
+        val top = origin[1] + Math.round(32 * density)
+        val bounds =
+            android.graphics.Rect(
+                left,
+                top,
+                left + Math.round(widthDp * density),
+                top + Math.round(heightDp * density),
+            )
+        return android.app.ActivityOptions.makeBasic().setLaunchBounds(bounds).toBundle()
+    }
+
+    /**
+     * Brings a window's task to the front through ActivityManager.AppTask.moveToFront, which needs
+     * no permission for the app's own tasks. False when the task is not among them.
+     *
+     * 經由 ActivityManager.AppTask.moveToFront 把視窗的工作移到最前面，對 app 自己的工作不需要權限。工作不在其中時回傳 false。
+     */
+    fun activateWindow(activity: Activity): Boolean {
+        val manager =
+            activity.getSystemService(android.app.ActivityManager::class.java) ?: return false
+        val taskId = activity.taskId
+        val task =
+            manager.appTasks.firstOrNull { task ->
+                runCatching {
+                        val info = task.taskInfo
+                        if (Build.VERSION.SDK_INT >= 29) info.taskId
+                        else @Suppress("DEPRECATION") info.persistentId
+                    }
+                    .getOrNull() == taskId
+            } ?: return false
+        return runCatching { task.moveToFront() }.isSuccess
     }
 
     fun closeWindow(token: String) {

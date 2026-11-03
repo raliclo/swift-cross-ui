@@ -312,8 +312,11 @@ public enum LayoutSystem {
 
         let sortedChildren = zip(children.indices, zip(priorities.map(-), flexibilities))
             .sorted { first, second in
-                // Sort by descending priority and then by ascending flexibility
-                first.1 <= second.1
+                // Sort by descending priority and then by ascending
+                // flexibility; ties keep their original order. A strict
+                // ordering: `sorted(by:)` requires one.
+                // 依優先權遞減、再依彈性遞增排序;同分者保持原本的順序。是嚴格的排序:`sorted(by:)` 要求如此。
+                first.1 != second.1 ? first.1 < second.1 : first.0 < second.0
             }
             .map { index, _ in
                 index
@@ -462,7 +465,23 @@ public enum LayoutSystem {
         // 哪一個子元件（若有的話）什麼都沒被分到。理由見 ``StackOverflowReport``。
         var firstStarvedChild: String?
 
-        for group in cache.priorityGroups {
+        // The minimum lengths of the visible children in the groups after
+        // each group, i.e. of every child with a lower priority: what a group
+        // must leave for them. 每個群組之後各群組中可見子元件的 minimum 長度總和，也就是所有優先權較低之
+        // 子元件的：一個群組必須為它們留下的空間。
+        var reservedAfterGroup = [Double](repeating: 0, count: cache.priorityGroups.count)
+        var lowerPriorityMinimum = 0.0
+        for (groupIndex, group) in cache.priorityGroups.enumerated().reversed() {
+            reservedAfterGroup[groupIndex] = lowerPriorityMinimum
+            for index in group.children
+            where index < cache.isHidden.count && !cache.isHidden[index]
+                && index < cache.minimumLengths.count
+            {
+                lowerPriorityMinimum += cache.minimumLengths[index]
+            }
+        }
+
+        for (groupIndex, group) in cache.priorityGroups.enumerated() {
             var childrenRemaining = group.children.count { index in
                 !cache.isHidden[index]
             }
@@ -534,12 +553,23 @@ public enum LayoutSystem {
                 //
                 // 這與排序所依據的演算法一致（如上連結）。確實放不下的子元件仍會以回傳自身 minimum 的
                 // 方式強制其下限，因此此處無需為其預留。
+                //
+                // **Across priority groups the minimums ARE reserved**, as in
+                // SwiftUI: a higher-priority child is offered what is left
+                // after the minimum lengths of every lower-priority child, so
+                // `layoutPriority` never squeezes a lower-priority sibling
+                // below its own minimum. Within one group nothing is reserved,
+                // for the reason above. See `reservedAfterGroup`.
+                //
+                // **跨優先權群組時則會預留 minimum**,與 SwiftUI 相同:優先權較高的子元件被提議的，是扣掉所有
+                // 優先權較低之子元件 minimum 長度後所剩的空間，因此 `layoutPriority` 永遠不會把優先權較低的
+                // 兄弟元件擠到低於它自己的 minimum。同一群組內不預留任何東西，理由如上。見 `reservedAfterGroup`。
                 var proposedChildSize = ProposedViewSize.unspecified
                 let share = max(
-                    proposedLength - spaceUsedAlongStackAxis - cache.totalSpacing,
+                    proposedLength - spaceUsedAlongStackAxis - cache.totalSpacing
+                        - reservedAfterGroup[groupIndex],
                     0
                 ) / Double(childrenRemaining)
-
                 // Never below the child's own minimum.
                 //
                 // The share can reach zero: earlier children take their natural
@@ -704,8 +734,10 @@ public enum LayoutSystem {
 
         let sortedChildren = zip(children.indices, priorities.map(-))
             .sorted { first, second in
-                // Sort by descending priority
-                first.1 <= second.1
+                // Sort by descending priority; ties keep their original
+                // order. A strict ordering: `sorted(by:)` requires one.
+                // 依優先權遞減排序;同分者保持原本的順序。是嚴格的排序：`sorted(by:)` 要求如此。
+                first.1 != second.1 ? first.1 < second.1 : first.0 < second.0
             }
             .map { index, _ in
                 index

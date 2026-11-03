@@ -55,6 +55,19 @@ extension AndroidBackend {
     func configurationDidChange() {
         Self.cachedDensity = nil
         helpers.clearTextSizeCache()
+        // Every Swift cache whose answer depends on the density or the font
+        // scale, cleared with the Kotlin one: text sizes and styles are keyed on
+        // the window scale but not on the font scale, and the last positions and
+        // sizes set were converted to pixels at the old density -- kept, a
+        // layout with the same points would be skipped as "unchanged" and stay
+        // at the old pixel values.
+        // 所有答案取決於 density 或字體縮放的 Swift 快取，與 Kotlin 那份一起清掉：文字尺寸與樣式以視窗縮放為鍵、卻不含字體
+        // 縮放，而上次設定的位置與尺寸是以舊 density 換算成像素的——留著的話，點數相同的排版會被當成「沒有改變」而跳過，
+        // 停在舊的像素值。
+        Self.textSizes.removeAll()
+        Self.textStyles.removeAll()
+        Self.childPositions.forgetAll()
+        Self.widgetSizes.forgetAll()
         Self.rootEnvironmentChangeHandler?()
         for window in Self.windows.compactMap(\.window) {
             window.environmentChangeHandler?()

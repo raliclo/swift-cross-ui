@@ -71,6 +71,16 @@ open class Fixed: Widget {
 
     public func put(_ child: Widget, index: Int, x: Double, y: Double) {
         gtk_fixed_put(castedPointer(), child.widgetPointer, x, y)
+        // `gtk_fixed_put` appends, so the widget is moved in front of the child
+        // now at `index`: GTK draws (and hit-tests) children in sibling order,
+        // and that order has to match `children` for z-order to come out right.
+        // `gtk_fixed_put` 會附加到最後，所以把 widget 移到目前位於 `index` 的子元件之前:GTK 依兄弟順序
+        // 繪製(與做 hit test),該順序必須與 `children` 一致，z-order 才會正確。
+        if index < children.count {
+            gtk_widget_insert_before(
+                child.widgetPointer, widgetPointer, children[index].widgetPointer
+            )
+        }
         childPositions[ObjectIdentifier(child)] = (x, y)
         childMatrices[ObjectIdentifier(child)] = nil
         children.insert(child, at: index)

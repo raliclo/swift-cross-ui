@@ -51,6 +51,16 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
     // 這個旗標是 static,活過了上一次執行：系統重建 activity 時(開機後不久套用主題覆蓋層就會，而 configChanges
     // 涵蓋不了 assets 變更),重跑的主視窗拿到 token,變成空白 MainActivity 旁的 ScuiWindowActivity,P83 一片空白。
     AndroidBackend.didCreateMainWindow = false
+    // The same for every static that holds the previous activity's state: the
+    // configuration listener was installed on the old activity, so the rerun
+    // must install one on this one; the measuring TextView, the scroll hosts and
+    // the windows belong to the old activity's views.
+    // 所有保存上一個 activity 狀態的 static 都一樣：設定變更監聽器裝在舊的 activity 上，所以重跑時必須在這一個上
+    // 再裝一個;量測用的 TextView、各個 scroll host 與各個視窗都屬於舊 activity 的 view。
+    AndroidBackend.didInstallConfigurationListener = false
+    AndroidBackend.measuringTextView = nil
+    AndroidBackend.scrollHosts = []
+    AndroidBackend.windows = []
 
     // Source: https://phatbl.at/2019/01/08/intercepting-stdout-in-swift.html
     func makeMessageHandler(priority: UInt32) -> @Sendable (FileHandle) -> Void {
@@ -202,6 +212,12 @@ public final class AndroidBackend: BaseAppBackend {
         /// App 要求的尺寸(`.defaultSize`),以及其模式決定是否採用它的 root scroll host——見 `size(ofWindow:)`。
         var defaultSize: SIMD2<Int>?
         var scrollHost: RootScrollHost?
+        /// The limits `setSizeLimits` gave and the size `setSize` asked for before
+        /// the window opened: a later window's launch bounds (see `show`).
+        /// `setSizeLimits` 給的限制，以及視窗開啟前 `setSize` 要求的尺寸：後續視窗的啟動邊界(見 `show`)。
+        var minimumSize: SIMD2<Int>?
+        var maximumSize: SIMD2<Int>?
+        var requestedSize: SIMD2<Int>?
 
         init(token: String?) {
             self.token = token
@@ -214,12 +230,6 @@ public final class AndroidBackend: BaseAppBackend {
     /// frame clock 的 handler，以及那個用來讓它停下來的世代號。
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
     @MainActor static var frameClockCallback: FrameClockCallback?
-
-    /// One id per adapter, so a list that updates keeps the id it already has
-    /// and the provider is replaced rather than accumulated.
-    /// 一個 adapter 一個 id——好讓一份更新中的清單沿用它已有的 id，而那個 provider 是被**取代**、
-    /// 不是被累積。
-    @MainActor static var lazyListIDs: [ObjectIdentifier: Int32] = [:]
 
     static let stdoutPipe = Pipe()
     static let stderrPipe = Pipe()
@@ -337,14 +347,6 @@ public final class AndroidBackend: BaseAppBackend {
     /// 存起來,兩種順序就都以「同一個東西被掛上」收尾,而不是其中一種靜默地什麼都沒掛。
     nonisolated(unsafe) static var applicationShortcutListener: SwiftUnhandledKeyListener?
 
-    /// The toolbar row, once one has been asked for. `nil` means no row is in
-    /// the stack at all, which is not the same as a row that is empty -- an
-    /// empty row still takes its height from the content.
-    ///
-    /// 工具列那一列,在有人要求之後才存在。`nil` 代表堆疊中根本沒有這一列,那與「一列空的」不同——
-    /// 一列空的仍會從內容那裡佔走它的高度。
-    nonisolated(unsafe) static var toolbar: AndroidKit.LinearLayout?
-
     var helpers: AndroidBackendHelpers
 
     static let maxLocaleCacheSize = 25
@@ -370,9 +372,13 @@ public final class AndroidBackend: BaseAppBackend {
         let filesCallback = FilesActivityCallback(environment: Self.env)
         let filesAction = SwiftAction(environment: Self.env) {
             let urls = filesCallback.getUrlStrings()
-            AndroidBackend.fileDialogCallback?(urls.map {
+            // A string Foundation cannot parse is logged and left out, not fatal:
+            // one odd URI from a document provider must not end the app.
+            // Foundation 解析不了的字串會被記錄並略過，而不是中止：文件提供者給的一個怪 URI 不該結束 app。
+            AndroidBackend.fileDialogCallback?(urls.compactMap {
                 guard let url = Foundation.URL(string: $0) else {
-                    fatalError("Failed to convert Uri to Foundation.URL: \($0)")
+                    log("file dialog: could not convert Uri to Foundation.URL, skipped: \($0)")
+                    return nil
                 }
                 return url
             })
@@ -383,9 +389,12 @@ public final class AndroidBackend: BaseAppBackend {
         let folderCallback = FolderActivityCallback(environment: Self.env)
         let folderAction = SwiftAction(environment: Self.env) {
             let url = folderCallback.getUrlString()?.toString()
-            AndroidBackend.folderDialogCallback?(url.map {
+            // As above; the handler gets nil, the same as a cancelled dialog.
+            // 同上;handler 收到 nil,與取消對話框相同。
+            AndroidBackend.folderDialogCallback?(url.flatMap {
                 guard let url = Foundation.URL(string: $0) else {
-                    fatalError("Failed to convert Uri to Foundation.URL: \($0)")
+                    log("folder dialog: could not convert Uri to Foundation.URL: \($0)")
+                    return nil
                 }
                 return url
             })
@@ -479,7 +488,17 @@ public final class AndroidBackend: BaseAppBackend {
         minimum: SIMD2<Int>,
         maximum: SIMD2<Int>?
     ) {
-        // Doesn't mean anything on Android until we support split screen
+        // Kept for a later window's launch bounds (see `show`), which the system
+        // honours in free-form mode. A window already open has no runtime limit
+        // to set: the only minimum Android knows is the manifest's
+        // `<layout android:minWidth android:minHeight>`, read when the activity
+        // starts. The framework already lays content out at no less than the
+        // minimum, and the root scroll host scrolls what does not fit.
+        // 保存下來，給後續視窗的啟動邊界用(見 `show`),系統在自由視窗模式下會採用。已開啟的視窗沒有可在執行期設定的限制：
+        // Android 唯一知道的最小尺寸是 manifest 的 `<layout android:minWidth android:minHeight>`,在 activity 啟動時讀取。
+        // 框架本來就不會以小於最小尺寸的大小排版內容，放不下的部分由 root scroll host 捲動。
+        window.minimumSize = minimum
+        window.maximumSize = maximum
     }
 
     public func setTitle(ofWindow window: Window, to title: String) {
@@ -495,8 +514,6 @@ public final class AndroidBackend: BaseAppBackend {
             helpers.setWindowTitle(Self.activity, title)
         }
     }
-
-    public func setResizability(ofWindow window: Window, to resizable: Bool) {}
 
     public func setChild(ofWindow window: Window, to child: Widget) {
         let container = createContainer()
@@ -657,9 +674,13 @@ public final class AndroidBackend: BaseAppBackend {
         // 之後的視窗在其 activity 存在前，以第一個視窗的尺寸量測：同一個螢幕，activity 一跑起來就會回報自己的尺寸。
         let sizeActivity = activity(of: window) ?? Self.activity
         let width = Int(helpers.getSafeWindowWidth(sizeActivity))
-        // Less the navigation title's bar when there is one. 有導覽標題時扣掉它那一列。
-        let height =
-            Int(helpers.getSafeWindowHeight(sizeActivity)) - (hasNavigationTitle(window) ? 44 : 0)
+        // Less the rows above the content -- title, toolbar, refresh -- measured at
+        // this width rather than a fixed figure: the title's bar was taken as 44 and
+        // a toolbar row not at all. 扣掉內容上方的各列(標題、工具列、refresh),以目前寬度量出而不是固定數字：
+        // 原本標題列一律當成 44,工具列則完全沒扣。
+        let chrome = (window.rootStack ?? Self.rootStack)?.as(ShortcutHostLayout.self)?
+            .chromeHeightDp() ?? 0
+        let height = Int(helpers.getSafeWindowHeight(sizeActivity)) - Int(chrome)
         return SIMD2(Int(width), Int(height))
     }
 
@@ -675,14 +696,23 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
-        log("warning: Attempted to set size of Android window")
+        // A later window that has not opened takes the size as its launch bounds
+        // (see `show`). An open window cannot be resized by the app: the public
+        // API (android-36 stubs, read with javap on 2026-11-03) has no call that
+        // resizes a task -- ActivityManager.AppTask offers finishAndRemoveTask,
+        // getTaskInfo, moveToFront, setExcludeFromRecents and startActivity, and
+        // ActivityOptions.setLaunchBounds applies at launch only. That is what
+        // `isWindowProgrammaticallyResizable` tells the framework.
+        // 尚未開啟的後續視窗把這個尺寸當成啟動邊界(見 `show`)。已開啟的視窗無法由 app 改變大小：公開 API(android-36
+        // stubs,2026-11-03 以 javap 讀取)沒有任何改變工作大小的呼叫——ActivityManager.AppTask 只有 finishAndRemoveTask、
+        // getTaskInfo、moveToFront、setExcludeFromRecents 與 startActivity,而 ActivityOptions.setLaunchBounds 只在啟動時
+        // 有效。`isWindowProgrammaticallyResizable` 就是這樣告訴框架的。
+        if window.token != nil, !window.isOpen {
+            window.requestedSize = newSize
+            return
+        }
+        log("setSize(ofWindow:): an open Android window cannot be resized by the app; left to the system")
     }
-
-    public func setSizeLimits(
-        ofWindow window: Void,
-        minimum minimumSize: SIMD2<Int>,
-        maximum maximumSize: SIMD2<Int>?
-    ) {}
 
     public func setResizeHandler(
         ofWindow window: Window,
@@ -702,11 +732,22 @@ public final class AndroidBackend: BaseAppBackend {
         if let token = window.token {
             guard !window.isOpen, let root = window.contentRoot else { return }
             window.isOpen = true
+            // The size it asked for, within its limits, as launch bounds: honoured
+            // where windows are free-form, ignored by the system elsewhere.
+            // 它要求的尺寸(在其限制之內)作為啟動邊界：視窗為自由形式時會被採用，其他情況由系統忽略。
+            let launchSize = (window.requestedSize ?? window.defaultSize).map { size in
+                var size = size
+                if let minimum = window.minimumSize { size = pointwiseMax(size, minimum) }
+                if let maximum = window.maximumSize { size = pointwiseMin(size, maximum) }
+                return size
+            }
             helpers.openWindow(
                 Self.activity,
                 token,
                 window.title,
                 root,
+                Int32(clamping: launchSize?.x ?? 0),
+                Int32(clamping: launchSize?.y ?? 0),
                 SwiftAction(environment: Self.env) { [weak window] in
                     guard let window else { return }
                     window.isOpen = false
@@ -733,7 +774,17 @@ public final class AndroidBackend: BaseAppBackend {
         #endif
     }
 
-    public func activate(window: Window) {}
+    public func activate(window: Window) {
+        // The window's task to the front: ActivityManager.AppTask.moveToFront,
+        // which needs no permission for the app's own tasks. A later window that
+        // has not started has no task yet, and `show` opens it in front anyway.
+        // 把視窗的工作移到最前面:ActivityManager.AppTask.moveToFront,對 app 自己的工作不需要權限。尚未啟動的
+        // 後續視窗還沒有工作，而 `show` 本來就會把它開在最前面。
+        guard let activity = activity(of: window) else { return }
+        if !helpers.activateWindow(activity) {
+            log("activate(window:): the window's task was not found; left where it is")
+        }
+    }
 
     /// The activity a window lives in: the app's for the first window, the
     /// window's own `ScuiWindowActivity` for a later one once it has started,
@@ -841,7 +892,13 @@ public final class AndroidBackend: BaseAppBackend {
                     deviceClass = .watch
                     supportedDatePickerStyles = [.automatic, .compact, .wheel]
                 case let x:
-                    fatalError("helpers.getDeviceClass returned unexpected value \(x)")
+                    // Logged and left at the phone placeholder rather than fatal: a
+                    // device class this backend does not know yet must not stop the
+                    // app at launch. 記錄下來並維持手機的佔位值，而不是中止：本 backend 還不認識的
+                    // device class 不該讓 app 在啟動時就停下。
+                    log("helpers.getDeviceClass returned unexpected value \(x); treated as a phone")
+                    deviceClass = .phone
+                    supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
             }
         }
     }
@@ -998,8 +1055,8 @@ public final class AndroidBackend: BaseAppBackend {
         let child = container.getChildAt(Int32(index))!
 
         let layoutParams = child.getLayoutParams().as(CustomContainer.LayoutParams.self)!
-        let x = Int32(Float(position.x) * density)
-        let y = Int32(Float(position.y) * density)
+        let x = Self.layoutPosition(position.x, density: density)
+        let y = Self.layoutPosition(position.y, density: density)
         // Nothing to do when the child is already there. `setLayoutParams`
         // calls requestLayout, so every unchanged position still cost an
         // Android layout pass: in P66's animation 94 % of these calls (5796 of
@@ -1100,18 +1157,39 @@ public final class AndroidBackend: BaseAppBackend {
     /// 頁面完好，非白像素 378953；而第十次——計數需要第二位數時——把視窗清空為 0。
     /// `adb shell input tap` 也一樣，因此這從來就不是動作檔機制的問題。詳見 `bugs/bug-Android.md`。
     static func layoutLength(_ points: Int, density: Float) -> Int32 {
-        // Rounded up, while positions are truncated: a view then always reaches the
+        // Rounded up, while positions are floored (`layoutPosition`): a view then always reaches the
         // next one's left edge, so two adjacent views never leave an unpainted
         // column between them. Both truncated left one: P95's strip at density
         // 2.625 drew a light 1 px seam at 120 dp, where a view at 60 dp ended at
         // pixel 314 (157 + 157) and the next began at 315 (2026-10-16). The cost is
         // at most a 1 px overlap. The 0.001 keeps an exact product (120 x 2.625 =
         // 315) from rounding up by float error.
-        // 尺寸無條件進位，位置則截斷：如此一個 view 一定能接到下一個 view 的左緣，相鄰的兩個 view 之間不會留下一欄
+        // 尺寸無條件進位，位置則無條件捨去(`layoutPosition`):如此一個 view 一定能接到下一個 view 的左緣，相鄰的兩個 view 之間不會留下一欄
         // 沒畫到的像素。兩者都截斷時會留下一欄:P95 的色條在 density 2.625 下於 120 dp 處出現一條 1 px 的淺色縫，
         // 位於 60 dp 的 view 結束於第 314 像素(157 + 157),下一個從 315 開始(2026-10-16)。代價最多是 1 px 的重疊。
         // 0.001 讓剛好整除的乘積(120 x 2.625 = 315)不會因浮點誤差而進位。
-        points < 0 ? Int32(points) : Int32((Float(points) * density - 0.001).rounded(.up))
+        // Clamped to `Int32` rather than converted: a length past it (a maximum of
+        // nearly `Int.max` times the density) trapped. 夾在 `Int32` 之內而不是直接轉換：超出的長度(接近
+        // `Int.max` 的上限乘以 density)會 trap。
+        points < 0
+            ? Int32(clamping: points)
+            : Int32(clamping: Int(min((Float(points) * density - 0.001).rounded(.up), Float(Int32.max))))
+    }
+
+    /// Points to pixels for a position, the partner of `layoutLength`.
+    ///
+    /// Floored, not truncated: truncation rounds toward zero, so a negative
+    /// position moved right by up to a pixel (-0.4 dp and +0.4 dp both landed on
+    /// pixel 0) and a view left of its container no longer met the one beside it.
+    /// The 0.001 keeps an exact product from flooring down by float error, the
+    /// mirror of `layoutLength`'s. Clamped to `Int32` rather than trapping.
+    ///
+    /// 位置由點換算為像素，與 `layoutLength` 成對。無條件捨去，而不是截斷：截斷是朝零取整，負的位置因此最多向右偏
+    /// 一個像素(-0.4 dp 與 +0.4 dp 都落在第 0 像素),位於容器左側之外的 view 就接不上旁邊那一個。0.001 讓剛好
+    /// 整除的乘積不會因浮點誤差而被捨去，與 `layoutLength` 的那個互為鏡像。夾在 `Int32` 之內而不是 trap。
+    static func layoutPosition(_ points: Int, density: Float) -> Int32 {
+        let pixels = (Float(points) * density + 0.001).rounded(.down)
+        return Int32(clamping: Int(max(min(pixels, Float(Int32.max)), Float(Int32.min))))
     }
 
     public func createSimpleButton() -> Widget {

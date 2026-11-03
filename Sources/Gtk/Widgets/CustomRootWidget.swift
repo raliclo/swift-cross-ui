@@ -49,10 +49,20 @@ public class CustomRootWidget: Widget {
         return Size(width: Int(width), height: Int(height))
     }
 
+    /// The box the C widget's resize callback points at. Retained for as long
+    /// as the C side may call it, and released when a new handler replaces it
+    /// or when this wrapper goes away (after the C callback is cleared).
+    ///
+    /// C widget 的 resize callback 所指向的 box。只要 C 端可能呼叫它就保持 retain,在新的 handler
+    /// 取代它、或此 wrapper 消失時(先清除 C 端的 callback 之後)才釋放。
+    private var resizeHandlerBox: Unmanaged<SignalBox1<Size>>?
+
     public func setResizeHandler(_ handler: @escaping (Size) -> Void) {
-        let box = SignalBox1<Size> { size in
-            handler(size)
-        }
+        let box = Unmanaged.passRetained(
+            SignalBox1<Size> { size in
+                handler(size)
+            }
+        )
         gtk_custom_root_widget_set_resize_callback(
             castedPointer(),
             { data, size in
@@ -61,7 +71,15 @@ public class CustomRootWidget: Widget {
                     Size(width: Int(size.width), height: Int(size.height))
                 )
             },
-            Unmanaged.passRetained(box).toOpaque()
+            box.toOpaque()
         )
+        resizeHandlerBox?.release()
+        resizeHandlerBox = box
+    }
+
+    deinit {
+        guard let resizeHandlerBox else { return }
+        gtk_custom_root_widget_set_resize_callback(castedPointer(), nil, nil)
+        resizeHandlerBox.release()
     }
 }

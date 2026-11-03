@@ -105,14 +105,18 @@ extension UIKitBackend {
         window: Window,
         parentSheet: Sheet?
     ) {
-        // We use the controller of the parent sheet (if present) or the controller
-        // of the root window. This allows us to walk the chain of nested presentations
-        // easily by repeatedly accessing presentedViewController. If we just used the
-        // 'closest' controller to the view that caused the presentation, then the
-        // chain wouldn't be continuous (and we can't do that anyway with the way
-        // AppBackend's sheet API has been constructed).
-        let enclosingController = parentSheet ?? window.rootViewController
-        enclosingController!.present(sheet, animated: true)
+        // From the top of the window's presentation chain, which is the parent
+        // sheet when nothing is above it. Presenting from `parentSheet` itself
+        // fails with only an "already presenting" log line when an alert,
+        // popover or picker is already up on it; the topmost controller, after
+        // any transition in progress, is the one UIKit accepts. The chain stays
+        // continuous from the root, so walking `presentedViewController` still
+        // reaches every sheet.
+        // 從視窗呈現鏈的最上層呈現；上面沒有東西時那就是父 sheet。若父 sheet 上已經有 alert、popover
+        // 或選擇器，直接從 `parentSheet` 呈現會失敗，只留下一行 "already presenting";UIKit 接受的是
+        // 最上層的 controller(等進行中的轉場結束之後)。鏈仍從 root 連續下來，所以沿著
+        // `presentedViewController` 走仍能到達每一個 sheet。
+        Self.presentOnTop(sheet, in: window)
     }
 
     /// fullScreenCover: `.fullScreen` rather than a page sheet. A page sheet on

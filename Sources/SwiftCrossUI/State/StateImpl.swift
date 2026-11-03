@@ -47,20 +47,49 @@ struct StateImpl<Storage: StateStorageProtocol> {
     var animationKey: UUID { box.animationKey }
 
     var wrappedValue: Storage.Value {
-        get { storage.value }
+        // Two values exist while a tween runs: the one on screen, in
+        // `storage.value`, which the tween writes every frame, and the one last
+        // assigned, in `box.animationTarget`.
+        //
+        // Inside a `withAnimation` body a read returns the assigned value, so
+        // `withAnimation { count += 1 }` run twice before the first tween ends
+        // adds two, and a value read back after it is assigned is the value
+        // assigned. Everywhere else -- a view's `body` above all -- a read
+        // returns the value on screen, which is what makes the view animate.
+        // A body is never evaluated inside a `withAnimation` body: the update
+        // it causes is queued and runs afterwards.
+        //
+        // 補間進行時存在兩個值：畫面上的那個，在 `storage.value` 中，由補間每一幀寫入;以及最後被賦予的那個，
+        // 在 `box.animationTarget` 中。
+        //
+        // 在 `withAnimation` 的 body 內，讀取回傳被賦予的值，因此在第一個補間結束前執行兩次
+        // `withAnimation { count += 1 }` 會加二，而賦值後讀回的就是所賦的值。其他地方——尤其是 view 的
+        // `body`——讀取回傳畫面上的值，view 正是因此而有動畫。`body` 永遠不會在 `withAnimation` 的 body
+        // 內被求值：它所引發的更新被排入佇列，之後才執行。
+        get {
+            if let target = box.animationTarget, currentAnimation != nil,
+                let target = target as? Storage.Value
+            {
+                return target
+            }
+            return storage.value
+        }
         nonmutating set {
             // An animatable assignment made inside `withAnimation` becomes a
             // tween; everything else is the assignment it always was.
             //
             // The old value is read BEFORE the write, obviously, and the tween
             // closure writes through `storage` rather than capturing `self`: a
-            // `StateImpl` is a struct and the closure outlives this call.
+            // `StateImpl` is a struct and the closure outlives this call. The
+            // tween starts from the value on screen, so a value re-animated in
+            // flight continues from where it is.
             //
             // 一個在 `withAnimation` 內、且型別可動畫的賦值，會變成一次補間;其餘一切仍然是它一向
             // 所是的那個賦值。
             //
             // 舊值當然是在寫入**之前**讀的，而那個補間 closure 是透過 `storage` 寫入、而非捕捉
-            // `self`:`StateImpl` 是一個 struct，而該 closure 的生命比這次呼叫更長。
+            // `self`:`StateImpl` 是一個 struct，而該 closure 的生命比這次呼叫更長。補間從畫面上的值出發，
+            // 因此飛行途中被重新動畫的值會從它當下所在之處繼續。
             if let animation = currentAnimation,
                 let start = storage.value as? any AnimatableValue,
                 let end = newValue as? any AnimatableValue
@@ -78,6 +107,7 @@ struct StateImpl<Storage: StateStorageProtocol> {
                 LayoutTransaction.arm(animation)
             }
             cancelAnyAnimation()
+            box.animationTarget = nil
             storage.value = newValue
             storage.postSet()
         }
@@ -124,14 +154,25 @@ struct StateImpl<Storage: StateStorageProtocol> {
                 // rather than on nothing.
                 // 兩個型別不同的可動畫值:這不是一個有型別的 `@State` 產得出來的情況;而萬一它成真，
                 // 就落在目標值上，而不是落在什麼都沒有。
+                box.animationTarget = nil
                 storage.value = self.wrappedValueCast(end as Any)
                 storage.postSet()
                 return
             }
+            // The target is recorded for reads made inside `withAnimation`
+            // (see `wrappedValue`) and forgotten when the tween reaches it.
+            // A replaced tween never finishes, and its replacement has
+            // already recorded its own target.
+            // 記下目標值，供 `withAnimation` 內的讀取使用(見 `wrappedValue`),補間抵達它時忘掉。被取代的補間
+            // 永遠不會 finish,而取代它的那一個已經記下了自己的目標。
+            let box = box
+            box.animationTarget = end
             AnimationDriver.shared.start(
                 key: animationKey,
                 animation: animation,
-                apply: Self.tweenApply(storage: storage, key: animationKey, from: start, to: end)
+                group: AnimationTransaction.group,
+                apply: Self.tweenApply(storage: storage, key: animationKey, from: start, to: end),
+                finish: { [weak box] in box?.animationTarget = nil }
             )
         }
         run(start)
@@ -163,11 +204,36 @@ struct StateImpl<Storage: StateStorageProtocol> {
                 AnimationDriver.shared.cancel(key: key)
                 return
             }
-            let value = V.interpolated(from: start, to: end, progress: progress)
+            let value = clampedToSpan(
+                V.interpolated(from: start, to: end, progress: progress),
+                from: start,
+                to: end
+            )
             guard let value = value as? Storage.Value else { return }
             storage.value = value
             storage.postSet()
         }
+    }
+
+    /// `value` kept between `start` and `end` when `V` is an integer type,
+    /// and `value` unchanged otherwise.
+    ///
+    /// A spring or a back-easing curve takes progress past `1` (and below
+    /// `0`); for a `Double` that overshoot is the point, but an integer state
+    /// is most often an index, and an index one past its target is out of
+    /// range. So an integer tween never leaves the span it was asked to cover.
+    ///
+    /// 當 `V` 是整數型別時，把 `value` 限制在 `start` 與 `end` 之間;其他型別原樣回傳。
+    ///
+    /// 彈簧或 back 緩動曲線會讓進度超過 `1`(或低於 `0`);對 `Double` 而言，那個過衝正是重點，但整數狀態
+    /// 多半是一個索引，而超過目標一格的索引就越界了。因此整數補間永遠不會離開它被要求涵蓋的區間。
+    static func clampedToSpan<V>(_ value: V, from start: V, to end: V) -> V {
+        guard let integer = value as? any BinaryInteger else { return value }
+        func clamp<I: BinaryInteger>(_ value: I) -> V? {
+            guard let start = start as? I, let end = end as? I else { return nil }
+            return Swift.min(Swift.max(value, Swift.min(start, end)), Swift.max(start, end)) as? V
+        }
+        return clamp(integer) ?? value
     }
 
     private func wrappedValueCast(_ value: Any) -> Storage.Value {
@@ -177,10 +243,22 @@ struct StateImpl<Storage: StateStorageProtocol> {
     var projectedValue: Binding<Storage.Value> {
         // Specifically link the binding to the inner storage instead of the
         // outer box which changes with each view update.
+        //
+        // A write through the binding is a plain assignment: it ends any tween
+        // in flight, so the next frame of that tween does not overwrite it.
+        //
+        // 特意把 binding 連到內層 storage，而不是每次 view 更新都會換掉的外層 box。
+        //
+        // 透過 binding 的寫入是一次普通的賦值：它會結束飛行中的補間，使該補間的下一幀不會把它蓋掉。
         let storage = storage
+        let box = box
         return Binding(
             get: { storage.value },
             set: { newValue in
+                box.animationTarget = nil
+                if Thread.isMainThread {
+                    AnimationDriver.shared.cancel(key: box.animationKey)
+                }
                 storage.value = newValue
                 storage.postSet()
             }
@@ -207,20 +285,39 @@ extension StateStorageProtocol {
     /// because we want more granular control over when it does and
     /// doesn't trigger.
     ///
-    /// Additionally updates the downstream observation if the
-    /// wrapped value is an `Optional<some ObservableObject>` and the
-    /// current case has toggled.
+    /// Additionally points the downstream observation at the object now
+    /// held, when the wrapped value is an ``ObservableObject`` or an
+    /// `Optional<some ObservableObject>`: the old link is cancelled and a
+    /// new one made on every assignment, so replacing one object with
+    /// another (`objA` → `objB`, or `.some(objA)` → `.some(objB)`) observes
+    /// the new object and stops observing the old one, and `.none` observes
+    /// nothing.
+    ///
+    /// 設定新值之後呼叫它，以向所有觀察者發布一次觀察。不放在 `didSet` 存取器中，是因為我們想更細緻地
+    /// 控制它何時觸發、何時不觸發。
+    ///
+    /// 此外，當包裝的值是 ``ObservableObject`` 或 `Optional<some ObservableObject>` 時，把下游觀察
+    /// 指向目前持有的物件：每次賦值都取消舊的連結並建立新的，因此以另一個物件取代原物件(`objA` → `objB`,
+    /// 或 `.some(objA)` → `.some(objB)`)時，會觀察新物件、不再觀察舊物件;`.none` 則什麼都不觀察。
     func postSet() {
-        // If the wrapped value is an `Optional<some ObservableObject>`
-        // then we need to observe/unobserve whenever the optional
-        // toggles between `.some` and `.none`.
+        // Before casting the value we check the type, for the reason given
+        // in `StateImpl.init`.
+        // 轉型之前先檢查型別，理由見 `StateImpl.init`。
+        let observesObject: Bool
+        let upstream: Publisher?
         if let value = value as? OptionalObservableObject {
-            if let innerDidChange = value.didChange, downstreamObservation == nil {
-                downstreamObservation = didChange.link(toUpstream: innerDidChange)
-            } else if value.didChange == nil, let observation = downstreamObservation {
-                observation.cancel()
-                downstreamObservation = nil
-            }
+            observesObject = true
+            upstream = value.didChange
+        } else if Value.self is ObservableObject.Type, let object = value as? ObservableObject {
+            observesObject = true
+            upstream = object.didChange
+        } else {
+            observesObject = false
+            upstream = nil
+        }
+        if observesObject {
+            downstreamObservation?.cancel()
+            downstreamObservation = upstream.map { didChange.link(toUpstream: $0) }
         }
         didChange.send()
     }

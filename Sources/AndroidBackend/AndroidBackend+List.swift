@@ -24,59 +24,73 @@ class CustomListAdapter: AndroidKit.BaseAdapter {
     func setEnabled(_ isEnabled: Bool)
 
     @JavaMethod
-    func setLazy(_ id: Int32, _ count: Int32, _ estimatedHeight: Int32)
+    func setLazy(_ rows: SwiftObject?, _ count: Int32, _ estimatedHeight: Int32)
+
+    @JavaMethod
+    func getLazyRows() -> SwiftObject?
+
+    @JavaMethod
+    func getRowRecycler() -> SwiftRowRecycler?
+
+    @JavaMethod
+    func setRowRecycler(_ recycler: SwiftRowRecycler?)
 }
 
-/// The Swift side of `CustomListAdapter`'s two native methods.
+/// The Swift side of `CustomListAdapter`'s two native methods: one list's row
+/// provider and the heights its rows came back with.
 ///
-/// **A side table keyed by an id, because a JNI native method has no captured
-/// state.** `swiftViewForRow` arrives with its arguments and nothing else --
-/// there is no `self` carrying a closure -- so the adapter is given a number
-/// when its rows go lazy and hands that number back with every question.
-/// `MainRunLoopTickler` uses the same `external fun` contract with no id,
-/// because there is only ever one of it.
+/// **Held by the adapter, boxed in a `SwiftObject`, not in a table keyed by an
+/// id.** A JNI native method has no captured state, but these two are instance
+/// methods, so each reads the source back from the adapter that is asking. The
+/// source then lives exactly as long as its adapter, and a list that updates
+/// replaces the provider in the box it already has. A table keyed by
+/// `ObjectIdentifier` of the adapter's Swift wrapper did neither: the wrapper
+/// is made per call, so every update added an entry that was never removed, and
+/// the identity of a freed wrapper could be reused by another list's adapter.
 ///
-/// `CustomListAdapter` 那兩個 native method 的 Swift 側。
+/// `CustomListAdapter` 那兩個 native method 的 Swift 側：一份清單的列 provider,以及它的各列回報的高度。
 ///
-/// **以 id 為鍵的旁表，因為一個 JNI native method 沒有被捕捉的狀態。** `swiftViewForRow` 只帶著它的
-/// 引數抵達，沒有別的——沒有任何 `self` 攜帶著一個 closure——因此當某個 adapter 的列轉為延遲建立時，
-/// 它會拿到一個號碼，並在每次提問時把那個號碼帶回來。`MainRunLoopTickler` 用的是同一套 `external fun`
-/// 契約而沒有 id，因為它從頭到尾只會有一個。
-enum LazyListProviders {
+/// **由 adapter 持有、裝在一個 `SwiftObject` 裡，而不是放在以 id 為鍵的表中。** JNI native method 沒有被捕捉的
+/// 狀態，但這兩個是實例方法，所以各自從發問的那個 adapter 讀回來源。來源的壽命因此恰好等於它的 adapter,而一份更新中的
+/// 清單是替換它已有的那個箱子裡的 provider。以 adapter 的 Swift 包裝物件之 `ObjectIdentifier` 為鍵的表兩者都做不到：
+/// 包裝物件每次呼叫都新建，所以每次更新都多出一筆永不移除的紀錄，而被釋放之包裝物件的身分可能被另一份清單的 adapter 重複使用。
+final class LazyListRowSource {
     typealias Provider = (Int) -> (widget: AndroidKit.View, height: Int)?
 
-    nonisolated(unsafe) private static var providers: [Int32: Provider] = [:]
-    nonisolated(unsafe) private static var heights: [Int32: [Int: Int]] = [:]
-    nonisolated(unsafe) private static var nextID: Int32 = 0
+    var provider: Provider
+    private var heights: [Int: Int] = [:]
 
-    static func register(_ provider: @escaping Provider, reusing id: Int32?) -> Int32 {
-        let id = id ?? { nextID += 1; return nextID }()
-        providers[id] = provider
-        heights[id] = heights[id] ?? [:]
-        return id
+    init(provider: @escaping Provider) {
+        self.provider = provider
     }
 
-    static func view(id: Int32, row: Int32) -> AndroidKit.View? {
-        guard let provider = providers[id], let built = provider(Int(row)) else { return nil }
-        heights[id, default: [:]][Int(row)] = built.height
+    func view(row: Int32) -> AndroidKit.View? {
+        guard let built = provider(Int(row)) else { return nil }
+        heights[Int(row)] = built.height
         return built.widget
     }
 
-    static func knownHeight(id: Int32, row: Int32) -> Int32 {
-        Int32(heights[id]?[Int(row)] ?? 0)
+    func knownHeight(row: Int32) -> Int32 {
+        Int32(clamping: heights[Int(row)] ?? 0)
+    }
+}
+
+extension CustomListAdapter {
+    var lazyRowSource: LazyListRowSource? {
+        getLazyRows()?.value() as? LazyListRowSource
     }
 }
 
 @JavaImplementation("dev.swiftcrossui.androidbackend.lists.CustomListAdapter")
 extension CustomListAdapter {
     @JavaMethod
-    func swiftViewForRow(_ id: Int32, _ position: Int32) -> AndroidKit.View? {
-        LazyListProviders.view(id: id, row: position)
+    func swiftViewForRow(_ position: Int32) -> AndroidKit.View? {
+        lazyRowSource?.view(row: position)
     }
 
     @JavaMethod
-    func swiftKnownHeightForRow(_ id: Int32, _ position: Int32) -> Int32 {
-        LazyListProviders.knownHeight(id: id, row: position)
+    func swiftKnownHeightForRow(_ position: Int32) -> Int32 {
+        lazyRowSource?.knownHeight(row: position) ?? 0
     }
 }
 
@@ -194,7 +208,7 @@ extension AndroidBackend {
             .getAdapter()!
             .as(CustomListAdapter.self)!
             .setViews(items.map(Optional.some(_:)), rowHeights.map {
-                Int32(Float($0) * density)
+                Self.layoutLength($0, density: density)
             })
     }
 

@@ -178,20 +178,18 @@ public struct Environment<Value>: DynamicProperty {
         /// chain at it.
         ///
         /// The identity check is what makes this safe to call on every update.
-        /// Without it, `link` would run once per pass: ``ObservableObject``'s
-        /// default `didChange` builds a FRESH publisher on every access, so the
-        /// old chain is never the same object as the new one and cancelling
-        /// could never be skipped. Two live chains deliver every change twice,
-        /// which costs a second view update and reports nothing anywhere. The
-        /// same hazard is written up on ``StateObject`` and ``EnvironmentObject``.
+        /// Without it, `link` would run once per pass, cancelling and remaking
+        /// the chain to the same object every time. Skipping the cancel instead
+        /// would leave two live chains, which deliver every change twice, cost
+        /// a second view update and report nothing anywhere. The same hazard is
+        /// written up on ``StateObject`` and ``EnvironmentObject``.
         ///
         /// 存下 `newValue`；若它是一個物件，則把 publisher 鏈重新指向它。
         ///
-        /// 那個 identity 檢查正是此函式能在每次更新時被呼叫的原因。少了它，`link` 會每一輪執行
-        /// 一次：``ObservableObject`` 的預設 `didChange` **每次存取都會產生一個全新的
-        /// publisher**，因此舊鏈與新鏈永遠不是同一個物件，取消也就永遠無法省略。兩條同時存活的
-        /// 鏈會讓每個變更抵達兩次，代價是多一次 view 更新，而且任何地方都不會回報。同樣的陷阱
-        /// 已記錄於 ``StateObject`` 與 ``EnvironmentObject``。
+        /// 那個 identity 檢查正是此函式能在每次更新時被呼叫的原因。少了它，`link` 會每一輪執行一次，
+        /// 每次都取消並重建通往同一個物件的鏈。若改為省略取消，就會留下兩條同時存活的鏈，讓每個變更抵達
+        /// 兩次，代價是多一次 view 更新，而且任何地方都不會回報。同樣的陷阱已記錄於 ``StateObject`` 與
+        /// ``EnvironmentObject``。
         func adopt(_ newValue: Value?) {
             // Assigned before the guard, not after. A key path value is replaced
             // on every single update and is usually not an object at all, so an

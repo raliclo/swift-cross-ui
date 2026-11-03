@@ -47,7 +47,15 @@ extension AndroidBackend {
         onChange: @escaping (Int?) -> Void
     ) {
         if let picker = picker.as(CustomRadioGroup.self) {
+            // The picker is reached through a Java weak reference, not captured: the
+            // picker holds this action, and a captured wrapper is a JNI global
+            // reference back to the picker, so neither collector could ever free
+            // the pair. See `JavaWeakReference`.
+            // picker 經由 Java 弱參照取得，而不是被捕捉:picker 持有這個 action,而被捕捉的包裝物件是指回
+            // picker 的 JNI 全域參照，兩邊的回收機制都永遠釋放不了這一對。見 `JavaWeakReference`。
+            let weakPicker = JavaWeakReference(picker, environment: Self.env)
             let action = SwiftAction(environment: Self.env) {
+                guard let picker = weakPicker.get()?.as(CustomRadioGroup.self) else { return }
                 let selectedOption = picker.getSelectedOption()
                 onChange(selectedOption < 0 ? nil : Int(selectedOption))
             }
@@ -62,7 +70,9 @@ extension AndroidBackend {
                 textStyle.typeface
             )
         } else if let picker = picker.as(CustomSegmentedGroup.self) {
+            let weakPicker = JavaWeakReference(picker, environment: Self.env)
             let action = SwiftAction(environment: Self.env) {
+                guard let picker = weakPicker.get()?.as(CustomSegmentedGroup.self) else { return }
                 let selectedOption = picker.getSelectedOption()
                 onChange(selectedOption < 0 ? nil : Int(selectedOption))
             }
@@ -77,7 +87,9 @@ extension AndroidBackend {
                 textStyle.typeface
             )
         } else if let picker = picker.as(CustomSpinner.self) {
+            let weakPicker = JavaWeakReference(picker, environment: Self.env)
             let action = SwiftAction(environment: Self.env) {
+                guard let picker = weakPicker.get()?.as(CustomSpinner.self) else { return }
                 let selectedOption = picker.getSelectedItemPosition()
                 let invalidPosition: Int32 = try! JavaClass<AndroidKit.AdapterView>()
                     .INVALID_POSITION
@@ -97,13 +109,18 @@ extension AndroidBackend {
                 textStyle.typeface
             )
         } else if let picker = picker.as(CustomNumberPicker.self) {
+            let weakPicker = JavaWeakReference(picker, environment: Self.env)
             let action = SwiftAction(environment: Self.env) {
+                guard let picker = weakPicker.get()?.as(CustomNumberPicker.self) else { return }
                 let selectedOption = picker.getValue()
                 onChange(selectedOption == 0 ? nil : Int(selectedOption - 1))
             }
             picker.update(action, options, environment.isEnabled)
         } else {
-            fatalError("Unexpected picker class")
+            // Logged, not fatal: one widget this backend did not create must not take
+            // the whole app down. The picker keeps the options it last showed.
+            // 記錄而非中止:一個不是本 backend 建立的 widget,不該拖垮整個 app。picker 保留它上次顯示的選項。
+            log("picker: updatePicker on an unexpected widget \(picker.toString()); options not updated")
         }
     }
 
@@ -128,7 +145,10 @@ extension AndroidBackend {
                 picker.setValue(0)
             }
         } else {
-            fatalError("Unexpected picker class")
+            // Logged, not fatal: one widget this backend did not create must not take
+            // the whole app down. The selection is left as it is.
+            // 記錄而非中止:一個不是本 backend 建立的 widget,不該拖垮整個 app。選取狀態維持原樣。
+            log("picker: setSelectedOption on an unexpected widget \(picker.toString()); left as it is")
         }
     }
 }

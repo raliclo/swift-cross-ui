@@ -221,11 +221,14 @@ final class TappableWidget: ContainerWidget, UIGestureRecognizerDelegate {
             }
         }
 
+        // A hover the system cancels (the pointer leaves the app, a gesture takes
+        // over) ends it as surely as `.ended` does, so it reports false too.
+        // 被系統取消的懸停(指標離開 app、被別的手勢接手)與 `.ended` 一樣結束了懸停，因此同樣回報 false。
         @objc
         func hoveringChanged(_ recognizer: UIHoverGestureRecognizer) {
             switch recognizer.state {
                 case .began: hoverChangesHandler?(true)
-                case .ended: hoverChangesHandler?(false)
+                case .ended, .cancelled, .failed: hoverChangesHandler?(false)
                 default: break
             }
         }

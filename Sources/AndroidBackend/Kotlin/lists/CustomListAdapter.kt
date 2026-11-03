@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.ListView
+import dev.swiftcrossui.androidbackend.SwiftObject
 
 // All the existing concrete adapters require an XML resource ID.
 class CustomListAdapter : BaseAdapter() {
@@ -147,24 +148,30 @@ class CustomListAdapter : BaseAdapter() {
     }
 
     /**
-     * Non-zero when rows come from Swift one at a time.
+     * Set when rows come from Swift one at a time: the Swift row source, boxed.
      *
-     * The id, rather than a callback object, because the way back into Swift here is a JNI native
-     * method and a native method has no captured state -- it gets its arguments and nothing else.
-     * `MainRunLoopTickler` uses the same `external fun` contract; this one just carries which list
-     * is asking.
+     * Held here, by the adapter, rather than in a Swift table keyed by an id. The native methods
+     * below are instance methods, so Swift reads the source back from the adapter that asks; the
+     * source then lives exactly as long as this adapter, and two lists can never share one. A
+     * table keyed by the adapter's Swift wrapper did neither: the wrapper is made per call, so
+     * each update added an entry, and a freed wrapper's identity could be reused by another
+     * list's.
      *
-     * 非零時，代表列是由 Swift 一次交出一列的。
+     * 列由 Swift 一次交出一列時設定：裝箱的 Swift 列來源。
      *
-     * 使用一個 id 而非一個 callback 物件，因為此處回到 Swift 的路徑是一個 JNI native method，而 native method
-     * 沒有被捕捉的狀態——它只拿得到它的引數，沒有別的。`MainRunLoopTickler` 用的是 同一套 `external fun` 契約;這一個只是多帶著「是哪一份清單在問」。
+     * 由 adapter 在此持有，而不是放在一張以 id 為鍵的 Swift 表裡。下方的 native method 是實例方法，所以 Swift 從
+     * 發問的那個 adapter 讀回來源；來源的壽命因此恰好等於這個 adapter,兩份清單也不可能共用一份。以 adapter 的
+     * Swift 包裝物件為鍵的表兩者都做不到：包裝物件每次呼叫都新建，所以每次更新都多一筆，而被釋放的包裝物件的身分
+     * 可能被另一份清單的重複使用。
      */
-    private var lazyId = 0
+    private var lazyRows: SwiftObject? = null
     private var lazyCount = 0
     private var estimatedHeight = 0
 
-    fun setLazy(id: Int, count: Int, estimatedHeight: Int) {
-        lazyId = id
+    fun getLazyRows(): SwiftObject? = lazyRows
+
+    fun setLazy(rows: SwiftObject, count: Int, estimatedHeight: Int) {
+        lazyRows = rows
         lazyCount = count
         this.estimatedHeight = estimatedHeight
         // The eager arrays are cleared, not left behind: two answers to the same
@@ -175,13 +182,19 @@ class CustomListAdapter : BaseAdapter() {
         notifyDataSetChanged()
     }
 
+    /**
+     * The row-release listener, kept so a later commit replaces its handler instead of
+     * installing another. 列釋放的 listener,留著讓之後的 commit 替換它的 handler,而不是再裝一個。
+     */
+    var rowRecycler: SwiftRowRecycler? = null
+
     /** Asks Swift to build one row. Returns null when the index is out of range. */
     /** 請 Swift 建出某一列。索引超出範圍時回傳 null。 */
-    external fun swiftViewForRow(id: Int, position: Int): View?
+    external fun swiftViewForRow(position: Int): View?
 
     /** The height Swift reported for a row it has already built, or 0. */
     /** Swift 為某一列所回報的高度(該列必須已經被建立過)，否則為 0。 */
-    external fun swiftKnownHeightForRow(id: Int, position: Int): Int
+    external fun swiftKnownHeightForRow(position: Int): Int
 
     var isEnabled = true
 
@@ -196,16 +209,16 @@ class CustomListAdapter : BaseAdapter() {
 
     override fun isEnabled(position: Int) = isEnabled
 
-    override fun getCount() = if (lazyId != 0) lazyCount else views.size
+    override fun getCount() = if (lazyRows != null) lazyCount else views.size
 
-    override fun getItem(position: Int): Any? = if (lazyId != 0) position else views[position]
+    override fun getItem(position: Int): Any? = if (lazyRows != null) position else views[position]
 
     override fun getItemId(position: Int) = position.toLong()
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         val view =
-            if (lazyId != 0) {
-                swiftViewForRow(lazyId, position) ?: View(parent.context)
+            if (lazyRows != null) {
+                swiftViewForRow(position) ?: View(parent.context)
             } else {
                 views[position]
             }
@@ -231,14 +244,14 @@ class CustomListAdapter : BaseAdapter() {
         viewForPosition[position] = view
 
         val height =
-            if (lazyId != 0) {
+            if (lazyRows != null) {
                 // The real height if this row has been built, the estimate if it has not.
                 // A row is always built by the line above before this runs, so the known
                 // height is the normal case and the estimate is the fallback for a row
                 // Swift declined to build.
                 // 若該列已被建立則用真實高度，未建立則用估計值。在此行執行之前，上方那一行一定已經
                 // 把該列建出來了，因此「已知高度」才是常態，而估計值是「Swift 拒絕建立該列」時的退路。
-                val known = swiftKnownHeightForRow(lazyId, position)
+                val known = swiftKnownHeightForRow(position)
                 (if (known > 0) known else estimatedHeight) - (parent as ListView).dividerHeight
             } else {
                 heights[position] - (parent as ListView).dividerHeight

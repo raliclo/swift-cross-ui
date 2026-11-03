@@ -101,7 +101,12 @@ extension UIKitBackend {
             presentation.delegate = popover
         }
 
-        window.rootViewController?.present(popover, animated: true)
+        // From the top of the presentation chain, not the root: a popover
+        // opened from inside a sheet would otherwise be refused with only an
+        // "already presenting" log line, because the root is presenting the sheet.
+        // 從呈現鏈的最上層呈現，而不是 root:否則從 sheet 裡打開的 popover 會被拒絕，只留下一行
+        // "already presenting" 紀錄，因為 root 正在呈現那個 sheet。
+        Self.presentOnTop(popover, in: window)
     }
 
     /// The requested side, or the opposite one when the panel does not fit.

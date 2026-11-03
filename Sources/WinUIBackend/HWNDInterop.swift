@@ -1,4 +1,5 @@
 import CWinRT
+@_spi(Backends) import SwiftCrossUI
 import WinAppSDK
 import WinSDK
 import WinUI
@@ -71,20 +72,35 @@ private struct HWNDInterop: @unchecked Sendable {
         }
     }
 
+    /// The id of a window, or the invalid id 0 if there is none -- a destroyed
+    /// window is the usual reason, and that is no reason to end the process.
+    /// 視窗的 id;沒有時為無效的 id 0——通常是視窗已銷毀，而那不是終止行程的理由。
     fileprivate func getWindowIDFromWindow(_ hWnd: HWND?) -> WinAppSDK.WindowId {
         var windowID = __x_ABI_CMicrosoft_CUI_CWindowId()
-        let hr: HRESULT = getWindowIDFromWindow_impl(hWnd, &windowID)
+        guard let impl = getWindowIDFromWindow_impl else {
+            logger.warning("Windowing_GetWindowIdFromWindow is unavailable")
+            return .init(value: 0)
+        }
+        let hr: HRESULT = impl(hWnd, &windowID)
         if hr != S_OK {
-            fatalError("Unable to get window ID")
+            logger.warning("Unable to get window ID, hr=\(hr)")
+            return .init(value: 0)
         }
         return .init(value: windowID.Value)
     }
 
+    /// The window handle for an id, or nil: a closed window's id no longer
+    /// maps to a handle, and callers already treat nil as "no window".
+    /// id 對應的視窗 handle,或 nil:已關閉視窗的 id 不再對應到 handle,而呼叫端本來就把 nil 當成「沒有視窗」。
     fileprivate func getWindowFromWindowId(_ windowID: WinAppSDK.WindowId) -> HWND? {
         var hWnd: HWND?
-        let hr: HRESULT = getWindowFromWindowID_impl(.from(swift: windowID), &hWnd)
+        guard let impl = getWindowFromWindowID_impl else {
+            logger.warning("Windowing_GetWindowFromWindowId is unavailable")
+            return nil
+        }
+        let hr: HRESULT = impl(.from(swift: windowID), &hWnd)
         if hr != S_OK {
-            fatalError("Unable to get window from window ID")
+            return nil
         }
         return hWnd
     }

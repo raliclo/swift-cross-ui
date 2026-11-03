@@ -44,25 +44,35 @@ extension AndroidBackend: BackendFeatures.LazyListRows {
         }
 
         let density = AndroidBackend.density { listView.getResources().getDisplayMetrics().density }
-        let id = LazyListProviders.register(
-            { row in
-                guard let built = provider(row) else { return nil }
-                // Points to pixels, the same conversion `setItems` does. A
-                // height that skipped it is off by the display's scale, which on
-                // a phone is two or three -- rows would overlap by half their
-                // own height.
-                // 由點換算為像素，與 `setItems` 所做的換算相同。少了這一步的高度會差一個顯示器
-                // 縮放倍率，而在手機上那是二或三——列與列之間會重疊掉自身一半的高度。
-                return (built.widget, Int(Float(built.height) * density))
-            },
-            reusing: Self.lazyListIDs[ObjectIdentifier(adapter)]
-        )
-        Self.lazyListIDs[ObjectIdentifier(adapter)] = id
+        let rowProvider: LazyListRowSource.Provider = { row in
+            guard let built = provider(row) else { return nil }
+            // Points to pixels, the same conversion `setItems` does and the one
+            // `setSize` uses -- rounded up, so a row's height agrees with the
+            // size its own content was laid out at. A height that skipped it is
+            // off by the display's scale, which on a phone is two or three --
+            // rows would overlap by half their own height.
+            // 由點換算為像素，與 `setItems` 所做、`setSize` 所用的換算相同——無條件進位，讓列高與其內容排版時的
+            // 尺寸一致。少了這一步的高度會差一個顯示器縮放倍率，而在手機上那是二或三——列與列之間會重疊掉自身一半的高度。
+            return (built.widget, Int(Self.layoutLength(built.height, density: density)))
+        }
+
+        // The source lives in the adapter (see `LazyListRowSource`): an update
+        // replaces the provider in the box the adapter already holds.
+        // 來源住在 adapter 裡(見 `LazyListRowSource`):更新時替換 adapter 已持有之箱子裡的 provider。
+        let rows: SwiftObject
+        if let existing = adapter.getLazyRows(),
+            let source = existing.value() as? LazyListRowSource
+        {
+            source.provider = rowProvider
+            rows = existing
+        } else {
+            rows = SwiftObject(LazyListRowSource(provider: rowProvider), environment: Self.env)
+        }
 
         adapter.setLazy(
-            id,
-            Int32(count),
-            Int32(Float(estimatedRowHeight) * density)
+            rows,
+            Int32(clamping: count),
+            Self.layoutLength(estimatedRowHeight, density: density)
         )
     }
 }
@@ -82,57 +92,26 @@ class SwiftRowRecycler: JavaObject {
     func setAction(_ action: SwiftAction?)
 
     @JavaMethod
+    func getWatch() -> SwiftObject?
+
+    @JavaMethod
+    func setWatch(_ watch: SwiftObject?)
+
+    @JavaMethod
     func getLastReleasedPosition() -> Int32
 }
 
-/// The Swift side of a list's row-release handler.
+/// The Swift side of a list's row-release handler, boxed and held by its
+/// `SwiftRowRecycler` (`watch`), so it lives as long as the recycler and a
+/// later commit replaces the handler in place.
 ///
-/// Same arrangement as `LazyListProviders`, and for the same reason:
-/// `SwiftAction` is a `() -> Void`, so the position travels in the Java object
-/// and the closure carries only an id.
-///
-/// 一個清單的「列釋放」handler 在 Swift 這一側的部分。
-///
-/// 與 `LazyListProviders` 是同一種安排,理由也相同:`SwiftAction` 是一個 `() -> Void`,
-/// 因此那個位置留在 Java 物件裡,而 closure 只帶一個 id。
-enum LazyRowReleaseHandlers {
-    final class Watch {
-        let recycler: SwiftRowRecycler
-        var handler: (Int) -> Void
+/// 一個清單的「列釋放」handler 在 Swift 這一側的部分，裝箱後由它的 `SwiftRowRecycler`(`watch`)持有，
+/// 因此壽命與 recycler 相同，而之後的 commit 原地替換 handler。
+final class LazyRowReleaseWatch {
+    var handler: (Int) -> Void
 
-        init(recycler: SwiftRowRecycler, handler: @escaping (Int) -> Void) {
-            self.recycler = recycler
-            self.handler = handler
-        }
-    }
-
-    nonisolated(unsafe) private static var watches: [Int32: Watch] = [:]
-    nonisolated(unsafe) private static var nextID: Int32 = 1
-
-    static func register(
-        recycler: SwiftRowRecycler,
-        handler: @escaping (Int) -> Void,
-        reusing existing: Int32?
-    ) -> Int32 {
-        if let existing, let watch = watches[existing] {
-            watch.handler = handler
-            return existing
-        }
-        let id = nextID
-        nextID += 1
-        watches[id] = Watch(recycler: recycler, handler: handler)
-        return id
-    }
-
-    static func recycler(for id: Int32) -> SwiftRowRecycler? {
-        watches[id]?.recycler
-    }
-
-    static func report(id: Int32) {
-        guard let watch = watches[id] else { return }
-        let position = watch.recycler.getLastReleasedPosition()
-        guard position >= 0 else { return }
-        watch.handler(Int(position))
+    init(handler: @escaping (Int) -> Void) {
+        self.handler = handler
     }
 }
 
@@ -145,7 +124,9 @@ extension AndroidBackend: BackendFeatures.LazyListRowLifetimes {
     /// The recycler is installed once and the handler replaced every time, for
     /// the reason every handler in this backend carries: `List` installs it on
     /// each commit, and a listener added per commit would allocate a Java object
-    /// per frame while leaving every previous one attached.
+    /// per frame while leaving every previous one attached. The adapter keeps
+    /// the recycler (`rowRecycler`), so "installed once" is per list -- a table
+    /// keyed by the adapter's transient Swift wrapper could not tell lists apart.
     ///
     /// **`AbsListView` 本來就會回報這件事。**
     /// `RecyclerListener.onMovedToScrapHeap` 正是「某一列的 view 離開這個清單」的那一刻,
@@ -153,7 +134,8 @@ extension AndroidBackend: BackendFeatures.LazyListRowLifetimes {
     ///
     /// recycler 只安裝一次、handler 每次都替換,理由與本 backend 每一個 handler 所帶的相同:
     /// `List` 每次 commit 都會安裝它,而每次 commit 都加一個 listener,會每幀配置一個 Java 物件,
-    /// 同時讓先前每一個都繼續掛著。
+    /// 同時讓先前每一個都繼續掛著。recycler 由 adapter 保存(`rowRecycler`),所以「只安裝一次」是以清單為單位——
+    /// 以 adapter 那個臨時 Swift 包裝物件為鍵的表分不出清單。
     public func setLazyRowReleaseHandler(
         ofSelectableListView listView: Widget,
         to handler: @escaping (Int) -> Void
@@ -167,34 +149,34 @@ extension AndroidBackend: BackendFeatures.LazyListRowLifetimes {
             return
         }
 
-        let key = ObjectIdentifier(adapter)
-        if let existing = Self.lazyReleaseIDs[key] {
-            _ = LazyRowReleaseHandlers.register(
-                recycler: LazyRowReleaseHandlers.recycler(for: existing)!,
-                handler: handler,
-                reusing: existing
-            )
+        if let existing = adapter.getRowRecycler(),
+            let watch = existing.getWatch()?.value() as? LazyRowReleaseWatch
+        {
+            watch.handler = handler
             return
         }
 
         let recycler = SwiftRowRecycler(adapter, environment: Self.env)
-        let id = LazyRowReleaseHandlers.register(
-            recycler: recycler,
-            handler: handler,
-            reusing: nil
-        )
-        Self.lazyReleaseIDs[key] = id
+        let watch = LazyRowReleaseWatch(handler: handler)
+        recycler.setWatch(SwiftObject(watch, environment: Self.env))
+        // The recycler through a Java weak reference: it holds this action. See
+        // `JavaWeakReference`. 經由 Java 弱參照取得 recycler:它持有這個 action。見 `JavaWeakReference`。
+        let weakRecycler = JavaWeakReference(recycler, environment: Self.env)
         recycler.setAction(
             SwiftAction(environment: Self.env) {
                 MainActor.assumeIsolated {
-                    LazyRowReleaseHandlers.report(id: id)
+                    guard let recycler = weakRecycler.get()?.as(SwiftRowRecycler.self) else {
+                        return
+                    }
+                    let position = recycler.getLastReleasedPosition()
+                    guard position >= 0 else { return }
+                    watch.handler(Int(position))
                 }
             }
         )
+        adapter.setRowRecycler(recycler)
         absListView.setRecyclerListener(
             recycler.as(AndroidKit.AbsListView.RecyclerListener.self)
         )
     }
-
-    nonisolated(unsafe) static var lazyReleaseIDs: [ObjectIdentifier: Int32] = [:]
 }

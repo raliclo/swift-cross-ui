@@ -1,0 +1,105 @@
+# CI for this fork: runs on every push to develop, and by hand.
+# 本 fork 的 CI:每次推到 develop 時執行，也可以手動執行。
+#
+# Four jobs, each covering what the local machines cannot check on every push:
+# - macos: the core and AppKitBackend, built and tested (swift test).
+# - linux: GtkBackend on Ubuntu, built and tested under a virtual X display;
+#   there is no bare Linux machine here, so this is the only routine Linux check.
+# - windows: WinUIBackend built (no tests), so a change made on a Mac is known
+#   to compile on Windows.
+# - lint: SwiftLint.
+# iOS and Android are tested locally on the simulator and the emulator, not here.
+# 四個工作，各自涵蓋本機無法在每次推送時檢查的部分:
+# - macos:核心與 AppKitBackend,建置並測試(swift test)。
+# - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查。
+# - windows:建置 WinUIBackend(不跑測試),確認在 Mac 上做的修改在 Windows 上編得過。
+# - lint:SwiftLint。
+# iOS 與 Android 在本機的模擬器上測試，不在這裡。
+#
+# Swift 6.4 everywhere, the version the local machines use.
+# 各平台都用 Swift 6.4,與本機相同。
+name: CI
+
+on:
+  push:
+    branches:
+      - 'develop'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Swift 6.4
+      uses: SwiftyLab/setup-swift@v1
+      with:
+        swift-version: '6.4'
+
+    - name: Swift version
+      run: swift --version
+
+    - name: Install GTK
+      run: brew install pkg-config gtk4 || true
+
+    - name: Build and test (core, AppKitBackend)
+      run: SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I"$(brew --prefix)/include"
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Swift 6.4
+      uses: SwiftyLab/setup-swift@v1
+      with:
+        swift-version: '6.4'
+
+    - name: Swift version
+      run: swift --version
+
+    - name: Install GTK and a virtual X display
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-4-dev clang zsh xvfb x11-xserver-utils
+
+    - name: Build GtkBackend
+      run: SCUI_HOST_BACKENDS_ONLY=1 swift build --target GtkBackend
+
+    - name: Test
+      run: SCUI_HOST_BACKENDS_ONLY=1 xvfb-run --auto-servernum swift test
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup VS Dev Environment
+      uses: seanmiddleditch/gha-setup-vsdevenv@v5
+
+    - name: Install Swift 6.4
+      uses: compnerd/gha-setup-swift@v0.3.0
+      with:
+        branch: swift-6.4-release
+        tag: 6.4-RELEASE
+
+    - name: Swift version
+      run: swift --version
+
+    - name: Build WinUIBackend
+      run: swift build --target WinUIBackend
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: SwiftLint
+      uses: norio-nomura/action-swiftlint@3.2.1

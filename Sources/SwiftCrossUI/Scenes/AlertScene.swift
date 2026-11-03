@@ -74,7 +74,12 @@ public final class AlertSceneNode: SceneGraphNode {
             backend.showAlert(alert, window: nil) { responseId in
                 self.alert = nil
                 self.scene.isPresented = false
-                self.scene.actions[responseId].action()
+                // A response index the actions do not cover closes the alert
+                // and runs nothing, rather than indexing out of range.
+                // 動作未涵蓋的回應索引會關閉警示且不執行任何動作，而不是索引越界。
+                if self.scene.actions.indices.contains(responseId) {
+                    self.scene.actions[responseId].action()
+                }
             }
 
             self.alert = alert

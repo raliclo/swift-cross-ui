@@ -568,11 +568,48 @@ final class RootScrollHost: UIScrollView {
     }
 }
 
+/// A button with a 1 pt `.separator` border that follows light and dark mode.
+/// `layer.borderColor` is a CGColor, a snapshot of the dynamic colour at the
+/// moment it was read, so it is resolved again for the button's own traits
+/// whenever the interface style changes; read once, the border kept the light
+/// mode grey after the device went dark.
+/// 帶有 1 pt `.separator` 邊框、會跟著淺色與深色模式改變的按鈕。`layer.borderColor` 是 CGColor,
+/// 是動態顏色在讀取那一刻的快照，所以每次介面樣式改變時都依按鈕自己的 trait 重新解析；只讀一次的話，
+/// 裝置轉為深色後邊框仍是淺色模式的灰。
+class SeparatorBorderedButton: UIButton {
+    private var registeredForTraitChanges = false
+
+    func updateSeparatorBorder() {
+        layer.borderColor = UIColor.separator.resolvedColor(with: traitCollection).cgColor
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        updateSeparatorBorder()
+        if #available(iOS 17, tvOS 17, *), !registeredForTraitChanges {
+            registeredForTraitChanges = true
+            registerForTraitChanges([UITraitUserInterfaceStyle.self]) {
+                (self: SeparatorBorderedButton, _: UITraitCollection) in
+                self.updateSeparatorBorder()
+            }
+        }
+    }
+
+    #if !os(visionOS)
+        override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+            super.traitCollectionDidChange(previousTraitCollection)
+            if #unavailable(iOS 17, tvOS 17) {
+                updateSeparatorBorder()
+            }
+        }
+    #endif
+}
+
 /// The floating control that switches between the two, draggable so it can be
 /// moved off whatever it is covering.
 ///
 /// 在兩者之間切換的浮動控制項，可拖曳，以便從它所遮蓋的東西上移開。
-final class ViewModeButton: UIButton {
+final class ViewModeButton: SeparatorBorderedButton {
     private var onToggle: ((RootScrollHost.Mode) -> Void)?
     private var mode: RootScrollHost.Mode = .actualView
 
@@ -607,7 +644,7 @@ final class ViewModeButton: UIButton {
         button.setTitleColor(.label, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
         button.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.9)
-        button.layer.borderColor = UIColor.separator.cgColor
+        button.updateSeparatorBorder()
         button.layer.borderWidth = 1
         button.layer.cornerRadius = 6
         button.bounds = CGRect(x: 0, y: 0, width: 92, height: 28)

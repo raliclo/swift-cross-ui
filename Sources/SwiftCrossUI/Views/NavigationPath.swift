@@ -107,6 +107,19 @@ public struct NavigationPath {
     /// can be decoded by using `_typeByName`, but we can't use that because of
     /// backwards compatibility).
     ///
+    /// An entry that cannot be decoded -- its type is not among
+    /// `destinationTypes`, or its data no longer decodes as that type, as after
+    /// the type changed between versions of the app -- is dropped with a
+    /// warning, together with every stored entry after it: those screens were
+    /// pushed on top of it, and a stack with a hole in it would show a screen
+    /// whose predecessor never existed. The entries decoded before it are kept.
+    ///
+    /// 取得路徑目前的項目。
+    ///
+    /// 無法解碼的項目——其型別不在 `destinationTypes` 之中，或其資料已無法解碼為該型別(例如該型別在 app 的
+    /// 不同版本之間改變了)——會連同其後所有已儲存的項目一起被丟棄，並發出警告：那些畫面是疊在它之上的，
+    /// 而一個中間有洞的堆疊會顯示一個「前一個畫面從未存在」的畫面。在它之前已解碼的項目會保留。
+    ///
     /// - Parameter destinationTypes: The types to use to decode the entries.
     /// - Returns: The decoded entries.
     func path(destinationTypes: [any Codable.Type]) -> [any Codable] {
@@ -114,30 +127,36 @@ public struct NavigationPath {
             return storage.path
         }
 
-        var decodedEntries: [Int: any Codable] = [:]
+        var typesByName: [String: any Codable.Type] = [:]
         for destinationType in destinationTypes {
-            let type = String(reflecting: destinationType)
-            for (i, entry) in storage.encodedEntries.enumerated() where entry.type == type {
-                do {
-                    let value = try JSONDecoder().decode(
-                        destinationType,
-                        from: entry.value
-                    )
-                    decodedEntries[i] = value
-                } catch {
-                    let data = String(data: entry.value, encoding: .utf8) ?? "Invalid encoding"
-                    fatalError("Failed to decode item in encoded navigation path: '\(data)'")
-                }
-            }
+            typesByName[String(reflecting: destinationType)] = destinationType
         }
 
         var entries: [any Codable] = []
-        for i in 0..<storage.encodedEntries.count {
-            guard let entry = decodedEntries[i] else {
-                // This should not be possible to reach
-                fatalError("Failed to decode navigation path")
+        for (i, entry) in storage.encodedEntries.enumerated() {
+            guard let destinationType = typesByName[entry.type] else {
+                logger.warning(
+                    "dropping navigation path entries with no matching navigationDestination",
+                    metadata: [
+                        "type": "\(entry.type)",
+                        "dropped": "\(storage.encodedEntries.count - i)",
+                    ]
+                )
+                break
             }
-            entries.append(entry)
+            do {
+                entries.append(try JSONDecoder().decode(destinationType, from: entry.value))
+            } catch {
+                logger.warning(
+                    "dropping navigation path entries that failed to decode",
+                    metadata: [
+                        "type": "\(entry.type)",
+                        "error": "\(error)",
+                        "dropped": "\(storage.encodedEntries.count - i)",
+                    ]
+                )
+                break
+            }
         }
 
         storage.encodedEntries = []

@@ -267,7 +267,11 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         switch action {
             case .move(let point):
-                let position = try place(point, in: geometry, reveal: true)
+                // No reveal while the finger is down: scrolling the root then would
+                // move the content under a press in progress, and the drag would
+                // land somewhere the file never pointed at.
+                // 手指按著時不捲動：那時捲動根會把正在按壓中的內容移走，拖曳就落在檔案從未指向的地方。
+                let position = try place(point, in: geometry, reveal: pressDownTime == nil)
                 lastPoint = (Double(position.x), Double(position.y))
                 // No event. A `move` row on a touch screen has nothing to post
                 // -- there is no hover -- so it only records where the next
@@ -381,7 +385,12 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                         default: 1
                     }
                 Self.onMainThread {
-                    AndroidBackend.activity?.setRequestedOrientation(requested)
+                    // The focused window's activity, as every other row uses: after a
+                    // `focus` row the file means that window, and asking the first
+                    // window's activity would turn the wrong one.
+                    // 目前聚焦視窗的 activity,與其他每一列相同:`focus` 列之後檔案指的是那個視窗，向第一個視窗的
+                    // activity 要求會轉錯視窗。
+                    self.targetActivity()?.setRequestedOrientation(requested)
                 }
 
             case .focus:

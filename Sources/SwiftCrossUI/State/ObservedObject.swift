@@ -55,15 +55,13 @@ public struct ObservedObject<Value: ObservableObject>: ObservableProperty {
         /// Points the publisher chain at the object currently in `value`.
         ///
         /// The `cancel()` matters for the reason spelled out in
-        /// ``StateObject``: `ObservableObject`'s default `didChange` returns a
-        /// new publisher on every access, so linking twice without cancelling
-        /// delivers every change twice.
+        /// ``StateObject``: a second link without cancelling the first is a
+        /// second live chain, so every change is delivered twice.
         ///
         /// 把 publisher 鏈指向目前存放在 `value` 中的物件。
         ///
-        /// 那個 `cancel()` 的重要性，理由已寫在 ``StateObject`` 中：`ObservableObject` 的預設
-        /// `didChange` 每次存取都回傳一個新的 publisher，因此不取消就連第二次，會讓每個變更被
-        /// 送達兩次。
+        /// 那個 `cancel()` 的重要性，理由已寫在 ``StateObject`` 中：不取消第一條就再連一次，就是多一條
+        /// 存活的鏈，每個變更因而被送達兩次。
         func relink() {
             upstream?.cancel()
             upstream = didChange.link(toUpstream: value.didChange)

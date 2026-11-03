@@ -123,7 +123,8 @@ public struct TabView: View {
 
             Divider()
 
-            // Only the selected tab is built.
+            // Only the selected tab is built, and it is built under its own
+            // identity.
             //
             // SwiftUI keeps every tab alive, so a half-filled form or a scroll
             // position survives a switch away and back. This does not: the
@@ -132,15 +133,28 @@ public struct TabView: View {
             // discovered, because it is the difference people notice first and
             // it is not visible in a screenshot.
             //
-            // 只有被選取的分頁會被建構。
+            // The content sits in a `ForEach` keyed by the selected index, so
+            // switching tabs replaces the node rather than handing it to the
+            // new tab. Every tab's content is an `AnyView`, and an `AnyView`
+            // keeps its node whenever the wrapped type matches -- two tabs
+            // whose content is the same view type would otherwise share one
+            // `@State`.
+            //
+            // 只有被選取的分頁會被建構，而且以它自己的身分建構。
             //
             // SwiftUI 會讓每個分頁保持存活，因此填到一半的表單或捲動位置能在切走再切回之後留存。
             // 此處則否：未選取的分頁不在 view graph 中，其狀態會在回到該分頁時重新建構。此事明白
             // 記錄而非留待日後發現，因為它是使用者最先察覺的差異，而截圖看不出來。
+            //
+            // 內容放在一個以「被選取的索引」為鍵的 `ForEach` 中，因此切換分頁會換掉節點，而不是把它交給新的
+            // 分頁。每個分頁的內容都是 `AnyView`,而 `AnyView` 只要包裝的型別相同就保留原節點——否則兩個內容
+            // 為同一種 view 型別的分頁會共用同一份 `@State`。
             if tabs.isEmpty {
                 Text("No tabs")
             } else {
-                tabs[selected].content
+                ForEach([selected], id: \.self) { index in
+                    tabs[index].content
+                }
             }
         }
     }

@@ -11,8 +11,10 @@ import WinUI
 extension WinUIBackend {
     public func createTextField() -> Widget {
         let textField = LongPressTextBox()
-        textField.textChanged.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        // Every handler takes the field weakly: the field holds them.
+        // 每個 handler 都以弱參照捕獲欄位：欄位持有它們。
+        textField.textChanged.addHandler { [weak internalState, weak textField] _, _ in
+            guard let internalState, let textField else { return }
             let identifier = ObjectIdentifier(textField)
             let text = textField.text
             guard internalState.textFieldContents[identifier] != text else {
@@ -21,14 +23,53 @@ extension WinUIBackend {
             internalState.textFieldContents[identifier] = text
             internalState.textFieldChangeActions[identifier]?(text)
         }
-        textField.keyUp.addHandler { [weak internalState] _, event in
-            guard let internalState else { return }
+        // An IME composition is open between these two; Enter then confirms the
+        // composition and is not a submit. / 這兩者之間有一段輸入法組字;此時 Enter 是確認組字，不是送出。
+        textField.textCompositionStarted.addHandler { [weak internalState, weak textField] _, _ in
+            guard let internalState, let textField else { return }
+            internalState.textFieldsComposing.insert(ObjectIdentifier(textField))
+        }
+        textField.textCompositionEnded.addHandler { [weak internalState, weak textField] _, _ in
+            guard let internalState, let textField else { return }
+            internalState.textFieldsComposing.remove(ObjectIdentifier(textField))
+        }
+        installSubmitOnEnter(on: textField)
+        return textField
+    }
 
-            if event?.key == .enter {
-                internalState.textFieldSubmitActions[ObjectIdentifier(textField)]?()
+    /// Submits on Enter's key-up only if its key-down reached this same field,
+    /// outside an IME composition, and was not a repeat.
+    ///
+    /// Key-up alone fired for an Enter pressed elsewhere -- a button that moved
+    /// the focus here on key-down, or an IME confirming its text -- and
+    /// submitted a field the user never pressed Enter in. The key-down is seen
+    /// through `previewKeyDown` because a control may mark `keyDown` handled.
+    ///
+    /// 只有 Enter 的 key-down 抵達同一個欄位、不在輸入法組字中、且不是重複時,key-up 才送出。
+    ///
+    /// 單看 key-up 時，在別處按下的 Enter 也會觸發——某個按鈕在 key-down 時把焦點移到這裡，或輸入法確認文字
+    /// ——於是送出了一個使用者從未在其中按 Enter 的欄位。key-down 經由 `previewKeyDown` 觀察，因為控制項可能把
+    /// `keyDown` 標為已處理。
+    func installSubmitOnEnter(on field: WinUI.Control) {
+        field.previewKeyDown.addHandler { [weak internalState, weak field] _, event in
+            guard let internalState, let field, let event, event.key == .enter else { return }
+            let identifier = ObjectIdentifier(field)
+            if internalState.textFieldsComposing.contains(identifier) || event.keyStatus.wasKeyDown {
+                internalState.textFieldsArmedForSubmit.remove(identifier)
+            } else {
+                internalState.textFieldsArmedForSubmit.insert(identifier)
             }
         }
-        return textField
+        field.keyUp.addHandler { [weak internalState, weak field] _, event in
+            guard let internalState, let field, event?.key == .enter else { return }
+            let identifier = ObjectIdentifier(field)
+            guard internalState.textFieldsArmedForSubmit.remove(identifier) != nil else { return }
+            internalState.textFieldSubmitActions[identifier]?()
+        }
+        field.lostFocus.addHandler { [weak internalState, weak field] _, _ in
+            guard let internalState, let field else { return }
+            internalState.textFieldsArmedForSubmit.remove(ObjectIdentifier(field))
+        }
     }
 
     public func updateTextField(
@@ -179,8 +220,8 @@ extension WinUIBackend {
 extension WinUIBackend {
     public func createSecureField() -> Widget {
         let secureField = PasswordBox()
-        secureField.passwordChanged.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        secureField.passwordChanged.addHandler { [weak internalState, weak secureField] _, _ in
+            guard let internalState, let secureField else { return }
             let identifier = ObjectIdentifier(secureField)
             let password = secureField.password
             guard internalState.textFieldContents[identifier] != password else {
@@ -189,13 +230,9 @@ extension WinUIBackend {
             internalState.textFieldContents[identifier] = password
             internalState.textFieldChangeActions[identifier]?(password)
         }
-        secureField.keyUp.addHandler { [weak internalState] _, event in
-            guard let internalState else { return }
-
-            if event?.key == .enter {
-                internalState.textFieldSubmitActions[ObjectIdentifier(secureField)]?()
-            }
-        }
+        // A PasswordBox takes no IME composition, so only the key-down check
+        // applies. PasswordBox 不接受輸入法組字，因此只有 key-down 的檢查適用。
+        installSubmitOnEnter(on: secureField)
         return secureField
     }
 

@@ -65,11 +65,23 @@ extension GtkBackend: BackendFeatures.WidgetGeometry {
                 // transform holds the translation (measured in C, 2026-10-16).
                 // 取子元件的 transform,而不是 `gtk_fixed_get_child_position`:在 GTK 4.24 上，
                 // `gtk_fixed_move` 到 (10, 20) 之後後者回傳 0,0,transform 則保有該位移(以 C 實測,2026-10-16)。
+                // The child's origin mapped through the transform, rather than
+                // `gsk_transform_to_translate`, which is only defined for a pure
+                // translation: a child under `Fixed.setChildMatrix` (rotation,
+                // scale) has a 2D/affine transform, and reading that as a
+                // translation fails its g_return_if_fail and leaves the offset 0,0.
+                // 以 transform 映射子元件的原點，而不是 `gsk_transform_to_translate`,後者只對純位移有定義:
+                // 經 `Fixed.setChildMatrix` 的子元件(旋轉、縮放)帶的是 2D/仿射 transform,把它當位移讀會讓
+                // g_return_if_fail 失敗，位移停在 0,0。
                 var childX: Float = 0
                 var childY: Float = 0
                 parent.withMemoryRebound(to: GtkFixed.self, capacity: 1) { fixed in
                     if let transform = gtk_fixed_get_child_transform(fixed, child) {
-                        gsk_transform_to_translate(transform, &childX, &childY)
+                        var origin = graphene_point_t(x: 0, y: 0)
+                        var mapped = graphene_point_t(x: 0, y: 0)
+                        gsk_transform_transform_point(transform, &origin, &mapped)
+                        childX = mapped.x
+                        childY = mapped.y
                     }
                 }
                 x += Double(childX)

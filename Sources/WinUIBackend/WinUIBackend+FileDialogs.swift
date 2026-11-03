@@ -51,6 +51,8 @@ extension WinUIBackend {
 
     /// Shows a shell file dialog modally over `hwnd` and returns the paths the
     /// user chose, or nil when they cancelled or the dialog could not be shown.
+    /// A nil `hwnd` (the window has closed) shows it unowned.
+    /// `hwnd` 為 nil(視窗已關閉)時以無擁有者的方式顯示。
     ///
     /// Synchronous: `IFileDialog::Show` runs its own message loop, so the
     /// window stays responsive while it is up, and the caller's result handler
@@ -63,7 +65,7 @@ extension WinUIBackend {
     static func runShellFileDialog(
         _ kind: ShellDialogKind,
         options: FileDialogOptions,
-        owner hwnd: HWND
+        owner hwnd: HWND?
     ) -> [URL]? {
         let isSave: Bool
         if case .save = kind { isSave = true } else { isSave = false }

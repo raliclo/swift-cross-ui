@@ -25,7 +25,7 @@ extension Int: GValueRepresentable {
 
 extension UInt: GValueRepresentable {
     public static var type: GType {
-        GType(6 << G_TYPE_FUNDAMENTAL_SHIFT)
+        GType(7 << G_TYPE_FUNDAMENTAL_SHIFT)  // G_TYPE_UINT, not G_TYPE_INT (6) / 是 G_TYPE_UINT,不是 G_TYPE_INT(6)
     }
 
     public init(_ pointer: UnsafeMutablePointer<GValue>) {

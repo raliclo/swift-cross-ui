@@ -3,6 +3,8 @@ package dev.swiftcrossui.androidbackend
 import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.os.Handler
+import android.os.Looper
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
@@ -54,7 +56,7 @@ import javax.microedition.khronos.opengles.GL10
  * 超過 65,535 的三角形並警告,而不是截斷它們。
  */
 class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
-    var onFrame: SwiftAction? = null
+    @Volatile var onFrame: SwiftAction? = null
 
     var frameCount = 0
         private set
@@ -71,6 +73,30 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
     /** Microseconds the last frame took until the GPU finished it; -1 when not measured. */
     var renderMicros = -1L
         private set
+
+    /** One frame's figures, as `onFrame` reports them. 一幀的數字，即 `onFrame` 所回報的。 */
+    private class FrameReport(
+        val rendererName: String,
+        val drawableWidth: Int,
+        val drawableHeight: Int,
+        val frameCount: Int,
+        val renderMicros: Long,
+    )
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Main thread only: the frame `onFrame` is reporting. 僅限主執行緒:`onFrame` 正在回報的那一幀。 */
+    private var lastReport = FrameReport("", 0, 0, 0, -1L)
+
+    fun getReportedRendererName(): String = lastReport.rendererName
+
+    fun getReportedDrawableWidth(): Int = lastReport.drawableWidth
+
+    fun getReportedDrawableHeight(): Int = lastReport.drawableHeight
+
+    fun getReportedFrameCount(): Int = lastReport.frameCount
+
+    fun getReportedRenderMicros(): Long = lastReport.renderMicros
 
     @Volatile private var measureRenderTime = false
 
@@ -395,7 +421,21 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
                 renderMicros = -1L
             }
             frameCount += 1
-            onFrame?.call()
+            // Copied here and reported on the main thread. Swift's side of the action calls
+            // back into this view through JNI, and a JNI environment belongs to the thread it
+            // was made on: calling from the GL thread with the main thread's would be undefined.
+            // The copy keeps this frame's figures even if the next frame runs before the post.
+            // 在此複製、在主執行緒上回報。action 的 Swift 那一側會經由 JNI 回頭呼叫這個 view,而 JNI 環境屬於建立它的
+            // 執行緒:在 GL 執行緒上拿主執行緒的環境去呼叫是未定義行為。複製下來，即使下一幀在 post 之前就跑了，
+            // 回報的仍是這一幀的數字。
+            val action = onFrame
+            if (action != null) {
+                val report = FrameReport(rendererName, drawableWidth, drawableHeight, frameCount, renderMicros)
+                mainHandler.post {
+                    lastReport = report
+                    action.call()
+                }
+            }
 
             val latch = snapshot.captureLatch
             if (latch != null) {

@@ -125,6 +125,22 @@ extension UIKitBackend {
         .system(.red)
     }
 
+    /// The app's accent colour, as SwiftUI reads `.accentColor`: the
+    /// `AccentColor` asset when the app has one, else the main window's tint
+    /// (`.systemBlue` unless the app changed it), resolved for the
+    /// environment's colour scheme. A borderless or bordered button's title
+    /// takes it on phone and tablet.
+    /// app 的強調色，與 SwiftUI 讀取 `.accentColor` 的方式相同：app 有 `AccentColor` 資產時用它，
+    /// 否則用主視窗的 tint(app 沒改過就是 `.systemBlue`),並依 environment 的配色解析。手機與平板上
+    /// borderless 或 bordered 按鈕的標題用的就是它。
+    static func accentColor(in environment: EnvironmentValues) -> Color {
+        let uiColor = UIColor(named: "AccentColor") ?? mainWindow?.tintColor ?? .systemBlue
+        let traits = UITraitCollection(
+            userInterfaceStyle: environment.colorScheme.userInterfaceStyle
+        )
+        return Color(Color.Resolved(uiColor.resolvedColor(with: traits)))
+    }
+
     public func computeButtonLabelEnvironment(
         from environment: EnvironmentValues
     ) -> EnvironmentValues {
@@ -149,7 +165,7 @@ extension UIKitBackend {
         {
             labelEnvironment = labelEnvironment.with(
                 \.foregroundColor,
-                environment.foregroundColor ?? .blue // TODO: Replace with .accent
+                environment.foregroundColor ?? Self.accentColor(in: environment)
             )
         }
 

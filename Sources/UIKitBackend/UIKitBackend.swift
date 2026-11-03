@@ -38,7 +38,6 @@ public final class UIKitBackend:
     }
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
 
-    static var onWindowEnvironmentChange: (() -> Void)?
     static var onBecomeActive: (() -> Void)?
 
     /// Windows waiting for the scene `show(window:)` requested for them; the
@@ -57,9 +56,13 @@ public final class UIKitBackend:
     public let defaultPaddingAmount = 15
     public let requiresToggleSwitchSpacer = true
 
-    // TODO: When tables are supported, update these
-    public let defaultTableRowContentHeight = -1
-    public let defaultTableCellVerticalPadding = -1
+    // The table rows `TableWidget` lays out: a cell gets the whole row height
+    // it is handed, so these two numbers are the row's metrics. 20 + 2 * 4 is
+    // what AppKitBackend, GtkBackend and WinUIBackend use, under the 24 pt header.
+    // `TableWidget` 排出的表格列：儲存格拿到交給它的整列高度，所以這兩個數字就是列的尺寸。
+    // 20 + 2 * 4 與 AppKitBackend、GtkBackend、WinUIBackend 相同，位於 24 pt 的表頭之下。
+    public let defaultTableRowContentHeight = 20
+    public let defaultTableCellVerticalPadding = 4
 
     public let requiresImageUpdateOnScaleFactorChange = false
 
@@ -308,7 +311,7 @@ public final class UIKitBackend:
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        Self.onWindowEnvironmentChange = action
+        Self.windowEnvironmentHandlers.setObject(WindowEnvironmentHandler(action), forKey: window)
 
         // The value is recomputed when the display scale changes, not only read
         // once: a window whose display scale changed under it would otherwise
@@ -336,10 +339,18 @@ public final class UIKitBackend:
             // which is the bug this replaces.
             // 該註冊由 window 保留，因為被丟棄的 token 會解除註冊、handler 也就不再觸發——而那看
             // 起來會與「通知根本不存在」一模一樣，也就是這段程式碼所要取代的那個 bug。
+            // A replaced handler's registration is unregistered first, so a
+            // window whose handler is set twice reports each change once.
+            // 被替換的 handler 之註冊先解除，因此 handler 被設定兩次的視窗，每次變化只回報一次。
+            if let previous = objc_getAssociatedObject(window, &Self.traitRegistrationKey)
+                as? any UITraitChangeRegistration
+            {
+                window.unregisterForTraitChanges(previous)
+            }
             let registration = window.registerForTraitChanges(
                 [UITraitDisplayScale.self]
-            ) { (_: UIWindow, _: UITraitCollection) in
-                Self.onWindowEnvironmentChange?()
+            ) { (changed: UIWindow, _: UITraitCollection) in
+                Self.windowEnvironmentChanged(in: [changed])
             }
             objc_setAssociatedObject(
                 window,
@@ -348,18 +359,72 @@ public final class UIKitBackend:
                 .OBJC_ASSOCIATION_RETAIN_NONATOMIC
             )
         } else {
-            Self.screenModeObserver = NotificationCenter.default.addObserver(
+            // One observer per window, held on the window: setting it again
+            // replaces (and so removes) the previous one, and the window going
+            // away releases the holder, whose deinit removes the observer.
+            // 每個視窗一個 observer,由視窗持有：再次設定會替換(因而移除)前一個，視窗消失時會釋放
+            // 持有者，而持有者的 deinit 會移除該 observer。
+            let token = NotificationCenter.default.addObserver(
                 forName: UIScreen.modeDidChangeNotification,
                 object: nil,
                 queue: .main
-            ) { _ in
-                MainActor.assumeIsolated { Self.onWindowEnvironmentChange?() }
+            ) { [weak window] _ in
+                MainActor.assumeIsolated {
+                    if let window {
+                        Self.windowEnvironmentChanged(in: [window])
+                    }
+                }
             }
+            objc_setAssociatedObject(
+                window,
+                &Self.screenModeObserverKey,
+                NotificationObserverHolder(token),
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
         }
     }
 
     private nonisolated(unsafe) static var traitRegistrationKey: UInt8 = 0
-    private nonisolated(unsafe) static var screenModeObserver: NSObjectProtocol?
+    private nonisolated(unsafe) static var screenModeObserverKey: UInt8 = 0
+
+    /// Removes its NotificationCenter observer when released, so an observer
+    /// stored as an associated object lives exactly as long as its window.
+    /// 被釋放時移除它的 NotificationCenter observer,因此以 associated object 保存的 observer
+    /// 存活時間恰好與它的視窗相同。
+    final class NotificationObserverHolder: NSObject {
+        let token: NSObjectProtocol
+        init(_ token: NSObjectProtocol) { self.token = token }
+        deinit { NotificationCenter.default.removeObserver(token) }
+    }
+
+    /// Each window's environment change handler, keyed weakly by the window,
+    /// so two windows (iPad scenes) each keep their own and a closed window's
+    /// entry goes with it. A single shared slot made the last window to set
+    /// its handler the only one ever told about a change.
+    /// 每個視窗各自的環境變化 handler,以視窗為 weak key,因此兩個視窗(iPad 的 scene)各自保有自己的，
+    /// 關閉的視窗之項目也隨之消失。單一共用欄位會讓最後設定 handler 的那個視窗成為唯一會被告知變化的視窗。
+    static let windowEnvironmentHandlers =
+        NSMapTable<UIWindow, WindowEnvironmentHandler>.weakToStrongObjects()
+
+    final class WindowEnvironmentHandler: NSObject {
+        let action: @MainActor () -> Void
+        init(_ action: @escaping @MainActor () -> Void) { self.action = action }
+    }
+
+    /// Runs the handlers of the given windows.
+    /// 執行指定視窗的 handler。
+    @MainActor static func windowEnvironmentChanged(in windows: [UIWindow]) {
+        for window in windows {
+            windowEnvironmentHandlers.object(forKey: window)?.action()
+        }
+    }
+
+    /// Runs the handlers of the scene's windows: a scene's activation state is
+    /// its windows' scene phase, and no other scene's.
+    /// 執行該 scene 之視窗的 handler:scene 的啟用狀態就是其視窗的 scene phase,與其他 scene 無關。
+    @MainActor static func windowEnvironmentChanged(in scene: UIScene) {
+        windowEnvironmentChanged(in: (scene as? UIWindowScene)?.windows ?? [])
+    }
 
     public func runInMainThread(action: @escaping @MainActor () -> Void) {
         DispatchQueue.main.async(execute: action)
@@ -649,6 +714,10 @@ open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if let pending = UIKitBackend.pendingSceneWindows.first {
             UIKitBackend.pendingSceneWindows.removeFirst()
             pending.windowScene = windowScene
+            // Behaviours and size limits set before this scene existed had
+            // nowhere to go; they are applied now that it does.
+            // 在這個 scene 存在之前設定的行為與尺寸限制無處可去；它現在存在了，就在此套用。
+            WindowSizePolicy.of(pending).applyAll(to: pending)
             self.window = pending
             pending.makeKeyAndVisible()
             return
@@ -656,6 +725,7 @@ open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let window = UIKitBackend.mainWindow ?? UIWindow(windowScene: windowScene)
         window.windowScene = windowScene
+        WindowSizePolicy.of(window).applyAll(to: window)
         self.window = window
         UIKitBackend.mainWindow = window
 
@@ -682,18 +752,18 @@ open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     open func sceneDidBecomeActive(_ scene: UIScene) {
-        UIKitBackend.onWindowEnvironmentChange?()
+        UIKitBackend.windowEnvironmentChanged(in: scene)
     }
 
     open func sceneWillResignActive(_ scene: UIScene) {
-        UIKitBackend.onWindowEnvironmentChange?()
+        UIKitBackend.windowEnvironmentChanged(in: scene)
     }
 
     open func sceneWillEnterForeground(_ scene: UIScene) {
-        UIKitBackend.onWindowEnvironmentChange?()
+        UIKitBackend.windowEnvironmentChanged(in: scene)
     }
 
     open func sceneDidEnterBackground(_ scene: UIScene) {
-        UIKitBackend.onWindowEnvironmentChange?()
+        UIKitBackend.windowEnvironmentChanged(in: scene)
     }
 }

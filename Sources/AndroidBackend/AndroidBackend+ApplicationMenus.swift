@@ -21,19 +21,19 @@ extension SwiftUnhandledKeyListener {
 /// The shortcuts a `CommandMenu` contributes, and the key that fires one.
 ///
 /// A JNI native method carries no captured state, so the table lives here and
-/// the listener carries a key into it -- the same arrangement `LazyListProviders`
-/// and `FocusHandlers` use.
+/// the listener carries a key into it -- the same arrangement `FocusHandlers`
+/// uses.
 ///
-/// `nonisolated(unsafe)` for the reason those give: every access is on the
+/// `nonisolated(unsafe)` for the reason that one gives: every access is on the
 /// Android main thread -- registration from the scene graph, delivery from a
 /// view callback -- and the type is not reachable from anywhere else.
 ///
 /// 一個 `CommandMenu` 所貢獻的快捷鍵,以及觸發其中之一的那個按鍵。
 ///
 /// 一個 JNI native method 不帶任何被捕捉的狀態,因此這張表住在這裡,而那個 listener 帶著一把進入它的
-/// 鍵——與 `LazyListProviders`、`FocusHandlers` 是同一種安排。
+/// 鍵——與 `FocusHandlers` 是同一種安排。
 ///
-/// `nonisolated(unsafe)` 的理由與那兩者所給的相同:每一次存取都在 Android 主執行緒上——註冊來自
+/// `nonisolated(unsafe)` 的理由與那邊所給的相同:每一次存取都在 Android 主執行緒上——註冊來自
 /// scene graph,送達來自一次 view 回呼——而這個型別在別處無從觸及。
 enum ApplicationShortcuts {
     struct Entry {

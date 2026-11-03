@@ -28,6 +28,14 @@ class Mesh3DSurfaceView: AndroidKit.View {
     /// Microseconds the last frame took until the GPU finished it, or -1 when not measured.
     /// 上一幀到 GPU 完成所花的微秒數;沒有量測時為 -1。
     @JavaMethod func getRenderMicros() -> Int64
+    /// The figures of the frame `onFrame` is reporting, copied on the GL thread
+    /// and read on the main thread.
+    /// `onFrame` 正在回報的那一幀的數字，在 GL 執行緒上複製、在主執行緒上讀取。
+    @JavaMethod func getReportedRendererName() -> String
+    @JavaMethod func getReportedDrawableWidth() -> Int32
+    @JavaMethod func getReportedDrawableHeight() -> Int32
+    @JavaMethod func getReportedFrameCount() -> Int32
+    @JavaMethod func getReportedRenderMicros() -> Int64
     @JavaMethod func setMeasureRenderTime(_ on: Bool)
     /// One entry per mesh in `modes` ... `flags`, in scene order, so the matrices from
     /// `setMatrices` line up with them. `modes`: 0 indexed triangles, 1 lines, 2 points.

@@ -2034,7 +2034,7 @@ cd Examples
 SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product P12
 ```
 
-或依照 `Scripts/build-tool-install-android-on-Mac.zsh` bundle 並安裝成 APK。P12 也能在 host platform render，這對部署前檢查 layout 很有用，但只有 Android run 能驗證這些 issues。
+或以 `zsh testapp/test_android.zsh P12` 打包並安裝成 APK。P12 也能在 host platform render，這對部署前檢查 layout 很有用，但只有 Android run 能驗證這些 issues。
 
 涵蓋 issues：
 

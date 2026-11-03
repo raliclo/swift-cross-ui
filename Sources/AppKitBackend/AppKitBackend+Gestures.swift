@@ -169,6 +169,58 @@ final class NSCustomTapGestureTarget: NSView, NSGestureRecognizerDelegate {
         }
     }
 
+    // What counts as having something of its own to click. A label is an
+    // NSTextField and an image is an NSImageView, both NSControls, yet neither
+    // reacts to a click unless it is editable or selectable, so `onTapGesture`
+    // on Text or Image still fires.
+    // 何謂「自己有可點之物」。標籤是 NSTextField、圖片是 NSImageView,兩者都是 NSControl,但除非可編輯
+    // 或可選取，否則都不會回應點擊，所以 Text 或 Image 上的 `onTapGesture` 仍會觸發。
+    static func takesOwnClicks(_ view: NSView) -> Bool {
+        if !view.gestureRecognizers.isEmpty {
+            return true
+        }
+        switch view {
+            case let field as NSTextField:
+                return field.isEditable || field.isSelectable
+            case let image as NSImageView:
+                return image.isEditable
+            case let text as NSTextView:
+                return text.isEditable || text.isSelectable
+            case let control as NSControl:
+                return control.isEnabled
+            default:
+                return false
+        }
+    }
+
+    // The overlay takes a click only where the wrapped child has nothing of
+    // its own to click. Where the child under the pointer is a control, a text
+    // view or a view with its own recognisers (a nested tap target), nil sends
+    // the click on to it, as SwiftUI lets an inner Button win over an outer
+    // `onTapGesture`. With no handler at all (disabled) nothing is taken.
+    // 這層覆蓋 view 只在被包住的子 view 自己沒有可點之物的地方接下點擊。指標下方的子 view 若是控制項、
+    // 文字 view 或帶有自己辨識器的 view(巢狀的 tap target),回傳 nil 讓點擊交給它，與 SwiftUI 讓
+    // 內層 Button 勝過外層 `onTapGesture` 相同。完全沒有 handler(停用)時則什麼都不接。
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !gestureRecognizers.isEmpty, let hit = super.hitTest(point) else {
+            return nil
+        }
+        guard let superview,
+            let child = superview.subviews.first(where: { $0 !== self }),
+            var below = child.hitTest(point)
+        else {
+            return hit
+        }
+        while true {
+            if Self.takesOwnClicks(below) {
+                return nil
+            }
+            guard below !== child, let parent = below.superview else { break }
+            below = parent
+        }
+        return hit
+    }
+
     // With both a click and a long-press handler (onTapAndLongPressGesture),
     // the click waits for the press recogniser to fail: released before
     // 0.5 s, the press fails and the click fires at once; held, the press
@@ -196,6 +248,17 @@ final class NSCustomHoverTarget: NSView {
     }
 
     private var trackingArea: NSTrackingArea?
+
+    // Hover is geometry, not hit testing: the tracking area reports entry and
+    // exit whatever `hitTest` answers. Returning nil keeps this overlay out of
+    // the click path, so a button or text field inside `onHover` gets its
+    // clicks instead of this empty view swallowing them.
+    // 懸停看的是幾何範圍，不是點擊測試：不論 `hitTest` 回答什麼，tracking area 都會回報進入與離開。
+    // 回傳 nil 讓這層覆蓋 view 不在點擊路徑上，因此 `onHover` 裡的按鈕或文字欄位能收到點擊，
+    // 而不是被這個空的 view 吞掉。
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()

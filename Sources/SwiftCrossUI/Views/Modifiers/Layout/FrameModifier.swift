@@ -269,13 +269,6 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
         return container
     }
 
-    func clampSize(_ size: ViewSize) -> ViewSize {
-        var size = size
-        size.width = clampWidth(size.width)
-        size.height = clampHeight(size.height)
-        return size
-    }
-
     func clampHeight(_ height: Double) -> Double {
         LayoutSystem.clamp(
             height,
@@ -290,6 +283,25 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
             minimum: minWidth,
             maximum: maxWidth
         )
+    }
+
+    /// One axis of a flexible frame: `child`, capped at `proposed`, lifted to
+    /// at least `minimum`; then grown toward `proposed` but not past
+    /// `maximum`. A `nil` proposal counts as `child`. See `layoutFrame`.
+    /// 彈性 frame 的一軸:`child` 以 `proposed` 為上限、抬升到至少 `minimum`;再往 `proposed` 擴展，但不超過
+    /// `maximum`。`nil` 提議視為 `child`。見 `layoutFrame`。
+    static func boundedLength(
+        _ child: Double, proposed: Double?, minimum: Double?, maximum: Double?
+    ) -> Double {
+        let proposed = proposed ?? child
+        var length = child
+        if let minimum {
+            length = max(minimum, min(length, proposed))
+        }
+        if let maximum {
+            length = min(maximum, max(length, proposed))
+        }
+        return length
     }
 
     func computeLayout<Backend: BaseAppBackend>(
@@ -334,14 +346,30 @@ struct FlexibleFrameView<Child: View>: TypeSafeView {
         )
         let childSize = childResult.size
 
-        var frameSize = clampSize(childSize)
-        if maxWidth == .infinity, let proposedWidth = proposedSize.width {
-            frameSize.width = max(frameSize.width, proposedWidth)
-        }
-
-        if maxHeight == .infinity, let proposedHeight = proposedSize.height {
-            frameSize.height = max(frameSize.height, proposedHeight)
-        }
+        // Each axis that has a bound is sized as SwiftUI sizes it: the
+        // minimum takes the child's length, capped at the proposal, and lifts
+        // it to at least itself; the maximum then grows that length toward the
+        // proposal, but no further than itself. So `maxWidth: 200` proposed
+        // 300 is 200 wide whatever the child takes, `maxWidth: .infinity`
+        // fills the proposal, and `minWidth: 100` around a 40-point child is
+        // 100. An unspecified proposal stands in as the child's own length,
+        // so the frame then just clamps the child. An axis with no bound is
+        // the child's length.
+        //
+        // 有界限的每一軸都以 SwiftUI 的方式決定尺寸:minimum 取子元件的長度、以提議為上限，再抬升到至少它自己;
+        // maximum 再把那個長度往提議擴展，但不超過它自己。因此 `maxWidth: 200` 被提議 300 時寬 200,不論
+        // 子元件取多少;`maxWidth: .infinity` 填滿提議;包住 40 點子元件的 `minWidth: 100` 是 100。未指定的
+        // 提議以子元件自己的長度代替，此時 frame 只是夾制子元件。沒有界限的軸就是子元件的長度。
+        let frameSize = ViewSize(
+            Self.boundedLength(
+                childSize.width, proposed: proposedSize.width,
+                minimum: minWidth, maximum: maxWidth
+            ),
+            Self.boundedLength(
+                childSize.height, proposed: proposedSize.height,
+                minimum: minHeight, maximum: maxHeight
+            )
+        )
 
         return ViewLayoutResult(
             size: frameSize,

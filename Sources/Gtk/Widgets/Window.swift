@@ -15,6 +15,35 @@ open class Window: Widget {
     @GObjectProperty(named: "title") public var title: String?
     @GObjectProperty(named: "resizable") public var resizable: Bool
     @GObjectProperty(named: "deletable") public var deletable: Bool
+
+    /// Whether the window offers to be minimized. GTK has no such property:
+    /// where GTK draws the titlebar the minimize button belongs to the header
+    /// bar, so this edits the bar's `decoration-layout` (see
+    /// ``applyDecorationLayout()``); on macOS, where the titlebar is the
+    /// NSWindow's own, GtkBackend clears its miniaturizable style as well.
+    ///
+    /// 視窗是否提供最小化。GTK 沒有這個屬性：由 GTK 繪製 titlebar 之處，最小化按鈕屬於 header bar,因此這裡
+    /// 修改該 bar 的 `decoration-layout`(見 ``applyDecorationLayout()``);在 titlebar 是 NSWindow 自己的
+    /// macOS 上,GtkBackend 另外清除其 miniaturizable 樣式。
+    public var minimizable = true {
+        didSet {
+            if minimizable != oldValue {
+                applyDecorationLayout()
+            }
+        }
+    }
+
+    /// The largest content size the window may be resized to, or `nil` for no
+    /// limit. GTK 4 has no maximum window size, so nothing here enforces it on
+    /// its own: GtkBackend hands it to the platform window where one can take
+    /// it (an NSWindow's `contentMaxSize` on macOS), and SwiftCrossUI's layout
+    /// sets the window back to the limit after a resize beyond it everywhere.
+    ///
+    /// 視窗可被調整到的最大內容尺寸,`nil` 表示沒有上限。GTK 4 沒有最大視窗尺寸，所以這裡本身不會強制它:
+    /// GtkBackend 把它交給能接受的平台視窗(macOS 上 NSWindow 的 `contentMaxSize`),而在所有平台上，超過上限的
+    /// 調整之後,SwiftCrossUI 的排版都會把視窗設回上限。
+    public var maximumContentSize: Size?
+
     @GObjectProperty(named: "modal") public var isModal: Bool
     @GObjectProperty(named: "decorated") public var isDecorated: Bool
     @GObjectProperty(named: "destroy-with-parent") public var destroyWithParent: Bool
@@ -175,6 +204,9 @@ open class Window: Widget {
     /// 能在被決定之前先被量測。
     public func installMeasurableTitlebar() {
         gtk_window_set_titlebar(castedPointer(), gtk_header_bar_new())
+        if !minimizable {
+            applyDecorationLayout()
+        }
     }
 
     /// Replaces the titlebar with a `GtkHeaderBar` holding the given widgets,
@@ -241,6 +273,9 @@ open class Window: Widget {
         }
 
         gtk_window_set_titlebar(castedPointer(), headerBar)
+        if !minimizable {
+            applyDecorationLayout()
+        }
     }
 
     /// Every direct child of the window widget, with its type name and the
@@ -265,6 +300,38 @@ open class Window: Widget {
     /// 建立**它自己的** titlebar,而該呼叫回傳 NULL,於是 `titlebarNaturalHeight` 為 nil、
     /// 由它算出的 allowance 為零。**那條裝飾仍然是一個 widget,只是不是本程式建立的那一個。**
     /// 遍歷子項就能找到它,而**不必接管裝飾**(那是 ``installMeasurableTitlebar()`` 的做法)。
+    /// Writes ``minimizable`` into every header bar among the window's
+    /// children -- one set with `gtk_window_set_titlebar` and the one GTK
+    /// builds for itself at realize alike -- as the `gtk-decoration-layout`
+    /// setting without `minimize`, or as `nil` (follow the setting) when the
+    /// window may be minimized. Run again whenever the titlebar is replaced
+    /// and on realize, because a bar made afterwards starts from the setting.
+    ///
+    /// 把 ``minimizable`` 寫入視窗子元件中的每一條 header bar——以 `gtk_window_set_titlebar` 設定的，與 GTK
+    /// 在 realize 時自己建立的皆然——值為去掉 `minimize` 的 `gtk-decoration-layout` 設定；視窗可最小化時則為
+    /// `nil`(依循設定)。每次替換 titlebar 時與 realize 時都會再執行，因為之後才建立的 bar 會從設定開始。
+    public func applyDecorationLayout() {
+        var layout: String?
+        if !minimizable {
+            // GTK's own default when the setting is unset.
+            // 設定未設時採用 GTK 自己的預設值。
+            let setting = Settings.default?.decorationLayout ?? "menu:minimize,maximize,close"
+            layout = setting.split(separator: ":", omittingEmptySubsequences: false)
+                .map { side in
+                    side.split(separator: ",").filter { $0 != "minimize" }.joined(separator: ",")
+                }
+                .joined(separator: ":")
+        }
+        var child = gtk_widget_get_first_child(castedPointer())
+        while let current = child {
+            if g_type_check_instance_is_a(
+                UnsafeMutablePointer(OpaquePointer(current)), gtk_header_bar_get_type()) != 0
+            {
+                gtk_header_bar_set_decoration_layout(OpaquePointer(current), layout)
+            }
+            child = gtk_widget_get_next_sibling(current)
+        }
+    }
     public var childMeasurements: [(typeName: String, naturalHeight: Int)] {
         var results: [(String, Int)] = []
         var child = gtk_widget_get_first_child(castedPointer())
@@ -629,22 +696,50 @@ open class Window: Widget {
     }
 
     open override func registerSignals() {
-        addSignal(name: "close-request") { [weak self] () in
-            guard let self else { return }
-            self.onCloseRequest?(self)
+        // `close-request` returns gboolean, so it goes through the returning
+        // form: the void form left the return register to whatever the ABI held,
+        // which GTK read as "handled" or not at random.
+        // `close-request` 回傳 gboolean,因此走有回傳值的形式:void 形式讓回傳暫存器維持 ABI 剩下的內容，
+        // GTK 便隨機地把它讀成「已處理」或「未處理」。
+        let closeRequestHandler:
+            @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer) -> gboolean = {
+                _, data in
+                ReturningSignalBox0<gboolean>.run(data)
+            }
+        addReturningSignal(name: "close-request", handler: gCallback(closeRequestHandler)) {
+            [weak self] () -> gboolean in
+            guard let self, let onCloseRequest = self.onCloseRequest else {
+                return false.toGBoolean()
+            }
+            return onCloseRequest(self).toGBoolean()
+        }
+        // GTK builds its own header bar at realize when the window has none
+        // set, so `minimizable` is applied again once that bar exists.
+        // 視窗沒有設定 header bar 時,GTK 會在 realize 時建立自己的那條，所以那條存在之後再套用一次 `minimizable`。
+        addSignal(name: "realize") { [weak self] () in
+            guard let self, !self.minimizable else { return }
+            self.applyDecorationLayout()
         }
         addSignal(name: "destroy") { [weak self] () in
             guard let self else { return }
             self.onDestroy?(self)
         }
-        addSignal(name: "notify::scale-factor") { [weak self] () in
+        addNotificationSignal(name: "notify::scale-factor") { [weak self] in
             guard let self else { return }
             self.onScaleFactorChange?(self)
         }
     }
 
     private var escapeKeyEventController: EventControllerKey?
-    public var onCloseRequest: ((Window) -> Void)?
+    /// Runs on `close-request`. Its result is the signal's `gboolean`: `true`
+    /// means "handled -- do not close", so GTK leaves the window alone (the
+    /// handler has already destroyed it, or refuses the close); `false` lets
+    /// GTK's default close go ahead. With no handler the close goes ahead.
+    ///
+    /// 在 `close-request` 時執行。其結果就是該 signal 的 `gboolean`:`true` 表示「已處理——不要關閉」,
+    /// GTK 便不動這個視窗(handler 已經摧毀它，或拒絕這次關閉);`false` 讓 GTK 預設的關閉照常進行。
+    /// 沒有 handler 時關閉照常進行。
+    public var onCloseRequest: ((Window) -> Bool)?
     public var onDestroy: ((Window) -> Void)?
 
     /// Fires when GTK changes the scale factor it lays this window out at.

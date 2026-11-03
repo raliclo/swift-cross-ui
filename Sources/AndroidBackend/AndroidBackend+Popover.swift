@@ -116,8 +116,8 @@ extension AndroidBackend: BackendFeatures.Popovers {
 
         let density = environment.androidActivity.getResources()
             .getDisplayMetrics().density
-        popover.setWidth(Int32(Float(size.x) * density))
-        popover.setHeight(Int32(Float(size.y) * density))
+        popover.setWidth(Self.layoutLength(size.x, density: density))
+        popover.setHeight(Self.layoutLength(size.y, density: density))
 
         let action = SwiftAction(environment: Self.env) {
             onDismiss()

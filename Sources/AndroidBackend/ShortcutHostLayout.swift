@@ -17,4 +17,7 @@ class ShortcutHostLayout: AndroidKit.LinearLayout {
     @JavaMethod func setOnChromeChange(_ action: SwiftAction?)
 
     @JavaMethod func hasTopChrome() -> Bool
+
+    /// The rows above the scroll host, in dp. 捲動宿主上方各列的高度,單位 dp。
+    @JavaMethod func chromeHeightDp() -> Int32
 }

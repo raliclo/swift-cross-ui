@@ -396,7 +396,11 @@ public final class WinUIBackend:
         ///
         /// 分成兩個容器,是因為 handler 每一幀都會變、而訂閱**不可以**。逐幀訂閱正是 `began=5` 的形狀。
         var focusChangeHandlers: [ObjectIdentifier: (Bool) -> Void] = [:]
-        var widgetsWithFocusSubscription: Set<ObjectIdentifier> = []
+        var widgetsWithFocusSubscription: [ObjectIdentifier: WeakWidget] = [:]
+
+        struct WeakWidget {
+            weak var widget: WinUIBackend.Widget?
+        }
 
         var sliderIsEditing: Set<ObjectIdentifier> = []
         /// Sliders whose value is being set from code right now.
@@ -409,6 +413,11 @@ public final class WinUIBackend:
         var slidersBeingSetFromCode: Set<ObjectIdentifier> = []
         var textFieldChangeActions: [ObjectIdentifier: (String) -> Void] = [:]
         var textFieldSubmitActions: [ObjectIdentifier: () -> Void] = [:]
+        /// Fields whose Enter key-down arrived and whose key-up will submit.
+        /// Enter 的 key-down 已抵達、其 key-up 將會送出的欄位。
+        var textFieldsArmedForSubmit: Set<ObjectIdentifier> = []
+        /// Fields with an IME composition open. 正在輸入法組字中的欄位。
+        var textFieldsComposing: Set<ObjectIdentifier> = []
         var textFieldContents: [ObjectIdentifier: String] = [:]
         var textEditorContents: [ObjectIdentifier: String] = [:]
     }
@@ -503,6 +512,11 @@ public final class WinUIBackend:
 
         WinUIApplication.callback.withLock { launchCallback in
             launchCallback = { application in
+                // The UI thread's queue, taken here so `runInMainThread` has it
+                // before the first window exists. / UI 執行緒的佇列，在此取得，讓 `runInMainThread` 在第一個視窗出現之前就有它。
+                if self.dispatcherQueue == nil {
+                    self.dispatcherQueue = WinAppSDK.DispatcherQueue.getForCurrentThread()
+                }
                 // Toggle Switch has annoying default 'internal margins' (not Control
                 // margins that we can set directly) that we can luckily get rid of by
                 // overriding the relevant resource values.
@@ -781,10 +795,14 @@ public final class WinUIBackend:
         ofWindow window: Window,
         to action: @escaping (SIMD2<Int>) -> Void
     ) {
-        window.sizeChanged.addHandler { _, args in
+        // Rounded toward zero, as `size(ofWindow:)` does, so the size a resize
+        // reports is the size a later query returns.
+        // 與 `size(ofWindow:)` 一樣向零取整，讓調整大小時回報的尺寸與之後查詢得到的一致。
+        window.sizeChanged.addHandler { [weak window] _, args in
+            guard let window, let args else { return }
             let size = SIMD2(
-                Int(args!.size.width.rounded(.awayFromZero)),
-                Int(args!.size.height.rounded(.awayFromZero)) - window.contentHeightAdjustment
+                Int(Double(args.size.width).rounded(.towardZero)),
+                Int(Double(args.size.height).rounded(.towardZero)) - window.contentHeightAdjustment
             )
             action(size)
         }
@@ -801,7 +819,9 @@ public final class WinUIBackend:
         resizable: Bool
     ) {
         // Source: https://devblogs.microsoft.com/oldnewthing/20100604-00/?p=13803
-        let hwnd = window.getHWND()!
+        // A closed window has no handle and nothing left to configure.
+        // 已關閉的視窗沒有 handle,也沒有可設定的東西了。
+        guard !window.isClosed, let hwnd = window.getHWND() else { return }
         let flags = if closable { MF_ENABLED } else { MF_DISABLED | MF_GRAYED }
         EnableMenuItem(
             GetSystemMenu(hwnd, false),
@@ -924,23 +944,58 @@ public final class WinUIBackend:
         }
     }
 
+    /// Starts the launch and returns; it does not wait for it.
+    ///
+    /// This runs on the UI thread, an STA, and waiting there on a semaphore for
+    /// `launchUriAsync` can deadlock: the launcher may need this thread's
+    /// message pump (the "how do you want to open this" prompt) before it
+    /// completes. A URL with no scheme throws here; a launch that fails later
+    /// is logged, with the reason, since the synchronous caller has returned.
+    ///
+    /// 啟動後即返回，不等待。
+    ///
+    /// 本方法在 UI 執行緒(STA)上執行，在那裡用 semaphore 等 `launchUriAsync` 可能死結：啟動器完成前可能需要
+    /// 本執行緒的訊息迴圈(「要如何開啟」的提示)。沒有 scheme 的 URL 在此擲出錯誤;之後才失敗的啟動會連同原因
+    /// 記錄下來，因為同步的呼叫端已經返回。
     public func openExternalURL(_ url: URL) throws {
-        let promise = UWP.Launcher.launchUriAsync(WindowsFoundation.Uri(url.absoluteString))!
-        let semaphore = DispatchSemaphore(value: 0)
-        promise.completed = { _, status in
-            semaphore.signal()
-
-            if status != .completed {
-                logger.warning("Failed to open external URL \(url)")
+        guard let scheme = url.scheme, !scheme.isEmpty else {
+            throw ExternalURLError.noScheme(url)
+        }
+        guard let promise = UWP.Launcher.launchUriAsync(WindowsFoundation.Uri(url.absoluteString)) else {
+            throw ExternalURLError.launchNotStarted(url)
+        }
+        promise.completed = { operation, status in
+            guard status == .completed, let operation else {
+                logger.warning("Failed to open external URL \(url): launch ended with \(status)")
+                return
+            }
+            do {
+                if try !operation.getResults() {
+                    logger.warning("Failed to open external URL \(url): no app accepted it")
+                }
+            } catch {
+                logger.warning("Failed to open external URL \(url): \(error)")
             }
         }
+    }
 
-        // Block until the URL has been launched
-        semaphore.wait()
+    enum ExternalURLError: Swift.Error {
+        case noScheme(URL)
+        case launchNotStarted(URL)
     }
 
     public func runInMainThread(action: @escaping @MainActor () -> Void) {
-        _ = try! dispatcherQueue!.tryEnqueue(.normal) {
+        // Before the UI thread's queue is known, or if it refuses the work
+        // (shutting down), the main dispatch queue runs it instead: the run loop
+        // tickler services that queue on the UI thread (WinUIApplication+SingleThreaded.swift).
+        // UI 執行緒的佇列尚未取得，或它拒絕這項工作(正在關閉)時，改由 main dispatch queue 執行:run loop
+        // tickler 在 UI 執行緒上服務那個佇列(WinUIApplication+SingleThreaded.swift)。
+        if let dispatcherQueue,
+            (try? dispatcherQueue.tryEnqueue(.normal) { MainActor.assumeIsolated(action) }) == true
+        {
+            return
+        }
+        DispatchQueue.main.async {
             MainActor.assumeIsolated(action)
         }
     }
@@ -1248,7 +1303,16 @@ public final class WinUIBackend:
         }
 
         // NB: This event fires when the window is activated _or_ deactivated.
-        window.activated.addHandler { _, _ in
+        // Deactivation also arrives as a window closes, and recomputing the
+        // environment of a closed window reads a scale factor it no longer has,
+        // so a closed window is skipped, and `CustomWindow` disposes of this
+        // subscription when it closes. One subscription per window: a second
+        // call replaces the first.
+        // 視窗關閉時也會收到停用，而為已關閉的視窗重算 environment 會去讀它已經沒有的縮放比例，因此略過已關閉的
+        // 視窗，而 `CustomWindow` 在關閉時會釋放此訂閱。每個視窗一個訂閱：第二次呼叫會取代第一次。
+        window.environmentActivationCleanup?.dispose()
+        window.environmentActivationCleanup = window.activated.addHandler { [weak self, weak window] _, _ in
+            guard let self, let window, !window.isClosed else { return }
             if let rootHandler = self.rootEnvironmentChangeHandler {
                 rootHandler()
                 // Don't bother calling `action` since this window's environment
@@ -1668,8 +1732,8 @@ public final class WinUIBackend:
     /// The radial text gradient each block was last given, for its size-change
     /// handler; see `updateTextView`. 每個區塊最近一次拿到的放射文字漸層，供其尺寸變更 handler 使用。
     nonisolated(unsafe) static var radialTextGradients: [ObjectIdentifier: (ResolvedFillStyle, EnvironmentValues)] = [:]
-    /// Blocks that already have that handler. 已經掛上該 handler 的區塊。
-    nonisolated(unsafe) static var radialTextGradientBlocks: Set<ObjectIdentifier> = []
+    /// Blocks that already have that handler, held weakly. 已經掛上該 handler 的區塊，以弱參照持有。
+    nonisolated(unsafe) static var radialTextGradientBlocks: [ObjectIdentifier: WeakTextBlock] = [:]
 
     public func createTextView() -> Widget {
         let textBlock = TextBlock()
@@ -1701,10 +1765,15 @@ public final class WinUIBackend:
             // the size changes, from the latest gradient. One handler per block.
             // 放射半徑以點為單位，需要區塊的尺寸，而第一次更新時還沒有：每當尺寸改變，就以最新的漸層重做 brush。
             // 每個區塊只掛一個 handler。
-            let key = ObjectIdentifier(block)
             if gradient.needsPaintedSize {
+                Self.pruneRadialTextGradients()
+                let key = ObjectIdentifier(block)
                 Self.radialTextGradients[key] = (gradient, environment)
-                if Self.radialTextGradientBlocks.insert(key).inserted {
+                // An identifier whose block died is a new block, so the check is
+                // on the block itself, as in WinUIBackend+ScrollOffsets.swift.
+                // 區塊已死的識別碼代表一個新的區塊，因此檢查的是區塊本身，與 WinUIBackend+ScrollOffsets.swift 相同。
+                if Self.radialTextGradientBlocks[key]?.block !== block {
+                    Self.radialTextGradientBlocks[key] = WeakTextBlock(block: block)
                     block.sizeChanged.addHandler { [weak block] _, _ in
                         MainActor.assumeIsolated {
                             guard let block,
@@ -1717,17 +1786,36 @@ public final class WinUIBackend:
                         }
                     }
                 }
-            } else {
-                Self.radialTextGradients[key] = nil
+                return
             }
+        }
+        // No radial gradient now (another fill, or none at all): the size
+        // handler must not bring the last one back on the next resize.
+        // 現在沒有放射漸層(別種填色，或根本沒有):尺寸 handler 不可在下一次調整大小時把上一個帶回來。
+        Self.radialTextGradients[ObjectIdentifier(block)] = nil
+    }
+
+    struct WeakTextBlock {
+        weak var block: TextBlock?
+    }
+
+    /// Drops the entries of blocks that have died, so neither map grows with
+    /// every text view ever made, and a reused identifier starts clean.
+    /// 移除已死區塊的項目，讓兩個表都不會隨曾經建立過的每個文字 view 增長，而被重用的識別碼也從乾淨狀態開始。
+    static func pruneRadialTextGradients() {
+        let dead = radialTextGradientBlocks.filter { $0.value.block == nil }.map(\.key)
+        for key in dead {
+            radialTextGradientBlocks[key] = nil
+            radialTextGradients[key] = nil
         }
     }
 
     public func createSimpleButton() -> Widget {
         let button = CustomButton()
         button.content = button.label
-        button.click.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        // `button` weakly: the button holds this handler. button 以弱參照捕獲:button 持有這個 handler。
+        button.click.addHandler { [weak internalState, weak button] _, _ in
+            guard let internalState, let button else { return }
             internalState.buttonClickActions[ObjectIdentifier(button)]?()
         }
         return button
@@ -2559,8 +2647,8 @@ public final class WinUIBackend:
 
     public func createToggle() -> Widget {
         let toggle = ToggleButton()
-        toggle.click.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        toggle.click.addHandler { [weak internalState, weak toggle] _, _ in
+            guard let internalState, let toggle else { return }
             internalState.toggleClickActions[ObjectIdentifier(toggle)]?(toggle.isChecked ?? false)
         }
         return toggle
@@ -2610,8 +2698,8 @@ public final class WinUIBackend:
         toggleSwitch.offContent = ""
         toggleSwitch.onContent = ""
         toggleSwitch.padding = Thickness(left: 0, top: 0, right: 0, bottom: 0)
-        toggleSwitch.toggled.addHandler { [weak internalState] _, _ in
-            guard let internalState else { return }
+        toggleSwitch.toggled.addHandler { [weak internalState, weak toggleSwitch] _, _ in
+            guard let internalState, let toggleSwitch else { return }
             internalState.switchClickActions[ObjectIdentifier(toggleSwitch)]?(toggleSwitch.isOn)
         }
         return toggleSwitch
@@ -2695,8 +2783,10 @@ public final class WinUIBackend:
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
     ) {
-        let window = window ?? windows[0]
-        let hwnd = window.getHWND()!
+        // No owner if the window has closed (or none is open): the dialog is
+        // then shown unowned rather than taking the process down.
+        // 視窗已關閉(或沒有開著的視窗)時沒有擁有者：對話框以無擁有者的方式顯示，而不是讓行程終止。
+        let hwnd = Self.dialogOwner(window ?? windows.first)
         let kind: ShellDialogKind =
             switch openDialogOptions.singleKindSelectionMode {
                 case .files: .openFiles(multiple: openDialogOptions.allowMultipleSelections)
@@ -2717,8 +2807,7 @@ public final class WinUIBackend:
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<URL>) -> Void
     ) {
-        let window = window ?? windows[0]
-        let hwnd = window.getHWND()!
+        let hwnd = Self.dialogOwner(window ?? windows.first)
         let urls = Self.runShellFileDialog(
             .save(saveDialogOptions), options: fileDialogOptions, owner: hwnd
         )
@@ -2742,8 +2831,16 @@ public final class WinUIBackend:
     /// 前景交還，而是給 z-order 中的下一個視窗；對於從終端機啟動的 app 來說那就是
     /// 終端機。擁有者必須主動要回來，而此時本行程仍持有前景，因此是被允許的。
     /// 少了這步，選完檔案後 app 會留在原本壓在它上面的視窗後面。
-    private static func restoreForeground(of hwnd: HWND) {
+    private static func restoreForeground(of hwnd: HWND?) {
+        guard let hwnd else { return }
         _ = SetForegroundWindow(hwnd)
+    }
+
+    /// The handle to own a file dialog, or nil for a closed (or absent) window.
+    /// 擁有檔案對話框的 handle;視窗已關閉(或不存在)時為 nil。
+    private static func dialogOwner(_ window: Window?) -> HWND? {
+        guard let window, !window.isClosed else { return nil }
+        return window.getHWND()
     }
 
     /// How long a press must last to count as a long press.
@@ -3658,6 +3755,23 @@ public class CustomWindow: WinUI.Window {
     /// The sheet shown over this window, if any; while it is presenting, the
     /// window ignores Back. 顯示在此視窗之上的 sheet;它呈現期間，視窗忽略返回。
     weak var presentedSheet: WinUIBackend.Sheet?
+    /// Sheets asked for while an alert held the window's one ContentDialog;
+    /// shown when the alert stack closes. See WinUIBackend+Sheets.swift.
+    /// alert 佔著視窗唯一的 ContentDialog 期間被要求的 sheet;alert 堆疊關閉時顯示。見 WinUIBackend+Sheets.swift。
+    var sheetsWaitingForAlerts: [WinUIBackend.Sheet] = []
+    /// The toolbar's buttons, held here because their click handlers capture
+    /// them weakly; see WinUIBackend+Toolbar.swift. 工具列的按鈕，因點擊 handler 以弱參照捕獲而由此持有。
+    var toolbarButtons: [CustomButton] = []
+    /// Set by the `Closed` event. A closed window has no HWND, so code that
+    /// can still be reached for it (activation, scale queries) checks this.
+    /// 由 `Closed` 事件設定。已關閉的視窗沒有 HWND,因此仍可能為它執行的程式碼(啟用、縮放查詢)會檢查這個。
+    private(set) var isClosed = false
+    /// The last scale factor read while the window had a handle; what
+    /// `scaleFactor` answers once it has none. 視窗還有 handle 時最後讀到的縮放比例;沒有 handle 之後 `scaleFactor` 回答這個值。
+    private var lastScaleFactor: Double = 1
+    /// `setWindowEnvironmentChangeHandler`'s activation subscription, disposed
+    /// of when the window closes. `setWindowEnvironmentChangeHandler` 的啟用訂閱，視窗關閉時釋放。
+    var environmentActivationCleanup: EventCleanup?
 
     private(set) var menuBarIsVisible = false
     private(set) var toolbarIsVisible = false
@@ -3666,8 +3780,10 @@ public class CustomWindow: WinUI.Window {
     /// `nonisolated(unsafe)` because the thing that keeps this safe is Win32's
     /// rule rather than anything the compiler can see: a window's messages are
     /// delivered only on the thread that created it, every window here is
-    /// created on the UI thread, and the two writers -- `attachWindowProc` and
-    /// the `WM_DESTROY` branch -- are on that thread too.
+    /// created on the UI thread, and the writers -- `installSizeLimitHandler`,
+    /// the `WM_DESTROY` branch of `windowProc` and `deinit` -- are on that
+    /// thread too. `WM_DESTROY` is where an entry is removed: the dictionary
+    /// holds its window strongly, so waiting for `deinit` would never end.
     ///
     /// Isolating it is not an option. The only reader is `windowProc`, which is
     /// a `WNDPROC`: a C function pointer, which cannot carry actor isolation and
@@ -3678,8 +3794,9 @@ public class CustomWindow: WinUI.Window {
     /// 讓 window procedure 能由 `HWND` 找到對應的視窗。
     ///
     /// 標記 `nonisolated(unsafe)`，因為維持其安全的是 Win32 的規則，而非編譯器看得見的任何東西：
-    /// 視窗訊息只會投遞至建立該視窗的執行緒，此處每個視窗都建立於 UI 執行緒，而兩處寫入方
-    /// ——`attachWindowProc` 與 `WM_DESTROY` 分支——同樣位於該執行緒。
+    /// 視窗訊息只會投遞至建立該視窗的執行緒，此處每個視窗都建立於 UI 執行緒，而寫入方
+    /// ——`installSizeLimitHandler`、`windowProc` 的 `WM_DESTROY` 分支與 `deinit`——同樣位於該執行緒。
+    /// 項目在 `WM_DESTROY` 移除：字典以強參照持有視窗，等 `deinit` 是永遠等不到的。
     ///
     /// 加上隔離並不可行。唯一的讀取方 `windowProc` 是一個 `WNDPROC`：C 函式指標無法攜帶 actor
     /// 隔離，也無法 await。在 Swift 6 語言模式下，這是本模組十個錯誤之一，也是其中唯一「標註即是
@@ -3714,22 +3831,22 @@ public class CustomWindow: WinUI.Window {
         //   var deviceScaleFactor = SCALE_125_PERCENT
         //   _ = GetScaleFactorForMonitor(monitor, &deviceScaleFactor)
 
-        let hwnd = cachedAppWindow.getHWND()!
-        let monitor = MonitorFromWindow(hwnd, DWORD(bitPattern: MONITOR_DEFAULTTONEAREST))!
-
-        var x: UINT = 0
-        var y: UINT = 0
-        let result = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &x, &y)
-
-        let windowScaleFactor: Double
-        if result == S_OK {
-            windowScaleFactor = Double(x) / Double(USER_DEFAULT_SCREEN_DPI)
-        } else {
-            logger.warning("failed to get window scale factor, defaulting to 1.0")
-            windowScaleFactor = 1
+        // `GetDpiForWindow`, the source `maximumSizeOnScreen` and
+        // `windowTrackingSize` use, so a size converted here and a limit
+        // converted there agree. A closed window has no handle and answers the
+        // last scale it had.
+        // 用 `GetDpiForWindow`,與 `maximumSizeOnScreen`、`windowTrackingSize` 同一個來源，讓此處換算的尺寸與
+        // 那裡換算的限制一致。已關閉的視窗沒有 handle,回答它最後的縮放比例。
+        guard !isClosed, let hwnd = cachedAppWindow?.getHWND() else {
+            return lastScaleFactor
         }
-
-        return windowScaleFactor
+        let dpi = GetDpiForWindow(hwnd)
+        guard dpi != 0 else {
+            logger.warning("failed to get window scale factor, using the last one (\(lastScaleFactor))")
+            return lastScaleFactor
+        }
+        lastScaleFactor = Double(dpi) / Double(USER_DEFAULT_SCREEN_DPI)
+        return lastScaleFactor
     }
 
     public override init() {
@@ -3771,6 +3888,18 @@ public class CustomWindow: WinUI.Window {
             }
         }
 
+        // From here on the window has no HWND: `scaleFactor` answers its last
+        // value, and the environment subscription goes, since it can only fire
+        // for a window nobody will see again.
+        // 從此視窗沒有 HWND:`scaleFactor` 回答最後的值，而 environment 訂閱也拿掉，因為它只可能為一個不會再被看見的
+        // 視窗觸發。
+        self.closed.addHandler { [weak self] _, _ in
+            guard let self else { return }
+            self.isClosed = true
+            self.environmentActivationCleanup?.dispose()
+            self.environmentActivationCleanup = nil
+        }
+
         // Caching appWindow is apparently a good idea in terms of performance:
         // https://github.com/thebrowsercompany/swift-winrt/issues/199#issuecomment-2611006020
         cachedAppWindow = appWindow
@@ -3784,7 +3913,7 @@ public class CustomWindow: WinUI.Window {
     }
 
     func installSizeLimitHandler() {
-        guard originalWindowProc == nil else {
+        guard originalWindowProc == nil, !isClosed else {
             return
         }
 
@@ -3858,6 +3987,38 @@ public class CustomWindow: WinUI.Window {
                     CustomWindow.windowsByHWND[key]?.scaleFactorChangeHandler?()
                 }
             }
+        }
+
+        // The window is going away: WinUI's procedure handles the message, then
+        // the original procedure is put back and the entry removed, so the
+        // dictionary no longer keeps the window alive and `deinit` has nothing
+        // left to undo. Messages after this (WM_NCDESTROY) go straight to WinUI.
+        // 視窗正在消失:WinUI 的 procedure 先處理此訊息，然後放回原本的 procedure 並移除項目，讓字典不再讓視窗活著,
+        // 而 `deinit` 也沒有剩下要復原的東西。此後的訊息(WM_NCDESTROY)直接送給 WinUI。
+        if message == UINT(WM_DESTROY), let hwnd {
+            let key = Int(bitPattern: hwnd)
+            guard let window = CustomWindow.windowsByHWND[key] else {
+                return DefWindowProcW(hwnd, message, wParam, lParam)
+            }
+            let original = window.originalWindowProc
+            let result: LRESULT
+            if let original {
+                result = CallWindowProcW(original, hwnd, message, wParam, lParam)
+                SetWindowLongPtrW(
+                    hwnd,
+                    GWLP_WNDPROC,
+                    LONG_PTR(bitPattern: UInt64(UInt(bitPattern: unsafeBitCast(
+                        original,
+                        to: UnsafeRawPointer.self
+                    ))))
+                )
+            } else {
+                result = DefWindowProcW(hwnd, message, wParam, lParam)
+            }
+            window.originalWindowProc = nil
+            window.isClosed = true
+            CustomWindow.windowsByHWND.removeValue(forKey: key)
+            return result
         }
 
         if let hwnd,
@@ -3966,8 +4127,13 @@ public class CustomWindow: WinUI.Window {
     }
 
     deinit {
-        if let hwnd = cachedAppWindow?.getHWND() {
-            Self.windowsByHWND.removeValue(forKey: Int(bitPattern: hwnd))
+        // Normally already done by `WM_DESTROY`. Only this window's own entry
+        // is removed: a handle value can be reused by a later window.
+        // 通常 `WM_DESTROY` 已經做過了。只移除本視窗自己的項目:handle 的值可能被之後的視窗重用。
+        if !isClosed, let hwnd = cachedAppWindow?.getHWND() {
+            if Self.windowsByHWND[Int(bitPattern: hwnd)] === self {
+                Self.windowsByHWND.removeValue(forKey: Int(bitPattern: hwnd))
+            }
             if let originalWindowProc {
                 SetWindowLongPtrW(
                     hwnd,

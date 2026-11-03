@@ -62,13 +62,20 @@
             pickerController.delegate = delegate
             self.filePickerDelegates.setObject(delegate, forKey: pickerController)
 
+            // No window means nothing to present from: logged and reported as
+            // cancelled, as the save dialog does, rather than ending the app.
+            // From the top of the presentation chain, so a picker opened from a
+            // sheet is not refused because the root is presenting that sheet.
+            // 沒有視窗就沒有可以呈現的起點：記錄下來並回報為取消，與存檔對話框相同，而不是結束 app。
+            // 從呈現鏈的最上層呈現，因此從 sheet 打開的選擇器不會因為 root 正在呈現那個 sheet 而被拒絕。
             guard let window = window ?? Self.mainWindow else {
-                fatalError(
-                    "Attempting to present an open dialog before any windows have been created"
-                )
+                logger.error("no window to present the open dialog from")
+                self.filePickerDelegates.removeObject(forKey: pickerController)
+                handleResult(.cancelled)
+                return
             }
 
-            window.rootViewController!.present(pickerController, animated: true)
+            Self.presentOnTop(pickerController, in: window)
         }
     }
 #endif

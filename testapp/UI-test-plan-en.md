@@ -2287,7 +2287,7 @@ SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product
 ```
 
 Or bundle and install it as an APK, following
-`Scripts/build-tool-install-android-on-Mac.zsh`. P12 also renders on the host
+`zsh testapp/test_android.zsh P12`. P12 also renders on the host
 platform, which is useful for checking the layout before deploying, but only
 the Android run can verify these issues.
 

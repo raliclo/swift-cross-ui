@@ -75,7 +75,7 @@ open class DropTarget: EventController {
 
         // Hover feedback: notify::current-drop fires on enter (null -> drop) and
         // on leave (drop -> null); the property itself says which.
-        addSignal(name: "notify::current-drop") { [weak self] () in
+        addNotificationSignal(name: "notify::current-drop") { [weak self] in
             guard let self else { return }
             let hovering = gtk_drop_target_get_current_drop(self.dropTargetPointer) != nil
             self.onHover?(hovering)

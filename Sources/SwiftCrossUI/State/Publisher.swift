@@ -7,6 +7,10 @@ public class Publisher {
     private var nextObservationId = 0
     /// All current observations keyed by their id (ids are used to cancel observations).
     private var observations: [Int: () -> Void] = [:]
+    /// Guards `nextObservationId` and `observations`: a publisher can be sent
+    /// to, observed and cancelled from any thread.
+    /// 保護 `nextObservationId` 與 `observations`:publisher 可以從任何執行緒被發送、訂閱與取消。
+    private let observationsLock = NSLock()
     /// Human-readable tag for debugging purposes.
     private var tag: String?
 
@@ -29,21 +33,34 @@ public class Publisher {
     public init() {}
 
     /// Publishes a change to all observers serially on the current thread.
+    ///
+    /// The observers are copied out under the lock and called outside it, so
+    /// an observer may observe or cancel on this publisher, and another thread
+    /// may do so meanwhile, without either waiting on the other.
+    ///
+    /// 在目前的執行緒上依序向所有觀察者發布一次變更。觀察者在鎖內被複製出來、在鎖外被呼叫，因此觀察者可以在
+    /// 這個 publisher 上訂閱或取消，其他執行緒也可同時這麼做，彼此不必等待。
     public func send() {
-        for observation in self.observations.values {
+        let current = observationsLock.withLock { Array(observations.values) }
+        for observation in current {
             observation()
         }
     }
 
     /// Registers a handler to observe future events.
     public func observe(with closure: @escaping () -> Void) -> Cancellable {
-        let id = nextObservationId
-        observations[id] = closure
-        nextObservationId += 1
+        let id = observationsLock.withLock {
+            let id = nextObservationId
+            observations[id] = closure
+            nextObservationId += 1
+            return id
+        }
 
         return Cancellable { [weak self] in
             guard let self else { return }
-            self.observations[id] = nil
+            self.observationsLock.withLock {
+                self.observations[id] = nil
+            }
         }
         .tag(with: tag)
     }

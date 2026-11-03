@@ -260,17 +260,9 @@ build configuration, so action-file replay and `--debug` diagnostics work in
 both. `.swift_ast`
 is the serialized Swift AST lldb reads to describe types, and nothing at runtime
 touches it -- it was 45.0 MB of a 137.6 MB library, the second largest section
-after `.text`. The bundler strips it from the packaged copy, so
+after `.text`. `package_android.zsh` strips it from the packaged copy, so
 `test.zsh --android` and `test_android.zsh` both produce the smaller APK with no
 flag. Set `SCUI_KEEP_SWIFT_AST=1` for a build you mean to attach a debugger to.
-
-That strip lives in a patch against `Vendor/swift-bundler`, so a bundler built
-without it produces a correct APK that is merely 43 MB larger -- nothing fails.
-`test_android.zsh` checks for the marker and says so; if you see that warning,
-run `zsh Scripts/build-android-bundler.zsh`. **Use that script rather than
-`swift build` by hand**: the Android path uses
-`Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler`, and
-`swift build -c debug` writes somewhere it never looks.
 
 **`.compile-work-android` reaches about 106 GB and most of it is cache.** Each
 of the 45 apps gets its own gradle project holding its own copy of the runtime,
@@ -299,14 +291,8 @@ release 之所以是預設，是因為 Android 曾是此處唯一不是的平台
 `SCUI_DEBUG` 是 compilation condition 而非 build configuration，因此動作檔重放與 `--debug` 診斷
 在兩者之下都可用。 `.swift_ast` 是 lldb 用來描述型別的序列化
 Swift AST，執行期完全不會碰它——它在一個 137.6 MB 的 library 中佔 45.0 MB，是繼 `.text` 之後第二大的
-section。bundler 會從打包的副本中剝除它，因此 `test.zsh --android` 與 `test_android.zsh` 都不需要
+section。`package_android.zsh` 會從打包的副本中剝除它，因此 `test.zsh --android` 與 `test_android.zsh` 都不需要
 任何旗標就會產出較小的 APK。若某個建置你打算以除錯器附加，請設定 `SCUI_KEEP_SWIFT_AST=1`。
-
-該剝除位於一份針對 `Vendor/swift-bundler` 的 patch 之中，因此一個未套用它的 bundler 會產生完全正確、
-只是多出 43 MB 的 APK——不會有任何東西失敗。`test_android.zsh` 會檢查該標記並提示；若你看到那則警告，
-請執行 `zsh Scripts/build-android-bundler.zsh`。**請用那支腳本，不要自己下 `swift build`**：Android
-路徑使用的是 `Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler`，而 `swift build -c debug`
-寫出的位置它從不查看。
 
 **`.compile-work-android` 會達到約 106 GB，而其中大部分是快取。** 45 支 app 各自擁有一個 gradle
 專案、各帶一份 runtime 副本，而 gradle 之後還會再保存三份：`merged_native_libs`、`merged_jni_libs`

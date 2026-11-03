@@ -178,25 +178,36 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
         let background = scene.background.resolve(in: environment)
         view.setBackground(background.red, background.green, background.blue, background.opacity)
 
+        // Weakly, through Java: the view holds this action. See `JavaWeakReference`.
+        // 經由 Java 弱參照:view 持有這個 action。見 `JavaWeakReference`。
+        let weakView = JavaWeakReference(view, environment: Self.env)
         view.setOnFrame(
             SwiftAction(action: {
-                // **Read on the GL thread, reported on the main one.** `onFrame` is `@MainActor`
-                // and this callback arrives from `onDrawFrame`, so the hop is required rather
-                // than tidy; `MainActor.assumeIsolated` here would be a lie about which thread
-                // this is.
-                // **在 GL 執行緒上讀取、在主執行緒上回報。** `onFrame` 是 `@MainActor`,而這個
-                // callback 來自 `onDrawFrame`,因此這一跳是**必要的**、不是整潔問題;此處用
-                // `MainActor.assumeIsolated` 會是在「這是哪個執行緒」上說謊。
-                let info = Mesh3DFrameInfo(
-                    renderer: view.getRendererName(),
-                    drawableSize: SIMD2(
-                        Int(view.getDrawableWidth()),
-                        Int(view.getDrawableHeight())
-                    ),
-                    frameCount: Int(view.getFrameCount()),
-                    renderMicros: { let micros = view.getRenderMicros(); return micros >= 0 ? Int(micros) : nil }()
-                )
-                Task { @MainActor in onFrame(info) }
+                // **Copied on the GL thread, reported on the main one.** The Kotlin side
+                // copies the frame's figures in `onDrawFrame` and posts this action to the
+                // main looper, so the JNI calls below run on the thread whose environment
+                // the wrappers carry -- calling them from the GL thread with the main
+                // thread's environment was undefined behaviour. `getReported*` are the
+                // copied figures, so they are this frame's even if the next one has run.
+                // **在 GL 執行緒上複製、在主執行緒上回報。** Kotlin 那一側在 `onDrawFrame` 中複製這一幀的數字，
+                // 並把這個 action post 到主 looper,所以下方的 JNI 呼叫是在包裝物件所帶之環境所屬的執行緒上執行——
+                // 先前在 GL 執行緒上拿主執行緒的環境呼叫，是未定義行為。`getReported*` 是複製下來的數字，
+                // 因此即使下一幀已經跑過，它們仍是這一幀的。
+                MainActor.assumeIsolated {
+                    guard let view = weakView.get()?.as(Mesh3DSurfaceView.self) else { return }
+                    let micros = view.getReportedRenderMicros()
+                    onFrame(
+                        Mesh3DFrameInfo(
+                            renderer: view.getReportedRendererName(),
+                            drawableSize: SIMD2(
+                                Int(view.getReportedDrawableWidth()),
+                                Int(view.getReportedDrawableHeight())
+                            ),
+                            frameCount: Int(view.getReportedFrameCount()),
+                            renderMicros: micros >= 0 ? Int(micros) : nil
+                        )
+                    )
+                }
             })
         )
 

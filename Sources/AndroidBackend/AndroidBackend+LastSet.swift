@@ -50,6 +50,13 @@ final class LastSet<Value> {
     func forget(_ object: AnyObject) {
         entries[ObjectIdentifier(object)] = nil
     }
+
+    /// Forgets every value: the next set of each is applied again. For a change
+    /// that invalidates them all at once, such as the density.
+    /// 忘掉所有值：每一個的下一次設定都會再套用一次。用於一次讓全部失效的變更，例如 density。
+    func forgetAll() {
+        entries.removeAll()
+    }
 }
 
 extension AndroidBackend {

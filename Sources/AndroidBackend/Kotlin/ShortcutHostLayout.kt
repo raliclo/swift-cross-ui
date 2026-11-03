@@ -73,6 +73,32 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
 
     fun hasTopChrome(): Boolean = childCount > 1
 
+    /**
+     * The height, in dp rounded up, of the rows above the scroll host -- title, toolbar, refresh
+     * -- as they lay out at this width. Measured rather than read back from the last layout, so a
+     * row added since then already counts. The scroll host is the child with a weight.
+     *
+     * 捲動宿主上方各列(標題、工具列、refresh)在目前寬度下的高度，單位 dp、無條件進位。是量出來的，而不是讀上一次排版的結果，
+     * 所以在那之後才加入的列也已計入。捲動宿主是帶有 weight 的那個子 view。
+     */
+    fun chromeHeightDp(): Int {
+        val available =
+            if (width > 0) width - paddingLeft - paddingRight
+            else resources.displayMetrics.widthPixels
+        var pixels = 0
+        for (index in 0 until childCount) {
+            val child = getChildAt(index)
+            val params = child.layoutParams as? LayoutParams
+            if (child.visibility == View.GONE || (params != null && params.weight > 0f)) continue
+            child.measure(
+                MeasureSpec.makeMeasureSpec(available, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            )
+            pixels += child.measuredHeight + (params?.topMargin ?: 0) + (params?.bottomMargin ?: 0)
+        }
+        return Math.ceil(pixels / resources.displayMetrics.density.toDouble()).toInt()
+    }
+
     private fun chromeChanged() {
         val has = childCount > 1
         if (has == hadChrome) return

@@ -139,6 +139,13 @@
                             handleResult(.cancelled)
                             return
                         }
+                        // Access is held, not balanced here: the caller writes
+                        // to `destination` only after its `await` resumes, which
+                        // is after this closure returns, so a `defer` stop would
+                        // revoke the access before the write it exists for.
+                        // 存取權在此保持開啟，而不在這裡配對結束：呼叫端要等它的 `await` 恢復後才寫入
+                        // `destination`,那是在這個 closure 返回之後，所以用 `defer` 結束存取，
+                        // 會在它所服務的那次寫入之前就撤銷存取權。
                         _ = destination.startAccessingSecurityScopedResource()
                         handleResult(.success(destination))
                     case .cancelled:

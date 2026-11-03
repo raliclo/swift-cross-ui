@@ -88,6 +88,14 @@ public class Settings: GObject {
     @GObjectProperty(named: "gtk-font-name")
     public var fontName: String
 
+    /// Which window buttons a header bar shows and on which side, e.g.
+    /// "icon:minimize,maximize,close". `Window.minimizable` starts from this.
+    ///
+    /// header bar 顯示哪些視窗按鈕、放在哪一側，例如 "icon:minimize,maximize,close"。
+    /// `Window.minimizable` 以此為起點。
+    @GObjectProperty(named: "gtk-decoration-layout")
+    public var decorationLayout: String?
+
     /// Calls `handler` whenever the named property changes, e.g.
     /// `notify::gtk-theme-name`.
     ///

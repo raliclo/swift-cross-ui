@@ -310,8 +310,14 @@ extension ForEach: TypeSafeView, View where Child: View {
             Self.warnIfEagerlyLarge(built: children.nodes.count - oldNodesReused)
         }
 
-        // Recompute layoutable children if the last commit cleared them
-        if children.layoutableChildren.isEmpty && !children.nodes.isEmpty {
+        // Rebuilt on every pass, not only when the last commit cleared them:
+        // each closure captures this pass's `child` and element, and a second
+        // pass before the commit -- with a new `ForEach` value whose ids are
+        // unchanged -- would otherwise lay the children out with the previous
+        // value's closures.
+        // 每一趟都重建，而不只在上次 commit 清空它們時：每個 closure 捕捉的是這一趟的 `child` 與元素，而 commit
+        // 之前的第二趟——帶著 id 未變的新 `ForEach` 值——否則會用前一個值的 closure 排版子元件。
+        if !children.nodes.isEmpty {
             children.layoutableChildren = zip(children.nodes, elements).map { (node, element) in
                 LayoutSystem.LayoutableChild(node) { child(element) }
             }

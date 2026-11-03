@@ -212,14 +212,28 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     ) {
         let key = ObjectIdentifier(widget)
         internalState.focusChangeHandlers[key] = handler
-        guard !internalState.widgetsWithFocusSubscription.contains(key) else { return }
-        internalState.widgetsWithFocusSubscription.insert(key)
-
-        widget.gotFocus.addHandler { [weak internalState] _, _ in
-            internalState?.focusChangeHandlers[key]?(true)
+        // An identifier whose widget died is a new widget (its address was
+        // reused), so the subscription check is on the widget itself, as in
+        // WinUIBackend+ScrollOffsets.swift; dead entries are dropped on the way.
+        // 已死 widget 的識別碼代表一個新的 widget(位址被重用),因此訂閱檢查的是 widget 本身，與
+        // WinUIBackend+ScrollOffsets.swift 相同;順手移除已死的項目。
+        if let subscribed = internalState.widgetsWithFocusSubscription[key], subscribed.widget === widget {
+            return
         }
-        widget.lostFocus.addHandler { [weak internalState] _, _ in
-            internalState?.focusChangeHandlers[key]?(false)
+        let dead = internalState.widgetsWithFocusSubscription.filter { $0.value.widget == nil }.map(\.key)
+        for deadKey in dead where deadKey != key {
+            internalState.widgetsWithFocusSubscription[deadKey] = nil
+            internalState.focusChangeHandlers[deadKey] = nil
+        }
+        internalState.widgetsWithFocusSubscription[key] = InternalState.WeakWidget(widget: widget)
+
+        widget.gotFocus.addHandler { [weak internalState, weak widget] _, _ in
+            guard let widget else { return }
+            internalState?.focusChangeHandlers[ObjectIdentifier(widget)]?(true)
+        }
+        widget.lostFocus.addHandler { [weak internalState, weak widget] _, _ in
+            guard let widget else { return }
+            internalState?.focusChangeHandlers[ObjectIdentifier(widget)]?(false)
         }
     }
 }

@@ -169,9 +169,16 @@ public struct NavigationStack<Detail: View>: View {
                     element: element
                 )
             } else {
-                fatalError(
-                    "Failed to find detail view for \"\(element)\", make sure you have called .navigationDestination for this type."
+                // No `navigationDestination` handles this value's type: a
+                // warning, once, and an empty screen, as SwiftUI shows. The
+                // back control above still works, so the user can leave it.
+                // 沒有任何 `navigationDestination` 處理這個值的型別：警告一次，並顯示空白畫面，與 SwiftUI 相同。
+                // 上方的返回控制項仍然可用，因此使用者可以離開它。
+                let _ = logger.warnOnce(
+                    "no navigationDestination for a value on the navigation path; showing an empty view",
+                    metadata: ["type": "\(type(of: element))"]
                 )
+                EmptyView()
             }
         } else {
             Text("Empty navigation path")
@@ -284,19 +291,6 @@ public struct NavigationStack<Detail: View>: View {
                 return nil
             }
         }
-    }
-
-    /// Attempts to compute the detail view for the given element (the type of
-    /// the element decides which detail is shown). Crashes if no suitable detail
-    /// view is found.
-    func childOrCrash(for element: some Codable) -> Detail {
-        guard let child = child(element) else {
-            fatalError(
-                "Failed to find detail view for \"\(element)\", make sure you have called .navigationDestination for this type."
-            )
-        }
-
-        return child
     }
 }
 

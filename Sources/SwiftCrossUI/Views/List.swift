@@ -227,8 +227,12 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                 // Native row requests are committed immediately, not cached size probes.
                 rowEnvironment.allowLayoutCaching = false
                 let rowView = padded(rowContent(index))
+                // The row's node is the one built for this element, wherever
+                // it was shown before. 這一列的節點是為這個元素建立的那一個，不論它之前顯示在哪裡。
+                let key = AnyHashable(associatedSelectionValue(index))
+                children.place(key, at: index)
                 let node: AnyViewGraphNode<PaddingModifierView<RowView>>
-                if let cached = children.lazyNodes[index] {
+                if let cached = children.lazyNodes[key] {
                     node = cached
                 } else {
                     node = AnyViewGraphNode(
@@ -236,7 +240,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                         backend: backend,
                         environment: environment
                     )
-                    children.lazyNodes[index] = node
+                    children.lazyNodes[key] = node
                     DebugFeatures.countLazyListRowBuilt()
                     DebugFeatures.recordLiveLazyListRows(children.lazyNodes.count)
                 }
@@ -251,7 +255,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                 // 且遠高於任何真實的 overscan——「只依賴那個回呼為何不安全」見
                 // `lazyLifetimeBackstopLimit`。
                 children.touch(
-                    index,
+                    key,
                     limit: backend is any BackendFeatures.LazyListRowLifetimes
                         ? ListViewChildren<RowView>.lazyLifetimeBackstopLimit
                         : ListViewChildren<RowView>.lazyCacheLimit
@@ -280,7 +284,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                         backend.setLazyRowReleaseHandler(
                             ofSelectableListView: widget as! L.Widget
                         ) { [weak children] index in
-                            children?.lazyNodes[index] = nil
+                            children?.releaseLazyRow(at: index)
                             // Reported here rather than only where nodes are
                             // added, because this is the line whose absence the
                             // readout exists to make visible.
@@ -311,6 +315,18 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                 // 那些失效。在一萬列時量到:為了顯示十二列，provider 被呼叫了 500 次以上。
                 if children.lazyHeights.isEmpty, rowCount > 0 {
                     _ = buildRow(0)
+                }
+
+                // Rows whose element has left the data are freed here, once
+                // per committed layout: nothing will ask for their ids again,
+                // and the LRU alone would keep them until enough other rows
+                // were visited.
+                // 元素已離開資料的列在這裡釋放，每次提交的版面一次：不會再有東西要求它們的 id,而單靠 LRU 會一直
+                // 留著它們，直到造訪了夠多其他列為止。
+                if !children.lazyNodes.isEmpty {
+                    children.retainLazyRows(
+                        present: Set((0..<rowCount).map { AnyHashable(associatedSelectionValue($0)) })
+                    )
                 }
 
                 lazy.setLazyRows(
@@ -562,8 +578,11 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// 當 backend 一次收下全部時，這裡是每一列。
     var nodes: [AnyViewGraphNode<RowView>]
 
-    /// Rows built on demand, keyed by index, when the backend asks for them one
-    /// at a time.
+    /// Rows built on demand, keyed by the id of the element each one shows,
+    /// when the backend asks for them one at a time. Keyed by id rather than
+    /// index so that a row's `@State` stays with its element: deleting or
+    /// inserting a row shifts the indices, and a node keyed by index would hand
+    /// one row's state to its neighbour.
     ///
     /// **Bounded, and the bound is what replaces a `setRowRecycler` in the
     /// protocol.** Without a limit this is "build lazily and then keep for
@@ -571,12 +590,20 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// somebody scrolls to the bottom -- slower to get there and no better when
     /// it arrives.
     ///
-    /// 依需求建立的列，以索引為鍵——當 backend 一次要一列時使用。
+    /// 依需求建立的列，以其所顯示元素的 id 為鍵——當 backend 一次要一列時使用。以 id 而非索引為鍵，
+    /// 使一列的 `@State` 跟著它的元素走：刪除或插入一列後，索引會位移，而以索引為鍵的節點會把一列的
+    /// 狀態交給它的鄰居。
     ///
     /// **有上限，而那個上限正是協定中不需要 `setRowRecycler` 的原因。** 少了上限，這就是
     /// 「延遲建立、然後永遠留著」——只要有人捲到底，它就會抵達與「一次全建」相同的記憶體用量:
     /// 到達得比較慢，抵達之後並沒有比較好。
-    var lazyNodes: [Int: AnyViewGraphNode<RowView>] = [:]
+    var lazyNodes: [AnyHashable: AnyViewGraphNode<RowView>] = [:]
+
+    /// Where each built row is shown, both ways round: the backend releases
+    /// rows by index, and the nodes are keyed by id.
+    /// 每個已建立的列顯示在哪裡，雙向記錄:backend 以索引釋放列，而節點以 id 為鍵。
+    var lazyKeyAtIndex: [Int: AnyHashable] = [:]
+    var lazyIndexOfKey: [AnyHashable: Int] = [:]
 
     /// The heights those rows reported, so the backend can be told a real
     /// height for a row it has already seen.
@@ -614,7 +641,7 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     ///
     /// 最久未使用者在前。使用單純的陣列，因為上限只有數百:對一個 200 筆的陣列做 `O(n)` 移除，
     /// 不值得為它多維護一份索引。
-    var lazyOrder: [Int] = []
+    var lazyOrder: [AnyHashable] = []
 
     /// Enough for any viewport anyone has, and small enough that the whole
     /// point survives: at the 31 KB a row measured on P57, 200 rows is about
@@ -655,9 +682,9 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
         nodes = []
     }
 
-    /// Notes that `index` was just used, and evicts if that put the cache over
-    /// its limit.
-    /// 記下 `index` 剛被使用過，並在因此超出上限時逐出最久未使用的。
+    /// Notes that the row `key` was just used, and evicts if that put the
+    /// cache over its limit.
+    /// 記下 `key` 那一列剛被使用過，並在因此超出上限時逐出最久未使用的。
     // `ListViewChildren<RowView>` spelled out rather than `Self`: a default
     // argument cannot reference the covariant `Self` of a non-final class --
     // "covariant 'Self' type cannot be referenced from a default argument
@@ -665,14 +692,14 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     // 此處寫出 `ListViewChildren<RowView>` 而不用 `Self`:預設引數無法引用非 final class 的
     // covariant `Self`——「covariant 'Self' type cannot be referenced from a default argument
     // expression」。以建置抓到。
-    func touch(_ index: Int, limit: Int = ListViewChildren<RowView>.lazyCacheLimit) {
-        if let existing = lazyOrder.firstIndex(of: index) {
+    func touch(_ key: AnyHashable, limit: Int = ListViewChildren<RowView>.lazyCacheLimit) {
+        if let existing = lazyOrder.firstIndex(of: key) {
             lazyOrder.remove(at: existing)
         }
-        lazyOrder.append(index)
+        lazyOrder.append(key)
         while lazyOrder.count > limit {
             let evicted = lazyOrder.removeFirst()
-            lazyNodes[evicted] = nil
+            forgetLazyRow(evicted)
             DebugFeatures.recordLiveLazyListRows(lazyNodes.count)
             // The HEIGHT is kept. It costs a few bytes, it is what the backend
             // needs to keep the scrollbar steady for a row it has already
@@ -683,10 +710,52 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
         }
     }
 
-    func forgetLazyRows() {
-        lazyNodes.removeAll()
-        lazyHeights.removeAll()
-        lazyOrder.removeAll()
+    /// Records that the row `key` is now shown at `index`.
+    /// 記下 `key` 那一列現在顯示在 `index`。
+    func place(_ key: AnyHashable, at index: Int) {
+        if let previous = lazyIndexOfKey[key], previous != index,
+            lazyKeyAtIndex[previous] == key
+        {
+            lazyKeyAtIndex[previous] = nil
+        }
+        lazyKeyAtIndex[index] = key
+        lazyIndexOfKey[key] = index
+    }
+
+    /// The backend unbound the row at `index`.
+    ///
+    /// Its node is freed only when that is still where the row is: after a
+    /// reorder the same row can be bound at a new index before the old index
+    /// is released, and freeing it then would drop a row the toolkit is
+    /// showing.
+    ///
+    /// backend 對 `index` 那一列 unbind 了。只有當那一列仍在那個位置時才釋放它的節點：重新排序之後，同一列
+    /// 可能在舊索引被釋放之前就已綁到新的索引上，那時釋放它會丟掉 toolkit 正在顯示的一列。
+    func releaseLazyRow(at index: Int) {
+        guard let key = lazyKeyAtIndex.removeValue(forKey: index),
+            lazyIndexOfKey[key] == index
+        else { return }
+        forgetLazyRow(key)
+        if let position = lazyOrder.firstIndex(of: key) {
+            lazyOrder.remove(at: position)
+        }
+    }
+
+    /// Frees the node of every row whose id is not in `present`: the element
+    /// it was built for has left the data.
+    /// 釋放每一個 id 不在 `present` 中的列的節點：它當初為之建立的元素已經離開資料。
+    func retainLazyRows(present: Set<AnyHashable>) {
+        for key in Array(lazyNodes.keys) where !present.contains(key) {
+            forgetLazyRow(key)
+        }
+        lazyOrder.removeAll { !present.contains($0) }
+    }
+
+    private func forgetLazyRow(_ key: AnyHashable) {
+        lazyNodes[key] = nil
+        if let index = lazyIndexOfKey.removeValue(forKey: key), lazyKeyAtIndex[index] == key {
+            lazyKeyAtIndex[index] = nil
+        }
     }
 
     var erasedNodes: [ErasedViewGraphNode] {

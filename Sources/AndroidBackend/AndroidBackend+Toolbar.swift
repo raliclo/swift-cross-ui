@@ -56,16 +56,23 @@ extension AndroidBackend: BackendFeatures.Toolbars {
             window.resizeHandler?(size(ofWindow: window))
         }
 
+        // Found in this window's stack by tag, not kept in a static: one static
+        // row was shared by every window -- a second window's toolbar moved the
+        // first one's -- and outlived a recreated activity, whose new stack it was
+        // never part of. 以 tag 在這個視窗自己的堆疊中尋找，而不是存在 static 裡：單一的 static 列由所有視窗共用——
+        // 第二個視窗的工具列會把第一個的搬走——而且活過了重建的 activity,而它從來不屬於新的堆疊。
+        let existing = Self.toolbarView(in: stack)
         guard !items.isEmpty else {
-            if let bar = Self.toolbar {
+            if let bar = existing {
                 stack.removeView(bar)
-                Self.toolbar = nil
+                updateInsets(ofWindow: window)
+                window.resizeHandler?(size(ofWindow: window))
             }
             return
         }
 
         let bar: AndroidKit.LinearLayout
-        if let existing = Self.toolbar {
+        if let existing {
             bar = existing
             bar.removeAllViews()
         } else {
@@ -90,7 +97,7 @@ extension AndroidBackend: BackendFeatures.Toolbars {
                 )
                 .as(AndroidKit.ViewGroup.LayoutParams.self)
             )
-            Self.toolbar = bar
+            bar.setTag(JavaString(Self.toolbarTag, environment: Self.env).as(JavaObject.self))
         }
 
         // Leading items on the left, the rest on the right, as UIKit's bar places
@@ -115,6 +122,13 @@ extension AndroidBackend: BackendFeatures.Toolbars {
                 item.isEnabled,
                 SwiftAction(environment: Self.env) { action() }
             )
+        }
+        if existing == nil {
+            // A new row takes room from the content (`size(ofWindow:)` measures
+            // it, now that it has its items): lay the window out again.
+            // 新的一列從內容那裡佔走空間(`size(ofWindow:)` 會量它，此時它已有項目):重新排版視窗。
+            updateInsets(ofWindow: window)
+            window.resizeHandler?(size(ofWindow: window))
         }
     }
 
@@ -181,6 +195,21 @@ extension AndroidBackend: BackendFeatures.Toolbars {
     /// 位置會隨著工具列與 refresh 那兩列的來去而改變,而文字就是標題本身——以它搜尋,會在標題改變的
     /// 那一刻失效,而那正是這個查找唯一會執行的時機。
     private static let navigationTitleTag = "scui.navigationTitle"
+
+    /// The toolbar row's tag, found the same way as the title's.
+    /// 工具列那一列的 tag,以與標題相同的方式尋找。
+    private static let toolbarTag = "scui.toolbar"
+
+    static func toolbarView(in stack: AndroidKit.LinearLayout) -> AndroidKit.LinearLayout? {
+        for index in 0..<stack.getChildCount() {
+            guard let child = stack.getChildAt(index),
+                child.getTag()?.toString() == toolbarTag,
+                let row = child.as(AndroidKit.LinearLayout.self)
+            else { continue }
+            return row
+        }
+        return nil
+    }
 
     static func navigationTitleView(
         in stack: AndroidKit.LinearLayout

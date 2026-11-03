@@ -471,10 +471,15 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
         minimizable: Bool,
         resizable: Bool
     ) {
-        if #available(iOS 16, tvOS 16, macCatalyst 16, *) {
-            window.windowScene?.windowingBehaviors?.isClosable = closable
-            window.windowScene?.windowingBehaviors?.isMiniaturizable = minimizable
-        }
+        // Stored on the window as well as applied, because before the scene
+        // connects there is no `windowingBehaviors` to set; `applyAll` in
+        // `scene(_:willConnectTo:)` delivers them then.
+        // 除了套用之外也存在視窗上，因為 scene 連上之前沒有 `windowingBehaviors` 可設；
+        // `scene(_:willConnectTo:)` 裡的 `applyAll` 會在那時送達。
+        let policy = WindowSizePolicy.of(window)
+        policy.closable = closable
+        policy.minimizable = minimizable
+        policy.applyBehaviors(to: window)
 
         // Applied, no longer "ignoring resizability change". A window that must
         // not be resized has its scene's size restrictions pinned to its current
@@ -572,6 +577,10 @@ final class WindowSizePolicy {
     var resizable = true
     var minimum = CGSize.zero
     var maximum: CGSize?
+    /// Closable and minimizable, nil until set; kept so they reach a scene that connects later.
+    /// 可關閉與可最小化，設定前為 nil;保存下來，好讓之後才連上的 scene 也拿得到。
+    var closable: Bool?
+    var minimizable: Bool?
 
     nonisolated(unsafe) private static var key: UInt8 = 0
 
@@ -603,5 +612,26 @@ final class WindowSizePolicy {
             restrictions.minimumSize = size
             restrictions.maximumSize = size
         }
+    }
+
+    @MainActor
+    func applyBehaviors(to window: UIWindow) {
+        if #available(iOS 16, tvOS 16, macCatalyst 16, *),
+            let behaviors = window.windowScene?.windowingBehaviors
+        {
+            if let closable { behaviors.isClosable = closable }
+            if let minimizable { behaviors.isMiniaturizable = minimizable }
+        }
+    }
+
+    /// Everything kept here, applied to the window's scene. Called when the
+    /// scene connects, because a window is configured before `show(window:)`
+    /// gives it one and every setting made then found no scene to land on.
+    /// 這裡保存的一切，套用到視窗的 scene 上。在 scene 連上時呼叫，因為視窗是在 `show(window:)`
+    /// 給它 scene 之前就被設定的，當時的每一項設定都找不到可以落腳的 scene。
+    @MainActor
+    func applyAll(to window: UIWindow) {
+        applyBehaviors(to: window)
+        apply(to: window)
     }
 }

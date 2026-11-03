@@ -299,12 +299,12 @@ import UIKit
             if let existing = menuButton {
                 button = existing
             } else {
-                button = UIButton(type: .system)
+                button = SeparatorBorderedButton(type: .system)
                 button.setImage(UIImage(systemName: "line.3.horizontal"), for: .normal)
                 button.accessibilityLabel = "Menu"
                 button.tintColor = .label
                 button.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.9)
-                button.layer.borderColor = UIColor.separator.cgColor
+                (button as? SeparatorBorderedButton)?.updateSeparatorBorder()
                 button.layer.borderWidth = 1
                 button.layer.cornerRadius = 6
                 button.showsMenuAsPrimaryAction = true

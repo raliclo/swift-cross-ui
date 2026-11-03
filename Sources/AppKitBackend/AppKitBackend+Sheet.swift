@@ -59,12 +59,44 @@ extension AppKitBackend {
         sheet.onDismiss = onDismiss
 
         let background = sheet.backgroundView!
-        background.layer?.backgroundColor = backgroundColor?.nsColor.cgColor
         sheet.interactiveDismissDisabled = interactiveDismissDisabled
 
-        // - dragIndicatorVisibility is only for mobile so we ignore it
-        // - detents are only for mobile so we ignore them
-        // - cornerRadius isn't supported by macOS so we ignore it
+        // Corner radius: the content view's layer is rounded and clipped, and
+        // the window behind it made clear and non-opaque so the cut corners show
+        // what is under the sheet rather than the window's own background. The
+        // background view then carries the colour (the window background when
+        // none is asked for), since the window no longer draws one.
+        // 圓角：content view 的 layer 設圓角並裁切，其後的視窗設為透明、非不透明，讓被切掉的角露出
+        // sheet 底下的東西，而不是視窗自己的背景。背景色改由 background view 負責(未指定時用視窗背景色),
+        // 因為視窗不再畫背景。
+        if let cornerRadius, cornerRadius > 0 {
+            sheet.isOpaque = false
+            sheet.backgroundColor = .clear
+            sheet.contentView?.wantsLayer = true
+            sheet.contentView?.layer?.cornerRadius = CGFloat(cornerRadius)
+            sheet.contentView?.layer?.masksToBounds = true
+            background.layer?.backgroundColor =
+                (backgroundColor?.nsColor ?? .windowBackgroundColor).cgColor
+        } else {
+            sheet.isOpaque = true
+            sheet.backgroundColor = .windowBackgroundColor
+            sheet.contentView?.layer?.cornerRadius = 0
+            sheet.contentView?.layer?.masksToBounds = false
+            background.layer?.backgroundColor = backgroundColor?.nsColor.cgColor
+        }
+        sheet.invalidateShadow()
+
+        // Detents and the drag indicator are not dropped for convenience: AppKit
+        // has no API for either. A sheet is attached with `beginSheet(_:)` at its
+        // content size and moves only with its parent; the macOS 27.2 SDK's
+        // AppKit headers contain no detent or grabber API for NSWindow sheets
+        // (`grep -ri detent` over them finds no sheet API). The one detent a
+        // sheet can honour, filling the window, is honoured by SheetModifier,
+        // which lays the content out at the window's size before this call.
+        // detents 與拖曳指示器並不是為了方便而丟掉:AppKit 兩者都沒有 API。sheet 以 `beginSheet(_:)`
+        // 依其內容尺寸附著，只跟著父視窗移動；macOS 27.2 SDK 的 AppKit 標頭裡沒有給 NSWindow sheet 用的
+        // detent 或 grabber API(對其 `grep -ri detent` 找不到任何 sheet API)。sheet 能遵守的那一個
+        // detent——填滿視窗——由 SheetModifier 遵守，它在這次呼叫之前就以視窗尺寸排版內容。
     }
 
     public func size(ofSheet sheet: NSCustomSheet) -> SIMD2<Int> {

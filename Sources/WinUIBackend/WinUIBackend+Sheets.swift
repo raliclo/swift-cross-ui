@@ -13,13 +13,16 @@ extension WinUIBackend: BackendFeatures.Sheets {
     /// There is deliberately no flag recording whether a dismissal was
     /// programmatic: SwiftUI runs `onDismiss:` when the presentation ends
     /// however it ended, so `sheet(isPresented:onDismiss:)` fires on both
-    /// paths (the same rule as `Popover`, `6ec976b2`).
+    /// paths (the same rule as `Popover`, `6ec976b2`). `isHidingByCode` is not
+    /// that flag: it only lets this backend's own hides past the
+    /// `interactiveDismissDisabled` veto, and `onDismiss` ignores it.
     ///
     /// 一個 `ContentDialog`，外加 WinUI 不會替我們做的記帳工作。
     ///
     /// 刻意不設旗標記錄某次關閉是否為程式發起：無論 presentation 以何種方式結束,SwiftUI 都會執行
     /// `onDismiss:`,因此 `sheet(isPresented:onDismiss:)` 在兩條路上都會觸發(與 `Popover` 相同的規則,
-    /// `6ec976b2`)。
+    /// `6ec976b2`)。`isHidingByCode` 不是那種旗標：它只讓本 backend 自己的隱藏通過
+    /// `interactiveDismissDisabled` 的否決,`onDismiss` 不看它。
     public class Sheet: ContentDialog {
         var dismissHandler: (() -> Void)?
         /// What Back does while this sheet is up, set by
@@ -46,6 +49,24 @@ extension WinUIBackend: BackendFeatures.Sheets {
         /// 而被暫停的 parent 正是後者：它已經被 `presentSheet` 隱藏，其 promise 早已完成，再隱藏它一次
         /// 不會通知任何人。
         var isPresenting = false
+        /// `interactiveDismissDisabled` from the last `updateSheet`: Escape
+        /// and WinUI's own dismissal are refused while it is set.
+        /// 最近一次 `updateSheet` 的 `interactiveDismissDisabled`:設定時拒絕 Escape 與 WinUI 自己的關閉。
+        var interactiveDismissDisabled = false
+        /// Set before every `hide()` this backend makes, cleared by the
+        /// completion, so the `closing` handler can tell code from the user.
+        /// 本 backend 每次 `hide()` 之前設定，由完成處理清除，讓 `closing` handler 分得出程式與使用者。
+        var isHidingByCode = false
+        /// Hidden so an alert can be shown (WinUI shows one ContentDialog at a
+        /// time); `pendingAlert` is shown from this sheet's completion.
+        /// 為了顯示 alert 而隱藏(WinUI 一次只顯示一個 ContentDialog);`pendingAlert` 由本 sheet 的完成處理顯示。
+        var isSuspendedForAlert = false
+        var pendingAlert: Alert?
+        /// Set once the dismiss handler has run; such a sheet is never shown again.
+        /// dismiss handler 執行過後設定;這樣的 sheet 不會再顯示。
+        var isDismissed = false
+        /// Set by `setPresentationFillsWindow`. 由 `setPresentationFillsWindow` 設定。
+        var fillsWindow = false
     }
 
     public func createSheet(content: Widget) -> Sheet {
@@ -67,10 +88,25 @@ extension WinUIBackend: BackendFeatures.Sheets {
         let accelerator = WinUI.KeyboardAccelerator()
         accelerator.key = .escape
         accelerator.invoked.addHandler { [weak sheet] _, _ in
-            guard let sheet else { return }
-            try! sheet.hide()
+            guard let sheet, !sheet.interactiveDismissDisabled else { return }
+            do {
+                try sheet.hide()
+            } catch {
+                logger.warning("WinUIBackend: Escape could not hide the sheet -- \(error)")
+            }
         }
         sheet.keyboardAccelerators.append(accelerator)
+        // WinUI's own Escape handling (and any other dismissal it starts) goes
+        // through `Closing`, which is where `interactiveDismissDisabled` is
+        // honoured; this backend's own hides set `isHidingByCode` and pass.
+        // WinUI 自己的 Escape 處理(以及它發起的其他關閉)都經過 `Closing`,`interactiveDismissDisabled`
+        // 就在那裡生效;本 backend 自己的隱藏會設定 `isHidingByCode` 而通過。
+        sheet.closing.addHandler { [weak sheet] _, args in
+            guard let sheet, let args else { return }
+            if sheet.interactiveDismissDisabled && !sheet.isHidingByCode {
+                args.cancel = true
+            }
+        }
         sheet.keyboardAcceleratorPlacementMode = .hidden
         // Alt+Left, the Back key and the mouse's back button pop a stack in the
         // sheet; see WinUIBackend+BackNavigation.swift.
@@ -104,9 +140,29 @@ extension WinUIBackend: BackendFeatures.Sheets {
         backgroundColor: SwiftCrossUI.Color.Resolved?,
         interactiveDismissDisabled: Bool
     ) {
-        sheet.width = Double(size.x)
-        sheet.height = Double(size.y)
+        // A cover takes the whole XamlRoot -- menu bar and toolbar rows too --
+        // because the dialog overlays all of it. 覆蓋整個 XamlRoot(連選單列與工具列那幾列),因為 dialog 蓋在它們全部之上。
+        if sheet.fillsWindow, let root = window.content.xamlRoot {
+            sheet.width = max(Double(size.x), Double(root.size.width))
+            sheet.height = max(Double(size.y), Double(root.size.height))
+        } else {
+            sheet.width = Double(size.x)
+            sheet.height = Double(size.y)
+        }
         sheet.dismissHandler = onDismiss
+        sheet.interactiveDismissDisabled = interactiveDismissDisabled
+
+        if let cornerRadius {
+            sheet.cornerRadius = CornerRadius(
+                topLeft: cornerRadius,
+                topRight: cornerRadius,
+                bottomRight: cornerRadius,
+                bottomLeft: cornerRadius
+            )
+        } else {
+            // Back to the theme's `OverlayCornerRadius`. 回到主題的 `OverlayCornerRadius`。
+            _ = try? sheet.clearValue(WinUI.Control.cornerRadiusProperty)
+        }
 
         if let backgroundColor {
             sheet.background = WinUI.SolidColorBrush(backgroundColor.uwpColor)
@@ -120,10 +176,15 @@ extension WinUIBackend: BackendFeatures.Sheets {
         }
     }
 
-    /// Nothing to lift: `createSheet` sets ContentDialogMaxWidth and MaxHeight to
-    /// 1e6, so the dialog is the size `updateSheet` gives it, and a cover is given
-    /// its window's. / 沒有限制可拿掉:`createSheet` 把 ContentDialog 的最大寬高設為 1e6,所以 dialog 就是 `updateSheet` 給的大小。
-    public func setPresentationFillsWindow(of sheet: Sheet, window: Window, _ fillsWindow: Bool) {}
+    /// `createSheet` already lifts ContentDialogMaxWidth and MaxHeight to 1e6;
+    /// a cover also asks WinUI for a full-size dialog (`FullSizeDesired`) and is
+    /// sized to its window's XamlRoot by `updateSheet`, which is called next.
+    /// `createSheet` 已把 ContentDialog 的最大寬高拿到 1e6;cover 還會向 WinUI 要求全尺寸 dialog
+    /// (`FullSizeDesired`),並由接著呼叫的 `updateSheet` 依視窗的 XamlRoot 決定大小。
+    public func setPresentationFillsWindow(of sheet: Sheet, window: Window, _ fillsWindow: Bool) {
+        sheet.fillsWindow = fillsWindow
+        sheet.fullSizeDesired = fillsWindow
+    }
 
     public func presentSheet(
         _ sheet: Sheet,
@@ -133,23 +194,45 @@ extension WinUIBackend: BackendFeatures.Sheets {
         sheet.window = window
         sheet.parentSheet = parentSheet
 
-        if let parentSheet {
+        if let parentSheet, parentSheet.isPresenting {
             parentSheet.nestedSheet = sheet
             parentSheet.pendingNestedPresentation = sheet
             parentSheet.isSuspendedForNestedSheet = true
+            parentSheet.isHidingByCode = true
             do {
                 try parentSheet.hide()
             } catch {
                 print("Error: \(error)")
+                parentSheet.isSuspendedForNestedSheet = false
+                parentSheet.pendingNestedPresentation = nil
+                parentSheet.isHidingByCode = false
                 presentSheetNow(sheet, window: window)
             }
             return
         }
 
+        // A parent that is not on screen -- suspended for an alert, or itself
+        // waiting for one -- has no hide to wait for; the child closing still
+        // brings it back through `parentSheet`.
+        // 不在螢幕上的 parent(為 alert 暫停，或自己也在等 alert)沒有隱藏可等;子 sheet 關閉時仍會經由
+        // `parentSheet` 把它帶回來。
+        parentSheet?.nestedSheet = sheet
         presentSheetNow(sheet, window: window)
     }
 
-    private func presentSheetNow(_ sheet: Sheet, window: Window) {
+    func presentSheetNow(_ sheet: Sheet, window: Window) {
+        guard !sheet.isDismissed else { return }
+        if window.currentAlert != nil {
+            // An alert holds the window's one ContentDialog: the sheet waits,
+            // and `presentSheets(afterAlertsIn:suspended:)` shows it when the
+            // alert stack closes, so `isPresented` is not left true for a sheet
+            // that never appeared.
+            // alert 佔著視窗唯一的 ContentDialog:sheet 等待，由 `presentSheets(afterAlertsIn:suspended:)`
+            // 在 alert 堆疊關閉時顯示，因此不會留下一個 `isPresented` 為 true 卻從未出現的 sheet。
+            sheet.window = window
+            window.sheetsWaitingForAlerts.append(sheet)
+            return
+        }
         sheet.xamlRoot = window.content.xamlRoot
         sheet.window = window
         sheet.isPresenting = true
@@ -164,6 +247,15 @@ extension WinUIBackend: BackendFeatures.Sheets {
                 }
 
                 sheet.isPresenting = false
+                sheet.isHidingByCode = false
+
+                // An alert asked for this sheet's room; it is shown last, once
+                // whatever else this completion does has been decided.
+                // 有 alert 要求本 sheet 讓出位置;它在本完成處理決定好其他事情之後才顯示。
+                let pendingAlert = sheet.pendingAlert
+                sheet.pendingAlert = nil
+                let wasSuspendedForAlert = sheet.isSuspendedForAlert
+                sheet.isSuspendedForAlert = false
 
                 if sheet.isSuspendedForNestedSheet {
                     sheet.isSuspendedForNestedSheet = false
@@ -172,8 +264,16 @@ extension WinUIBackend: BackendFeatures.Sheets {
                         let window = sheet.window ?? window
                     {
                         sheet.pendingNestedPresentation = nil
+                        // Queued behind the alert if one is pending. 若有 alert 待顯示，就排在它後面。
                         self.presentSheetNow(nestedSheet, window: window)
                     }
+                    pendingAlert?.showAttached()
+                    return
+                }
+
+                if wasSuspendedForAlert {
+                    // Comes back when the alert stack closes. alert 堆疊關閉時回來。
+                    pendingAlert?.showAttached()
                     return
                 }
 
@@ -188,7 +288,11 @@ extension WinUIBackend: BackendFeatures.Sheets {
                     parentSheet.nestedSheet = nil
                     sheet.parentSheet = nil
 
-                    if let window = parentSheet.window ?? window {
+                    if let pendingAlert {
+                        // The alert goes up first; the parent returns after it.
+                        // alert 先上去;parent 在它之後回來。
+                        pendingAlert.suspendedSheet = parentSheet
+                    } else if let window = parentSheet.window ?? window {
                         self.presentSheetNow(parentSheet, window: window)
                     }
                 }
@@ -218,6 +322,7 @@ extension WinUIBackend: BackendFeatures.Sheets {
                 // 時才會進入，並隨即把 `children.sheet` 設為 nil，所以它也不會重入。而即使日後有變更
                 // 打破了上述推理，`notifyDismissed` 仍能保證它只執行一次。
                 self.notifyDismissed(sheet)
+                pendingAlert?.showAttached()
             }
         } catch {
             // WinUI only allows a single ContentDialog per XamlRoot. Nested
@@ -256,6 +361,9 @@ extension WinUIBackend: BackendFeatures.Sheets {
 
         sheet.isSuspendedForNestedSheet = false
         sheet.pendingNestedPresentation = nil
+        // `pendingAlert` is kept: the completion still shows it.
+        // `pendingAlert` 保留：完成處理仍會顯示它。
+        sheet.isSuspendedForAlert = false
         parentSheet?.nestedSheet = nil
 
         guard sheet.isPresenting else {
@@ -276,10 +384,12 @@ extension WinUIBackend: BackendFeatures.Sheets {
             return
         }
 
+        sheet.isHidingByCode = true
         do {
             try sheet.hide()
         } catch {
             print("Error: \(error)")
+            sheet.isHidingByCode = false
             // The completion will not arrive for a `hide()` that threw, and the
             // caller is still owed its callback.
             // 對一個擲出錯誤的 `hide()` 而言，完成處理不會送達，而呼叫端仍然應當拿到它的回呼。
@@ -315,6 +425,7 @@ extension WinUIBackend: BackendFeatures.Sheets {
     /// 而下一次呈現會經由 `createSheet` 造出一個新的。僅僅因為巢狀子 sheet 而被**暫停**的 sheet 並未
     /// 被關閉，也不會經過此處，因此它會保留自己的 handler，以待復原之時。
     private func notifyDismissed(_ sheet: Sheet) {
+        sheet.isDismissed = true
         guard let handler = sheet.dismissHandler else {
             return
         }
@@ -322,7 +433,57 @@ extension WinUIBackend: BackendFeatures.Sheets {
         handler()
     }
 
+    /// Hides a presenting sheet so `alert` can have the window's one
+    /// ContentDialog; the sheet's completion shows the alert. Returns false if
+    /// the hide failed, and the caller shows the alert itself.
+    /// 隱藏一個正在呈現的 sheet,讓 `alert` 取得視窗唯一的 ContentDialog;sheet 的完成處理會顯示 alert。
+    /// 隱藏失敗時回傳 false,由呼叫端自己顯示 alert。
+    func suspendSheet(_ sheet: Sheet, for alert: Alert) -> Bool {
+        sheet.isSuspendedForAlert = true
+        sheet.pendingAlert = alert
+        sheet.isHidingByCode = true
+        do {
+            try sheet.hide()
+            return true
+        } catch {
+            print("Error: \(error)")
+            sheet.isSuspendedForAlert = false
+            sheet.pendingAlert = nil
+            sheet.isHidingByCode = false
+            return false
+        }
+    }
+
+    /// Called when a window's alert stack has closed. A sheet asked for while
+    /// the alerts were up is shown -- the latest, since an earlier one is its
+    /// parent and returns when it closes -- and otherwise the sheet the first
+    /// alert suspended comes back. Dismissed sheets are skipped.
+    /// 視窗的 alert 堆疊關閉時呼叫。顯示 alert 開著期間被要求的 sheet(最新的那個，因為較早的是它的
+    /// parent,會在它關閉時回來);沒有的話，第一個 alert 暫停的 sheet 回來。已關閉的 sheet 略過。
+    func presentSheets(afterAlertsIn window: Window, suspended: Sheet?) {
+        let waiting = window.sheetsWaitingForAlerts.filter { !$0.isDismissed }
+        window.sheetsWaitingForAlerts = []
+        if let sheet = waiting.last {
+            presentSheetNow(sheet, window: sheet.window ?? window)
+        } else if let suspended, !suspended.isDismissed {
+            presentSheetNow(suspended, window: suspended.window ?? window)
+        }
+    }
+
+    /// The size the sheet's content was laid out at, else the size
+    /// `updateSheet` gave the dialog.
+    /// sheet 內容實際排版的尺寸;沒有的話，是 `updateSheet` 給 dialog 的尺寸。
     public func size(ofSheet sheet: Sheet) -> SIMD2<Int> {
-        .zero
+        if let content = sheet.content as? WinUI.FrameworkElement,
+            content.actualWidth > 0, content.actualHeight > 0
+        {
+            return SIMD2(
+                Int(content.actualWidth.rounded(.towardZero)),
+                Int(content.actualHeight.rounded(.towardZero))
+            )
+        }
+        let width = sheet.width.isFinite ? sheet.width : 0
+        let height = sheet.height.isFinite ? sheet.height : 0
+        return SIMD2(Int(width.rounded(.towardZero)), Int(height.rounded(.towardZero)))
     }
 }

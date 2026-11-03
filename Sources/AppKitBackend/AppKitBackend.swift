@@ -594,13 +594,23 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
+        // One set of observers per window: the tokens are kept on the window,
+        // the previous set is removed when the handler is replaced, and
+        // `windowWillClose` removes the last. The blocks hold the window weakly,
+        // so a closed window is not kept alive by NotificationCenter.
+        // 每個視窗一組 observer:token 保存在視窗上，替換 handler 時移除前一組，`windowWillClose`
+        // 移除最後一組。block 以 weak 持有視窗，因此關閉的視窗不會被 NotificationCenter 留住。
+        window.removeEnvironmentObservers()
+
         // For updating window scale factor
-        NotificationCenter.default.addObserver(
+        // 用於更新視窗縮放倍率
+        let backing = NotificationCenter.default.addObserver(
             forName: NSWindow.didChangeBackingPropertiesNotification,
             object: window,
             queue: .main
-        ) { _ in
+        ) { [weak window] _ in
             Task { @MainActor in
+                guard let window else { return }
                 let backingScaleFactorChanged =
                     window.lastBackingScaleFactor != window.backingScaleFactor
 
@@ -610,25 +620,32 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             }
         }
 
-        // For updating views that rely on `scenePhase`
-        NotificationCenter.default.addObserver(
+        // For updating views that rely on `scenePhase`. Only this window's key
+        // changes: its scene phase is read from its own `isKeyWindow`, so
+        // another window becoming key has nothing to tell it -- and when focus
+        // moves between two windows, each receives its own notification.
+        // 用於更新依賴 `scenePhase` 的 view。只看本視窗的 key 變化：它的 scene phase 讀的是它自己的
+        // `isKeyWindow`,別的視窗成為 key 對它沒有要說的——焦點在兩個視窗間移動時，兩者各自收到自己的通知。
+        let becameKey = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
-            object: nil,
+            object: window,
             queue: .main
         ) { _ in
             Task { @MainActor in
                 action()
             }
         }
-        NotificationCenter.default.addObserver(
+        let resignedKey = NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification,
-            object: nil,
+            object: window,
             queue: .main
         ) { _ in
             Task { @MainActor in
                 action()
             }
         }
+
+        window.environmentObservers = [backing, becameKey, resignedKey]
     }
 
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
@@ -2777,6 +2794,20 @@ public class NSCustomWindow: NSWindow {
     var nestedSheet: NSCustomSheet?
 
     var lastBackingScaleFactor: CGFloat?
+
+    /// The tokens of the block observers that report this window's
+    /// environment changes, kept so they can be removed when the handler is
+    /// replaced or the window closes.
+    /// 回報此視窗環境變化的 block observer 之 token,保留下來以便在 handler 被替換或視窗關閉時移除。
+    var environmentObservers: [NSObjectProtocol] = []
+
+    func removeEnvironmentObservers() {
+        for token in environmentObservers {
+            NotificationCenter.default.removeObserver(token)
+        }
+        environmentObservers = []
+    }
+
     /// Allows the backing scale factor to be overridden. Useful for keeping
     /// UI tests consistent across devices.
     ///
@@ -2817,8 +2848,12 @@ public class NSCustomWindow: NSWindow {
 
             guard let window = notification.object as? NSCustomWindow else { return }
 
-            // Not sure if this is actually needed
-            NotificationCenter.default.removeObserver(window)
+            // The block observers `setWindowEnvironmentChangeHandler` added are
+            // removed by their tokens; `removeObserver(window)` would not touch
+            // them, since the window was never the observer.
+            // `setWindowEnvironmentChangeHandler` 加入的 block observer 要用它們的 token 移除；
+            // `removeObserver(window)` 碰不到它們，因為視窗從來就不是 observer。
+            window.removeEnvironmentObservers()
         }
 
         func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {

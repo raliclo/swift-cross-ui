@@ -318,7 +318,7 @@ public final class GtkBackend:
     /// The Escape-swallowing controller each alert was created with.
     private var alertEscapeControllers: [ObjectIdentifier: OpaquePointer] = [:]
     private var pendingAlerts:
-        [ObjectIdentifier: [(alert: Alert, window: Window, handler: (Int) -> Void)]] = [:]
+        [ObjectIdentifier: [(alert: Alert, window: Window?, handler: (Int) -> Void)]] = [:]
 
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
@@ -1650,13 +1650,20 @@ public final class GtkBackend:
         minimizable: Bool,
         resizable: Bool
     ) {
-        // FIXME: This doesn't seem to work on macOS at least
+        // GTK's `deletable` removes the close button where GTK draws the
+        // titlebar; on macOS the titlebar is the NSWindow's and GTK leaves its
+        // close button alone, so the style mask is cleared there as well.
+        // GTK has no minimize property; `Window.minimizable` edits the header
+        // bar's decoration layout, and on macOS the style mask.
+        // 由 GTK 繪製 titlebar 之處,GTK 的 `deletable` 會移除關閉鈕;macOS 上 titlebar 是 NSWindow 的,GTK 不動它的
+        // 關閉鈕，所以那裡另外清除 style mask。GTK 沒有最小化屬性:`Window.minimizable` 修改 header bar 的
+        // decoration layout,在 macOS 上則修改 style mask。
         window.deletable = closable
-
-        // TODO: Figure out if there's some magic way to disable minimization
-        //   in a framework where the minimize button usually doesn't even exist
-
+        window.minimizable = minimizable
         window.resizable = resizable
+        #if os(macOS)
+            Self.applyNativeWindowChrome(ofWindow: window)
+        #endif
     }
 
     /// `.floating` only where the platform underneath GTK can provide it.
@@ -1868,11 +1875,19 @@ public final class GtkBackend:
         let root = window.getChild() as! CustomRootWidget
         root.setMinimumSize(minimumWidth: minimumSize.x, minimumHeight: minimumSize.y)
 
-        // NB: GTK does not support setting maximum sizes for widgets. It just doesn't.
-        // https://discourse.gnome.org/t/how-to-build-fixed-size-windows-in-gtk-4/22807/10
-        if maximumSize != nil {
-            debugLogOnce("GTK does not support setting maximum window sizes")
-        }
+        // GTK 4 has no maximum window size. The limit is kept on the window and
+        // handed to the platform where one takes it -- the NSWindow's
+        // `contentMaxSize` on macOS, so a drag stops at the limit. Everywhere,
+        // SwiftCrossUI's layout clamps a larger size it is handed by the resize
+        // handler and sets the window back (`WindowReference.update`), which is
+        // what enforces it where GTK draws the frame.
+        // GTK 4 沒有最大視窗尺寸。上限存在視窗上，交給能接受的平台——macOS 上 NSWindow 的 `contentMaxSize`,
+        // 拖曳就停在上限。在所有平台上,SwiftCrossUI 的排版會把 resize handler 交來的較大尺寸夾住並把視窗設回去
+        // (`WindowReference.update`),在 GTK 自己畫外框之處便是靠這一點強制。
+        window.maximumContentSize = maximumSize.map { Size(width: $0.x, height: $0.y) }
+        #if os(macOS)
+            Self.applyNativeWindowChrome(ofWindow: window)
+        #endif
     }
 
     public func setResizeHandler(
@@ -1946,6 +1961,10 @@ public final class GtkBackend:
             // After present(), when the NSWindow exists. See GtkBackend+ColourSpace.swift.
             // 在 present() 之後，此時 NSWindow 已存在。見 GtkBackend+ColourSpace.swift。
             tagColourSpace(ofWindow: window)
+            // After present() too: the closable, minimizable and maximum-size
+            // state set before the NSWindow existed. See GtkBackend+WindowChromeMac.swift.
+            // 同樣在 present() 之後:NSWindow 存在之前設定的可關閉、可最小化與最大尺寸狀態。見 GtkBackend+WindowChromeMac.swift。
+            Self.observeNativeWindowChrome(ofWindow: window)
         #endif
         #if SCUI_DEBUG
             // GTK's own scale, not the display's. `gtk_widget_get_scale_factor` is
@@ -2118,6 +2137,8 @@ public final class GtkBackend:
         window.onCloseRequest = { _ in
             action()
             window.destroy()
+            // Already destroyed: tell GTK the close is handled. / 已經摧毀:告訴 GTK 這次關閉已處理。
+            return true
         }
     }
 
@@ -2526,7 +2547,14 @@ public final class GtkBackend:
                 return 0
             },
             Unmanaged<ThreadActionContext>.passRetained(action).toOpaque(),
-            { _ in }
+            // The destroy notify balances `passRetained`: GLib calls it once the
+            // source is removed, which the `return 0` above does after one run.
+            // destroy notify 用來抵銷 `passRetained`:來源被移除時 GLib 會呼叫它一次，而上面的
+            // `return 0` 在執行一次後就移除來源。
+            { context in
+                guard let context else { return }
+                Unmanaged<ThreadActionContext>.fromOpaque(context).release()
+            }
         )
     }
 
@@ -2554,7 +2582,14 @@ public final class GtkBackend:
                 return 0
             },
             Unmanaged<ThreadActionContext>.passRetained(action).toOpaque(),
-            { _ in }
+            // The destroy notify balances `passRetained`: GLib calls it once the
+            // source is removed, which the `return 0` above does after one run.
+            // destroy notify 用來抵銷 `passRetained`:來源被移除時 GLib 會呼叫它一次，而上面的
+            // `return 0` 在執行一次後就移除來源。
+            { context in
+                guard let context else { return }
+                Unmanaged<ThreadActionContext>.fromOpaque(context).release()
+            }
         )
     }
 
@@ -4555,14 +4590,24 @@ public final class GtkBackend:
             return
         }
 
-        picker.model = gtk_string_list_new(
-            UnsafePointer(
-                options
-                    .map({ UnsafePointer($0.unsafeUTF8Copy().baseAddress) })
-                    .unsafeCopy()
-                    .baseAddress
-            )
-        )
+        // `gtk_string_list_new` copies the strings, so the temporary C copies
+        // and their NULL-terminated array are freed straight after; and setting
+        // `model` makes the dropdown take its own reference, so the one `_new`
+        // returned is dropped here. Both leaked on every change of options.
+        // `gtk_string_list_new` 會複製字串，所以暫時的 C 複本與其以 NULL 結尾的陣列隨即釋放;設定 `model`
+        // 時 dropdown 會取得自己的參考，所以 `_new` 回傳的那一個在此釋放。兩者過去在每次選項變更時都會洩漏。
+        var cStrings: [UnsafeMutablePointer<gchar>?] = options.map { g_strdup($0) }
+        cStrings.append(nil)
+        let model = cStrings.withUnsafeBufferPointer { buffer in
+            buffer.baseAddress!.withMemoryRebound(
+                to: UnsafePointer<gchar>?.self, capacity: buffer.count
+            ) { gtk_string_list_new($0) }
+        }
+        for cString in cStrings {
+            g_free(cString)
+        }
+        picker.model = model
+        g_object_unref(UnsafeMutableRawPointer(model))
 
         picker.notifySelected = { picker, _ in
             if picker.selected == Int(Int32(bitPattern: GTK_INVALID_LIST_POSITION)) {
@@ -4614,24 +4659,41 @@ public final class GtkBackend:
     }
 
     /// The pulse timers driving indeterminate progress bars, by widget.
+    ///
+    /// An entry is in here exactly while its timer is running: `stopPulsing`
+    /// removes it, and so does the timer itself when it finds its widget gone.
+    /// Otherwise a freed bar's `ObjectIdentifier` stayed behind, and a new bar
+    /// allocated at the same address found it and never started pulsing.
+    ///
     /// 驅動不確定進度條的 pulse 計時器，以 widget 為索引。
-    private var progressPulseTimers: [ObjectIdentifier: guint] = [:]
+    ///
+    /// 一筆紀錄只在其計時器執行期間存在於此:`stopPulsing` 會移除它，計時器發現 widget 已消失時也會自行移除。
+    /// 否則已釋放之 bar 的 `ObjectIdentifier` 會留下來，在同一位址配置的新 bar 會找到它而永遠不開始 pulse。
+    private var progressPulseTimers: [ObjectIdentifier: ProgressBarBox] = [:]
 
     /// Carries a progress bar into a C callback without keeping it alive.
     ///
     /// Weak on purpose: the timer outlives the widget if the view goes away
     /// before the timer is cancelled, and a strong reference would both leak the
-    /// widget and let the callback pulse something no longer on screen.
+    /// widget and let the callback pulse something no longer on screen. The
+    /// backend is weak too, and is only there so the timer can remove its own
+    /// entry from `progressPulseTimers` when it stops.
     ///
     /// 將進度條帶入 C callback，但不延長其生命週期。
     ///
     /// 刻意使用弱引用：若 view 在計時器被取消前就消失，計時器會比 widget 活得更久，而強引用會
-    /// 同時造成 widget 洩漏，並讓 callback 對一個已不在畫面上的東西呼叫 pulse。
+    /// 同時造成 widget 洩漏，並讓 callback 對一個已不在畫面上的東西呼叫 pulse。backend 也是弱引用，
+    /// 只是為了讓計時器停止時能從 `progressPulseTimers` 移除自己的紀錄。
     private final class ProgressBarBox {
         weak var progressBar: ProgressBar?
+        weak var backend: GtkBackend?
+        let key: ObjectIdentifier
+        var timer: guint = 0
 
-        init(_ progressBar: ProgressBar) {
+        init(_ progressBar: ProgressBar, backend: GtkBackend) {
             self.progressBar = progressBar
+            self.backend = backend
+            self.key = ObjectIdentifier(progressBar)
         }
     }
 
@@ -4639,14 +4701,22 @@ public final class GtkBackend:
     /// 開始 pulse 某個進度條（若尚未在 pulse）。
     private func startPulsing(_ progressBar: ProgressBar) {
         let key = ObjectIdentifier(progressBar)
-        guard progressPulseTimers[key] == nil else { return }
+        if let existing = progressPulseTimers[key] {
+            if existing.progressBar === progressBar { return }
+            // A freed bar at the same address whose timer has not fired since:
+            // it is still running (an entry means that), so stop it here.
+            // 位於同一位址、已被釋放的 bar,其計時器之後尚未觸發：它仍在執行(有紀錄即代表如此),所以在這裡停止它。
+            g_source_remove(existing.timer)
+            progressPulseTimers[key] = nil
+        }
 
         // 100ms is GTK's own cadence for this in its demos: fast enough to read
         // as motion, slow enough not to spend the frame budget on a widget that
         // is only saying "still working".
         // 100ms 是 GTK 自身範例採用的節奏：快到足以被讀成「在動」，又慢到不會為一個只是在說
         // 「還在處理」的 widget 耗掉繪製預算。
-        let timer = g_timeout_add_full(
+        let box = ProgressBarBox(progressBar, backend: self)
+        box.timer = g_timeout_add_full(
             0,
             100,
             { context in
@@ -4654,29 +4724,35 @@ public final class GtkBackend:
                 let box = Unmanaged<ProgressBarBox>.fromOpaque(context).takeUnretainedValue()
                 guard let progressBar = box.progressBar else {
                     // The widget is gone, so stop the timer rather than pulse a
-                    // freed pointer. Weakly held for exactly this reason.
-                    // widget 已不存在，因此停止計時器，而非對已釋放的指標呼叫 pulse。以弱引用持有
-                    // 正是為了這個原因。
+                    // freed pointer, and take its entry out with it. Weakly
+                    // held for exactly this reason.
+                    // widget 已不存在，因此停止計時器，而非對已釋放的指標呼叫 pulse,並一併移除其紀錄。以弱引用
+                    // 持有正是為了這個原因。
+                    MainActor.assumeIsolated {
+                        if let backend = box.backend, backend.progressPulseTimers[box.key] === box {
+                            backend.progressPulseTimers[box.key] = nil
+                        }
+                    }
                     return 0
                 }
                 gtk_progress_bar_pulse(progressBar.opaquePointer)
                 return 1
             },
-            Unmanaged.passRetained(ProgressBarBox(progressBar)).toOpaque(),
+            Unmanaged.passRetained(box).toOpaque(),
             { context in
                 guard let context else { return }
                 Unmanaged<ProgressBarBox>.fromOpaque(context).release()
             }
         )
-        progressPulseTimers[key] = timer
+        progressPulseTimers[key] = box
     }
 
     /// Stops pulsing a progress bar, so a determinate fraction can be shown.
     /// 停止 pulse 某個進度條，使其可顯示確定的進度值。
     private func stopPulsing(_ progressBar: ProgressBar) {
         let key = ObjectIdentifier(progressBar)
-        guard let timer = progressPulseTimers.removeValue(forKey: key) else { return }
-        g_source_remove(timer)
+        guard let box = progressPulseTimers.removeValue(forKey: key) else { return }
+        g_source_remove(box.timer)
     }
 
     public func updateProgressBar(
@@ -4717,9 +4793,17 @@ public final class GtkBackend:
             case .dark:
                 backgroundColor = Gtk.Color.eightBit(90, 90, 90)
         }
+        // Scoped to this bar's own class: the provider is added for the whole
+        // display, so a bare `trough` selector recoloured every trough in the
+        // app -- sliders and scales included. The widget's own `css` block goes
+        // first because a load replaces the provider's contents.
+        // 限定在此 bar 自己的 class:provider 是加在整個 display 上的，所以單獨的 `trough` 選擇器會把 app
+        // 中每一個 trough——連同 slider 與 scale——都重新上色。widget 自己的 `css` 區塊放在前面，因為一次載入
+        // 會取代 provider 的內容。
         progressBar.loadCSSText(
             from: """
-                trough {
+                \(progressBar.css.stringRepresentation)
+                .\(progressBar.css.cssClass) trough {
                     background-color: \(CSSProperty.rgba(backgroundColor));
                 }
                 """
@@ -4856,8 +4940,13 @@ public final class GtkBackend:
         window: Window?,
         responseHandler handleResponse: @escaping (Int) -> Void
     ) {
-        let target = window ?? windows[0]
-        let key = ObjectIdentifier(target)
+        // The app's first window when none is named, and none at all when no
+        // window is open: `windows[0]` crashed there. Alerts with no window share
+        // one queue, keyed by the Alert type.
+        // 未指定時用 app 的第一個視窗，沒有任何視窗開啟時就不用視窗:`windows[0]` 在那裡會當掉。沒有視窗的
+        // alert 共用一個佇列，以 Alert 型別為鍵。
+        let target = window ?? windows.first
+        let key = target.map(ObjectIdentifier.init) ?? ObjectIdentifier(Alert.self)
 
         // One alert per window on screen at a time, the latest on top: an alert
         // already up is hidden and comes back when this one is answered, so they
@@ -4874,7 +4963,7 @@ public final class GtkBackend:
 
     private func present(
         _ alert: Alert,
-        on target: Window,
+        on target: Window?,
         key: ObjectIdentifier,
         responseHandler handleResponse: @escaping (Int) -> Void
     ) {
@@ -4906,8 +4995,13 @@ public final class GtkBackend:
             handleResponse(responseId)
         }
         alert.isModal = true
-        alert.isDecorated = false
-        alert.setTransient(for: target)
+        // A parent when there is one; with no window open the alert stands on
+        // its own, decorated so it can still be moved.
+        // 有父視窗就設定;沒有任何視窗時 alert 獨立顯示，並保留裝飾以便仍可移動。
+        alert.isDecorated = target == nil
+        if let target {
+            alert.setTransient(for: target)
+        }
         alert.show()
     }
 
@@ -4961,7 +5055,7 @@ public final class GtkBackend:
             fileDialogOptions: fileDialogOptions,
             kind: kind,
             defaultFileName: nil,
-            window: window ?? windows[0],
+            window: window,
             resultHandler: handleResult
         )
     }
@@ -4976,7 +5070,10 @@ public final class GtkBackend:
             fileDialogOptions: fileDialogOptions,
             kind: .save,
             defaultFileName: saveDialogOptions.defaultFileName,
-            window: window ?? windows[0]
+            // `showFileChooserDialog` falls back to the first window itself, and to no
+            // parent when there is none; `windows[0]` crashed with no window open.
+            // `showFileChooserDialog` 自己會退回第一個視窗，沒有視窗時則不設父視窗;`windows[0]` 在沒有視窗時會當掉。
+            window: window
         ) { result in
             switch result {
                 case .success(let urls):
@@ -6037,14 +6134,30 @@ public final class GtkBackend:
         // `SheetModifier` 所呼叫的那一個——最後走到的是 `gtk_window_destroy`，而它不會發出 `close-request`
         // （會發出的是 `gtk_window_close`，而此處沒有任何地方使用它）。因此只從下面這個區塊執行的回呼，
         // 在程式化那條路上會抵達不了。
+        //
+        // The handler always answers `true` ("handled"): a sheet that may be
+        // dismissed is torn down by `dismissSheet(_:)` on the next main loop
+        // iteration, and letting GTK's default close destroy it now as well
+        // would leave that teardown destroying a window twice. A sheet with
+        // `interactiveDismissDisabled` is simply kept open -- the window
+        // manager's close button and Alt+F4 are refused, the same as Escape.
+        //
+        // handler 一律回答 `true`(「已處理」):可被關閉的 sheet 由 `dismissSheet(_:)` 在下一輪 main loop
+        // 拆除，若同時讓 GTK 預設的關閉現在就摧毀它，那次拆除就會把同一個視窗摧毀兩次。設了
+        // `interactiveDismissDisabled` 的 sheet 則單純保持開啟——視窗管理器的關閉鈕與 Alt+F4 都會被拒絕，
+        // 與 Escape 相同。
         sheet.onCloseRequest = { [weak self, weak sheet] _ in
             guard let self, let sheet else {
-                return
+                return false
+            }
+            guard !sheet.interactiveDismissDisabled else {
+                return true
             }
 
             self.runInMainThread {
                 self.dismissSheet(sheet)
             }
+            return true
         }
 
         // Allow the escape key to be used to dismiss interactively dismissible

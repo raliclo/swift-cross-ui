@@ -151,9 +151,14 @@ class AndroidBackendHelpers: JavaObject {
         _ token: String,
         _ title: String,
         _ content: AndroidKit.View?,
+        _ widthDp: Int32,
+        _ heightDp: Int32,
         _ onClosed: SwiftAction?,
         _ onResized: SwiftAction?
     )
+
+    @JavaMethod
+    func activateWindow(_ activity: Activity?) -> Bool
 
     @JavaMethod
     func closeWindow(_ token: String)

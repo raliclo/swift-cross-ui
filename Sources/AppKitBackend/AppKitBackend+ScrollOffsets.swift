@@ -62,6 +62,16 @@ extension AppKitBackend: BackendFeatures.ScrollOffsetReporting {
             }
             NotificationCenter.default.removeObserver(existing.token)
         }
+        // Entries whose scroll view has been freed are dropped, with their
+        // observers, each time one is added: a scroll view that goes away
+        // without its handler being cleared would otherwise leave its token
+        // and box here for the rest of the process.
+        // 每次加入一筆時，捲動視圖已被釋放的項目連同其觀察者一併移除：否則一個沒有先清掉 handler
+        // 就消失的捲動視圖，會把它的 token 與 box 留在這裡直到行程結束。
+        for (deadKey, entry) in Self.scrollObservers where entry.box.scrollView == nil {
+            NotificationCenter.default.removeObserver(entry.token)
+            Self.scrollObservers.removeValue(forKey: deadKey)
+        }
         let box = ScrollHandlerBox(handler: handler)
         box.scrollView = scrollView
         let clip = scrollView.contentView

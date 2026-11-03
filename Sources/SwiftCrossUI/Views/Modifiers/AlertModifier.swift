@@ -103,7 +103,12 @@ struct AlertModifierView<Child: View>: TypeSafeView {
             ) { responseId in
                 children.alert = nil
                 isPresented.wrappedValue = false
-                actions[responseId].action()
+                // A response index the actions do not cover closes the alert
+                // and runs nothing, rather than indexing out of range.
+                // 動作未涵蓋的回應索引會關閉警示且不執行任何動作，而不是索引越界。
+                if actions.indices.contains(responseId) {
+                    actions[responseId].action()
+                }
             }
             children.alert = alert
         } else if isPresented.wrappedValue == false && children.alert != nil {

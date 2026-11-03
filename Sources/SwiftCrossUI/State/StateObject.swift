@@ -79,17 +79,17 @@ public struct StateObject<Value: ObservableObject>: ObservableProperty {
 
         /// Stores the object and re-points the publisher chain at it.
         ///
-        /// The `upstream?.cancel()` is not tidying up. `ObservableObject`'s
-        /// default `didChange` builds a FRESH publisher on every access, so a
-        /// second `link` without cancelling the first leaves both chains live
-        /// and every change arrives twice -- which produces two view updates
-        /// instead of one and reports nothing anywhere.
+        /// The `upstream?.cancel()` is not tidying up. A second `link` without
+        /// cancelling the first leaves both chains live -- even when both lead
+        /// to the same object's publisher -- and every change arrives twice,
+        /// which produces two view updates instead of one and reports nothing
+        /// anywhere.
         ///
         /// 儲存該物件，並把 publisher 鏈重新指向它。
         ///
-        /// `upstream?.cancel()` 不是在做清理。`ObservableObject` 的預設 `didChange`
-        /// **每次存取都會產生一個全新的 publisher**，因此若不取消前一條就再 `link` 一次，兩條鏈
-        /// 都會存活，每個變更都會抵達兩次——結果是一次更新變成兩次，而且任何地方都不會回報這件事。
+        /// `upstream?.cancel()` 不是在做清理。若不取消前一條就再 `link` 一次，兩條鏈都會存活——即使兩者
+        /// 通往同一個物件的 publisher——每個變更都會抵達兩次，結果是一次更新變成兩次，而且任何地方都不會
+        /// 回報這件事。
         private func adopt(_ value: Value) {
             made = value
             upstream?.cancel()
