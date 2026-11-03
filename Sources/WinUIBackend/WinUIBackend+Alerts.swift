@@ -200,7 +200,11 @@ extension WinUIBackend: BackendFeatures.Alerts {
             let sheet = suspendedSheet
             suspendedSheet = nil
             if let window, let backend {
-                backend.presentSheets(afterAlertsIn: window, suspended: sheet)
+                // Alert completions arrive on the UI thread, where the backend lives.
+                // alert 的完成處理在 UI 執行緒上到達，也就是 backend 所在之處。
+                MainActor.assumeIsolated {
+                    backend.presentSheets(afterAlertsIn: window, suspended: sheet)
+                }
             }
         }
     }
