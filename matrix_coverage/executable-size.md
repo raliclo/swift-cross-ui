@@ -20,6 +20,60 @@ same day.
 `testapp/P46.swift` 中的文字引用，沒有任何腳本寫入它。`coverage.zsh` 只寫 `coverage.md`，從不碰
 本檔。請手動編輯；`matrix_coverage/README.md` 在同日被更正之前的說法正好相反。
 
+## 2026-11-05: the Android columns re-measured, after strip
+
+Every Android app was rebuilt on 2026-11-04/05 (release, `compile.zsh -android`
+then `package_android.zsh`, no emulator) and both Android columns were replaced.
+**118 apps have Android numbers now**, against 45 before. The 70 apps that had
+no row (P45, P47–P115) were added with only the Android columns filled. P6-v2
+still has none: it imports Gtk, and `compile.zsh -android` skips it.
+
+**`android_exe_bytes` now means something else.** Until 2026-09-04 it was
+`output/P*-android`, the executable before strip. From 2026-11-05 it is
+`lib/arm64-v8a/lib<app>.so` as it sits inside the APK (the uncompressed size
+`unzip -l` reports): stripped by Gradle's `stripReleaseDebugSymbols`, with no
+`.debug_*`, `.symtab` or `.swift_ast` section left (checked with
+`llvm-readelf -S` on P0). Read the `android_measured` date before
+comparing two rows.
+
+| | n | average | range | before (2026-09-04) |
+|---|---:|---:|---:|---:|
+| `lib<app>.so`, stripped | 118 | 33.2 MB | 33.2–33.4 | 173.3 MB (unstripped executable) |
+| APK | 118 | 37.1 MB | 37.1–37.2 | 211.5 MB |
+
+The APK is smaller than its own libraries added up because they are now
+deflated inside it: in P0, `libP0.so` is 34.8 MB stored as 10.1 MB, and
+`lib_FoundationICU.so` is 40.0 MB stored as 15.7 MB.
+
+```zsh
+# per app, after test_android.zsh or compile.zsh -android + package_android.zsh
+stat -f %z testapp/.androidApk/P0.apk
+unzip -l testapp/.androidApk/P0.apk lib/arm64-v8a/libP0.so
+```
+
+The file has **119 records** now. The "49 records" below is the count as of
+2026-09-08 and keeps its date.
+
+## 2026-11-05：Android 各欄重新量測，strip 之後
+
+2026-11-04/05 把每一支 Android app 重新建置(release,`compile.zsh -android` 之後接
+`package_android.zsh`,不開模擬器),兩欄 Android 數字全部換新。**現在有 118 支 app 有 Android
+數字**,之前是 45 支。原本沒有列的 70 支(P45、P47–P115)新增為只填 Android 欄的列。P6-v2 仍然
+沒有：它 import Gtk,`compile.zsh -android` 會跳過它。
+
+**`android_exe_bytes` 的意思變了。** 到 2026-09-04 為止，它是 `output/P*-android`,也就是 strip
+之前的執行檔。自 2026-11-05 起，它是 APK 裡的 `lib/arm64-v8a/lib<app>.so`(`unzip -l` 報出的未壓縮
+大小):已由 Gradle 的 `stripReleaseDebugSymbols` strip 過，沒有任何 `.debug_*`、`.symtab` 或
+`.swift_ast` section(以 `llvm-readelf -S` 在 P0 上查證)。比較兩列之前，先看
+`android_measured` 的日期。
+
+平均：strip 後的 `lib<app>.so` 為 33.2 MB(118 支，33.2–33.4),APK 為 37.1 MB(37.1–37.2);
+2026-09-04 時分別是 173.3 MB(未 strip 的執行檔)與 211.5 MB。APK 比它自己的函式庫加總還小，是因為
+它們現在在 APK 裡是壓縮的：P0 的 `libP0.so` 34.8 MB 存成 10.1 MB,`lib_FoundationICU.so` 40.0 MB
+存成 15.7 MB。
+
+本檔現在有 **119 筆**紀錄；下方的「49 筆」是 2026-09-08 當時的計數，連同其日期保留。
+
 ## 2026-09-08: every Windows row in the CSV is stale by about 27.5 MB
 
 `894e485f` removed the SwiftSyntax dependency from the SwiftCrossUI target on
