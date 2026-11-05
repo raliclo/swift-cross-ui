@@ -8,9 +8,9 @@
 
 ## 一句話 / In one line
 
-**這棵樹的 Android APK 比 iOS `.app` 大 12.9 倍,而業界的通則說的是反過來。**
+**這棵樹的 Android APK 比 iOS `.app` 大 4.4 倍(2026-11-05;2026-09-06 時為 12.9 倍),而業界的通則說的是反過來。**
 
-Android is 12.9× larger than iOS here, and the widely-quoted rule says the
+Android is 4.4× larger than iOS here (12.9× on 2026-09-06), and the widely-quoted rule says the
 opposite. The rule is not wrong; it does not apply to a Swift toolkit on
 Android, and the reason is one line of `otool` output.
 
@@ -42,8 +42,11 @@ SwiftCrossUI carries a foreign runtime onto one of them.
 | --- | ---: | --- | ---: |
 | iOS `.app` | **8.5 MB** | 47 支 | 8.5 – 8.7 MB |
 | Android APK | **109.9 MB** | 35 支(2026-09-05 重建) | 109.9 – 110.0 MB |
+| Android APK | **37.1 MB** | 118 支(2026-11-05 重建，release) | 37.1 – 37.2 MB |
 
 兩邊的離散度都近乎零,所以這不是抽樣造成的。
+
+2026-11-05 的 37.1 MB 是 release 建置，原生函式庫在 APK 裡是壓縮存放的(P0:`libP0.so` 34.8 MB 存成 10.1 MB);109.9 MB 那列是未壓縮的。每支的數字見 `matrix_coverage/executable-size.csv2`。4.4 倍是拿它和 iOS 的 8.5 MB 比，而 iOS 這個數字沒有重量，仍是 2026-09-06 的。
 
 磁碟上另有 10 個舊 APK,平均 191.2 MB——那些是本週優化之前的,**不可拿來比較**。
 

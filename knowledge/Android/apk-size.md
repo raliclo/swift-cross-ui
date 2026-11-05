@@ -3,6 +3,10 @@
 Measured 2026-10-24 on P96, debug build. The release build (R8, compressed
 native libraries) is 37 MB; see android-setting.md.
 
+Re-measured 2026-11-05 on all 118 Android apps, release: the APK is 37.1 MB
+(37.1–37.2) and the stripped `lib<app>.so` 33.2 MB; per app in
+matrix_coverage/executable-size.csv2.
+
 ## What
 
 P96's APK is **113 MB**, a Gradle debug variant (`assembleDebug`), arm64-v8a
@@ -62,6 +66,8 @@ compile.zsh (`needs_image_formats`, `testAppDependencies`).
 # APK 大小
 
 2026-10-24 在 P96 的 debug 建置上量測。release 建置(R8、原生函式庫壓縮)為 37 MB,見 android-setting.md。
+
+2026-11-05 在全部 118 支 Android app 的 release 建置上重新量測:APK 為 37.1 MB(37.1–37.2),strip 後的 `lib<app>.so` 為 33.2 MB;每支的數字見 matrix_coverage/executable-size.csv2。
 
 ## 內容
 
