@@ -104,7 +104,7 @@ themselves. The three-way deck's macOS captions come from MAC_TSV, and
 (app, image, caption) holding the caption it put on the page, so the size
 travels with it. A MAC_TSV caption with no size -- one made by hand before
 sizes, as the one used until 2026-10-22 -- is marked "app size not in MAC_TSV"
-on the slide and listed on stderr. The iOS / Android deck has no generator.
+on the slide and listed on stderr. Since 2026-11-06 the iOS / Android deck has a generator (below).
 
 On 2026-10-22 all three pages were updated in place with the sizes measured
 that day (an earlier version that day showed the JPEG size instead). The GTK /
@@ -114,6 +114,37 @@ GTK decks measure. The "30 of 108" counted that day was the M4 checkout
 (`/Volumes/Windows/proj_Win`, read through multissh), whose GTK builds had mostly
 been cleaned; M4 rebuilt 82 of the 83 missing the same day (P6 has no GTK form
 by design).
+
+## iOS / Android: capture_mobile.zsh and build_ios_android_deck.zsh
+
+"iOS and Android Pairs" (https://claude.ai/artifact/9JKV4ehUuxTV6dYfquZ1xU) was
+updated by hand from its publication on 2026-10-12 until 2026-11-06, when it got
+a generator.
+
+```sh
+zsh testapp/test_support/pairs_deck/capture_mobile.zsh P113 P114   # only those; none = every testapp/P*.swift
+zsh testapp/test_support/pairs_deck/build_ios_android_deck.zsh OUTDIR
+```
+
+**capture_mobile.zsh** runs `test.zsh Pn --ios --showtime 3` and
+`test.zsh Pn --android --showtime 3` with no action file, and appends one record
+per run to `testapp/output/ios-android-pairs.csv2` (`utc,app,platform,exit,image`).
+`IOS_NO_BUILD=1` and `ANDROID_NO_BUILD=1` reuse the builds already there.
+
+**build_ios_android_deck.zsh** has two sources, the newer winning per app and
+side: the newest record in `ios-android-pairs.csv2` (a failed run too, whose side
+then shows the exit status), else `ios-android-slides.csv2`, what each slide
+showed when it was taken from the published page on 2026-11-06 -- the chip, the
+note, and the published image with its caption. The chip and the note are always
+read from `ios-android-slides.csv2`; edit that file, with csv2, to change them.
+New captures are written to `OUTDIR/img/` and published with `index.html` to the
+same URL; the sides not recaptured are the images already at that URL, which the
+publish keeps. The app size in every caption is measured when the page is built:
+`output/Pn-ios.app/Pn` and `.androidApk/Pn.apk`.
+
+Against the page published on 2026-11-06, its output differed only in the cover
+text, the build date in two iOS captions (rebuilt since), and how a few notes
+escape quotes (rendered the same).
 
 ---
 
@@ -154,10 +185,33 @@ Windows 的 `Pn-gtk4.exe`、WSL checkout 的 Linux 執行檔、Mac 的 `output/P
 `.androidApk/Pn.apk`。建置可能比擷圖新，日期就是為此而列。`build_deck.zsh` 與 `build_gtk_deck.zsh` 寫說明時自己量;
 GTK 三方簡報 macOS 那一欄的說明取自 MAC_TSV,而這個檔由 `build_deck.zsh` 寫出:`OUTDIR/mac-gtk.tsv`,每張 GTK 影像一列
 (app、影像、說明),說明就是它寫在頁面上的那一句，大小跟著一起帶過去。沒有大小的 MAC_TSV 說明(像 2026-10-22 以前手做的那份)
-會在投影片上標成「app size not in MAC_TSV」並列在 stderr。iOS / Android 簡報沒有產生器。
+會在投影片上標成「app size not in MAC_TSV」並列在 stderr。iOS / Android 簡報自 2026-11-06 起由 build_ios_android_deck.zsh 產生，見下一節。
 2026-10-22 三份頁面都以當時量到的大小直接更新(先前一版放的是圖片 JPEG 大小，已改掉)。GTK / macOS 的擷圖是在 M6(192.168.213.177)
 拍的，它 10-18/19 的建置都還在(113 支 `Pn-gtk4`),兩份 GTK 簡報應量那些。當天數到的「108 支只剩 30 支」是 M4 的 checkout
 (`/Volumes/Windows/proj_Win`,經 multissh 讀取),那裡的 GTK 建置多已清掉;M4 同日補建了缺的 83 支中的 82 支(P6 依設計沒有 GTK 版)。
+
+## iOS / Android:capture_mobile.zsh 與 build_ios_android_deck.zsh
+
+「iOS and Android Pairs」(https://claude.ai/artifact/9JKV4ehUuxTV6dYfquZ1xU)自 2026-10-12 發布以來一直是手工更新的；
+2026-11-06 起有了產生器。
+
+```sh
+zsh testapp/test_support/pairs_deck/capture_mobile.zsh P113 P114   # 只擷取這些;不給參數就是每個 testapp/P*.swift
+zsh testapp/test_support/pairs_deck/build_ios_android_deck.zsh OUTDIR
+```
+
+**capture_mobile.zsh** 不帶動作檔執行 `test.zsh Pn --ios --showtime 3` 與 `test.zsh Pn --android --showtime 3`,
+每次執行在 `testapp/output/ios-android-pairs.csv2` 加一筆(`utc,app,platform,exit,image`)。`IOS_NO_BUILD=1` 與
+`ANDROID_NO_BUILD=1` 沿用既有的建置。
+
+**build_ios_android_deck.zsh** 的資料有兩個來源，每個 app 的每一邊取較新的那個:`ios-android-pairs.csv2` 的最新一筆
+(失敗的執行也算，那一邊會顯示結束狀態),否則是 `ios-android-slides.csv2`——2026-11-06 從已發布頁面抽出的每頁內容：
+標籤、說明、已發布影像與其說明。標籤與說明一律從 `ios-android-slides.csv2` 讀，要改就用 csv2 改那個檔。新擷取的影像寫到
+`OUTDIR/img/`,與 `index.html` 一起發布到同一個網址；沒有重新擷取的那些仍是網址上已有的影像，發布時會被保留。
+每個說明最後的 app 大小在建置頁面時量:`output/Pn-ios.app/Pn` 與 `.androidApk/Pn.apk`。
+
+對照 2026-11-06 的已發布頁面，產生器的輸出只差在封面文字、兩張 iOS 說明的建置日期(之後重新建置過)與幾則說明的
+引號跳脫寫法(畫面相同)。
 
 ## Notes against macOS (GTK three-way deck)
 

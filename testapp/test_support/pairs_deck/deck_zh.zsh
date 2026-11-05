@@ -1,12 +1,12 @@
 # deck_zh.zsh -- the zh-TW line under each note and the to-do page of missing
-# screenshots, for build_deck.zsh and build_gtk_deck.zsh (sourced by both).
+# screenshots, for build_deck.zsh, build_gtk_deck.zsh and build_ios_android_deck.zsh (sourced by all three).
 #
 # Translations are data beside the English: {"P10": {"en": "...", "zh": "..."}}.
 # "en" is the English the line was translated from. When the deck's English no
 # longer matches it, the zh line is left out and named on stderr rather than
 # shown beside a note it no longer translates.
 #
-# deck_zh.zsh —— 每則說明下方的 zh-TW 一行，以及缺少截圖的待辦頁，供 build_deck.zsh 與 build_gtk_deck.zsh 使用(兩者都 source)。
+# deck_zh.zsh —— 每則說明下方的 zh-TW 一行，以及缺少截圖的待辦頁，供 build_deck.zsh、build_gtk_deck.zsh 與 build_ios_android_deck.zsh 使用(三者都 source)。
 # 翻譯是放在英文旁邊的資料:{"P10": {"en": "...", "zh": "..."}}。"en" 是翻譯所依據的英文。簡報的英文與它不再相符時，
 # 不印出那一行 zh,而是在 stderr 列出，免得它出現在一則它已不再翻譯的說明旁邊。
 
@@ -14,9 +14,9 @@ typeset -gA zh_en zh_text
 typeset -ga zh_missing zh_stale todo_items todo_known
 
 # Sides with no screenshot by design or out of a machine's scope, not by failure, keyed "DECK APP SIDE"
-# (DECK is todo_deck, set by the builder: three or mac). The to-do page lists them
+# (DECK is todo_deck, set by the builder: three, mac or ios). The to-do page lists them
 # apart, under "Not expected", so they are neither chased nor forgotten.
-# 刻意而非失敗造成的沒有截圖，鍵為「DECK APP SIDE」(DECK 是 builder 設定的 todo_deck:three 或 mac)。
+# 刻意而非失敗造成的沒有截圖，鍵為「DECK APP SIDE」(DECK 是 builder 設定的 todo_deck:three、mac 或 ios)。
 # 待辦頁把它們分開列在「預期沒有」之下，既不會被當成待辦去追，也不會被忘記。
 typeset -g todo_deck=
 typeset -gA todo_by_design=(
