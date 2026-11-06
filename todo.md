@@ -88,11 +88,34 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
   exes are deleted afterwards (user's choice: about 18 GB for all forty, 13 GB
   free on C:).
   WinUI 的 P1-P40 在 2.6.5 上建置並執行(使用者的目標)。每批十支，跑完刪除該批 exe(使用者選擇；全部約 18 GB,C: 只剩 13 GB)。
+  Batch 1 (P1-P10) on 2026-11-06: all built, all ran (rc 0) and drew their
+  window; the final captures were checked by eye. Every run printed `!!` lines,
+  none a failure: the pre-run notice that `remoting_host.exe` (Chrome Remote
+  Desktop) is up, and a missed 1 s capture because a debug WinUI window is not up
+  yet at 1 s. P4's blue title bar is P4's own `appWindow.titleBar` colour
+  (P4.swift:230), so that API works on 2.6.5. Stripped sizes are recorded in
+  `matrix_coverage/executable-size.csv2` (`windows_winui_debug_bytes`).
+  第一批(P1-P10):全部建置、全部執行(rc 0)並畫出視窗，最終截圖已目視檢查。`!!` 行都不是失敗：遠端桌面提示，與 debug
+  視窗 1 秒時尚未出現。P4 的藍色標題列是它自己設的 `appWindow.titleBar` 顏色。strip 後大小記在 executable-size.csv2。
+- [x] **12. NuGet and download caches** (user's request): about 2.1 GB removed
+  with the user's approval -- the scratch 2.6.5 download, the fork's
+  `Support/.packages` (re-fetched by generate-bindings.zsh), every
+  `~/.nuget/packages` entry except `microsoft.graphics.win2d` (compile.zsh copies
+  `Microsoft.Graphics.Canvas.dll` from it), NuGet's v3-cache, and three old
+  moreSwift swift-winui checkouts under `.build*/checkouts`.
+  NuGet 與下載快取：經使用者同意刪除約 2.1 GB;`~/.nuget/packages` 只保留 compile.zsh 會用到的 win2d。
 
 Cycle 1 review (2026-11-06): d4920949's `try!` sites match what 0.5.0 did
 inside the bindings, so they crash where they crashed before and nowhere new.
 Item 10 is the one defect found.
 第 1 輪審查(2026-11-06):d4920949 的 `try!` 與 0.5.0 在 bindings 內部所做的相同，當機點與以前一樣，沒有新增。找到的缺陷是第 10 項。
+
+Cycle 2 review (2026-11-06): cycle 1's three changes re-read; no defect. The
+CI step needs the fork to be public, and it is (anonymous HTTPS 200).
+9f6f6736 is committed but not pushed: the gh token lacks the `workflow` scope
+that a change to ci.yml needs (`gh auth refresh -h github.com -s workflow`).
+第 2 輪審查(2026-11-06):重讀第 1 輪的三處修改，沒有缺陷。CI 步驟需要 fork 是公開的，確認是(匿名 HTTPS 200)。
+9f6f6736 已 commit 未 push:gh token 沒有修改 ci.yml 所需的 `workflow` scope。
 
 ### Code review follow-up / 程式碼審查待辦 (2026-10-29, Windows)
 

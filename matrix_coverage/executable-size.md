@@ -20,6 +20,44 @@ same day.
 `testapp/P46.swift` 中的文字引用，沒有任何腳本寫入它。`coverage.zsh` 只寫 `coverage.md`，從不碰
 本檔。請手動編輯；`matrix_coverage/README.md` 在同日被更正之前的說法正好相反。
 
+## 2026-11-06: WinUI on Windows App SDK 2.6.5, debug, after strip
+
+Two columns were added after `windows_winui_bytes`:
+`windows_winui_debug_bytes` and `windows_winui_debug_measured`. They hold the
+WinUI exe built on **Windows App SDK 2.6.5** (d4920949) with
+`BUILD_CONFIG=debug`, **after** compile.zsh's `llvm-strip --strip-debug`, as
+`testapp/output/build-manifest.csv2` records it (that file is not tracked, so
+the numbers are copied here). `windows_winui_bytes` is unchanged: a release
+build on 1.5-preview1 from 2026-09-02. The two are different configurations
+and SDKs; do not subtract one from the other.
+
+P1-P40 are built in batches of ten and each batch's exes are deleted after its
+run (C: had 13 GB free), so this file is the only record of their size. The
+copy is made with a scratch script that reads the manifest through csv2 and
+checks the file on disk; per app it amounts to:
+
+```zsh
+csv2 -contains P1-WinUI.exe --search-column file -i testapp/output/build-manifest.csv2
+stat -c %s testapp/output/P1-WinUI.exe   # equal to the manifest's bytes
+```
+
+First batch (P1-P10, P41): 233.4-234.3 MB stripped (P6 the largest). The
+same exes are 368.5 MB in `.build/debug` before strip. 1.5-era release builds
+were 84 MB stripped (P72-P114 in testapp/output, built 2026-10-29/30).
+
+## 2026-11-06:Windows App SDK 2.6.5 上的 WinUI,debug,strip 之後
+
+在 `windows_winui_bytes` 之後新增兩欄:`windows_winui_debug_bytes` 與
+`windows_winui_debug_measured`。內容是以 **Windows App SDK 2.6.5**(d4920949)、`BUILD_CONFIG=debug`
+建置，經 compile.zsh 的 `llvm-strip --strip-debug` **之後**的 WinUI exe 大小，取自
+`testapp/output/build-manifest.csv2`(該檔未被追蹤，所以抄到這裡)。`windows_winui_bytes` 不變：那是
+2026-09-02 在 1.5-preview1 上的 release 建置。兩者組態與 SDK 都不同，不要相減。
+
+P1-P40 每十支一批建置，每批跑完就刪掉該批的 exe(C: 只剩 13 GB),所以本檔是它們大小的唯一紀錄。
+
+第一批(P1-P10、P41):strip 後 233.4-234.3 MB(P6 最大)。同樣的 exe 在 `.build/debug` 裡 strip 前是
+368.5 MB。1.5 時期的 release 建置 strip 後是 84 MB(testapp/output 的 P72-P114,2026-10-29/30 建置)。
+
 ## 2026-11-05: the Android columns re-measured, after strip
 
 Every Android app was rebuilt on 2026-11-04/05 (release, `compile.zsh -android`
