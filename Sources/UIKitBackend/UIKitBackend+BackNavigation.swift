@@ -70,23 +70,39 @@ extension UIKitBackend: BackendFeatures.BackNavigation, BackendFeatures.SheetBac
 /// runs it. 一個視窗或一個 sheet 的返回：它的 handler,以及執行它的邊緣滑動。
 @MainActor
 final class UIKitBackNavigation: NSObject, UIGestureRecognizerDelegate {
+    /// Keyed by the owner's address, and an address is reused once its owner
+    /// is freed: a new sheet can land where a dismissed one was. So an entry
+    /// counts only while its own weak owner is still the object asked about,
+    /// and entries whose owner is gone are dropped whenever one is added.
+    /// 以擁有者的位址為 key,而擁有者釋放後位址會被重用：新的 sheet 可能落在已關閉的 sheet 原本的位址。因此一筆項目只在
+    /// 它自己的弱參照擁有者仍是被查詢的那個物件時才算數，而每次加入項目時都會清掉擁有者已不在的項目。
     private static var byOwner: [ObjectIdentifier: UIKitBackNavigation] = [:]
 
+    private static func existing(for owner: AnyObject) -> UIKitBackNavigation? {
+        guard let entry = byOwner[ObjectIdentifier(owner)], entry.owner === owner else {
+            return nil
+        }
+        return entry
+    }
+
+    private static func register(_ navigation: UIKitBackNavigation, for owner: AnyObject) {
+        byOwner = byOwner.filter { $0.value.owner != nil }
+        byOwner[ObjectIdentifier(owner)] = navigation
+    }
+
     static func of(window: UIWindow) -> UIKitBackNavigation {
-        let key = ObjectIdentifier(window)
-        if let existing = byOwner[key] { return existing }
+        if let found = existing(for: window) { return found }
         let navigation = UIKitBackNavigation(window: window, sheet: nil)
         window.addGestureRecognizer(navigation.recognizer)
-        byOwner[key] = navigation
+        register(navigation, for: window)
         return navigation
     }
 
     static func of(sheet: CustomSheet) -> UIKitBackNavigation {
-        let key = ObjectIdentifier(sheet)
-        if let existing = byOwner[key] { return existing }
+        if let found = existing(for: sheet) { return found }
         let navigation = UIKitBackNavigation(window: nil, sheet: sheet)
         sheet.view.addGestureRecognizer(navigation.recognizer)
-        byOwner[key] = navigation
+        register(navigation, for: sheet)
         return navigation
     }
 
@@ -99,12 +115,15 @@ final class UIKitBackNavigation: NSObject, UIGestureRecognizerDelegate {
         guard let keyWindow, let root = keyWindow.rootViewController else { return nil }
         var top = root
         while let presented = top.presentedViewController { top = presented }
-        if top === root { return byOwner[ObjectIdentifier(keyWindow)]?.handler }
-        return byOwner[ObjectIdentifier(top)]?.handler
+        if top === root { return existing(for: keyWindow)?.handler }
+        return existing(for: top)?.handler
     }
 
     private weak var window: UIWindow?
     private weak var sheet: CustomSheet?
+
+    /// The window or sheet this belongs to, while it lives. 所屬的視窗或 sheet(在它存活期間)。
+    private var owner: AnyObject? { window ?? sheet }
 
     var handler: (@MainActor () -> Bool)? {
         didSet { recognizer.isEnabled = handler != nil || snapshot != nil }

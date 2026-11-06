@@ -4,6 +4,7 @@ import android.app.Activity
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
 /**
@@ -106,7 +107,15 @@ object ScuiBackNavigation {
         states.getOrPut(activity) { State(component) }.update(action)
     }
 
-    private class State(val activity: ComponentActivity) {
+    /**
+     * The callback of one activity. It holds the activity weakly: a WeakHashMap keeps its values
+     * strongly, and a value that held its key would keep the key alive, so an activity recreated
+     * for a configuration change would never leave `states`.
+     * 一個 activity 的 callback。它以弱參照持有 activity:WeakHashMap 強參照它的 value,而持有自身 key 的 value
+     * 會讓 key 一直存活，因此因設定變更而重建的 activity 永遠不會離開 `states`。
+     */
+    private class State(activity: ComponentActivity) {
+        private val activity = WeakReference(activity)
         var action: SwiftAction? = null
 
         val callback =
@@ -115,6 +124,7 @@ object ScuiBackNavigation {
                     val action = action ?: return
                     dispatch(action) {
                         isEnabled = false
+                        val activity = this@State.activity.get() ?: return@dispatch
                         activity.window.decorView.post { activity.onBackPressedDispatcher.onBackPressed() }
                     }
                 }
@@ -124,6 +134,7 @@ object ScuiBackNavigation {
             this.action = action
             if (action != null) {
                 if (!callback.isEnabled) {
+                    val activity = activity.get() ?: return
                     callback.remove()
                     activity.onBackPressedDispatcher.addCallback(activity, callback)
                     callback.isEnabled = true

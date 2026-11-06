@@ -36,14 +36,17 @@ struct StateImpl<Storage: StateStorageProtocol> {
 
     /// Identifies this storage to ``AnimationDriver`` for as long as it lives.
     ///
-    /// Per BOX, not per `StateImpl`: the `StateImpl` struct is copied every time
-    /// the view it belongs to is reconstructed, and a per-copy id would start a
-    /// second tween on every update instead of continuing the one in flight.
+    /// Per storage, not per `StateImpl` or per box: a rebuilt view makes a new
+    /// `StateImpl` and a new box, and ``update(with:previousValue:)`` hands them
+    /// the previous box's storage AND its ``StateAnimation``. With a key of
+    /// their own, a binding made after the rebuild would cancel a key no tween
+    /// runs under, and the tween in flight would overwrite the value it wrote.
     ///
     /// 在這份儲存存在期間，用來向 ``AnimationDriver`` 標識它。
     ///
-    /// 是逐 **box**、而非逐 `StateImpl`:那個 `StateImpl` struct 在它所屬的 view 每次被重建時都會被
-    /// 複製一份，而一個「逐複本」的 id 會在每一次更新時啟動第二個補間，而不是延續飛行中的那一個。
+    /// 是逐 storage,而非逐 `StateImpl` 或逐 box:view 重建時會建立新的 `StateImpl` 與新的 box,
+    /// 由 ``update(with:previousValue:)`` 把前一個 box 的 storage **與**它的 ``StateAnimation`` 交給它們。
+    /// 若它們有自己的 key,重建後建立的 binding 會取消一個沒有補間在跑的 key,而飛行中的補間會蓋掉它寫入的值。
     var animationKey: UUID { box.animationKey }
 
     var wrappedValue: Storage.Value {
@@ -165,14 +168,14 @@ struct StateImpl<Storage: StateStorageProtocol> {
             // already recorded its own target.
             // 記下目標值，供 `withAnimation` 內的讀取使用(見 `wrappedValue`),補間抵達它時忘掉。被取代的補間
             // 永遠不會 finish,而取代它的那一個已經記下了自己的目標。
-            let box = box
-            box.animationTarget = end
+            let state = box.animation
+            state.target = end
             AnimationDriver.shared.start(
                 key: animationKey,
                 animation: animation,
                 group: AnimationTransaction.group,
                 apply: Self.tweenApply(storage: storage, key: animationKey, from: start, to: end),
-                finish: { [weak box] in box?.animationTarget = nil }
+                finish: { [weak state] in state?.target = nil }
             )
         }
         run(start)
@@ -268,6 +271,10 @@ struct StateImpl<Storage: StateStorageProtocol> {
     func update(with environment: EnvironmentValues, previousValue: Self?) {
         if let previousValue {
             storage = previousValue.storage
+            // The tween in flight belongs to the storage, so its key and target come too; otherwise
+            // the binding would cancel a new key while the old tween overwrites what it wrote.
+            // 補間屬於 storage,所以它的 key 與目標也一起沿用;否則 binding 取消的是新 key,舊補間的下一幀蓋掉寫入的值。
+            box.animation = previousValue.box.animation
         }
     }
 }

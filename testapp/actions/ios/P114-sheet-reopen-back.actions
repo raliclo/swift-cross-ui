@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P114 on iOS (UIKitBackend): the edge swipe still pops a sheet's NavigationStack after an earlier sheet was closed. The Back of a window or sheet is looked up by the owner's address, and a new sheet can be allocated where the closed one was; before 2026-11-06 the lookup returned the closed sheet's entry, whose swipe was on a view that no longer exists, and the new sheet got no swipe. Address reuse is not guaranteed: on 2026-11-06 this file also passed without the fix, so it checks that a reopened sheet keeps its Back, not that the stale lookup is gone.
+# Steps: push Fruits (depth 1); open the sheet and close it; open it again; push Apples in it (sheet depth 1); edge swipe (sheet 0); close the sheet.
+# Pass: the replay reports replayed; the log shows, in order: path -> depth 1, sheet shown: true, sheet shown: false, sheet shown: true, sheet path -> depth 1, sheet path -> depth 0, sheet shown: false.
+# P114 在 iOS(UIKitBackend)上：先前的 sheet 關閉之後，邊緣滑動仍能彈出新 sheet 的 NavigationStack。視窗或 sheet 的返回以擁有者的位址查找，而新 sheet 可能配置在已關閉者原本的位址；2026-11-06 之前查到的是已關閉 sheet 的項目(其滑動掛在已不存在的 view 上),新 sheet 便沒有滑動。步驟與通過條件見上方英文說明。 位址不一定會被重用：2026-11-06 未套用修正時本檔同樣通過，因此它檢查的是重開的 sheet 保有返回，而不是過期查找已消失。
+sleep,,,,,,1500000,let P114 settle,ios
+taplabel,,,,,Open Fruits,,push Fruits in the window (depth 1),ios
+sleep,,,,,,1200000,,ios
+taplabel,,,,,Open sheet,,open the first sheet,ios
+sleep,,,,,,2000000,,ios
+taplabel,,,,,Close sheet,,close it,ios
+sleep,,,,,,2000000,,ios
+taplabel,,,,,Open sheet,,open a new sheet,ios
+sleep,,,,,,2000000,,ios
+taplabel,,,,,Sheet: open Apples,,push Apples in the new sheet (sheet depth 1),ios
+sleep,,,,,,1200000,,ios
+mousedown,1,500,screen,left,,,edge swipe: touch at the left edge,ios
+mouseup,260,500,screen,left,velocity 800,,pops Apples (sheet depth 0),ios
+sleep,,,,,,1500000,,ios
+taplabel,,,,,Close sheet,,close the sheet,ios
+sleep,,,,,,2000000,,ios
