@@ -26,6 +26,10 @@ commits fd3378f1, e9b80e8e, f191f46c, and results.csv2 (windows, winui: P38
   still needed on 2.6.5 has not been checked. Running needs Windows App Runtime
   2.6; a stale `swift-winui_CWinAppSDK.resources` left in `testapp/output` is
   loaded before `.bundle`, and the app then reports that it needs Runtime 2.6.
+- WebView2 on 2.6.5 needs `Microsoft.Web.WebView2.Core.dll` beside the exe:
+  the 1.5 framework package carried it, 2.6.5's does not. swift-winui 08b5f91
+  ships it as a CWinAppSDK resource and compile.zsh copies it out. Without it
+  the page stays empty and nothing reports an error (P38, 2026-11-06).
 
 ## The application starts single-threaded (STA)
 
@@ -91,6 +95,8 @@ Console.swift、fd3378f1、e9b80e8e、f191f46c,以及 results.csv2(windows、win
   static 方法都改為 `throws`。WinAppSDK 已非預覽版，但 `Console.swift` 的濾除在 2.6.5 上是否還需要尚未驗證。
   執行需要 Windows App Runtime 2.6;`testapp/output` 若殘留舊的 `swift-winui_CWinAppSDK.resources`,
   它會比 `.bundle` 先被載入，app 會回報需要 Runtime 2.6。
+- WebView2 在 2.6.5 上需要 exe 旁邊有 `Microsoft.Web.WebView2.Core.dll`:1.5 的 framework 套件附帶它,2.6.5 的沒有。
+  swift-winui 08b5f91 把它當 CWinAppSDK 資源提供，compile.zsh 複製到 exe 旁邊。少了它，頁面空白且沒有任何錯誤(P38,2026-11-06)。
 
 ## 應用程式以單執行緒(STA)啟動
 

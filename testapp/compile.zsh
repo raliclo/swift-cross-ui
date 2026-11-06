@@ -2198,6 +2198,22 @@ for app_name in $app_names; do
             cp "$win2d_dll" "$output_dir/Microsoft.Graphics.Canvas.dll"
             echo "    -> $output_dir/Microsoft.Graphics.Canvas.dll"
         fi
+        # WebView2's WinRT component, beside the exe. The Windows App SDK 2.x
+        # framework package no longer carries it (1.5's did), so swift-winui
+        # ships it as a CWinAppSDK resource; WinUI's WebView2 found it next to
+        # the executable (other places not tried). Without it P38's page stayed empty, no browser
+        # process started and nothing reported an error (2026-11-06).
+        # WebView2 的 WinRT 元件，放在 exe 旁邊。Windows App SDK 2.x 的 framework 套件不再附帶它(1.5 的有),
+        # 所以 swift-winui 把它當 CWinAppSDK 資源提供;放在執行檔旁邊時 WinUI 的 WebView2 找得到(其他位置未試)。少了它,P38 的頁面
+        # 一直空白、沒有瀏覽器行程啟動，也沒有任何錯誤(2026-11-06)。
+        webview2_core="$output_dir/swift-winui_CWinAppSDK.bundle/Microsoft.Web.WebView2.Core.dll"
+        [ -f "$webview2_core" ] || webview2_core="$output_dir/swift-winui_CWinAppSDK.resources/Microsoft.Web.WebView2.Core.dll"
+        if [ -f "$webview2_core" ]; then
+            cp -f "$webview2_core" "$output_dir/Microsoft.Web.WebView2.Core.dll"
+            echo "    -> $output_dir/Microsoft.Web.WebView2.Core.dll"
+        else
+            echo "    !! Microsoft.Web.WebView2.Core.dll not in the CWinAppSDK bundle; WebView will stay empty" >&2
+        fi
     fi
 done
 

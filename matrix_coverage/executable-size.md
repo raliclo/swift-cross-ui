@@ -33,16 +33,16 @@ and SDKs; do not subtract one from the other.
 
 P1-P40 are built in batches of ten and each batch's exes are deleted after its
 run (C: had 13 GB free), so this file is the only record of their size. The
-copy is made with a scratch script that reads the manifest through csv2 and
-checks the file on disk; per app it amounts to:
+copy is made by `testapp/test_support/record_winui_sizes.zsh`, which reads the
+manifest through csv2 and prints the file on disk beside it (it began as a
+scratch script; committed in cycle 3 so the numbers can be re-derived):
 
 ```zsh
-csv2 -contains P1-WinUI.exe --search-column file -i testapp/output/build-manifest.csv2
-stat -c %s testapp/output/P1-WinUI.exe   # equal to the manifest's bytes
+zsh testapp/test_support/record_winui_sizes.zsh P1 P2 P3   # after compile.zsh, before the exes go
 ```
 
-First batch (P1-P10, P41): 233.4-234.3 MB stripped (P6 the largest). The
-same exes are 368.5 MB in `.build/debug` before strip. 1.5-era release builds
+All 41 recorded (P1-P40 and P41, four batches): 233.4-234.3 MB stripped,
+P37 the smallest, P6 the largest (decimal MB, as compile.zsh prints them). The same exes are 368.5 MB in `.build/debug` before strip. 1.5-era release builds
 were 84 MB stripped (P72-P114 in testapp/output, built 2026-10-29/30).
 
 ## 2026-11-06:Windows App SDK 2.6.5 上的 WinUI,debug,strip 之後
@@ -55,7 +55,7 @@ were 84 MB stripped (P72-P114 in testapp/output, built 2026-10-29/30).
 
 P1-P40 每十支一批建置，每批跑完就刪掉該批的 exe(C: 只剩 13 GB),所以本檔是它們大小的唯一紀錄。
 
-第一批(P1-P10、P41):strip 後 233.4-234.3 MB(P6 最大)。同樣的 exe 在 `.build/debug` 裡 strip 前是
+已記錄 41 支(P1-P40 與 P41,分四批):strip 後 233.4-234.3 MB,P37 最小、P6 最大(十進位 MB,與 compile.zsh 印出的相同)。同樣的 exe 在 `.build/debug` 裡 strip 前是
 368.5 MB。1.5 時期的 release 建置 strip 後是 84 MB(testapp/output 的 P72-P114,2026-10-29/30 建置)。
 
 ## 2026-11-05: the Android columns re-measured, after strip

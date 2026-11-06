@@ -82,7 +82,7 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
   SwiftPM). Not yet seen on a CI run: the GitHub API timed out from here.
   第 1 輪審查 d4920949 時發現:CI 沒有取出 submodule,而 Package.swift 在每個主機上都以路徑引用 swift-winui,
   三個 job 都無法解析套件。已在三個 job 加上取出 submodule 的步驟；尚未在 CI 上看到結果(此處 GitHub API 逾時)。
-- [ ] **11. WinUI P1-P40 build and run on 2.6.5** (the user's goal, 2026-11-06).
+- [x] **11. WinUI P1-P40 build and run on 2.6.5** (the user's goal, 2026-11-06).
   Built in batches of ten with BUILD_CONFIG=debug and run with
   `TEST_BACKEND=WinUI zsh testapp/test.zsh Pn -win --no-build`; each batch's
   exes are deleted afterwards (user's choice: about 18 GB for all forty, 13 GB
@@ -97,6 +97,34 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
   `matrix_coverage/executable-size.csv2` (`windows_winui_debug_bytes`).
   第一批(P1-P10):全部建置、全部執行(rc 0)並畫出視窗，最終截圖已目視檢查。`!!` 行都不是失敗：遠端桌面提示，與 debug
   視窗 1 秒時尚未出現。P4 的藍色標題列是它自己設的 `appWindow.titleBar` 顏色。strip 後大小記在 executable-size.csv2。
+  Batches 2 and 3 (P11-P30): all built and drew their window. Sizes 233.4-233.6
+  MB stripped. Two things looked like failures and are not WinUI's:
+  - P26 exited 1 because its wrapper first runs the appCache checks in **WSL**
+    (GTK), and step 1 wrote no artifact (it fetches httpbin.org); the GUI run is
+    then skipped. `test.zsh P26 --skip-cache -win` ran the WinUI window: RENDER
+    COMPLETE. The WSL cache failure is open, not looked into.
+  - P27's WebView box stays empty, also after 15 s. P27.swift records the same on
+    WinUIBackend on 2026-08-27 (four msedgewebview2.exe up, nothing drawn) and
+    leaves whether the page draws to P38.
+  第二、三批(P11-P30):全部建置並畫出視窗，strip 後 233.4-233.6 MB。兩個看似失敗的都不是 WinUI 的問題:P26 的 wrapper
+  先在 WSL(GTK)跑 appCache 檢查，第 1 步沒寫出 artifact 就跳過 GUI;`--skip-cache -win` 的 WinUI 視窗 RENDER COMPLETE。
+  WSL 的快取失敗未查。P27 的 WebView 框空白，P27.swift 記載 2026-08-27 在 WinUIBackend 上就是如此，頁面是否畫出交給 P38。
+  Batch 4 (P31-P40): all built and drew their window, except that P38's page
+  stayed empty -- item 13, fixed. All 41 sizes are in executable-size.csv2
+  (233.4-234.3 MB stripped). Done 2026-11-06.
+  第四批(P31-P40):全部建置並畫出視窗，只有 P38 的頁面空白——第 13 項，已修。41 支的大小都在 executable-size.csv2。
+- [x] **13. WebView2 drew nothing on 2.6.5 (P38).** Navigations stayed 0, no
+  `msedgewebview2.exe` started for P38, and `EnsureCoreWebView2Async` neither
+  completed nor failed; on 1.5 (2026-10-20) P38 reported 3 navigations. Cause:
+  `Microsoft.Web.WebView2.Core.dll` sits in the Windows App Runtime 1.5
+  framework package and is absent from 2.6.5's (Get-AppxPackage, both
+  InstallLocations listed). With the WebView2 SDK 1.0.4314.35 `native_uap` DLL
+  beside the exe, P38 loads example.com; `WebView2Loader.dll` is not needed.
+  Fixed in swift-winui 08b5f91 (a CWinAppSDK resource, x64 and arm64) and
+  compile.zsh (copied beside WinUI exes); P38 rebuilt through compile.zsh shows
+  the page. Other apps that embed WinUI's WebView2 need the same copy.
+  2.6.5 上 WebView2 什麼都沒畫(P38)。原因:`Microsoft.Web.WebView2.Core.dll` 在 1.5 的 framework 套件裡,2.6.5 的沒有。
+  把 WebView2 SDK 1.0.4314.35 的 native_uap DLL 放在 exe 旁邊後 P38 載入 example.com。已在 swift-winui 08b5f91 與 compile.zsh 修正。
 - [x] **12. NuGet and download caches** (user's request): about 2.1 GB removed
   with the user's approval -- the scratch 2.6.5 download, the fork's
   `Support/.packages` (re-fetched by generate-bindings.zsh), every
@@ -116,6 +144,25 @@ CI step needs the fork to be public, and it is (anonymous HTTPS 200).
 that a change to ci.yml needs (`gh auth refresh -h github.com -s workflow`).
 第 2 輪審查(2026-11-06):重讀第 1 輪的三處修改，沒有缺陷。CI 步驟需要 fork 是公開的，確認是(匿名 HTTPS 200)。
 9f6f6736 已 commit 未 push:gh token 沒有修改 ci.yml 所需的 `workflow` scope。
+
+Cycle 3 review (2026-11-06): the size copy lived in a scratch script, so the
+numbers in executable-size.md could not be re-derived; it is now
+`testapp/test_support/record_winui_sizes.zsh`. Its first run failed with
+`read-only variable: status` -- `status` is reserved in zsh, the trap
+~/.claude/CLAUDE.md lists -- renamed to `exit_code`, and batch 3 was recorded
+with the committed copy.
+第 3 輪審查(2026-11-06):大小的複製原本在 scratch 腳本裡，executable-size.md 的數字無法重現；現在是
+`testapp/test_support/record_winui_sizes.zsh`。第一次執行就以 `read-only variable: status` 失敗——`status` 是 zsh
+的保留名稱，~/.claude/CLAUDE.md 列過這個陷阱——已改名為 `exit_code`,第三批用已提交的版本記錄。
+Cycle 3 also found the one regression of the upgrade, item 13. Still open after
+three cycles: 5 (host tests), 6 (Console filter; needs a flyout opened, and a
+remote session was up), 7 (release build), 8 and 9 (the user's call), the WSL
+appCache failure of P26, and the push of 9f6f6736 and later (needs the
+`workflow` scope). Whether P27's WebView box now draws with the DLL beside it
+was not checked; its exe was already deleted.
+第 3 輪也找到這次升級唯一的回歸，即第 13 項。三輪後仍未完成：5(host 測試)、6(Console 過濾；需開 flyout,且有遠端連線)、
+7(release 建置)、8 與 9(使用者決定)、P26 在 WSL 的 appCache 失敗，以及 9f6f6736 之後的 push(需 `workflow` scope)。
+P27 的 WebView 框在放了 DLL 之後是否會畫出，尚未查；它的 exe 已先刪除。
 
 ### Code review follow-up / 程式碼審查待辦 (2026-10-29, Windows)
 
