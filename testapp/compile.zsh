@@ -2168,6 +2168,21 @@ for app_name in $app_names; do
             rm -rf "$output_dir/$resource_name"
             cp -R "$resource_dir" "$output_dir/$resource_name"
             echo "    -> $output_dir/$resource_name"
+            # The bootstrapper looks in `.resources` before `.bundle`. A copy left
+            # under the other name by an older toolchain or SDK is loaded first:
+            # on 2026-11-06 a 1.5 `.resources` made the 2.6.5 P41 ask for Runtime
+            # 2.6 and stop. The other name, when present, gets the same files.
+            # bootstrapper 先找 `.resources` 再找 `.bundle`。舊工具鏈或舊 SDK 以另一個名字留下的
+            # 複本會先被載入：2026-11-06 一份 1.5 的 `.resources` 讓 2.6.5 的 P41 要求 Runtime 2.6
+            # 而停止。另一個名字若存在，就放進相同的檔案。
+            case "$resource_name" in
+                *.bundle) other_name="${resource_name%.bundle}.resources" ;;
+                *) other_name="${resource_name%.resources}.bundle" ;;
+            esac
+            if [ -d "$output_dir/$other_name" ]; then
+                cp -Rf "$resource_dir/." "$output_dir/$other_name/"
+                echo "    -> $output_dir/$other_name (refreshed: searched before the new copy otherwise)"
+            fi
             break
         fi
     done

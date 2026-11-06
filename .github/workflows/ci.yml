@@ -36,6 +36,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # Package.swift takes swift-winui by path from this submodule on every host
+    # (2026-11-06), and checkout@v4 leaves submodules empty.
+    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
     - name: Install Swift 6.4
       uses: SwiftyLab/setup-swift@v1
       with:
@@ -54,6 +60,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
+
+    # Package.swift takes swift-winui by path from this submodule on every host
+    # (2026-11-06), and checkout@v4 leaves submodules empty.
+    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
 
     - name: Install Swift 6.4
       uses: SwiftyLab/setup-swift@v1
@@ -81,6 +93,12 @@ jobs:
         shell: pwsh
     steps:
     - uses: actions/checkout@v4
+
+    # Package.swift takes swift-winui by path from this submodule on every host
+    # (2026-11-06), and checkout@v4 leaves submodules empty.
+    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
 
     - name: Setup VS Dev Environment
       uses: seanmiddleditch/gha-setup-vsdevenv@v5

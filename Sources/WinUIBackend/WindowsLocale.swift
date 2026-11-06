@@ -18,7 +18,13 @@ private func getLocaleInfoString(_ type: Int32, bufferSize: Int) -> String? {
             logger.warning("Error getting locale info: \(GetLastError())")
             return nil
         } else {
-            let slice = ptr[..<Int(size)]
+            // `size` counts the terminating null. Kept in the string, it made the
+            // script "Latn;" plus a NUL, which `trimmingCharacters(in: [";"])` no
+            // longer trims, and P41's locale read "en-Latn;_US@..." (2026-11-06).
+            // `size` 含結尾的 null。留在字串裡時 script 成了 "Latn;" 加一個 NUL,
+            // `trimmingCharacters(in: [";"])` 就去不掉分號,P41 的 locale 顯示為
+            // "en-Latn;_US@..."(2026-11-06)。
+            let slice = ptr[..<(Int(size) - 1)]
             return String(decoding: slice, as: UTF16.self)
         }
     }

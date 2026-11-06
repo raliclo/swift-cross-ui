@@ -28,6 +28,72 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
+
+WinUIBackend moved to Windows App SDK 2.6.5 in d4920949 (swift-winui fork
+4263ba6). Worked in three cycles, each one: do items, review the diff, update
+this list. P41-WinUI (debug) built and ran on 2.6.5 before cycle 1.
+WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263ba6)。分三輪處理，每輪：完成項目、
+審查差異、更新本清單。第 1 輪之前，P41-WinUI(debug)已在 2.6.5 上建置並執行。
+
+- [x] **1. `Locale.windowsCurrent` kept the terminating NUL.** `getLocaleInfoString`
+  sliced `size` characters, and `size` counts the NUL, so the script was "Latn;"
+  plus a NUL, the `;` trim missed, and P41 showed "en-Latn;_US@...". Unchanged
+  since 467feecb (2026-08-17), so not from the SDK. Fixed in cycle 1; verified
+  in cycle 2 on a rebuilt P41, which now reads "en-Latn_US@calendar=...".
+  `Locale.windowsCurrent` 把結尾的 NUL 留在字串裡。第 1 輪修正，第 2 輪在重建的 P41 上驗證，現在顯示 "en-Latn_US@calendar=..."。
+- [x] **2. A stale `swift-winui_CWinAppSDK.resources` in testapp/output.**
+  Initialize.swift searches `.resources` before `.bundle`, and a 1.5 copy made
+  the 2.6.5 P41 ask for Runtime 2.6. compile.zsh now refreshes the other name
+  with the same files when it exists (cycle 1; tested cp -Rf over a read-only
+  file).
+  testapp/output 殘留的 `.resources` 會比 `.bundle` 先被載入。compile.zsh 現在會把另一個名字也更新成相同檔案(第 1 輪)。
+- [x] **3. Untracked `Info.plist` at the fork's root** after a build: ignored
+  in the fork's .gitignore (cycle 1).
+  建置後 fork 根目錄多出 `Info.plist`:已加入 fork 的 .gitignore(第 1 輪)。
+- [ ] **4. Other WinUI apps on 2.6.5.** Build P80 and P81 and look at them; P81
+  has 1.5-era screenshots (`p81b-WinUI`, `p81-desk-WinUI`) for a UI comparison.
+  A 1.5 build cannot run here any more (item 8), so old screenshots are the
+  only 1.5 side.
+  其他 WinUI app 在 2.6.5 上的狀況。建置 P80、P81;P81 有 1.5 時期的截圖可比較。
+- [ ] **5. Host tests after the upgrade.** SwiftCrossUITests, command as in the
+  2026-10-29 section below.
+  升級後的 host 測試。
+- [ ] **6. Is `Console.swift`'s backdrop filter (#204) still needed on 2.6.5?**
+  The SDK is no longer a preview. Run an app with an acrylic backdrop with the
+  filter bypassed and count BVI-* lines.
+  2.6.5 上是否還需要 `Console.swift` 的 backdrop 過濾(#204)。
+- [ ] **7. Release build on 2.6.5.** Only debug has been built; the release
+  build of all dependencies hit the one-hour background limit on 2026-11-05.
+  2.6.5 的 release 建置。目前只建過 debug。
+- [ ] **8. Windows App Runtime 1.5 Main/DDLM are gone from this machine.**
+  Get-AppxPackage lists only the 1.5 framework (5001.373); a 10-30 P80-WinUI.exe
+  asks for Runtime 1.5. When and why is not known. Needs the user: reinstall
+  1.5 only if a side-by-side 1.5 comparison is wanted.
+  本機已沒有 Windows App Runtime 1.5 的 Main/DDLM。需要使用者決定是否重裝。
+- [ ] **9. The six `Support/*/generate-bindings.ps1` in the fork** are superseded
+  by generate-bindings.zsh. Deleting them needs the user's go-ahead.
+  fork 裡六支 ps1 已被 generate-bindings.zsh 取代；刪除需使用者同意。
+- [x] **10. CI never checked out the submodule.** Found in the cycle 1 review
+  of d4920949: Package.swift takes swift-winui by path on every host, and
+  `actions/checkout@v4` leaves submodules empty, so the macos, linux and
+  windows jobs cannot resolve the package. A `git submodule update --init
+  --depth 1 Vendor/swift-winui` step was added to those three jobs (lint runs no
+  SwiftPM). Not yet seen on a CI run: the GitHub API timed out from here.
+  第 1 輪審查 d4920949 時發現:CI 沒有取出 submodule,而 Package.swift 在每個主機上都以路徑引用 swift-winui,
+  三個 job 都無法解析套件。已在三個 job 加上取出 submodule 的步驟；尚未在 CI 上看到結果(此處 GitHub API 逾時)。
+- [ ] **11. WinUI P1-P40 build and run on 2.6.5** (the user's goal, 2026-11-06).
+  Built in batches of ten with BUILD_CONFIG=debug and run with
+  `TEST_BACKEND=WinUI zsh testapp/test.zsh Pn -win --no-build`; each batch's
+  exes are deleted afterwards (user's choice: about 18 GB for all forty, 13 GB
+  free on C:).
+  WinUI 的 P1-P40 在 2.6.5 上建置並執行(使用者的目標)。每批十支，跑完刪除該批 exe(使用者選擇；全部約 18 GB,C: 只剩 13 GB)。
+
+Cycle 1 review (2026-11-06): d4920949's `try!` sites match what 0.5.0 did
+inside the bindings, so they crash where they crashed before and nowhere new.
+Item 10 is the one defect found.
+第 1 輪審查(2026-11-06):d4920949 的 `try!` 與 0.5.0 在 bindings 內部所做的相同，當機點與以前一樣，沒有新增。找到的缺陷是第 10 項。
+
 ### Code review follow-up / 程式碼審查待辦 (2026-10-29, Windows)
 
 Eight review findings, checked against 0ee42a2f and all still present there;
