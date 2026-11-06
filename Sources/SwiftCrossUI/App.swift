@@ -159,6 +159,16 @@ extension App {
 
     /// Runs the application.
     public static func main() {
+        // On Windows the app runs on an 8 MB stack, as on macOS; see WindowsMainStack.
+        // Windows 上 app 與 macOS 一樣以 8 MB 堆疊執行；見 WindowsMainStack。
+        #if os(Windows)
+            WindowsMainStack.run { runApp() }
+        #else
+            runApp()
+        #endif
+    }
+
+    private static func runApp() {
         Backend.earlySetup()
 
         extractMetadataAndInitializeLogging()
