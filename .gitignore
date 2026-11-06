@@ -156,3 +156,8 @@ decoration-debug.log
 # 而沒有任何東西提出異議——備份檔看起來就是個合理的檔案，因此 add 與 commit 都無話可說。它接著擋住了
 # 下一次 --backup，因為 csv2 拒絕覆寫既有的備份。
 *.bak
+
+# testapp/AutoClickApp/ is a personal desktop helper, kept out of the repo at the
+# user's request (2026-11-06).
+# testapp/AutoClickApp/ 是個人用的桌面小工具，依使用者要求(2026-11-06)不納入版本庫。
+/testapp/AutoClickApp/

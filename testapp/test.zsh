@@ -34,6 +34,9 @@
 set -euo pipefail
 
 script_dir="${0:a:h}"
+# Newest installed Swift on Windows (test_support/swift_windows_env.zsh, 2026-11-06).
+# Windows 上用已安裝的最新 Swift(見 test_support/swift_windows_env.zsh,2026-11-06)。
+source "$script_dir/test_support/swift_windows_env.zsh"
 
 usage() {
     cat <<EOF_USAGE

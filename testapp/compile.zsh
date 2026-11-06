@@ -9,6 +9,11 @@ fi
 
 host_uname="$(uname -s 2>/dev/null || printf unknown)"
 
+# Newest installed Swift on Windows, not whatever an older shell's PATH names
+# (test_support/swift_windows_env.zsh, 2026-11-06). Does nothing elsewhere.
+# Windows 上用已安裝的最新 Swift,而不是舊 shell 的 PATH 所指的版本(見該檔,2026-11-06)。其他平台不做事。
+source "${0:A:h}/test_support/swift_windows_env.zsh"
+
 windows_path() {
     case "$host_uname" in
         MINGW*|MSYS*|CYGWIN*) ;;

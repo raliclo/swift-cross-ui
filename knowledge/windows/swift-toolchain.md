@@ -6,6 +6,7 @@ and matrix_coverage/results.csv2 (windows rows of 2026-10-12 to 2026-10-23).
 ## What
 
 - **Swift 6.4.1** on Windows and in WSL, by rule since 2026-10-23 (0836e0cf).
+- **2026-11-06: on Windows the rule is now "the newest installed", not a pinned version.** The user upgraded to 6.4.2 and the installer deleted 6.4.1; shells opened before that lost `swiftc` and the runtime DLLs. `compile.zsh` and `test.zsh` now source `testapp/test_support/swift_windows_env.zsh`, which picks the newest toolchain, runtime and SDK. The 6.4.1 line above was true when written; WSL still defaults to 6.4.1 in `install_tool_wsl.zsh`.
   results.csv2 rows read 6.4.1 from 2026-10-19; a few rows of that day still
   read 6.4.0. Android stays on 6.4.0 with NDK r30.
 - 6.3.3 was replaced by 6.4.0 on 2026-10-12 (185abee1). The 6.3.3 and 6.4
@@ -60,6 +61,7 @@ the failure looks like an app bug.
 
 - Windows 與 WSL 皆用 **Swift 6.4.1**,自 2026-10-23 起為規定(0836e0cf)。results.csv2 自 2026-10-19 起記為
   6.4.1,當天仍有少數列記為 6.4.0。Android 維持 6.4.0 搭配 NDK r30。
+- **2026-11-06:Windows 改為「用已安裝的最新版」,不再固定版本。** 使用者升到 6.4.2 並刪掉 6.4.1 後，升級前開的 shell 找不到 `swiftc`,Swift 程式也找不到 runtime DLL。`compile.zsh` 與 `test.zsh` 現在會 source `testapp/test_support/swift_windows_env.zsh`,自動挑最新的工具鏈、runtime 與 SDK。上面「皆用 6.4.1」那一條在寫下時是對的;WSL 仍由 `install_tool_wsl.zsh` 預設 6.4.1。
 - 2026-10-12 由 6.3.3 換成 6.4.0(185abee1)。6.3.3 與 6.4 的 runtime 不能互換：其中一版建出的 exe 在另一版的
   DLL 下啟動即以 **0xC0000139**(找不到進入點)結束。
 - repo 裡沒有任何腳本安裝 Windows toolchain(沒有 winget、Swiftly 或 SDKROOT 的處理)。`compile.zsh` 執行
