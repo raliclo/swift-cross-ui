@@ -47,7 +47,7 @@ final class ConicGradientBrush: XamlCompositionBrushBase {
 
     override func onConnected() throws {
         guard compositionBrush == nil,
-            let compositor = WinUI.CompositionTarget.getCompositorForCurrentThread()
+            let compositor = try WinUI.CompositionTarget.getCompositorForCurrentThread()
         else { return }
         let compositorABI: __ABI_Microsoft_UI_Composition.ICompositor =
             try compositor.thisPtr.QueryInterface()
@@ -62,7 +62,7 @@ final class ConicGradientBrush: XamlCompositionBrushBase {
             to: __x_ABI_CMicrosoft_CUI_CComposition_CICompositionGraphicsDevice.self)
         // ComPtr takes its own reference; the one returned from C is ours to drop.
         // ComPtr 會自己取一個參考;C 回傳的那個由我們釋放。
-        let device = WinAppSDK.CompositionGraphicsDevice.from(abi: ComPtr(devicePointer))
+        let device: WinAppSDK.CompositionGraphicsDevice? = .init(fromAbi: WindowsFoundation.IInspectable(ComPtr(devicePointer)))
         _ = devicePointer.pointee.lpVtbl.pointee.Release(devicePointer)
         guard let device,
             let surface = try device.createDrawingSurface(

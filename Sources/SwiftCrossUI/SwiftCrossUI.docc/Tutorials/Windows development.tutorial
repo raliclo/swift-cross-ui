@@ -125,7 +125,7 @@
             }
             
             @Step {
-                Install the WindowsAppSDK 1.5.240205001-preview1 variant for your architecture: [x64](https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-x64.exe)/[arm64](https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-arm64.exe)
+                Install the WindowsAppSDK 1.5.240205001-preview1 variant for your architecture: [x64](https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-x64.exe)/[arm64](https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-arm64.exe). Superseded 2026-11-06: WinUIBackend now needs Windows App Runtime 2.6, from the [Windows App SDK downloads page](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads).
             }
         }
     }

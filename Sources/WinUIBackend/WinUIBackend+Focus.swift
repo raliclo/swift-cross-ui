@@ -105,10 +105,10 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         if let target = element as? WinUIFeatureTarget, target.isFocusableTarget {
             return target
         }
-        let count = VisualTreeHelper.getChildrenCount(element)
+        let count = try! VisualTreeHelper.getChildrenCount(element)
         for index in 0..<count {
             guard
-                let child = VisualTreeHelper.getChild(element, index) as? FrameworkElement
+                let child = try! VisualTreeHelper.getChild(element, index) as? FrameworkElement
             else { continue }
             if let found = focusableTarget(in: child) { return found }
         }
@@ -119,10 +119,10 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         if let control = element as? Control, control.isEnabled, control.isTabStop {
             return control
         }
-        let count = VisualTreeHelper.getChildrenCount(element)
+        let count = try! VisualTreeHelper.getChildrenCount(element)
         for index in 0..<count {
             guard
-                let child = VisualTreeHelper.getChild(element, index) as? FrameworkElement
+                let child = try! VisualTreeHelper.getChild(element, index) as? FrameworkElement
             else { continue }
             if let found = focusableControl(in: child) { return found }
         }
@@ -176,7 +176,7 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     /// 目前是哪一個 root」,而在一個有兩個視窗的 app 中,那不必然是這個 widget 的 root。
     public func isFocused(_ widget: Widget) -> Bool {
         guard let root = widget.xamlRoot else { return false }
-        guard let focused = FocusManager.getFocusedElement(root) as? DependencyObject else {
+        guard let focused = try! FocusManager.getFocusedElement(root) as? DependencyObject else {
             return false
         }
         var current: DependencyObject? = focused

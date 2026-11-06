@@ -67,7 +67,7 @@ extension WinUIApplication {
                     return
                 }
                 var application: WinUIApplication!
-                Application.start { _ in
+                try! Application.start { _ in
                     WinUIRunLoopTickler.setup()
                     application = WinUIApplication()
                 }
@@ -149,7 +149,7 @@ final class WinUIRunLoopTickler {
         hook = SetWindowsHookExW(
             WH_CALLWNDPROCRET, winUIRunLoopTicklerWindowHook, nil, GetCurrentThreadId()
         )
-        uiQueue = WinAppSDK.DispatcherQueue.getForCurrentThread()
+        uiQueue = try! WinAppSDK.DispatcherQueue.getForCurrentThread()
         watchMainQueue()
         scheduleImmediateWork()
     }

@@ -31,6 +31,8 @@ compile time while the later is only required at runtime.
 [x64]: https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-x64.exe
 [arm64]: https://aka.ms/windowsappsdk/1.5/1.5.240205001-preview1/windowsappruntimeinstall-arm64.exe
 
+   Superseded 2026-11-06: those links are for 1.5-preview1. WinUIBackend now builds against Windows App SDK 2.6.5 and needs Windows App Runtime 2.6, from the [Windows App SDK downloads page](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads).
+
 ## Usage
 
 @TabNavigator {

@@ -15,6 +15,17 @@ commits fd3378f1, e9b80e8e, f191f46c, and results.csv2 (windows, winui: P38
   a stable WindowsAppSDK", #204, open).
 - WinUIBackend links d3d11 and dxgi; WinUIInterop (C++) links d2d1, dwrite,
   windowscodecs, d3d11 and dxgi.
+- **Since 2026-11-06 the first two points above are out of date (kept as written).**
+  swift-winui is now the submodule `Vendor/swift-winui` (fork raliclo/swift-winui,
+  develop), referenced with `.package(path:)`. The bindings were regenerated with
+  swift-winrt 0.6.0 for **Windows App SDK 2.6.5**
+  (`Vendor/swift-winui/Support/generate-bindings.zsh`). 0.6.0 dropped
+  `RoActivateInstance`; the backend's own copy is
+  `Sources/WinUIBackend/WinRTActivation.swift`, and static methods now `throw`.
+  The WinAppSDK is no longer a preview, but whether `Console.swift`'s filter is
+  still needed on 2.6.5 has not been checked. Running needs Windows App Runtime
+  2.6; a stale `swift-winui_CWinAppSDK.resources` left in `testapp/output` is
+  loaded before `.bundle`, and the app then reports that it needs Runtime 2.6.
 
 ## The application starts single-threaded (STA)
 
@@ -73,6 +84,13 @@ Console.swift、fd3378f1、e9b80e8e、f191f46c,以及 results.csv2(windows、win
 - 因為 WinAppSDK 是預覽版,Microsoft.UI.Xaml.dll 會在 stdout 印出 BVI-* / rcBackdropLocal;`Console.swift`
   會濾掉(「換成穩定版 WindowsAppSDK 後移除」,#204,未解決)。
 - WinUIBackend 連結 d3d11 與 dxgi;WinUIInterop(C++)連結 d2d1、dwrite、windowscodecs、d3d11 與 dxgi。
+- **2026-11-06 起，上面前兩點已過時(保留原文)。** swift-winui 改為 submodule `Vendor/swift-winui`
+  (fork raliclo/swift-winui,develop),Package.swift 用 `.package(path:)`。bindings 以 swift-winrt 0.6.0
+  針對 **Windows App SDK 2.6.5** 重新產生(`Vendor/swift-winui/Support/generate-bindings.zsh`)。
+  0.6.0 移除了 `RoActivateInstance`,backend 自己的版本在 `Sources/WinUIBackend/WinRTActivation.swift`;
+  static 方法都改為 `throws`。WinAppSDK 已非預覽版，但 `Console.swift` 的濾除在 2.6.5 上是否還需要尚未驗證。
+  執行需要 Windows App Runtime 2.6;`testapp/output` 若殘留舊的 `swift-winui_CWinAppSDK.resources`,
+  它會比 `.bundle` 先被載入，app 會回報需要 Runtime 2.6。
 
 ## 應用程式以單執行緒(STA)啟動
 

@@ -31,7 +31,7 @@ extension WinUIApplication {
     static func redirectToRunningInstance() -> Bool {
         let path = (Bundle.main.executablePath ?? CommandLine.arguments.first ?? "app").lowercased()
         let key = "scui:" + path.map { $0.isLetter || $0.isNumber || $0 == "." ? $0 : "_" }
-        guard let instance = AppInstance.findOrRegisterForKey(key) else { return false }
+        guard let instance = try! AppInstance.findOrRegisterForKey(key) else { return false }
         if instance.isCurrent {
             registeredInstance = instance
             return false
@@ -55,7 +55,7 @@ extension WinUIApplication {
     /// 在 UI 執行緒有了 dispatcher queue 之後呼叫：此後被轉送之啟動的 URL 會在那裡到達 `receive(_:)`。
     static func listenForRedirectedLaunches() {
         guard let instance = registeredInstance, activatedCleanup == nil,
-            let queue = WinAppSDK.DispatcherQueue.getForCurrentThread()
+            let queue = try! WinAppSDK.DispatcherQueue.getForCurrentThread()
         else { return }
         activatedCleanup = instance.activated.addHandler { _, arguments in
             guard let arguments, arguments.kind == .launch else { return }

@@ -515,7 +515,7 @@ public final class WinUIBackend:
                 // The UI thread's queue, taken here so `runInMainThread` has it
                 // before the first window exists. / UI 執行緒的佇列，在此取得，讓 `runInMainThread` 在第一個視窗出現之前就有它。
                 if self.dispatcherQueue == nil {
-                    self.dispatcherQueue = WinAppSDK.DispatcherQueue.getForCurrentThread()
+                    self.dispatcherQueue = try! WinAppSDK.DispatcherQueue.getForCurrentThread()
                 }
                 // Toggle Switch has annoying default 'internal margins' (not Control
                 // margins that we can set directly) that we can luckily get rid of by
@@ -961,7 +961,7 @@ public final class WinUIBackend:
         guard let scheme = url.scheme, !scheme.isEmpty else {
             throw ExternalURLError.noScheme(url)
         }
-        guard let promise = UWP.Launcher.launchUriAsync(WindowsFoundation.Uri(url.absoluteString)) else {
+        guard let promise = try UWP.Launcher.launchUriAsync(WindowsFoundation.Uri(url.absoluteString)) else {
             throw ExternalURLError.launchNotStarted(url)
         }
         promise.completed = { operation, status in
@@ -1381,8 +1381,8 @@ public final class WinUIBackend:
             return
         }
 
-        Canvas.setTop(child, Double(position.y))
-        Canvas.setLeft(child, Double(position.x))
+        try! Canvas.setTop(child, Double(position.y))
+        try! Canvas.setLeft(child, Double(position.x))
     }
 
     public func createColorableRectangle() -> Widget {
@@ -3670,7 +3670,7 @@ final class TooltipContainer: WinUI.Canvas {
         super.init()
 
         children.append(child)
-        ToolTipService.setToolTip(self, tooltip)
+        try! ToolTipService.setToolTip(self, tooltip)
     }
 }
 
@@ -3866,10 +3866,10 @@ public class CustomWindow: WinUI.Window {
         grid.rowDefinitions.append(toolbarRowDefinition)
         grid.rowDefinitions.append(contentRowDefinition)
         grid.children.append(menuBar)
-        WinUI.Grid.setRow(menuBar, 0)
+        try! WinUI.Grid.setRow(menuBar, 0)
         toolbar.orientation = .horizontal
         grid.children.append(toolbar)
-        WinUI.Grid.setRow(toolbar, 1)
+        try! WinUI.Grid.setRow(toolbar, 1)
         self.content = grid
         // Alt+Left, the Back key and the mouse's back button; see
         // WinUIBackend+BackNavigation.swift.
@@ -4123,7 +4123,7 @@ public class CustomWindow: WinUI.Window {
         // no error from either.
         // 第 2 列，不是第 1 列：工具列那一列插在其上。若日後列數再變，靜默出錯的正是這一行——子元件
         // 會被排進工具列那一列、兩者重疊，而雙方都不會產生任何錯誤。
-        WinUI.Grid.setRow(child, 2)
+        try! WinUI.Grid.setRow(child, 2)
     }
 
     deinit {

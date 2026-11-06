@@ -470,9 +470,9 @@ final class WinUITable: WinUI.Grid {
             highlightIsInChildren = false
         }
         guard let selectedRow, selectedRow < rowCount, columnCount > 0 else { return }
-        WinUI.Grid.setRow(selectionHighlight, Int32(selectedRow + 1))
-        WinUI.Grid.setColumn(selectionHighlight, 0)
-        WinUI.Grid.setColumnSpan(selectionHighlight, Int32(columnCount))
+        try! WinUI.Grid.setRow(selectionHighlight, Int32(selectedRow + 1))
+        try! WinUI.Grid.setColumn(selectionHighlight, 0)
+        try! WinUI.Grid.setColumnSpan(selectionHighlight, Int32(columnCount))
         children.insertAt(0, selectionHighlight)
         highlightIsInChildren = true
     }
@@ -592,8 +592,8 @@ final class WinUITable: WinUI.Grid {
         highlightIsInChildren = false
 
         for (column, label) in headerLabels.enumerated() {
-            WinUI.Grid.setRow(label, 0)
-            WinUI.Grid.setColumn(label, Int32(column))
+            try! WinUI.Grid.setRow(label, 0)
+            try! WinUI.Grid.setColumn(label, Int32(column))
             children.append(label)
         }
 
@@ -609,8 +609,8 @@ final class WinUITable: WinUI.Grid {
             // 是兩次獨立呼叫，因此兩者可能有一個 frame 的時間彼此不一致。
             guard row < rowCount else { break }
 
-            WinUI.Grid.setRow(cell, Int32(row + 1))
-            WinUI.Grid.setColumn(cell, Int32(column))
+            try! WinUI.Grid.setRow(cell, Int32(row + 1))
+            try! WinUI.Grid.setColumn(cell, Int32(column))
             children.append(cell)
         }
     }

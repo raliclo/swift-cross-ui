@@ -58,20 +58,20 @@ import WinUI
                         {
                             return box
                         }
-                        let count = VisualTreeHelper.getChildrenCount(element)
+                        let count = try! VisualTreeHelper.getChildrenCount(element)
                         for index in 0..<count {
                             // Not `as? UIElement`: inside a ContentDialog one template node projects
                             // only as DependencyObject and skipping it dropped the whole sheet
                             // (P114-sheet-back on 2026-10-29).
                             // 不用 `as? UIElement`:ContentDialog 裡範本的某個節點只投影為 DependencyObject;
                             // 跳過它就漏掉整個 sheet(2026-10-29 的 P114-sheet-back)。
-                            guard let child = VisualTreeHelper.getChild(element, index) else { continue }
+                            guard let child = try! VisualTreeHelper.getChild(element, index) else { continue }
                             if let found = find(child) { return found }
                         }
                         return nil
                     }
                     var searched: [WinUI.UIElement] = []
-                    if let popups = VisualTreeHelper.getOpenPopupsForXamlRoot(xamlRoot) {
+                    if let popups = try! VisualTreeHelper.getOpenPopupsForXamlRoot(xamlRoot) {
                         for index in (0..<popups.size).reversed() {
                             if let popup = popups.getAt(index), let child = popup.child {
                                 searched.append(child)

@@ -208,6 +208,8 @@ case "${1:-}" in
             "未指定 app 名稱時，會建置所有 P*.swift。" \
             "Release by default; BUILD_CONFIG=debug for an unoptimised build." \
             "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。" \
+            "SCUI_BUILD_JOBS=4 by default (swift build -j); empty = SwiftPM default." \
+            "SCUI_BUILD_JOBS 預設 4（swift build -j）；空字串 = SwiftPM 預設值。" \
             "SCUI_DEBUG=1 by default, so -actionfile and --debug work in the" \
             "release build this produces. SCUI_DEBUG=0 builds without them." \
             "The two are independent: BUILD_CONFIG picks the optimiser," \
@@ -904,10 +906,11 @@ macos_appkit_product='.product(name: "AppKitBackend", package: "swift-cross-ui",
 # Dropped as well under -gtk4, not just its products. A package dependency with
 # nothing depending on it is still resolved and fetched.
 # -gtk4 時連同套件依賴一起移除，而不只是它的 product。無人依賴的套件依賴仍會被解析與取回。
-winui_package='.package(
-            url: "https://github.com/moreSwift/swift-winui",
-            .upToNextMinor(from: "0.2.1")
-        ),'
+# The same local path as the root Package.swift (the Vendor/swift-winui submodule,
+# Windows App SDK 2.6.5, 2026-11-05); a URL here would clash with it on package identity.
+# 與根目錄 Package.swift 相同的本機路徑（Vendor/swift-winui submodule，Windows App SDK
+# 2.6.5，2026-11-05）；這裡若用 URL，會與它在套件身分上衝突。
+winui_package='.package(path: "'"$repo_root"'/Vendor/swift-winui"),'
 
 if [ "$force_gtk4" -eq 1 ]; then
     # Gtk as well as GtkBackend. An app that only draws through SwiftCrossUI
@@ -2004,12 +2007,23 @@ EOF_IOS
     exit 0
 fi
 
+# swift build -j: 4 by default since 2026-11-06, when a debug build of the
+# Windows App SDK 2.6.5 bindings was stopped for low memory at step 318/542.
+# SCUI_BUILD_JOBS= (empty) gives SwiftPM its own default; a number overrides.
+# swift build 的 -j：自 2026-11-06 起預設為 4，因為 Windows App SDK 2.6.5 bindings
+# 的 debug 建置在第 318/542 步因記憶體不足被中止。SCUI_BUILD_JOBS=（空字串）讓
+# SwiftPM 用自己的預設值；填數字則覆寫。
+build_jobs="${SCUI_BUILD_JOBS-4}"
+build_jobs_flags=()
+if [ -n "$build_jobs" ]; then build_jobs_flags=(-j "$build_jobs"); fi
+
 for app_name in $app_names; do
     echo "==> Compiling $app_name"
     "$swift_bin" build \
         --package-path "$package_dir" \
         --product "$app_name" \
         -c "$build_config" \
+        "${build_jobs_flags[@]}" \
         "${debug_feature_flags[@]}" \
         "${gtk_build_flags[@]}"
 

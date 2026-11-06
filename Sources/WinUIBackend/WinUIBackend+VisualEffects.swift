@@ -6,7 +6,7 @@ import Mutex
 @_spi(WinRTInternal) import WinAppSDK
 import WinSDK
 @_spi(WinRTInternal) import WinUI
-@preconcurrency import WindowsFoundation
+@_spi(WinRTInternal) @preconcurrency import WindowsFoundation
 
 private let visualEffectChildren = Mutex<[UInt: WinUIVisualEffectChild]>([:])
 /// The non-opacity part of the effect each widget's graph was last built for.

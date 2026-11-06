@@ -12,3 +12,7 @@
 	url = git@github.com:raliclo/api18.git
 	branch = develop
 	update = none
+[submodule "Vendor/swift-winui"]
+	path = Vendor/swift-winui
+	url = https://github.com/raliclo/swift-winui.git
+	branch = develop

@@ -82,7 +82,7 @@ extension WinUIBackend: BackendFeatures.Cursors {
     /// **尚未確定：**只設在 target 上是否就夠了。顯示箭頭的那次「只設 target」執行，輸入被前方一個提權視窗
     /// 無聲丟棄(見 testapp/enable_input.zsh),而該版本的乾淨重跑也同樣被擋住。保留走訪，因為它是被看到有效的版本。
     static func applyCursor(_ shape: InputSystemCursorShape, under element: WinUI.UIElement) {
-        element.protectedCursor = InputSystemCursor.create(shape)
+        element.protectedCursor = try! InputSystemCursor.create(shape)
         for child in scuiChildren(of: element) {
             if let nested = child as? WinUIFeatureTarget, nested.cursorShape != nil { continue }
             applyCursor(shape, under: child)
@@ -573,7 +573,7 @@ extension WinUIBackend: BackendFeatures.WidgetSnapshots {
             let read = try? bitmap.getPixelsAsync(),
             pump(until: { read.status != .started }), read.status == .completed,
             let buffer = try? read.getResults(),
-            let reader = DataReader.fromBuffer(buffer)
+            let reader = try! DataReader.fromBuffer(buffer)
         else { return nil }
         let width = Int(bitmap.pixelWidth)
         let height = Int(bitmap.pixelHeight)
@@ -695,7 +695,7 @@ extension WinUIBackend: BackendFeatures.FocusableTargets {
             let options = FindNextElementOptions()
             options.searchRoot = root
             let backward = Self.currentModifiers().contains(.shift)
-            _ = FocusManager.tryMoveFocus(backward ? .previous : .next, options)
+            _ = try! FocusManager.tryMoveFocus(backward ? .previous : .next, options)
             args.handled = true
         }
         return target

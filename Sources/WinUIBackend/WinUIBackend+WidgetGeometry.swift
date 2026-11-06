@@ -46,8 +46,8 @@ extension WinUIBackend: BackendFeatures.WidgetGeometry {
         var node: WinUI.FrameworkElement = widget
         var hops = 0
         while let parent = WinUIParentLinks.parent(of: node), hops < 512 {
-            x += WinUI.Canvas.getLeft(node)
-            y += WinUI.Canvas.getTop(node)
+            x += try! WinUI.Canvas.getLeft(node)
+            y += try! WinUI.Canvas.getTop(node)
             node = parent
             hops += 1
         }

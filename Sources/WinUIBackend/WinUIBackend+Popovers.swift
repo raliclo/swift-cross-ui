@@ -489,7 +489,7 @@ final class PopoverArrow {
             if let presenter = node as? WinUI.FlyoutPresenter {
                 return presenter
             }
-            current = VisualTreeHelper.getParent(node)
+            current = try! VisualTreeHelper.getParent(node)
         }
         return nil
     }

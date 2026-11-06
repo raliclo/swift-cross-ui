@@ -46,7 +46,7 @@ extension WinUIBackend: BackendFeatures.StandardCommands {
         // 作用中視窗裡有焦點的元素，以文字框或密碼框取得——接受剪貼簿指令的就是這兩種。
         func focused() -> WinUI.DependencyObject? {
             guard let root = active?.content.xamlRoot else { return WinUITextCommandTarget.element }
-            let focused = FocusManager.getFocusedElement(root) as? WinUI.DependencyObject
+            let focused = try! FocusManager.getFocusedElement(root) as? WinUI.DependencyObject
             if focused is WinUI.TextBox || focused is WinUI.PasswordBox { return focused }
             return WinUITextCommandTarget.element
         }

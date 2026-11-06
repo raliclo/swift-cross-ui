@@ -281,10 +281,24 @@ let package = Package(
             url: "https://github.com/stackotter/swift-image-formats",
             .upToNextMinor(from: "0.5.0")
         ),
-        .package(
-            url: "https://github.com/moreSwift/swift-winui",
-            .upToNextMinor(from: "0.2.1")
-        ),
+        // swift-winui is our fork (raliclo/swift-winui, branch develop) as a
+        // submodule, on Windows App SDK 2.6.5 since 2026-11-05. Regenerate with
+        // Vendor/swift-winui/Support/generate-bindings.zsh.
+        // Draft text, wrong (corrected 2026-11-06): "the 1.5 bindings need the 1.5
+        // Main/DDLM runtime packages, which this machine no longer has after the
+        // 2.x runtime install". That was never verified; 1.1-1.8 and 2.2-2.6.5 are
+        // all installed. The real failure was a stale 1.5 bootstrap DLL in
+        // testapp/output/swift-winui_CWinAppSDK.resources, which is searched
+        // before .bundle, so a 2.6.5 build asked for Runtime 2.6 through the 1.5 DLL.
+        // swift-winui 改用我們的 fork（raliclo/swift-winui 的 develop 分支）作為
+        // submodule，自 2026-11-05 起使用 Windows App SDK 2.6.5。用
+        // Vendor/swift-winui/Support/generate-bindings.zsh 重新產生。
+        // 草稿的錯誤說法（2026-11-06 更正）：「1.5 的 bindings 需要 1.5 的 Main/DDLM
+        // runtime 套件，而安裝 2.x runtime 之後這台機器已經沒有了」。這從未驗證過；
+        // 1.1–1.8 與 2.2–2.6.5 都有安裝。真正的失敗是
+        // testapp/output/swift-winui_CWinAppSDK.resources 裡殘留的 1.5 bootstrap DLL，
+        // 它比 .bundle 先被搜尋，於是 2.6.5 的建置經由 1.5 的 DLL 要求 Runtime 2.6。
+        .package(path: "Vendor/swift-winui"),
         .package(
             url: "https://github.com/stackotter/swift-benchmark",
             .upToNextMinor(from: "0.2.0")

@@ -33,7 +33,7 @@ final class ViewLabelToggleButton: WinUI.ToggleButton {
     func refreshAccessibilityName() {
         guard let label = content as? WinUI.UIElement else { return }
         let texts = Self.texts(in: label)
-        AutomationProperties.setName(self, texts.joined(separator: " "))
+        try! AutomationProperties.setName(self, texts.joined(separator: " "))
         scuiSetAccessibilityView(ofSubtree: label, hidden: !texts.isEmpty)
     }
 

@@ -28,13 +28,13 @@ extension WinUIBackend: BackendFeatures.Accessibility {
         if scuiSetButtonAccessibilityLabel(widget, to: label) {
             return
         }
-        AutomationProperties.setName(widget, label ?? "")
+        try! AutomationProperties.setName(widget, label ?? "")
     }
 
     /// `AutomationProperties.HelpText`, the supplementary description.
     /// `AutomationProperties.HelpText`,補充說明。
     public func setAccessibilityHint(ofWidget widget: Widget, to hint: String?) {
-        AutomationProperties.setHelpText(widget, hint ?? "")
+        try! AutomationProperties.setHelpText(widget, hint ?? "")
     }
 
     /// The current value, through `ItemStatus`.
@@ -51,7 +51,7 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     /// `FullDescription` 會**取代整段**播報,因此設定它會連帶讓標籤與控制項類型一起消音;
     /// `ItemStatus` 則是在它們**之外**被播報,並在狀態改變時更新——而那正是「值」的意思。
     public func setAccessibilityValue(ofWidget widget: Widget, to value: String?) {
-        AutomationProperties.setItemStatus(widget, value ?? "")
+        try! AutomationProperties.setItemStatus(widget, value ?? "")
     }
 
     /// Removes the widget from the accessibility tree, or puts it back.
@@ -94,7 +94,7 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     /// find elements by. An empty string is UI Automation's "none".
     /// UI Automation 的 AutomationId,Accessibility Insights 與 WinAppDriver 以它找到元素。空字串在 UI Automation 裡代表「沒有」。
     public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
-        AutomationProperties.setAutomationId(widget, identifier ?? "")
+        try! AutomationProperties.setAutomationId(widget, identifier ?? "")
     }
 }
 
@@ -104,7 +104,7 @@ extension WinUIBackend: BackendFeatures.Accessibility {
 /// (WinUIBackend+Button.swift)。
 func scuiSetAccessibilityView(ofSubtree element: WinUI.UIElement, hidden: Bool) {
     if hidden {
-        AutomationProperties.setAccessibilityView(element, .raw)
+        try! AutomationProperties.setAccessibilityView(element, .raw)
     } else {
         do {
             try element.clearValue(AutomationProperties.accessibilityViewProperty)

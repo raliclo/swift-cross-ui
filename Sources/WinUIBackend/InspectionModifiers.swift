@@ -61,9 +61,9 @@ func scuiChildren(of element: WinUI.UIElement) -> [WinUI.UIElement] {
     }
     var children: [WinUI.UIElement] = []
     if let dependencyObject = element as? WinUI.DependencyObject {
-        let count = VisualTreeHelper.getChildrenCount(dependencyObject)
+        let count = try! VisualTreeHelper.getChildrenCount(dependencyObject)
         for index in 0..<count {
-            if let child = VisualTreeHelper.getChild(dependencyObject, index) as? WinUI.UIElement {
+            if let child = try! VisualTreeHelper.getChild(dependencyObject, index) as? WinUI.UIElement {
                 children.append(child)
             }
         }

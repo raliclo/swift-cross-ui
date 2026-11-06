@@ -161,7 +161,7 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
         let label = content as? WinUI.UIElement
         let texts = label.map(Self.texts(in:)) ?? []
         let name = accessibilityLabelOverride ?? (texts.isEmpty ? nil : texts.joined(separator: " "))
-        AutomationProperties.setName(self, name ?? "")
+        try! AutomationProperties.setName(self, name ?? "")
         if let label {
             scuiSetAccessibilityView(ofSubtree: label, hidden: name != nil)
         }
