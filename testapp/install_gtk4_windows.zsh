@@ -385,6 +385,37 @@ fi
 printf '\n==> Add these to your environment before building:\n'
 printf "    export PKG_CONFIG_PATH='%s/lib/pkgconfig'\n" "$prefix"
 printf "    export PATH=\"%s/bin:\$PATH\"\n" "$prefix"
+# 2026-11-04: the PATH half is now also written, at the user's request: running
+# a -gtk4 exe from a new shell died before main with
+#   api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file
+# (see testapp/run.zsh). "$prefix/bin" is appended to the user PATH in
+# HKCU\Environment, once, so every new shell finds GTK's DLLs. reg add, not
+# setx: setx truncates at 1024 characters, and this machine's user PATH was
+# 1228. Appended, not prepended, so GTK's copies of zlib, libpng and the UCRT do
+# not shadow other programs' DLLs. The export lines below still apply to the
+# shell that is already open. PKG_CONFIG_PATH is still only printed.
+# 2026-11-04:應使用者要求，PATH 這一半現在也會寫入：在新開的 shell 直接執行 -gtk4 的 exe，會在 main 之前以
+#   api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file
+# 結束(見 testapp/run.zsh)。"$prefix/bin" 會附加到 HKCU\Environment 的使用者 PATH(只加一次),讓每個新 shell
+# 都找得到 GTK 的 DLL。用 reg add 而非 setx:setx 在 1024 字元截斷，而本機的使用者 PATH 有 1228 字元。附加在後而非
+# 放在最前，以免 GTK 自帶的 zlib、libpng 與 UCRT 蓋過其他程式的 DLL。下方的 export 仍適用於已經開著的 shell。
+# PKG_CONFIG_PATH 仍只列印。
+printf '\n==> User PATH (%s)\n' 'HKCU\Environment'
+bs=$'\x5c'; gtk_bin_win="${prefix//\//$bs}${bs}bin"
+user_path_line=$(MSYS2_ARG_CONV_EXCL='*' reg query 'HKCU\Environment' /v Path 2>/dev/null | grep -a 'REG_EXPAND_SZ\|REG_SZ')
+user_path="${user_path_line#*REG_*SZ    }"
+[ -n "$user_path_line" ] || user_path=""
+case ";${user_path:l};" in
+    *";${gtk_bin_win:l};"*|*";${gtk_bin_win:l}${bs};"*)
+        printf '    %s is already on the user PATH\n' "$gtk_bin_win" ;;
+    *)
+        new_user_path="${user_path%;}${user_path:+;}$gtk_bin_win"
+        if MSYS2_ARG_CONV_EXCL='*' reg add 'HKCU\Environment' /v Path /t REG_EXPAND_SZ /d "$new_user_path" /f >/dev/null; then
+            printf '    appended %s; open a new terminal to pick it up\n' "$gtk_bin_win"
+        else
+            printf '    could not write the user PATH; add %s by hand\n' "$gtk_bin_win" >&2
+        fi ;;
+esac
 
 # SwiftPM does not apply a systemLibrary's pkgConfig cflags on Windows. Measured:
 # the clang invocation for GtkCHelpers carried only its own include directory and

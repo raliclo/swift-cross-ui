@@ -233,6 +233,9 @@ public final class AnimationDriver: @unchecked Sendable {
         // A ticker told there is no clock finishes where it would have ended.
         // 被告知沒有時鐘的 ticker,直接停在它本來會結束的地方。
         for (key, ticker) in tickers {
+            // Skipped when removed by an earlier one, as in `tick`.
+            // 已被前一個移除時跳過，與 `tick` 相同。
+            guard tickers[key] != nil else { continue }
             _ = ticker(nil)
             tickers[key] = nil
         }
@@ -312,8 +315,17 @@ public final class AnimationDriver: @unchecked Sendable {
         // Tickers after the tweens, so a timeline renders on top of a tween started in the
         // same frame, as the later of two writes to one state wins anywhere else.
         // ticker 在補間之後執行，讓 timeline 的結果蓋過同一幀啟動的補間——與其他地方「同一狀態兩次寫入，後者為準」相同。
-        for (key, ticker) in tickers where !ticker(timestamp) {
-            tickers[key] = nil
+        //
+        // The loop walks a copy, so a ticker removed earlier in this frame is
+        // skipped by its key: `addTicker` makes a new key every time, so a key
+        // still present is the same ticker (review, 2026-11-04).
+        // 迴圈走的是副本，所以本幀稍早被移除的 ticker 以它的 key 跳過:`addTicker` 每次都產生新的 key,因此 key
+        // 還在就代表是同一個 ticker(審查,2026-11-04)。
+        for (key, ticker) in tickers {
+            guard tickers[key] != nil else { continue }
+            if !ticker(timestamp) {
+                tickers[key] = nil
+            }
         }
         stopClockIfIdle()
     }

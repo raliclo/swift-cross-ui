@@ -55,11 +55,37 @@ bool registerAdaptersEvent() {
     return true;
 }
 
+// A failed registration used to end the watch for good: no event was
+// registered, so nothing signalled again (review, 2026-11-04). It is now retried
+// every 2 s on a timer-queue timer, and a change is reported once it succeeds,
+// since adapters may have come or gone meanwhile. While a retry is pending no
+// event is registered, so `adaptersSignalled` and the retry never overlap.
+// 以前註冊只要失敗一次，監聽就永久結束：沒有註冊任何事件，所以之後不會再收到訊號(審查,2026-11-04)。現在改用
+// timer queue 的計時器每 2 秒重試，成功時回報一次變化，因為期間介面卡可能已經增減。重試期間沒有註冊事件，所以
+// `adaptersSignalled` 與重試不會同時執行。
+HANDLE retryTimer = nullptr;
+
+VOID CALLBACK retryRegistration(PVOID, BOOLEAN) {
+    if (!registerAdaptersEvent()) return;
+    if (HANDLE timer = InterlockedExchangePointer(&retryTimer, nullptr)) {
+        // From inside its own callback, so without waiting for it to finish.
+        // 在它自己的 callback 裡，所以不等它結束。
+        DeleteTimerQueueTimer(nullptr, timer, nullptr);
+    }
+    if (adaptersChanged) adaptersChanged();
+}
+
+void scheduleRetry() {
+    if (retryTimer) return;
+    CreateTimerQueueTimer(&retryTimer, nullptr, retryRegistration, nullptr, 2000, 2000,
+                          WT_EXECUTEDEFAULT);
+}
+
 // On a thread-pool thread: the factory is renewed here and the callback, which
 // moves the work to the main thread, is called.
 // 在 thread pool 的執行緒上：在此更新 factory,並呼叫會把工作移到主執行緒的回呼。
 VOID CALLBACK adaptersSignalled(PVOID, BOOLEAN) {
-    registerAdaptersEvent();
+    if (!registerAdaptersEvent()) scheduleRetry();
     if (adaptersChanged) adaptersChanged();
 }
 
@@ -99,11 +125,12 @@ extern "C" int scui_dxgi_watch_adapters(void (*changed)(void)) {
     registered = 0;
     adaptersEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     HANDLE wait = nullptr;
-    if (!adaptersEvent || !registerAdaptersEvent() ||
+    if (!adaptersEvent ||
         !RegisterWaitForSingleObject(&wait, adaptersEvent, adaptersSignalled, nullptr, INFINITE,
                                      WT_EXECUTEINWAITTHREAD)) {
         return registered;
     }
+    if (!registerAdaptersEvent()) scheduleRetry();
     registered = 1;
     return registered;
 }

@@ -161,4 +161,39 @@ struct AnimationLifetimeTests {
             #expect(events.lines == ["group done"])
         }
     }
+
+    /// The ticker half of the 2026-10-29 finding, left open by its first fix
+    /// (review of 2026-11-04): `tick` called every ticker of a snapshot, so a
+    /// ticker removed earlier in the same frame -- `KeyframePlayer.stop()` and
+    /// `TimelinePlayer` do this -- still ran once and wrote its value after the
+    /// stop. Twenty, for the same reason as above: the snapshot's order is the
+    /// dictionary's.
+    /// 2026-10-29 審查發現中的 ticker 那一半，第一次修正時沒有補上(2026-11-04 的審查):`tick` 會呼叫快照中的每個
+    /// ticker,所以同一幀中稍早被移除的 ticker(`KeyframePlayer.stop()` 與 `TimelinePlayer` 都會這樣做)仍會再跑一次，
+    /// 在停止之後寫入它的值。用二十個，理由同上：快照的順序就是字典的順序。
+    @Test("A ticker removed earlier in a frame does not run in that frame")
+    func removedTickerDoesNotRun() {
+        withManualClock { driver, clock in
+            var removed = false
+            var ranAfterRemoval = 0
+            var keys: [UUID] = []
+            for _ in 0..<20 {
+                keys.append(driver.addTicker { _ in
+                    if removed { ranAfterRemoval += 1 }
+                    return true
+                })
+            }
+            let remover = driver.addTicker { timestamp in
+                guard let timestamp, timestamp >= 0.5 else { return true }
+                removed = true
+                for key in keys { driver.removeTicker(key) }
+                return false
+            }
+            clock.advance(to: 0)
+            clock.advance(to: 0.5)
+            clock.advance(to: 1)
+            driver.removeTicker(remover)
+            #expect(ranAfterRemoval == 0)
+        }
+    }
 }

@@ -46,26 +46,82 @@ extension WinUIBackend {
         // 都沒印」曾被當成關於介面卡選擇的證據，而它其實什麼都不是。
         guard !standardStreamIsRedirected() else { return }
 
-        try Self.releaseConsole()
+        // Copies of the three streams as they were, put back if no console
+        // comes of this. `releaseConsole` points them at NUL before it frees the
+        // console, so a throw part-way through it, or an `AttachConsole` that
+        // fails (no parent console), left stdout at NUL for the rest of the run
+        // (review, 2026-11-04; the 2026-10-29 fix below covered only a failure
+        // after the attach).
+        // 三個串流原本的複本，沒能接上主控台時放回去。`releaseConsole` 在釋放主控台之前就把它們指向 NUL,所以它中途
+        // 丟出錯誤，或 `AttachConsole` 失敗(沒有父主控台)時,stdout 在之後整個執行期間都留在 NUL(審查,2026-11-04;
+        // 下方 2026-10-29 的修正只涵蓋接上之後的失敗)。
+        let saved = SavedStandardStreams()
+        defer { saved.close() }
+        do {
+            try Self.releaseConsole()
+        } catch {
+            saved.restore()
+            throw error
+        }
         // -1 attaches to parent's console
-        if AttachConsole(DWORD(bitPattern: -1)) {
-            // From here stdin, stdout and stderr are at NUL, so a step that
-            // throws must not leave them there: the caller logs the error and
-            // carries on, and every later print was lost -- or, if stdout had
-            // already been moved onto the filter pipe, written into a pipe nobody
-            // read, which blocks the app once its 64 KB fill (review, 2026-10-29).
-            // The buffer size is only the scrollback, so its failure is ignored;
-            // any other failure falls back to the console without the filter.
-            // 從這裡起 stdin、stdout、stderr 都在 NUL,所以丟出錯誤的步驟不能把它們留在那裡：呼叫端記下錯誤就繼續，
-            // 之後的每一次輸出都會遺失——若 stdout 已經被接到過濾管線，則寫進一條沒人讀的管線，管線的 64 KB 寫滿後
-            // app 就被卡住(審查,2026-10-29)。緩衝區大小只影響捲動範圍，失敗就略過；其他失敗則退回不經過濾的主控台。
-            try? Self.adjustConsoleBuffer(1024)
-            do {
-                try Self.redirectConsoleIO()
-            } catch {
-                Self.redirectToConsoleUnfiltered()
-                throw error
+        guard AttachConsole(DWORD(bitPattern: -1)) else {
+            saved.restore()
+            return
+        }
+        // From here stdin, stdout and stderr are at NUL, so a step that
+        // throws must not leave them there: the caller logs the error and
+        // carries on, and every later print was lost -- or, if stdout had
+        // already been moved onto the filter pipe, written into a pipe nobody
+        // read, which blocks the app once its 64 KB fill (review, 2026-10-29).
+        // The buffer size is only the scrollback, so its failure is ignored;
+        // any other failure falls back to the console without the filter.
+        // 從這裡起 stdin、stdout、stderr 都在 NUL,所以丟出錯誤的步驟不能把它們留在那裡：呼叫端記下錯誤就繼續，
+        // 之後的每一次輸出都會遺失——若 stdout 已經被接到過濾管線，則寫進一條沒人讀的管線，管線的 64 KB 寫滿後
+        // app 就被卡住(審查,2026-10-29)。緩衝區大小只影響捲動範圍，失敗就略過；其他失敗則退回不經過濾的主控台。
+        try? Self.adjustConsoleBuffer(1024)
+        do {
+            try Self.redirectConsoleIO()
+        } catch {
+            Self.redirectToConsoleUnfiltered()
+            throw error
+        }
+    }
+
+    /// Copies of the CRT's descriptors 0, 1 and 2, taken before the console is
+    /// released, so a failed attach can put the streams back where they were.
+    /// `freopen_s` reopens a stream on the same descriptor, so `_dup2` onto it
+    /// redirects the `FILE` too. The Win32 standard handles are set from the
+    /// restored descriptors rather than saved, because `freopen_s` closed the
+    /// handles they had. A descriptor that had no handle (`_dup` gives -1) is
+    /// left as it is.
+    /// 在釋放主控台之前取得的 CRT 描述元 0、1、2 的複本，讓附加失敗時能把串流放回原處。`freopen_s` 在同一個描述元上
+    /// 重新開啟串流，所以對它 `_dup2` 也會重導 `FILE`。Win32 的標準 handle 依還原後的描述元設定，而不是事先存下，
+    /// 因為 `freopen_s` 已經關掉它們原本的 handle。原本沒有 handle 的描述元(`_dup` 回傳 -1)維持原狀。
+    private final class SavedStandardStreams {
+        private var copies: [CInt]
+
+        init() {
+            copies = (0...2).map { _dup(CInt($0)) }
+        }
+
+        func restore() {
+            fflush(stdout)
+            fflush(stderr)
+            let standardHandles = [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE]
+            for (descriptor, copy) in copies.enumerated() where copy >= 0 {
+                guard _dup2(copy, CInt(descriptor)) == 0 else { continue }
+                SetStdHandle(
+                    standardHandles[descriptor],
+                    UnsafeMutableRawPointer(bitPattern: _get_osfhandle(CInt(descriptor)))
+                )
             }
+        }
+
+        func close() {
+            for copy in copies where copy >= 0 {
+                _close(copy)
+            }
+            copies = []
         }
     }
 
@@ -154,7 +210,13 @@ extension WinUIBackend {
     /// (#204).
     private static func redirectFilteredStandardOutput() throws {
         var pipeEnds = [CInt](repeating: 0, count: 2)
-        guard _pipe(&pipeEnds, 65536, _O_BINARY) == 0 else {
+        // _O_NOINHERIT: without it both ends were inheritable, and a child
+        // started through Foundation's `Process` (bInheritHandles TRUE) held
+        // them too -- the same leak P6 closed for its own children (review,
+        // 2026-11-04). stdout itself is a duplicate made by `_dup2` below.
+        // _O_NOINHERIT:少了它，管線兩端都可被繼承，經 Foundation `Process`(bInheritHandles 為 TRUE)啟動的子行程
+        // 也會拿到它們——與 P6 為自己的子行程堵住的是同一種洩漏(審查,2026-11-04)。stdout 本身是下方 `_dup2` 做出的複本。
+        guard _pipe(&pipeEnds, 65536, _O_BINARY | _O_NOINHERIT) == 0 else {
             throw Error(message: "Failed to create console filter pipe")
         }
         let readEnd = pipeEnds[0]

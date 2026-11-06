@@ -300,7 +300,17 @@ struct P41Cell: View {
                     .font(.system(size: 12))
             }
         }
-        .frame(minWidth: 360, alignment: .leading)
+        // A date with a time is two pickers side by side and needs about 528
+        // DIPs; in a 360-wide cell the DatePicker's HStack ran out of room and
+        // its empty label was offered zero: "2 children were offered 360 points
+        // and asked for 528 ... firstStarvedChild=Text" (WinUI, 2026-11-03).
+        // 日期加時間是兩個並排的選擇器，約需 528 DIP;在 360 寬的格子裡,DatePicker 的 HStack 不夠放，空的標籤被分到零：
+        // 「2 children were offered 360 points and asked for 528 ... firstStarvedChild=Text」(WinUI,2026-11-03)。
+        .frame(minWidth: Self.isDateAndTime(components) ? 540 : 360, alignment: .leading)
+    }
+
+    static func isDateAndTime(_ components: DatePickerComponents) -> Bool {
+        components.contains(.date) && components.contains(.hourAndMinute)
     }
 
     // `nonisolated(unsafe)` for the same reason the rest of this project uses

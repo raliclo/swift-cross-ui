@@ -397,10 +397,28 @@ static gboolean scui_watch_refresh_list(void) {
 }
 
 static gboolean scui_dxcore_register(void);
+static gboolean scui_dxcore_poll(gpointer unused);
+
+// One failed list creation used to end the watch for good: the notification
+// path re-registers on the new list, which is NULL, and the poll skipped while
+// the list was NULL (review, 2026-11-04). A failure now falls back to the 2 s
+// poll, which makes the list again. Started at most once.
+// 以前只要建立清單失敗一次，監聽就永久結束：通知路徑會在新清單上重新註冊，而新清單是 NULL;輪詢則在清單為 NULL 時
+// 直接跳過(審查,2026-11-04)。現在失敗時改用每 2 秒的輪詢，由它重新建立清單。最多啟動一次。
+static gboolean scui_dxcore_polling = FALSE;
+
+static void scui_dxcore_start_polling(void) {
+    if (!scui_dxcore_polling) {
+        scui_dxcore_polling = TRUE;
+        g_timeout_add_seconds(2, scui_dxcore_poll, NULL);
+    }
+}
 
 static gboolean scui_dxcore_stale_on_main(gpointer unused) {
     scui_watch_refresh_list();
-    scui_dxcore_register();
+    if (!scui_dxcore_register()) {
+        scui_dxcore_start_polling();
+    }
     return scui_adapter_changed_on_main(unused);
 }
 
@@ -426,9 +444,15 @@ static gboolean scui_dxcore_register(void) {
 
 static gboolean scui_dxcore_poll(gpointer unused) {
     (void)unused;
-    if (scui_dxcore_list != NULL &&
-        ((scui_watch_list_is_stale)scui_dxcore_list->vtbl[scui_watch_slot_is_stale])(
-            scui_dxcore_list) != 0) {
+    if (scui_dxcore_list == NULL) {
+        // The last list could not be made; try again, and report a change
+        // once it can, since adapters may have come or gone meanwhile.
+        // 上一份清單建立失敗；再試一次，成功時回報變化，因為期間介面卡可能已經增減。
+        if (scui_watch_refresh_list()) {
+            scui_adapter_changed_on_main(NULL);
+        }
+    } else if (((scui_watch_list_is_stale)scui_dxcore_list->vtbl[scui_watch_slot_is_stale])(
+                   scui_dxcore_list) != 0) {
         scui_watch_refresh_list();
         scui_adapter_changed_on_main(NULL);
     }
@@ -479,6 +503,10 @@ int scui_adapter_watch_start(void (*changed)(void)) {
     mode = 0;
     if (scui_watch_factory() != NULL) {
         if (!scui_watch_refresh_list()) {
+            // Polling retries the list, so a first failure is not the end.
+            // 輪詢會重試建立清單，所以第一次失敗不是終點。
+            scui_dxcore_start_polling();
+            mode = 1;
             return mode;
         }
         scui_watch_notification_supported supported =
@@ -486,7 +514,7 @@ int scui_adapter_watch_start(void (*changed)(void)) {
         if (supported(scui_dxcore_factory, scui_watch_list_stale) != 0 && scui_dxcore_register()) {
             mode = 2;
         } else {
-            g_timeout_add_seconds(2, scui_dxcore_poll, NULL);
+            scui_dxcore_start_polling();
             mode = 1;
         }
         return mode;
