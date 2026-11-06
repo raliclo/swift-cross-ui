@@ -1,5 +1,5 @@
 /// An angular gradient, often referred to as a conic gradient.
-public struct AngularGradient: ElementaryView {
+public struct AngularGradient: ElementaryView, Sendable {
     /// The gradient represented as an array of color stops, each having a parametric location value.
     public let gradient: Gradient
     /// The normalized center point of the gradient in its coordinate space.

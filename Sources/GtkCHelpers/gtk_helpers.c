@@ -47,3 +47,15 @@ gboolean scui_primary_button_warps_slider(void) {
     g_object_get(gtk_settings_get_default(), "gtk-primary-button-warps-slider", &warps, NULL);
     return warps;
 }
+
+void scui_show_uri(const char *uri) {
+#if GTK_CHECK_VERSION(4, 10, 0)
+    // The GTask behind the launch holds its own reference to the launcher.
+    // launch 背後的 GTask 自己持有 launcher 的參考。
+    GtkUriLauncher *launcher = gtk_uri_launcher_new(uri);
+    gtk_uri_launcher_launch(launcher, NULL, NULL, NULL, NULL);
+    g_object_unref(launcher);
+#else
+    gtk_show_uri(NULL, uri, GDK_CURRENT_TIME);
+#endif
+}

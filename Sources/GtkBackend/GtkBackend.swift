@@ -145,7 +145,7 @@ public final class GtkBackend:
     /// 探針置於一個視窗之內，理由記錄於 ``sampleAmbientColorScheme``：GTK 只會為「具有 root」的
     /// widget 解析主題 CSS，游離的 widget 回報的是內建預設值，而非主題實際會繪製的樣子。兩者皆不
     /// 會被顯示。
-    private nonisolated(unsafe) static let measuredScrollBarWidth: Int = {
+    private static let measuredScrollBarWidth: Int = {
         // Rebound rather than cast: gtk_window_new hands back a GtkWidget * and
         // gtk_window_set_child wants a GtkWindow *, which is the same object.
         // 這裡是重新繫結而非型別轉換：gtk_window_new 交出的是 GtkWidget *，而 gtk_window_set_child
@@ -2143,8 +2143,9 @@ public final class GtkBackend:
     }
 
     public func openExternalURL(_ url: URL) throws {
-        // Used instead of gtk_uri_launcher_launch to maintain <4.10 compatibility
-        gtk_show_uri(nil, url.absoluteString, guint(GDK_CURRENT_TIME))
+        // gtk_uri_launcher_launch on GTK 4.10+, gtk_show_uri before; see gtk_helpers.h.
+        // GTK 4.10 起用 gtk_uri_launcher_launch，之前用 gtk_show_uri；見 gtk_helpers.h。
+        scui_show_uri(url.absoluteString)
     }
 
     public func revealFile(_ url: URL) throws {
@@ -4206,31 +4207,29 @@ public final class GtkBackend:
     /// half-transparent rects read src x a + bg x (1 - a) on screen. See
     /// `GtkImageAlphaTests`.
     ///
+    /// Since 2026-11-07 the texture is `gdk_memory_texture_new` with
+    /// `GDK_MEMORY_R8G8B8A8`, the same straight layout without the GdkPixbuf
+    /// (`gdk_texture_new_for_pixbuf` is deprecated, and the pixbuf was never unreffed).
+    ///
     /// `updateImageView` 顯示的 texture:位元組原樣交出、不預乘，因為帶 alpha 的 `GdkPixbuf` 依定義就是
     /// 未預乘 RGBA——與經 `ImagePixels` 預乘的 AppKit、UIKit、Android、WinUI 相反。2026-10-09 於 macOS
     /// (GTK 4.24.1)實測:GDK 把 (200, 0, 0, 128) 讀回為預乘的 (100, 0, 0, 128),即白底上的
     /// (227, 127, 127);P84 的半透明矩形在畫面上量得 src x a + bg x (1 - a)。見 `GtkImageAlphaTests`。
+    ///
+    /// 自 2026-11-07 起改以 `gdk_memory_texture_new` 搭配 `GDK_MEMORY_R8G8B8A8` 建立 texture,是同樣的未預乘排列，
+    /// 只是不經 GdkPixbuf(`gdk_texture_new_for_pixbuf` 已棄用，而那個 pixbuf 從未被 unref)。
     static func texture(
         fromStraightRGBA rgbaData: [UInt8],
         width: Int,
         height: Int
     ) -> OpaquePointer {
-        let buffer = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: rgbaData.count)
-        memcpy(buffer.baseAddress!, rgbaData, rgbaData.count)
-        let pixbuf = gdk_pixbuf_new_from_data(
-            buffer.baseAddress,
-            GDK_COLORSPACE_RGB,
-            1,
-            8,
-            Int32(width),
-            Int32(height),
-            Int32(width * 4),
-            { buffer, _ in
-                buffer?.deallocate()
-            },
-            nil
-        )
-        return gdk_texture_new_for_pixbuf(pixbuf)!
+        // g_bytes_new copies the bytes; the texture keeps its own reference to them.
+        // g_bytes_new 會複製位元組；texture 自己持有它們的參考。
+        let bytes = rgbaData.withUnsafeBytes { g_bytes_new($0.baseAddress, gsize($0.count)) }
+        defer { g_bytes_unref(bytes) }
+        return gdk_memory_texture_new(
+            Int32(width), Int32(height), GDK_MEMORY_R8G8B8A8, bytes, gsize(width * 4)
+        )!
     }
 
     // MARK: Controls
@@ -6417,14 +6416,16 @@ final class TooltipContainer: Fixed {
 
     func setTooltip(text: String) {
         text.utf8CString.withUnsafeBufferPointer { buf in
-            // TODO(bbrk24): Should this be `>=` or `==`?
+            // `>=`: a buffer at least as large is reused, since `buf` carries its own
+            // NUL and GTK reads only up to it. A smaller one is replaced.
+            // `>=`：夠大的緩衝區就重用，因為 `buf` 自帶結尾 NUL，GTK 只讀到那裡為止；不夠大才換新的。
             if tooltip.count >= buf.count {
-                strcpy(tooltip.baseAddress!, buf.baseAddress!)
+                tooltip.baseAddress!.update(from: buf.baseAddress!, count: buf.count)
             } else {
                 deallocateText()
 
                 tooltip = .allocate(capacity: buf.count)
-                tooltip.initialize(from: buf)
+                _ = tooltip.initialize(from: buf)
             }
         }
 
@@ -6577,7 +6578,7 @@ final class TimePicker: Box {
         )
 
         if self.hourCycle == .oneToTwelve || self.hourCycle == .zeroToEleven {
-            if let amPmPicker {
+            if amPmPicker != nil {
                 // update strings if necessary
             } else {
                 amPmPicker = DropDown(strings: [calendar.amSymbol, calendar.pmSymbol])

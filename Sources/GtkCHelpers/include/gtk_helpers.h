@@ -629,6 +629,13 @@ void scui_snapshot_append_warmup_paths(
 // 見 todo-Gtk.md。
 void scui_release_focus_within(GtkWidget *widget);
 
+// Opens `uri` in the default handler: gtk_uri_launcher_launch on GTK 4.10 and
+// later, gtk_show_uri (deprecated there) before it. Chosen at compile time, so
+// neither path warns and an older GTK keeps building.
+// 以預設程式開啟 `uri`:GTK 4.10 起用 gtk_uri_launcher_launch,之前用 gtk_show_uri
+// (在 4.10 起已棄用)。於編譯時選擇，兩條路徑都不會產生警告，舊版 GTK 也照樣能建置。
+void scui_show_uri(const char *uri);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -114,7 +114,7 @@ extension GtkBackend: BackendFeatures.Accessibility {
     public func setAccessibilityIdentifier(ofWidget widget: Widget, to identifier: String?) {
         let object = UnsafeMutableRawPointer(widget.widgetPointer).assumingMemoryBound(to: CGtk.GObject.self)
         if let identifier {
-            g_object_set_data_full(object, "gtk-builder-id", strdup(identifier), { free($0) })
+            g_object_set_data_full(object, "gtk-builder-id", g_strdup(identifier), { g_free($0) })
             gtk_widget_set_name(widget.widgetPointer, identifier)
         } else {
             g_object_set_data(object, "gtk-builder-id", nil)
@@ -157,9 +157,7 @@ extension GtkBackend: BackendFeatures.Accessibility {
     ) {
         let target = accessible(widget)
         guard let text else {
-            var property = property
             gtk_accessible_reset_property(target, property)
-            _ = property
             return
         }
         var property = property
