@@ -290,6 +290,12 @@ let package = Package(
         // all installed. The real failure was a stale 1.5 bootstrap DLL in
         // testapp/output/swift-winui_CWinAppSDK.resources, which is searched
         // before .bundle, so a 2.6.5 build asked for Runtime 2.6 through the 1.5 DLL.
+        // The correction above overreached too (checked later on 2026-11-06): "1.1-1.8
+        // are installed" holds for the framework packages only. Get-AppxPackage lists
+        // Microsoft.WindowsAppRuntime.1.5 5001.373 (framework) and no Main.1.5 or
+        // DDLM 1.5, and a P80-WinUI.exe built 10-30, run with the 1.5 bootstrap DLL,
+        // shows "requires the Windows App Runtime Version 1.5". So 1.5 builds really
+        // cannot run here now; when and why those packages went is not verified.
         // swift-winui 改用我們的 fork（raliclo/swift-winui 的 develop 分支）作為
         // submodule，自 2026-11-05 起使用 Windows App SDK 2.6.5。用
         // Vendor/swift-winui/Support/generate-bindings.zsh 重新產生。
@@ -298,6 +304,11 @@ let package = Package(
         // 1.1–1.8 與 2.2–2.6.5 都有安裝。真正的失敗是
         // testapp/output/swift-winui_CWinAppSDK.resources 裡殘留的 1.5 bootstrap DLL，
         // 它比 .bundle 先被搜尋，於是 2.6.5 的建置經由 1.5 的 DLL 要求 Runtime 2.6。
+        // 上面的「更正」也說過頭了（2026-11-06 稍後查證）：「1.1–1.8 都有安裝」只對 framework
+        // 套件成立。Get-AppxPackage 只列出 Microsoft.WindowsAppRuntime.1.5 5001.373（framework），
+        // 沒有 Main.1.5 或 DDLM 1.5；而 10-30 建置、搭配 1.5 bootstrap DLL 的 P80-WinUI.exe 會跳出
+        // 「requires the Windows App Runtime Version 1.5」。所以 1.5 的建置目前確實無法在這台機器上執行；
+        // 它們何時、為何被移除則未查證。
         .package(path: "Vendor/swift-winui"),
         .package(
             url: "https://github.com/stackotter/swift-benchmark",
