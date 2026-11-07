@@ -1664,8 +1664,13 @@ if [ "$target_platform" = "android" ]; then
         }
         android_output="$output_dir/${app_name}-android"
         rm -f "$android_output"
-        cp "$android_binary" "$android_output"
-        chmod +x "$android_output"
+        # A link, not a copy: the APK is packaged from .build by package_android.zsh, so
+        # nothing runs this file, and a copy put a 159 MB binary per app in output/.
+        # The link keeps the manifest and its audit working at no disk cost.
+        # 用連結而非複製:APK 由 package_android.zsh 從 .build 打包，沒有任何東西執行這個檔案，
+        # 而複製會讓每支 app 在 output/ 留下 159 MB 的執行檔。連結讓 manifest 與其稽核照常運作，
+        # 且不佔磁碟空間。
+        ln -s "$android_binary" "$android_output"
         echo "    -> $android_output"
         manifest_record "${app_name}-android" "$app_name" android android
     done
