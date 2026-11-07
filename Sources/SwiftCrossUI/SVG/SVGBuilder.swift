@@ -113,7 +113,11 @@ final class SVGBuilder {
     /// The SVG files being drawn as images, outermost first, against cycles.
     /// 正在當作影像繪製的 SVG 檔，最外層在前，用來防止循環。
     var imageChain: [URL] = []
+}
 
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension SVGBuilder {
     static func build(
         root: SVGXMLElement, baseURL: URL? = nil, chain: [URL] = []
     ) -> SVGDocument.Storage {

@@ -332,7 +332,11 @@ public final class DummyBackend:
     public var appPhase = AppPhase.active
 
     public init() {}
+}
 
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension DummyBackend {
     public func runMainLoop(_ callback: @escaping @MainActor () -> Void) {
         callback()
     }
@@ -412,7 +416,7 @@ public final class DummyBackend:
         window.closeHandler = action
     }
 
-    public func runInMainThread(action: @escaping @MainActor () -> Void) {
+    public nonisolated func runInMainThread(action: @escaping @MainActor () -> Void) {
         DispatchQueue.main.async {
             action()
         }

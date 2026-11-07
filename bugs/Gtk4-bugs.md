@@ -1187,3 +1187,38 @@ P31 … alert OK
 用 `-tail 45`、grep 一個兩種情況下都會出現的字串，以及現在這個「被一項無關修正移除的診斷」。
 三者都沒有報錯，三者都產出了合理的數字。防範方式每次都相同——**在相信一項檢查通過之前，先確認
 它仍然「有可能失敗」**——而且很便宜：這一次的全部代價，就是多一列動作。
+
+## 7. A Pango-CRITICAL from GTK's Windows IME module when a text entry takes focus
+
+**Measured 2026-11-07, GTK 4.24.1 on Windows 11** (SoftPCB-UI's field-matrix
+window, GtkBackend). Printed once, while the window first lays out:
+
+```
+Pango-CRITICAL **: pango_win32_font_logfont: assertion 'PANGO_WIN32_IS_FONT (font)' failed
+```
+
+It is independent of the text: SoftPCB-W11 replaced every non-ASCII glyph with
+ASCII and switched the UI between English and Chinese, and it fired once each
+time. The caller is `gtk/gtkimcontextime.c:918` (testapp/gtk4-source): when a
+text entry gets focus, the IME context sets the input method's composition-window
+font by loading a Pango font and passing it to `pango_win32_font_logfont`. GTK 4
+on Windows renders with pangocairo fonts, not `PangoWin32Font`, so the assertion
+fails, `logfont` is NULL and `ImmSetCompositionFontA` is skipped.
+
+Effect: none we can see. The composition window keeps the IME's default font; no
+crash, and drawing and input are unchanged. Nothing to do on our side; an
+upstream report would ask gtkimcontextime.c to get the LOGFONT another way (or
+check the font type) under the cairo font map.
+
+## 7. GTK 的 Windows IME 模組在文字輸入框取得焦點時印出 Pango-CRITICAL
+
+**2026-11-07 於 Windows 11 實測，GTK 4.24.1**(SoftPCB-UI 的場矩陣視窗,GtkBackend)。在視窗第一次排版時印出一次
+(見上方訊息)。
+
+它與文字內容無關:SoftPCB-W11 把所有非 ASCII 字形換成 ASCII,並在英文與中文介面之間切換，每次都只出現一次。呼叫端是
+`gtk/gtkimcontextime.c:918`(testapp/gtk4-source):文字輸入框取得焦點時,IME context 會載入一個 Pango 字型並交給
+`pango_win32_font_logfont`,以設定輸入法組字視窗的字型。GTK 4 在 Windows 上以 pangocairo 的字型繪製，而不是
+`PangoWin32Font`,所以 assertion 失敗,`logfont` 為 NULL,`ImmSetCompositionFontA` 被略過。
+
+影響：看不出任何影響。組字視窗沿用輸入法的預設字型；不會當掉，繪製與輸入都不變。我們這邊無事可做；若向上游回報，內容會是
+請 gtkimcontextime.c 在 cairo 字型對應下改用其他方式取得 LOGFONT(或先檢查字型型別)。

@@ -428,6 +428,103 @@ public final class GtkBackend:
         gtkApp.registerSession = true
     }
 
+    var globalCSSProvider: CSSProvider?
+
+    /// Kept alive for as long as the backend is. A `GSimpleAction` added to the
+    /// application is referenced by it, but the Swift wrapper holds the closure,
+    /// and letting it go would leave the accelerator firing into freed memory.
+    /// 需與 backend 同壽。加入 application 的 `GSimpleAction` 會被其持有，但 Swift wrapper 才是
+    /// 持有 closure 的一方；若讓它被釋放，加速鍵便會觸發到已釋放的記憶體。
+    private var quitAction: GSimpleAction?
+
+    /// The content size each window was created with, for
+    /// `reportContentSizeShortfall`.
+    /// 各視窗建立時所要求的內容尺寸，供 `reportContentSizeShortfall` 使用。
+    private var requestedContentSizes: [ObjectIdentifier: SIMD2<Int>] = [:]
+
+    /// The colour scheme of the GTK theme the app started under.
+    ///
+    /// Read from the colour the theme gives a plain label, not from a settings
+    /// flag, because the flags do not carry the answer. Measured under GTK 4,
+    /// one process per theme:
+    ///
+    ///     GTK_THEME       label fg luma   gtk-theme-name   prefer-dark
+    ///     Adwaita         0.20 (light)    Default          false
+    ///     Adwaita:dark    0.93 (dark)     Default          false
+    ///     unset           0.20 (light)    Default          false
+    ///
+    /// The colour tracks the theme exactly, while `gtk-theme-name` and
+    /// `gtk-application-prefer-dark-theme` do not move at all -- so a backend
+    /// that trusts them reports "light" while the screen is dark, which is #386.
+    ///
+    /// Sampled once at the start of the main loop rather than on demand, for two
+    /// reasons. GTK has to be initialised before a label carries theme colours at
+    /// all. And honouring `preferredColorScheme` changes those colours, so a
+    /// later reading would report back whatever the app last asked for, losing
+    /// the ambient value an override is defined against.
+    ///
+    /// 由主題賦予一般 label 的顏色讀取，而非讀設定旗標，因為旗標並不帶有答案（上表為 GTK 4 實測，
+    /// 每個主題各一個獨立行程）：顏色完全跟隨主題，而 `gtk-theme-name` 與
+    /// `gtk-application-prefer-dark-theme` 完全不動——因此信任它們的 backend 會回報「light」而畫面
+    /// 是深色的，這正是 #386。
+    ///
+    /// 於主迴圈啟動時取樣一次而非即時讀取，有兩個理由：GTK 必須先初始化，label 才會帶有主題顏色；
+    /// 且遵從 `preferredColorScheme` 會改變那些顏色，因此較晚的讀取只會回報 app 最後一次的要求，
+    /// 使 override 所要對照的環境值遺失。
+    private var ambientColorScheme: ColorScheme = .light
+
+    /// Which variant GTK is currently drawing, as far as this backend knows.
+    ///
+    /// Not read back from `Gtk.Settings`, because the flag does not carry the
+    /// answer -- that is the measurement recorded on ``ambientColorScheme``,
+    /// where `Adwaita:dark` leaves `gtk-application-prefer-dark-theme` at false.
+    /// It does report a value this backend wrote, though, which is all
+    /// `updateWindow` needs to know: whether its own last write still stands.
+    ///
+    /// 就本 backend 所知，GTK 目前正在繪製的變體。
+    ///
+    /// 並非自 `Gtk.Settings` 讀回，因為該旗標並不帶有答案——這正是記錄於 ``ambientColorScheme``
+    /// 的實測結果：`Adwaita:dark` 之下 `gtk-application-prefer-dark-theme` 仍為 false。不過它確實
+    /// 能回報「本 backend 曾寫入的值」，而那正是 `updateWindow` 所需的全部資訊：它自己上一次的
+    /// 寫入是否仍然有效。
+    private var gtkPrefersDarkTheme = false
+
+    /// The pulse timers driving indeterminate progress bars, by widget.
+    ///
+    /// An entry is in here exactly while its timer is running: `stopPulsing`
+    /// removes it, and so does the timer itself when it finds its widget gone.
+    /// Otherwise a freed bar's `ObjectIdentifier` stayed behind, and a new bar
+    /// allocated at the same address found it and never started pulsing.
+    ///
+    /// 驅動不確定進度條的 pulse 計時器，以 widget 為索引。
+    ///
+    /// 一筆紀錄只在其計時器執行期間存在於此:`stopPulsing` 會移除它，計時器發現 widget 已消失時也會自行移除。
+    /// 否則已釋放之 bar 的 `ObjectIdentifier` 會留下來，在同一位址配置的新 bar 會找到它而永遠不開始 pulse。
+    private var progressPulseTimers: [ObjectIdentifier: ProgressBarBox] = [:]
+
+    /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
+    ///
+    /// Here rather than in the conformance because a Swift extension cannot add
+    /// stored properties. Assigning a handler starts the watch that calls it
+    /// (`GtkAdapterRemoval` in GtkBackend+GraphicsAdapters.swift): DXGI's
+    /// adapters-changed event on Windows, DXCore under WSL, kernel uevents on
+    /// Linux, Metal's device observer on macOS.
+    ///
+    /// ``BackendFeatures/GraphicsAdapters/adapterRemoved`` 的儲存空間。
+    ///
+    /// 之所以放在此處而非 conformance 中，是因為 Swift 的 extension 無法新增 stored property。指派 handler
+    /// 就會啟動呼叫它的監看(GtkBackend+GraphicsAdapters.swift 中的 `GtkAdapterRemoval`):Windows 上是 DXGI 的
+    /// adapters-changed 事件,WSL 下是 DXCore,Linux 上是核心 uevent,macOS 上是 Metal 的裝置 observer。
+    public var adapterRemoved: (() -> Void)? {
+        didSet {
+            if adapterRemoved != nil { GtkAdapterRemoval.start(for: self) }
+        }
+    }
+}
+
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension GtkBackend {
     /// Asks GDK to make the process per-monitor DPI aware on Windows, so the
     /// display scale it reports follows the setting instead of freezing.
     ///
@@ -1083,34 +1180,6 @@ public final class GtkBackend:
         }
     #endif
 
-    /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
-    ///
-    /// Here rather than in the conformance because a Swift extension cannot add
-    /// stored properties. Assigning a handler starts the watch that calls it
-    /// (`GtkAdapterRemoval` in GtkBackend+GraphicsAdapters.swift): DXGI's
-    /// adapters-changed event on Windows, DXCore under WSL, kernel uevents on
-    /// Linux, Metal's device observer on macOS.
-    ///
-    /// ``BackendFeatures/GraphicsAdapters/adapterRemoved`` 的儲存空間。
-    ///
-    /// 之所以放在此處而非 conformance 中，是因為 Swift 的 extension 無法新增 stored property。指派 handler
-    /// 就會啟動呼叫它的監看(GtkBackend+GraphicsAdapters.swift 中的 `GtkAdapterRemoval`):Windows 上是 DXGI 的
-    /// adapters-changed 事件,WSL 下是 DXCore,Linux 上是核心 uevent,macOS 上是 Metal 的裝置 observer。
-    public var adapterRemoved: (() -> Void)? {
-        didSet {
-            if adapterRemoved != nil { GtkAdapterRemoval.start(for: self) }
-        }
-    }
-
-    var globalCSSProvider: CSSProvider?
-
-    /// Kept alive for as long as the backend is. A `GSimpleAction` added to the
-    /// application is referenced by it, but the Swift wrapper holds the closure,
-    /// and letting it go would leave the accelerator firing into freed memory.
-    /// 需與 backend 同壽。加入 application 的 `GSimpleAction` 會被其持有，但 Swift wrapper 才是
-    /// 持有 closure 的一方；若讓它被釋放，加速鍵便會觸發到已釋放的記憶體。
-    private var quitAction: GSimpleAction?
-
     public func runMainLoop(_ callback: @escaping @MainActor () -> Void) {
         installQuitShortcut()
         gtkApp.run { window in
@@ -1422,11 +1491,6 @@ public final class GtkBackend:
         return window
     }
 
-    /// The content size each window was created with, for
-    /// `reportContentSizeShortfall`.
-    /// 各視窗建立時所要求的內容尺寸，供 `reportContentSizeShortfall` 使用。
-    private var requestedContentSizes: [ObjectIdentifier: SIMD2<Int>] = [:]
-
     /// Logs, through `DebugFeatures.log`, the difference between the content
     /// size a window asked for and the size its content was allocated.
     ///
@@ -1692,7 +1756,7 @@ public final class GtkBackend:
     /// 確認的方式見 `scui_window_set_topmost`）。
     ///
     /// 採用 property 而非常數，是因為它確實不是常數：同一個 backend 在兩個平台上的答案並不相同。
-    public var supportedWindowLevels: [WindowLevel] {
+    public nonisolated var supportedWindowLevels: [WindowLevel] {
         #if os(Windows) || os(macOS)
             [.automatic, .normal, .floating]
         #else
@@ -2531,7 +2595,7 @@ public final class GtkBackend:
         }
     }
 
-    public func runInMainThread(action: @escaping @MainActor () -> Void) {
+    public nonisolated func runInMainThread(action: @escaping @MainActor () -> Void) {
         let action = ThreadActionContext(action: action)
         g_idle_add_full(
             0,
@@ -2610,53 +2674,6 @@ public final class GtkBackend:
             .with(\.appPhase, windows.contains(where: \.isActive) ? .active : .inactive)
             .with(\.colorScheme, ambientColorScheme)
     }
-
-    /// The colour scheme of the GTK theme the app started under.
-    ///
-    /// Read from the colour the theme gives a plain label, not from a settings
-    /// flag, because the flags do not carry the answer. Measured under GTK 4,
-    /// one process per theme:
-    ///
-    ///     GTK_THEME       label fg luma   gtk-theme-name   prefer-dark
-    ///     Adwaita         0.20 (light)    Default          false
-    ///     Adwaita:dark    0.93 (dark)     Default          false
-    ///     unset           0.20 (light)    Default          false
-    ///
-    /// The colour tracks the theme exactly, while `gtk-theme-name` and
-    /// `gtk-application-prefer-dark-theme` do not move at all -- so a backend
-    /// that trusts them reports "light" while the screen is dark, which is #386.
-    ///
-    /// Sampled once at the start of the main loop rather than on demand, for two
-    /// reasons. GTK has to be initialised before a label carries theme colours at
-    /// all. And honouring `preferredColorScheme` changes those colours, so a
-    /// later reading would report back whatever the app last asked for, losing
-    /// the ambient value an override is defined against.
-    ///
-    /// 由主題賦予一般 label 的顏色讀取，而非讀設定旗標，因為旗標並不帶有答案（上表為 GTK 4 實測，
-    /// 每個主題各一個獨立行程）：顏色完全跟隨主題，而 `gtk-theme-name` 與
-    /// `gtk-application-prefer-dark-theme` 完全不動——因此信任它們的 backend 會回報「light」而畫面
-    /// 是深色的，這正是 #386。
-    ///
-    /// 於主迴圈啟動時取樣一次而非即時讀取，有兩個理由：GTK 必須先初始化，label 才會帶有主題顏色；
-    /// 且遵從 `preferredColorScheme` 會改變那些顏色，因此較晚的讀取只會回報 app 最後一次的要求，
-    /// 使 override 所要對照的環境值遺失。
-    private var ambientColorScheme: ColorScheme = .light
-
-    /// Which variant GTK is currently drawing, as far as this backend knows.
-    ///
-    /// Not read back from `Gtk.Settings`, because the flag does not carry the
-    /// answer -- that is the measurement recorded on ``ambientColorScheme``,
-    /// where `Adwaita:dark` leaves `gtk-application-prefer-dark-theme` at false.
-    /// It does report a value this backend wrote, though, which is all
-    /// `updateWindow` needs to know: whether its own last write still stands.
-    ///
-    /// 就本 backend 所知，GTK 目前正在繪製的變體。
-    ///
-    /// 並非自 `Gtk.Settings` 讀回，因為該旗標並不帶有答案——這正是記錄於 ``ambientColorScheme``
-    /// 的實測結果：`Adwaita:dark` 之下 `gtk-application-prefer-dark-theme` 仍為 false。不過它確實
-    /// 能回報「本 backend 曾寫入的值」，而那正是 `updateWindow` 所需的全部資訊：它自己上一次的
-    /// 寫入是否仍然有效。
-    private var gtkPrefersDarkTheme = false
 
     /// The colour scheme the desktop itself is set to, where the platform has
     /// one this backend can read and GTK does not already follow it.
@@ -4725,19 +4742,6 @@ public final class GtkBackend:
     public func createProgressBar() -> Widget {
         ProgressBar()
     }
-
-    /// The pulse timers driving indeterminate progress bars, by widget.
-    ///
-    /// An entry is in here exactly while its timer is running: `stopPulsing`
-    /// removes it, and so does the timer itself when it finds its widget gone.
-    /// Otherwise a freed bar's `ObjectIdentifier` stayed behind, and a new bar
-    /// allocated at the same address found it and never started pulsing.
-    ///
-    /// 驅動不確定進度條的 pulse 計時器，以 widget 為索引。
-    ///
-    /// 一筆紀錄只在其計時器執行期間存在於此:`stopPulsing` 會移除它，計時器發現 widget 已消失時也會自行移除。
-    /// 否則已釋放之 bar 的 `ObjectIdentifier` 會留下來，在同一位址配置的新 bar 會找到它而永遠不開始 pulse。
-    private var progressPulseTimers: [ObjectIdentifier: ProgressBarBox] = [:]
 
     /// Carries a progress bar into a C callback without keeping it alive.
     ///

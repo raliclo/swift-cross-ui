@@ -108,7 +108,11 @@ struct GtkCodeGen {
         "gtk_image_new_from_pixbuf",
         "gtk_picture_new_for_pixbuf",
     ]
+}
 
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension GtkCodeGen {
     static func main() throws {
         let arguments = parseCommandLineArguments()
         let data = try loadGIRFileContents(arguments.girFile)

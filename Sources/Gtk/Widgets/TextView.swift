@@ -94,7 +94,294 @@ open class TextView: Widget, Scrollable {
 
     open override func didMoveToParent() {
         super.didMoveToParent()
+        registerTextViewSignals()
+    }
 
+    /// Whether Tab will result in a tab character being entered.
+    @GObjectProperty(named: "accepts-tab") public var acceptsTab: Bool
+
+    /// The bottom margin for text in the text view.
+    ///
+    /// Note that this property is confusingly named. In CSS terms,
+    /// the value set here is padding, and it is applied in addition
+    /// to the padding from the theme.
+    ///
+    /// Don't confuse this property with [property@Gtk.Widget:margin-bottom].
+    @GObjectProperty(named: "bottom-margin") public var bottomMargin: Int
+
+    /// If the insertion cursor is shown.
+    @GObjectProperty(named: "cursor-visible") public var cursorVisible: Bool
+
+    /// Whether the text can be modified by the user.
+    @GObjectProperty(named: "editable") public var editable: Bool
+
+    /// Amount to indent the paragraph, in pixels.
+    ///
+    /// A negative value of indent will produce a hanging indentation.
+    /// That is, the first line will have the full width, and subsequent
+    /// lines will be indented by the absolute value of indent.
+    @GObjectProperty(named: "indent") public var indent: Int
+
+    /// The purpose of this text field.
+    ///
+    /// This property can be used by on-screen keyboards and other input
+    /// methods to adjust their behaviour.
+    @GObjectProperty(named: "input-purpose") public var inputPurpose: InputPurpose
+
+    /// Left, right, or center justification.
+    @GObjectProperty(named: "justification") public var justification: Justification
+
+    /// The default left margin for text in the text view.
+    ///
+    /// Tags in the buffer may override the default.
+    ///
+    /// Note that this property is confusingly named. In CSS terms,
+    /// the value set here is padding, and it is applied in addition
+    /// to the padding from the theme.
+    @GObjectProperty(named: "left-margin") public var leftMargin: Int
+
+    /// Whether text should be displayed in a monospace font.
+    ///
+    /// If %TRUE, set the .monospace style class on the
+    /// text view to indicate that a monospace font is desired.
+    @GObjectProperty(named: "monospace") public var monospace: Bool
+
+    /// Whether entered text overwrites existing contents.
+    @GObjectProperty(named: "overwrite") public var overwrite: Bool
+
+    /// Pixels of blank space above paragraphs.
+    @GObjectProperty(named: "pixels-above-lines") public var pixelsAboveLines: Int
+
+    /// Pixels of blank space below paragraphs.
+    @GObjectProperty(named: "pixels-below-lines") public var pixelsBelowLines: Int
+
+    /// Pixels of blank space between wrapped lines in a paragraph.
+    @GObjectProperty(named: "pixels-inside-wrap") public var pixelsInsideWrap: Int
+
+    /// The default right margin for text in the text view.
+    ///
+    /// Tags in the buffer may override the default.
+    ///
+    /// Note that this property is confusingly named. In CSS terms,
+    /// the value set here is padding, and it is applied in addition
+    /// to the padding from the theme.
+    @GObjectProperty(named: "right-margin") public var rightMargin: Int
+
+    /// The top margin for text in the text view.
+    ///
+    /// Note that this property is confusingly named. In CSS terms,
+    /// the value set here is padding, and it is applied in addition
+    /// to the padding from the theme.
+    ///
+    /// Don't confuse this property with [property@Gtk.Widget:margin-top].
+    @GObjectProperty(named: "top-margin") public var topMargin: Int
+
+    /// Whether to wrap lines never, at word boundaries, or at character boundaries.
+    @GObjectProperty(named: "wrap-mode") public var wrapMode: WrapMode
+
+    /// Determines when horizontal scrolling should start.
+    @GObjectProperty(named: "hscroll-policy") public var hscrollPolicy: ScrollablePolicy
+
+    /// Determines when vertical scrolling should start.
+    @GObjectProperty(named: "vscroll-policy") public var vscrollPolicy: ScrollablePolicy
+
+    /// Gets emitted when the user asks for it.
+    ///
+    /// The ::backspace signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default bindings for this signal are
+    /// <kbd>Backspace</kbd> and <kbd>Shift</kbd>+<kbd>Backspace</kbd>.
+    public var backspace: ((TextView) -> Void)?
+
+    /// Gets emitted to copy the selection to the clipboard.
+    ///
+    /// The ::copy-clipboard signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default bindings for this signal are
+    /// <kbd>Ctrl</kbd>+<kbd>c</kbd> and
+    /// <kbd>Ctrl</kbd>+<kbd>Insert</kbd>.
+    public var copyClipboard: ((TextView) -> Void)?
+
+    /// Gets emitted to cut the selection to the clipboard.
+    ///
+    /// The ::cut-clipboard signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default bindings for this signal are
+    /// <kbd>Ctrl</kbd>+<kbd>x</kbd> and
+    /// <kbd>Shift</kbd>+<kbd>Delete</kbd>.
+    public var cutClipboard: ((TextView) -> Void)?
+
+    /// Gets emitted when the user initiates a text deletion.
+    ///
+    /// The ::delete-from-cursor signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// If the @type is %GTK_DELETE_CHARS, GTK deletes the selection
+    /// if there is one, otherwise it deletes the requested number
+    /// of characters.
+    ///
+    /// The default bindings for this signal are <kbd>Delete</kbd> for
+    /// deleting a character, <kbd>Ctrl</kbd>+<kbd>Delete</kbd> for
+    /// deleting a word and <kbd>Ctrl</kbd>+<kbd>Backspace</kbd> for
+    /// deleting a word backwards.
+    public var deleteFromCursor: ((TextView, GtkDeleteType, Int) -> Void)?
+
+    /// Emitted when the selection needs to be extended at @location.
+    public var extendSelection:
+        ((TextView, GtkTextExtendSelection, GtkTextIter, GtkTextIter, GtkTextIter) -> Void)?
+
+    /// Gets emitted when the user initiates the insertion of a
+    /// fixed string at the cursor.
+    ///
+    /// The ::insert-at-cursor signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// This signal has no default bindings.
+    public var insertAtCursor: ((TextView, UnsafePointer<CChar>) -> Void)?
+
+    /// Gets emitted to present the Emoji chooser for the @text_view.
+    ///
+    /// The ::insert-emoji signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default bindings for this signal are
+    /// <kbd>Ctrl</kbd>+<kbd>.</kbd> and
+    /// <kbd>Ctrl</kbd>+<kbd>;</kbd>
+    public var insertEmoji: ((TextView) -> Void)?
+
+    /// Gets emitted when the user initiates a cursor movement.
+    ///
+    /// The ::move-cursor signal is a [keybinding signal](class.SignalAction.html).
+    /// If the cursor is not visible in @text_view, this signal causes
+    /// the viewport to be moved instead.
+    ///
+    /// Applications should not connect to it, but may emit it with
+    /// g_signal_emit_by_name() if they need to control the cursor
+    /// programmatically.
+    ///
+    ///
+    /// The default bindings for this signal come in two variants,
+    /// the variant with the <kbd>Shift</kbd> modifier extends the
+    /// selection, the variant without it does not.
+    /// There are too many key combinations to list them all here.
+    ///
+    /// - <kbd>←</kbd>, <kbd>→</kbd>, <kbd>↑</kbd>, <kbd>↓</kbd>
+    /// move by individual characters/lines
+    /// - <kbd>Ctrl</kbd>+<kbd>←</kbd>, etc. move by words/paragraphs
+    /// - <kbd>Home</kbd> and <kbd>End</kbd> move to the ends of the buffer
+    /// - <kbd>PgUp</kbd> and <kbd>PgDn</kbd> move vertically by pages
+    /// - <kbd>Ctrl</kbd>+<kbd>PgUp</kbd> and <kbd>Ctrl</kbd>+<kbd>PgDn</kbd>
+    /// move horizontally by pages
+    public var moveCursor: ((TextView, GtkMovementStep, Int, Bool) -> Void)?
+
+    /// Gets emitted to move the viewport.
+    ///
+    /// The ::move-viewport signal is a [keybinding signal](class.SignalAction.html),
+    /// which can be bound to key combinations to allow the user to move the viewport,
+    /// i.e. change what part of the text view is visible in a containing scrolled
+    /// window.
+    ///
+    /// There are no default bindings for this signal.
+    public var moveViewport: ((TextView, GtkScrollStep, Int) -> Void)?
+
+    /// Gets emitted to paste the contents of the clipboard
+    /// into the text view.
+    ///
+    /// The ::paste-clipboard signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default bindings for this signal are
+    /// <kbd>Ctrl</kbd>+<kbd>v</kbd> and
+    /// <kbd>Shift</kbd>+<kbd>Insert</kbd>.
+    public var pasteClipboard: ((TextView) -> Void)?
+
+    /// Emitted when preedit text of the active IM changes.
+    ///
+    /// If an input method is used, the typed text will not immediately
+    /// be committed to the buffer. So if you are interested in the text,
+    /// connect to this signal.
+    ///
+    /// This signal is only emitted if the text at the given position
+    /// is actually editable.
+    public var preeditChanged: ((TextView, UnsafePointer<CChar>) -> Void)?
+
+    /// Gets emitted when the user initiates settings the "anchor" mark.
+    ///
+    /// The ::set-anchor signal is a [keybinding signal](class.SignalAction.html)
+    /// which gets emitted when the user initiates setting the "anchor"
+    /// mark. The "anchor" mark gets placed at the same position as the
+    /// "insert" mark.
+    ///
+    /// This signal has no default bindings.
+    public var setAnchor: ((TextView) -> Void)?
+
+    /// Gets emitted to toggle the `cursor-visible` property.
+    ///
+    /// The ::toggle-cursor-visible signal is a
+    /// [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default binding for this signal is <kbd>F7</kbd>.
+    public var toggleCursorVisible: ((TextView) -> Void)?
+
+    /// Gets emitted to toggle the overwrite mode of the text view.
+    ///
+    /// The ::toggle-overwrite signal is a [keybinding signal](class.SignalAction.html).
+    ///
+    /// The default binding for this signal is <kbd>Insert</kbd>.
+    public var toggleOverwrite: ((TextView) -> Void)?
+
+    public var notifyAcceptsTab: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyBottomMargin: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyBuffer: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyCursorVisible: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyEditable: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyExtraMenu: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyImModule: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyIndent: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyInputHints: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyInputPurpose: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyJustification: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyLeftMargin: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyMonospace: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyOverwrite: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyPixelsAboveLines: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyPixelsBelowLines: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyPixelsInsideWrap: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyRightMargin: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyTabs: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyTopMargin: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyWrapMode: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyHadjustment: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyHscrollPolicy: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyVadjustment: ((TextView, OpaquePointer) -> Void)?
+
+    public var notifyVscrollPolicy: ((TextView, OpaquePointer) -> Void)?
+}
+
+// The signal registrations, out of didMoveToParent so the class body stays within SwiftLint's
+// type_body_length; an override cannot itself move to an extension.
+// signal 的註冊，從 didMoveToParent 移出，讓 class 本體不超過 SwiftLint 的 type_body_length;override 本身不能移到 extension。
+extension TextView {
+    func registerTextViewSignals() {
         addSignal(name: "backspace") { [weak self] () in
             guard let self else { return }
             self.backspace?(self)
@@ -561,283 +848,4 @@ open class TextView: Widget, Scrollable {
             self.notifyVscrollPolicy?(self, param0)
         }
     }
-
-    /// Whether Tab will result in a tab character being entered.
-    @GObjectProperty(named: "accepts-tab") public var acceptsTab: Bool
-
-    /// The bottom margin for text in the text view.
-    ///
-    /// Note that this property is confusingly named. In CSS terms,
-    /// the value set here is padding, and it is applied in addition
-    /// to the padding from the theme.
-    ///
-    /// Don't confuse this property with [property@Gtk.Widget:margin-bottom].
-    @GObjectProperty(named: "bottom-margin") public var bottomMargin: Int
-
-    /// If the insertion cursor is shown.
-    @GObjectProperty(named: "cursor-visible") public var cursorVisible: Bool
-
-    /// Whether the text can be modified by the user.
-    @GObjectProperty(named: "editable") public var editable: Bool
-
-    /// Amount to indent the paragraph, in pixels.
-    ///
-    /// A negative value of indent will produce a hanging indentation.
-    /// That is, the first line will have the full width, and subsequent
-    /// lines will be indented by the absolute value of indent.
-    @GObjectProperty(named: "indent") public var indent: Int
-
-    /// The purpose of this text field.
-    ///
-    /// This property can be used by on-screen keyboards and other input
-    /// methods to adjust their behaviour.
-    @GObjectProperty(named: "input-purpose") public var inputPurpose: InputPurpose
-
-    /// Left, right, or center justification.
-    @GObjectProperty(named: "justification") public var justification: Justification
-
-    /// The default left margin for text in the text view.
-    ///
-    /// Tags in the buffer may override the default.
-    ///
-    /// Note that this property is confusingly named. In CSS terms,
-    /// the value set here is padding, and it is applied in addition
-    /// to the padding from the theme.
-    @GObjectProperty(named: "left-margin") public var leftMargin: Int
-
-    /// Whether text should be displayed in a monospace font.
-    ///
-    /// If %TRUE, set the .monospace style class on the
-    /// text view to indicate that a monospace font is desired.
-    @GObjectProperty(named: "monospace") public var monospace: Bool
-
-    /// Whether entered text overwrites existing contents.
-    @GObjectProperty(named: "overwrite") public var overwrite: Bool
-
-    /// Pixels of blank space above paragraphs.
-    @GObjectProperty(named: "pixels-above-lines") public var pixelsAboveLines: Int
-
-    /// Pixels of blank space below paragraphs.
-    @GObjectProperty(named: "pixels-below-lines") public var pixelsBelowLines: Int
-
-    /// Pixels of blank space between wrapped lines in a paragraph.
-    @GObjectProperty(named: "pixels-inside-wrap") public var pixelsInsideWrap: Int
-
-    /// The default right margin for text in the text view.
-    ///
-    /// Tags in the buffer may override the default.
-    ///
-    /// Note that this property is confusingly named. In CSS terms,
-    /// the value set here is padding, and it is applied in addition
-    /// to the padding from the theme.
-    @GObjectProperty(named: "right-margin") public var rightMargin: Int
-
-    /// The top margin for text in the text view.
-    ///
-    /// Note that this property is confusingly named. In CSS terms,
-    /// the value set here is padding, and it is applied in addition
-    /// to the padding from the theme.
-    ///
-    /// Don't confuse this property with [property@Gtk.Widget:margin-top].
-    @GObjectProperty(named: "top-margin") public var topMargin: Int
-
-    /// Whether to wrap lines never, at word boundaries, or at character boundaries.
-    @GObjectProperty(named: "wrap-mode") public var wrapMode: WrapMode
-
-    /// Determines when horizontal scrolling should start.
-    @GObjectProperty(named: "hscroll-policy") public var hscrollPolicy: ScrollablePolicy
-
-    /// Determines when vertical scrolling should start.
-    @GObjectProperty(named: "vscroll-policy") public var vscrollPolicy: ScrollablePolicy
-
-    /// Gets emitted when the user asks for it.
-    ///
-    /// The ::backspace signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default bindings for this signal are
-    /// <kbd>Backspace</kbd> and <kbd>Shift</kbd>+<kbd>Backspace</kbd>.
-    public var backspace: ((TextView) -> Void)?
-
-    /// Gets emitted to copy the selection to the clipboard.
-    ///
-    /// The ::copy-clipboard signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default bindings for this signal are
-    /// <kbd>Ctrl</kbd>+<kbd>c</kbd> and
-    /// <kbd>Ctrl</kbd>+<kbd>Insert</kbd>.
-    public var copyClipboard: ((TextView) -> Void)?
-
-    /// Gets emitted to cut the selection to the clipboard.
-    ///
-    /// The ::cut-clipboard signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default bindings for this signal are
-    /// <kbd>Ctrl</kbd>+<kbd>x</kbd> and
-    /// <kbd>Shift</kbd>+<kbd>Delete</kbd>.
-    public var cutClipboard: ((TextView) -> Void)?
-
-    /// Gets emitted when the user initiates a text deletion.
-    ///
-    /// The ::delete-from-cursor signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// If the @type is %GTK_DELETE_CHARS, GTK deletes the selection
-    /// if there is one, otherwise it deletes the requested number
-    /// of characters.
-    ///
-    /// The default bindings for this signal are <kbd>Delete</kbd> for
-    /// deleting a character, <kbd>Ctrl</kbd>+<kbd>Delete</kbd> for
-    /// deleting a word and <kbd>Ctrl</kbd>+<kbd>Backspace</kbd> for
-    /// deleting a word backwards.
-    public var deleteFromCursor: ((TextView, GtkDeleteType, Int) -> Void)?
-
-    /// Emitted when the selection needs to be extended at @location.
-    public var extendSelection:
-        ((TextView, GtkTextExtendSelection, GtkTextIter, GtkTextIter, GtkTextIter) -> Void)?
-
-    /// Gets emitted when the user initiates the insertion of a
-    /// fixed string at the cursor.
-    ///
-    /// The ::insert-at-cursor signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// This signal has no default bindings.
-    public var insertAtCursor: ((TextView, UnsafePointer<CChar>) -> Void)?
-
-    /// Gets emitted to present the Emoji chooser for the @text_view.
-    ///
-    /// The ::insert-emoji signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default bindings for this signal are
-    /// <kbd>Ctrl</kbd>+<kbd>.</kbd> and
-    /// <kbd>Ctrl</kbd>+<kbd>;</kbd>
-    public var insertEmoji: ((TextView) -> Void)?
-
-    /// Gets emitted when the user initiates a cursor movement.
-    ///
-    /// The ::move-cursor signal is a [keybinding signal](class.SignalAction.html).
-    /// If the cursor is not visible in @text_view, this signal causes
-    /// the viewport to be moved instead.
-    ///
-    /// Applications should not connect to it, but may emit it with
-    /// g_signal_emit_by_name() if they need to control the cursor
-    /// programmatically.
-    ///
-    ///
-    /// The default bindings for this signal come in two variants,
-    /// the variant with the <kbd>Shift</kbd> modifier extends the
-    /// selection, the variant without it does not.
-    /// There are too many key combinations to list them all here.
-    ///
-    /// - <kbd>←</kbd>, <kbd>→</kbd>, <kbd>↑</kbd>, <kbd>↓</kbd>
-    /// move by individual characters/lines
-    /// - <kbd>Ctrl</kbd>+<kbd>←</kbd>, etc. move by words/paragraphs
-    /// - <kbd>Home</kbd> and <kbd>End</kbd> move to the ends of the buffer
-    /// - <kbd>PgUp</kbd> and <kbd>PgDn</kbd> move vertically by pages
-    /// - <kbd>Ctrl</kbd>+<kbd>PgUp</kbd> and <kbd>Ctrl</kbd>+<kbd>PgDn</kbd>
-    /// move horizontally by pages
-    public var moveCursor: ((TextView, GtkMovementStep, Int, Bool) -> Void)?
-
-    /// Gets emitted to move the viewport.
-    ///
-    /// The ::move-viewport signal is a [keybinding signal](class.SignalAction.html),
-    /// which can be bound to key combinations to allow the user to move the viewport,
-    /// i.e. change what part of the text view is visible in a containing scrolled
-    /// window.
-    ///
-    /// There are no default bindings for this signal.
-    public var moveViewport: ((TextView, GtkScrollStep, Int) -> Void)?
-
-    /// Gets emitted to paste the contents of the clipboard
-    /// into the text view.
-    ///
-    /// The ::paste-clipboard signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default bindings for this signal are
-    /// <kbd>Ctrl</kbd>+<kbd>v</kbd> and
-    /// <kbd>Shift</kbd>+<kbd>Insert</kbd>.
-    public var pasteClipboard: ((TextView) -> Void)?
-
-    /// Emitted when preedit text of the active IM changes.
-    ///
-    /// If an input method is used, the typed text will not immediately
-    /// be committed to the buffer. So if you are interested in the text,
-    /// connect to this signal.
-    ///
-    /// This signal is only emitted if the text at the given position
-    /// is actually editable.
-    public var preeditChanged: ((TextView, UnsafePointer<CChar>) -> Void)?
-
-    /// Gets emitted when the user initiates settings the "anchor" mark.
-    ///
-    /// The ::set-anchor signal is a [keybinding signal](class.SignalAction.html)
-    /// which gets emitted when the user initiates setting the "anchor"
-    /// mark. The "anchor" mark gets placed at the same position as the
-    /// "insert" mark.
-    ///
-    /// This signal has no default bindings.
-    public var setAnchor: ((TextView) -> Void)?
-
-    /// Gets emitted to toggle the `cursor-visible` property.
-    ///
-    /// The ::toggle-cursor-visible signal is a
-    /// [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default binding for this signal is <kbd>F7</kbd>.
-    public var toggleCursorVisible: ((TextView) -> Void)?
-
-    /// Gets emitted to toggle the overwrite mode of the text view.
-    ///
-    /// The ::toggle-overwrite signal is a [keybinding signal](class.SignalAction.html).
-    ///
-    /// The default binding for this signal is <kbd>Insert</kbd>.
-    public var toggleOverwrite: ((TextView) -> Void)?
-
-    public var notifyAcceptsTab: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyBottomMargin: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyBuffer: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyCursorVisible: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyEditable: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyExtraMenu: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyImModule: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyIndent: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyInputHints: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyInputPurpose: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyJustification: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyLeftMargin: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyMonospace: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyOverwrite: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyPixelsAboveLines: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyPixelsBelowLines: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyPixelsInsideWrap: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyRightMargin: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyTabs: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyTopMargin: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyWrapMode: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyHadjustment: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyHscrollPolicy: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyVadjustment: ((TextView, OpaquePointer) -> Void)?
-
-    public var notifyVscrollPolicy: ((TextView, OpaquePointer) -> Void)?
 }

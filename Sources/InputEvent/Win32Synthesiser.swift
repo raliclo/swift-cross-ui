@@ -23,7 +23,11 @@
         public init(layoutScale: Double? = nil) {
             self.layoutScale = layoutScale
         }
+    }
 
+    // Split from the type body only to keep it within SwiftLint's type_body_length.
+    // 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+    extension Win32Synthesiser {
         /// The user's setting, read from the system rather than assumed.
         /// `GetDoubleClickTime` returns milliseconds and defaults to 500, but it is
         /// adjustable in Control Panel, so a file that hard-coded a gap would

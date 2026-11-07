@@ -348,6 +348,9 @@ final class D3D11MeshRenderer {
     private var renderTarget: UnsafeMutablePointer<ID3D11RenderTargetView>?
     private var depthTexture: UnsafeMutablePointer<ID3D11Texture2D>?
     private var depthView: UnsafeMutablePointer<ID3D11DepthStencilView>?
+    /// The display scale the swap chain was last told; 0 after it is recreated.
+    /// 上次告訴 swap chain 的顯示比例；重建後為 0。
+    private var scaleShown = 0.0
 
     init() throws {
         let adapter = Self.preferredAdapter()
@@ -420,7 +423,11 @@ final class D3D11MeshRenderer {
         release(depthTestOnly)
         release(blendOver)
     }
+}
 
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension D3D11MeshRenderer {
     private static func adapterName(of device: UnsafeMutablePointer<ID3D11Device>) -> String {
         var iid = D3D11IID.IDXGIDevice
         var raw: UnsafeMutableRawPointer?
@@ -616,10 +623,6 @@ final class D3D11MeshRenderer {
             scaleShown = scale
         }
     }
-
-    /// The display scale the swap chain was last told; 0 after it is recreated.
-    /// 上次告訴 swap chain 的顯示比例；重建後為 0。
-    private var scaleShown = 0.0
 
     private func recreateTargets(_ pixels: SIMD2<Int>, panel: RawSwapChainPanel) throws {
         releaseTargets()

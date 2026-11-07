@@ -683,6 +683,76 @@ public final class D3D11VideoSurface {
     /// surface ended up on.
     public private(set) var adapterReport = ""
 
+    public init(
+        panel: RawSwapChainPanel,
+        gpu: GPUPreference = .display,
+        format: VideoPixelFormat = .rgba
+    ) throws {
+        self.panel = panel
+        self.format = format
+
+        let (adapter, report) = D3D11VideoSurface.selectAdapter(for: gpu)
+        adapterReport = report
+        defer {
+            if let adapter { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
+        }
+
+        var device: UnsafeMutablePointer<ID3D11Device>?
+        var context: UnsafeMutablePointer<ID3D11DeviceContext>?
+        var obtainedLevel = D3D_FEATURE_LEVEL_11_0
+        let levels: [D3D_FEATURE_LEVEL] = [D3D_FEATURE_LEVEL_11_0]
+        try D3D11_CHECK(
+            "D3D11CreateDevice",
+            levels.withUnsafeBufferPointer { levelsPtr in
+                // An explicit adapter requires DRIVER_TYPE_UNKNOWN; passing
+                // HARDWARE with an adapter is an invalid-argument error.
+                // 指定介面卡時必須用 DRIVER_TYPE_UNKNOWN；同時傳入 HARDWARE 與
+                // 介面卡會得到參數錯誤。
+                D3D11CreateDevice(
+                    adapter,
+                    adapter == nil ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN,
+                    nil, 0,
+                    levelsPtr.baseAddress, UINT32(levelsPtr.count),
+                    UINT32(D3D11_SDK_VERSION), &device, &obtainedLevel, &context
+                )
+            }
+        )
+        guard let device, let context else {
+            // One without the other: release the one that came back.
+            // 只回來其中一個：釋放回來的那一個。
+            if let device { _ = device.pointee.lpVtbl.pointee.Release(device) }
+            if let context { _ = context.pointee.lpVtbl.pointee.Release(context) }
+            throw D3D11Error.failed("D3D11CreateDevice returned null", S_OK)
+        }
+        // The factory before the stored properties. A throw after the device and
+        // context were stored left an initializer that never reached deinit, so
+        // both leaked (review, 2026-10-29).
+        // 先取得 factory,再設定儲存屬性。device 與 context 存好之後才丟出錯誤，初始化器就到不了 deinit,
+        // 兩者因此洩漏(審查,2026-10-29)。
+        let factory: UnsafeMutablePointer<IDXGIFactory2>
+        do {
+            factory = try RawD3D11Device.makeFactory(from: device)
+        } catch {
+            _ = context.pointee.lpVtbl.pointee.Release(context)
+            _ = device.pointee.lpVtbl.pointee.Release(device)
+            throw error
+        }
+        self.device = device
+        self.context = context
+        self.factory = factory
+    }
+
+    deinit {
+        releaseFrameResources()
+        _ = context.pointee.lpVtbl.pointee.Release(context)
+        _ = device.pointee.lpVtbl.pointee.Release(device)
+        _ = factory.pointee.lpVtbl.pointee.Release(factory)
+    }
+}
+
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension D3D11VideoSurface {
     /// Whether this machine can convert NV12 to RGB with the D3D11 video
     /// processor, probed once against a throwaway device so the answer is
     /// available before any panel exists -- the decoder has to be told which
@@ -800,65 +870,6 @@ public final class D3D11VideoSurface {
             )
         }
         return result >= 0 ? enumerator : nil
-    }
-
-    public init(
-        panel: RawSwapChainPanel,
-        gpu: GPUPreference = .display,
-        format: VideoPixelFormat = .rgba
-    ) throws {
-        self.panel = panel
-        self.format = format
-
-        let (adapter, report) = D3D11VideoSurface.selectAdapter(for: gpu)
-        adapterReport = report
-        defer {
-            if let adapter { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
-        }
-
-        var device: UnsafeMutablePointer<ID3D11Device>?
-        var context: UnsafeMutablePointer<ID3D11DeviceContext>?
-        var obtainedLevel = D3D_FEATURE_LEVEL_11_0
-        let levels: [D3D_FEATURE_LEVEL] = [D3D_FEATURE_LEVEL_11_0]
-        try D3D11_CHECK(
-            "D3D11CreateDevice",
-            levels.withUnsafeBufferPointer { levelsPtr in
-                // An explicit adapter requires DRIVER_TYPE_UNKNOWN; passing
-                // HARDWARE with an adapter is an invalid-argument error.
-                // 指定介面卡時必須用 DRIVER_TYPE_UNKNOWN；同時傳入 HARDWARE 與
-                // 介面卡會得到參數錯誤。
-                D3D11CreateDevice(
-                    adapter,
-                    adapter == nil ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN,
-                    nil, 0,
-                    levelsPtr.baseAddress, UINT32(levelsPtr.count),
-                    UINT32(D3D11_SDK_VERSION), &device, &obtainedLevel, &context
-                )
-            }
-        )
-        guard let device, let context else {
-            // One without the other: release the one that came back.
-            // 只回來其中一個：釋放回來的那一個。
-            if let device { _ = device.pointee.lpVtbl.pointee.Release(device) }
-            if let context { _ = context.pointee.lpVtbl.pointee.Release(context) }
-            throw D3D11Error.failed("D3D11CreateDevice returned null", S_OK)
-        }
-        // The factory before the stored properties. A throw after the device and
-        // context were stored left an initializer that never reached deinit, so
-        // both leaked (review, 2026-10-29).
-        // 先取得 factory,再設定儲存屬性。device 與 context 存好之後才丟出錯誤，初始化器就到不了 deinit,
-        // 兩者因此洩漏(審查,2026-10-29)。
-        let factory: UnsafeMutablePointer<IDXGIFactory2>
-        do {
-            factory = try RawD3D11Device.makeFactory(from: device)
-        } catch {
-            _ = context.pointee.lpVtbl.pointee.Release(context)
-            _ = device.pointee.lpVtbl.pointee.Release(device)
-            throw error
-        }
-        self.device = device
-        self.context = context
-        self.factory = factory
     }
 
     /// Finds the adapter matching `gpu`, and describes every adapter found.
@@ -1474,12 +1485,5 @@ public final class D3D11VideoSurface {
         frameHeight = 0
         bufferWidth = 0
         bufferHeight = 0
-    }
-
-    deinit {
-        releaseFrameResources()
-        _ = context.pointee.lpVtbl.pointee.Release(context)
-        _ = device.pointee.lpVtbl.pointee.Release(device)
-        _ = factory.pointee.lpVtbl.pointee.Release(factory)
     }
 }

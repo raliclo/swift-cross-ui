@@ -438,7 +438,11 @@ public enum LayoutSystem {
             position[component: orientation] += child.size[component: orientation] + Double(spacing)
         }
     }
+}
 
+// Split from the type body only to keep it within SwiftLint's type_body_length.
+// 只為了讓型別本體不超過 SwiftLint 的 type_body_length 而拆出。
+extension LayoutSystem {
     /// The main stack layout space allocation algorithm. Used during
     /// computeLayout, and sometimes during commit when we have to redistribute
     /// space (due to an unspecified perpendicular size proposal).

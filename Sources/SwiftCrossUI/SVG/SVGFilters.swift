@@ -746,7 +746,11 @@ enum SVGFilterRenderer {
         SVGRenderer.draw(shape, into: &out, viewport: viewport)
         return out
     }
+}
 
+// The pixel operations, in an extension so the enum body stays within type_body_length.
+// 像素運算，放進 extension,讓 enum 本體不超過 type_body_length。
+extension SVGFilterRenderer {
     // MARK: Colour space / 色彩空間
 
     static func toLinear(_ c: Float) -> Float {
