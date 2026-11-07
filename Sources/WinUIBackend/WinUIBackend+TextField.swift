@@ -2,10 +2,6 @@
 import UWP
 import WinUI
 
-// Many force tries are required for the WinUI backend but we don't really want them
-// anywhere else so just disable the lint rule at a file level.
-// swiftlint:disable force_try
-
 // MARK: TextField
 
 extension WinUIBackend {
@@ -275,4 +271,3 @@ protocol TextBoxProtocol: Control {
 
 extension TextBox: TextBoxProtocol {}
 extension PasswordBox: TextBoxProtocol {}
-// swiftlint:enable force_try

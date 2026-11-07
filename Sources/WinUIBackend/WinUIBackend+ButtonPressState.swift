@@ -2,8 +2,6 @@ import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
-// swiftlint:disable force_try
-
 /// `BackendFeatures.ButtonPressState` on WinUI.
 ///
 /// **This file does not touch either button class, and that is not a
@@ -172,4 +170,3 @@ final class WinUIButtonPressTracker {
         handler(pressed)
     }
 }
-// swiftlint:enable force_try

@@ -10,8 +10,6 @@ extension AndroidKit.ImageView {
     func setColorFilter(_ color: Int32)
 }
 
-// swiftlint:disable force_try
-
 /// `android.R.drawable` icons, resolved by name and checked before they are drawn.
 ///
 /// **The check is the feature, and on Android it is unavoidable rather than
@@ -176,4 +174,3 @@ extension AndroidBackend {
         return identifier == 0 ? nil : identifier
     }
 }
-// swiftlint:enable force_try

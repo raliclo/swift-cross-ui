@@ -2,8 +2,6 @@ import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
-// swiftlint:disable force_try
-
 extension WinUIBackend: BackendFeatures.Alerts {
     /// A `ContentDialog` plus the stack bookkeeping WinUI does not do.
     ///
@@ -340,4 +338,3 @@ extension WinUIBackend: BackendFeatures.Alerts {
         }
     }
 }
-// swiftlint:enable force_try

@@ -2,8 +2,6 @@ import Foundation
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
-// swiftlint:disable force_try
-
 // Date and time wheels drawn from Foundation, not by WinUI's DatePicker and
 // TimePicker. Those two format with the app's languages only: on P90
 // (2026-10-20) `.environment(\.locale, zh_TW)` still drew "August 24 2025 /
@@ -423,4 +421,3 @@ enum LocaleDateFormat {
         return fields.count == 3 ? result : nil
     }
 }
-// swiftlint:enable force_try

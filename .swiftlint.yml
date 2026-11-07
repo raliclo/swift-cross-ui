@@ -33,4 +33,5 @@ excluded:
   - Sources/SwiftCrossUI/Views/TableRowContent.swift
   - Sources/SwiftCrossUI/Scenes/TupleScene.swift
   - Sources/Gtk/Generated
+  - Sources/_SwiftCrossUIPortingKit/Generated
   - Examples/.build
