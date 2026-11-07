@@ -128,6 +128,25 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
     private let appDelegate = NSCustomApplicationDelegate()
 
+    // Depending on the calendar, era is either necessary or must be omitted. Making the wrong
+    // choice for the current calendar means the cursor position is reset after every keystroke. I
+    // know of no simple way to tell whether NSDatePicker requires or forbids eras for a given
+    // calendar, so in lieu of that I have hardcoded the calendar identifiers.
+    private let calendarsRequiringEra: Set<Calendar.Identifier> = [
+        .buddhist,
+        .coptic,
+        .ethiopicAmeteAlem,
+        .ethiopicAmeteMihret,
+        .indian,
+        .islamic,
+        .islamicCivil,
+        .islamicTabular,
+        .islamicUmmAlQura,
+        .japanese,
+        .persian,
+        .republicOfChina,
+    ]
+
     public init() {
         NSApplication.shared.delegate = appDelegate
     }
@@ -514,6 +533,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
                 .with(\.appPhase, NSApplication.shared.isActive ? .active : .inactive)
     }
 
+}
+
+extension AppKitBackend {
     public func setRootEnvironmentChangeHandler(
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
@@ -1031,6 +1053,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         toggle.bezelColor = state ? toggle.effectiveOnStateBezelColor : nil
     }
 
+}
+
+extension AppKitBackend {
     public func createCheckbox() -> Widget {
         NSButton(checkboxWithTitle: "", target: nil, action: nil)
     }
@@ -1504,6 +1529,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         return scrollView
     }
 
+}
+
+extension AppKitBackend {
     public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {
         let table = (table as! NSScrollView).documentView as! NSCustomTableView
         table.columnWidthSpecification = widths
@@ -1707,6 +1735,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         }
     }
 
+}
+
+extension AppKitBackend {
     public func createProgressSpinner() -> Widget {
         let container = NSView()
         let spinner = NSProgressIndicator()
@@ -1971,25 +2002,6 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         datePicker.delegate = datePicker.strongDelegate
         return datePicker
     }
-
-    // Depending on the calendar, era is either necessary or must be omitted. Making the wrong
-    // choice for the current calendar means the cursor position is reset after every keystroke. I
-    // know of no simple way to tell whether NSDatePicker requires or forbids eras for a given
-    // calendar, so in lieu of that I have hardcoded the calendar identifiers.
-    private let calendarsRequiringEra: Set<Calendar.Identifier> = [
-        .buddhist,
-        .coptic,
-        .ethiopicAmeteAlem,
-        .ethiopicAmeteMihret,
-        .indian,
-        .islamic,
-        .islamicCivil,
-        .islamicTabular,
-        .islamicUmmAlQura,
-        .japanese,
-        .persian,
-        .republicOfChina,
-    ]
 
     public func updateDatePicker(
         _ datePicker: NSView,

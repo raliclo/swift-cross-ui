@@ -814,6 +814,9 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         (try? JavaClass<AndroidKeyEvent>().ACTION_UP) ?? 1
     }
 
+}
+
+extension AndroidSynthesiser {
     /// **What a key row reaches, and the one thing it does not.**
     ///
     /// `Activity.dispatchKeyEvent` reaches the view hierarchy, so a view that overrides

@@ -597,6 +597,9 @@
             )
         }
 
+    }
+
+    extension AppKitSynthesiser {
         // MARK: - Performing
 
         public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
@@ -1182,6 +1185,9 @@
             NSStringFromClass(type(of: window)).hasPrefix("Gdk")
         }
 
+    }
+
+    extension AppKitSynthesiser {
         /// A mouse event through the HID tap, for a window whose content is in
         /// another process, or a GDK window that ignores posted clicks.
         ///
@@ -1687,6 +1693,9 @@
             FileHandle.standardError.write(Data((note + "\n").utf8))
         }
 
+    }
+
+    extension AppKitSynthesiser {
         // MARK: - Keyboard
 
         @MainActor

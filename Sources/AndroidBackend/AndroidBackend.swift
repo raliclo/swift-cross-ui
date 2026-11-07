@@ -903,6 +903,9 @@ public final class AndroidBackend: BaseAppBackend {
         }
     }
 
+}
+
+extension AndroidBackend {
     public func computeRootEnvironment(defaultEnvironment: EnvironmentValues) -> EnvironmentValues {
         var environment = defaultEnvironment
 
