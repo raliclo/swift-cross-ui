@@ -4,6 +4,8 @@ import WinUIInterop
 @preconcurrency import WindowsFoundation
 @_spi(WinRTInternal) import WinUI
 
+// swiftlint:disable force_try
+
 /// Raw COM wrapper for `ISwapChainPanelNative`, following the same shape as
 /// `SwiftIInitializeWithWindow` in WinUIBackend.swift.
 public class SwiftISwapChainPanelNative: WindowsFoundation.IUnknown {

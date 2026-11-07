@@ -5,6 +5,8 @@ import WinAppSDK
 import WinSDK
 @preconcurrency import WindowsFoundation
 
+// swiftlint:disable force_try
+
 /// The URL a second launch carries, delivered to the instance already running.
 ///
 /// `onLaunched` sees only this process's own launch, so a URL sent to a running

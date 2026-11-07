@@ -1,6 +1,8 @@
 import Foundation
 import WinUI
 
+// swiftlint:disable force_try
+
 #if canImport(InputEvent)
     import InputEvent
 

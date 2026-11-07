@@ -5,6 +5,8 @@ import WinSDK
 import WinUI
 import WinUIInterop
 
+// swiftlint:disable force_try
+
 extension WinUIApplication {
     /// Starts the application on a SINGLE-threaded apartment, which WebView2
     /// needs and `SwiftApplication.main()` does not give.

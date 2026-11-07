@@ -7,6 +7,8 @@ import WinUIInterop
 // `@preconcurrency` 是為了 `FocusManager.gotFocus`(swift-winui 未加註的 class property),與 FrameClock 檔相同。
 @preconcurrency import WinUI
 
+// swiftlint:disable force_try
+
 /// The standard menu commands -- Undo, Copy, Close, Minimize, Quit and the rest
 /// -- that a ``CommandGroup`` places in the menu bar, performed the way a WinUI
 /// app performs them.

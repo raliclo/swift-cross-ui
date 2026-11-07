@@ -1,6 +1,8 @@
 import SwiftCrossUI
 import WinUI
 
+// swiftlint:disable force_try
+
 extension WinUIBackend: BackendFeatures.WidgetGeometry {
     /// Sums the positions SwiftCrossUI gave each Canvas child on the way up to
     /// the window's root, as GtkBackend sums its GtkFixed positions, walking

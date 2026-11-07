@@ -2,6 +2,8 @@
 import UWP
 import WinUI
 
+// swiftlint:disable force_try
+
 /// A button-style toggle whose label is a SwiftCrossUI view: a WinUI
 /// `ToggleButton`, the control a string-label toggle is (`createToggle()`),
 /// with the label as its `content` instead of a `TextBlock`.

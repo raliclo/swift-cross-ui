@@ -3,6 +3,8 @@ import SwiftCrossUI
 import WinUI
 import UWP
 
+// swiftlint:disable force_try
+
 extension WinUIBackend {
     public func createButton(
         wrapping widget: Widget

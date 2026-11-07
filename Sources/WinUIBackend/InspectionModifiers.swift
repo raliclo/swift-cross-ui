@@ -1,6 +1,8 @@
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
+// swiftlint:disable force_try
+
 /// The first element of the requested type at or below `element`.
 ///
 /// **A view's widget is no longer always the control it names**, and on this

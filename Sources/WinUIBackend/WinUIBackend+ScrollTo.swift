@@ -2,6 +2,8 @@
 import DebugFeatures
 import WinUI
 
+// swiftlint:disable force_try
+
 extension WinUIBackend {
     /// Scrolls a container so that one of its descendants is visible.
     ///

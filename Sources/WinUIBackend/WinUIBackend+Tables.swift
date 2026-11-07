@@ -4,6 +4,8 @@ import UWP
 import WinUI
 import WindowsFoundation
 
+// swiftlint:disable force_try
+
 // `defaultTableRowContentHeight` and `defaultTableCellVerticalPadding` are not
 // here: they are declared on the type in WinUIBackend.swift, beside the other
 // metrics, and declaring them again here is an "invalid redeclaration".

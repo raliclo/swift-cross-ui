@@ -4,6 +4,8 @@ import UWP
 import WinUI
 import WindowsFoundation
 
+// swiftlint:disable force_try
+
 /// `.popover` for WinUI, built on `Flyout`.
 ///
 /// `Flyout` rather than `Popup`. Both put content above the page, but `Popup`

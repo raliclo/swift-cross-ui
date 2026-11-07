@@ -1,6 +1,8 @@
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
+// swiftlint:disable force_try
+
 extension WinUIBackend: BackendFeatures.FocusableViews {
     /// `UIElement.focus(_:)`, which is SYNCHRONOUS and returns whether the
     /// element took the focus.

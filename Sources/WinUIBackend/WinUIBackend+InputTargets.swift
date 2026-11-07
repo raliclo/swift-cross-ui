@@ -7,6 +7,8 @@ import WinSDK
 import WinUI
 @preconcurrency import WindowsFoundation
 
+// swiftlint:disable force_try
+
 // Five optional features -- `Cursors`, `ContextMenus`, `KeyEvents`,
 // `ScrollGestures`, `WidgetSnapshots` -- that AppKit, UIKit, Android and GTK
 // implement too. Each target is a `Canvas` with the child at the origin and a

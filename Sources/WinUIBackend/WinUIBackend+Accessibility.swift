@@ -2,6 +2,8 @@ import DebugFeatures
 import SwiftCrossUI
 import WinUI
 
+// swiftlint:disable force_try
+
 extension WinUIBackend: BackendFeatures.Accessibility {
     /// `AutomationProperties.Name`, which is what a screen reader announces.
     ///
