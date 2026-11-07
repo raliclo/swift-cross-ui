@@ -392,7 +392,7 @@ extension TextContentType {
                 if isMultiline {
                     type |= inputType.TYPE_TEXT_FLAG_MULTI_LINE
                 }
-            case .digits(_):
+            case .digits:
                 type |= inputType.TYPE_CLASS_NUMBER
                 type |= inputType.TYPE_NUMBER_VARIATION_NORMAL
             case .url:

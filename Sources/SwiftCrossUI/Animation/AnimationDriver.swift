@@ -48,7 +48,6 @@ public final class AnimationDriver: @unchecked Sendable {
     /// 在 app 的根環境被建立時設定一次。
     @_spi(Backends) public var backend: (any BaseAppBackend)?
 
-
     private var tweens: [UUID: Tween] = [:]
     private var tickers: [UUID: (Double?) -> Bool] = [:]
     private var isRunning = false

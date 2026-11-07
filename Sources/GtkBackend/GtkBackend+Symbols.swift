@@ -212,7 +212,6 @@ extension GtkBackend {
         #endif
     }
 
-
     /// The name this theme will actually draw, or `nil` if it will draw nothing.
     ///
     /// Tries `-symbolic` first. That order is not a preference, it is what the

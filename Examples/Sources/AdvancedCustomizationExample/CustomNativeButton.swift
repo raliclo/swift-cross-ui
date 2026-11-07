@@ -26,7 +26,6 @@ struct CustomNativeButton {
     }
 #endif
 
-
 #if canImport(AppKitBackend)
     import AppKitBackend
     import AppKit

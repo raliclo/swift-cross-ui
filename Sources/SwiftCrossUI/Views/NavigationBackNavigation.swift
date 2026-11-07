@@ -34,7 +34,6 @@ public enum BackNavigationUndo {
     }
 }
 
-
 /// One ``NavigationStack`` as its window's Back sees it.
 ///
 /// Held in the stack's `@State`, so there is one per stack for as long as the
@@ -254,7 +253,7 @@ enum NavigationBackRegistry {
         window: AnyObject,
         key: ObjectIdentifier
     ) -> @MainActor (Bool) -> Void {
-        return { @MainActor [weak window] (isInstalled: Bool) -> Void in
+        return { @MainActor [weak window] (isInstalled: Bool) in
             guard let object = window, let window = object as? NewBackend.Window else {
                 return
             }
@@ -276,7 +275,7 @@ enum NavigationBackRegistry {
         sheet: AnyObject,
         key: ObjectIdentifier
     ) -> @MainActor (Bool) -> Void {
-        return { @MainActor [weak sheet] (isInstalled: Bool) -> Void in
+        return { @MainActor [weak sheet] (isInstalled: Bool) in
             guard let object = sheet, let sheet = object as? NewBackend.Sheet else {
                 return
             }

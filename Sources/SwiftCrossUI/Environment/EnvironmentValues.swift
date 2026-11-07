@@ -442,7 +442,6 @@ extension EnvironmentValues {
     /// affecting layout.
     @Entry public var layoutSpacing: Int = 10
 
-
     /// The columns a ``LazyVGrid`` resolved, for whoever arranges the cells.
     ///
     /// Set by ``LazyVGrid`` and cleared by ``VStack``, ``HStack`` and ``ZStack``,
@@ -1115,7 +1114,6 @@ extension EnvironmentValues {
         return string
     }
 }
-
 
 /// A key that can be used to extend the environment with new properties.
 public protocol EnvironmentKey<Value> {

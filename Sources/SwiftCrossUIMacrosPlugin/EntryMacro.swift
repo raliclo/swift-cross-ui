@@ -86,7 +86,7 @@ public struct EntryMacro: AccessorMacro, PeerMacro {
                 stringLiteral: """
                     private struct `__Key_\(trimmedIdentifier)`: \(enclosingType.keyName) {
                         \(defaultValueDeclaration)\(nameDeclaration)
-                    } 
+                    }
                     """
             )
         ]

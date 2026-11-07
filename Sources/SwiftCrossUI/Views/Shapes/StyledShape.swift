@@ -82,7 +82,6 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
     }
 }
 
-
 extension StyledShapeImpl: StyledShape {
     func path(in bounds: Path.Rect) -> Path {
         return base.path(in: bounds)
@@ -205,7 +204,6 @@ extension Shape {
         StyledShapeImpl(base: self, strokeStyle: strokeStyle, strokeShapeStyle: style)
     }
 }
-
 
 extension StyledShape {
     @MainActor

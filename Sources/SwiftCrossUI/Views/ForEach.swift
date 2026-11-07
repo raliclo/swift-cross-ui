@@ -90,8 +90,6 @@ extension ForEach: TypeSafeView, View where Child: View {
         )
     }
 
-
-
     typealias Children = ForEachViewChildren<Items, ID, Child>
 
     /// Creates a view that creates child views on demand based on a collection

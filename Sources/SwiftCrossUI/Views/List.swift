@@ -767,7 +767,6 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     }
 }
 
-
 /// How tall to assume an unbuilt row is.
 ///
 /// **The median of what has been seen, not the mean.** A list whose first row

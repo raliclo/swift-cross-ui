@@ -59,7 +59,7 @@ extension AndroidBackend: BackendFeatures.Gradients {
         in environment: EnvironmentValues
     ) {
         let tileClass = try! JavaClass<AndroidGraphics.Shader.TileMode>()
-        
+
         // adjustedStops, as UIKitBackend: the stops placed between the start and
         // end radius (or angle), reversed when the end is the smaller. The raw
         // stops ignored both, so P27's rings and reversed sweep drew as plain

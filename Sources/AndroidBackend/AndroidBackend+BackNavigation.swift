@@ -72,7 +72,6 @@ extension AndroidBackend: BackendFeatures.SheetBackNavigation {
     }
 }
 
-
 /// See Kotlin/BackNavigation.kt. 見 Kotlin/BackNavigation.kt。
 @JavaClass("dev.swiftcrossui.androidbackend.ScuiBackNavigation")
 class ScuiBackNavigation: JavaObject {}
