@@ -503,10 +503,10 @@ final class D3D11MeshRenderer {
             device.pointee.lpVtbl.pointee.CreatePixelShader(device, psCode, psSize, nil, &pixelShader)
         )
 
-        // Semantic names must outlive the call; strdup'd and freed after.
-        // 語意名稱必須活過這次呼叫，因此 strdup 後於呼叫後釋放。
+        // Semantic names must outlive the call; _strdup'd and freed after.
+        // 語意名稱必須活過這次呼叫，因此 _strdup 後於呼叫後釋放。
         let semantics: [String] = ["POSITION", "NORMAL", "COLOR"]
-        let names: [UnsafeMutablePointer<CChar>] = semantics.map { strdup($0)! }
+        let names: [UnsafeMutablePointer<CChar>] = semantics.map { _strdup($0)! }
         defer { names.forEach { free($0) } }
         var elements = (0..<3).map { index in
             D3D11_INPUT_ELEMENT_DESC(

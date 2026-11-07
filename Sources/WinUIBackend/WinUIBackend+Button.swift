@@ -313,13 +313,13 @@ extension PrimitiveButtonStyle.Kind {
                     }
                 }
 
-                _ = resources.remove("ButtonBackgroundPointerOver")
-                _ = resources.remove("ButtonBackgroundPressed")
-                _ = resources.remove("ButtonBackgroundDisabled")
+                resources.remove("ButtonBackgroundPointerOver")
+                resources.remove("ButtonBackgroundPressed")
+                resources.remove("ButtonBackgroundDisabled")
 
-                _ = resources.remove("ButtonBorderBrushPointerOver")
-                _ = resources.remove("ButtonBorderBrushPressed")
-                _ = resources.remove("ButtonBorderBrushDisabled")
+                resources.remove("ButtonBorderBrushPointerOver")
+                resources.remove("ButtonBorderBrushPressed")
+                resources.remove("ButtonBorderBrushDisabled")
             case .plain, .borderless:
                 let transparentBrush = SolidColorBrush(UWP.Color.transparent)
                 button.background = transparentBrush

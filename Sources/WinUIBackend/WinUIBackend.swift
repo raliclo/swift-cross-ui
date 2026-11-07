@@ -341,10 +341,7 @@ public final class WinUIBackend:
 
     public var scrollBarWidth: Int {
         let settings = uiSettings ?? UWP.UISettings()
-        guard let autoHides = try? settings.autoHideScrollBars else {
-            debugLogOnce("could not read UISettings.autoHideScrollBars; keeping the historical 12")
-            return 12
-        }
+        let autoHides = settings.autoHideScrollBars
         return autoHides ? 0 : 12
     }
 

@@ -239,7 +239,7 @@ final class LongPressTextBox: TextBox {
         // 先把 handler 從 `self` 取出。原本的閉包 `{ longPressSelection?(...) }` 把 `self`(TextBox,非 Sendable)
         // 送進 assumeIsolated,Swift 6.4 拒絕(「sending 'self' risks causing data races」)。抵達此處的每個事件都在
         // UI 執行緒上引發。
-        nonisolated(unsafe) let handler = longPressSelection
+        let handler = longPressSelection
         MainActor.assumeIsolated { handler?(reported, phase) }
     }
 }

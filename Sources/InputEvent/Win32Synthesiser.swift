@@ -1987,7 +1987,7 @@
                     GetUserObjectInformationW(desktop, UOI_NAME, raw.baseAddress, needed, &needed)
                 }
                 guard ok else { return "unreadable" }
-                return String(decodingCString: buffer, as: UTF16.self)
+                return String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self)
             }
 
             let mine = name(of: GetThreadDesktop(GetCurrentThreadId()))
@@ -2020,7 +2020,7 @@
                             &needed
                         )
                     }
-                    stationName = ok ? String(decodingCString: buffer, as: UTF16.self) : "unreadable"
+                    stationName = ok ? String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self) : "unreadable"
                 }
             }
 

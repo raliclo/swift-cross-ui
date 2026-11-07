@@ -51,6 +51,21 @@ running on the smaller stack, so a later overflow is not silent.
 
 **Not yet verified:** a full test app (P81/P113 opening a second `Window`, P114
 Back) built with the fiber on WinUIBackend and GtkBackend.
+*(Superseded the same day by the results below; kept as written.)*
+
+**Reported 2026-11-07 by two SofPCB-W11 sessions: the fiber alone fixes it.** Both say
+the user clicked in a visible window; a third session of the same name did not run it.
+The user has not said so to this session directly. SoftPCB-UI's GTK debug build against 34ffb42b with its
+`-STACK` removed (SizeOfStackReserve 1048576 on both exes, rebuilt 15:41): tab 8 (the
+deepest tree), tab 9 and the field matrix were clicked, and none crashed. Before
+the fiber, the same screens overflowed. P81-WinUI.exe (1 MB header) also opened its
+second `Window` through `openWindow` without a crash; P81 is shallow, so that one is a
+regression check only. The earlier WinUI cases (nested NavigationSplitView/TabView,
+LLMTab's table) were not rerun on WinUI: SoftPCB-UI no longer builds a WinUI variant.
+
+Seen in the same run, not yet investigated, possibly unrelated to the stack: tab 8 prints
+`Gtk-CRITICAL: Allocation height too small ... GtkPassthroughFixed needs at least 1180x847`
+for an 844-high allocation every ~85 ms, and the field matrix is slow.
 
 ## 1. 主執行緒只有 1 MB 堆疊，深層 layout 會用完它
 
@@ -81,3 +96,15 @@ fiber 這條路徑，也就是每個下游 app 走的路徑。任一個 fiber �
 
 **尚未驗證：** 以 fiber 建置的完整測試 app(P81/P113 開第二個 `Window`、P114 Back)，
 WinUIBackend 與 GtkBackend 皆未跑過。
+*(當天即被下方結果取代；原文保留。)*
+
+**2026-11-07 由兩個 SofPCB-W11 session 回報：單靠 fiber 就修好了。** 兩者都說是使用者在看得見的
+視窗中點的；第三個同名 session 沒有執行它。使用者尚未直接向本 session 確認。SoftPCB-UI 的 GTK debug
+建置(對 34ffb42b，移除 `-STACK`，兩個執行檔的 SizeOfStackReserve 都是 1048576，15:41 重建)：
+tab 8(最深的樹)、tab 9 與場矩陣都點過，都沒有崩潰；在 fiber 之前，這些畫面會溢位。P81-WinUI.exe(1 MB 標頭)也透過 `openWindow`
+開出第二個 `Window` 而沒有崩潰；P81 很淺，所以那只算回歸檢查。先前 WinUI 的案例(巢狀
+NavigationSplitView／TabView、LLMTab 的表格)沒有在 WinUI 上重跑：SoftPCB-UI 已不再建置 WinUI 版。
+
+同一次執行中看到、尚未調查、可能與堆疊無關：tab 8 開著時每約 85 ms 印出
+`Gtk-CRITICAL: Allocation height too small ... GtkPassthroughFixed needs at least 1180x847`
+(配置的高度是 844)，而場矩陣很慢。
