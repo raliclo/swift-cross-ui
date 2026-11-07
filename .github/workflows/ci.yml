@@ -24,6 +24,7 @@ on:
   push:
     branches:
       - 'develop'
+      - 'ci-mobile'  # temporary, while the mobile jobs are brought up
   workflow_dispatch:
 
 concurrency:
@@ -55,6 +56,66 @@ jobs:
 
     - name: Build and test (core, AppKitBackend)
       run: SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I"$(brew --prefix)/include"
+
+  ios:
+    # Xcode 27 (Swift 6.4) is only on the xcode-27 image; macos-26 still has Xcode 26.
+    # Xcode 27(Swift 6.4)只在 xcode-27 映像上；macos-26 仍是 Xcode 26。
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    # The sweep reads action files and writes its table through csv2, as on the local machines.
+    # sweep 與本機相同，經由 csv2 讀取動作檔並寫出結果表。
+    - name: Install csv2
+      run: |
+        v=0.2.0; f=csv2-$v-macos-arm64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        cat "$f.sha256"
+        shasum -a 256 -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    - name: Versions
+      run: |
+        xcodebuild -version
+        swift --version
+        csv2 --version
+        xcrun simctl runtime list
+
+    # Builds each app with xcodebuild, installs it on the simulator and replays its
+    # action files through the XCUITest runner (testapp/sweep_apple.zsh).
+    # 以 xcodebuild 建置每支 app、裝到模擬器上，並經由 XCUITest runner 重放它的動作檔。
+    - name: iOS sweep
+      run: zsh testapp/sweep_apple.zsh --ios P114 P12
+
+    # The sweep exits 0 whatever happened; every row of its table has to be a pass.
+    # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
+    - name: Every action file passes
+      run: |
+        t=testapp/output/ios-sweep.csv2
+        csv2 -r -i "$t"
+        total=$(csv2 -r --json -i "$t" | grep -c '"record":' || true)
+        passed=$(csv2 -r --json -i "$t" | grep -c '"result":"pass"' || true)
+        echo "$passed of $total pass"
+        test "$total" -gt 0 && test "$passed" -eq "$total"
+
+    - name: Upload captures and logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-sweep
+        path: |
+          testapp/output/ios-sweep.csv2
+          testapp/output/*-ios-*.png
+          testapp/output/*.log
+        if-no-files-found: warn
 
   linux:
     runs-on: ubuntu-24.04
