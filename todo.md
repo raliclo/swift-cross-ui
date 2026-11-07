@@ -51,11 +51,17 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
 - [x] **3. Untracked `Info.plist` at the fork's root** after a build: ignored
   in the fork's .gitignore (cycle 1).
   建置後 fork 根目錄多出 `Info.plist`:已加入 fork 的 .gitignore(第 1 輪)。
-- [ ] **4. Other WinUI apps on 2.6.5.** Build P80 and P81 and look at them; P81
+- [x] **4. Other WinUI apps on 2.6.5.** Build P80 and P81 and look at them; P81
   has 1.5-era screenshots (`p81b-WinUI`, `p81-desk-WinUI`) for a UI comparison.
   A 1.5 build cannot run here any more (item 8), so old screenshots are the
   only 1.5 side.
   其他 WinUI app 在 2.6.5 上的狀況。建置 P80、P81;P81 有 1.5 時期的截圖可比較。
+  Done 2026-11-07, both release on 2.6.5, 0 errors and 0 warnings. P80 drew every
+  control (cursor targets, the context-menu box, key and scroll readouts) and
+  exited 0. P81 opened its second Window, its popover flyout, and passed
+  P81-sheet-from-window-b. The 1.5 comparison was dropped with item 8.
+  2026-11-07 完成，兩者都以 release 在 2.6.5 上建置，0 錯誤 0 警告。P80 畫出所有控制項並以 0 結束；P81 開出第二個
+  Window、popover flyout,並通過 P81-sheet-from-window-b。與 1.5 的比較隨第 8 項一併取消。
 - [x] **5. Host tests after the upgrade.** SwiftCrossUITests, command as in the
   2026-10-29 section below.
   升級後的 host 測試。
