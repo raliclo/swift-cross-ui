@@ -50,7 +50,21 @@ script_path="${0:A}"
 #   curl -sI https://download.swift.org/swift-6.4.1-release/ubuntu2404/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-ubuntu24.04.tar.gz
 # 2026-10-23 起為 6.4.1:使用者規定 WSL 與 Windows 用 6.4.1,而 6.4.0 的預設值在當天換掉了 WSL 的工具鏈(見下方的移到一旁)。
 # 封存檔已確認存在(HTTP 200,1,124,788,555 位元組),指令見上。
-SWIFT_VERSION="${SWIFT_VERSION:-6.4.1}"
+# 6.4.2 since 2026-11-07: Windows moved to 6.4.2 on 2026-11-06 (the installer
+# deleted 6.4.1) and the user asked WSL to follow. The archive and the matching
+# Static Linux SDK were checked to exist (HTTP 200):
+#   curl -sI https://download.swift.org/swift-6.4.2-release/ubuntu2404/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-ubuntu24.04.tar.gz
+# This script installs only the toolchain. The static SDK is per user and must
+# match the toolchain, or a --swift-sdk build fails; install it as the user with
+# the checksum from swift.org/install/linux:
+#   swift sdk install https://download.swift.org/swift-6.4.2-release/static-sdk/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 3786b179936d9cc9e266dd506bd1654176358d7b25288e243359f4d17cc4dc5a
+# then remove the previous one (swift sdk remove swift-6.4.1-RELEASE_static-linux-0.1.0):
+# with two installed, --swift-sdk x86_64-swift-linux-musl matches both and fails.
+# 2026-11-07 起為 6.4.2:Windows 於 2026-11-06 升到 6.4.2(安裝程式刪除了 6.4.1),使用者要求 WSL 跟進。
+# 封存檔與相符的 Static Linux SDK 都已確認存在(HTTP 200)。本腳本只安裝工具鏈；static SDK 是每個使用者各自
+# 安裝的，且必須與工具鏈版本相符，否則 --swift-sdk 建置會失敗；請以該使用者身分用上面那行(帶 swift.org 的 checksum)安裝。
+# 裝好之後移除舊的那個(swift sdk remove ...6.4.1...)：兩個並存時 --swift-sdk x86_64-swift-linux-musl 會同時對到兩者而失敗。
+SWIFT_VERSION="${SWIFT_VERSION:-6.4.2}"
 SWIFT_PLATFORM="${SWIFT_PLATFORM:-ubuntu24.04}"
 SWIFT_PREFIX="${SWIFT_PREFIX:-/usr/local/swift}"
 COMPAT_DIR="/usr/local/lib/swift-compat"
@@ -232,7 +246,15 @@ apt-get install -y --no-install-recommends orca speech-dispatcher
 # 能解出符號的效能分析器。WSL 自帶的 perf(位於 /usr/lib/linux-tools/*-microsoft-standard-WSL2)連 libc 的
 # 符號都解不出;Ubuntu 26.04 把 perf 放在 linux-perf,不再放在 linux-tools-generic(後者裝完根本沒有 perf,
 # 2026-10-23)。用於 WSLg 下 P96 第一幀的等待(queue.md 第 27 列)。
-apt-get install -y --no-install-recommends linux-perf
+# --no-upgrade: perf only has to be present. On 2026-11-07 the upgrade from
+# 7.0.0-38 to 7.0.0-43 failed in dpkg ("unable to make backup link of
+# ./usr/bin/perf ... Invalid cross-device link"), exit 100, which stopped this
+# script before the Swift install and left two packages unconfigured until
+# `dpkg --configure -a`. An already installed perf is now left as it is.
+# --no-upgrade:只需要 perf 存在。2026-11-07 從 7.0.0-38 升到 7.0.0-43 時 dpkg 失敗(「無法為 ./usr/bin/perf 建立備份
+# 連結 ... Invalid cross-device link」),以 100 結束，使本腳本在安裝 Swift 之前就停下，並留下兩個未設定的套件，
+# 直到執行 `dpkg --configure -a`。現在已安裝的 perf 會維持原樣。
+apt-get install -y --no-install-recommends --no-upgrade linux-perf
 
 section "Disk: fstrim and a sparse vhdx"
 # The distribution's ext4.vhdx on C: only grows: files deleted here stay

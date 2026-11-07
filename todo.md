@@ -56,24 +56,49 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
   A 1.5 build cannot run here any more (item 8), so old screenshots are the
   only 1.5 side.
   其他 WinUI app 在 2.6.5 上的狀況。建置 P80、P81;P81 有 1.5 時期的截圖可比較。
-- [ ] **5. Host tests after the upgrade.** SwiftCrossUITests, command as in the
+- [x] **5. Host tests after the upgrade.** SwiftCrossUITests, command as in the
   2026-10-29 section below.
   升級後的 host 測試。
-- [ ] **6. Is `Console.swift`'s backdrop filter (#204) still needed on 2.6.5?**
+  Done 2026-11-07 (Swift 6.4.2, develop 8a108128 + local edits):
+  `SCUI_HOST_BACKENDS_ONLY=1 swift test -j 1 --scratch-path C:\scui-ht` -> 393 tests
+  in 53 suites passed with 1 known issue, plus 15 tests in 1 suite, rc 0.
+  2026-11-07 完成(Swift 6.4.2):393 個測試、53 組通過(1 個已知問題),另 1 組 15 個測試通過，rc 0。
+- [x] **6. Is `Console.swift`'s backdrop filter (#204) still needed on 2.6.5?**
   The SDK is no longer a preview. Run an app with an acrylic backdrop with the
   filter bypassed and count BVI-* lines.
   2.6.5 上是否還需要 `Console.swift` 的 backdrop 過濾(#204)。
-- [ ] **7. Release build on 2.6.5.** Only debug has been built; the release
+  Checked 2026-11-07: WinUIBackend sets no system backdrop, so the old lines came
+  from the 1.5-preview Xaml itself. With stdout and stderr redirected to files
+  (which is how the filter is bypassed: `attachToParentConsole` returns at once
+  for a file or pipe), P81-WinUI and P41-WinUI each ran 10 s and were closed
+  normally; both streams held 0 lines, 0 of them BVI-*/rcBackdropLocal=. No
+  positive control, since these apps print nothing to stdout themselves. The
+  filter now has nothing to remove; deleting it is left as a separate change.
+  2026-11-07 查證:WinUIBackend 沒有設定 system backdrop,舊的那些行是 1.5 預覽版 Xaml 自己印的。stdout 與 stderr 導向檔案
+  (這正是繞過過濾的方式：遇到檔案或管線時 `attachToParentConsole` 立刻返回),P81-WinUI 與 P41-WinUI 各跑 10 秒後正常關閉，
+  兩個串流都是 0 行，其中 BVI-*/rcBackdropLocal= 為 0。沒有正向對照(這些 app 本身不印任何東西到 stdout)。過濾已無東西可濾；
+  要不要刪掉它另案處理。
+- [x] **7. Release build on 2.6.5.** Only debug has been built; the release
   build of all dependencies hit the one-hour background limit on 2026-11-05.
   2.6.5 的 release 建置。目前只建過 debug。
-- [ ] **8. Windows App Runtime 1.5 Main/DDLM are gone from this machine.**
+  Done 2026-11-07: P81-WinUI (1814 s, run in the user's own terminal) and
+  P114-WinUI were built release ("Building for production") on 2.6.5, 0 errors;
+  P81 opened its second window and P114's Back tests passed on them.
+  2026-11-07 完成:P81-WinUI(1814 秒，在使用者自己的終端機跑)與 P114-WinUI 都以 release 在 2.6.5 上建置成功，0 個錯誤；
+  P81 開出第二個視窗、P114 的 Back 測試都在這些執行檔上通過。
+- [x] **8. Windows App Runtime 1.5 Main/DDLM are gone from this machine.**
   Get-AppxPackage lists only the 1.5 framework (5001.373); a 10-30 P80-WinUI.exe
   asks for Runtime 1.5. When and why is not known. Needs the user: reinstall
   1.5 only if a side-by-side 1.5 comparison is wanted.
   本機已沒有 Windows App Runtime 1.5 的 Main/DDLM。需要使用者決定是否重裝。
-- [ ] **9. The six `Support/*/generate-bindings.ps1` in the fork** are superseded
+  Closed 2026-11-07 by the user: 1.5 is not to be considered any more, and items
+  about it are closed. 2026-11-07 使用者決定結案：不再考慮 1.5,相關項目一律結案。
+- [x] **9. The six `Support/*/generate-bindings.ps1` in the fork** are superseded
   by generate-bindings.zsh. Deleting them needs the user's go-ahead.
   fork 裡六支 ps1 已被 generate-bindings.zsh 取代；刪除需使用者同意。
+  Done 2026-11-07 with the user's go-ahead: swift-winui c4225f8 removes them and
+  points the VS Code task at Support/generate-bindings.zsh.
+  2026-11-07 經使用者同意完成:swift-winui c4225f8 刪除它們，並把 VS Code task 指向 Support/generate-bindings.zsh。
 - [x] **10. CI never checked out the submodule.** Found in the cycle 1 review
   of d4920949: Package.swift takes swift-winui by path on every host, and
   `actions/checkout@v4` leaves submodules empty, so the macos, linux and

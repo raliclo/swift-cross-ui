@@ -23,7 +23,9 @@ commits fd3378f1, e9b80e8e, f191f46c, and results.csv2 (windows, winui: P38
   `RoActivateInstance`; the backend's own copy is
   `Sources/WinUIBackend/WinRTActivation.swift`, and static methods now `throw`.
   The WinAppSDK is no longer a preview, but whether `Console.swift`'s filter is
-  still needed on 2.6.5 has not been checked. Running needs Windows App Runtime
+  still needed on 2.6.5 has not been checked. *(Checked 2026-11-07: with the
+  filter bypassed, P81-WinUI and P41-WinUI wrote 0 BVI-*/rcBackdropLocal= lines;
+  see todo.md item 6.)* Running needs Windows App Runtime
   2.6; a stale `swift-winui_CWinAppSDK.resources` left in `testapp/output` is
   loaded before `.bundle`, and the app then reports that it needs Runtime 2.6.
 - WebView2 on 2.6.5 needs `Microsoft.Web.WebView2.Core.dll` beside the exe:
@@ -92,7 +94,8 @@ Console.swift、fd3378f1、e9b80e8e、f191f46c,以及 results.csv2(windows、win
   (fork raliclo/swift-winui,develop),Package.swift 用 `.package(path:)`。bindings 以 swift-winrt 0.6.0
   針對 **Windows App SDK 2.6.5** 重新產生(`Vendor/swift-winui/Support/generate-bindings.zsh`)。
   0.6.0 移除了 `RoActivateInstance`,backend 自己的版本在 `Sources/WinUIBackend/WinRTActivation.swift`;
-  static 方法都改為 `throws`。WinAppSDK 已非預覽版，但 `Console.swift` 的濾除在 2.6.5 上是否還需要尚未驗證。
+  static 方法都改為 `throws`。WinAppSDK 已非預覽版，但 `Console.swift` 的濾除在 2.6.5 上是否還需要尚未驗證。*(2026-11-07 已查證：繞過過濾時，
+  P81-WinUI 與 P41-WinUI 印出的 BVI-*/rcBackdropLocal= 為 0 行；見 todo.md 第 6 項。)*
   執行需要 Windows App Runtime 2.6;`testapp/output` 若殘留舊的 `swift-winui_CWinAppSDK.resources`,
   它會比 `.bundle` 先被載入，app 會回報需要 Runtime 2.6。
 - WebView2 在 2.6.5 上需要 exe 旁邊有 `Microsoft.Web.WebView2.Core.dll`:1.5 的 framework 套件附帶它,2.6.5 的沒有。
