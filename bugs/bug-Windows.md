@@ -53,9 +53,9 @@ running on the smaller stack, so a later overflow is not silent.
 Back) built with the fiber on WinUIBackend and GtkBackend.
 *(Superseded the same day by the results below; kept as written.)*
 
-**Reported 2026-11-07 by two SofPCB-W11 sessions: the fiber alone fixes it.** Both say
-the user clicked in a visible window; a third session of the same name did not run it.
-The user has not said so to this session directly. SoftPCB-UI's GTK debug build against 34ffb42b with its
+**Verified 2026-11-07, the fiber alone fixes it.** The user clicked the screens in a
+visible window and confirmed it to this session; two SofPCB-W11 sessions reported the
+same (a third of that name did not run it). SoftPCB-UI's GTK debug build against 34ffb42b with its
 `-STACK` removed (SizeOfStackReserve 1048576 on both exes, rebuilt 15:41): tab 8 (the
 deepest tree), tab 9 and the field matrix were clicked, and none crashed. Before
 the fiber, the same screens overflowed. P81-WinUI.exe (1 MB header) also opened its
@@ -98,8 +98,8 @@ fiber 這條路徑，也就是每個下游 app 走的路徑。任一個 fiber �
 WinUIBackend 與 GtkBackend 皆未跑過。
 *(當天即被下方結果取代；原文保留。)*
 
-**2026-11-07 由兩個 SofPCB-W11 session 回報：單靠 fiber 就修好了。** 兩者都說是使用者在看得見的
-視窗中點的；第三個同名 session 沒有執行它。使用者尚未直接向本 session 確認。SoftPCB-UI 的 GTK debug
+**2026-11-07 驗證：單靠 fiber 就修好了。** 使用者在看得見的視窗中親手點過這些畫面，並向本 session
+確認；兩個 SofPCB-W11 session 也回報了同樣結果(第三個同名 session 沒有執行它)。SoftPCB-UI 的 GTK debug
 建置(對 34ffb42b，移除 `-STACK`，兩個執行檔的 SizeOfStackReserve 都是 1048576，15:41 重建)：
 tab 8(最深的樹)、tab 9 與場矩陣都點過，都沒有崩潰；在 fiber 之前，這些畫面會溢位。P81-WinUI.exe(1 MB 標頭)也透過 `openWindow`
 開出第二個 `Window` 而沒有崩潰；P81 很淺，所以那只算回歸檢查。先前 WinUI 的案例(巢狀
