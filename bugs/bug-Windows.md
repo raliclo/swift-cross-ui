@@ -44,6 +44,11 @@ repeated by every app, and SwiftPM refuses `unsafeFlags` from a dependency that 
 pinned by version, so swift-cross-ui cannot carry it for them. Spell it with a dash:
 from Git Bash a leading `/STACK` is rewritten into a path.
 
+`testapp/compile.zsh` deliberately passes no `-STACK` (decided 2026-11-07): the test apps
+must keep the 1 MB header so they exercise the fiber, the path every downstream app takes.
+If either fiber call fails, `WindowsMainStack` logs a warning with `GetLastError()` before
+running on the smaller stack, so a later overflow is not silent.
+
 **Not yet verified:** a full test app (P81/P113 opening a second `Window`, P114
 Back) built with the fiber on WinUIBackend and GtkBackend.
 
@@ -69,6 +74,10 @@ dispatch queue 都不變。app 不需要任何連結旗標；已用 8 MB 以上�
 替代做法是每個執行檔加 `-Xlinker -STACK:8388608`(SoftPCB-UI 用了它，使用者點過原本會崩潰的
 分頁)，但每個 app 都得自己加，而 SwiftPM 不允許以版本釘住的依賴帶 `unsafeFlags`，所以
 swift-cross-ui 無法替它們帶上。要寫成 `-STACK`：從 Git Bash 執行時，開頭的 `/STACK` 會被改寫成路徑。
+
+`testapp/compile.zsh` 刻意不加 `-STACK`(2026-11-07 決定)：測試 app 必須保留 1 MB 的標頭，才會走到
+fiber 這條路徑，也就是每個下游 app 走的路徑。任一個 fiber 呼叫失敗時，`WindowsMainStack` 會先連同
+`GetLastError()` 記錄警告，再在較小的堆疊上執行，所以之後的溢位不會是無聲的。
 
 **尚未驗證：** 以 fiber 建置的完整測試 app(P81/P113 開第二個 `Window`、P114 Back)，
 WinUIBackend 與 GtkBackend 皆未跑過。

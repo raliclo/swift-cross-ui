@@ -38,14 +38,23 @@
         }
 
         /// Runs `body` on a stack of at least ``size`` bytes, then returns on the
-        /// original stack. Falls back to running it directly if a fiber cannot be made.
-        /// 在至少 ``size`` bytes 的堆疊上執行 `body`，之後回到原本的堆疊。無法建立 fiber
-        /// 時直接執行它。
+        /// original stack. If a fiber cannot be made, it says so with the Win32
+        /// error and runs `body` on the stack it has: a deep layout may then
+        /// overflow, and the warning is what makes that crash explicable.
+        /// 在至少 ``size`` bytes 的堆疊上執行 `body`，之後回到原本的堆疊。無法建立 fiber 時，
+        /// 先連同 Win32 錯誤碼發出警告，再在現有的堆疊上執行 `body`：深層 layout 可能因此溢位，
+        /// 而這則警告就是讓那次崩潰能被解釋的線索。
         static func run(_ body: @MainActor () -> Void) {
             var low: ULONG_PTR = 0
             var high: ULONG_PTR = 0
             GetCurrentThreadStackLimits(&low, &high)
-            guard Int(high - low) < size, let mainFiber = ConvertThreadToFiber(nil) else {
+            let current = Int(high - low)
+            guard current < size else {
+                body()
+                return
+            }
+            guard let mainFiber = ConvertThreadToFiber(nil) else {
+                warnFallback("ConvertThreadToFiber", error: GetLastError(), stack: current)
                 body()
                 return
             }
@@ -77,11 +86,22 @@
                     DeleteFiber(fiber)
                     ConvertFiberToThread()
                 } else {
+                    let error = GetLastError()
                     context.release()
                     ConvertFiberToThread()
+                    warnFallback("CreateFiberEx", error: error, stack: current)
                     body()
                 }
             }
+        }
+
+        private static func warnFallback(_ call: String, error: DWORD, stack: Int) {
+            logger.warning(
+                """
+                \(call) failed (GetLastError \(error)); running on the \(stack)-byte \
+                main-thread stack instead of \(size). A deep view hierarchy may overflow it.
+                """
+            )
         }
     }
 #endif
