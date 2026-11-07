@@ -117,6 +117,107 @@ jobs:
           testapp/output/*.log
         if-no-files-found: warn
 
+  android:
+    # An x86_64 Linux runner: GitHub's Apple Silicon runners cannot nest an emulator,
+    # and Linux runners have KVM. The apps are built for x86_64 here (ANDROID_TRIPLE),
+    # so the emulator runs them natively; the local machines use arm64.
+    # x86_64 Linux runner:GitHub 的 Apple Silicon runner 無法再套一層 emulator,Linux runner 則有 KVM。
+    # 這裡的 app 以 x86_64 建置(ANDROID_TRIPLE),emulator 原生執行；本機用的是 arm64。
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      ANDROID_TRIPLE: x86_64-unknown-linux-android31
+      ANDROID_NDK_VERSION: 30.0.16248370
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    # The toolchain must be the exact release the Android SDK was built with.
+    # toolchain 必須與 Android SDK 建置時所用的版本完全相同。
+    - name: Install Swift 6.4.0
+      uses: SwiftyLab/setup-swift@v1
+      with:
+        swift-version: '6.4.0'
+
+    - name: Install zsh, csv2 and JDK 17
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh zstd rsync
+        v=0.2.0; f=csv2-$v-linux-x86_64-glibc.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        sha256sum -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    # NDK r30, which the Swift 6.4 Android SDK requires; the checksum is the one
+    # swift.org publishes (also in testapp/install_tools_android.zsh).
+    # NDK r30 是 Swift 6.4 Android SDK 所需；checksum 是 swift.org 公布的那一個(亦見 install_tools_android.zsh)。
+    - name: Install the NDK and the Swift Android SDK
+      run: |
+        sdkmanager=$(ls "$ANDROID_HOME"/cmdline-tools/latest/bin/sdkmanager)
+        yes | "$sdkmanager" --licenses > /dev/null || true
+        "$sdkmanager" --install "ndk;$ANDROID_NDK_VERSION"
+        ndk="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
+        test -d "$ndk/toolchains/llvm/prebuilt"
+        echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+        swift sdk install \
+          https://download.swift.org/swift-6.4.0-release/android-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_android.artifactbundle.tar.gz \
+          --checksum 21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43
+        bundle=$(ls -d "$HOME"/.swiftpm/swift-sdks/*android.artifactbundle)
+        ANDROID_NDK_HOME="$ndk" bash "$bundle/swift-android/scripts/setup-android-sdk.sh"
+        swift sdk list
+
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    # Builds, packages and installs each app, then replays its action files
+    # (testapp/sweep_android.zsh), on an emulator this step starts.
+    # 建置、打包並安裝每支 app,再重放它的動作檔(sweep_android.zsh),在這一步啟動的 emulator 上。
+    - name: Android sweep
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 34
+        arch: x86_64
+        target: google_apis
+        disable-animations: true
+        emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+        script: mkdir -p testapp/output && zsh testapp/sweep_android.zsh P114 P12 2>&1 | tee testapp/output/android-sweep-stdout.txt
+
+    # The sweep exits 0 whatever happened. Its last count line is the verdict: a row passes
+    # when test.zsh exited 0 and the app launched (sweep_android.zsh), and none may fail.
+    # sweep 無論結果都以 0 結束。最後那行計數就是結論：test.zsh 以 0 結束且 app 有啟動才算通過，不能有任何一列失敗。
+    - name: Every action file passes
+      run: |
+        csv2 -r -i testapp/output/android-sweep.csv2
+        line=$(grep -E '^[0-9]+ launched, [0-9]+ did not' testapp/output/android-sweep-stdout.txt)
+        echo "$line"
+        echo "$line" | grep -qE '^[1-9][0-9]* launched, 0 did not'
+
+    - name: Upload captures and logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-sweep
+        path: |
+          testapp/output/android-sweep.csv2
+          testapp/output/android-sweep-stdout.txt
+          testapp/output/*-android-*.png
+          testapp/output/*.log
+        if-no-files-found: warn
+
   linux:
     runs-on: ubuntu-24.04
     steps:

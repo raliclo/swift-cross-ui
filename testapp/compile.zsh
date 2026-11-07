@@ -1637,14 +1637,19 @@ if [ "$target_platform" = "android" ]; then
             fi
         done
     fi
-    if [ -z "$android_host_sdk" ]; then
+    if [ -z "$android_host_sdk" ] && [[ "$OSTYPE" == darwin* ]]; then
         echo "!! No macOS SDK the Android toolchain can read (every Foundation interface uses" >&2
         echo "!! -target-arch-variant); set ANDROID_HOST_SDKROOT." >&2
         echo "!! 找不到 Android toolchain 讀得懂的 macOS SDK；請設定 ANDROID_HOST_SDKROOT。" >&2
         exit 1
     fi
-    echo "==> Host SDK for the Android toolchain: $android_host_sdk"
-    export SDKROOT="$android_host_sdk"
+    # A Linux host (the CI android job) compiles host code against its own libraries:
+    # there is no macOS SDK to choose, and SDKROOT stays unset.
+    # Linux 主機(CI 的 android 工作)以自己的函式庫編譯主機端程式碼：沒有 macOS SDK 可選,SDKROOT 維持未設定。
+    if [ -n "$android_host_sdk" ]; then
+        echo "==> Host SDK for the Android toolchain: $android_host_sdk"
+        export SDKROOT="$android_host_sdk"
+    fi
 
     export ANDROID_SDK_ROOT="$android_sdk_root"
     export ANDROID_NDK_HOME="$android_ndk_home"

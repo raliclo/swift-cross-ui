@@ -175,7 +175,12 @@ android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
 # 若日後出現上述版本錯誤，正確的修法是安裝一個與 SDK 相符的 toolchain——而不是調高 SDK，
 # 因為它無法高過 swift.org 已發布的版本。詳見 testapp/build_time_android.md。
 swift_toolchain="${SWIFT_ANDROID_TOOLCHAIN:-swift-latest}"
-swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
+if [[ "$OSTYPE" == darwin* ]]; then
+    swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
+else
+    # Linux (the CI android job): the swift.org toolchain on PATH. / Linux(CI 的 android 工作):PATH 上的 swift.org toolchain。
+    swift_bin="${SWIFT_BIN:-$(command -v swift || print swift)}"
+fi
 # The macOS SDK the Android toolchain compiles HOST code against -- the package
 # manifest and build plugins. Xcode 27's SDK ships Foundation interfaces whose
 # module flags include `-target-arch-variant`, which the snapshot toolchain does
@@ -203,8 +208,8 @@ if [ -z "$android_host_sdk" ]; then
         fi
     done
 fi
-[ -n "$android_host_sdk" ] || die "No macOS SDK the Android toolchain can read (every Foundation interface uses -target-arch-variant); set ANDROID_HOST_SDKROOT"
-export SDKROOT="$android_host_sdk"
+[[ "$OSTYPE" != darwin* ]] || [ -n "$android_host_sdk" ] || die "No macOS SDK the Android toolchain can read (every Foundation interface uses -target-arch-variant); set ANDROID_HOST_SDKROOT"
+if [ -n "$android_host_sdk" ]; then export SDKROOT="$android_host_sdk"; fi  # unset on Linux / Linux 上不設定
 package_dir="$script_dir/.compile-work-android/TestApps"
 apk_path="$apk_dir/$app.apk"
 # Lowercased. The APK's application id is lowercase, so `adb shell am start`
@@ -223,7 +228,7 @@ emulator="$android_root/emulator/emulator"
 # 一次只跑一個 Android:emulator、.compile-work-android 與那一個 Gradle 專案是共用的，所以第二次執行在此等待。
 source "$script_dir/test_support/platform_lock.zsh" android
 source "$script_dir/test_support/avd_host_io.zsh"
-zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
+[[ "$OSTYPE" != darwin* ]] || zsh "$script_dir/install_tools_android.zsh" --check >/dev/null  # a macOS installer / 只適用 macOS
 [ -x "$adb" ] || die "Missing adb: $adb"
 
 if [ "$do_apk" -eq 1 ]; then

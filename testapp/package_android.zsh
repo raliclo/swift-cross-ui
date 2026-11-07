@@ -72,10 +72,21 @@ clang="$ndk_bin/clang"
 # The Swift SDK the build used: the one artifact bundle, as compile.zsh insists
 # (SwiftPM 6.4 refuses to build with two installed).
 # 建置所用的 Swift SDK:唯一的那個 artifact bundle,與 compile.zsh 的要求相同(裝了兩個時 SwiftPM 6.4 拒絕建置)。
-sdk_bundles=("$HOME"/Library/org.swift.swiftpm/swift-sdks/*android.artifactbundle(N/))
+# macOS keeps Swift SDKs under ~/Library/org.swift.swiftpm, Linux under ~/.swiftpm.
+# macOS 把 Swift SDK 放在 ~/Library/org.swift.swiftpm 底下,Linux 放在 ~/.swiftpm 底下。
+sdk_bundles=("$HOME"/Library/org.swift.swiftpm/swift-sdks/*android.artifactbundle(N/) "$HOME"/.swiftpm/swift-sdks/*android.artifactbundle(N/))
+sdk_bundles=(${(u)sdk_bundles:A})  # ~/.swiftpm/swift-sdks may be a link to the other / 可能是指向另一處的連結
 (( ${#sdk_bundles} == 1 )) || die "expected one Swift Android SDK, found ${#sdk_bundles}"
 swift_sdk="${sdk_bundles[1]}/swift-android"
-abi_dir="aarch64-linux-android"
+# The ABI follows the triple: arm64 on the local emulators and devices, x86_64 on the
+# CI emulator (an x86_64 Linux runner). / ABI 跟著 triple 走：本機的 emulator 與裝置是 arm64,CI 的 emulator(x86_64 Linux runner)是 x86_64。
+arch="${triple%%-*}"
+abi_dir="$arch-linux-android"
+case "$arch" in
+    aarch64) jni_abi=arm64-v8a ;;
+    x86_64) jni_abi=x86_64 ;;
+    *) die "no Android ABI for $triple" ;;
+esac
 
 # ---------------------------------------------------------------- 1. relink
 # SwiftPM's link command for the executable, from the build plan it just ran,
@@ -142,8 +153,8 @@ print -r -- "sdk.dir=$ANDROID_HOME" > "$project/local.properties"
 # ---------------------------------------------------------------- 2-4. jniLibs
 # Emptied first: the previous app's lib<Pn>.so must not ride along.
 # 先清空：上一支 app 的 lib<Pn>.so 不能跟著打包進去。
-jni="$project/src/main/jniLibs/arm64-v8a"
-[[ "$jni" == */.compile-work-android/gradleProject/src/main/jniLibs/arm64-v8a ]] || die "unexpected jniLibs path $jni"
+jni="$project/src/main/jniLibs/$jni_abi"
+[[ "$jni" == */.compile-work-android/gradleProject/src/main/jniLibs/$jni_abi ]] || die "unexpected jniLibs path $jni"
 rm -rf -- "$jni"
 mkdir -p "$jni"
 cp "$library" "$jni/"
@@ -159,7 +170,7 @@ fi
 # per-API directory (shipped by the device, not copied).
 # 相依函式庫，逐層找，搜尋位置與 bundler 相同：建置產物、SDK 的 Swift runtime、sysroot(複製),以及
 # sysroot 依 API 分的目錄(裝置自帶，不複製)。
-search_copy=("$products" "$swift_sdk/swift-resources/usr/lib/swift-aarch64/android"
+search_copy=("$products" "$swift_sdk/swift-resources/usr/lib/swift-$arch/android"
     "$swift_sdk/ndk-sysroot/usr/lib/$abi_dir")
 search_system=("$swift_sdk/ndk-sysroot/usr/lib/$abi_dir/$api")
 typeset -A seen
