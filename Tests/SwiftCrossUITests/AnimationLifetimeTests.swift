@@ -117,38 +117,74 @@ struct AnimationLifetimeTests {
     /// The review finding of 2026-11-06: a rebuilt view's `StateImpl` got a new
     /// box with a new animation key, so a binding made after the rebuild
     /// cancelled a key no tween ran under, and the tween's next frame replaced
-    /// the value just written. The binding cancels only on the main thread (see
-    /// the suite's note), so off it only the key is checked.
+    /// the value just written. This test cancels through the rebuilt key the way
+    /// the binding does, so it runs on every platform, including Linux and Windows,
+    /// where Swift Testing runs it off the main thread (see the suite's note).
     /// 2026-11-06 的審查發現：重建後之 view 的 `StateImpl` 拿到新 box 與新的動畫 key,於是重建後建立的 binding
-    /// 取消了一個沒有補間在跑的 key,補間的下一幀蓋掉剛寫入的值。binding 只在主執行緒上取消(見本套件的說明),
-    /// 因此在主執行緒之外只檢查 key。
-    @Test("A binding made after a rebuild cancels the tween started before it")
-    func rebuiltBindingCancelsTween() {
+    /// 取消了一個沒有補間在跑的 key,補間的下一幀蓋掉剛寫入的值。本測試以重建後的 key 取消，做法與 binding 相同，
+    /// 因此在每個平台上都會執行，包括 Swift Testing 在主執行緒之外執行它的 Linux 與 Windows(見本套件的說明)。
+    @Test("A rebuilt @State cancels the tween started before the rebuild")
+    func rebuiltKeyCancelsTween() {
         withManualClock { driver, clock in
-            let first = StateImpl(initialStorage: TestStorage(0))
+            let (first, rebuilt) = startTweenThenRebuild(driver: driver, clock: clock)
             // 這裡失敗時不留下補間，以免影響後面的測試。
             defer { driver.cancel(key: first.animationKey) }  // a failure here leaves no tween behind
-            driver.start(
-                key: first.animationKey,
-                animation: .linear(duration: 1),
-                group: nil,
-                apply: StateImpl<TestStorage>.tweenApply(
-                    storage: first.storage, key: first.animationKey, from: 0.0, to: 10.0
-                )
-            )
-            clock.advance(to: 0)
-            clock.advance(to: 0.5)
-
-            let rebuilt = StateImpl(initialStorage: TestStorage(0))
-            rebuilt.update(with: EnvironmentValues(backend: DummyBackend()), previousValue: first)
             #expect(rebuilt.animationKey == first.animationKey)
-            guard Thread.isMainThread else { return }
+
+            // What the binding's setter does on the main thread.
+            // binding 的 setter 在主執行緒上做的事。
+            driver.cancel(key: rebuilt.animationKey)
+            rebuilt.storage.value = 42
+            #expect(driver.activeTweenCount == 0)
+            clock.advance(to: 0.75)
+            #expect(rebuilt.storage.value == 42)
+        }
+    }
+
+    /// The same through the binding itself. The setter cancels only on the main
+    /// thread, so elsewhere the test is cancelled, which Swift Testing reports as
+    /// skipped rather than passed; ``rebuiltKeyCancelsTween()`` covers it there.
+    /// 同一件事，經由 binding 本身。setter 只在主執行緒上取消，因此在其他地方本測試會被取消,Swift Testing 將其
+    /// 回報為略過而不是通過；那些平台由 ``rebuiltKeyCancelsTween()`` 涵蓋。
+    @Test("A binding made after a rebuild cancels the tween started before it")
+    func rebuiltBindingCancelsTween() throws {
+        guard Thread.isMainThread else {
+            try Test.cancel("the binding cancels tweens only on the main thread")
+        }
+        withManualClock { driver, clock in
+            let (first, rebuilt) = startTweenThenRebuild(driver: driver, clock: clock)
+            // 這裡失敗時不留下補間，以免影響後面的測試。
+            defer { driver.cancel(key: first.animationKey) }  // a failure here leaves no tween behind
+            #expect(rebuilt.animationKey == first.animationKey)
 
             rebuilt.projectedValue.wrappedValue = 42
             #expect(driver.activeTweenCount == 0)
             clock.advance(to: 0.75)
             #expect(rebuilt.storage.value == 42)
         }
+    }
+
+    /// Starts a 0 -> 10 tween on a `StateImpl`, runs it halfway, then rebuilds it
+    /// the way a view update does.
+    /// 在一個 `StateImpl` 上啟動 0 -> 10 的補間，跑到一半，再像 view 更新那樣重建它。
+    private func startTweenThenRebuild(
+        driver: AnimationDriver, clock: AnimationDriver.ManualClock
+    ) -> (first: StateImpl<TestStorage>, rebuilt: StateImpl<TestStorage>) {
+        let first = StateImpl(initialStorage: TestStorage(0))
+        driver.start(
+            key: first.animationKey,
+            animation: .linear(duration: 1),
+            group: nil,
+            apply: StateImpl<TestStorage>.tweenApply(
+                storage: first.storage, key: first.animationKey, from: 0.0, to: 10.0
+            )
+        )
+        clock.advance(to: 0)
+        clock.advance(to: 0.5)
+
+        let rebuilt = StateImpl(initialStorage: TestStorage(0))
+        rebuilt.update(with: EnvironmentValues(backend: DummyBackend()), previousValue: first)
+        return (first, rebuilt)
     }
 
     /// The review finding of 2026-10-29: `tick` walks a snapshot of the tweens,
