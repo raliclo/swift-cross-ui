@@ -66,6 +66,12 @@ LLMTab's table) were not rerun on WinUI: SoftPCB-UI no longer builds a WinUI var
 Seen in the same run, not yet investigated, possibly unrelated to the stack: tab 8 prints
 `Gtk-CRITICAL: Allocation height too small ... GtkPassthroughFixed needs at least 1180x847`
 for an 844-high allocation every ~85 ms, and the field matrix is slow.
+*(The allocation warning was fixed the same day, and it was not about the stack:
+the content's minimum (from SoftPCB-M4's view tree, a nested TabView whose rows
+are fixed-height above a minHeight-150 ScrollView) exceeded the window, and
+CustomRootWidget allocated the root only the window size. A temporary GTK repro
+printed 622 warnings in 8 s before the fix and 0 after; see
+Sources/GtkCHelpers/gtk_custom_root_widget.c. The field matrix is still open.)*
 
 ## 1. 主執行緒只有 1 MB 堆疊，深層 layout 會用完它
 
@@ -108,3 +114,6 @@ NavigationSplitView／TabView、LLMTab 的表格)沒有在 WinUI 上重跑：Sof
 同一次執行中看到、尚未調查、可能與堆疊無關：tab 8 開著時每約 85 ms 印出
 `Gtk-CRITICAL: Allocation height too small ... GtkPassthroughFixed needs at least 1180x847`
 (配置的高度是 844)，而場矩陣很慢。
+*(配置警告當天已修正，而且與堆疊無關：內容的最小高度(依 SoftPCB-M4 提供的 view 樹：巢狀 TabView,上方各列固定
+高度，最下方是 minHeight 150 的 ScrollView)超過視窗，而 CustomRootWidget 只把視窗大小配置給根容器。暫時的 GTK 重現
+程式在修正前 8 秒印出 622 則警告，修正後為 0;見 Sources/GtkCHelpers/gtk_custom_root_widget.c。場矩陣仍待查。)*

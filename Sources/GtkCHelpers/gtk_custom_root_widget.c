@@ -62,6 +62,9 @@ void gtk_custom_root_widget_allocate(
     // decided the layout and this widget's job is to hand that decision down;
     // the call exists because GTK caches the result and refuses to allocate
     // sensibly without it, not because the numbers are wanted.
+    // (Superseded 2026-11-07: the minimums are now used; see the comment above
+    // gtk_widget_allocate below. / 2026-11-07 起不再成立：最小值現在會被使用，見下方
+    // gtk_widget_allocate 上方的說明。)
     //
     // GTK 4 要求容器在配置子元件之前必須先量測它，而此處先前直接呼叫了
     // gtk_widget_allocate。結果是每一次 layout pass 都會產生警告（如上）。
@@ -91,19 +94,34 @@ void gtk_custom_root_widget_allocate(
         return;
     }
 
-    int ignored_minimum, ignored_natural, ignored_min_baseline, ignored_nat_baseline;
+    // The minimums are kept, not discarded: the child is allocated at least its
+    // minimum, which is the size request SwiftCrossUI set on it. When the content's
+    // minimum is larger than the window -- as in SwiftUI, a VStack whose children's
+    // minimums add up to more than it is offered overflows -- allocating only the
+    // window size made GTK print "Allocation height too small ... GtkPassthroughFixed
+    // needs at least" and a "Trying to measure" warning on every frame (SoftPCB-UI
+    // tab 8 on Windows, 844 vs 847; a temporary repro, 660 vs 797, printed 622 in
+    // 8 s, 2026-11-07). The window clips the overflow, which is SwiftUI's behaviour
+    // too. The resize callback below still reports the window's own size.
+    // 量測結果保留而非捨棄：子元件至少被配置到它的最小值，也就是 SwiftCrossUI 設在它上面的 size request。
+    // 內容的最小尺寸大於視窗時(與 SwiftUI 相同，子元件最小值加總超過可用空間的 VStack 會溢出),只配置視窗大小
+    // 會讓 GTK 每一幀都印出「Allocation height too small ... GtkPassthroughFixed needs at least」與
+    // 「Trying to measure」警告(Windows 上 SoftPCB-UI 的 tab 8,844 對 847;暫時的重現程式 660 對 797,8 秒印出
+    // 622 則,2026-11-07)。溢出的部分由視窗裁掉，SwiftUI 也是如此。下方的 resize callback 回報的仍是視窗本身的大小。
+    int min_width, min_height, ignored_natural, ignored_min_baseline, ignored_nat_baseline;
     gtk_widget_measure(
         root_widget->child, GTK_ORIENTATION_HORIZONTAL, -1,
-        &ignored_minimum, &ignored_natural,
+        &min_width, &ignored_natural,
         &ignored_min_baseline, &ignored_nat_baseline
     );
+    int child_width = MAX(width, min_width);
     gtk_widget_measure(
-        root_widget->child, GTK_ORIENTATION_VERTICAL, width,
-        &ignored_minimum, &ignored_natural,
+        root_widget->child, GTK_ORIENTATION_VERTICAL, child_width,
+        &min_height, &ignored_natural,
         &ignored_min_baseline, &ignored_nat_baseline
     );
 
-    gtk_widget_allocate(root_widget->child, width, height, 0, NULL);
+    gtk_widget_allocate(root_widget->child, child_width, MAX(height, min_height), 0, NULL);
 
     root_widget->has_been_allocated = true;
 
