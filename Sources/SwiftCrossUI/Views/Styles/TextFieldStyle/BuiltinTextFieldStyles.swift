@@ -122,12 +122,6 @@ public struct _BuiltinTextFieldImplementation: ElementaryView, View {
     var placeholder: String
     var text: Binding<String>
 
-    init(style: BackendTextFieldStyle, placeholder: String, text: Binding<String>) {
-        self.style = style
-        self.placeholder = placeholder
-        self.text = text
-    }
-
     func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
         return backend.createTextField()
     }

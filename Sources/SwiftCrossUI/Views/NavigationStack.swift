@@ -174,6 +174,8 @@ public struct NavigationStack<Detail: View>: View {
                 // back control above still works, so the user can leave it.
                 // 沒有任何 `navigationDestination` 處理這個值的型別：警告一次，並顯示空白畫面，與 SwiftUI 相同。
                 // 上方的返回控制項仍然可用，因此使用者可以離開它。
+                // a result builder takes `let _ =`, not `_ =`
+                // swiftlint:disable:next redundant_discardable_let
                 let _ = logger.warnOnce(
                     "no navigationDestination for a value on the navigation path; showing an empty view",
                     metadata: ["type": "\(type(of: element))"]

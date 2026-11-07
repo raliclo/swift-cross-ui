@@ -110,7 +110,7 @@ func scuiSetButtonAccessibilityLabel(_ widget: WinUI.UIElement, to label: String
 /// `updateButton(_:label:menu:environment:)`——最後一個是 menu/flyout 按鈕,與 #590 無關。
 /// 與 GtkBackend 不同,那三個方法從未被搬進本檔案,因此兩個類別都仍在使用中。合併它們會弄壞 menu
 /// 按鈕。
-fileprivate final class ViewLabelCustomButton: WinUI.Button {
+private final class ViewLabelCustomButton: WinUI.Button {
     fileprivate var action: (() -> Void)?
 
     /// What `.accessibilityLabel` asked for, or `nil` where it asked for nothing.

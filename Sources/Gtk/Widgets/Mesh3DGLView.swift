@@ -58,7 +58,7 @@ public class Mesh3DGLView: GLArea {
         renderer = scui_mesh3d_renderer_new()
         hasDepthBuffer = true
         connectUnrealize()
-        render = { [weak self] area, _ in
+        render = { [weak self] _, _ in
             guard let self else { return false }
             self.drawFrame()
             return true

@@ -150,6 +150,8 @@ struct SVGXMLReader {
         guard index > start else {
             throw error("expected a name")
         }
+        // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+        // swiftlint:disable:next optional_data_string_conversion
         return String(decoding: bytes[start..<index], as: UTF8.self)
     }
 
@@ -169,6 +171,8 @@ struct SVGXMLReader {
                     index += 9
                     let start = index
                     try skip(past: "]]>", what: "CDATA section")
+                    // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+                    // swiftlint:disable:next optional_data_string_conversion
                     stack.last?.text += String(
                         decoding: bytes[start..<(index - 3)], as: UTF8.self)
                 } else if hasPrefix("<?") {
@@ -210,6 +214,8 @@ struct SVGXMLReader {
                 }
                 if let current = stack.last {
                     current.text += Self.decodeEntities(
+                        // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+                        // swiftlint:disable:next optional_data_string_conversion
                         String(decoding: bytes[start..<index], as: UTF8.self))
                 }
             }
@@ -289,6 +295,8 @@ struct SVGXMLReader {
             guard index < bytes.count else {
                 throw error("unterminated value of \(attributeName)")
             }
+            // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+            // swiftlint:disable:next optional_data_string_conversion
             let raw = String(decoding: bytes[start..<index], as: UTF8.self)
             index += 1
             attributes.append((attributeName, Self.decodeEntities(raw)))

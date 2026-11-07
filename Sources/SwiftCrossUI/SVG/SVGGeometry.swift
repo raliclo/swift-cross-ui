@@ -382,6 +382,8 @@ struct SVGNumberScanner {
             }
             if exponentDigits == 0 { index = mark }
         }
+        // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+        // swiftlint:disable:next optional_data_string_conversion
         return Double(String(decoding: bytes[start..<index], as: UTF8.self))
     }
 

@@ -95,6 +95,8 @@ final class NSCursorTarget: NSView {
     /// 在視窗成為 key 之前認領不了。
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        // the observer is re-registered each time the view moves to a window
+        // swiftlint:disable:next notification_center_detachment
         NotificationCenter.default.removeObserver(self)
         guard let window else { return }
 

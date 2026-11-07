@@ -208,7 +208,8 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
             print(line)
             // Also to a file: a WinUI app has no console, so stdout is lost
             // there and this comparison needs both backends.
-            if let data = "\(line)\n".data(using: .utf8) {
+            do {
+                let data = Data("\(line)\n".utf8)
                 let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                     .appendingPathComponent("splitview-debug.log")
                 if let handle = try? FileHandle(forWritingTo: url) {

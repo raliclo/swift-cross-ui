@@ -169,7 +169,7 @@ open class ListView: Widget {
 
         if count > existing {
             "".withCString { empty in
-                let additions = Array<UnsafePointer<CChar>?>(
+                let additions = [UnsafePointer<CChar>?](
                     repeating: empty, count: count - existing
                 ) + [nil]
                 additions.withUnsafeBufferPointer { buffer in

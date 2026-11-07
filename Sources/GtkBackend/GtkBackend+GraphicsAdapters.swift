@@ -209,6 +209,8 @@ extension GtkBackend: BackendFeatures.GraphicsAdapters {
             let count = Int(scui_dxcore_adapters(&entries, Int32(entries.count)))
             return entries.prefix(count).map { entry in
                 let name = withUnsafeBytes(of: entry.name) { raw in
+                    // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+                    // swiftlint:disable:next optional_data_string_conversion
                     String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
                 }
                 return GraphicsAdapter(
@@ -437,6 +439,8 @@ enum GtkAdapterRemoval {
             let count = Int(scui_adapter_identities(&entries, Int32(entries.count)))
             return entries.prefix(count).map { entry in
                 let name = withUnsafeBytes(of: entry.name) { raw in
+                    // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+                    // swiftlint:disable:next optional_data_string_conversion
                     String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
                 }
                 return (luid: UInt64(entry.luid), name: name)

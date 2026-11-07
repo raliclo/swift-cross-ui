@@ -266,7 +266,7 @@ final class NSObservableTextField: NSTextField {
 
     /// So that a long-press field can be given its own field editor.
     /// 好讓長按欄位能有自己的 field editor。
-    override class var cellClass: AnyClass? {
+    override static var cellClass: AnyClass? {
         get { LongPressTextFieldCell.self }
         set {}
     }

@@ -52,13 +52,13 @@ final class KeyEventWidget: ContainerWidget {
         super.init(child: child)
     }
 
+    // Not around a `.focusable()` view: that view is the first responder and this one hears its
+    // presses through the responder chain.
+    // 包著 `.focusable()` 的 view 時不接受:那個 view 才是 first responder,這裡經由 responder chain 聽它的按鍵。
     /// Without this the overrides below never run. A `UIView` returns false by
     /// default, so it is never first responder, so no press ever reaches it.
     /// 少了這個,下面那些覆寫永遠不會執行。`UIView` 預設回傳 false,因此它永遠不是 first responder,
     /// 因此沒有任何按鍵到得了它。
-    // Not around a `.focusable()` view: that view is the first responder and this one hears its
-    // presses through the responder chain.
-    // 包著 `.focusable()` 的 view 時不接受:那個 view 才是 first responder,這裡經由 responder chain 聽它的按鍵。
     override var canBecomeFirstResponder: Bool {
         isEnabled && !FocusableView.isHeld(by: view)
     }

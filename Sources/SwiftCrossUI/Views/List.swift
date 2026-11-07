@@ -682,9 +682,6 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
         nodes = []
     }
 
-    /// Notes that the row `key` was just used, and evicts if that put the
-    /// cache over its limit.
-    /// 記下 `key` 那一列剛被使用過，並在因此超出上限時逐出最久未使用的。
     // `ListViewChildren<RowView>` spelled out rather than `Self`: a default
     // argument cannot reference the covariant `Self` of a non-final class --
     // "covariant 'Self' type cannot be referenced from a default argument
@@ -692,6 +689,9 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     // 此處寫出 `ListViewChildren<RowView>` 而不用 `Self`:預設引數無法引用非 final class 的
     // covariant `Self`——「covariant 'Self' type cannot be referenced from a default argument
     // expression」。以建置抓到。
+    /// Notes that the row `key` was just used, and evicts if that put the
+    /// cache over its limit.
+    /// 記下 `key` 那一列剛被使用過，並在因此超出上限時逐出最久未使用的。
     func touch(_ key: AnyHashable, limit: Int = ListViewChildren<RowView>.lazyCacheLimit) {
         if let existing = lazyOrder.firstIndex(of: key) {
             lazyOrder.remove(at: existing)

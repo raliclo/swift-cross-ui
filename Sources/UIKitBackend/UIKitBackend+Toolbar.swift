@@ -1,6 +1,14 @@
 @_spi(Backends) import SwiftCrossUI
 import UIKit
 
+// `SwiftCrossUI.ToolbarItem` throughout, qualified. Unqualified, `ToolbarItem`
+// resolves to something else in this file's scope and the error arrives as
+// "value of type 'any ToolbarItem' has no member 'action'", which points at the
+// member rather than at the name. Same shape as P46Model's ObservableObject
+// clashing with Combine's.
+// 全檔使用限定寫法 `SwiftCrossUI.ToolbarItem`。不加限定時,`ToolbarItem` 在本檔的作用域中會解析到
+// 別的東西,而錯誤訊息是「value of type 'any ToolbarItem' has no member 'action'」——它指向的是那個
+// 成員,而不是那個名稱。與 P46Model 的 ObservableObject 和 Combine 撞名是同一種形狀。
 /// A `UINavigationBar` pinned to the top of the window.
 ///
 /// **How `Placement` is mapped, which the protocol asks each backend to state.**
@@ -24,14 +32,6 @@ import UIKit
 /// 使用導覽列而非 `UIToolbar`,後者在 iOS 上位於螢幕**底部**。兩者都是真實的答案,而此處選擇導覽列,
 /// 是因為 `ToolbarItem` 除了符號之外還帶著標籤、而導覽列會顯示標籤;一條底部工具列若放三個帶標籤的
 /// 項目,讀起來會像 tab bar——那是另一個控制項,意思也不同。
-// `SwiftCrossUI.ToolbarItem` throughout, qualified. Unqualified, `ToolbarItem`
-// resolves to something else in this file's scope and the error arrives as
-// "value of type 'any ToolbarItem' has no member 'action'", which points at the
-// member rather than at the name. Same shape as P46Model's ObservableObject
-// clashing with Combine's.
-// 全檔使用限定寫法 `SwiftCrossUI.ToolbarItem`。不加限定時,`ToolbarItem` 在本檔的作用域中會解析到
-// 別的東西,而錯誤訊息是「value of type 'any ToolbarItem' has no member 'action'」——它指向的是那個
-// 成員,而不是那個名稱。與 P46Model 的 ObservableObject 和 Combine 撞名是同一種形狀。
 extension UIKitBackend: BackendFeatures.Toolbars {
     public func setToolbar(
         ofWindow window: Window,

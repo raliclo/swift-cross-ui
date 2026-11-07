@@ -261,6 +261,8 @@ extension WinUIBackend {
             while true {
                 let count = _read(readEnd, &buffer, UInt32(buffer.count))
                 guard count > 0 else { break }
+                // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+                // swiftlint:disable:next optional_data_string_conversion
                 pending += String(decoding: buffer[0..<Int(count)], as: UTF8.self)
                 while let newlineIndex = pending.firstIndex(of: "\n") {
                     var line = String(pending[..<newlineIndex])

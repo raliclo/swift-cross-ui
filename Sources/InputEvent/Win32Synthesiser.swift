@@ -2082,8 +2082,9 @@
         /// Shift 也算在內。`shift` + `a` 必須產生 `A`，而只有 virtual-key 路徑會套用鍵盤配置；Unicode 路徑
         /// 送出的會是一個單純的 `a`。
         private static var anyModifierHeld: Bool {
-            for vk in [VK_CONTROL, VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN] {
-                if GetKeyState(Int32(vk)) & Int16(bitPattern: 0x8000) != 0 { return true }
+            for vk in [VK_CONTROL, VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN]
+            where GetKeyState(Int32(vk)) & Int16(bitPattern: 0x8000) != 0 {
+                return true
             }
             return false
         }

@@ -167,7 +167,7 @@ extension GtkBackend {
     }
 }
 
-fileprivate final class GtkCustomButton: Gtk.Button {
+private final class GtkCustomButton: Gtk.Button {
     fileprivate var buttonStyle: PrimitiveButtonStyle.Kind = .bordered {
         willSet {
             buttonStyle.removeClass(from: self)

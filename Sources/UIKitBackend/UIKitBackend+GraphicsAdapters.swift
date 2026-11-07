@@ -58,6 +58,8 @@ extension UIKitBackend: BackendFeatures.GraphicsAdapters {
     /// 永遠不會觸發:沒有任何東西可以被拔掉。
     public var adapterRemoved: (() -> Void)? {
         get { nil }
+        // an adapter cannot be removed here, so a write is ignored on purpose
+        // swiftlint:disable:next unused_setter_value
         set {}
     }
 }

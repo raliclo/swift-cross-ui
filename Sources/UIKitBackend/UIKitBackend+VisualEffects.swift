@@ -62,11 +62,6 @@ import UIKit
 /// 儲存在 layer 上——沒有辦法只為「繪製」而設定它們。一個沒有內容的 mask layer 處處透明，因此
 /// 子元件不會畫出任何東西，而 hit testing 察覺不到差別。
 final class VisualEffectWidget: BaseViewWidget {
-    /// One context for the whole backend. `CIContext` is expensive to build and
-    /// safe to share, and a container per effect would pay for a GPU context
-    /// per filtered view.
-    /// 整個 backend 共用一個 context。`CIContext` 建構昂貴且可安全共用；若每個效果各建一個，
-    /// 就等於每個被過濾的 view 都付出一個 GPU context 的代價。
     // No working colour space: the filters then compute on the sRGB values as
     // they are, which is what Android's ColorMatrix and GTK's CSS filters do.
     // Core Image's default is linear light, where saturation 0 of (0, 158, 254)
@@ -75,6 +70,11 @@ final class VisualEffectWidget: BaseViewWidget {
     // 不設工作色彩空間：濾鏡便直接在 sRGB 數值上運算，與 Android 的 ColorMatrix 和 GTK 的 CSS 濾鏡相同。
     // Core Image 預設是線性光，在那裡 (0, 158, 254) 的 saturation 0 得到 152 的灰，Android 是 116;brightness 0.4
     // 把黑色提到 170 而不是 102(P39,2026-10-10)。
+    /// One context for the whole backend. `CIContext` is expensive to build and
+    /// safe to share, and a container per effect would pay for a GPU context
+    /// per filtered view.
+    /// 整個 backend 共用一個 context。`CIContext` 建構昂貴且可安全共用；若每個效果各建一個，
+    /// 就等於每個被過濾的 view 都付出一個 GPU context 的代價。
     private static let context = CIContext(options: [
         .useSoftwareRenderer: false,
         .workingColorSpace: NSNull(),

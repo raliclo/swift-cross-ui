@@ -3,6 +3,8 @@ import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
 import WinSDK
+// D3DCompiler is an explicit submodule: without it D3DCompile is not in scope
+// swiftlint:disable:next duplicate_imports
 import WinSDK.DirectX.D3DCompiler
 import WinUI
 import WinUIInterop

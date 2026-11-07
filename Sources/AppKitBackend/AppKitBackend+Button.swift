@@ -303,6 +303,8 @@ public final class NSCustomButton: NSView {
         }
     }
 
+    // overriding draw(_:) changes how AppKit draws a layer-backed view, so it stays
+    // swiftlint:disable:next unneeded_override
     override public func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
     }

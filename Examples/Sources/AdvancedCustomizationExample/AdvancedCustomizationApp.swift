@@ -207,6 +207,8 @@ struct CounterApp: App {
                                     ))
                                 #endif
                             }
+                            // SwiftCrossUI has no scaledToFit()
+                            // swiftlint:disable:next legacy_swiftui_aspect_ratio
                             .aspectRatio(contentMode: .fit)
                     #endif
                 }

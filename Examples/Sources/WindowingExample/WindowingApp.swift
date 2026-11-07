@@ -262,6 +262,8 @@ struct WindowingApp: App {
                     #if !os(Android)
                         Image(bannerImage)
                             .resizable()
+                            // SwiftCrossUI has no scaledToFit()
+                            // swiftlint:disable:next legacy_swiftui_aspect_ratio
                             .aspectRatio(contentMode: .fit)
 
                         Divider()

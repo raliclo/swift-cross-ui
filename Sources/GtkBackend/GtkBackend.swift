@@ -810,13 +810,13 @@ public final class GtkBackend:
             exit(0)
         }
 
-        /// Every non-software display adapter, by name.
-        /// 所有非軟體的顯示介面卡名稱。
         // Internal rather than private: GtkBackend+GraphicsAdapters.swift is a
         // separate file and needs these to implement the protocol over the same
         // code, instead of enumerating the adapters a second time.
         // 使用 internal 而非 private：GtkBackend+GraphicsAdapters.swift 是另一個檔案，需要用到
         // 這些函式，以便在「同一份程式碼」之上實作該協定，而不是再列舉一次介面卡。
+        /// Every non-software display adapter, by name.
+        /// 所有非軟體的顯示介面卡名稱。
         static func hardwareAdapterNames() -> [String] {
             var names: [String] = []
             var index: DWORD = 0
@@ -2810,6 +2810,8 @@ public final class GtkBackend:
                 process.terminate()
                 return nil
             }
+            // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+            // swiftlint:disable:next optional_data_string_conversion
             let text = String(
                 decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             // `    AppsUseLightTheme    REG_DWORD    0x0`: 0 is dark, 1 is light.
@@ -4034,7 +4036,7 @@ public final class GtkBackend:
         let ellipsize: EllipsizeMode
         if let widget = widget as? CustomLabel {
             ellipsize = widget.ellipsize
-        } else if widget as? TextView != nil {
+        } else if widget is TextView {
             // We don't ellipsize multi-line text editors
             ellipsize = .none
         } else {

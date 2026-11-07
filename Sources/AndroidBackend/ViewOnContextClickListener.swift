@@ -11,7 +11,7 @@ class ViewOnContextClickListener: JavaObject {
 }
 
 extension ViewOnContextClickListener {
-    convenience init(action: @escaping () -> (), environment: JNIEnvironment? = nil) {
+    convenience init(action: @escaping () -> Void, environment: JNIEnvironment? = nil) {
         let object = SwiftAction(environment: environment, action: action)
         self.init(action: object, environment: environment)
     }

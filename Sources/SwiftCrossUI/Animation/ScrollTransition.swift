@@ -500,7 +500,7 @@ extension View {
             body: TupleView1(self),
             axis: nil,
             drawsEffects: false,
-            makeHandler: { node, _ in
+            makeHandler: { _, _ in
                 var last: Bool?
                 return { start, length, viewport in
                     let share = ScrollTransitionMath.visibleShare(

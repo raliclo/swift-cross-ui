@@ -221,6 +221,8 @@ final class SVGBuilder {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         var scanner = SVGNumberScanner(trimmed)
         guard let value = scanner.number() else { return nil }
+        // keeps U+FFFD for invalid UTF-8; the failable initializer would give nil instead
+        // swiftlint:disable:next optional_data_string_conversion
         let unit = String(decoding: scanner.bytes[scanner.index...], as: UTF8.self)
             .trimmingCharacters(in: .whitespaces).lowercased()
         switch unit {

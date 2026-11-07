@@ -1003,6 +1003,8 @@ public struct PhaseAnimator<Phase: Equatable, Content: View>: View {
     public var body: some View {
         let index = phases.isEmpty ? 0 : min(model.index, phases.count - 1)
         let phase = phases.isEmpty ? nil : phases[index]
+        // a result builder takes `let _ =`, not `_ =`
+        // swiftlint:disable:next redundant_discardable_let
         let _ = PhaseAnimatorDiagnostics.recordIfChanged(index, model: model)
         if let phase {
             content(phase)

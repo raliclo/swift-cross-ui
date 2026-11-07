@@ -7,10 +7,6 @@ public class ScrolledWindow: Widget {
         self.init(gtk_scrolled_window_new())
     }
 
-    open override func didMoveToParent() {
-        super.didMoveToParent()
-    }
-
     /// Fires when a scroll goes past an edge, carrying which edge it was.
     ///
     /// The value is a `GtkPositionType`: 0 left, 1 right, 2 top, 3 bottom. It is

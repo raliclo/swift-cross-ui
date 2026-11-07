@@ -92,6 +92,8 @@ extension AndroidBackend: BackendFeatures.GraphicsAdapters {
     /// 永遠不會觸發:一支手機的 GPU 拔不掉。
     public var adapterRemoved: (() -> Void)? {
         get { nil }
+        // an adapter cannot be removed here, so a write is ignored on purpose
+        // swiftlint:disable:next unused_setter_value
         set {}
     }
 }

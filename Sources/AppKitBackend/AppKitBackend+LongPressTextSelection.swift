@@ -57,7 +57,7 @@ final class AppKitLongPressSelection {
     /// 長按成立後才向 `textView` 要選取用的 `NSTextView`,因為對欄位而言那代表讓它成為 first responder。
     func track(_ event: NSEvent, textView: () -> NSTextView?) -> Bool {
         guard event.type == .leftMouseDown, event.clickCount == 1,
-            event.modifierFlags.intersection([.shift, .command, .control, .option]).isEmpty,
+            event.modifierFlags.isDisjoint(with: [.shift, .command, .control, .option]),
             let window = event.window
         else { return false }
 
