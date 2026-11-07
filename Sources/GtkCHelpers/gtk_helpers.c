@@ -59,3 +59,27 @@ void scui_show_uri(const char *uri) {
     gtk_show_uri(NULL, uri, GDK_CURRENT_TIME);
 #endif
 }
+
+void scui_css_provider_load(GtkCssProvider *provider, const char *data, gssize length) {
+#if GTK_CHECK_VERSION(4, 12, 0)
+    GBytes *bytes = g_bytes_new(data, (gsize)length);
+    gtk_css_provider_load_from_bytes(provider, bytes);
+    g_bytes_unref(bytes);
+#else
+    gtk_css_provider_load_from_data(provider, data, length);
+#endif
+}
+
+void scui_calendar_set_date(GtkCalendar *calendar, GDateTime *date) {
+#if GTK_CHECK_VERSION(4, 20, 0)
+    gtk_calendar_set_date(calendar, date);
+#else
+    gtk_calendar_select_day(calendar, date);
+#endif
+}
+
+void scui_dialog_add_button(GtkDialog *dialog, const char *label, int response_id) {
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    gtk_dialog_add_button(dialog, label, response_id);
+G_GNUC_END_IGNORE_DEPRECATIONS
+}

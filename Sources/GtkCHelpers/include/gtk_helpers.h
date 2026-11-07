@@ -636,6 +636,27 @@ void scui_release_focus_within(GtkWidget *widget);
 // (在 4.10 起已棄用)。於編譯時選擇，兩條路徑都不會產生警告，舊版 GTK 也照樣能建置。
 void scui_show_uri(const char *uri);
 
+// Loads a stylesheet of `length` bytes: gtk_css_provider_load_from_bytes on GTK
+// 4.12 and later, gtk_css_provider_load_from_data (deprecated there) before it.
+// 載入長度為 `length` 位元組的樣式表:GTK 4.12 起用 gtk_css_provider_load_from_bytes,
+// 之前用 gtk_css_provider_load_from_data(在 4.12 起已棄用)。
+void scui_css_provider_load(GtkCssProvider *provider, const char *data, gssize length);
+
+// Shows and selects `date`: gtk_calendar_set_date on GTK 4.20 and later,
+// gtk_calendar_select_day (deprecated there) before it.
+// 顯示並選取 `date`:GTK 4.20 起用 gtk_calendar_set_date,之前用 gtk_calendar_select_day
+// (在 4.20 起已棄用)。
+void scui_calendar_set_date(GtkCalendar *calendar, GDateTime *date);
+
+// gtk_dialog_add_button, which GTK 4.10 deprecated along with GtkDialog. Called
+// with deprecation warnings off, as GTK itself does in gtkalertdialog.c: the
+// replacement, GtkAlertDialog, builds this same GtkMessageDialog internally (4.24.1)
+// and would close a multi-button alert on Escape and lose hide-and-restore stacking.
+// gtk_dialog_add_button,GTK 4.10 起連同 GtkDialog 一起棄用。在關閉棄用警告下呼叫，與 GTK
+// 自己在 gtkalertdialog.c 中的做法相同：替代品 GtkAlertDialog 內部建立的正是同一個
+// GtkMessageDialog(4.24.1),而且會讓多按鈕的 alert 被 Escape 關掉、失去隱藏再還原的堆疊。
+void scui_dialog_add_button(GtkDialog *dialog, const char *label, int response_id);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

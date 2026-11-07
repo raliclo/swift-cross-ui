@@ -1,4 +1,5 @@
 import CGtk
+import GtkCHelpers
 
 /// Dialogs are a convenient way to prompt the user for a small amount
 /// of input.
@@ -110,17 +111,6 @@ import CGtk
 ///
 /// `GtkDialog` uses the %GTK_ACCESSIBLE_ROLE_DIALOG role.
 open class Dialog: Window {
-    /// Creates a new dialog box.
-    ///
-    /// Widgets should not be packed into the `GtkWindow`
-    /// directly, but into the @content_area and @action_area,
-    /// as described above.
-    public convenience init() {
-        self.init(
-            gtk_dialog_new()
-        )
-    }
-
     func registerSignalHandlers() {
         removeSignals()
 
@@ -157,7 +147,7 @@ open class Dialog: Window {
     }
 
     public func addButton(label: String, responseId: Int) {
-        gtk_dialog_add_button(
+        scui_dialog_add_button(
             castedPointer(),
             label,
             Int32(responseId)

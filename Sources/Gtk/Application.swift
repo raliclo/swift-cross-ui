@@ -48,14 +48,14 @@ public class Application: GObject, GActionMap {
         // A NULL-terminated array of C strings, which is what GTK wants and what
         // Swift's automatic `[String]` bridging does not produce.
         // GTK 要求的是以 NULL 結尾的 C 字串陣列，而 Swift 對 `[String]` 的自動橋接不會產生這種形式。
-        let owned: [UnsafeMutablePointer<CChar>?] = accelerators.map { strdup($0) }
+        let owned: [UnsafeMutablePointer<CChar>?] = accelerators.map { g_strdup($0) }
         var pointers: [UnsafePointer<CChar>?] = owned.map { pointer in
             pointer.map { UnsafePointer<CChar>($0) }
         }
         pointers.append(nil)
         gtk_application_set_accels_for_action(applicationPointer, action, &pointers)
         for pointer in owned {
-            free(pointer)
+            g_free(pointer)
         }
     }
 
@@ -142,12 +142,12 @@ public class Application: GObject, GActionMap {
             return scheme.count > 1
         }
         let arguments = [CommandLine.arguments.first ?? "app"] + urls
-        let owned: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) } + [nil]
+        let owned: [UnsafeMutablePointer<CChar>?] = arguments.map { g_strdup($0) } + [nil]
         var argv = owned
         let status = g_application_run(
             applicationPointer.cast(), gint(arguments.count), &argv)
         for pointer in owned {
-            free(pointer)
+            g_free(pointer)
         }
         g_object_unref(applicationPointer)
         return Int(status)

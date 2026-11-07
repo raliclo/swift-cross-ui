@@ -60,7 +60,7 @@ public struct NavigationPath {
     /// 一份不與此路徑共用儲存的副本。`Storage` 是 class,而且沒有任何東西在寫入時複製它，因此 `let saved = path` 之後再
     /// `path.removeLast()`,`saved` 也會跟著改變。互動式返回的復原(NavigationBackNavigation.swift)需要原本的路徑，所以取這份副本。
     func independentCopy() -> NavigationPath {
-        var copy = NavigationPath()
+        let copy = NavigationPath()
         copy.storage.path = storage.path
         copy.storage.encodedEntries = storage.encodedEntries
         return copy

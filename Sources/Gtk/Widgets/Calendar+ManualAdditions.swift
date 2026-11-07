@@ -1,5 +1,6 @@
 import CGtk
 import Foundation
+import GtkCHelpers
 
 extension Calendar {
     /// The instant the calendar is holding.
@@ -44,7 +45,7 @@ extension Calendar {
                 return
             }
             withExtendedLifetime(gDateTime) {
-                gtk_calendar_select_day(opaquePointer, gDateTime.pointer)
+                scui_calendar_set_date(opaquePointer, gDateTime.pointer)
             }
         }
     }
@@ -78,7 +79,7 @@ extension Calendar {
             return
         }
         withExtendedLifetime(gDateTime) {
-            gtk_calendar_select_day(opaquePointer, gDateTime.pointer)
+            scui_calendar_set_date(opaquePointer, gDateTime.pointer)
         }
     }
 }

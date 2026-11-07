@@ -1,4 +1,5 @@
 import CGtk
+import GtkCHelpers
 
 /// Swift representation of a Gtk CSS provider
 public class CSSProvider {
@@ -34,6 +35,6 @@ public class CSSProvider {
         // then parses a truncated stylesheet.
         // 長度以位元組計:`data.count` 算的是 Character,遇到任何非 ASCII 文字(中日韓字型名稱、emoji)
         // 都會偏短，GTK 便會解析一份被截斷的樣式表。
-        gtk_css_provider_load_from_data(pointer, data, gssize(data.utf8.count))
+        scui_css_provider_load(pointer, data, gssize(data.utf8.count))
     }
 }

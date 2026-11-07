@@ -142,7 +142,6 @@ struct GtkCodeGen {
             "Switch",
             "Spinner",
             "ProgressBar",
-            "FileChooserNative",
             "NativeDialog",
             "GestureClick",
             "GestureSingle",
