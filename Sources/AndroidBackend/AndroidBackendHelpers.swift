@@ -59,7 +59,10 @@ class AndroidBackendHelpers: JavaObject {
     func rootScrollReveal(_ view: AndroidKit.View?, _ x: Int32, _ y: Int32) -> [Int32]
 
     /// The screen position, in pixels, of the middle of the first shown view whose
-    /// text is `label`; empty when there is none. It and the point `dx`,`dy` pixels from its middle are scrolled into view first. 第一個顯示中、文字為 `label` 的 view 中心的螢幕位置(像素);沒有時為空。它與自中心 `dx`,`dy` 像素的那一點會先被捲進畫面。
+    /// text is `label`; empty when there is none. It and the point `dx`,`dy` pixels
+    /// from its middle are scrolled into view first.
+    /// 第一個顯示中、文字為 `label` 的 view 中心的螢幕位置(像素);沒有時為空。它與自中心 `dx`,`dy`
+    /// 像素的那一點會先被捲進畫面。
     @JavaMethod
     func centreOfLabel(_ activity: Activity?, _ label: String, _ dx: Int32, _ dy: Int32) -> [Int32]
 

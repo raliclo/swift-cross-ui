@@ -137,7 +137,9 @@ extension Slider {
 //
 // 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
 // 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
-// 給其他樣式用——`.segmented`(tvOS 的預設)是 `UISegmentedControl`,`.radioGroup` 是 `UIStackView`,`.wheel` 是 `UIPickerView`(Mac Catalyst 的 Mac 介面下是 `UITableView`)。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
+// 給其他樣式用——`.segmented`(tvOS 的預設)是 `UISegmentedControl`,`.radioGroup` 是 `UIStackView`,
+// `.wheel` 是 `UIPickerView`(Mac Catalyst 的 Mac 介面下是 `UITableView`)。要求的型別不是該樣式建立的，
+// 會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
 extension SwiftCrossUI.Picker {
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,

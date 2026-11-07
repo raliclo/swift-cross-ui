@@ -1206,7 +1206,8 @@
             guard AXIsProcessTrusted() else {
                 throw SynthesiserError.unsupported(
                     "a click into an open/save panel or a GTK window needs the Accessibility grant: the panel's"
-                        + " content is in another process (or, for a GTK window, GDK ignores posted clicks) and only an HID event reaches it"
+                        + " content is in another process (or, for a GTK window, GDK ignores posted clicks)"
+                        + " and only an HID event reaches it"
                 )
             }
             let onScreen = window.convertPoint(toScreen: location)

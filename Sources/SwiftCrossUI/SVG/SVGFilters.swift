@@ -908,7 +908,9 @@ enum SVGFilterRenderer {
                 let d = Int((sigma * 3 * (2 * Double.pi).squareRoot() / 4 + 0.5).rounded(.down))
                 if d % 2 == 1 {
                     let r = d / 2
-                    blurred = box(box(box(line, length: length, left: r, right: r), length: length, left: r, right: r), length: length, left: r, right: r)
+                    let once = box(line, length: length, left: r, right: r)
+                    let twice = box(once, length: length, left: r, right: r)
+                    blurred = box(twice, length: length, left: r, right: r)
                 } else {
                     let r = d / 2
                     blurred = box(

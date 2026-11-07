@@ -56,7 +56,8 @@
                 Add-Type -Namespace Scui -Name User32 -MemberDefinition @'
                 public delegate bool EnumProc(IntPtr h, IntPtr l);
                 [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr l);
-                [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+                [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+                public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
                 [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
                 '@
                 for ($i = 0; $i -lt 30; $i++) {

@@ -707,6 +707,8 @@ public final class GtkBackend:
         static func printAdapterTableIfRequested() {
             guard DebugFeatures.value(after: "-GPU")?.lowercased() == "list" else { return }
 
+            // one local list of rows, used only in this function; a struct would only rename it
+            // swiftlint:disable:next large_tuple
             var rows: [(index: Int, name: String, primary: Bool, removable: Bool, attached: Bool)] =
                 []
             var index: DWORD = 0

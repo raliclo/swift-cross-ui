@@ -1,5 +1,6 @@
 import CGtk
 
+// swiftlint:disable line_length
 /// `GtkPopoverMenu` is a subclass of `GtkPopover` that implements menu
 /// behavior.
 ///
@@ -96,6 +97,7 @@ import CGtk
 /// %GTK_ACCESSIBLE_ROLE_MENU_ITEM_RADIO roles, depending on the
 /// action they are connected to.
 public class PopoverMenu: Popover {
+// swiftlint:enable line_length
     public convenience init() {
         self.init(
             gtk_popover_menu_new_from_model(nil)

@@ -1,6 +1,7 @@
 import CGtk
 import GtkCHelpers
 
+// swiftlint:disable line_length
 /// Dialogs are a convenient way to prompt the user for a small amount
 /// of input.
 ///
@@ -111,6 +112,7 @@ import GtkCHelpers
 ///
 /// `GtkDialog` uses the %GTK_ACCESSIBLE_ROLE_DIALOG role.
 open class Dialog: Window {
+// swiftlint:enable line_length
     func registerSignalHandlers() {
         removeSignals()
 

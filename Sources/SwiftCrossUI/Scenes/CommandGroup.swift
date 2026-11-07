@@ -1,3 +1,4 @@
+// swiftlint:disable line_length
 /// Where a ``CommandGroup`` goes: one of the groups the system's own menus are
 /// made of.
 ///
@@ -21,6 +22,7 @@
 /// 而且是從真正的 SwiftUI app 讀出來的，不是憑記憶:`testapp/reference/swiftui-commands/` 存有那支 app 與它在
 /// macOS 27 上傾印的選單列(2026-10-13),包含什麼都沒加、以及在每個位置之前、之後、取代各放一個群組的結果。
 public struct CommandGroupPlacement: Hashable, Sendable {
+// swiftlint:enable line_length
     /// The standard menu a placement belongs to. 位置所屬的標準選單。
     public enum Menu: Int, CaseIterable, Sendable {
         case app

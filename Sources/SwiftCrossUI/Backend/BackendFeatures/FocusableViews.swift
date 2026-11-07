@@ -1,4 +1,5 @@
 extension BackendFeatures {
+    // swiftlint:disable line_length
     /// Which widget the keyboard is talking to, and being told when that
     /// changes.
     ///
@@ -46,6 +47,7 @@ extension BackendFeatures {
     /// 同一種安排;五個已發布的 backend 全都 conform。
     @MainActor
     public protocol FocusableViews: Core {
+    // swiftlint:enable line_length
         /// Gives this widget the focus within its window.
         ///
         /// **Returns whether it took it, and `Void` would have been wrong.**

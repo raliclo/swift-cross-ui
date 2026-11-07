@@ -2,6 +2,7 @@ import AppKit
 import SwiftCrossUI
 
 extension AppKitBackend: BackendFeatures.Accessibility {
+    // swiftlint:disable line_length
     /// Routes a button's properties through the button, and everything else's
     /// straight onto the view.
     ///
@@ -45,6 +46,7 @@ extension AppKitBackend: BackendFeatures.Accessibility {
     /// 並用按鈕自己的文字重寫那個標籤。因此覆寫值是**交給**按鈕、由那個推導去參考的——那是**移除**
     /// 這場競賽,而不是去贏它。
     public func setAccessibilityLabel(ofWidget widget: Widget, to label: String?) {
+    // swiftlint:enable line_length
         if let button = widget as? NSCustomButton {
             button.accessibilityLabelOverride = label
         } else {

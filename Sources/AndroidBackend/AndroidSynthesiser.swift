@@ -467,7 +467,9 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// Where the view showing `label` is, after scrolling the root so that it is
     /// on screen. The position is read from the view itself, so it holds whatever
     /// the layout has become. 顯示 `label` 的 view 在哪裡(先把根捲到讓它在螢幕上)。位置讀自 view 本身，所以不論版面變成怎樣都成立。
-    /// `offset` is the pixel offset an offset taplabel presses at; the point it names is scrolled into view with the label. `offset` 是帶位移的 taplabel 要按的像素位移；它所指的點會和標籤一起被捲進畫面。
+    /// `offset` is the pixel offset an offset taplabel presses at; the point it names is
+    /// scrolled into view with the label.
+    /// `offset` 是帶位移的 taplabel 要按的像素位移；它所指的點會和標籤一起被捲進畫面。
     private func reveal(label: String, offset: (x: Int32, y: Int32)) throws -> (x: Double, y: Double) {
         let found = Self.onMainThread { () -> [Int32] in
             guard

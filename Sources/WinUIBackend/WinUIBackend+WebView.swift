@@ -28,7 +28,9 @@ func comApartmentDescription() -> String {
     var aptType = APTTYPE(rawValue: -1)
     var aptQualifier = APTTYPEQUALIFIER(rawValue: -1)
     let result = CoGetApartmentType(&aptType, &aptQualifier)
-    return "thread=\(GetCurrentThreadId()) hr=\(String(format: "0x%08x", UInt32(bitPattern: result))) type=\(aptType.rawValue) qualifier=\(aptQualifier.rawValue)"
+    let hr = String(format: "0x%08x", UInt32(bitPattern: result))
+    return "thread=\(GetCurrentThreadId()) hr=\(hr) type=\(aptType.rawValue)"
+        + " qualifier=\(aptQualifier.rawValue)"
 }
 
 extension WinUIBackend: BackendFeatures.WebViews {

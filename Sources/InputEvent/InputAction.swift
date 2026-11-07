@@ -255,7 +255,9 @@ public enum InputAction: Equatable, Sendable {
     /// 點顯示這段文字的 view,不論它被排在哪裡；文字寫在 `key` 欄。座標是對某一個版面的主張:P10 的 Android 檔以位置瞄準
     /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次，第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 與
     /// AndroidSynthesiser 在 view 樹裡找出那個 view(Android 並把根捲到它那裡)。桌面合成器把事件
-    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,由 AppKitBackend、GtkBackend 與 WinUIBackend 設定),重放迴圈再點那個位置。沒有設定定位器時，直接被要求的合成器會說明理由後拒絕。
+    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,
+    /// 由 AppKitBackend、GtkBackend 與 WinUIBackend 設定),重放迴圈再點那個位置。沒有設定定位器時，
+    /// 直接被要求的合成器會說明理由後拒絕。
     ///
     /// `dx`,`dy` (the `x`,`y` columns) move the click that many points from the
     /// text's centre, for a control whose only unique neighbour is a label.

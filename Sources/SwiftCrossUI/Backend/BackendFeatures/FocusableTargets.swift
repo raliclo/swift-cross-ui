@@ -1,4 +1,5 @@
 extension BackendFeatures {
+    // swiftlint:disable line_length
     /// A wrapper that lets a view which is not a control hold the keyboard focus.
     ///
     /// ``FocusableViews`` moves the focus and reports it; it cannot make a plain
@@ -28,6 +29,7 @@ extension BackendFeatures {
     /// Tab 吞掉，焦點就再也無法用鍵盤離開。
     @MainActor
     public protocol FocusableTargets: Core {
+    // swiftlint:enable line_length
         /// Wraps `child` in a view that can hold the focus.
         /// 把 `child` 包進一個能持有焦點的 view。
         func createFocusableTarget(wrapping child: Widget) -> Widget

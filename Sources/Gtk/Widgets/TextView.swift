@@ -1,5 +1,6 @@
 import CGtk
 
+// swiftlint:disable line_length
 /// Displays the contents of a [class@Gtk.TextBuffer].
 ///
 /// <picture><source srcset="multiline-text-dark.png" media="(prefers-color-scheme: dark)"><img alt="An example GtkTextView" src="multiline-text.png"></picture>
@@ -72,6 +73,7 @@ import CGtk
 ///
 /// `GtkTextView` uses the [enum@Gtk.AccessibleRole.text_box] role.
 open class TextView: Widget, Scrollable {
+// swiftlint:enable line_length
     /// Create a text view with an empty text buffer.
     public init() {
         buffer = TextBuffer(table: nil)
