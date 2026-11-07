@@ -72,6 +72,14 @@ are fixed-height above a minHeight-150 ScrollView) exceeded the window, and
 CustomRootWidget allocated the root only the window size. A temporary GTK repro
 printed 622 warnings in 8 s before the fix and 0 after; see
 Sources/GtkCHelpers/gtk_custom_root_widget.c. The field matrix is still open.)*
+*(Field matrix, 2026-11-07: SoftPCB-W11 timed load() at ~35 ms against ~2.3 s from
+appear to the first main-queue hop at -O, so the time is SwiftCrossUI layout. A
+one-page repro (60 cells, ~170 Text) made 2354 Text.computeLayout calls, ~450 ms of
+them in Pango measurement. GtkBackend now caches a label's measurement under a key
+of everything it reads; the page went from ~0.91 s to ~0.63 s (ASCII) and ~0.75 s to
+~0.65 s (CJK). A check that re-measured on every cache hit found 0 mismatches in
+~30,000 hits across P9, P10, P22, P23, P52, P103 and the repro. CJK and symbol text
+did not reproduce the Pango-CRITICAL.)*
 
 ## 1. 主執行緒只有 1 MB 堆疊，深層 layout 會用完它
 
@@ -117,3 +125,8 @@ NavigationSplitView／TabView、LLMTab 的表格)沒有在 WinUI 上重跑：Sof
 *(配置警告當天已修正，而且與堆疊無關：內容的最小高度(依 SoftPCB-M4 提供的 view 樹：巢狀 TabView,上方各列固定
 高度，最下方是 minHeight 150 的 ScrollView)超過視窗，而 CustomRootWidget 只把視窗大小配置給根容器。暫時的 GTK 重現
 程式在修正前 8 秒印出 622 則警告，修正後為 0;見 Sources/GtkCHelpers/gtk_custom_root_widget.c。場矩陣仍待查。)*
+*(場矩陣,2026-11-07:SoftPCB-W11 在 -O 下量到 load() 約 35 毫秒，而從出現到第一次主佇列 hop 約 2.3 秒，所以時間花在
+SwiftCrossUI 的排版。一頁的重現程式(60 格、約 170 個 Text)呼叫了 2354 次 Text.computeLayout,其中約 450 毫秒在 Pango
+量測。GtkBackend 現在以「量測所讀取的一切」為鍵快取 label 的量測結果；該頁從約 0.91 秒降到約 0.63 秒(英文)、約 0.75 秒降
+到約 0.65 秒(中文)。在每次命中都重新量測比對的檢查中,P9、P10、P22、P23、P52、P103 與重現程式共約 30,000 次命中，
+不一致為 0。中文與符號文字沒有重現那個 Pango-CRITICAL。)*

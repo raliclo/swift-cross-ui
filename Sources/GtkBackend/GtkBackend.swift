@@ -4035,6 +4035,71 @@ public final class GtkBackend:
         proposedHeight: Int?,
         environment: EnvironmentValues
     ) -> SIMD2<Int> {
+        // A label's measurement is cached under a key of everything it reads; see
+        // CustomLabel.measuredSizes. Other widgets (TextView) are measured each time.
+        // label 的量測以它所讀取的一切為鍵快取；見 CustomLabel.measuredSizes。其他 widget(TextView)每次都量。
+        guard let label = widget as? CustomLabel else {
+            return uncachedSize(
+                of: text, whenDisplayedIn: widget, proposedWidth: proposedWidth,
+                proposedHeight: proposedHeight, environment: environment)
+        }
+        let key = textMeasurementKey(
+            of: text, in: label, proposedWidth: proposedWidth, proposedHeight: proposedHeight)
+        if let cached = label.measuredSizes[key] {
+            gtk_label_set_xalign(label.opaquePointer, cached.xalign)
+            return cached.size
+        }
+        let measured = uncachedSize(
+            of: text, whenDisplayedIn: widget, proposedWidth: proposedWidth,
+            proposedHeight: proposedHeight, environment: environment)
+        if label.measuredSizes.count >= 32 {
+            label.measuredSizes.removeAll(keepingCapacity: true)
+        }
+        label.measuredSizes[key] = (measured, gtk_label_get_xalign(label.opaquePointer))
+        return measured
+    }
+
+    /// Everything a label's text measurement reads, as one string: the text, the
+    /// proposal, the ellipsize mode, and the label layout's font, attributes,
+    /// resolution and scale factor -- what `Pango(likeLabel:)` copies from the
+    /// label. A change to any of them (a new font from CSS, a window moved to a
+    /// screen of another DPI) is a new key, so nothing has to remember to clear
+    /// the cache.
+    /// label 文字量測所讀取的一切，合成一個字串：文字、提議尺寸、省略模式，以及 label layout 的字型、屬性、解析度與縮放
+    /// 倍率——也就是 `Pango(likeLabel:)` 從 label 複製的東西。其中任何一項改變(CSS 換了字型、視窗移到不同 DPI 的螢幕)
+    /// 都是新的鍵，所以不必記得清除快取。
+    func textMeasurementKey(
+        of text: String,
+        in label: CustomLabel,
+        proposedWidth: Int?,
+        proposedHeight: Int?
+    ) -> String {
+        let layout = gtk_label_get_layout(label.opaquePointer)
+        let context = pango_layout_get_context(layout)
+        func owned(_ string: UnsafeMutablePointer<CChar>?) -> String {
+            defer { g_free(string) }
+            return string.map { String(cString: $0) } ?? ""
+        }
+        let contextFont = owned(pango_font_description_to_string(pango_context_get_font_description(context)))
+        let layoutFont = pango_layout_get_font_description(layout)
+            .map { owned(pango_font_description_to_string($0)) } ?? ""
+        let attributes = pango_layout_get_attributes(layout)
+            .map { owned(pango_attr_list_to_string($0)) } ?? ""
+        let resolution = pango_cairo_context_get_resolution(context)
+        let scale = gtk_widget_get_scale_factor(label.widgetPointer)
+        return [
+            text, proposedWidth.map(String.init) ?? "-", proposedHeight.map(String.init) ?? "-",
+            "\(label.ellipsize)", contextFont, layoutFont, attributes, "\(resolution)", "\(scale)",
+        ].joined(separator: "\u{1F}")
+    }
+
+    private func uncachedSize(
+        of text: String,
+        whenDisplayedIn widget: Widget,
+        proposedWidth: Int?,
+        proposedHeight: Int?,
+        environment: EnvironmentValues
+    ) -> SIMD2<Int> {
         let ellipsize: EllipsizeMode
         if let widget = widget as? CustomLabel {
             ellipsize = widget.ellipsize
@@ -6372,6 +6437,20 @@ class CustomPaned: Paned {
 /// SwiftCrossUI 那個 view 的名字」來「修正」它：`Label` 正是 SwiftUI 的寫法，而 parity 正是
 /// 它存在的全部理由。
 class CustomLabel: Gtk.Label {
+    /// Text sizes already measured for this label, keyed by everything the
+    /// measurement reads (see ``GtkBackend/textMeasurementKey``); a size and the
+    /// x alignment the measurement set.
+    ///
+    /// A layout pass asks the same label for its size many times: one field-matrix
+    /// page of about 170 labels made 2354 `Text.computeLayout` calls, and each
+    /// rebuilt a Pango layout and measured three to five times, about 450 ms of the
+    /// page's first second on Windows GTK (2026-11-07).
+    ///
+    /// 此 label 已量過的文字尺寸，以量測所讀取的一切為鍵(見 ``GtkBackend/textMeasurementKey``);值為尺寸與量測
+    /// 設定的 x 對齊。一次 layout 會多次詢問同一個 label 的尺寸：場矩陣的一頁約 170 個 label,`Text.computeLayout`
+    /// 被呼叫 2354 次，每次都重建 Pango layout 並量測三到五次，在 Windows GTK 上佔了該頁第一秒裡約 450 毫秒(2026-11-07)。
+    var measuredSizes: [String: (size: SIMD2<Int>, xalign: Float)] = [:]
+
     override func setSizeRequest(width: Int, height: Int) {
         super.setSizeRequest(width: width, height: height)
 
