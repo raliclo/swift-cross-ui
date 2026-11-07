@@ -26,6 +26,13 @@ on:
       - 'develop'
       - 'ci-mobile'  # temporary, while the mobile jobs are brought up
   workflow_dispatch:
+    inputs:
+      full:
+        # Every app with an action file, instead of the few below (SWEEP_APPS); slow.
+        # 跑每一支有動作檔的 app,而不是下面那幾支(SWEEP_APPS);很慢。
+        description: 'Sweep every iOS and Android app (-full)'
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -62,6 +69,8 @@ jobs:
     # Xcode 27(Swift 6.4)只在 xcode-27 映像上；macos-26 仍是 Xcode 26。
     runs-on: xcode-27
     timeout-minutes: 120
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -88,12 +97,13 @@ jobs:
         swift --version
         csv2 --version
         xcrun simctl runtime list
+        df -h /
 
     # Builds each app with xcodebuild, installs it on the simulator and replays its
     # action files through the XCUITest runner (testapp/sweep_apple.zsh).
     # 以 xcodebuild 建置每支 app、裝到模擬器上，並經由 XCUITest runner 重放它的動作檔。
     - name: iOS sweep
-      run: zsh testapp/sweep_apple.zsh --ios P114 P12
+      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --ios; else zsh testapp/sweep_apple.zsh --ios $SWEEP_APPS; fi
 
     # The sweep exits 0 whatever happened; every row of its table has to be a pass.
     # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
@@ -126,6 +136,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
       ANDROID_TRIPLE: x86_64-unknown-linux-android31
       ANDROID_NDK_VERSION: 30.0.16248370
     steps:
@@ -173,9 +184,17 @@ jobs:
         swift sdk install \
           https://download.swift.org/swift-6.4.0-release/android-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_android.artifactbundle.tar.gz \
           --checksum 21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43
-        bundle=$(ls -d "$HOME"/.swiftpm/swift-sdks/*android.artifactbundle)
+        # Linux keeps it under ~/.swiftpm or ~/.config/swiftpm depending on the toolchain; find it.
+        # Linux 視 toolchain 而定放在 ~/.swiftpm 或 ~/.config/swiftpm;直接找。
+        bundle=$(find "$HOME/.swiftpm" "$HOME/.config/swiftpm" -maxdepth 3 -type d -name '*android.artifactbundle' 2>/dev/null | head -1)
+        [ -n "$bundle" ] || { echo "not found; searching /:"; find / -xdev -type d -name '*android.artifactbundle' 2>/dev/null | head; exit 1; }
+        echo "SWIFT_SDKS_DIR=${bundle%/*}" >> "$GITHUB_ENV"
+        echo "Swift Android SDK: $bundle"
         ANDROID_NDK_HOME="$ndk" bash "$bundle/swift-android/scripts/setup-android-sdk.sh"
         swift sdk list
+
+    - name: Disk space
+      run: df -h / "$RUNNER_TEMP"
 
     - name: Enable KVM
       run: |
@@ -194,7 +213,7 @@ jobs:
         target: google_apis
         disable-animations: true
         emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-        script: mkdir -p testapp/output && zsh testapp/sweep_android.zsh P114 P12 2>&1 | tee testapp/output/android-sweep-stdout.txt
+        script: mkdir -p testapp/output && zsh testapp/sweep_android.zsh $([ "$SWEEP_APPS" = all ] || echo $SWEEP_APPS) 2>&1 | tee testapp/output/android-sweep-stdout.txt
 
     # The sweep exits 0 whatever happened. Its last count line is the verdict: a row passes
     # when test.zsh exited 0 and the app launched (sweep_android.zsh), and none may fail.
@@ -276,6 +295,31 @@ jobs:
 
     - name: Build WinUIBackend
       run: swift build --target WinUIBackend
+
+    # One test app through testapp/compile.zsh, the way W11 builds them, to learn what
+    # an app costs on this runner before adding more: a WinUI exe is ~234 MB stripped
+    # (matrix_coverage/executable-size.md). compile.zsh is zsh, so MSYS2 provides it.
+    # 以 testapp/compile.zsh 建置一支測試 app(與 W11 相同),先看一支 app 在這台 runner 上的代價再決定加多少：
+    # WinUI exe strip 後約 234 MB(matrix_coverage/executable-size.md)。compile.zsh 是 zsh,由 MSYS2 提供。
+    - name: Disk space before the app
+      run: Get-PSDrive -PSProvider FileSystem | Format-Table Name,Used,Free -AutoSize
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MSYS
+        path-type: inherit
+        install: zsh
+
+    - name: Build P114 (WinUIBackend)
+      shell: msys2 {0}
+      run: zsh testapp/compile.zsh P114
+
+    - name: Disk space after the app
+      if: always()
+      run: |
+        Get-PSDrive -PSProvider FileSystem | Format-Table Name,Used,Free -AutoSize
+        Get-ChildItem testapp/output -ErrorAction SilentlyContinue | Format-Table Name,Length -AutoSize
+        if (Test-Path testapp/.compile-work-winui) { "{0:N1} GB in .compile-work-winui" -f ((Get-ChildItem testapp/.compile-work-winui -Recurse -File -Force | Measure-Object Length -Sum).Sum / 1GB) }
 
   lint:
     runs-on: ubuntu-latest

@@ -72,9 +72,11 @@ clang="$ndk_bin/clang"
 # The Swift SDK the build used: the one artifact bundle, as compile.zsh insists
 # (SwiftPM 6.4 refuses to build with two installed).
 # 建置所用的 Swift SDK:唯一的那個 artifact bundle,與 compile.zsh 的要求相同(裝了兩個時 SwiftPM 6.4 拒絕建置)。
-# macOS keeps Swift SDKs under ~/Library/org.swift.swiftpm, Linux under ~/.swiftpm.
-# macOS 把 Swift SDK 放在 ~/Library/org.swift.swiftpm 底下,Linux 放在 ~/.swiftpm 底下。
-sdk_bundles=("$HOME"/Library/org.swift.swiftpm/swift-sdks/*android.artifactbundle(N/) "$HOME"/.swiftpm/swift-sdks/*android.artifactbundle(N/))
+# macOS keeps Swift SDKs under ~/Library/org.swift.swiftpm; Linux under ~/.swiftpm or
+# ~/.config/swiftpm; SWIFT_SDKS_DIR names another. / macOS 在 ~/Library/org.swift.swiftpm,Linux 在 ~/.swiftpm 或 ~/.config/swiftpm;SWIFT_SDKS_DIR 可另指。
+sdk_bundles=("$HOME"/Library/org.swift.swiftpm/swift-sdks/*android.artifactbundle(N/) "$HOME"/.swiftpm/swift-sdks/*android.artifactbundle(N/)
+    "${XDG_CONFIG_HOME:-$HOME/.config}"/swiftpm/swift-sdks/*android.artifactbundle(N/))
+if [ -n "${SWIFT_SDKS_DIR:-}" ]; then sdk_bundles+=("$SWIFT_SDKS_DIR"/*android.artifactbundle(N/)); fi
 sdk_bundles=(${(u)sdk_bundles:A})  # ~/.swiftpm/swift-sdks may be a link to the other / 可能是指向另一處的連結
 (( ${#sdk_bundles} == 1 )) || die "expected one Swift Android SDK, found ${#sdk_bundles}"
 swift_sdk="${sdk_bundles[1]}/swift-android"
