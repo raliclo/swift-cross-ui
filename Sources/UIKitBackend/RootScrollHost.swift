@@ -501,8 +501,10 @@ final class RootScrollHost: UIScrollView {
                     {
                         fillHeight = room
                         logger.warning(
-                            "the root ScrollView is \(requestedSize.height) pt high from .defaultSize and has"
-                                + " more content than that; grown to \(room) pt to fill the screen (actualView)"
+                            """
+                            the root ScrollView is \(requestedSize.height) pt high from .defaultSize and has \
+                            more content than that; grown to \(room) pt to fill the screen (actualView)
+                            """
                         )
                         DispatchQueue.main.async { [weak self] in self?.onFillHeightChange?() }
                     }
