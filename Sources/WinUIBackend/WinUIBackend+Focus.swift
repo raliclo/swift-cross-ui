@@ -239,3 +239,4 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         }
     }
 }
+// swiftlint:enable force_try

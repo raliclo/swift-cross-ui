@@ -275,3 +275,4 @@ protocol TextBoxProtocol: Control {
 
 extension TextBox: TextBoxProtocol {}
 extension PasswordBox: TextBoxProtocol {}
+// swiftlint:enable force_try

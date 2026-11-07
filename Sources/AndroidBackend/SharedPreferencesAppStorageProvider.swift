@@ -80,3 +80,4 @@ public struct SharedPreferencesAppStorageProvider: AppStorageProvider {
         return try? decoder.decode(type, from: data)
     }
 }
+// swiftlint:enable force_try

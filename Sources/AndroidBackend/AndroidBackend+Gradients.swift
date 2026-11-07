@@ -156,3 +156,4 @@ extension AndroidBackend: BackendFeatures.Gradients {
         )
     }
 }
+// swiftlint:enable force_try

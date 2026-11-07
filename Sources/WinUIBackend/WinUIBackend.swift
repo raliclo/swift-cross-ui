@@ -4703,3 +4703,4 @@ final class CustomDatePicker: StackPanel {
         }
     }
 }
+// swiftlint:enable force_try

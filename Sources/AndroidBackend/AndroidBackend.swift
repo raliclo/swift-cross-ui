@@ -1482,3 +1482,4 @@ public final class AndroidBackend: BaseAppBackend {
         )
     }
 }
+// swiftlint:enable force_try

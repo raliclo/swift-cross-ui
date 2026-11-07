@@ -106,3 +106,4 @@ extension AndroidBackend: BackendFeatures.Cursors {
         return iconClass.getSystemIcon(activity, type)
     }
 }
+// swiftlint:enable force_try

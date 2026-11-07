@@ -487,3 +487,4 @@ extension WinUIBackend: BackendFeatures.Sheets {
         return SIMD2(Int(width.rounded(.towardZero)), Int(height.rounded(.towardZero)))
     }
 }
+// swiftlint:enable force_try

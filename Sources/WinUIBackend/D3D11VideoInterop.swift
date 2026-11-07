@@ -1485,3 +1485,4 @@ public final class D3D11VideoSurface {
         _ = factory.pointee.lpVtbl.pointee.Release(factory)
     }
 }
+// swiftlint:enable force_try

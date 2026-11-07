@@ -75,3 +75,4 @@ extension WinUIBackend {
         }
     }
 }
+// swiftlint:enable force_try

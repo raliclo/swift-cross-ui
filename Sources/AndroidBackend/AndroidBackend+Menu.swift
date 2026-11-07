@@ -272,3 +272,4 @@ extension AndroidBackend {
         return mask
     }
 }
+// swiftlint:enable force_try

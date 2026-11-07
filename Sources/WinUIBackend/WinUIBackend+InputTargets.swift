@@ -758,3 +758,4 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var focusableWanted = false
     var focusRing: WinUI.Border?
 }
+// swiftlint:enable force_try

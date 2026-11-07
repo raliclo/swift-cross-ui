@@ -296,3 +296,4 @@ private let winUIRunLoopTicklerTimerProc: TIMERPROC = { (_: HWND?, _: UINT, _: U
 private let winUIMainQueueSignalled: WAITORTIMERCALLBACK = { _, _ in
     WinUIRunLoopTickler.instance.mainQueueSignalled()
 }
+// swiftlint:enable force_try

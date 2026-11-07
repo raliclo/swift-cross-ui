@@ -176,3 +176,4 @@ extension AndroidBackend {
         return identifier == 0 ? nil : identifier
     }
 }
+// swiftlint:enable force_try

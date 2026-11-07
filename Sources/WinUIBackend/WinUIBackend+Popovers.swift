@@ -534,3 +534,4 @@ final class PopoverArrow {
         return geometry
     }
 }
+// swiftlint:enable force_try

@@ -130,3 +130,4 @@ enum WinUIParentLinks {
         roots[ObjectIdentifier(element)]?.element === element
     }
 }
+// swiftlint:enable force_try

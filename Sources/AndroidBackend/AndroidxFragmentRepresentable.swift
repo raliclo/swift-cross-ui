@@ -271,3 +271,4 @@ extension SwiftCrossUI.View where Self: AndroidxFragmentRepresentable {
         backend.setSize(of: widget, to: layout.size.vector)
     }
 }
+// swiftlint:enable force_try

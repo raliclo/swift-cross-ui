@@ -145,3 +145,4 @@ extension TextView {
     @JavaMethod
     open func setHintTextColor(_ arg0: Int32)
 }
+// swiftlint:enable force_try

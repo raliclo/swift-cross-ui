@@ -246,3 +246,4 @@ extension AndroidBackend {
         }
     }
 }
+// swiftlint:enable force_try

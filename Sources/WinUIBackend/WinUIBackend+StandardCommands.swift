@@ -168,3 +168,4 @@ enum WinUITextCommandTarget {
 
     static var element: WinUI.DependencyObject? { last.element }
 }
+// swiftlint:enable force_try

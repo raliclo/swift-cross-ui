@@ -86,3 +86,4 @@ extension WinUIApplication {
         return nil
     }
 }
+// swiftlint:enable force_try

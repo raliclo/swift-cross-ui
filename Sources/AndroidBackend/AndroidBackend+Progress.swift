@@ -59,3 +59,4 @@ extension AndroidBackend {
         setSize(of: widget, to: size)
     }
 }
+// swiftlint:enable force_try

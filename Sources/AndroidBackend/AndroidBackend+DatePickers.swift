@@ -137,3 +137,4 @@ extension AndroidBackend: BackendFeatures.DatePickers {
         })
     }
 }
+// swiftlint:enable force_try

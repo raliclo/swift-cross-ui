@@ -94,3 +94,4 @@ extension WinUIBackend {
         environment.apply(to: block)
     }
 }
+// swiftlint:enable force_try

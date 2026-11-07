@@ -69,3 +69,4 @@ extension AndroidBackend {
         imageView.setImageBitmap(bitmap)
     }
 }
+// swiftlint:enable force_try

@@ -99,3 +99,4 @@ import WinUI
         }
     }
 #endif
+// swiftlint:enable force_try

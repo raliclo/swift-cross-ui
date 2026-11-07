@@ -123,3 +123,4 @@ func scuiSetAccessibilityView(ofSubtree element: WinUI.UIElement, hidden: Bool) 
         scuiSetAccessibilityView(ofSubtree: child, hidden: hidden)
     }
 }
+// swiftlint:enable force_try

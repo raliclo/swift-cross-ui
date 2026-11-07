@@ -172,3 +172,4 @@ final class WinUIButtonPressTracker {
         handler(pressed)
     }
 }
+// swiftlint:enable force_try

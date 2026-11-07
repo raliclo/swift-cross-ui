@@ -382,3 +382,4 @@ extension WinUI.Thickness {
 extension WinUI.CornerRadius {
     static var null: Self { CornerRadius(topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0) }
 }
+// swiftlint:enable force_try

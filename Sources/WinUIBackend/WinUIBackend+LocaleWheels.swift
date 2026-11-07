@@ -423,3 +423,4 @@ enum LocaleDateFormat {
         return fields.count == 3 ? result : nil
     }
 }
+// swiftlint:enable force_try

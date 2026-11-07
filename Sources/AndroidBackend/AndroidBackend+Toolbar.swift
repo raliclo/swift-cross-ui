@@ -229,3 +229,4 @@ extension AndroidBackend: BackendFeatures.Toolbars {
         return nil
     }
 }
+// swiftlint:enable force_try

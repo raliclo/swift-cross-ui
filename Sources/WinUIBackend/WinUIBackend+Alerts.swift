@@ -340,3 +340,4 @@ extension WinUIBackend: BackendFeatures.Alerts {
         }
     }
 }
+// swiftlint:enable force_try

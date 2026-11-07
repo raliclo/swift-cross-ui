@@ -426,3 +426,4 @@ extension TextContentType {
         return type
     }
 }
+// swiftlint:enable force_try

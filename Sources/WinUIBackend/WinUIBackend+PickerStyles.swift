@@ -206,3 +206,4 @@ final class WheelPicker: WinUI.ListView {
         }
     }
 }
+// swiftlint:enable force_try

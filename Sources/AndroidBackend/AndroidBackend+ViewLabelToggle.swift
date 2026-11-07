@@ -89,3 +89,4 @@ extension AndroidBackend: BackendFeatures.ViewLabelToggleButtons {
         )
     }
 }
+// swiftlint:enable force_try

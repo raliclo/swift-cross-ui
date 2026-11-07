@@ -239,3 +239,4 @@ final class RepresentingWidget<Representable: WinUIElementRepresentable>: WinUI.
         }
     }
 }
+// swiftlint:enable force_try

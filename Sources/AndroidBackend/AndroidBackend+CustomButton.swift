@@ -226,3 +226,4 @@ extension PrimitiveButtonStyle {
         }
     }
 }
+// swiftlint:enable force_try

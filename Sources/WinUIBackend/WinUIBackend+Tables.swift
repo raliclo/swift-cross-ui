@@ -657,3 +657,4 @@ final class WinUITable: WinUI.Grid {
         }
     }
 }
+// swiftlint:enable force_try

@@ -293,3 +293,4 @@ extension SwiftCrossUI.Shape {
         scuiInspectFirst(inspectionPoints, WinUI.Path.self, action)
     }
 }
+// swiftlint:enable force_try

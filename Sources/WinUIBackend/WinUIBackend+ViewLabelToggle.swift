@@ -101,3 +101,4 @@ extension WinUIBackend: BackendFeatures.ViewLabelToggleButtons {
         isOn ? environment.with(\.colorScheme, environment.colorScheme.opposite) : environment
     }
 }
+// swiftlint:enable force_try

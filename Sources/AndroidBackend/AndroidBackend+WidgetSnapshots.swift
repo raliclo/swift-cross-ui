@@ -100,3 +100,4 @@ extension AndroidKit.Bitmap {
     @JavaMethod
     func copyPixelsToBuffer(_ arg0: JavaNioBuffer?)
 }
+// swiftlint:enable force_try

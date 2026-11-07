@@ -193,3 +193,4 @@ extension AndroidBackend {
         return javaLocale
     }
 }
+// swiftlint:enable force_try
