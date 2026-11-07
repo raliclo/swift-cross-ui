@@ -72,11 +72,20 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
   (which is how the filter is bypassed: `attachToParentConsole` returns at once
   for a file or pipe), P81-WinUI and P41-WinUI each ran 10 s and were closed
   normally; both streams held 0 lines, 0 of them BVI-*/rcBackdropLocal=. No
-  positive control, since these apps print nothing to stdout themselves. The
-  filter now has nothing to remove; deleting it is left as a separate change.
+  positive control, since these apps print nothing to stdout themselves.
+  *(That run opened no flyout, which the cycle 3 note below says is needed.)*
+  Rerun the same day with one: test.zsh -n --actionfile (output goes to
+  testapp/output/p81-actionfile.log, so the filter is bypassed) tapped P81's
+  "popover", a WinUI Flyout; the final capture shows "popover from window A"
+  open. The log held 20 lines, P81's own -actionfile: lines (the positive
+  control), and 0 BVI-*/rcBackdropLocal=. The filter now has nothing to remove;
+  deleting it is left as a separate change.
   2026-11-07 查證:WinUIBackend 沒有設定 system backdrop,舊的那些行是 1.5 預覽版 Xaml 自己印的。stdout 與 stderr 導向檔案
   (這正是繞過過濾的方式：遇到檔案或管線時 `attachToParentConsole` 立刻返回),P81-WinUI 與 P41-WinUI 各跑 10 秒後正常關閉，
-  兩個串流都是 0 行，其中 BVI-*/rcBackdropLocal= 為 0。沒有正向對照(這些 app 本身不印任何東西到 stdout)。過濾已無東西可濾；
+  兩個串流都是 0 行，其中 BVI-*/rcBackdropLocal= 為 0。沒有正向對照(這些 app 本身不印任何東西到 stdout)。
+  *(那次沒有開 flyout,而下方第 3 輪的說明指出需要開。)*同日開 flyout 重跑:test.zsh -n --actionfile(輸出寫到
+  testapp/output/p81-actionfile.log,因此繞過過濾)點了 P81 的「popover」(WinUI Flyout),最終截圖可見「popover from
+  window A」已開啟。log 有 20 行，都是 P81 自己的 -actionfile: 行(正向對照),BVI-*/rcBackdropLocal= 為 0。過濾已無東西可濾；
   要不要刪掉它另案處理。
 - [x] **7. Release build on 2.6.5.** Only debug has been built; the release
   build of all dependencies hit the one-hour background limit on 2026-11-05.
@@ -128,6 +137,18 @@ WinUIBackend 已在 d4920949 改用 Windows App SDK 2.6.5(swift-winui fork 4263b
     (GTK), and step 1 wrote no artifact (it fetches httpbin.org); the GUI run is
     then skipped. `test.zsh P26 --skip-cache -win` ran the WinUI window: RENDER
     COMPLETE. The WSL cache failure is open, not looked into.
+    *(Looked into 2026-11-07: a cold-start timing problem, not a cache bug. Right
+    after a full WSL rebuild on Swift 6.4.2, `test.zsh P26 --cache-only` failed
+    step 1 (0 artifacts, 0 index lines) and the two checks that compare against
+    it, while every later step found the artifact; WSL reached httpbin.org (200,
+    0.77 s) and the index held the record. An immediate rerun passed all seven.
+    test_P26.zsh now launches P26 once without the action file before step 1;
+    after a relink it passed all seven. The original full-rebuild cold start was
+    not reproduced with the warm-up in place.)*
+    *(2026-11-07 查明：是冷啟動的時序問題，不是快取的缺陷。WSL 在 Swift 6.4.2 全部重建之後，第 1 步失敗(0 個 artifact、
+    索引 0 行)以及依賴它的兩項，之後每一步都找得到 artifact;WSL 連得到 httpbin.org(200,0.77 秒),索引裡也有紀錄。
+    緊接著重跑則七項全過。test_P26.zsh 現在在第 1 步之前先不帶動作檔啟動一次 P26;重新連結後七項全過。全部重建後的
+    原始冷啟動情境，在加了暖機之後沒有重現測試。)*
   - P27's WebView box stays empty, also after 15 s. P27.swift records the same on
     WinUIBackend on 2026-08-27 (four msedgewebview2.exe up, nothing drawn) and
     leaves whether the page draws to P38.
@@ -188,6 +209,12 @@ was not checked; its exe was already deleted.
 第 3 輪也找到這次升級唯一的回歸，即第 13 項。三輪後仍未完成：5(host 測試)、6(Console 過濾；需開 flyout,且有遠端連線)、
 7(release 建置)、8 與 9(使用者決定)、P26 在 WSL 的 appCache 失敗，以及 9f6f6736 之後的 push(需 `workflow` scope)。
 P27 的 WebView 框在放了 DLL 之後是否會畫出，尚未查；它的 exe 已先刪除。
+*(2026-11-07: P27-WinUI rebuilt release through compile.zsh, which put
+Microsoft.Web.WebView2.Core.dll beside it; the final capture shows example.com's
+text in the WebView box, so the box now draws. The P26 WSL appCache item is
+followed below.)*
+*(2026-11-07:P27-WinUI 經 compile.zsh 以 release 重建，旁邊已放好 Microsoft.Web.WebView2.Core.dll;最終截圖中 WebView
+框顯示 example.com 的文字，現在會畫出了。P26 的 WSL appCache 項目見下文。)*
 
 ### Code review follow-up / 程式碼審查待辦 (2026-10-29, Windows)
 

@@ -177,6 +177,23 @@ if [ "$run_cache" -eq 1 ]; then
     printf '  building P26 with SCUI_DEBUG=1\n'
     wsl "$build_step" | sed 's/^/    /'
 
+    # One launch with no action file before step 1, so the first counted launch
+    # is not also the first start of a freshly built GTK app. Measured 2026-11-07
+    # in WSL, right after a full rebuild on Swift 6.4.2: step 1 read 0 artifacts and
+    # 0 index lines (the 14 s launch never reached the fetching tab), while the
+    # cache itself worked -- the next steps found the artifact, and an immediate
+    # rerun passed all seven checks. This is the "WSL appCache failure" of
+    # 2026-11-06. Without -actionfile the tab is not switched, so nothing is
+    # fetched, and step 1 empties the cache anyway.
+    # 第 1 步之前先啟動一次、不帶動作檔，讓第一次被計數的啟動不必同時是剛建好的 GTK app 的第一次啟動。
+    # 2026-11-07 在 WSL 實測(Swift 6.4.2 全部重建之後):第 1 步讀到 0 個 artifact、索引 0 行(14 秒的啟動
+    # 沒走到會抓取的分頁),而快取本身正常——後面的步驟都找得到 artifact,緊接著重跑則七項全過。這就是
+    # 2026-11-06 記下的「WSL appCache 失敗」。不帶 -actionfile 就不會切換分頁，也就不會抓取，而第 1 步本來就會清空快取。
+    printf '  warming up P26 (one launch, no action file)\n'
+    wsl "export GDK_BACKEND=x11 GTK_CSD=1; cd $app_dir && pkill -x P26 2>/dev/null; sleep 1; \
+        (env $render_env ./P26 > /tmp/p26-warmup.log 2>&1 &); \
+        sleep 14; pkill -x P26 2>/dev/null; sleep 1" > /dev/null 2>&1
+
     printf '\n  1. an empty cache fills itself on the first fetch\n'
     wsl "rm -rf \$HOME/.cache/P26" > /dev/null 2>&1
     launch ""
