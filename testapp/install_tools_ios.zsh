@@ -146,11 +146,21 @@ ensure_device() {
         return
     fi
 
-    local runtime
-    runtime="$(xcrun simctl list runtimes 2>/dev/null \
-        | grep -E '^iOS' \
-        | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.[^ ]+' \
-        | tail -1)"
+    local runtime runtimes sdk_version
+    # The runtime of the selected SDK's version, from the generic ones only. The last runtime listed
+    # was taken before, and on the xcode-27 CI image of 2026-11-10 that was a device-specific one
+    # (iOS-27-2-iPhone19-4) which refused an iPhone 16: "Incompatible device".
+    # 取與所選 SDK 版本相同的 runtime,且只從通用的 runtime 中挑。以前取清單的最後一個，而在 2026-11-10 的
+    # xcode-27 CI 映像上，那是只給特定裝置的 runtime(iOS-27-2-iPhone19-4),拒絕了 iPhone 16。
+    sdk_version="$(xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null || true)"
+    runtimes="$(xcrun simctl list runtimes 2>/dev/null \
+        | grep -E '^iOS' | grep -v unavailable \
+        | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9]+(-[0-9]+)*( |$)' | tr -d ' ' || true)"
+    runtime="$(print -r -- "$runtimes" | grep -E "\.iOS-${sdk_version//./-}\$" | tail -1 || true)"
+    if [ -z "$runtime" ]; then
+        runtime="$(print -r -- "$runtimes" | tail -1)"
+        [ -z "$runtime" ] || warn "No iOS ${sdk_version:-?} runtime for the SDK; using ${runtime##*.}"
+    fi
     [ -n "$runtime" ] || die "Could not determine a runtime identifier"
 
     note "Creating device '$DEVICE_NAME' ($DEVICE_TYPE on ${runtime##*.})"
