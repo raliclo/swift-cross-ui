@@ -113,15 +113,22 @@ jobs:
         if [ "$SWEEP_APPS" = all ]; then apps=$(ls testapp/actions/ios/P*.actions | sed -E 's|.*/(P[0-9]+)-.*|\1|' | sort -u); else apps=$SWEEP_APPS; fi
         for app in $apps; do zsh testapp/compile.zsh -ios "$app"; done  # one app per call
 
+    # The cold simulator, on its own and timed, before the sweep: one replay with nothing to press.
+    # It took 6 m 1 s of real time against 14 s user and 6 s sys (run 42889204591, 2026-11-10), so
+    # the time is spent waiting on the simulator (its first boot and first launch), not compiling
+    # here (the control file does not build the XCUITest runner). Without this step the first file
+    # carried it: P114-back-labels took 550-699 s and timed out at 600 s; after it, 245 s.
+    # 先單獨把冷的模擬器做掉並計時：一次不按任何東西的重放。實際花了 6 分 1 秒，而 user 只有 14 秒、sys 6 秒
+    # (run 42889204591,2026-11-10),所以時間花在等模擬器(第一次開機與第一次啟動),不是在這裡編譯(這份對照檔不建 XCUITest runner)。
+    # 少了這一步，代價落在 sweep 的第一份檔案:P114-back-labels 要 550-699 秒並在 600 秒逾時；有了它是 245 秒。
+    - name: Boot the simulator (timed)
+      run: time zsh testapp/test.zsh P114 --ios --showtime 2 --actionfile testapp/actions/ios/_control-no-actions.actions
+
     # Builds each app with xcodebuild, installs it on the simulator and replays its
     # action files through the XCUITest runner (testapp/sweep_apple.zsh).
     # 以 xcodebuild 建置每支 app、裝到模擬器上，並經由 XCUITest runner 重放它的動作檔。
-    # 1200 s per file, not the default 600: P114-back-labels, the first file of every run,
-    # took 550-699 s here and the others 81-310 s (2026-11-07..10); why is not yet known.
-    # 每份檔案 1200 秒而非預設的 600:在這台 runner 上，每次執行都排第一的
-    # P114-back-labels 花了 550-699 秒,其他檔案 81-310 秒(2026-11-07..10)。原因尚未查明。
     - name: iOS sweep
-      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --ios --timeout 1200; else zsh testapp/sweep_apple.zsh --ios --timeout 1200 $SWEEP_APPS; fi
+      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --ios; else zsh testapp/sweep_apple.zsh --ios $SWEEP_APPS; fi
 
     # The sweep exits 0 whatever happened; every row of its table has to be a pass.
     # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
