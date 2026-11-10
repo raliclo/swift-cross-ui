@@ -114,7 +114,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-[ "$(uname -s)" = Darwin ] || die "test_android.zsh requires macOS"
+[[ "$(uname -s)" == (Darwin|Linux) ]] || die "test_android.zsh requires macOS or Linux (Linux: the CI android job)"
 
 android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
 # macOS 27 can block the legacy IOKit USB backend while adb starts its server.
@@ -175,7 +175,12 @@ android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
 # 若日後出現上述版本錯誤，正確的修法是安裝一個與 SDK 相符的 toolchain——而不是調高 SDK，
 # 因為它無法高過 swift.org 已發布的版本。詳見 testapp/build_time_android.md。
 swift_toolchain="${SWIFT_ANDROID_TOOLCHAIN:-swift-latest}"
-swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
+if [[ "$OSTYPE" == darwin* ]]; then
+    swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
+else
+    # Linux (the CI android job): the swift.org toolchain on PATH. / Linux(CI 的 android 工作):PATH 上的 swift.org toolchain。
+    swift_bin="${SWIFT_BIN:-$(command -v swift || print swift)}"
+fi
 # The macOS SDK the Android toolchain compiles HOST code against -- the package
 # manifest and build plugins. Xcode 27's SDK ships Foundation interfaces whose
 # module flags include `-target-arch-variant`, which the snapshot toolchain does
@@ -203,8 +208,8 @@ if [ -z "$android_host_sdk" ]; then
         fi
     done
 fi
-[ -n "$android_host_sdk" ] || die "No macOS SDK the Android toolchain can read (every Foundation interface uses -target-arch-variant); set ANDROID_HOST_SDKROOT"
-export SDKROOT="$android_host_sdk"
+[[ "$OSTYPE" != darwin* ]] || [ -n "$android_host_sdk" ] || die "No macOS SDK the Android toolchain can read (every Foundation interface uses -target-arch-variant); set ANDROID_HOST_SDKROOT"
+if [ -n "$android_host_sdk" ]; then export SDKROOT="$android_host_sdk"; fi  # unset on Linux / Linux 上不設定
 package_dir="$script_dir/.compile-work-android/TestApps"
 apk_path="$apk_dir/$app.apk"
 # Lowercased. The APK's application id is lowercase, so `adb shell am start`
@@ -223,7 +228,7 @@ emulator="$android_root/emulator/emulator"
 # 一次只跑一個 Android:emulator、.compile-work-android 與那一個 Gradle 專案是共用的，所以第二次執行在此等待。
 source "$script_dir/test_support/platform_lock.zsh" android
 source "$script_dir/test_support/avd_host_io.zsh"
-zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
+[[ "$OSTYPE" != darwin* ]] || zsh "$script_dir/install_tools_android.zsh" --check >/dev/null  # a macOS installer / 只適用 macOS
 [ -x "$adb" ] || die "Missing adb: $adb"
 
 if [ "$do_apk" -eq 1 ]; then
@@ -371,9 +376,19 @@ renderer() {
 is_software() {
     [[ -z "$1" || "$1" == *[Ss]wift[Ss]hader* || "$1" == *llvmpipe* || "$1" == *lavapipe* ]]
 }
+# SCUI_ANDROID_SOFTWARE_GL=1 accepts a software renderer, said on the Renderer line. For the CI
+# android job only: its Linux runner has no GPU, so restarting on the host GPU cannot succeed
+# there, and its timings are not compared with any other run.
+# SCUI_ANDROID_SOFTWARE_GL=1 接受軟體 renderer,並在 Renderer 那一行講明。只給 CI 的 android 工作用：它的
+# Linux runner 沒有 GPU,在那裡改用主機 GPU 重啟不可能成功，而它的計時也不與任何其他執行比較。
+software_gl_ok=0 software_gl_note=""
+if [ "${SCUI_ANDROID_SOFTWARE_GL:-0}" = 1 ]; then
+    software_gl_ok=1
+    software_gl_note=" (software rendering accepted: SCUI_ANDROID_SOFTWARE_GL=1)"
+fi
 if [[ "$serial" == emulator-* ]]; then
     gles="$(renderer)"
-    if is_software "$gles"; then
+    if is_software "$gles" && [ "$software_gl_ok" -eq 0 ]; then
         running_avd="$(ANDROID_SERIAL="$serial" "$adb" emu avd name 2>/dev/null | head -n 1 | tr -d '\r')"
         print "==> $serial renders in software (${gles:-no GLES line}); restarting ${running_avd:-it} on the host GPU"
         [ -n "$running_avd" ] || die "cannot tell which AVD $serial is, so cannot restart it on the host GPU"
@@ -386,8 +401,8 @@ if [[ "$serial" == emulator-* ]]; then
         wait_booted
         gles="$(renderer)"
     fi
-    print "==> Renderer: ${gles:-unknown}"
-    if is_software "$gles"; then
+    print "==> Renderer: ${gles:-unknown}$(is_software "$gles" && print -rn -- "$software_gl_note")"
+    if is_software "$gles" && [ "$software_gl_ok" -eq 0 ]; then
         die "the emulator is not rendering on the host GPU (${gles:-no GLES line})"
     fi
 fi
@@ -438,7 +453,7 @@ screenshot_failures=0
 # How many of 256 sampled pixels are not black: the capture reduced to 16x16 by sips, read
 # as an uncompressed BMP. A pixel counts when at least two of its four bytes exceed 8,
 # because alpha alone is 255 on a black pixel; 8 rather than more because Material dark
-# surfaces are #121212. Prints nothing where sips is missing (not macOS), so the check
+# surfaces are #121212. Reduced by sips on macOS and ImageMagick on Linux; prints nothing where neither exists, so the check
 # is skipped there rather than failing every capture. Measured 2026-10-16: 0 on a black
 # control, 256 on all 26 Android captures in testapp/output/screenshots.
 # 256 個取樣像素中有幾個不是黑色：以 sips 把擷圖縮成 16x16,讀成未壓縮的 BMP。一個像素有至少兩個
@@ -447,8 +462,15 @@ screenshot_failures=0
 # 2026-10-16 實測：黑色對照為 0,testapp/output/screenshots 中 26 張 Android 擷圖全部為 256。
 nonblack_pixels() {
     local bmp="${TMPDIR:-/tmp}/nonblack-$$.bmp" off n=0 hits=0 count=0 b
-    command -v sips >/dev/null 2>&1 || return 1
-    sips -s format bmp -z 16 16 "$1" --out "$bmp" >/dev/null 2>&1 || return 1
+    if command -v sips >/dev/null 2>&1; then
+        sips -s format bmp -z 16 16 "$1" --out "$bmp" >/dev/null 2>&1 || return 1
+    elif command -v convert >/dev/null 2>&1; then
+        # Linux (the CI android job): ImageMagick, written as the 32-bit BMP sips writes.
+        # Linux(CI 的 android 工作):ImageMagick,寫成與 sips 相同的 32 位元 BMP。
+        convert "$1" -resize '16x16!' -type TrueColorAlpha -define bmp:format=bmp4 "$bmp" 2>/dev/null || return 1
+    else
+        return 1
+    fi
     off=$(od -An -tu4 -j10 -N4 "$bmp" | tr -d " ")
     for b in $(od -An -tu1 -v -j"$off" -N1024 "$bmp"); do
         if (( b > 8 )); then hits=$(( hits + 1 )); fi
@@ -692,6 +714,12 @@ if [ -n "$action_file" ]; then
     sleep 1
 fi
 
+replay_result=""
+if [ -n "$action_file" ]; then
+    replay_result="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
+        | grep -oE -- "-actionfile: (replayed|failed).*" | tail -1 || true)"
+    print -r -- "==> Replay: ${replay_result:-no result within 60 s}"
+fi
 capture "${app_id}-android-final"
 
 # Did the app die? `am start -W` returns once the activity is created, so an app
@@ -714,6 +742,16 @@ if [ -n "$crash_lines" ]; then
     ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
         | grep -E "FATAL EXCEPTION|Process: $package_id|UnsatisfiedLinkError|>>> $package_id <<<|signal [0-9]+" \
         | head -8 >&2 || true
+    exit 1
+fi
+
+# The replay's own verdict decides the exit status, after the captures above: a `failed:`
+# line or none at all exits 1. Until 2026-11-10 either one still exited 0, so a run whose
+# replay failed counted as a pass in sweep_android.zsh and in CI.
+# 重放自己的結論決定結束碼(在上面的截圖之後):`failed:` 或根本沒有結論都以 1 結束。2026-11-10 之前兩者
+# 都仍以 0 結束，因此重放失敗的執行在 sweep_android.zsh 與 CI 裡都算通過。
+if [ -n "$action_file" ] && [[ "$replay_result" != "-actionfile: replayed"* ]]; then
+    print -u2 -r -- "!! the replay did not report replayed: ${replay_result:-no result}"
     exit 1
 fi
 # The app's own update timings, when asked for: the last cumulative line since

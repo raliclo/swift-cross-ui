@@ -35,6 +35,11 @@ fun prop(name: String): String =
     (project.findProperty(name) as String?)
         ?: throw GradleException("missing -P$name; build through testapp/package_android.zsh")
 
+// The one ABI the APK carries: arm64-v8a locally, x86_64 for the CI emulator
+// (-PscuiAbi from package_android.zsh, which takes it from ANDROID_TRIPLE).
+// APK 只帶一個 ABI:本機是 arm64-v8a,CI 的 emulator 是 x86_64(package_android.zsh 依 ANDROID_TRIPLE 傳入 -PscuiAbi)。
+val scuiAbi = (findProperty("scuiAbi") as String?) ?: "arm64-v8a"
+
 android {
     namespace = "dev.swiftcrossui.testapp"
     compileSdk = prop("scuiCompileSdk").toInt()
@@ -48,7 +53,7 @@ android {
         resValue("string", "app_name", prop("scuiAppName"))
 
         ndk {
-            abiFilters.addAll(setOf("arm64-v8a"))
+            abiFilters.addAll(setOf(scuiAbi))
         }
     }
 
@@ -67,7 +72,7 @@ android {
             // of the symbols that crash reports need.
             // 函式庫照建置結果打包;.swift_ast 由 package_android.zsh 移除，而 Gradle 自己的 strip
             // 會把當機報告需要的其餘符號也拿掉。
-            keepDebugSymbols += "arm64-v8a/*.so"
+            keepDebugSymbols += "$scuiAbi/*.so"
             // -PscuiCompressNativeLibs=true (with the release build): the .so files
             // go in compressed and are extracted at install, as before API 23, so the
             // APK is about a third of its size; uncompressed they load in place.

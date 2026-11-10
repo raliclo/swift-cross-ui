@@ -1584,7 +1584,7 @@ if [ "$target_platform" = "android" ]; then
     normalised_version() { echo "$1" | sed -E 's/(\.0)+$//'; }
     if [ -z "${TOOLCHAINS:-}" ]; then
         android_sdk_swift=$(
-            ls -d "$HOME/Library/org.swift.swiftpm/swift-sdks/"*android.artifactbundle 2>/dev/null \
+            print -rl -- "$HOME/Library/org.swift.swiftpm/swift-sdks/"*android.artifactbundle(N/) \
                 | sed -E 's|.*/swift-([0-9.]+)-.*|\1|' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1
         )
         if [ -n "$android_sdk_swift" ]; then
@@ -1628,7 +1628,7 @@ if [ "$target_platform" = "android" ]; then
     android_host_sdk="${ANDROID_HOST_SDKROOT:-}"
     if [ -z "$android_host_sdk" ]; then
         for candidate in "$(xcrun --sdk macosx --show-sdk-path 2>/dev/null)" \
-            $(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | sort -r); do
+            /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk(N/On); do
             interface="$candidate/System/Library/Frameworks/Foundation.framework/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface"
             [ -f "$interface" ] || continue
             if ! grep -q -- '-target-arch-variant' "$interface"; then
@@ -1637,14 +1637,19 @@ if [ "$target_platform" = "android" ]; then
             fi
         done
     fi
-    if [ -z "$android_host_sdk" ]; then
+    if [ -z "$android_host_sdk" ] && [[ "$OSTYPE" == darwin* ]]; then
         echo "!! No macOS SDK the Android toolchain can read (every Foundation interface uses" >&2
         echo "!! -target-arch-variant); set ANDROID_HOST_SDKROOT." >&2
         echo "!! 找不到 Android toolchain 讀得懂的 macOS SDK；請設定 ANDROID_HOST_SDKROOT。" >&2
         exit 1
     fi
-    echo "==> Host SDK for the Android toolchain: $android_host_sdk"
-    export SDKROOT="$android_host_sdk"
+    # A Linux host (the CI android job) compiles host code against its own libraries:
+    # there is no macOS SDK to choose, and SDKROOT stays unset.
+    # Linux 主機(CI 的 android 工作)以自己的函式庫編譯主機端程式碼：沒有 macOS SDK 可選,SDKROOT 維持未設定。
+    if [ -n "$android_host_sdk" ]; then
+        echo "==> Host SDK for the Android toolchain: $android_host_sdk"
+        export SDKROOT="$android_host_sdk"
+    fi
 
     export ANDROID_SDK_ROOT="$android_sdk_root"
     export ANDROID_NDK_HOME="$android_ndk_home"

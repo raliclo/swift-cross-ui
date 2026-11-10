@@ -261,7 +261,7 @@ if ! device_ready; then
     # 與當機回報同意是兩件事，加了旗標的那次執行照樣記錄了該對話框、也照樣沒有出現在 `adb devices`
     # 中。在讀到那一行日誌之前，已經有三次啟動嘗試耗在錯誤的解釋上——先是「太慢」，接著是「兩個模擬器
     # 共用一個 AVD」，然後是 adb。把該資料庫移除之後，同一道指令在 35 秒內就緒。
-    rm -rf "/tmp/android-${USER}/emu-crash-"*.db 2>/dev/null
+    rm -rf "/tmp/android-${USER}/emu-crash-"*.db(N)
     # The first AVD the emulator lists, as test_android.zsh picks it, unless
     # ANDROID_AVD names one. A fixed name kept booting swift-cross-ui-api36 after
     # its data went bad on 2026-10-03 and a replacement was made.
