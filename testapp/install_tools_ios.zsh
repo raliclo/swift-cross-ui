@@ -180,9 +180,9 @@ for r in json.load(sys.stdin)["runtimes"]:
                 print(t["name"])
 ' "$runtime" || true)"
     if [ -n "$supported" ] && ! print -r -- "$supported" | grep -qxF "$device_type"; then
-        device_type="$(print -r -- "$supported" | grep -E '^iPhone [0-9]+$' | head -1)"
+        device_type="$(print -r -- "$supported" | grep -E '^iPhone [0-9]+$' | head -1 || true)"  # no match must not end the script (set -e)
         [ -n "$device_type" ] || device_type="$(print -r -- "$supported" | head -1)"
-        warn "$DEVICE_TYPE is not supported by ${runtime##*.}; using $device_type"
+        warn "$DEVICE_TYPE is not supported by ${runtime##*.}; using $device_type (supported: ${supported//$'\n'/, })"
     fi
 
     note "Creating device '$DEVICE_NAME' ($device_type on ${runtime##*.})"
