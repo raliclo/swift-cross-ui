@@ -163,9 +163,31 @@ ensure_device() {
     fi
     [ -n "$runtime" ] || die "Could not determine a runtime identifier"
 
-    note "Creating device '$DEVICE_NAME' ($DEVICE_TYPE on ${runtime##*.})"
-    xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$runtime" >/dev/null \
-        || die "Failed to create the device. Try a different IOS_SIM_DEVICE_TYPE; see 'xcrun simctl list devicetypes'."
+    # The iPhones this runtime can host, read from simctl's JSON. "iPhone 16" on iOS-27-1 was refused
+    # ("Incompatible device") on the xcode-27 CI image of 2026-11-10 while M4's iOS 27.0 lists it, so
+    # the requested type is checked rather than assumed; another supported iPhone is used, with a
+    # warning naming it, only when it is not there.
+    # 這個 runtime 能裝的 iPhone,讀自 simctl 的 JSON。2026-11-10 的 xcode-27 CI 映像上，iOS-27-1 拒絕了
+    # 「iPhone 16」(Incompatible device),而 M4 的 iOS 27.0 有列出它，所以要查而不是假設；只有不在清單上時
+    # 才改用另一支支援的 iPhone,並以警告點名。
+    local supported device_type="$DEVICE_TYPE"
+    supported="$(xcrun simctl list runtimes -j 2>/dev/null | python3 -I -c '
+import json, sys
+for r in json.load(sys.stdin)["runtimes"]:
+    if r["identifier"] == sys.argv[1]:
+        for t in r.get("supportedDeviceTypes", []):
+            if t.get("productFamily") == "iPhone":
+                print(t["name"])
+' "$runtime" || true)"
+    if [ -n "$supported" ] && ! print -r -- "$supported" | grep -qxF "$device_type"; then
+        device_type="$(print -r -- "$supported" | grep -E '^iPhone [0-9]+$' | head -1)"
+        [ -n "$device_type" ] || device_type="$(print -r -- "$supported" | head -1)"
+        warn "$DEVICE_TYPE is not supported by ${runtime##*.}; using $device_type"
+    fi
+
+    note "Creating device '$DEVICE_NAME' ($device_type on ${runtime##*.})"
+    xcrun simctl create "$DEVICE_NAME" "$device_type" "$runtime" >/dev/null \
+        || die "Failed to create the device ($device_type on ${runtime##*.}). iPhones this runtime supports: ${${supported:-(none listed)}//$'\n'/, }"
 }
 
 device_udid() {
