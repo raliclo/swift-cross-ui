@@ -1,20 +1,25 @@
 # CI for this fork: runs on every push to develop, and by hand.
 # 本 fork 的 CI:每次推到 develop 時執行，也可以手動執行。
 #
-# Four jobs, each covering what the local machines cannot check on every push:
+# Six jobs, each covering what the local machines cannot check on every push:
 # - macos: the core and AppKitBackend, built and tested (swift test).
+# - ios: the test apps built with xcodebuild and their action files replayed on the
+#   iOS Simulator (sweep_apple.zsh), on the xcode-27 image.
+# - android: the test apps built for x86_64, installed on an emulator and their
+#   action files replayed (sweep_android.zsh), on Ubuntu with KVM.
 # - linux: GtkBackend on Ubuntu, built and tested under a virtual X display;
 #   there is no bare Linux machine here, so this is the only routine Linux check.
-# - windows: WinUIBackend built (no tests), so a change made on a Mac is known
-#   to compile on Windows.
+# - windows: WinUIBackend built, plus one test app (P114) through compile.zsh.
 # - lint: SwiftLint.
-# iOS and Android are tested locally on the simulator and the emulator, not here.
-# 四個工作，各自涵蓋本機無法在每次推送時檢查的部分:
+# ios and android sweep P2 P8 P12 P114; run by hand with full=true for every app.
+# 六個工作，各自涵蓋本機無法在每次推送時檢查的部分:
 # - macos:核心與 AppKitBackend,建置並測試(swift test)。
+# - ios:以 xcodebuild 建置測試 app,在 iOS 模擬器上重放動作檔(sweep_apple.zsh),使用 xcode-27 映像。
+# - android:以 x86_64 建置測試 app,裝到 emulator 上並重放動作檔(sweep_android.zsh),在有 KVM 的 Ubuntu 上。
 # - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查。
-# - windows:建置 WinUIBackend(不跑測試),確認在 Mac 上做的修改在 Windows 上編得過。
+# - windows:建置 WinUIBackend,另以 compile.zsh 建置一支測試 app(P114)。
 # - lint:SwiftLint。
-# iOS 與 Android 在本機的模擬器上測試，不在這裡。
+# ios 與 android 跑 P2 P8 P12 P114;手動執行時加 full=true 則跑每一支 app。
 #
 # Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
 # since its installer has no plain 6.4 download. / 各平台都用 Swift 6.4,與本機相同；Windows 的安裝程式沒有單純的 6.4 下載，所以指定確切版本 6.4.2。
@@ -25,6 +30,13 @@ on:
     branches:
       - 'develop'
   workflow_dispatch:
+    inputs:
+      full:
+        # Every app with an action file, instead of the few below (SWEEP_APPS); slow.
+        # 跑每一支有動作檔的 app,而不是下面那幾支(SWEEP_APPS);很慢。
+        description: 'Sweep every iOS and Android app (-full)'
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -55,6 +67,207 @@ jobs:
 
     - name: Build and test (core, AppKitBackend)
       run: SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I"$(brew --prefix)/include"
+
+  ios:
+    # Xcode 27 (Swift 6.4) is only on the xcode-27 image; macos-26 still has Xcode 26.
+    # Xcode 27(Swift 6.4)只在 xcode-27 映像上；macos-26 仍是 Xcode 26。
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    # The sweep reads action files and writes its table through csv2, as on the local machines.
+    # sweep 與本機相同，經由 csv2 讀取動作檔並寫出結果表。
+    - name: Install csv2
+      run: |
+        v=0.2.0; f=csv2-$v-macos-arm64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        cat "$f.sha256"
+        shasum -a 256 -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    - name: Versions
+      run: |
+        xcodebuild -version
+        swift --version
+        csv2 --version
+        xcrun simctl runtime list
+        df -h /
+
+    # Built first, in a step of its own: the sweep's 600 s limit per action file then
+    # covers the replay alone. With the build inside it, P114's first file took 550 s
+    # in one run and timed out at 678 s in the next (2026-11-07).
+    # 先在獨立的步驟裡建置，sweep 每份動作檔 600 秒的上限就只涵蓋重放。建置算在裡面時,P114 的第一份檔案
+    # 一次花了 550 秒，下一次在 678 秒逾時(2026-11-07)。
+    - name: Build the iOS apps
+      run: |
+        if [ "$SWEEP_APPS" = all ]; then apps=$(ls testapp/actions/ios/P*.actions | sed -E 's|.*/(P[0-9]+)-.*|\1|' | sort -u); else apps=$SWEEP_APPS; fi
+        for app in $apps; do zsh testapp/compile.zsh -ios "$app"; done  # one app per call
+
+    # Builds each app with xcodebuild, installs it on the simulator and replays its
+    # action files through the XCUITest runner (testapp/sweep_apple.zsh).
+    # 以 xcodebuild 建置每支 app、裝到模擬器上，並經由 XCUITest runner 重放它的動作檔。
+    # 1200 s per file, not the default 600: P114-back-labels, the first file of every run,
+    # took 550-699 s here and the others 81-310 s (2026-11-07..10); why is not yet known.
+    # 每份檔案 1200 秒而非預設的 600:在這台 runner 上，每次執行都排第一的
+    # P114-back-labels 花了 550-699 秒,其他檔案 81-310 秒(2026-11-07..10)。原因尚未查明。
+    - name: iOS sweep
+      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --ios --timeout 1200; else zsh testapp/sweep_apple.zsh --ios --timeout 1200 $SWEEP_APPS; fi
+
+    # The sweep exits 0 whatever happened; every row of its table has to be a pass.
+    # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
+    - name: Every action file passes
+      run: |
+        t=testapp/output/ios-sweep.csv2
+        csv2 -r -i "$t"
+        total=$(csv2 -r --json -i "$t" | grep -c '"record":' || true)
+        passed=$(csv2 -r --json -i "$t" | grep -c '"result":"pass"' || true)
+        echo "$passed of $total pass"
+        test "$total" -gt 0 && test "$passed" -eq "$total"
+
+    - name: Upload captures and logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-sweep
+        path: |
+          testapp/output/ios-sweep.csv2
+          testapp/output/*-ios-*.png
+          testapp/output/*.log
+        if-no-files-found: warn
+
+  android:
+    # An x86_64 Linux runner: GitHub's Apple Silicon runners cannot nest an emulator,
+    # and Linux runners have KVM. The apps are built for x86_64 here (ANDROID_TRIPLE),
+    # so the emulator runs them natively; the local machines use arm64.
+    # x86_64 Linux runner:GitHub 的 Apple Silicon runner 無法再套一層 emulator,Linux runner 則有 KVM。
+    # 這裡的 app 以 x86_64 建置(ANDROID_TRIPLE),emulator 原生執行；本機用的是 arm64。
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
+      ANDROID_TRIPLE: x86_64-unknown-linux-android31
+      ANDROID_NDK_VERSION: 30.0.16248370
+      SCUI_ANDROID_SOFTWARE_GL: 1  # no GPU on this runner; see test_android.zsh / 這台 runner 沒有 GPU
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    # The toolchain must be the exact release the Android SDK was built with.
+    # toolchain 必須與 Android SDK 建置時所用的版本完全相同。
+    - name: Install Swift 6.4.0
+      uses: SwiftyLab/setup-swift@v1
+      with:
+        swift-version: '6.4.0'
+
+    - name: Install zsh, csv2 and JDK 17
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh zstd rsync imagemagick
+        v=0.2.0; f=csv2-$v-linux-x86_64-glibc.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        sha256sum -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    # NDK r30, which the Swift 6.4 Android SDK requires; the checksum is the one
+    # swift.org publishes (also in testapp/install_tools_android.zsh).
+    # NDK r30 是 Swift 6.4 Android SDK 所需；checksum 是 swift.org 公布的那一個(亦見 install_tools_android.zsh)。
+    - name: Install the NDK and the Swift Android SDK
+      run: |
+        sdkmanager=$(ls "$ANDROID_HOME"/cmdline-tools/latest/bin/sdkmanager)
+        yes | "$sdkmanager" --licenses > /dev/null || true
+        "$sdkmanager" --install "ndk;$ANDROID_NDK_VERSION"
+        ndk="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
+        test -d "$ndk/toolchains/llvm/prebuilt"
+        echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+        swift sdk install \
+          https://download.swift.org/swift-6.4.0-release/android-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_android.artifactbundle.tar.gz \
+          --checksum 21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43
+        # Linux keeps it under ~/.swiftpm or ~/.config/swiftpm depending on the toolchain; find it.
+        # Linux 視 toolchain 而定放在 ~/.swiftpm 或 ~/.config/swiftpm;直接找。
+        bundle=$(find "$HOME/.swiftpm" "$HOME/.config/swiftpm" -maxdepth 3 -type d -name '*android.artifactbundle' 2>/dev/null | head -1)
+        [ -n "$bundle" ] || { echo "not found; searching /:"; find / -xdev -type d -name '*android.artifactbundle' 2>/dev/null | head; exit 1; }
+        echo "SWIFT_SDKS_DIR=${bundle%/*}" >> "$GITHUB_ENV"
+        echo "Swift Android SDK: $bundle"
+        ANDROID_NDK_HOME="$ndk" bash "$bundle/swift-android/scripts/setup-android-sdk.sh"
+        swift sdk list
+
+    - name: Disk space
+      run: df -h / "$RUNNER_TEMP"
+
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    # The capture check that a screen is not all black reduces each capture with ImageMagick
+    # here (sips on macOS). A control on each side, so the check is known to be able to fail.
+    # 判斷畫面不是全黑的截圖檢查，在這裡以 ImageMagick 縮圖(macOS 用 sips)。兩邊各一個對照組，確認這個檢查會失敗。
+    - name: Black-screen check control
+      run: |
+        convert -size 64x64 xc:black "$RUNNER_TEMP/black.png"
+        convert -size 64x64 xc:white "$RUNNER_TEMP/white.png"
+        fn=$(sed -n '/^nonblack_pixels() {/,/^}/p' testapp/test_android.zsh)
+        black=$(zsh -c "$fn"$'\nnonblack_pixels "$1"' _ "$RUNNER_TEMP/black.png")
+        white=$(zsh -c "$fn"$'\nnonblack_pixels "$1"' _ "$RUNNER_TEMP/white.png")
+        echo "black=$black white=$white"
+        test "$black" = 0 && test "$white" = 256
+
+    # Builds, packages and installs each app, then replays its action files
+    # (testapp/sweep_android.zsh), on an emulator this step starts.
+    # 建置、打包並安裝每支 app,再重放它的動作檔(sweep_android.zsh),在這一步啟動的 emulator 上。
+    - name: Android sweep
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 34
+        arch: x86_64
+        target: google_apis
+        disable-animations: true
+        emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+        script: mkdir -p testapp/output && zsh testapp/sweep_android.zsh $([ "$SWEEP_APPS" = all ] || echo $SWEEP_APPS) 2>&1 | tee testapp/output/android-sweep-stdout.txt
+
+    # The sweep exits 0 whatever happened. Its last count line is the verdict: a row passes
+    # when test.zsh exited 0 and the app launched (sweep_android.zsh), and none may fail.
+    # sweep 無論結果都以 0 結束。最後那行計數就是結論：test.zsh 以 0 結束且 app 有啟動才算通過，不能有任何一列失敗。
+    - name: Every action file passes
+      run: |
+        csv2 -r -i testapp/output/android-sweep.csv2
+        line=$(grep -E '^[0-9]+ launched, [0-9]+ did not' testapp/output/android-sweep-stdout.txt)
+        echo "$line"
+        echo "$line" | grep -qE '^[1-9][0-9]* launched, 0 did not'
+
+    - name: Upload captures and logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-sweep
+        path: |
+          testapp/output/android-sweep.csv2
+          testapp/output/android-sweep-stdout.txt
+          testapp/output/*-android-*.png
+          testapp/output/*.log
+        if-no-files-found: warn
 
   linux:
     runs-on: ubuntu-24.04
@@ -114,6 +327,68 @@ jobs:
 
     - name: Build WinUIBackend
       run: swift build --target WinUIBackend
+
+    # One test app through testapp/compile.zsh, the way W11 builds them, to learn what
+    # an app costs on this runner before adding more: a WinUI exe is ~234 MB stripped
+    # (matrix_coverage/executable-size.md).
+    # 以 testapp/compile.zsh 建置一支測試 app(與 W11 相同),先看一支 app 在這台 runner 上的代價再決定加多少：
+    # WinUI exe strip 後約 234 MB(matrix_coverage/executable-size.md)。
+    - name: Disk space before the app
+      run: Get-PSDrive -PSProvider FileSystem | Format-Table Name,Used,Free -AutoSize
+
+    # zsh comes from MSYS2 but runs inside Git Bash, as on W11 (zsh 5.9 x86_64-pc-cygwin under
+    # MINGW64). Run from MSYS2's own shell, SwiftPM failed every clone with no further detail
+    # ("Failed to clone repository", 2026-11-07).
+    # zsh 取自 MSYS2,但在 Git Bash 裡執行，與 W11 相同(MINGW64 下的 zsh 5.9 x86_64-pc-cygwin)。在 MSYS2
+    # 自己的 shell 裡執行時,SwiftPM 的每一次 clone 都失敗，且沒有其他細節(2026-11-07)。
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: MSYS
+        path-type: inherit
+        install: zsh
+
+    - name: Put zsh into Git Bash
+      shell: msys2 {0}
+      run: |
+        git_usr="$(cygpath -u 'C:\Program Files\Git\usr')"
+        cp -v /usr/bin/zsh*.exe "$git_usr/bin/"
+        for dll in $(ldd /usr/bin/zsh.exe | awk '/\/usr\/bin\// {print $3}'); do
+          [ -e "$git_usr/bin/${dll##*/}" ] || cp -v "$dll" "$git_usr/bin/"
+        done
+        cp -r /usr/lib/zsh "$git_usr/lib/"
+        cp -r /usr/share/zsh "$git_usr/share/"
+
+    - name: What Git Bash sees
+      shell: bash
+      run: |
+        uname -s; zsh --version; command -v git swift; git --version; swift --version
+        echo "HOME=$HOME TMP=$TMP TEMP=$TEMP"
+
+    # compile.zsh records each exe in output/build-manifest.csv2 through csv2.
+    # compile.zsh 經由 csv2 把每個 exe 記進 output/build-manifest.csv2。
+    - name: Install csv2
+      shell: bash
+      run: |
+        v=0.2.0; f=csv2-$v-windows-x86_64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        sha256sum -c "$f.sha256"
+        dir="$(cygpath -u "$RUNNER_TEMP")/csv2"; mkdir -p "$dir" && zstd -dc "$f" | tar -x -C "$dir"
+        bin=$(find "$dir" -type f -iname 'csv2.exe' | head -1)
+        test -n "$bin"
+        cygpath -w "${bin%/*}" >> "$GITHUB_PATH"
+
+    - name: Build P114 (WinUIBackend)
+      shell: bash
+      run: SCUI_BUILD_JOBS=2 zsh testapp/compile.zsh P114  # 4 jobs once cost the runner its memory (2026-11-10) / 4 個 job 曾耗盡 runner 記憶體
+
+    - name: Disk space after the app
+      if: always()
+      run: |
+        Get-PSDrive -PSProvider FileSystem | Format-Table Name,Used,Free -AutoSize
+        Get-ChildItem testapp/output -ErrorAction SilentlyContinue | Format-Table Name,Length -AutoSize
+        if (Test-Path testapp/.compile-work-winui) { "{0:N1} GB in .compile-work-winui" -f ((Get-ChildItem testapp/.compile-work-winui -Recurse -File -Force | Measure-Object Length -Sum).Sum / 1GB) }
 
   lint:
     runs-on: ubuntu-latest
