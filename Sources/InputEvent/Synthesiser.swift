@@ -379,9 +379,7 @@ extension Synthesiser {
             // 由它處理(Android)或說明理由後拒絕。
             if case .tapLabel(let label, let dx, let dy) = action, let locate = ActionFileReplay.locateLabel {
                 guard let place = locate(label) else {
-                    throw SynthesiserError.unsupported(
-                        "taplabel: no shown view has the text \"\(label)\""
-                    )
+                    throw SynthesiserError.labelNotFound(label)
                 }
                 ActionFileReplay.report(
                     "taplabel \"\(label)\" is at (\(place.x), \(place.y))"
@@ -547,6 +545,14 @@ public enum SynthesiserError: Error, CustomStringConvertible {
     case toolFailed(String, status: Int32)
     case unsupported(String)
 
+    /// A `taplabel` row whose text no shown view carries. Not `unsupported`:
+    /// the platform can tap labels, this label is just not on screen, and
+    /// saying "not supported" sent the reader looking for the wrong cause.
+    ///
+    /// `taplabel` 那一列的文字沒有任何顯示中的 view 帶著。不是 `unsupported`:平台能點標籤，
+    /// 只是這個標籤不在畫面上;說成「不支援」會讓人往錯的方向找原因。
+    case labelNotFound(String)
+
     /// The window to replay against could not be brought to the front.
     ///
     /// Its own case because the consequence is specific and worth naming: on a
@@ -565,6 +571,8 @@ public enum SynthesiserError: Error, CustomStringConvertible {
                 "\(name) exited with status \(status)"
             case .unsupported(let what):
                 "\(what) is not supported on this platform"
+            case .labelNotFound(let label):
+                "taplabel: no shown view has the text \"\(label)\""
             case .windowNotForeground(let why):
                 "could not bring our window to the front: \(why)"
         }

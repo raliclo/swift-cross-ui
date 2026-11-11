@@ -484,7 +484,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             return [centre[0] - moved[0], centre[1] - moved[1], moved[0], moved[1]]
         }
         guard found.count >= 2 else {
-            throw SynthesiserError.unsupported("taplabel: no shown view has the text \"\(label)\"")
+            throw SynthesiserError.labelNotFound(label)
         }
         if found.count == 4 {
             revealShift.x += Int(found[2])
