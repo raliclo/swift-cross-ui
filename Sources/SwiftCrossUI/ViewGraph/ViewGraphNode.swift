@@ -169,10 +169,14 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
     ///
     /// `nil` until the first bottom-up update, so the first comparison cannot
     /// fire spuriously against a value the window already applied at launch.
+    /// -- Wrong as of 2026-11-12: nil made the first comparison always differ,
+    /// so it did fire, every time. `bottomUpUpdate` now seeds it from the last
+    /// top-down layout before comparing.
     /// 這個節點上一次告訴視窗它正在繪製的東西。
     ///
     /// 在第一次 bottom-up 更新之前為 `nil`，因此第一次比較不會對著「視窗在啟動時早已套用的值」
-    /// 誤觸發。
+    /// 誤觸發。——2026-11-12 起此說法有誤:nil 讓第一次比較必定不同，所以每次都會觸發。`bottomUpUpdate` 現在會在比較前
+    /// 以上一次由上往下的排版結果填入它。
     private var lastWindowChromeSignature: String?
 
     /// The window-facing part of a set of preferences, as one comparable string.
@@ -245,6 +249,14 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         // First we compute what size the view will be after the update. If it will change size,
         // propagate the update to this node's parent instead of updating straight away.
         let currentSize = currentLayout?.size
+        // What the window applied from this node at the last top-down pass, when no
+        // bottom-up update has recorded one yet. Without it the first bottom-up
+        // update compared against nil and always asked the window to lay out again.
+        // 還沒有由下往上的更新記錄過時，取視窗在上一次由上往下時從這個節點套用的值。少了它，第一次由下往上的更新會拿 nil
+        // 比較，每次都要求視窗再排一次。
+        if lastWindowChromeSignature == nil, let currentLayout {
+            lastWindowChromeSignature = Self.windowChromeSignature(of: currentLayout.preferences)
+        }
         var passEnvironment = parentEnvironment
         passEnvironment.reusesBodies = reusingBodies
         let newLayout = self.computeLayout(

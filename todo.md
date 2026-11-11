@@ -90,6 +90,32 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     已手動終止),還沒有可交錯比較的執行檔。交錯各 10 輪,GTK P998 full(改前 = 85d7dd5d 的 GtkBackend 與
     WindowReference):改前 1656-2295 毫秒(最小 1656、中位數約 1740),改後 1430-1937 毫秒(最小 1430、中位數約
     1553):最小值 -13.6%。當時記憶體不足(可用 4 GB),絕對值偏高。待辦:GUI 回歸 app(P93、P50;需要桌面空出來)。
+  - 2026-11-12, **the 2026-11-11 result was incomplete**: b5544693 removed the
+    root refresh, but first show still ran three window updates. Counting
+    commits per `WindowReference.update` in P998: 1753, then 3500, then 3499 --
+    about five full passes. Both extra updates came from `OnChangeModifier`
+    (P998 has `.onChange(of: scenePhase)` and `.onChange(of: appPhase)` around
+    the page): it assigned `@State previousValue` inside `computeLayout`, which
+    published on the first layout and re-laid out its whole subtree; and that
+    first bottom-up update compared the window-chrome signature against nil, so
+    it always asked the window to lay out once more. Fixed both: the previous
+    value lives in a box inside `@State` (as `ScrollViewReader`'s
+    `RegistryHolder`), and `bottomUpUpdate` seeds the signature from the last
+    top-down layout. Now one update of 1753 commits; appear-to-hop 1105 ms ->
+    551-556 ms (same session, same build otherwise). Checked: minimising still
+    fires both `onChange` once with one window update; host tests 394 in 53
+    suites pass (1 known issue, GridLayoutTests, unrelated); P50 title A -> B
+    on WinUI and GTK (scratchpad action files, frame coordinates); P93 menu dump
+    on WinUI and GTK has File > New > New Alpha/Beta Window and Solo.
+    2026-11-12,**2026-11-11 的結果不完整**:b5544693 拿掉了根重算，但開窗仍跑了三次視窗更新。以 P998 計算每次
+    `WindowReference.update` 的 commit 數:1753、3500、3499——約五輪完整排版。兩次多出的更新都來自 `OnChangeModifier`
+    (P998 用 `.onChange(of: scenePhase)` 與 `.onChange(of: appPhase)` 包住頁面):它在 `computeLayout` 裡賦值
+    `@State previousValue`,第一次排版就發出變更，把整棵子樹重排一次；而那第一次由下往上的更新拿 nil 比較視窗外框簽章，每次
+    都再要求視窗排一次。兩者都修了：上一個值放進 `@State` 裡的 box(與 `ScrollViewReader` 的 `RegistryHolder` 相同),
+    `bottomUpUpdate` 以上一次由上往下的排版結果填入簽章。現在只有一次 1753 次 commit 的更新;appear-to-hop 1105 毫秒 ->
+    551-556 毫秒。已驗證：最小化時兩個 `onChange` 各觸發一次、視窗只更新一次；主機測試 53 個 suite 394 項通過(1 個 known
+    issue 在 GridLayoutTests,無關);P50 標題 A -> B 在 WinUI 與 GTK 皆正確;P93 選單傾印在 WinUI 與 GTK 都有 File > New >
+    New Alpha/Beta Window 與 Solo。
 - [ ] **2. Keep layout results across commits while nothing changed.** Today
   every commit clears each node's result cache, so each pass re-measures
   everything. Riskier: needs a precise invalidation rule (view, environment,
@@ -111,6 +137,22 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     (`bottomUpUpdate`),而第 1 項已拿掉開窗時的第二輪，所以跨 commit 保留只對整窗重排(縮放、環境)有幫助。每節點約 11 次
     `computeLayout` 發生在**同一輪**裡:stack 先以 `allowLayoutCaching` 試探子節點，最後一輪不帶它、查不到快取
     (`ViewGraphNode.computeLayout`),巢狀時次數相乘。目標：在安全時，最後一輪重用同一提議尺寸的試探結果。先量每節點次數。
+  - 2026-11-12, measured (P998 full, GTK, one pass of 1753 commits, temporary
+    counters in `ViewGraphNode.computeLayout`): probe hits 840, probe misses
+    6377, `reuseCurrent` 601, final-pass misses 3263 of which **3064 already
+    had a probe result for the same proposal** and only 199 were fresh. So the
+    final pass could skip ~94% of its work if those results are safe to reuse.
+    Not safe in general: `GeometryReader` answers a probe with its size alone
+    and `List` probes differently, and a parent's reused result needs its
+    children's `currentLayout` restored for commit. Next: mark results computed
+    with no probe-only shortcut in the subtree, and reuse only those. The
+    counters are saved as scratchpad ViewGraphNode.stats.swift (session
+    db768b0a).
+    2026-11-12 實測(P998 full、GTK、一輪 1753 次 commit,在 `ViewGraphNode.computeLayout` 加暫時計數):試探命中 840、
+    試探未命中 6377、`reuseCurrent` 601;最後一輪未命中 3263 次，其中 **3064 次已有同一提議尺寸的試探結果**,只有 199 次是
+    全新的。若那些結果可以安全重用，最後一輪可省下約 94%。一般而言並不安全:`GeometryReader` 被試探時只回答尺寸,`List`
+    的試探也不同，而父節點重用結果時，commit 需要子節點的 `currentLayout` 一併還原。下一步：為子樹中沒有走試探捷徑的結果做
+    標記，只重用這些。計數程式存在 session db768b0a 的 scratchpad ViewGraphNode.stats.swift。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

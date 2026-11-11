@@ -47,9 +47,27 @@ extension View {
 }
 
 struct OnChangeModifier<Value: Equatable, Content: View>: View {
-    // TODO: This probably doesn't have to trigger view updates. We're only
-    //   really using @State here to persist the data.
-    @State var previousValue: Value?
+    // ~~TODO: This probably doesn't have to trigger view updates. We're only
+    //   really using @State here to persist the data.~~ Done 2026-11-12: it did
+    // trigger them. Assigning `@State previousValue` inside `computeLayout`
+    // published a change on the first layout, so every `.onChange` re-laid out
+    // its whole subtree once after the window opened, and (its first bottom-up
+    // update) asked the window to lay out again on top. P998 with two
+    // `.onChange` around a 1750-node page: 1753 commits in the first update,
+    // then 3500 + 3499 from the two modifiers. The value now lives in a box
+    // inside `@State`, which keeps it as long as the node and publishes nothing,
+    // as `ScrollViewReader`'s `RegistryHolder` does.
+    // ~~TODO:這大概不必觸發 view 更新。這裡用 @State 只是為了保存資料。~~ 2026-11-12 完成：它確實觸發了。在
+    // `computeLayout` 裡賦值 `@State previousValue` 會在第一次排版時發出變更，於是每個 `.onChange` 在視窗開啟後都把
+    // 整棵子樹重排一次，而且(它的第一次由下往上更新)還要求視窗再排一次。P998 以兩個 `.onChange` 包住 1750 個節點的頁面：
+    // 第一次更新 1753 次 commit,接著兩個 modifier 各 3500、3499 次。現在值放在 `@State` 裡的 box 中，跟節點一樣長壽且
+    // 不發出任何通知，與 `ScrollViewReader` 的 `RegistryHolder` 相同。
+    @State var previous = PreviousValueHolder<Value>()
+
+    private var previousValue: Value? {
+        get { previous.box.value }
+        nonmutating set { previous.box.value = newValue }
+    }
 
     var body: TupleView1<Content>
 
@@ -86,4 +104,10 @@ struct OnChangeModifier<Value: Equatable, Content: View>: View {
             backend: backend
         )
     }
+}
+
+/// The last value an `.onChange` saw, kept without change notifications; see
+/// `OnChangeModifier.previous`. / `.onChange` 上次看到的值，不發出變更通知;見 `OnChangeModifier.previous`。
+struct PreviousValueHolder<Value> {
+    let box = Box<Value?>(nil)
 }
