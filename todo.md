@@ -70,6 +70,14 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     median ~1740), after 1430-1937 ms (min 1430, median ~1553): -13.6% at
     the minimum. RAM was short (4 GB free), so the absolute numbers are high.
     Raw: scratchpad interleave.txt of session db768b0a.
+    SoftPCB-W11, SoftPCB-UI on b5544693 (`--tab 9 --open-field-matrix`, -O,
+    -j 4, 2.7 GB RAM free): warm appear->first-hop min 1896 / median 1969 ms,
+    launch->first-hop min 5623 / median 6083 ms. The field matrix is the
+    SECOND window, which this change is not expected to move; no same-machine
+    before for launch->first-hop. A clean pair waits for free memory.
+    Swift-Cross-UI-M4 on 28209b43: AppKit builds, iOS P114 builds, macOS host
+    tests 406 + 15 pass, iOS replay sweep 135/135 iPhone action files pass
+    (iPad skipped by default).
     Open: GUI regression apps (P93, P50; need the desktop free).
     2026-11-11,原因：第一個視窗啟用時 `appPhase` 由 `.inactive` 變 `.active`,GTK 的 `notify::is-active` 呼叫根環境
     handler,重新整理並排版整個 scene graph。SwiftUI 的 `scenePhase` 啟動時就是 `.active`、不觸發 `onChange`(M4 於

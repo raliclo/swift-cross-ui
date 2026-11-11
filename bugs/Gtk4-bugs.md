@@ -1210,6 +1210,16 @@ crash, and drawing and input are unchanged. Nothing to do on our side; an
 upstream report would ask gtkimcontextime.c to get the LOGFONT another way (or
 check the font type) under the cairo font map.
 
+**2026-11-12, a local patch exists** (SoftPCB-W11; no upstream MR, per the user):
+raliclo/gtk `develop` **a58e7e6** checks the type before the call, through public
+API only: `G_TYPE_CHECK_INSTANCE_TYPE (font, g_type_from_name ("PangoWin32Font"))`.
+It builds with MSVC 19.51 against gvsbuild 2026.10.0 (GTK 4.24.1, Pango 1.58.2)
+into `C:/gtk4-ime/bin`; `C:/gtk4` is untouched. Do not use its parent **b94355d**:
+it calls `PANGO_WIN32_IS_FONT()`, which is private to Pango
+(`pangowin32-private.h`), and fails to compile with C4013; it was pushed
+unbuilt. Not yet shown at runtime that the critical is gone: the entry must take
+IME focus, and runs without foreground focus print 0 even with the shipped DLL.
+
 ## 7. GTK 的 Windows IME 模組在文字輸入框取得焦點時印出 Pango-CRITICAL
 
 **2026-11-07 於 Windows 11 實測，GTK 4.24.1**(SoftPCB-UI 的場矩陣視窗,GtkBackend)。在視窗第一次排版時印出一次
@@ -1222,3 +1232,9 @@ check the font type) under the cairo font map.
 
 影響：看不出任何影響。組字視窗沿用輸入法的預設字型；不會當掉，繪製與輸入都不變。我們這邊無事可做；若向上游回報，內容會是
 請 gtkimcontextime.c 在 cairo 字型對應下改用其他方式取得 LOGFONT(或先檢查字型型別)。
+
+**2026-11-12,已有本地修補**(SoftPCB-W11;依使用者指示不開上游 MR):raliclo/gtk `develop` 的 **a58e7e6** 在呼叫前
+只用公開 API 檢查型別:`G_TYPE_CHECK_INSTANCE_TYPE (font, g_type_from_name ("PangoWin32Font"))`。以 MSVC 19.51 對
+gvsbuild 2026.10.0(GTK 4.24.1、Pango 1.58.2)建置，輸出到 `C:/gtk4-ime/bin`;`C:/gtk4` 未動。不要用它的上一個
+**b94355d**:它呼叫 Pango 私有的 `PANGO_WIN32_IS_FONT()`(`pangowin32-private.h`),編譯失敗(C4013),當時未建置就推上去。
+執行期還沒證實 critical 已消失：輸入框必須取得 IME 焦點，而沒有前景焦點的執行即使用原版 DLL 也印出 0 次。
