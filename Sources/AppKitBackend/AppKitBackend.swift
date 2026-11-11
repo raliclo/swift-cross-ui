@@ -537,9 +537,19 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     /// app phase:在 App 成為過作用中之前是 active,之後依 NSApplication 本身。SwiftUI 啟動時回報 .active,之後不變
     /// (2026-11-10 實測，從 Terminal 啟動，App 從未成為作用中);只讀 isActive 則一直是 .inactive。
     func currentAppPhase() -> AppPhase {
-        let active = NSApplication.shared.isActive
-        if active { appHasBeenActive = true }
-        return active || !appHasBeenActive ? .active : .inactive
+        let (phase, beenActive) = Self.phase(active: NSApplication.shared.isActive, beenActive: appHasBeenActive)
+        appHasBeenActive = beenActive
+        return phase
+    }
+
+    /// The rule, apart from AppKit so it can be tested: active while `active`, or while it never
+    /// has been; otherwise inactive. Returns the phase and whether it has now been active. Used for
+    /// the app (isActive) and for each window (isKeyWindow).
+    /// 規則本身，與 AppKit 分開以便測試：`active` 時，或從未 active 過時為 active,否則 inactive。回傳 phase
+    /// 與現在是否已 active 過。App(isActive)與每個視窗(isKeyWindow)都用它。
+    nonisolated static func phase(active: Bool, beenActive: Bool) -> (AppPhase, Bool) {
+        let been = beenActive || active
+        return (active || !been ? .active : .inactive, been)
     }
 
     public func computeRootEnvironment(defaultEnvironment: EnvironmentValues) -> EnvironmentValues {
@@ -624,11 +634,12 @@ extension AppKitBackend {
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
         window.lastBackingScaleFactor = window.backingScaleFactor
-        if window.isKeyWindow { window.hasBeenKey = true }
+        let (windowPhase, beenKey) = Self.phase(active: window.isKeyWindow, beenActive: window.hasBeenKey)
+        window.hasBeenKey = beenKey
 
         return rootEnvironment
             .with(\.windowScaleFactor, window.backingScaleFactor)
-            .with(\.scenePhase, window.isKeyWindow || !window.hasBeenKey ? .active : .inactive)
+            .with(\.scenePhase, windowPhase == .active ? .active : .inactive)
     }
 
     public func setWindowEnvironmentChangeHandler(
