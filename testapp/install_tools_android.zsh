@@ -327,10 +327,15 @@ fi
 # found」失敗。snapshot bundle 內含 NDK，因此這件事是在 SDK 換成 release 之後才開始重要。
 swift_sdk_bundle="$HOME/Library/org.swift.swiftpm/swift-sdks/${swift_android_sdk}.artifactbundle/swift-android"
 if [ -d "$swift_sdk_bundle" ]; then
-    if [ -d "$swift_sdk_bundle/ndk-sysroot/usr" ]; then
+    # A header that resolves, not just the directory: after the move to /Volumes/ADATA_LEGEND_900
+    # (2026-11-10) the links still pointed into /Volumes/Windows, the directory existed, and every C
+    # target failed with "'assert.h' file not found" while this said "already linked".
+    # 要確認標頭真的解析得到，而不只是目錄存在：搬到 /Volumes/ADATA_LEGEND_900 之後(2026-11-10),連結仍指向
+    # /Volumes/Windows,目錄還在，每個 C target 都以「'assert.h' file not found」失敗，而這裡仍說已連結。
+    if [ -f "$swift_sdk_bundle/ndk-sysroot/usr/include/assert.h" ]; then
         note "ndk-sysroot already linked"
     elif [ "$check_only" -eq 1 ]; then
-        note "ndk-sysroot not linked (run without --check to link it)"
+        note "ndk-sysroot missing or pointing at an NDK that is gone (run without --check to relink it)"
     else
         note "Linking ndk-sysroot to the local NDK"
         ANDROID_NDK_HOME="$android_root/ndk/$android_ndk_version" \
