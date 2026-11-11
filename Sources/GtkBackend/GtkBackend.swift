@@ -520,6 +520,24 @@ public final class GtkBackend:
             if adapterRemoved != nil { GtkAdapterRemoval.start(for: self) }
         }
     }
+
+    /// What the environments last reported about activity, so that a window's
+    /// `is-active` change refreshes only what it really changed; see
+    /// `checkActivity()`. Every `is-active` notification used to refresh and lay
+    /// out the whole scene graph -- including the one when the first window is
+    /// shown, which doubled the work of opening it.
+    /// 各 environment 上次回報的作用中狀態，讓視窗 `is-active` 的變化只重新整理它真正改變的部分；見
+    /// `checkActivity()`。以前每一次 `is-active` 通知都會重新整理並排版整個 scene graph——包括第一個
+    /// 視窗顯示時的那一次，使開窗的工作量加倍。
+    var reportedAppPhase: AppPhase?
+    var reportedScenePhases: [ObjectIdentifier: ScenePhase] = [:]
+    /// Windows that have been active at least once; `windows` never drops a
+    /// window, so an identifier is not reused. / 至少作用過一次的視窗；`windows` 不會移除視窗，所以識別碼不會被重用。
+    var windowsSeenActive: Set<ObjectIdentifier> = []
+    /// Each window's environment-change action, from `setWindowEnvironmentChangeHandler`.
+    /// 每個視窗的 environment 變更動作，來自 `setWindowEnvironmentChangeHandler`。
+    var windowEnvironmentActions: [ObjectIdentifier: @MainActor () -> Void] = [:]
+    var activityCheckPending = false
 }
 
 // Split from the type body only to keep it within SwiftLint's type_body_length.
@@ -1477,8 +1495,17 @@ extension GtkBackend {
             requestedContentSizes[ObjectIdentifier(window)] = defaultSize
         }
 
-        window.notifyIsActive = { _ in
-            self.rootEnvironmentChangeHandler?()
+        window.notifyIsActive = { [unowned window] isActive in
+            // Marked now, not at the check: a window activated and deactivated
+            // within one turn has still been active. / 現在就記，不等到檢查：一輪內啟用又停用的視窗也算作用過。
+            if isActive {
+                self.windowsSeenActive.insert(ObjectIdentifier(window))
+            }
+            guard !self.activityCheckPending else { return }
+            self.activityCheckPending = true
+            DispatchQueue.main.async {
+                self.checkActivity()
+            }
         }
 
         // Before the content exists, so the first GPU frame does not land
@@ -2670,9 +2697,54 @@ extension GtkBackend {
         // #386：回報環境主題，使在深色主題下繪製的文字為淺色，而非維持 light 模式的顏色而幾乎
         // 不可見。suggestedForegroundColor 即 colorScheme.defaultForegroundColor，因此把這裡
         // 弄對，其餘便隨之而正確。
+        let appPhase = currentAppPhase
+        reportedAppPhase = appPhase
         return defaultEnvironment
-            .with(\.appPhase, windows.contains(where: \.isActive) ? .active : .inactive)
+            .with(\.appPhase, appPhase)
             .with(\.colorScheme, ambientColorScheme)
+    }
+
+    /// Active while any of the app's windows is, and while the app is still
+    /// launching -- before any window has been active. SwiftUI's `scenePhase`
+    /// is `.active` at launch with no `onChange` (measured by
+    /// Swift-Cross-UI-M4, 2026-11-11, macOS 27, an unbundled binary), and
+    /// starting at `.inactive` made the first window's activation lay the
+    /// whole app out a second time.
+    /// app 的任一視窗作用中時為 active,app 仍在啟動、還沒有任何視窗作用過時也是。SwiftUI 的 `scenePhase`
+    /// 在啟動時就是 `.active`,且不觸發 `onChange`(Swift-Cross-UI-M4 於 2026-11-11 在 macOS 27 以未打包的
+    /// 執行檔量得);從 `.inactive` 開始，會讓第一個視窗的啟用把整個 app 再排版一次。
+    var currentAppPhase: AppPhase {
+        if windows.contains(where: \.isActive) { return .active }
+        return windowsSeenActive.isEmpty ? .active : .inactive
+    }
+
+    /// The same rule for one window: a window not yet active is being opened.
+    /// 同一條規則套在單一視窗：還沒作用過的視窗正在被開啟。
+    func currentScenePhase(of window: Window) -> ScenePhase {
+        window.isActive || !windowsSeenActive.contains(ObjectIdentifier(window))
+            ? .active : .inactive
+    }
+
+    /// Refreshes what a window's `is-active` change really changed: the whole
+    /// scene graph when the app phase changed, otherwise only the windows whose
+    /// scene phase did. Run once per main-queue turn however many windows
+    /// notified, because focus moving between two of the app's windows passes
+    /// through "none active" on the way.
+    /// 重新整理視窗 `is-active` 變化真正改變的部分:app phase 變了就是整個 scene graph,否則只有 scene phase
+    /// 變了的那些視窗。不論有幾個視窗通知，每一輪主佇列只執行一次，因為焦點在 app 自己的兩個視窗之間移動時，
+    /// 途中會經過「沒有作用中視窗」。
+    func checkActivity() {
+        activityCheckPending = false
+        if currentAppPhase != reportedAppPhase {
+            rootEnvironmentChangeHandler?()
+            return
+        }
+        for window in windows {
+            let id = ObjectIdentifier(window)
+            if currentScenePhase(of: window) != reportedScenePhases[id] {
+                windowEnvironmentActions[id]?()
+            }
+        }
     }
 
     /// The colour scheme the desktop itself is set to, where the platform has
@@ -3395,9 +3467,11 @@ extension GtkBackend {
         // Windows 以外沒有任何改變。
         let gtkBufferScale = Double(gtk_widget_get_scale_factor(window.widgetPointer))
         let displayScale = scui_window_display_scale(window.widgetPointer)
+        let scenePhase = currentScenePhase(of: window)
+        reportedScenePhases[ObjectIdentifier(window)] = scenePhase
         return
             rootEnvironment
-                .with(\.scenePhase, window.isActive ? .active : .inactive)
+                .with(\.scenePhase, scenePhase)
                 .with(
                     \.windowScaleFactor,
                     displayScale > 0 ? displayScale : gtkBufferScale
@@ -3453,6 +3527,9 @@ extension GtkBackend {
                 action()
             }
         }
+        // Also run when only this window's scene phase changed; see checkActivity().
+        // 只有此視窗的 scene phase 改變時也會執行；見 checkActivity()。
+        windowEnvironmentActions[ObjectIdentifier(window)] = action
 
         // NOTHING WINDOWS-SPECIFIC IS NEEDED HERE, and that is a measurement
         // rather than an omission: do not add a WM_DPICHANGED hook.

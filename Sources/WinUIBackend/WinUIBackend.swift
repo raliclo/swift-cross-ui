@@ -436,6 +436,14 @@ public final class WinUIBackend:
 
     var windows: [Window] = []
 
+    /// The app phase the root environment last reported, and whether an
+    /// activity check is queued; see `checkActivity()`.
+    /// 根環境上次回報的 app phase,以及是否已排了一次作用中狀態的檢查；見 `checkActivity()`。
+    var reportedAppPhase: AppPhase?
+    var activityCheckPending = false
+    /// Set once the first window is activated; never reset. / 第一個視窗啟用時設定，之後不重設。
+    var anyWindowHasBeenActive = false
+
     // Not private: WinUIBackend+Symbols.swift measures a glyph through this
     // same block, and `private` at type scope reaches only the declaring file.
     // 非 private:WinUIBackend+Symbols.swift 會透過同一個 block 量測字符,而型別層級的 `private`
@@ -1253,11 +1261,13 @@ extension WinUIBackend {
         let isLight = 5 * green + 2 * red + blue > 8 * 128
 
         let locale = Foundation.Locale.windowsCurrent
+        let appPhase = currentAppPhase
+        reportedAppPhase = appPhase
 
         return
             defaultEnvironment
                 .with(\.colorScheme, isLight ? .light : .dark)
-                .with(\.appPhase, windows.contains(where: \.isActive) ? .active : .inactive)
+                .with(\.appPhase, appPhase)
                 .with(\.locale, locale)
                 .with(\.calendar, locale.calendar)
     }
@@ -1266,6 +1276,43 @@ extension WinUIBackend {
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
         self.rootEnvironmentChangeHandler = action
+    }
+
+    /// Active while any of the app's windows is, and while the app is still
+    /// launching -- before any window has been active. SwiftUI's `scenePhase`
+    /// is `.active` at launch with no `onChange` (measured by
+    /// Swift-Cross-UI-M4, 2026-11-11, macOS 27, an unbundled binary), and
+    /// starting at `.inactive` made the first window's activation lay the
+    /// whole app out a second time. Same rule as GtkBackend.
+    /// app 的任一視窗作用中時為 active,app 仍在啟動、還沒有任何視窗作用過時也是。SwiftUI 的 `scenePhase`
+    /// 在啟動時就是 `.active`,且不觸發 `onChange`(Swift-Cross-UI-M4 於 2026-11-11 在 macOS 27 以未打包的
+    /// 執行檔量得);從 `.inactive` 開始，會讓第一個視窗的啟用把整個 app 再排版一次。規則與 GtkBackend 相同。
+    var currentAppPhase: AppPhase {
+        if windows.contains(where: \.isActive) { return .active }
+        return anyWindowHasBeenActive ? .inactive : .active
+    }
+
+    /// Refreshes what a window's activation really changed: the whole scene
+    /// graph when the app phase changed, otherwise only the windows whose scene
+    /// phase did. Run once per main-queue turn however many windows notified,
+    /// because focus moving between two of the app's windows deactivates one
+    /// before it activates the other, and each notification used to refresh
+    /// and lay out the whole scene graph.
+    /// 重新整理視窗啟用真正改變的部分:app phase 變了就是整個 scene graph,否則只有 scene phase 變了的那些
+    /// 視窗。不論有幾個視窗通知，每一輪主佇列只執行一次，因為焦點在 app 自己的兩個視窗之間移動時，會先停用一個
+    /// 再啟用另一個，而以前每一次通知都會重新整理並排版整個 scene graph。
+    func checkActivity() {
+        activityCheckPending = false
+        // Also here: the order of the two `activated` handlers is not ours.
+        // 這裡也設：兩個 `activated` handler 的順序不由我們決定。
+        if windows.contains(where: \.isActive) { anyWindowHasBeenActive = true }
+        if currentAppPhase != reportedAppPhase, let rootHandler = rootEnvironmentChangeHandler {
+            rootHandler()
+            return
+        }
+        for window in windows where !window.isClosed && window.scenePhase != window.reportedScenePhase {
+            window.environmentAction?()
+        }
     }
 
     public func computeWindowEnvironment(
@@ -1283,8 +1330,9 @@ extension WinUIBackend {
         // 在任何顯示器上都帶著 1。在建立視窗時就正確是必要的:`Image` 會在此值變動時重新繪製，因此在 150%
         // 的顯示器上，錯誤的 1 會讓它從第一個 frame 起就以錯誤的比例繪製。視窗移動後保持更新則由下方的
         // `setWindowEnvironmentChangeHandler` 負責。
-        rootEnvironment
-            .with(\.scenePhase, window.isActive ? .active : .inactive)
+        window.reportedScenePhase = window.scenePhase
+        return rootEnvironment
+            .with(\.scenePhase, window.scenePhase)
             .with(\.windowScaleFactor, window.scaleFactor)
     }
 
@@ -1311,15 +1359,18 @@ extension WinUIBackend {
         // call replaces the first.
         // 視窗關閉時也會收到停用，而為已關閉的視窗重算 environment 會去讀它已經沒有的縮放比例，因此略過已關閉的
         // 視窗，而 `CustomWindow` 在關閉時會釋放此訂閱。每個視窗一個訂閱：第二次呼叫會取代第一次。
+        //
+        // Coalesced and compared rather than refreshing the root each time;
+        // see checkActivity(). / 合併後比較，而非每次都重新整理根；見 checkActivity()。
+        window.environmentAction = action
         window.environmentActivationCleanup?.dispose()
         window.environmentActivationCleanup = window.activated.addHandler { [weak self, weak window] _, _ in
             guard let self, let window, !window.isClosed else { return }
-            if let rootHandler = self.rootEnvironmentChangeHandler {
-                rootHandler()
-                // Don't bother calling `action` since this window's environment
-                // will be recomputed anyway.
-            } else {
-                action()
+            if window.isActive { self.anyWindowHasBeenActive = true }
+            guard !self.activityCheckPending else { return }
+            self.activityCheckPending = true
+            Task { @MainActor in
+                self.checkActivity()
             }
         }
     }
@@ -3742,6 +3793,16 @@ public class CustomWindow: WinUI.Window {
     var grid: WinUI.Grid
     var cachedAppWindow: WinAppSDK.AppWindow!
     var isActive = false
+    /// Set on the first activation; until then the window is being opened and
+    /// its scene phase is `.active`, as SwiftUI's is. See `WinUIBackend.currentAppPhase`.
+    /// 第一次啟用時設定；在那之前視窗正在開啟，其 scene phase 與 SwiftUI 一樣是 `.active`。見 `WinUIBackend.currentAppPhase`。
+    var hasBeenActive = false
+    var scenePhase: ScenePhase { isActive || !hasBeenActive ? .active : .inactive }
+    /// The scene phase this window's environment last reported, and the action
+    /// that recomputes it; see `WinUIBackend.checkActivity()`.
+    /// 此視窗的 environment 上次回報的 scene phase,以及重算它的動作；見 `WinUIBackend.checkActivity()`。
+    var reportedScenePhase: ScenePhase?
+    var environmentAction: (@Sendable @MainActor () -> Void)?
     var currentAlert: WinUIBackend.Alert?
     var minimumContentSize = SIMD2<Int>(0, 0)
     var maximumContentSize: SIMD2<Int>?
@@ -3880,7 +3941,9 @@ public class CustomWindow: WinUI.Window {
         // NB: This event fires when the window is activated _or_ deactivated.
         self.activated.addHandler { [weak self] _, args in
             switch args?.windowActivationState {
-                case .codeActivated, .pointerActivated: self?.isActive = true
+                case .codeActivated, .pointerActivated:
+                    self?.isActive = true
+                    self?.hasBeenActive = true
                 case .deactivated: self?.isActive = false
                 // NB: The compiler apparently thinks we didn't exhaustively switch
                 // over this enum without this `default` (even after adding a `case nil`).
@@ -3899,6 +3962,7 @@ public class CustomWindow: WinUI.Window {
             self.isClosed = true
             self.environmentActivationCleanup?.dispose()
             self.environmentActivationCleanup = nil
+            self.environmentAction = nil
         }
 
         // Caching appWindow is apparently a good idea in terms of performance:

@@ -28,6 +28,62 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### Layout passes: SoftPCB-UI's field matrix opens slowly / 排版次數過多 (2026-11-07, Windows)
+
+Branch `perf/layout-passes`, merged into develop only after verification (user,
+2026-11-07). SoftPCB-UI's field matrix took ~2.3 s to open on Windows GTK at -O;
+f2f99186 (label measurement cache) brought it to ~1.6 s. A one-page repro (60
+cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
+`computeLayout` calls that missed the result cache (~11 per node), 3502 commits
+(two full passes on first show), ~30 ms creating widgets, ~6 ms loading CSS.
+在 branch `perf/layout-passes` 上進行，驗證後才合併回 develop(使用者,2026-11-07)。SoftPCB-UI 的場矩陣在 Windows GTK
+(-O)開啟約 2.3 秒，f2f99186(label 量測快取)降到約 1.6 秒。一頁的重現程式(60 格、1751 個 view 節點)約 600 毫秒中有
+400-480 毫秒在排版：19272 次沒命中結果快取的 `computeLayout`(每節點約 11 次)、3502 次 commit(第一次顯示跑了兩輪完整
+排版)、建立 widget 約 30 毫秒、載入 CSS 約 6 毫秒。
+
+- [ ] **1. One full layout pass on first show, not two.** Find what triggers the
+  second pass (resize handler or environment-change handler after the window
+  is shown) and skip it when nothing it depends on changed. Accept: commits on
+  first show = node count; repro and SoftPCB-UI appear-to-hop measured before
+  and after; GTK and WinUI regression apps unchanged.
+  第一次顯示只跑一輪完整排版。找出第二輪的觸發者(視窗顯示後的 resize handler 或環境變更 handler),在它依賴的東西都沒變時
+  略過。驗收：第一次顯示的 commit 數 = 節點數；重現程式與 SoftPCB-UI 量測前後對照；GTK 與 WinUI 回歸 app 不變。
+  - 2026-11-11, cause: the first window's activation flipped `appPhase`
+    `.inactive` → `.active` and GTK's `notify::is-active` called the root
+    environment handler, which refreshed and laid out the whole scene graph.
+    SwiftUI starts `scenePhase` at `.active` with no `onChange` at launch
+    (Swift-Cross-UI-M4, macOS 27; AppKit done in 85d7dd5d). Change (GTK,
+    WinUI): `.active` until a window has been active; activity checks
+    coalesced per main-queue turn; root refresh only when `appPhase` changed,
+    else only windows whose `scenePhase` changed. `WindowReference` builds the
+    first view graph through `computeWindowEnvironment`, so `onAppear` reads
+    the real phase. Repro on GTK: 0 root refreshes on first show (was 1);
+    onAppear `active/active`; minimising gives one refresh and both onChange.
+    WinUI (P998 without `import Gtk`): onAppear `active/active`, minimising
+    gives `onChange` scenePhase and appPhase `.inactive` once each.
+    Timing, GTK after the change, 10 runs: 1206-2001 ms (min 1206) with 4 GB
+    RAM free; WinUI 605-631 ms. No before/after verdict: the pre-change build
+    was reaped for low memory (its swift-build kept running and was killed by
+    hand), so there is no binary to interleave with yet.
+    Open: interleaved before/after timing, GUI regression apps (need the
+    desktop free).
+    2026-11-11,原因：第一個視窗啟用時 `appPhase` 由 `.inactive` 變 `.active`,GTK 的 `notify::is-active` 呼叫根環境
+    handler,重新整理並排版整個 scene graph。SwiftUI 的 `scenePhase` 啟動時就是 `.active`、不觸發 `onChange`(M4 於
+    macOS 27 量得；AppKit 已於 85d7dd5d 完成)。修改(GTK、WinUI):還沒有視窗作用過時為 `.active`;作用中檢查每輪主佇列
+    合併一次;`appPhase` 變了才整個重算，否則只重算 `scenePhase` 變了的視窗。`WindowReference` 建第一個 view graph 時經過
+    `computeWindowEnvironment`,`onAppear` 讀到真實值。GTK 重現程式：第一次顯示 0 次根重算(原為 1);onAppear
+    `active/active`;最小化時一次重算、兩個 onChange 都觸發。WinUI(P998 拿掉 `import Gtk`):onAppear `active/active`,
+    最小化時 scenePhase 與 appPhase 的 `onChange` 各觸發一次 `.inactive`。計時：GTK 改後 10 次 1206-2001 毫秒(最小
+    1206),當時可用記憶體 4 GB;WinUI 605-631 毫秒。尚無前後結論：改前版本建置因記憶體不足被回收(它的 swift-build 還在跑，
+    已手動終止),還沒有可交錯比較的執行檔。待辦：交錯前後計時、GUI 回歸 app(需要桌面空出來)。
+- [ ] **2. Keep layout results across commits while nothing changed.** Today
+  every commit clears each node's result cache, so each pass re-measures
+  everything. Riskier: needs a precise invalidation rule (view, environment,
+  proposal). Accept: layout calls per node drop, a re-measure-and-compare check
+  finds 0 mismatches, full GUI regression on WinUI and GTK.
+  畫面沒變時，排版結果跨 commit 保留。目前每次 commit 都清掉每個節點的結果快取，所以每一輪都全部重量。風險較高：需要精確的失效
+  規則(view、環境、提議尺寸)。驗收：每節點排版次數下降、重量比對檢查 0 不一致、WinUI 與 GTK 完整 GUI 回歸。
+
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
 WinUIBackend moved to Windows App SDK 2.6.5 in d4920949 (swift-winui fork

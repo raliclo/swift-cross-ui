@@ -101,10 +101,19 @@ final class WindowReference<SceneType: WindowingScene> {
             id: id
         )
 
+        // Through computeWindowEnvironment, as every later update is: without
+        // it the first body -- and its onAppear -- read `scenePhase` and
+        // `windowScaleFactor` as placeholders rather than the backend's values
+        // (on GTK, onAppear read `.inactive` while the window was opening).
+        // 與之後每次更新一樣經過 computeWindowEnvironment:少了它，第一次的 body——以及它的 onAppear——讀到的
+        // `scenePhase` 與 `windowScaleFactor` 是占位值而非 backend 的值(GTK 上視窗開啟時 onAppear 讀到 `.inactive`)。
         viewGraph = ViewGraph(
             for: SettingsHost(content: scene.content()),
             backend: backend,
-            environment: environment.with(\.window, window).with(\.sceneID, id)
+            environment: backend.computeWindowEnvironment(
+                window: window,
+                rootEnvironment: environment.with(\.window, window).with(\.sceneID, id)
+            )
         )
         let rootWidget = viewGraph.rootNode.concreteNode(for: Backend.self).widget
 
