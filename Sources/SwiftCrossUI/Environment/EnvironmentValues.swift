@@ -898,7 +898,12 @@ extension EnvironmentValues {
                     // If there's a window but no scenePhase, we assume that the
                     // backend is actively trying to _set_ the scene phase; return
                     // a dummy value to prevent a crash.
-                    return .inactive
+                    // .active, not .inactive: views are evaluated before the backend first sets it, and
+                    // SwiftUI reports .active at launch (measured on macOS 2026-11-10); with .inactive the
+                    // first two body evaluations of a window read a phase it never had.
+                    // 用 .active 而非 .inactive:view 會在 backend 第一次設定它之前就被求值，而 SwiftUI 啟動時回報
+                    // .active(2026-11-10 在 macOS 實測);用 .inactive 時，一個視窗的前兩次 body 求值會讀到它從未有過的 phase。
+                    return .active
                 }
 
                 fatalError(

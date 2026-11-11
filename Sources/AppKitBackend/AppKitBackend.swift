@@ -128,6 +128,12 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
     private let appDelegate = NSCustomApplicationDelegate()
 
+    /// See currentAppPhase(). The phase last given to the root environment, so an activation
+    /// notification that does not change it does not refresh every window. / 見 currentAppPhase()。最後交給根環境的 phase,
+    /// 讓沒有改變它的啟用通知不會更新每一個視窗。
+    var appHasBeenActive = false
+    var reportedAppPhase: AppPhase?
+
     // Depending on the calendar, era is either necessary or must be omitted. Making the wrong
     // choice for the current calendar means the cursor position is reset after every keystroke. I
     // know of no simple way to tell whether NSDatePicker requires or forbids eras for a given
@@ -525,14 +531,26 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         }
     }
 
+    /// The app phase: active until the app has been active once, then NSApplication's own. Real
+    /// SwiftUI reports .active at launch and no change after (measured 2026-11-10, launched from
+    /// Terminal, which never makes the app active); reading isActive alone gave .inactive throughout.
+    /// app phase:在 App 成為過作用中之前是 active,之後依 NSApplication 本身。SwiftUI 啟動時回報 .active,之後不變
+    /// (2026-11-10 實測，從 Terminal 啟動，App 從未成為作用中);只讀 isActive 則一直是 .inactive。
+    func currentAppPhase() -> AppPhase {
+        let active = NSApplication.shared.isActive
+        if active { appHasBeenActive = true }
+        return active || !appHasBeenActive ? .active : .inactive
+    }
+
     public func computeRootEnvironment(defaultEnvironment: EnvironmentValues) -> EnvironmentValues {
         let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+        let phase = currentAppPhase()
+        reportedAppPhase = phase
         return
             defaultEnvironment
                 .with(\.colorScheme, isDark ? .dark : .light)
-                .with(\.appPhase, NSApplication.shared.isActive ? .active : .inactive)
+                .with(\.appPhase, phase)
     }
-
 }
 
 extension AppKitBackend {
@@ -587,7 +605,7 @@ extension AppKitBackend {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                action()
+                if self.currentAppPhase() != self.reportedAppPhase { action() }
             }
         }
         NotificationCenter.default.addObserver(
@@ -596,7 +614,7 @@ extension AppKitBackend {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                action()
+                if self.currentAppPhase() != self.reportedAppPhase { action() }
             }
         }
     }
@@ -606,10 +624,11 @@ extension AppKitBackend {
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
         window.lastBackingScaleFactor = window.backingScaleFactor
+        if window.isKeyWindow { window.hasBeenKey = true }
 
         return rootEnvironment
             .with(\.windowScaleFactor, window.backingScaleFactor)
-            .with(\.scenePhase, window.isKeyWindow ? .active : .inactive)
+            .with(\.scenePhase, window.isKeyWindow || !window.hasBeenKey ? .active : .inactive)
     }
 
     public func setWindowEnvironmentChangeHandler(
@@ -2802,6 +2821,11 @@ public class NSCustomWindow: NSWindow {
     var nestedSheet: NSCustomSheet?
 
     var lastBackingScaleFactor: CGFloat?
+
+    /// Whether this window has been key yet. Until it has, its scene phase reads active, as
+    /// SwiftUI reports it at launch (measured 2026-11-10: .active, no change).
+    /// 本視窗是否已成為過 key。在那之前它的 scene phase 讀作 active,與 SwiftUI 啟動時的回報相同(2026-11-10 實測:.active,不變)。
+    var hasBeenKey = false
 
     /// The tokens of the block observers that report this window's
     /// environment changes, kept so they can be removed when the handler is
