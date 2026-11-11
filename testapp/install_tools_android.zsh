@@ -155,14 +155,34 @@ if [ -n "$avdmanager" ] && [ -x "$avdmanager" ]; then
     # reported a deleted AVD as present (2026-10-05).
     # 比對完整名稱。`grep -q "Name: …api36"` 也會比對到「…api36b」，於是 --check 把一個已刪除的
     # AVD 回報成存在（2026-10-05）。
-    if "$avdmanager" list avd 2>/dev/null | grep -qE "Name: ${avd_name}\$"; then
+    # Listed AND its data directory present. After the move to /Volumes/ADATA_LEGEND_900 (2026-11-10)
+    # the .ini still named /Volumes/Windows/proj_Win/.android-avd/..., which was gone, and this said
+    # "already exists". A new AVD goes on the project volume (android_avd_dir), not the system disk:
+    # its overlay grows with every install (10 GB) and once filled that disk mid-sweep.
+    # 有列出且資料目錄存在才算。搬到 /Volumes/ADATA_LEGEND_900 之後(2026-11-10),.ini 仍指向已不存在的
+    # /Volumes/Windows/proj_Win/.android-avd/...,這裡卻說已存在。新的 AVD 放在專案磁碟(android_avd_dir),
+    # 不放系統碟：它的 overlay 隨每次安裝增長(10 GB),曾在 sweep 途中把系統碟塞滿。
+    android_avd_dir="${ANDROID_AVD_DIR:-${android_root:h}/.android-avd}"
+    avd_ini="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$avd_name.ini"
+    avd_path="$(sed -n 's/^path=//p' "$avd_ini" 2>/dev/null || true)"
+    if "$avdmanager" list avd 2>/dev/null | grep -qE "Name: ${avd_name}\$" && [ -n "$avd_path" ] && [ -d "$avd_path" ]; then
         note "AVD already exists: $avd_name"
     elif [ "$check_only" -eq 1 ]; then
-        note "AVD missing: $avd_name (run without --check to create it)"
+        note "AVD missing or its data gone: $avd_name (run without --check to create it)"
     else
+        mkdir -p "$android_avd_dir"
+        # avdmanager --force over an .ini whose AVD directory is gone deletes the .ini and writes no
+        # new one (reproduced 2026-11-10, twice); a second run then registers it. So the stale .ini
+        # goes first. / .ini 指向的目錄已不存在時,avdmanager --force 會刪掉 .ini 卻不寫新的(2026-11-10 重現兩次)，
+        # 第二次執行才會登錄。所以先移除過時的 .ini。
+        if [ -f "$avd_ini" ] && [ ! -d "$avd_path" ]; then rm -f "$avd_ini"; fi
         printf 'no\n' | ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" "$avdmanager" create avd \
-            --force --name "$avd_name" --package "$system_image" --device "pixel_6" >/dev/null
-        note "Created AVD: $avd_name"
+            --force --name "$avd_name" --package "$system_image" --device "pixel_6" --path "$android_avd_dir/$avd_name.avd" >/dev/null
+        # Checked, not assumed: before the stale .ini was removed above, a create left the .avd directory
+        # but no .ini and this still said "Created". / 要檢查而不是假設：上面移除過時 .ini 之前，建立只留下 .avd 目錄、沒有 .ini,這裡仍說已建立。
+        [ -d "$android_avd_dir/$avd_name.avd" ] && grep -qxF "path=$android_avd_dir/$avd_name.avd" "$avd_ini" 2>/dev/null \
+            || die "avdmanager did not register $avd_name ($avd_ini)"
+        note "Created AVD: $avd_name at $android_avd_dir/$avd_name.avd"
     fi
 else
     die "找不到 avdmanager：$avdmanager"
