@@ -153,6 +153,24 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     全新的。若那些結果可以安全重用，最後一輪可省下約 94%。一般而言並不安全:`GeometryReader` 被試探時只回答尺寸,`List`
     的試探也不同，而父節點重用結果時，commit 需要子節點的 `currentLayout` 一併還原。下一步：為子樹中沒有走試探捷徑的結果做
     標記，只重用這些。計數程式存在 session db768b0a 的 scratchpad ViewGraphNode.stats.swift。
+  - 2026-11-12, why it is not a local change: commit reads state that the
+    LAST computeLayout left, not the result being committed. Stacks commit
+    children with `children.map { $0.commit() }`, each child using its own
+    `currentLayout`, and `commitStackLayout` reads the node's
+    `StackLayoutCache` (`cache: inout`), which records the last proposal. A
+    reused probe result therefore needs every descendant's `currentLayout` and
+    every stack cache restored to what they were for that probe, i.e. a
+    snapshot per cached result. Options to decide before coding: (a) leaf-only
+    reuse (safe, small gain: Text measurement is already cached in GtkBackend
+    since f2f99186); (b) snapshot-and-restore per cached result, with a debug
+    mode that also recomputes and compares (the acceptance check above);
+    (c) make commit consume `layout.childResults` instead of node state.
+    2026-11-12,為何不是局部修改:commit 讀的是「最後一次」computeLayout 留下的狀態，而不是要 commit 的那份結果。stack
+    以 `children.map { $0.commit() }` commit 子節點，每個子節點用自己的 `currentLayout`;`commitStackLayout` 讀節點上的
+    `StackLayoutCache`(`cache: inout`),它記錄的是最後一次的提議尺寸。因此重用一份試探結果時，每個子孫的 `currentLayout`
+    與每個 stack 快取都要還原成那次試探時的值——也就是每份快取結果都要一份快照。動手前要決定的選項:(a) 只重用葉節點(安全，
+    效益小:GtkBackend 自 f2f99186 起已快取 Text 量測);(b) 每份快取結果都做快照與還原，並加一個同時重算比對的 debug 模式
+    (即上方的驗收檢查);(c) 讓 commit 改用 `layout.childResults`,不再讀節點狀態。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
