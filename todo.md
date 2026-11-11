@@ -65,8 +65,12 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     RAM free; WinUI 605-631 ms. No before/after verdict: the pre-change build
     was reaped for low memory (its swift-build kept running and was killed by
     hand), so there is no binary to interleave with yet.
-    Open: interleaved before/after timing, GUI regression apps (need the
-    desktop free).
+    Interleaved, 10 rounds each, GTK P998 full (before = 85d7dd5d's
+    GtkBackend and WindowReference): before 1656-2295 ms (min 1656,
+    median ~1740), after 1430-1937 ms (min 1430, median ~1553): -13.6% at
+    the minimum. RAM was short (4 GB free), so the absolute numbers are high.
+    Raw: scratchpad interleave.txt of session db768b0a.
+    Open: GUI regression apps (P93, P50; need the desktop free).
     2026-11-11,原因：第一個視窗啟用時 `appPhase` 由 `.inactive` 變 `.active`,GTK 的 `notify::is-active` 呼叫根環境
     handler,重新整理並排版整個 scene graph。SwiftUI 的 `scenePhase` 啟動時就是 `.active`、不觸發 `onChange`(M4 於
     macOS 27 量得；AppKit 已於 85d7dd5d 完成)。修改(GTK、WinUI):還沒有視窗作用過時為 `.active`;作用中檢查每輪主佇列
@@ -75,7 +79,9 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     `active/active`;最小化時一次重算、兩個 onChange 都觸發。WinUI(P998 拿掉 `import Gtk`):onAppear `active/active`,
     最小化時 scenePhase 與 appPhase 的 `onChange` 各觸發一次 `.inactive`。計時：GTK 改後 10 次 1206-2001 毫秒(最小
     1206),當時可用記憶體 4 GB;WinUI 605-631 毫秒。尚無前後結論：改前版本建置因記憶體不足被回收(它的 swift-build 還在跑，
-    已手動終止),還沒有可交錯比較的執行檔。待辦：交錯前後計時、GUI 回歸 app(需要桌面空出來)。
+    已手動終止),還沒有可交錯比較的執行檔。交錯各 10 輪,GTK P998 full(改前 = 85d7dd5d 的 GtkBackend 與
+    WindowReference):改前 1656-2295 毫秒(最小 1656、中位數約 1740),改後 1430-1937 毫秒(最小 1430、中位數約
+    1553):最小值 -13.6%。當時記憶體不足(可用 4 GB),絕對值偏高。待辦:GUI 回歸 app(P93、P50;需要桌面空出來)。
 - [ ] **2. Keep layout results across commits while nothing changed.** Today
   every commit clears each node's result cache, so each pass re-measures
   everything. Riskier: needs a precise invalidation rule (view, environment,
@@ -83,6 +89,20 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   finds 0 mismatches, full GUI regression on WinUI and GTK.
   畫面沒變時，排版結果跨 commit 保留。目前每次 commit 都清掉每個節點的結果快取，所以每一輪都全部重量。風險較高：需要精確的失效
   規則(view、環境、提議尺寸)。驗收：每節點排版次數下降、重量比對檢查 0 不一致、WinUI 與 GTK 完整 GUI 回歸。
+  - 2026-11-11, redirected by the user: **reuse within one pass**, not across
+    commits. After a commit, a state change already re-lays out only the
+    changed node (`bottomUpUpdate`), and item 1 removed the second full pass
+    on first show, so keeping results across commits would help only whole-
+    window passes (resize, environment). The ~11 `computeLayout` per node are
+    inside ONE pass: stacks probe children with `allowLayoutCaching`, then
+    the final pass runs without it and misses the cache
+    (`ViewGraphNode.computeLayout`), and nesting multiplies it. Goal: the
+    final pass reuses a probe's result for the same proposal when it is safe.
+    Measure the per-node count first.
+    2026-11-11,使用者改了方向：改為**一輪內重用**,不是跨 commit。commit 之後的狀態改變本來就只重排變動的節點
+    (`bottomUpUpdate`),而第 1 項已拿掉開窗時的第二輪，所以跨 commit 保留只對整窗重排(縮放、環境)有幫助。每節點約 11 次
+    `computeLayout` 發生在**同一輪**裡:stack 先以 `allowLayoutCaching` 試探子節點，最後一輪不帶它、查不到快取
+    (`ViewGraphNode.computeLayout`),巢狀時次數相乘。目標：在安全時，最後一輪重用同一提議尺寸的試探結果。先量每節點次數。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
