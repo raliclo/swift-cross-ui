@@ -86,6 +86,24 @@ if [ "$check_only" -eq 0 ]; then
         emulator platform-tools "cmdline-tools;latest" "$android_platform" "$android_build_tools" "$system_image"
 fi
 
+# Emulator 37.3.9 at least, from the beta channel while stable is older: 37.2.13, the newest
+# stable on 2026-11-11, segfaults in its renderer (gfxstream, EglContext::~EglContext) when an app
+# is force-stopped after a keyboard test, with -gpu host and swiftshader_indirect alike; the api18
+# suite lost the emulator at T66 every time. 37.3.9 ran that sequence and the full suite.
+# 模擬器至少 37.3.9，穩定版較舊時取自 beta 頻道：37.2.13（2026-11-11 最新的穩定版）在鍵盤測試之後強制停止
+# App 時，渲染器（gfxstream，EglContext::~EglContext）會 segfault，-gpu host 與 swiftshader_indirect 都一樣；
+# api18 測試每次都在 T66 失去模擬器。37.3.9 跑過該順序與整份測試。
+android_emulator_min="${ANDROID_EMULATOR_MIN:-37.3.9}"
+autoload -Uz is-at-least
+emulator_version() { "$emulator" -version 2>/dev/null | sed -nE '1s/^Android emulator version ([0-9.]+).*/\1/p'; }
+if [ -x "$emulator" ] && ! is-at-least "$android_emulator_min" "$(emulator_version)"; then
+    [ "$check_only" -eq 1 ] && die "emulator $(emulator_version) is older than $android_emulator_min (its renderer crashes; run without --check)"
+    note "Emulator $(emulator_version) is older than $android_emulator_min; installing from the beta channel"
+    ANDROID_HOME="$android_root" "$sdkmanager" --sdk_root="$android_root" --channel=3 emulator
+    is-at-least "$android_emulator_min" "$(emulator_version)" \
+        || die "emulator is $(emulator_version) after the beta-channel install, expected $android_emulator_min or newer"
+fi
+
 # The NDK from the official DMG, checked against Google's published SHA-1 before
 # anything is copied out of it. A mismatch deletes the download and stops.
 # 由官方 DMG 安裝 NDK；先比對 Google 公布的 SHA-1，才從裡面複製任何東西。不符就刪掉下載檔並停止。
