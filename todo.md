@@ -251,6 +251,22 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     求值 `body`。新增 `BodyEvaluationTests`(builder body、顯式 return 的 body、同一型別巢狀 3 層):改動前 3 項全失敗(每個
     節點 2 次),改動後全通過；主機測試 54 個 suite 397 項 + 15 項通過。待辦:WinUI 與 GTK 的 GUI 回歸(需要桌面空出來)、
     M4 的 Apple 檢查。
+  - 2026-11-12, M4's Apple results for `perf/body-once` 2149422e: macOS host
+    tests 410 + 15 pass; iPhone sweep 135/135; AppKit sweep **135/136**.
+    **P6-transport-toggles fails twice in a row**: the replay runs to the end
+    and only the final capture fails. The develop sweep (with 792f7955) passes
+    P6, and so did 8818e480's earlier sweep; the one earlier P6 capture miss
+    was during the password-dialog period. Not root-caused. A capture failure
+    after a complete replay can mean the window is gone (P6 exited or crashed
+    during the steps), has another title (`mac_resolve` matches title or
+    owner), or could not be captured. Log on the Mac:
+    `wt-bo testapp/output/sweep-macos/P6-transport-toggles.log`. Blocks the
+    merge of this branch until explained.
+    2026-11-12,M4 對 `perf/body-once` 2149422e 的 Apple 結果:macOS 主機測試 410 + 15 項通過;iPhone 測試 135/135;
+    AppKit 測試 **135/136**。**P6-transport-toggles 連續兩次失敗**:重放跑完，只有最後的截圖失敗。develop(含 792f7955)
+    的測試中 P6 通過,8818e480 先前的測試也通過；先前那一次 P6 截圖失敗發生在密碼對話框期間。尚未找出原因。重放跑完後截圖失敗，
+    可能是視窗已不在(P6 在操作途中結束或當掉)、標題不同(`mac_resolve` 比對標題或程式名稱)，或無法擷取。Mac 上的日誌:
+    `wt-bo testapp/output/sweep-macos/P6-transport-toggles.log`。在弄清楚之前，本分支不合併。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
