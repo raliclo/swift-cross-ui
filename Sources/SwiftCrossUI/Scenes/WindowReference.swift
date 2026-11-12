@@ -242,6 +242,7 @@ final class WindowReference<SceneType: WindowingScene> {
         needsWindowSizeCommit: Bool,
         backend: Backend,
         environment: EnvironmentValues,
+        bodiesLaidOutWith: ColorScheme? = nil,
         windowSizeIsFinal: Bool = false
     ) {
         guard let window = window as? Backend.Window else {
@@ -394,12 +395,34 @@ final class WindowReference<SceneType: WindowingScene> {
             environment.colorScheme = preferredColorScheme
         }
 
-        let probingResult = viewGraph.computeLayout(
-            with: newScene.map { SettingsHost(content: $0.content()) },
-            proposedSize: .zero,
-            environment: environment
-                .with(\.allowLayoutCaching, true)
-        )
+        // One window update lays its content out up to four times -- the
+        // minimum, the maximum, the ideal height, and again at the size those
+        // chose -- and evaluating the scene's content and every body for each
+        // of them was 3 of P2's 4 root body evaluations per launch (2026-11-13). Within one
+        // update nothing a body reads changes between passes except the colour
+        // scheme a preferredColorScheme preference sets (`updateEnvironment`),
+        // so the passes after the first lay out the bodies the first one made
+        // (`reusesBodies`), and evaluate again only when the scheme changed.
+        // 一次視窗更新最多排四次版——最小、最大、理想高度，再以它們決定的尺寸排一次——每次都重算 scene 的
+        // content 與每個 body,佔了 P2 每次啟動 4 次 root body 中的 3 次(2026-11-13)。同一次更新裡，各趟之間 body 讀到的
+        // 東西都不會變，只有 preferredColorScheme preference 設定的配色例外(`updateEnvironment`),所以第一趟
+        // 之後的各趟排版第一趟產生的 body(`reusesBodies`),只有配色變了才重新求值。
+        var bodiesLaidOutWith = bodiesLaidOutWith
+        func layoutPass(_ proposal: ProposedViewSize, caching: Bool) -> ViewLayoutResult {
+            var passEnvironment = environment.with(\.allowLayoutCaching, caching)
+            let reuse = bodiesLaidOutWith == environment.colorScheme
+            if reuse {
+                passEnvironment.reusesBodies = true
+            }
+            let result = viewGraph.computeLayout(
+                with: reuse ? nil : newScene.map { SettingsHost(content: $0.content()) },
+                proposedSize: proposal,
+                environment: passEnvironment
+            )
+            bodiesLaidOutWith = environment.colorScheme
+            return result
+        }
+        let probingResult = layoutPass(.zero, caching: true)
         let minimumWindowSize = probingResult.size
         updateEnvironment(
             &environment,
@@ -414,11 +437,7 @@ final class WindowReference<SceneType: WindowingScene> {
         let maximumWindowSize: ViewSize?
         switch environment.windowResizability {
             case .contentSize:
-                let result = viewGraph.computeLayout(
-                    with: newScene.map { SettingsHost(content: $0.content()) },
-                    proposedSize: .infinity,
-                    environment: environment.with(\.allowLayoutCaching, true)
-                )
+                let result = layoutPass(.infinity, caching: true)
                 updateEnvironment(
                     &environment,
                     viewLayoutResult: result,
@@ -467,11 +486,7 @@ final class WindowReference<SceneType: WindowingScene> {
             let screenHeight = backend.maximumSizeOnScreen(ofWindow: window).map { Double($0.y) }
                 ?? .infinity
             let width = max(minimumWindowSize.width, Double(proposedWindowSize.x))
-            let ideal = viewGraph.computeLayout(
-                with: newScene.map { SettingsHost(content: $0.content()) },
-                proposedSize: ProposedViewSize(width, nil),
-                environment: environment.with(\.allowLayoutCaching, true)
-            ).size.height
+            let ideal = layoutPass(ProposedViewSize(width, nil), caching: true).size.height
             if ideal.isFinite {
                 grownHeight = max(
                     minimumWindowSize.height,
@@ -500,6 +515,7 @@ final class WindowReference<SceneType: WindowingScene> {
                 needsWindowSizeCommit: true,
                 backend: backend,
                 environment: environment,
+                bodiesLaidOutWith: bodiesLaidOutWith,
                 windowSizeIsFinal: true
             )
         }
@@ -512,10 +528,7 @@ final class WindowReference<SceneType: WindowingScene> {
             maximum: maximumWindowSize?.vector
         )
 
-        let finalContentResult = viewGraph.computeLayout(
-            proposedSize: ProposedViewSize(proposedWindowSize),
-            environment: environment
-        )
+        let finalContentResult = layoutPass(ProposedViewSize(proposedWindowSize), caching: environment.allowLayoutCaching)
         updateEnvironment(
             &environment,
             viewLayoutResult: finalContentResult,
