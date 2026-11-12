@@ -267,6 +267,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     的測試中 P6 通過,8818e480 先前的測試也通過；先前那一次 P6 截圖失敗發生在密碼對話框期間。尚未找出原因。重放跑完後截圖失敗，
     可能是視窗已不在(P6 在操作途中結束或當掉)、標題不同(`mac_resolve` 比對標題或程式名稱)，或無法擷取。Mac 上的日誌:
     `wt-bo testapp/output/sweep-macos/P6-transport-toggles.log`。在弄清楚之前，本分支不合併。
+    **Corrected the same day (M4): not a regression.** P6 auto-loads a .webm
+    from `testapp/output/`, which is gitignored and exists only in the main
+    checkout; M4's worktree had none, so nothing loaded, no frames came and the
+    wait timed out. With a symlink to the main checkout's video, P6 passes on
+    2149422e (327 video frames), so the AppKit sweep is 136/136. The earlier P6
+    miss in the perf/layout-passes worktree was very likely the same cause. The
+    paragraph above stays as written: a worktree without the gitignored input
+    reproduces "fails twice in a row" exactly. The merge is no longer blocked
+    by it.
+    **同日更正(M4):不是退步。** P6 會自動載入 `testapp/output/` 裡的 .webm,而該目錄被 gitignore,只存在於主要的
+    checkout;M4 的 worktree 裡沒有，所以沒有載入、沒有影格，等待逾時。改用指向主要 checkout 影片的 symlink 後,P6 在
+    2149422e 上通過(327 個影格),AppKit 測試為 136/136。先前 perf/layout-passes worktree 中那次 P6 失敗，很可能是同一原因。
+    上一段保留原文：缺少被 gitignore 之輸入檔的 worktree,正好會重現「連續兩次失敗」。合併不再因此受阻。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
