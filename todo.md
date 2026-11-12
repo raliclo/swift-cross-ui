@@ -41,7 +41,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
 400-480 毫秒在排版：19272 次沒命中結果快取的 `computeLayout`(每節點約 11 次)、3502 次 commit(第一次顯示跑了兩輪完整
 排版)、建立 widget 約 30 毫秒、載入 CSS 約 6 毫秒。
 
-- [ ] **1. One full layout pass on first show, not two.** Find what triggers the
+- [x] **1. One full layout pass on first show, not two.** Find what triggers the
   second pass (resize handler or environment-change handler after the window
   is shown) and skip it when nothing it depends on changed. Accept: commits on
   first show = node count; repro and SoftPCB-UI appear-to-hop measured before
@@ -107,6 +107,14 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     suites pass (1 known issue, GridLayoutTests, unrelated); P50 title A -> B
     on WinUI and GTK (scratchpad action files, frame coordinates); P93 menu dump
     on WinUI and GTK has File > New > New Alpha/Beta Window and Solo.
+    Apple (Swift-Cross-UI-M4, 01aaee4e): macOS host tests 406 + 15 pass, iPhone
+    replay 135/135, macOS AppKit sweep clean apart from P114-native-back-gtk
+    (the branch then lacked develop's -gtk4 rename); publish-driven updates at
+    launch 1 -> 0 (P2) and 3 -> 0 (P114). Rebased onto develop 8818e480: host
+    tests 394 + 15 pass, GTK and WinUI build. Merged to develop 2026-11-12.
+    Apple(Swift-Cross-UI-M4,01aaee4e):macOS 主機測試 406 + 15 通過、iPhone 回放 135/135、macOS AppKit 全套只有
+    P114-native-back-gtk 失敗(分支當時尚無 develop 的 -gtk4 改名);啟動時由發布驅動的更新 1 -> 0(P2)、3 -> 0(P114)。
+    rebase 到 develop 8818e480 後主機測試 394 + 15 通過,GTK 與 WinUI 皆可建置。2026-11-12 併回 develop。
     2026-11-12,**2026-11-11 的結果不完整**:b5544693 拿掉了根重算，但開窗仍跑了三次視窗更新。以 P998 計算每次
     `WindowReference.update` 的 commit 數:1753、3500、3499——約五輪完整排版。兩次多出的更新都來自 `OnChangeModifier`
     (P998 用 `.onChange(of: scenePhase)` 與 `.onChange(of: appPhase)` 包住頁面):它在 `computeLayout` 裡賦值
@@ -171,6 +179,24 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     與每個 stack 快取都要還原成那次試探時的值——也就是每份快取結果都要一份快照。動手前要決定的選項:(a) 只重用葉節點(安全，
     效益小:GtkBackend 自 f2f99186 起已快取 Text 量測);(b) 每份快取結果都做快照與還原，並加一個同時重算比對的 debug 模式
     (即上方的驗收檢查);(c) 讓 commit 改用 `layout.childResults`,不再讀節點狀態。
+  - 2026-11-12, the user chose **(b)**. Swift-Cross-UI-M4 traced AppKit's P2
+    root view body at launch (develop 8818e480 and 01aaee4e alike): 5
+    evaluations. 3 are `defaultComputeLayout` in the passes of ONE
+    `WindowReference.update` -- each pass re-evaluates body because the full
+    update path sets `reusesBodies = false` (ViewGraphNode.computeLayout) --
+    and are this item. The other 2 are item 3 below.
+    2026-11-12,使用者選了 **(b)**。Swift-Cross-UI-M4 追蹤 AppKit 上 P2 啟動時根 view 的 body(develop 8818e480 與 01aaee4e
+    相同):共 5 次。其中 3 次是同一次 `WindowReference.update` 各輪裡的 `defaultComputeLayout`——完整更新路徑把
+    `reusesBodies` 設為 false(ViewGraphNode.computeLayout),所以每輪都重新求值 body——屬於本項。另外 2 次見下方第 3 項。
+- [ ] **3. A new node evaluates its view's body twice.** `ViewGraphNode.init`
+  calls `view.children(...)` (`View.defaultChildren`) and then
+  `view.asWidget(...)` (`View.defaultAsWidget`), and each evaluates `body`
+  (M4's stack traces on AppKit P2, 2026-11-12). Accept: one body evaluation
+  per node creation, measured with a body probe; host tests and GUI regression
+  unchanged.
+  新節點會求值它 view 的 body 兩次。`ViewGraphNode.init` 先呼叫 `view.children(...)`(`View.defaultChildren`)再呼叫
+  `view.asWidget(...)`(`View.defaultAsWidget`),兩者各求值一次 `body`(M4 於 2026-11-12 在 AppKit P2 取得的呼叫堆疊)。
+  驗收：每次建立節點只求值 body 一次，以 body 探針量測；主機測試與 GUI 回歸不變。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
