@@ -97,15 +97,24 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         currentLayout = nil
         resultCache = [:]
         lastProposedSize = .zero
-        parentEnvironment = environment
+        // Without a parent's body slots, as `computeLayout` stores it.
+        // 不帶父層的 body 欄位，與 `computeLayout` 儲存時相同。
+        parentEnvironment = environment.withoutBodyCache()
         cancellables = []
 
         dynamicPropertyUpdater = DynamicPropertyUpdater(for: nodeView)
 
-        let viewEnvironment = updateEnvironment(environment)
+        var viewEnvironment = updateEnvironment(environment)
 
         dynamicPropertyUpdater.update(view, with: viewEnvironment, previousValue: nil)
 
+        // The body `children` evaluates is recorded and handed to `asWidget`, so a
+        // new node evaluates it once, not twice; see `BodyHandoff`.
+        // `children` 求值的 body 會被記下並交給 `asWidget`,讓新節點只求值一次而非兩次;見 `BodyHandoff`。
+        let owner = ObjectIdentifier(NodeView.self)
+        let capture = BodyCapture(owner: owner)
+        viewEnvironment.bodyCapture = capture
+        viewEnvironment.cachedBody = nil
         let children = view.children(
             backend: backend,
             snapshots: childSnapshots,
@@ -114,10 +123,12 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         self.children = children
 
         // Then create the widget for the view itself
-        let widget = view.asWidget(
-            children,
-            backend: backend
-        )
+        let widget = BodyHandoff.offering(capture.body, to: owner) {
+            view.asWidget(
+                children,
+                backend: backend
+            )
+        }
         _widget = widget
 
         let tag = String(String(describing: NodeView.self).split(separator: "<")[0])

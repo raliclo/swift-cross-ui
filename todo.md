@@ -197,6 +197,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   新節點會求值它 view 的 body 兩次。`ViewGraphNode.init` 先呼叫 `view.children(...)`(`View.defaultChildren`)再呼叫
   `view.asWidget(...)`(`View.defaultAsWidget`),兩者各求值一次 `body`(M4 於 2026-11-12 在 AppKit P2 取得的呼叫堆疊)。
   驗收：每次建立節點只求值 body 一次，以 body 探針量測；主機測試與 GUI 回歸不變。
+  - 2026-11-12, branch `perf/body-once`: `defaultChildren` records its body
+    through the node's `BodyCapture`, and the node offers it to `asWidget`
+    through `BodyHandoff` (a one-shot, owner-typed slot, since `asWidget` takes
+    no environment); `defaultAsWidget` takes it instead of evaluating `body`.
+    New `BodyEvaluationTests` (builder body, explicit-return body, the same type
+    nested 3 deep): all 3 fail without the change (2 evaluations per node) and
+    pass with it; host tests 397 in 54 suites + 15 pass. Open: GUI regression
+    on WinUI and GTK (needs the desktop free), Apple check by M4.
+    2026-11-12,分支 `perf/body-once`:`defaultChildren` 經由節點的 `BodyCapture` 記下 body,節點再經 `BodyHandoff`
+    (一次性、以擁有者型別區分的欄位，因為 `asWidget` 不接受 environment)交給 `asWidget`;`defaultAsWidget` 取用它而不再
+    求值 `body`。新增 `BodyEvaluationTests`(builder body、顯式 return 的 body、同一型別巢狀 3 層):改動前 3 項全失敗(每個
+    節點 2 次),改動後全通過；主機測試 54 個 suite 397 項 + 15 項通過。待辦:WinUI 與 GTK 的 GUI 回歸(需要桌面空出來)、
+    M4 的 Apple 檢查。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

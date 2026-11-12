@@ -30,6 +30,48 @@ struct CachedBody {
     let body: Any
 }
 
+/// The body a node's `children` evaluated, handed to the same node's `asWidget`.
+///
+/// **Not the environment, because `asWidget` takes none.** A node is created by
+/// calling `view.children(...)` and then `view.asWidget(...)`; the default
+/// implementations of both evaluated `body`, so every node built its view's body
+/// twice before laying anything out (Swift-Cross-UI-M4's AppKit trace of P2,
+/// 2026-11-12: `defaultChildren`, then `defaultAsWidget`, both from
+/// `ViewGraphNode.init`). The node sets this around its `asWidget` call and the
+/// default implementation takes it once; an owner of another type ignores it.
+///
+/// 節點的 `children` 求值出的 body,交給同一個節點的 `asWidget`。
+///
+/// **不經由 environment,因為 `asWidget` 不接受 environment。** 建立節點時先呼叫 `view.children(...)` 再呼叫
+/// `view.asWidget(...)`;兩者的預設實作都會求值 `body`,所以每個節點在排版之前就把它 view 的 body 建了兩次
+/// (Swift-Cross-UI-M4 於 2026-11-12 追蹤 AppKit 上的 P2:`defaultChildren` 接著 `defaultAsWidget`,都來自
+/// `ViewGraphNode.init`)。節點在呼叫 `asWidget` 前後設定它，預設實作只取用一次；型別不同的擁有者不會理它。
+@MainActor
+enum BodyHandoff {
+    private static var pending: CachedBody?
+
+    /// Runs `create` with `body` offered to the default `asWidget` of `owner`.
+    static func offering<Result>(
+        _ body: Any?,
+        to owner: ObjectIdentifier,
+        _ create: () -> Result
+    ) -> Result {
+        let previous = pending
+        pending = body.map { CachedBody(owner: owner, body: $0) }
+        defer { pending = previous }
+        return create()
+    }
+
+    /// The offered body if it is for `View`, removed so nothing below reuses it.
+    static func take<V: View>(for _: V.Type) -> V.Content? {
+        guard let offered = pending, offered.owner == ObjectIdentifier(V.self),
+            let body = offered.body as? V.Content
+        else { return nil }
+        pending = nil
+        return body
+    }
+}
+
 extension View {
     /// The body to lay out or commit: the one the node kept, when the environment
     /// carries it for this view type; otherwise `body`, evaluated and recorded for

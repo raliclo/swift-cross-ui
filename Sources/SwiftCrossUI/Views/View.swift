@@ -155,7 +155,11 @@ extension View {
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment: EnvironmentValues
     ) -> any ViewGraphNodeChildren {
-        body.children(backend: backend, snapshots: snapshots, environment: environment)
+        // Recorded for the node, which hands it to `asWidget`; see `BodyHandoff`.
+        // 為節點記下，由節點交給 `asWidget`;見 `BodyHandoff`。
+        resolvedBody(environment).children(
+            backend: backend, snapshots: snapshots, environment: environment.withoutBodyCache()
+        )
     }
 
     public func layoutableChildren<Backend: BaseAppBackend>(
@@ -248,6 +252,9 @@ extension View {
         _ children: any ViewGraphNodeChildren,
         backend: Backend
     ) -> Backend.Widget {
+        // The body `children` already evaluated, when the node offers it.
+        // 節點提供時，用 `children` 已經求值過的 body。
+        let body = BodyHandoff.take(for: Self.self) ?? self.body
         guard bodyIsBuilderProduced(children) else {
             return body.asWidget(children, backend: backend)
         }
