@@ -268,6 +268,34 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     變數路徑未驗證)。M4 在 AppKit P2 的臨時探針：子節點確實有重用(套用 16 次以上),但 P2 根節點的 body 次數仍為 7——
     啟動時三次視窗排版是各自獨立的完整更新，一輪內的重用本來就不是為了消除它們。待辦：在檢查旗標下印出重用命中次數
     (M4 的建議)、GTK 的結果、SoftPCB-UI,之後再決定預設值。
+  - 2026-11-13, **the window passes, merged as 2df43059** (M4, branch
+    `perf/window-passes`, fast-forwarded onto develop from e373e94f). In
+    `WindowReference.update` only the first pass builds `scene.content()`; the
+    later passes (probe, maximum, ideal height, final) run with
+    `reusesBodies = true` unless the color scheme differs from the one the
+    bodies were laid out with. Apple (M4): macOS sweep 136/136, iPhone 135/135,
+    host tests 414 + 15, P2 root body at launch 4 -> 2. Windows (this machine):
+    host tests pass with reuse off and on. The GUI regression was 48
+    action-file runs: every `actions/win` file of P15, P17, P41, P84, P50, P93
+    and P104, on WinUI and GTK, and 45 were rc 0. The 3 failures are P50
+    popover files and fail the same way on develop (item 4). P116
+    appear-to-hop, interleaved, 10 rounds, reuse off: WinUI develop
+    636 / 656 ms vs 2df43059 622 / 645 ms (min / median), GTK 629 / 663 vs
+    640 / 666 -- within 2%, no measurable change in this metric. The absolute
+    numbers are higher than the table above because the machine state was
+    different; only the interleaved pairs compare. Raw data:
+    scratchpad p116-ab.txt and sweep-2df43059/ of session db768b0a.
+    Regenerate: interleave `P116dev-<be>.exe` and `P116wp-<be>.exe` copies,
+    close each with `taskkill -im`, and read `appear-to-hop`.
+    2026-11-13,**視窗各輪排版，以 2df43059 合併**(M4,分支 `perf/window-passes`,由 e373e94f 快轉併入 develop)。
+    `WindowReference.update` 只有第一輪建立 `scene.content()`;之後各輪(試探、最大、理想高度、最後)以 `reusesBodies = true`
+    執行，除非 color scheme 與排版 body 時不同。Apple(M4):macOS 136/136、iPhone 135/135、主機測試 414 + 15、啟動時 P2
+    根 body 4 -> 2。Windows(本機):主機測試在重用關閉與開啟下皆通過。GUI 回歸共 48 次動作檔執行:P15、P17、P41、P84、
+    P50、P93、P104 在 `actions/win` 的每個動作檔，WinUI 與 GTK 各跑一次,45 次 rc 0。3 個失敗是 P50 的 popover 檔，在
+    develop 上以相同方式失敗(第 4 項)。P116 appear-to-hop,交錯 10 輪、重用關閉:WinUI develop 636 / 656 ms 對 2df43059
+    622 / 645 ms(最小 / 中位數),GTK 629 / 663 對 640 / 666——差距在 2% 內，此指標量不出變化。絕對值比上表高，是機器狀態
+    不同；只有交錯的成對數字可以比較。原始資料:session db768b0a 的 scratchpad p116-ab.txt 與 sweep-2df43059/。重做方式：
+    交錯執行 `P116dev-<be>.exe` 與 `P116wp-<be>.exe` 兩份副本，以 `taskkill -im` 關閉，讀 `appear-to-hop`。
 - [ ] **3. A new node evaluates its view's body twice.** `ViewGraphNode.init`
   calls `view.children(...)` (`View.defaultChildren`) and then
   `view.asWidget(...)` (`View.defaultAsWidget`), and each evaluates `body`
@@ -328,6 +356,27 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-12,`perf/body-once` 的 Windows GUI 回歸(執行檔於 09:49-09:59 由 2149422e 建置，以 `test.zsh Pn -win --no-build`
     執行):P50 WinUI 與 GTK(點擊後標題由 A 變 B)、P93 WinUI 與 GTK、P104 WinUI 與 GTK——全部 rc 0,每張截圖 85-97%
     非黑，每個動作檔都重放到結束。加上 M4 的 AppKit 136/136 與 iPhone 135/135,本項要求的 GUI 回歸已完成。
+- [ ] **4. Three P50 popover action files fail, on develop too.** Found
+  2026-11-13 in the 2df43059 regression and checked against a develop e373e94f
+  build, 3 interleaved rounds per backend: identical on both builds. Every run
+  stops at the first `origin=popover` row with "no popover, menu or modal is
+  open over the window being driven".
+  - `P50-popover-button-sweep` and `P50-probe-popover-centre` on WinUI: both
+    are GtkBackend diagnostics (task #111), and the anchor (252,711) is a
+    GTK-layout frame coordinate, so on WinUI the click opens no popover.
+    Either mark them gtk-only or give WinUI its own anchor.
+  - `P50-popover-button-sweep` on GTK: the popover opens (291x222 now; the
+    file says 291x221), and in all 6 runs it is gone after the click at
+    sweep point 10, popover (50,170). The file expects "press me" between 170
+    and 180 and "close this panel" at 180, so the layout has moved. Re-measure
+    the buttons (gtk_widget_pick) and fix the sweep points.
+  三個 P50 popover 動作檔失敗，在 develop 上也一樣。2026-11-13 在 2df43059 的回歸中發現，並以 develop e373e94f 的建置
+  對照，每個 backend 交錯 3 輪：兩版完全相同。每次都停在第一個 `origin=popover` 列:「no popover, menu or modal is open
+  over the window being driven」。WinUI 上的 `P50-popover-button-sweep` 與 `P50-probe-popover-centre` 都是 GtkBackend 的
+  診斷檔(任務 #111),錨點 (252,711) 是 GTK 版面的 frame 座標，所以在 WinUI 上點擊不會開啟 popover;要嘛標為僅限 gtk,
+  要嘛給 WinUI 自己的錨點。GTK 上的 `P50-popover-button-sweep`:popover 有開啟(現為 291x222,檔案寫 291x221),6 次都在
+  掃描第 10 點 popover (50,170) 點擊後消失。檔案預期「press me」在 170 到 180 之間、「close this panel」在 180,所以版面已
+  移動。以 gtk_widget_pick 重新量測按鈕位置並修正掃描點。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
