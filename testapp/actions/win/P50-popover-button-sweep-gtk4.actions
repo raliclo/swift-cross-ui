@@ -2,7 +2,7 @@ action,x,y,origin,button,key,micros,note,platform
 # P50 on Windows, GtkBackend: find the "press me" button inside the popover by
 # sweeping DOWN its centre line, now that `origin=popover` makes that possible.
 #
-# WHY THIS EXISTS. P50-probe-popover-centre.actions established, 2026-09-09, that a
+# WHY THIS EXISTS. P50-probe-popover-centre-gtk4.actions established, 2026-09-09, that a
 # synthesised press DOES reach the popover: the capture-phase probe in
 # GtkBackend reported both `pointer entered` and `press n=1`, and the replay's
 # hitTarget was the popover's own toplevel. What it could NOT establish is
@@ -68,7 +68,7 @@ action,x,y,origin,button,key,micros,note,platform
 # P50 於 Windows、GtkBackend:趁 `origin=popover` 已經可用,沿 popover 的中心線**由上而下**掃描,
 # 找出「press me」按鈕。
 #
-# **本檔為何存在。** P50-probe-popover-centre.actions 已於 2026-09-09 確立:一次合成的按壓**確實**抵達
+# **本檔為何存在。** P50-probe-popover-centre-gtk4.actions 已於 2026-09-09 確立:一次合成的按壓**確實**抵達
 # popover——GtkBackend 中 capture 階段的探針同時回報了 `pointer entered` 與 `press n=1`,而重放的
 # `hitTarget` 正是 popover 自己的 toplevel。它**無法**確立的是**按鈕**有沒有動作,因為它點的是幾何
 # 中心,而一個容納兩顆堆疊按鈕的 291x221 popover,其中心可能落在兩者**之間**。
