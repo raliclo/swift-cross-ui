@@ -229,6 +229,37 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     `LayoutReuseTests`(4 項):有無重用 commit 出相同幾何、P1 試探/P2 試探/P1 最後呼叫的序列(拿掉子孫還原時會失敗——已以
     突變驗證)、檢查找到 0 個不一致、關閉時不記錄。主機測試 55 個 suite 401 項 + 15 項在關閉、檢查、開啟三種模式下皆通過，
     不一致 0 行。待辦：開啟旗標的 GUI 量測與回歸(P998 次數、SoftPCB-UI),再決定是否預設開啟。
+  - 2026-11-12, GUI measurement. P998 is now **P116** (`testapp/P116.swift`,
+    `test_support/test_P116.zsh`); the entries above keep the old name.
+    "appear-to-hop" (onAppear to the next main-queue turn, covering the first
+    layout and commit), interleaved, 10 rounds per mode, full mode, 10 rows:
+    | Backend | reuse off min / median | reuse on min / median |
+    | --- | --- | --- |
+    | WinUI (P998-WinUI.exe from 8535388d) | 573 / 592 ms | 485 / 493 ms |
+    | GTK (P116-gtk4.exe from 8535388d + rename) | 573 / 596 ms | 587 / 602 ms |
+    WinUI: about 15% faster. GTK: no difference beyond noise -- not explained
+    yet; nothing counts reuse hits in a GUI app, so whether GTK reuses at all
+    is unmeasured. `SCUI_LAYOUT_REUSE_CHECK=1`: 0 mismatch lines on both.
+    Regenerate: run the exe with `SCUI_LAYOUT_REUSE=0|1`, close it with
+    `taskkill -im` (no `-f`, so stdout is flushed) and read `appear-to-hop`.
+    Apple (M4, c25d9480): macOS host tests 414 + 15 under the check, 0
+    mismatches; AppKit sweep 136/136 with reuse and check on, 0 mismatch lines
+    in 136 logs; iOS builds, P2 passes with reuse off (simulator env path
+    unverified). M4's temporary probe in AppKit P2: reuse applies on child
+    nodes (16+ applied), but P2's root body count stays 7 -- the three window
+    passes at launch are separate full updates, which in-pass reuse was not
+    designed to remove. Open: a reuse-hit counter printed under the check flag
+    (M4's suggestion), the GTK result, SoftPCB-UI, and then the default.
+    2026-11-12,GUI 量測。P998 已改名為 **P116**(`testapp/P116.swift`、`test_support/test_P116.zsh`);上方紀錄保留舊名。
+    「appear-to-hop」(從 onAppear 到主佇列下一輪，涵蓋第一次排版與 commit),交錯執行，每種模式 10 輪,full 模式 10 列:
+    WinUI 關閉 573 / 592 ms、開啟 485 / 493 ms(最小 / 中位數),約快 15%;GTK 關閉 573 / 596 ms、開啟 587 / 602 ms,
+    差異在雜訊內——原因尚未查明；GUI app 裡沒有任何東西計算重用命中次數，所以 GTK 究竟有沒有重用仍未量測。
+    `SCUI_LAYOUT_REUSE_CHECK=1`:兩者皆 0 行不一致。重做方式：以 `SCUI_LAYOUT_REUSE=0|1` 執行 exe,用 `taskkill -im`
+    (不加 `-f`,stdout 才會寫出)關閉，讀取 `appear-to-hop`。Apple(M4,c25d9480):檢查模式下 macOS 主機測試 414 + 15 項、
+    0 不一致；開啟重用與檢查的 AppKit 測試 136/136,136 份日誌 0 行不一致；iOS 可建置，P2 在關閉重用時通過(模擬器的環境
+    變數路徑未驗證)。M4 在 AppKit P2 的臨時探針：子節點確實有重用(套用 16 次以上),但 P2 根節點的 body 次數仍為 7——
+    啟動時三次視窗排版是各自獨立的完整更新，一輪內的重用本來就不是為了消除它們。待辦：在檢查旗標下印出重用命中次數
+    (M4 的建議)、GTK 的結果、SoftPCB-UI,之後再決定預設值。
 - [ ] **3. A new node evaluates its view's body twice.** `ViewGraphNode.init`
   calls `view.children(...)` (`View.defaultChildren`) and then
   `view.asWidget(...)` (`View.defaultAsWidget`), and each evaluates `body`
@@ -280,6 +311,15 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     checkout;M4 的 worktree 裡沒有，所以沒有載入、沒有影格，等待逾時。改用指向主要 checkout 影片的 symlink 後,P6 在
     2149422e 上通過(327 個影格),AppKit 測試為 136/136。先前 perf/layout-passes worktree 中那次 P6 失敗，很可能是同一原因。
     上一段保留原文：缺少被 gitignore 之輸入檔的 worktree,正好會重現「連續兩次失敗」。合併不再因此受阻。
+  - 2026-11-12, Windows GUI regression of `perf/body-once` (exes built 09:49-09:59
+    from 2149422e, run with `test.zsh Pn -win --no-build`): P50 WinUI and GTK
+    (title A then B after the click), P93 WinUI and GTK, P104 WinUI and GTK --
+    all rc 0, every capture 85-97% non-black, each action file replayed to the
+    end. With M4's 136/136 AppKit and 135/135 iPhone, the GUI regression this
+    item asked for is done.
+    2026-11-12,`perf/body-once` 的 Windows GUI 回歸(執行檔於 09:49-09:59 由 2149422e 建置，以 `test.zsh Pn -win --no-build`
+    執行):P50 WinUI 與 GTK(點擊後標題由 A 變 B)、P93 WinUI 與 GTK、P104 WinUI 與 GTK——全部 rc 0,每張截圖 85-97%
+    非黑，每個動作檔都重放到結束。加上 M4 的 AppKit 136/136 與 iPhone 135/135,本項要求的 GUI 回歸已完成。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

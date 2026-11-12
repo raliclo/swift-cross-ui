@@ -5,7 +5,7 @@ import Foundation
 /// **Why there is anything to reuse.** Stacks probe each child with
 /// `allowLayoutCaching` (a minimum and a maximum proposal) and then lay it out
 /// for real without the flag, and the real call misses `resultCache` by design.
-/// Measured 2026-11-12 in P998 (one pass, 1753 commits, GTK): 3263 final-call
+/// Measured 2026-11-12 in P116, then named P998 (one pass, 1753 commits, GTK): 3263 final-call
 /// misses, 3064 of them for a proposal a probe had already computed.
 ///
 /// **Why it is not just a cache lookup.** Commit reads state the LAST
@@ -33,7 +33,7 @@ import Foundation
 /// 在同一輪的最後一次呼叫中重用試探時算出的排版結果。
 ///
 /// **為何有東西可以重用。** stack 會以 `allowLayoutCaching` 試探每個子節點(最小與最大提議尺寸),再不帶這個旗標
-/// 真正排版一次，而真正的那次依設計不會查 `resultCache`。2026-11-12 於 P998 實測(一輪、1753 次 commit、GTK):最後一次
+/// 真正排版一次，而真正的那次依設計不會查 `resultCache`。2026-11-12 於 P116(當時名為 P998)實測(一輪、1753 次 commit、GTK):最後一次
 /// 呼叫共 3263 次未命中，其中 3064 次的提議尺寸已經有試探算過。
 ///
 /// **為何不只是查快取。** commit 讀的是「最後一次」`computeLayout` 留下的狀態——每個子孫節點的 `currentLayout`、
