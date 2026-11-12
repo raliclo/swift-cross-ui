@@ -148,6 +148,8 @@ extension View where Self: UIViewRepresentable {
         environment: EnvironmentValues,
         backend _: Backend
     ) -> ViewLayoutResult {
+        // The native view may keep state per proposal. / 原生 view 可能保留各提議尺寸的狀態。
+        LayoutReuse.markUnsafe()
         let representingWidget = widget as! ViewRepresentingWidget<Self>
         representingWidget.update(with: environment)
 

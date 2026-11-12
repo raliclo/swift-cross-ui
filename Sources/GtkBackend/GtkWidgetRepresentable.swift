@@ -134,6 +134,8 @@ extension View where Self: GtkWidgetRepresentable {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // The native widget may keep state per proposal. / 原生 widget 可能保留各提議尺寸的狀態。
+        LayoutReuse.markUnsafe()
         guard let backend = backend as? GtkBackend else {
             fatalError("GtkWidgetRepresentable updated by \(Backend.self)")
         }

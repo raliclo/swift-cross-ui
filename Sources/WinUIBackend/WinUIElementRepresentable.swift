@@ -142,6 +142,8 @@ extension View where Self: WinUIElementRepresentable {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // The native element may keep state per proposal. / 原生元素可能保留各提議尺寸的狀態。
+        LayoutReuse.markUnsafe()
         let representingWidget = widget as! RepresentingWidget<Self>
         representingWidget.representable = self
         if let child = representingWidget.child,

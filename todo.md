@@ -115,6 +115,20 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     Apple(Swift-Cross-UI-M4,01aaee4e):macOS 主機測試 406 + 15 通過、iPhone 回放 135/135、macOS AppKit 全套只有
     P114-native-back-gtk 失敗(分支當時尚無 develop 的 -gtk4 改名);啟動時由發布驅動的更新 1 -> 0(P2)、3 -> 0(P114)。
     rebase 到 develop 8818e480 後主機測試 394 + 15 通過,GTK 與 WinUI 皆可建置。2026-11-12 併回 develop。
+  - 2026-11-12, **regression found after the merge** (Swift-Cross-UI-M4,
+    AppKit P2): root view body at launch 5 -> 8 with b4945770 rebased. The
+    removed extra window pass used to absorb the first `didBecomeKey`; now
+    AppKitBackend's window-environment handler calls its action
+    unconditionally on becoming key, a full update (3 passes, 3 bodies), though
+    the scene phase it reports did not change (`.active` until key once, per
+    85d7dd5d). Fix: the GTK/WinUI rule from 96a63717 for AppKit -- call the
+    action only when the window's scene phase or scale actually changed. Asked
+    M4 (AppKit) to make and measure it; expected 8 -> 5 (7 -> 4 with item 3).
+    2026-11-12,**合併後發現退步**(Swift-Cross-UI-M4,AppKit P2):b4945770 rebase 後，啟動時根 view 的 body 由 5 次變 8 次。
+    被拿掉的那一次額外視窗排版，原本會吸收第一次 `didBecomeKey`;現在 AppKitBackend 的視窗環境 handler 在成為 key 時無條件
+    呼叫動作，即一次完整更新(3 輪、3 次 body),而它回報的 scene phase 其實沒變(依 85d7dd5d,成為 key 前都是 `.active`)。
+    修法：把 96a63717 中 GTK/WinUI 的規則套到 AppKit——視窗的 scene phase 或縮放真的改變才呼叫動作。已請 M4(AppKit)實作並
+    量測；預期 8 -> 5(加上第 3 項為 7 -> 4)。
     2026-11-12,**2026-11-11 的結果不完整**:b5544693 拿掉了根重算，但開窗仍跑了三次視窗更新。以 P998 計算每次
     `WindowReference.update` 的 commit 數:1753、3500、3499——約五輪完整排版。兩次多出的更新都來自 `OnChangeModifier`
     (P998 用 `.onChange(of: scenePhase)` 與 `.onChange(of: appPhase)` 包住頁面):它在 `computeLayout` 裡賦值
@@ -188,6 +202,33 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-12,使用者選了 **(b)**。Swift-Cross-UI-M4 追蹤 AppKit 上 P2 啟動時根 view 的 body(develop 8818e480 與 01aaee4e
     相同):共 5 次。其中 3 次是同一次 `WindowReference.update` 各輪裡的 `defaultComputeLayout`——完整更新路徑把
     `reusesBodies` 設為 false(ViewGraphNode.computeLayout),所以每輪都重新求值 body——屬於本項。另外 2 次見下方第 3 項。
+  - 2026-11-12, branch `perf/layout-reuse` (on `perf/body-once`):
+    `Sources/SwiftCrossUI/Layout/LayoutReuse.swift`. Each real computation
+    records a `LayoutReuseRecord` (`lastBody`, final environment, children
+    snapshot, and the last proposal every node under it was given); a final
+    call whose record is reusable restores the subtree from each node's OWN
+    record and returns the cached result. Reusable only if the children type
+    snapshots (`TupleViewChildren`, `ForEachViewChildren`, and the types the
+    audit found stateless), nothing called `LayoutReuse.markUnsafe()` (the 5
+    representables), and every record below is reusable -- so GeometryReader,
+    List, ScrollView, Table and SplitView are excluded by construction. **Off
+    unless `SCUI_LAYOUT_REUSE=1`**; `SCUI_LAYOUT_REUSE_CHECK=1` computes anyway
+    and reports differing results. `LayoutReuseTests` (4): same committed
+    geometry with and without reuse, a probe-P1/probe-P2/final-P1 sequence
+    (which fails when descendant restore is disabled -- checked by mutating
+    it), the check finds 0 mismatches, and off records nothing. Host tests
+    401 in 55 suites + 15 pass in all three modes (off, check, on) with 0
+    mismatch lines. Open: GUI measurement and regression with the flag on
+    (P998 counts, SoftPCB-UI), then deciding whether to turn it on by default.
+    2026-11-12,分支 `perf/layout-reuse`(在 `perf/body-once` 之上):`Sources/SwiftCrossUI/Layout/LayoutReuse.swift`。每次
+    真正的計算都記錄一份 `LayoutReuseRecord`(`lastBody`、最後一輪的 environment、children 快照，以及其下每個節點最後收到的
+    提議尺寸);最後一次呼叫若找到可重用的紀錄，就依每個節點**自己的**紀錄還原整棵子樹並傳回快取結果。可重用的條件:children
+    型別能做快照(`TupleViewChildren`、`ForEachViewChildren` 與盤點判定為無狀態的型別)、沒有任何東西呼叫
+    `LayoutReuse.markUnsafe()`(5 個 representable)、其下每份紀錄都可重用——因此 GeometryReader、List、ScrollView、Table 與
+    SplitView 在結構上就被排除。**除非 `SCUI_LAYOUT_REUSE=1` 否則關閉**;`SCUI_LAYOUT_REUSE_CHECK=1` 照常計算並回報結果不同者。
+    `LayoutReuseTests`(4 項):有無重用 commit 出相同幾何、P1 試探/P2 試探/P1 最後呼叫的序列(拿掉子孫還原時會失敗——已以
+    突變驗證)、檢查找到 0 個不一致、關閉時不記錄。主機測試 55 個 suite 401 項 + 15 項在關閉、檢查、開啟三種模式下皆通過，
+    不一致 0 行。待辦：開啟旗標的 GUI 量測與回歸(P998 次數、SoftPCB-UI),再決定是否預設開啟。
 - [ ] **3. A new node evaluates its view's body twice.** `ViewGraphNode.init`
   calls `view.children(...)` (`View.defaultChildren`) and then
   `view.asWidget(...)` (`View.defaultAsWidget`), and each evaluates `body`

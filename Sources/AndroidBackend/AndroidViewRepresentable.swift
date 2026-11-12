@@ -232,6 +232,8 @@ extension SwiftCrossUI.View where Self: AndroidViewRepresentable {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // The native view may keep state per proposal. / 原生 view 可能保留各提議尺寸的狀態。
+        LayoutReuse.markUnsafe()
         let widget = (widget as! AndroidBackend.Widget).as(RepresentingView.self)!
         let size = widget.updateAndGetSize(
             environment: environment,

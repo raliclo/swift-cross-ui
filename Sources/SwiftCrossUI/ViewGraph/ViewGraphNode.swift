@@ -43,6 +43,10 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
     /// A cache of update results keyed by the proposed size they were for. Gets
     /// cleared before the results' sizes become invalid.
     var resultCache: [ProposedViewSize: ViewLayoutResult]
+    /// What restores each cached result as the committed one, when reuse is
+    /// recorded; cleared with `resultCache`. See ``LayoutReuse``.
+    /// 讓每個快取結果成為被 commit 者所需的還原資料(有記錄重用時);與 `resultCache` 一起清除。見 ``LayoutReuse``。
+    var reuseRecords: [ProposedViewSize: LayoutReuseRecord] = [:]
     /// The body the view's default layout evaluated last, kept so that a
     /// re-layout and the commit use it instead of evaluating `body` again. Nil for
     /// views that do not use the default layout. See
@@ -278,6 +282,8 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         self.currentLayout = newLayout
         if newLayout.size != currentSize {
             resultCache[lastProposedSize] = newLayout
+            // Nothing recorded this result's state. / 沒有任何東西記錄這個結果的狀態。
+            reuseRecords[lastProposedSize] = nil
             parentEnvironment.onResize(newLayout.size)
         } else {
             _ = self.commit()
@@ -355,6 +361,13 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             hasHadFirstUpdate = true
         }
 
+        // The enclosing computation, if any, learns this node's last proposal --
+        // a cache hit included, since a hit writes no state. See `LayoutReuse`.
+        // 外層的計算(若有)會得知這個節點最後收到的提議尺寸——命中快取也算，因為命中時不寫任何狀態。見 `LayoutReuse`。
+        if LayoutReuse.isRecording {
+            LayoutReuse.recordCall(reuseCall(for: proposedSize))
+        }
+
         if proposedSize == lastProposedSize && !resultCache.isEmpty
             && (!parentEnvironment.allowLayoutCaching || environment.allowLayoutCaching),
             let currentLayout
@@ -371,6 +384,25 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             // can reuse any layouts that we've computed since the cache was last
             // cleared. The cache gets cleared on commit.
             return cachedResult
+        }
+
+        // The final call for a proposal a probe already computed: put that
+        // computation's state back instead of computing again. See `LayoutReuse`.
+        // 某個提議尺寸的最後一次呼叫，而試探已經算過它：把那次計算的狀態放回，而不是再算一次。見 `LayoutReuse`。
+        var reuseCandidate: ViewLayoutResult?
+        if !environment.allowLayoutCaching, LayoutReuse.isRecording,
+            let record = reuseRecords[proposedSize], record.isReusable,
+            let cached = resultCache[proposedSize]
+        {
+            LayoutReuse.candidateCount += 1
+            if LayoutReuse.isEnabled && !LayoutReuse.isChecking {
+                if let newView {
+                    view = newView
+                }
+                restoreLayout(for: proposedSize)
+                return cached
+            }
+            reuseCandidate = cached
         }
 
         // Stored without the pass-only values: `reusesBodies` belongs to this pass,
@@ -415,6 +447,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             viewEnvironment.cachedBody = nil
         }
 
+        let frame = LayoutReuse.isRecording ? LayoutReuse.push() : nil
         let result = view.computeLayout(
             widget,
             children: children,
@@ -422,6 +455,9 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             environment: viewEnvironment,
             backend: backend
         )
+        if frame != nil {
+            LayoutReuse.pop()
+        }
         if let body = capture.body {
             lastBody = body
         }
@@ -432,8 +468,64 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         // view update. Under that assumption, we can cache view layout results.
         resultCache[proposedSize] = result
 
+        if let frame {
+            let snapshot = LayoutReuse.snapshot(of: children)
+            var finalEnvironment = storedEnvironment
+            finalEnvironment.allowLayoutCaching = false
+            let calls = Array(frame.calls.values)
+            reuseRecords[proposedSize] = LayoutReuseRecord(
+                lastBody: lastBody,
+                environment: finalEnvironment,
+                childrenSnapshot: snapshot.value,
+                calls: calls,
+                isReusable: snapshot.supported && !frame.isUnsafe
+                    && calls.allSatisfy { $0.isReusable() }
+            )
+        }
+        if let reuseCandidate, reuseCandidate.size != result.size {
+            LayoutReuse.reportMismatch(
+                view: "\(NodeView.self)", proposal: proposedSize,
+                reused: reuseCandidate.size, computed: result.size
+            )
+        }
+
         currentLayout = result
         return result
+    }
+
+    /// This node's call for `proposal`, as an enclosing computation records it.
+    /// Weak, because a node can leave the graph before the pass commits.
+    /// 外層計算所記錄的、這個節點對 `proposal` 的呼叫。用 weak,因為節點可能在這一輪 commit 之前離開 graph。
+    private func reuseCall(for proposal: ProposedViewSize) -> LayoutReuseRecord.Call {
+        LayoutReuseRecord.Call(
+            node: ObjectIdentifier(self),
+            proposal: proposal,
+            isReusable: { [weak self] in
+                guard let self else { return false }
+                return self.resultCache[proposal] != nil
+                    && self.reuseRecords[proposal]?.isReusable == true
+            },
+            restore: { [weak self] in
+                self?.restoreLayout(for: proposal)
+            }
+        )
+    }
+
+    /// Puts back the state this node had right after computing `proposal`, and
+    /// the same for every node that computation laid out, each from its own record.
+    /// 放回這個節點剛算完 `proposal` 時的狀態，並對那次計算排版過的每個節點做同樣的事，各自依自己的紀錄。
+    private func restoreLayout(for proposal: ProposedViewSize) {
+        guard let record = reuseRecords[proposal], let result = resultCache[proposal] else {
+            return
+        }
+        currentLayout = result
+        lastProposedSize = proposal
+        lastBody = record.lastBody
+        parentEnvironment = record.environment
+        LayoutReuse.restore(record.childrenSnapshot, into: children)
+        for call in record.calls {
+            call.restore()
+        }
     }
 
     /// Commits the view's most recently computed layout and any view state changes
@@ -479,6 +571,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             backend: backend
         )
         resultCache = [:]
+        reuseRecords = [:]
         defaultTransition?.commit(size: currentLayout.size.vector, environment: parentEnvironment)
 
         backend.showUpdate(of: widget)
