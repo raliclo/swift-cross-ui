@@ -1362,6 +1362,16 @@ run_windows() {
     fi
     win_exe="${candidates[1]}"
     printf '==> Running %s\n' "$win_exe"
+    # A `-gtk4.actions` file is GtkBackend-only, as sweep_apple.zsh treats it:
+    # its coordinates and probes are GTK's. Measured 2026-11-13: the P50 popover
+    # diagnostics, run on WinUI, clicked a GTK-layout anchor, opened nothing, and
+    # failed at the first `origin=popover` row.
+    # `-gtk4.actions` 檔只給 GtkBackend(與 sweep_apple.zsh 相同):其中的座標與探針是 GTK 的。2026-11-13 實測:
+    # P50 的 popover 診斷檔在 WinUI 上點到 GTK 版面的錨點，什麼都沒開，在第一個 `origin=popover` 列失敗。
+    if [[ -n "${action_file:-}" && "${action_file:t}" == *-gtk4.actions && "$win_exe" != *-gtk4.exe ]]; then
+        printf '!! %s is GtkBackend-only; run it with TEST_BACKEND=gtk4, not %s\n' "${action_file:t}" "$win_exe" >&2
+        exit 1
+    fi
     gpu_preference_prefer_discrete "$out/$win_exe"
 
     # Mixed Windows form for SCUI_DEBUG_EVENTS_DIR, for the same reason

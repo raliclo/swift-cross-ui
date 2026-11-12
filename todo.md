@@ -365,6 +365,13 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     are GtkBackend diagnostics (task #111), and the anchor (252,711) is a
     GTK-layout frame coordinate, so on WinUI the click opens no popover.
     Either mark them gtk-only or give WinUI its own anchor.
+    **Done 2026-11-13:** M4 renamed both to `-gtk4.actions` (a075f874), and
+    the Windows runner (`run_windows` in test_common.zsh) now refuses a
+    `-gtk4.actions` file unless the exe is `-gtk4`, as sweep_apple.zsh does.
+    Checked: `TEST_BACKEND=WinUI` with P50-probe-popover-centre-gtk4 stops
+    before launching. **2026-11-13 完成:** M4 把兩者改名為 `-gtk4.actions`(a075f874);Windows runner
+    (test_common.zsh 的 `run_windows`)現在除非 exe 是 `-gtk4`,否則拒絕 `-gtk4.actions` 檔，與 sweep_apple.zsh 相同。
+    已驗證:`TEST_BACKEND=WinUI` 搭配 P50-probe-popover-centre-gtk4 會在啟動前停下。
   - `P50-popover-button-sweep` on GTK: the popover opens (291x222 now; the
     file says 291x221), and in all 6 runs it is gone after the click at
     sweep point 10, popover (50,170). The file expects "press me" between 170
