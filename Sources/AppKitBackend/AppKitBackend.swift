@@ -552,6 +552,13 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         return (active || !been ? .active : .inactive, been)
     }
 
+    /// The scene phase a window reports now, by the same rule `computeWindowEnvironment`
+    /// applies. 視窗此刻回報的 scene phase,規則與 `computeWindowEnvironment` 相同。
+    @MainActor
+    static func scenePhase(of window: NSCustomWindow) -> ScenePhase {
+        phase(active: window.isKeyWindow, beenActive: window.hasBeenKey).0 == .active ? .active : .inactive
+    }
+
     public func computeRootEnvironment(defaultEnvironment: EnvironmentValues) -> EnvironmentValues {
         let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
         let phase = currentAppPhase()
@@ -637,9 +644,12 @@ extension AppKitBackend {
         let (windowPhase, beenKey) = Self.phase(active: window.isKeyWindow, beenActive: window.hasBeenKey)
         window.hasBeenKey = beenKey
 
+        let scenePhase: ScenePhase = windowPhase == .active ? .active : .inactive
+        window.reportedScenePhase = scenePhase
+
         return rootEnvironment
             .with(\.windowScaleFactor, window.backingScaleFactor)
-            .with(\.scenePhase, windowPhase == .active ? .active : .inactive)
+            .with(\.scenePhase, scenePhase)
     }
 
     public func setWindowEnvironmentChangeHandler(
@@ -678,22 +688,40 @@ extension AppKitBackend {
         // moves between two windows, each receives its own notification.
         // 用於更新依賴 `scenePhase` 的 view。只看本視窗的 key 變化：它的 scene phase 讀的是它自己的
         // `isKeyWindow`,別的視窗成為 key 對它沒有要說的——焦點在兩個視窗間移動時，兩者各自收到自己的通知。
+        // Only when the phase this window reports changes (as GtkBackend and WinUIBackend
+        // check, 96a63717): every call is a full update of the window. The first
+        // didBecomeKey at launch changes nothing -- the phase reads active until the window
+        // has been key -- and calling through anyway re-evaluated P2's root body three
+        // more times at launch (5 -> 8, 2026-11-12).
+        // 只在本視窗回報的 phase 改變時呼叫(與 GtkBackend、WinUIBackend 相同，96a63717):每次呼叫都是整個視窗的完整
+        // 更新。啟動時第一次 didBecomeKey 什麼都沒改變——成為 key 之前 phase 就讀作 active——照樣呼叫時，P2 的 root
+        // body 在啟動時多求值了三次(5 -> 8,2026-11-12)。
         let becameKey = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
             object: window,
             queue: .main
-        ) { _ in
+        ) { [weak window] _ in
             Task { @MainActor in
-                action()
+                guard let window else { return }
+                // Keep `hasBeenKey` current even when nothing is laid out, or a later
+                // resign would read the phase as still active (never been key).
+                // 即使不排版也更新 `hasBeenKey`,否則之後失去 key 時會把 phase 讀成仍是 active(從未成為 key)。
+                window.hasBeenKey = window.hasBeenKey || window.isKeyWindow
+                if Self.scenePhase(of: window) != window.reportedScenePhase { action() }
             }
         }
         let resignedKey = NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification,
             object: window,
             queue: .main
-        ) { _ in
+        ) { [weak window] _ in
             Task { @MainActor in
-                action()
+                guard let window else { return }
+                // Keep `hasBeenKey` current even when nothing is laid out, or a later
+                // resign would read the phase as still active (never been key).
+                // 即使不排版也更新 `hasBeenKey`,否則之後失去 key 時會把 phase 讀成仍是 active(從未成為 key)。
+                window.hasBeenKey = window.hasBeenKey || window.isKeyWindow
+                if Self.scenePhase(of: window) != window.reportedScenePhase { action() }
             }
         }
 
@@ -2837,6 +2865,13 @@ public class NSCustomWindow: NSWindow {
     /// SwiftUI reports it at launch (measured 2026-11-10: .active, no change).
     /// 本視窗是否已成為過 key。在那之前它的 scene phase 讀作 active,與 SwiftUI 啟動時的回報相同(2026-11-10 實測:.active,不變)。
     var hasBeenKey = false
+
+    /// The scene phase `computeWindowEnvironment` last reported for this window. The key
+    /// observers compare against it, so a key change that leaves the phase as it was (the
+    /// first didBecomeKey at launch: active before, active after) lays nothing out again.
+    /// `computeWindowEnvironment` 上次為本視窗回報的 scene phase。key 的觀察者拿它比較，所以 phase 沒變的 key
+    /// 變化(啟動時第一次 didBecomeKey:之前 active、之後也是 active)不會再排一次版。
+    var reportedScenePhase: ScenePhase?
 
     /// The tokens of the block observers that report this window's
     /// environment changes, kept so they can be removed when the handler is
