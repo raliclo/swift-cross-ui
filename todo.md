@@ -129,6 +129,14 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     呼叫動作，即一次完整更新(3 輪、3 次 body),而它回報的 scene phase 其實沒變(依 85d7dd5d,成為 key 前都是 `.active`)。
     修法：把 96a63717 中 GTK/WinUI 的規則套到 AppKit——視窗的 scene phase 或縮放真的改變才呼叫動作。已請 M4(AppKit)實作並
     量測；預期 8 -> 5(加上第 3 項為 7 -> 4)。
+    **Fixed 2026-11-12 in 792f7955 (M4):** the observers call the action only
+    when `scenePhase(of:)` differs from the reported one, and also set
+    `hasBeenKey` first, so a skipped first `didBecomeKey` does not lose the
+    later inactive transition. P2 root body at launch 8 -> 5; Finder and back
+    still gives active -> inactive -> active; host tests 407 + 15.
+    **2026-11-12 已由 792f7955 修正(M4):** observer 只在 `scenePhase(of:)` 與已回報者不同時才呼叫動作，並先設定 `hasBeenKey`,
+    讓被略過的第一次 `didBecomeKey` 不會吃掉之後的 inactive 轉換。啟動時 P2 根 body 8 -> 5;切到 Finder 再切回仍為
+    active -> inactive -> active;主機測試 407 + 15 項。
     2026-11-12,**2026-11-11 的結果不完整**:b5544693 拿掉了根重算，但開窗仍跑了三次視窗更新。以 P998 計算每次
     `WindowReference.update` 的 commit 數:1753、3500、3499——約五輪完整排版。兩次多出的更新都來自 `OnChangeModifier`
     (P998 用 `.onChange(of: scenePhase)` 與 `.onChange(of: appPhase)` 包住頁面):它在 `computeLayout` 裡賦值
