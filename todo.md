@@ -504,6 +504,64 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   自己的狀態，跨頁沿用是安全的);GTK 換掉 10 列(1.2 秒)比開整個視窗(約 0.65 秒)還貴，拆掉與重建元件本身就慢，要找出是
   哪一半以及原因;WinUI 一次什麼都不建立的翻頁仍要約 0.7 秒，表示每次更新都會排版並 commit 整個視窗，不管改了什麼，見第 2
   項的第一次更新剖析((0,0) 試探與 commit)。重做方式見上方英文段落。
+  - 2026-11-13, AppKit, iOS and Android baselines (M4, same probes, P116 10x6,
+    3 interleaved rounds, min/median over 24 turns): AppKit item ~175 / slot
+    ~70 ms per turn; iOS simulator ~394 / ~230; Android emulator ~318 / ~118.
+    On every backend most of a slot-mode commit was HStack self time (27 ms
+    AppKit, 140 iOS, 53 Android).
+    2026-11-13,AppKit、iOS 與 Android 的基準(M4,同一組探針,P116 10x6,交錯 3 輪，24 次翻頁的最小 / 中位數):AppKit item 約
+    175 / slot 約 70 ms;iOS 模擬器約 394 / 230;Android 模擬器約 318 / 118。每個 backend 上 slot 模式的 commit 大多是 HStack 的
+    自身時間(AppKit 27 ms、iOS 140、Android 53)。
+  - 2026-11-13, **two causes found and fixed** (temporary per-type self-time
+    probes, reverted):
+    1. All backends: `LayoutSystem.commitStackLayout` re-lays out every child
+       when the stack was proposed a nil perpendicular size, which every row of
+       a vertical ScrollView is (`redistributeSpaceOnCommit`). That was the
+       HStack self time: 223-245 ms of a 267-319 ms WinUI commit. Now, in that
+       redistribution only (`EnvironmentValues.isStackRedistribution`), a child
+       proposed in each axis either its last proposal or exactly the size it
+       produced keeps its layout. WinUI slot commit 262-291 -> 31 ms, turn
+       422-438 -> 187 ms; GTK slot turn 125 -> 62 ms. Tests in
+       StackLayoutTests; a mutation that always keeps the layout fails both
+       the new test and #453.
+    2. GTK: every widget's own `CSSProvider` was installed for the whole
+       display, so each new widget's style lookup scanned every other widget's
+       provider. A turn that replaced rows grew with the square of the row
+       count: 5/10/20/40 rows 220/579/1969/8766 ms. Widget providers are now
+       scoped to the widget (`CSSProvider(forWidget:)`, a C helper around the
+       GTK 4.10-deprecated `gtk_style_context_add_provider`); popover, picker
+       and menu keep display scope because their rules name descendants.
+       Now 110-125/234/469/985 ms. Also: GTK label measurements are cached
+       across labels, keyed by the full Pango layout shape.
+    GTK P116 10 rows, item mode: 1.2 s per turn this morning, 0.24 s now.
+    Remaining: AppKit/iOS/Android numbers after the push (M4), and whether
+    SoftPCB-UI's "min width of 7 for height of 14" GTK warnings predate the
+    CSS change (asked SoftPCB-W11 to check against baf796ad).
+    2026-11-13,**找到並修正兩個原因**(暫時的逐型別自身時間探針，已移除):1. 所有 backend:stack 被提議的垂直尺寸為 nil 時
+    (垂直 ScrollView 的每一列都是),`LayoutSystem.commitStackLayout` 會在 commit 時把每個子元件重排一次
+    (`redistributeSpaceOnCommit`),那就是 HStack 的自身時間:WinUI commit 267-319 ms 中占 223-245 ms。現在只在這次重新分配中
+    (`EnvironmentValues.isStackRedistribution`),子元件在每一軸收到的若不是上次的提議，就是那次算出的尺寸，就沿用排版。
+    WinUI slot commit 262-291 -> 31 ms、翻頁 422-438 -> 187 ms;GTK slot 翻頁 125 -> 62 ms。測試在 StackLayoutTests;改成
+    「一律沿用」的突變會讓新測試與 #453 都失敗。2. GTK:每個 widget 自己的 `CSSProvider` 都裝在整個 display 上，新 widget 查樣式
+    時要掃過其他每個 widget 的 provider,換列的翻頁隨列數平方成長:5/10/20/40 列 220/579/1969/8766 ms。現在 widget 的 provider
+    只裝在該 widget 上(`CSSProvider(forWidget:)`,包住 GTK 4.10 起棄用之 `gtk_style_context_add_provider` 的 C 輔助函式);
+    popover、picker 與選單的規則會指名後代，所以維持 display 範圍。現在為 110-125/234/469/985 ms。另外:GTK label 的量測改為所有
+    label 共用快取，鍵包含完整的 Pango layout 形狀。GTK P116 10 列 item 模式：今早每頁 1.2 秒，現在 0.24 秒。待辦：推送後 M4 的
+    AppKit/iOS/Android 數字；SoftPCB-UI 的「min width of 7 for height of 14」GTK 警告是否早於 CSS 改動(已請 SoftPCB-W11 以
+    baf796ad 對照)。
+- [ ] **7. GtkBackend on Windows misses some synthesised clicks.** P2's
+  `P2-controls-and-resizing-gtk4.actions` clicks three toggles; interleaved, 4
+  runs each, the pre-fix build applied 7 of 12 and the current one 6 of 12,
+  and a different click is lost each run (2026-11-13). Not the CSS or layout
+  change (the pre-fix build loses them too) and not the window placement (the
+  pre-fix build does not move the window). Win32 hit testing puts every click
+  on the GTK toplevel at the right point, so the press reaches the surface and
+  is lost after that. Find where: a probe on the button's gesture, as #111 did
+  for popovers. The WinUI half of P2 now passes with its own coordinates.
+  GtkBackend 在 Windows 上漏掉部分合成點擊。P2 的 `P2-controls-and-resizing-gtk4.actions` 點三個切換按鈕；交錯各 4 次，修改前的
+  版本生效 12 下中的 7 下，目前版本 6 下，而每次漏掉的不是同一下(2026-11-13)。不是 CSS 或排版的改動(修改前的版本也漏),也不是
+  視窗定位(修改前的版本不會移動視窗)。Win32 的命中測試顯示每一下都落在 GTK toplevel 的正確位置，所以按壓抵達了 surface,之後才
+  遺失。找出在哪裡：在按鈕的 gesture 上加探針，如 #111 對 popover 所做。P2 的 WinUI 那半現在以自己的座標通過。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
