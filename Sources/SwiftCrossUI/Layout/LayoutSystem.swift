@@ -402,7 +402,7 @@ public enum LayoutSystem {
                 ),
                 proposedPerpendicular: layout.size[component: perpendicularOrientation],
                 cache: cache,
-                environment: environment,
+                environment: environment.with(\.isStackRedistribution, true),
                 ignoreHiddenChildrenEntirely: true
             )
         }

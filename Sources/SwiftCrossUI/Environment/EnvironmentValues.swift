@@ -134,6 +134,21 @@ public struct EnvironmentValues {
     /// 節點會往下傳,但從不存下它,所以節點之後自己的更新仍會照規矩求值 body。
     var reusesBodies: Bool = false
 
+    /// Set on the children a stack lays out again at commit, when it was
+    /// proposed no perpendicular size (`LayoutSystem.shouldRedistributeSpaceOnCommit`),
+    /// and cleared by each child before its own subtree. That redistribution
+    /// lets a flexible child take the space the stack's final size leaves it; a
+    /// child already that size has none to take, so its node keeps its current
+    /// layout instead of laying its whole subtree out again. Measured
+    /// 2026-11-13 in P116 (10 rows of 6 cells in a ScrollView), per page turn on
+    /// WinUI: the redistribution was 223-245 ms of a 267-319 ms commit.
+    ///
+    /// stack 在沒有被提議垂直方向尺寸時(`LayoutSystem.shouldRedistributeSpaceOnCommit`),會在 commit 時把子元件再排一次;
+    /// 這個旗標設在那些子元件上，每個子元件在處理自己的子樹之前會把它清掉。那次重新分配是讓有彈性的子元件拿到 stack 最終尺寸
+    /// 留給它的空間；已經是那個尺寸的子元件沒有空間可拿，所以它的節點沿用目前的排版，而不是把整棵子樹再排一次。2026-11-13 於
+    /// P116(ScrollView 中 10 列 × 6 格)量得,WinUI 上每次翻頁的 commit 為 267-319 ms,其中重新分配占 223-245 ms。
+    var isStackRedistribution: Bool = false
+
     /// Where a view's default layout records the body it evaluated, for its node
     /// to keep. Owned by one view type; see `View.resolvedBody(_:)`.
     /// 預設排版記下它求值過的 body 的地方,供它的節點保存。只屬於一個 view 型別;見 `View.resolvedBody(_:)`。

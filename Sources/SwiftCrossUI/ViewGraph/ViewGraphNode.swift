@@ -194,6 +194,18 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
     /// 以上一次由上往下的排版結果填入它。
     private var lastWindowChromeSignature: String?
 
+    /// Whether `proposal` differs from `last`, and in every axis where it does
+    /// it proposes exactly `size`, the size the last proposal produced.
+    /// `proposal` 是否與 `last` 不同，而且在每個不同的軸上提議的正好是 `size`，也就是上次提議算出的尺寸。
+    static func proposesOwnSize(_ proposal: ProposedViewSize, last: ProposedViewSize, size: ViewSize) -> Bool {
+        guard proposal != last else { return false }
+        func matches(_ new: Double?, _ old: Double?, _ own: Double) -> Bool {
+            new == old || new == own
+        }
+        return matches(proposal.width, last.width, size.width)
+            && matches(proposal.height, last.height, size.height)
+    }
+
     /// The window-facing part of a set of preferences, as one comparable string.
     ///
     /// A string rather than `Equatable` on `PreferenceValues`, which cannot have
@@ -368,6 +380,18 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             LayoutReuse.recordCall(reuseCall(for: proposedSize))
         }
 
+        // In a stack's commit-time redistribution, a child proposed, in each axis,
+        // either its last proposal or exactly the size that proposal produced
+        // keeps that layout: proposing a view its own size gives that size back.
+        // See `EnvironmentValues.isStackRedistribution`.
+        // 在 stack commit 時的重新分配中，若子元件在每一軸收到的不是上次的提議，就是那次提議算出的尺寸，就沿用那次排版：
+        // 把一個 view 自己的尺寸提議給它，得到的就是那個尺寸。見 `EnvironmentValues.isStackRedistribution`。
+        if environment.isStackRedistribution, !parentEnvironment.allowLayoutCaching, let currentLayout,
+            Self.proposesOwnSize(proposedSize, last: lastProposedSize, size: currentLayout.size)
+        {
+            return currentLayout
+        }
+
         if proposedSize == lastProposedSize && !resultCache.isEmpty
             && (!parentEnvironment.allowLayoutCaching || environment.allowLayoutCaching),
             let currentLayout
@@ -417,6 +441,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         // 會讓這個節點之後自己的更新跳過求值 body。
         var storedEnvironment = environment.withoutBodyCache()
         storedEnvironment.reusesBodies = false
+        storedEnvironment.isStackRedistribution = false
         parentEnvironment = storedEnvironment
         lastProposedSize = proposedSize
 
@@ -429,6 +454,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         }
 
         var viewEnvironment = updateEnvironment(environment)
+        viewEnvironment.isStackRedistribution = false
 
         dynamicPropertyUpdater.update(view, with: viewEnvironment, previousValue: previousView)
 
