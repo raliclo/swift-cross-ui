@@ -1006,8 +1006,10 @@ extension AndroidBackend {
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
         var environment = rootEnvironment
+        // The first update runs before setChild (96a63717), so content can still be nil;
+        // the activity is on the same display. / 第一次更新在 setChild 之前(96a63717),content 可能仍是 nil;activity 在同一個顯示器上。
         environment
-            .windowScaleFactor = Double(AndroidBackend.density { window.content!.getResources().getDisplayMetrics().density })
+            .windowScaleFactor = Double(AndroidBackend.density { (window.content?.getResources() ?? Self.activity.getResources()).getDisplayMetrics().density })
         return environment
     }
 
