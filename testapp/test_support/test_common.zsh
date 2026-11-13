@@ -1913,8 +1913,12 @@ wait_for_marker_macos() {
 
     printf '==> Waiting for "%s"' "$marker"
     while [ "$waited" -lt "$timeout_seconds" ]; do
-        if [ -f "$events_dir/$log_name" ] \
-            && grep -q "$marker" "$events_dir/$log_name" 2>/dev/null; then
+        # The app's stdout as well as its event log: P116 prints its marker, and
+        # until 2026-11-13 every P116 run on macOS waited out the timeout for it.
+        # Both files are emptied at launch, so neither holds an earlier run.
+        # 除了事件 log 也看 app 的 stdout:P116 是印出它的標記，2026-11-13 之前 macOS 上每次執行都等到逾時。
+        # 兩個檔在啟動時都會清空，不會含有上一次的內容。
+        if grep -qs -- "$marker" "$events_dir/$log_name" "$script_dir/output/$actionfile_log"; then
             printf ' -- rendered after %ss\n' "$waited"
             return 0
         fi
