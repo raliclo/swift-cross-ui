@@ -44,6 +44,16 @@ extension WinUIBackend {
         //
         // 代價不只是輸出遺失。**一個結果會被丟棄的檢查無法失敗，因此也無法通過**：「-GPU 2 什麼
         // 都沒印」曾被當成關於介面卡選擇的證據，而它其實什麼都不是。
+        // CRT calls from here validate their descriptors, and the default handler for a bad one is the
+        // fail-fast this ends by guarding against: errors rather than a crash, on this thread, until done.
+        // 從這裡起的 CRT 呼叫會驗證描述元，而預設的 handler 對壞的描述元就是本函式最後要防止的 fail-fast:在這條執行緒上，
+        // 直到結束前都改成回傳錯誤而不是當掉。
+        let previousHandler = _set_thread_local_invalid_parameter_handler { _, _, _, _, _ in }
+        defer { _ = _set_thread_local_invalid_parameter_handler(previousHandler) }
+        // Whatever path this takes, it ends with three usable streams; see
+        // `ensureUsableStandardStreams`. / 不論走哪條路，結束時三個串流都可用；見 `ensureUsableStandardStreams`。
+        var path = "finding a stream already redirected"
+        defer { ensureUsableStandardStreams(after: path) }
         guard !standardStreamIsRedirected() else { return }
 
         // Copies of the three streams as they were, put back if no console
@@ -60,14 +70,17 @@ extension WinUIBackend {
         do {
             try Self.releaseConsole()
         } catch {
+            path = "failing to release the console"
             saved.restore()
             throw error
         }
         // -1 attaches to parent's console
         guard AttachConsole(DWORD(bitPattern: -1)) else {
+            path = "finding no parent console to attach to"
             saved.restore()
             return
         }
+        path = "attaching to the parent console"
         // From here stdin, stdout and stderr are at NUL, so a step that
         // throws must not leave them there: the caller logs the error and
         // carries on, and every later print was lost -- or, if stdout had
@@ -82,9 +95,69 @@ extension WinUIBackend {
         do {
             try Self.redirectConsoleIO()
         } catch {
+            path = "attaching, then failing to redirect to the console"
             Self.redirectToConsoleUnfiltered()
             throw error
         }
+    }
+
+    /// Reopens on NUL any standard stream left without a usable handle, and says
+    /// so through `OutputDebugString`.
+    ///
+    /// A GUI app with nowhere to write must write nowhere, not die. On the CI
+    /// runner, WinUI apps started by pwsh's `Start-Process` with no redirect died
+    /// intermittently with 0xC0000409: UCRT's `write_internal` raised an invalid
+    /// parameter, under `fwrite` on the UI fiber, because the stream's descriptor
+    /// had no live handle -- P2 in one run, P116 in the next (M4's dump,
+    /// 2026-11-13). One way there: the app got a console of its own, the release
+    /// above freed it, attaching to the parent failed, and `restore` put back
+    /// copies of handles to the console that was gone. Run on every path out of
+    /// `attachToParentConsole`, so the cause is recorded rather than guessed.
+    ///
+    /// `attachToParentConsole` runs it, and everything before it, under a no-op
+    /// invalid-parameter handler: `_get_osfhandle` or `_dup` on a dead descriptor raises the same fail-fast.
+    ///
+    /// 把沒有可用 handle 的標準串流改開到 NUL,並以 `OutputDebugString` 說明。沒有地方可寫的 GUI app 應該寫到不存在的地方，
+    /// 而不是當掉。在 CI runner 上，由 pwsh 的 `Start-Process` 啟動、沒有重導的 WinUI app 會間歇地以 0xC0000409 結束:UI fiber
+    /// 上的 `fwrite` 底下，UCRT 的 `write_internal` 觸發 invalid parameter,因為串流的描述元已沒有活著的 handle——這次是 P2,
+    /// 下次是 P116(M4 的傾印,2026-11-13)。其中一條路：app 有自己的主控台，上面的釋放把它關掉，附加到父行程失敗,`restore`
+    /// 又放回那個已不存在之主控台的 handle 複本。`attachToParentConsole` 的每條出口都會執行它，讓原因被記錄下來而不是用猜的。
+    /// `attachToParentConsole` 在不做事的 invalid parameter handler 下執行它以及之前的一切：對失效的描述元呼叫 `_get_osfhandle` 或 `_dup` 會觸發同一個
+    /// fail-fast。
+    private static func ensureUsableStandardStreams(after path: String) {
+        let streams: [(name: String, file: UnsafeMutablePointer<FILE>, mode: String, standard: DWORD)] = [
+            ("stdin", stdin, "r", STD_INPUT_HANDLE),
+            ("stdout", stdout, "w", STD_OUTPUT_HANDLE),
+            ("stderr", stderr, "w", STD_ERROR_HANDLE),
+        ]
+        for stream in streams where !hasUsableHandle(stream.file) {
+            var reopened = UnsafeMutablePointer<FILE>?.none
+            let didReopen = freopen_s(&reopened, "NUL:", stream.mode, stream.file) == 0
+            if didReopen {
+                SetStdHandle(
+                    stream.standard,
+                    UnsafeMutableRawPointer(bitPattern: _get_osfhandle(_fileno(stream.file)))
+                )
+            }
+            let message =
+                "SwiftCrossUI: \(stream.name) had no usable handle after \(path); "
+                + (didReopen ? "reopened it on NUL\n" : "could not reopen it on NUL\n")
+            message.withCString(encodedAs: UTF16.self) { OutputDebugStringW($0) }
+        }
+    }
+
+    /// Whether a stream's descriptor has a live OS handle. `GetFileType` gives
+    /// FILE_TYPE_UNKNOWN (0) with an error for a dead handle, and 0 with no error
+    /// only for a live one of unknown type. -2 is UCRT's "no handle" marker.
+    /// 串流的描述元是否有活著的 OS handle。`GetFileType` 對失效的 handle 回傳 FILE_TYPE_UNKNOWN(0)並帶錯誤，只有對類型不明
+    /// 但活著的 handle 才回傳 0 且無錯誤。-2 是 UCRT「沒有 handle」的標記。
+    private static func hasUsableHandle(_ file: UnsafeMutablePointer<FILE>) -> Bool {
+        let descriptor = _fileno(file)
+        guard descriptor >= 0 else { return false }
+        let handle = _get_osfhandle(descriptor)
+        guard handle != -1, handle != -2 else { return false }
+        SetLastError(0)
+        return GetFileType(HANDLE(bitPattern: handle)) != 0 || GetLastError() == 0
     }
 
     /// Copies of the CRT's descriptors 0, 1 and 2, taken before the console is
