@@ -472,6 +472,38 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   第二個視窗開啟時的作用中或焦點變化，或同一個 resize 迴圈。紀錄:SoftPCB-W11 session 5d3c6f7a scratchpad 的 fm_trace.log
   與 fm_trace2.log;SoftPCB-UI bugs/bug-Windows.md #2。驗收：WinUI 與 GTK 上，第一次更新之後，在它讀取的東西改變之前不再有
   視窗更新;P116 與欄位矩陣前後量測。
+- [ ] **6. Turning a page is slow: about 1.2 s on GTK, 0.9 s on WinUI.** The
+  user reported it (2026-11-13) in SoftPCB-UI's field matrix, which keys its
+  rows by item (`ForEach(slice, id: \.self) { caseID in`) and keeps `page` in a
+  `@Published` model, so a turn replaces every row and updates the whole
+  window. Reproduced in P116: `P116_PAGES=5 P116_FLIPS=8` turns 8 pages one
+  second apart, after onAppear, with no input; `SCUI_UPDATE_STATS=1` times each
+  turn. 10 rows of 6 cells, median per turn over 3 interleaved runs:
+  | | `P116_IDS=item` (as the field matrix) | `P116_IDS=slot` (rows by position) |
+  | --- | --- | --- |
+  | GTK | 1141-1203 ms | 187-188 ms |
+  | WinUI | 860-953 ms | 687-703 ms |
+  Three things follow, none fixed yet:
+  - App side: keying rows by position makes GTK about 6x faster and WinUI
+    about 25%. Suggested to SoftPCB-W11; the rows hold no per-row state, so
+    reusing them across pages is safe.
+  - GTK: replacing 10 rows (1.2 s) costs more than opening the whole window
+    (about 0.65 s), so removing and recreating widgets is slow on its own.
+    Find which half -- removal or creation -- and why.
+  - WinUI: a turn that creates nothing still takes about 0.7 s, so every
+    update lays out and commits the whole window regardless of what changed;
+    see the first-update profile in item 2 (the (0,0) pass and the commit).
+  Regenerate: `SCUI_UPDATE_STATS=1 P116_PAGES=5 P116_FLIPS=8 P116_IDS=item|slot
+  ./P116-<backend>.exe`, wait for "P116 flips done", read the last
+  `update-stats` line.
+  翻頁很慢:GTK 約 1.2 秒、WinUI 約 0.9 秒。使用者於 2026-11-13 在 SoftPCB-UI 的欄位矩陣回報；它以項目為列的鍵
+  (`ForEach(slice, id: \.self) { caseID in`),並把 `page` 放在 `@Published` 的 model 裡，所以一次翻頁會換掉每一列並更新
+  整個視窗。在 P116 重現:`P116_PAGES=5 P116_FLIPS=8` 在 onAppear 之後每秒翻一頁共 8 次，不需任何輸入;`SCUI_UPDATE_STATS=1`
+  為每次翻頁計時。10 列 × 6 格，交錯 3 輪的每次翻頁中位數:GTK item 1141-1203 ms、slot 187-188 ms;WinUI item 860-953 ms、
+  slot 687-703 ms。三件事，都還沒修：app 端改以位置為列的鍵,GTK 約快 6 倍、WinUI 約 25%,已建議 SoftPCB-W11(各列沒有
+  自己的狀態，跨頁沿用是安全的);GTK 換掉 10 列(1.2 秒)比開整個視窗(約 0.65 秒)還貴，拆掉與重建元件本身就慢，要找出是
+  哪一半以及原因;WinUI 一次什麼都不建立的翻頁仍要約 0.7 秒，表示每次更新都會排版並 commit 整個視窗，不管改了什麼，見第 2
+  項的第一次更新剖析((0,0) 試探與 commit)。重做方式見上方英文段落。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
