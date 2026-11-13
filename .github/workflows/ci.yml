@@ -9,17 +9,19 @@
 #   action files replayed (sweep_android.zsh), on Ubuntu with KVM.
 # - linux: GtkBackend on Ubuntu, built and tested under a virtual X display;
 #   there is no bare Linux machine here, so this is the only routine Linux check.
-# - windows: WinUIBackend built, plus one test app (P114) through compile.zsh.
+# - windows: WinUIBackend built, plus P114, P2 and P116 through compile.zsh.
 # - lint: SwiftLint.
-# ios and android sweep P2 P8 P12 P114; run by hand with full=true for every app.
+# ios and android sweep P2 P8 P12 P114 P116; run by hand with full=true for every app.
+# macos, linux and windows build P2 and P116 and launch each for 20 s (ci_launch_check.zsh).
 # 六個工作，各自涵蓋本機無法在每次推送時檢查的部分:
 # - macos:核心與 AppKitBackend,建置並測試(swift test)。
 # - ios:以 xcodebuild 建置測試 app,在 iOS 模擬器上重放動作檔(sweep_apple.zsh),使用 xcode-27 映像。
 # - android:以 x86_64 建置測試 app,裝到 emulator 上並重放動作檔(sweep_android.zsh),在有 KVM 的 Ubuntu 上。
 # - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查。
-# - windows:建置 WinUIBackend,另以 compile.zsh 建置一支測試 app(P114)。
+# - windows:建置 WinUIBackend,另以 compile.zsh 建置 P114、P2 與 P116。
 # - lint:SwiftLint。
-# ios 與 android 跑 P2 P8 P12 P114;手動執行時加 full=true 則跑每一支 app。
+# ios 與 android 跑 P2 P8 P12 P114 P116;手動執行時加 full=true 則跑每一支 app。
+# macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh)。
 #
 # Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
 # since its installer has no plain 6.4 download. / 各平台都用 Swift 6.4,與本機相同；Windows 的安裝程式沒有單純的 6.4 下載，所以指定確切版本 6.4.2。
@@ -68,13 +70,36 @@ jobs:
     - name: Build and test (core, AppKitBackend)
       run: SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I"$(brew --prefix)/include"
 
+    # compile.zsh records each executable in output/build-manifest.csv2 through csv2.
+    # compile.zsh 經由 csv2 把每個執行檔記進 output/build-manifest.csv2。
+    - name: Install csv2
+      run: |
+        v=0.2.0; f=csv2-$v-macos-arm64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        shasum -a 256 -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    # P2 and P116 on every platform (2026-11-13); see the windows job.
+    # P2 與 P116 在每個平台(2026-11-13);見 windows 工作。
+    - name: Build P2 and P116 (AppKitBackend)
+      run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
+
+    - name: Launch P2 and P116 (AppKitBackend)
+      run: |
+        zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2
+        zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116
+
   ios:
     # Xcode 27 (Swift 6.4) is only on the xcode-27 image; macos-26 still has Xcode 26.
     # Xcode 27(Swift 6.4)只在 xcode-27 映像上；macos-26 仍是 Xcode 26。
     runs-on: xcode-27
     timeout-minutes: 120
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -161,7 +186,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
       ANDROID_TRIPLE: x86_64-unknown-linux-android31
       ANDROID_NDK_VERSION: 30.0.16248370
       SCUI_ANDROID_SOFTWARE_GL: 1  # no GPU on this runner; see test_android.zsh / 這台 runner 沒有 GPU
@@ -298,13 +323,36 @@ jobs:
     - name: Install GTK and a virtual X display
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-4-dev clang zsh xvfb x11-xserver-utils
+        sudo apt-get install -y libgtk-4-dev clang zsh zstd xvfb x11-xserver-utils
 
     - name: Build GtkBackend
       run: SCUI_HOST_BACKENDS_ONLY=1 swift build --target GtkBackend
 
     - name: Test
       run: SCUI_HOST_BACKENDS_ONLY=1 xvfb-run --auto-servernum swift test
+
+    # compile.zsh records each executable in output/build-manifest.csv2 through csv2.
+    # compile.zsh 經由 csv2 把每個執行檔記進 output/build-manifest.csv2。
+    - name: Install csv2
+      run: |
+        v=0.2.0; f=csv2-$v-linux-x86_64-glibc.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        sha256sum -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    # P2 and P116 on every platform (2026-11-13); see the windows job.
+    # P2 與 P116 在每個平台(2026-11-13);見 windows 工作。
+    - name: Build P2 and P116 (GtkBackend)
+      run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
+
+    - name: Launch P2 and P116 (GtkBackend)
+      run: |
+        xvfb-run --auto-servernum zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2
+        xvfb-run --auto-servernum zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116
 
   windows:
     runs-on: windows-latest
@@ -389,6 +437,21 @@ jobs:
     - name: Build P114 (WinUIBackend)
       shell: bash
       run: SCUI_BUILD_JOBS=2 zsh testapp/compile.zsh P114  # 4 jobs once cost the runner its memory (2026-11-10) / 4 個 job 曾耗盡 runner 記憶體
+
+    # P2 and P116 on every platform (2026-11-13): built, then launched for 20 s with
+    # nothing pressed (testapp/test_support/ci_launch_check.zsh). A launch crash, or a
+    # P116 whose first update never prints appear-to-hop, fails the step.
+    # P2 與 P116 在每個平台(2026-11-13):建置後啟動 20 秒、不按任何東西。啟動即當，或 P116 的第一次更新始終沒印出
+    # appear-to-hop,這一步就失敗。
+    - name: Build P2 and P116 (WinUIBackend)
+      shell: bash
+      run: for app in P2 P116; do SCUI_BUILD_JOBS=2 zsh testapp/compile.zsh "$app"; done
+
+    - name: Launch P2 and P116 (WinUIBackend)
+      shell: bash
+      run: |
+        zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2.exe
+        zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116.exe
 
     - name: Disk space after the app
       if: always()

@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P116 launches and lays out its first page: nothing is pressed. It prints
+# "appear-to-hop N ms" once the first layout and commit are done, so a launch
+# crash, or a first update that never finishes, fails here. Added 2026-11-13 so
+# CI covers P116 on every platform.
+#
+# expect: log-contains appear-to-hop
+#
+# P116 啟動並排出第一頁，不按任何東西。第一次排版與 commit 完成後它會印出「appear-to-hop N ms」,
+# 所以啟動即當、或第一次更新始終沒完成，都會在這裡失敗。2026-11-13 加入，讓 CI 在每個平台都涵蓋 P116。
+sleep,,,,,,6000000,let the window appear and print appear-to-hop,macos
