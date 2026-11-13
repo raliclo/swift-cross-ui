@@ -453,6 +453,25 @@ jobs:
         zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2-WinUI.exe
         zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116-WinUI.exe
 
+    # Diagnosis for the launch step above (2026-11-13): P116-WinUI.exe stayed up for
+    # 20 s on this runner but wrote nothing, not even its onAppear line. This records
+    # whether it made a window, the session it ran in and what it wrote. The runner
+    # runs as SYSTEM, which may have no interactive desktop.
+    # 上一步的診斷(2026-11-13):P116-WinUI.exe 在這台 runner 上活了 20 秒卻什麼都沒寫，連 onAppear 那行都沒有。
+    # 這一步記下它有沒有建出視窗、跑在哪個 session、寫了什麼。runner 以 SYSTEM 執行，可能沒有互動式桌面。
+    - name: P116 window diagnosis (WinUIBackend)
+      if: always()
+      run: |
+        "interactive=$([Environment]::UserInteractive) session=$((Get-Process -Id $PID).SessionId) user=$env:USERNAME"
+        $out = Join-Path $env:RUNNER_TEMP p116-out.txt; $err = Join-Path $env:RUNNER_TEMP p116-err.txt
+        $p = Start-Process -FilePath testapp/output/P116-WinUI.exe -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+        Start-Sleep -Seconds 15
+        $p.Refresh()
+        "exited=$($p.HasExited) window=$($p.MainWindowHandle) title=$($p.MainWindowTitle) session=$($p.SessionId)"
+        if (-not $p.HasExited) { Stop-Process -Id $p.Id }
+        "-- stdout:"; Get-Content $out -ErrorAction SilentlyContinue
+        "-- stderr:"; Get-Content $err -ErrorAction SilentlyContinue
+
     - name: Disk space after the app
       if: always()
       run: |
