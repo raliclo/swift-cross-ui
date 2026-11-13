@@ -296,7 +296,10 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     622 / 645 ms(最小 / 中位數),GTK 629 / 663 對 640 / 666——差距在 2% 內，此指標量不出變化。絕對值比上表高，是機器狀態
     不同；只有交錯的成對數字可以比較。原始資料:session db768b0a 的 scratchpad p116-ab.txt 與 sweep-2df43059/。重做方式：
     交錯執行 `P116dev-<be>.exe` 與 `P116wp-<be>.exe` 兩份副本，以 `taskkill -im` 關閉，讀 `appear-to-hop`。
-- [ ] **3. A new node evaluates its view's body twice.** `ViewGraphNode.init`
+- [x] **3. A new node evaluates its view's body twice.** Done 2026-11-13:
+  f641f413 is on develop, and every acceptance check below passed (body
+  probe, host tests, GUI regression on WinUI, GTK, AppKit and iPhone).
+  2026-11-13 完成:f641f413 已在 develop,下方各項驗收(body 探針、主機測試、WinUI/GTK/AppKit/iPhone 的 GUI 回歸)皆通過。 `ViewGraphNode.init`
   calls `view.children(...)` (`View.defaultChildren`) and then
   `view.asWidget(...)` (`View.defaultAsWidget`), and each evaluates `body`
   (M4's stack traces on AppKit P2, 2026-11-12). Accept: one body evaluation
