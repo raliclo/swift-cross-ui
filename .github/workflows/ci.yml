@@ -481,10 +481,10 @@ jobs:
         $apps = [ordered]@{ "P2-WinUI.exe" = "P2 WinUI controls and styling"; "P116-WinUI.exe" = "P116 layout timing" }
         $failed = 0
         foreach ($exe in $apps.Keys) {
-          $p = Start-Process -FilePath "testapp/output/$exe" -PassThru
+          $p = Start-Process -FilePath "testapp/output/$exe" -PassThru; $null = $p.Handle  # keeps the handle, so ExitCode is readable after it exits
           Start-Sleep -Seconds 15
           $p.Refresh()
-          "$exe exited=$($p.HasExited) title=[$($p.MainWindowTitle)] expected=[$($apps[$exe])]"
+          "$exe exited=$($p.HasExited) code=$(if ($p.HasExited) { "0x{0:X8}" -f $p.ExitCode }) title=[$($p.MainWindowTitle)] expected=[$($apps[$exe])]"
           if ($p.HasExited -or $p.MainWindowTitle -ne $apps[$exe]) { $failed++ }
           if (-not $p.HasExited) { Stop-Process -Id $p.Id }
         }
