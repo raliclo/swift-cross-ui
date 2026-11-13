@@ -450,8 +450,8 @@ jobs:
     - name: Launch P2 and P116 (WinUIBackend)
       shell: bash
       run: |
-        zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2.exe
-        zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116.exe
+        zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2-WinUI.exe
+        zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116-WinUI.exe
 
     - name: Disk space after the app
       if: always()
