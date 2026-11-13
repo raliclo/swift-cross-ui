@@ -53,7 +53,7 @@ script_path="${0:a}"
 script_dir="${script_path:h}"
 
 serial="${ANDROID_SERIAL:-emulator-5554}"
-android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/Volumes/Windows/proj_Win/.android-sdk}}"
+android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${script_dir:h:h}/.android-sdk}}"  # beside the repo, as test_android.zsh has it / 與 test_android.zsh 相同，放在 repo 旁邊
 adb="$android_root/platform-tools/adb"
 out_csv="$script_dir/output/android-sweep.csv2"
 
