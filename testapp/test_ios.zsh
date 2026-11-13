@@ -589,12 +589,22 @@ if [ -n "$action_file" ]; then
     done
 fi
 
+if [ "$showtime_seconds" -gt 0 ]; then
+    printf '==> Showing %s for %ss; press Ctrl-C to stop\n' "$target" "$showtime_seconds"
+    trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; exit 130' INT TERM
+    sleep "$showtime_seconds"
+fi
+
 # The app's own update timings, when asked for (UpdateTimings.swift): the last
 # cumulative line in its stdout, which is printed after updates go quiet, so wait
-# a little for it. Only with an action file: that is when stdout is kept.
+# a little for it. Whenever stdout is kept (app_stdout): an action file, --stdout, or a
+# sleep-only file, which clears action_file and so was skipped until 2026-11-13.
+# After the showtime wait: a sleep-only file's app does its steps, and prints this, during it.
 # 要求時，取 app 自己的更新耗時(UpdateTimings.swift):它 stdout 中最後一行累計值；那一行在更新安靜後才印，
-# 所以稍等一下。只在有動作檔時：那時才會保留 stdout。
-if [ "${SCUI_UPDATE_STATS:-0}" = 1 ] && [ -n "$action_file" ]; then
+# 所以稍等一下。只要有保留 stdout(app_stdout)就讀：動作檔、--stdout,或只有 sleep 的動作檔(它會清掉 action_file,
+# 2026-11-13 之前因此被略過)。
+# 放在 showtime 等待之後：只有 sleep 的動作檔，app 在那段時間裡才跑完並印出這一行。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ] && [ -n "${app_stdout:-}" ]; then
     update_stats=""
     for _ in 1 2 3 4; do
         update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$app_stdout" 2>/dev/null | tail -1 || true)"
@@ -603,18 +613,12 @@ if [ "${SCUI_UPDATE_STATS:-0}" = 1 ] && [ -n "$action_file" ]; then
     done
     printf '==> %s\n' "${update_stats:-update-stats: none reported}"
 elif [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
-    printf '==> %s\n' "update-stats: not collected (needs --actionfile, which keeps the app's stdout)"
+    printf '==> %s\n' "update-stats: not collected (needs --actionfile or --stdout, which keep the app's stdout)"
 else
     # Said, not left out: with no line at all, a run that never measured reads like an
     # app that never updated (2026-10-05, seven runs thrown away).
     # 明講，而不是不印：一行都沒有時，「根本沒在量」看起來就像「app 沒有更新」(2026-10-05,作廢七次)。
     printf '==> %s\n' "update-stats: off (set SCUI_UPDATE_STATS=1)"
-fi
-
-if [ "$showtime_seconds" -gt 0 ]; then
-    printf '==> Showing %s for %ss; press Ctrl-C to stop\n' "$target" "$showtime_seconds"
-    trap 'kill "$log_pid" 2>/dev/null || true; wait "$log_pid" 2>/dev/null || true; exit 130' INT TERM
-    sleep "$showtime_seconds"
 fi
 
 # The verdict a sleep-only file gets in place of the runner's `replayed` line: the
