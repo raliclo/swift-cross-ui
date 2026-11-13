@@ -28,7 +28,7 @@ import Foundation
 ///
 /// **Off unless `SCUI_LAYOUT_REUSE=1`.** `SCUI_LAYOUT_REUSE_CHECK=1` computes the
 /// result anyway and reports every reusable record whose result differs (the
-/// acceptance check in todo.md); it changes nothing else.
+/// acceptance check in todo.md), and prints `layout-reuse counts:` after each window commit; it changes nothing else.
 ///
 /// 在同一輪的最後一次呼叫中重用試探時算出的排版結果。
 ///
@@ -47,7 +47,7 @@ import Foundation
 /// `List`、`ScrollView`、`Table`、`SplitView`——都沒有 conform,所以它們與其上的一切照舊重算。
 ///
 /// **除非 `SCUI_LAYOUT_REUSE=1`,否則關閉。** `SCUI_LAYOUT_REUSE_CHECK=1` 仍然照常計算，並回報每一份可重用、但結果
-/// 不同的紀錄(todo.md 裡的驗收檢查);它不改變其他任何東西。
+/// 不同的紀錄(todo.md 裡的驗收檢查),並在每次視窗 commit 後印出 `layout-reuse counts:`;它不改變其他任何東西。
 @_spi(Backends)
 @MainActor
 public enum LayoutReuse {
@@ -61,6 +61,13 @@ public enum LayoutReuse {
     static var mismatchCount = 0
     /// Final calls that found a reusable record (reused, or checked). / 找到可重用紀錄的最後一次呼叫(重用或檢查)。
     static var candidateCount = 0
+    /// Final calls that found a record, but not a reusable one: a `ScrollView`,
+    /// `GeometryReader` or representable below it, say.
+    /// 找到紀錄、但紀錄不可重用的最後一次呼叫：例如其下有 `ScrollView`、`GeometryReader` 或 representable。
+    static var unreusableCount = 0
+    /// Final calls with no record for their proposal: no probe computed it.
+    /// 該提議尺寸沒有紀錄的最後一次呼叫：沒有試探算過它。
+    static var noRecordCount = 0
     /// Whether records are kept at all. / 是否保留紀錄。
     static var isRecording: Bool { isEnabled || isChecking }
 
@@ -126,6 +133,27 @@ public enum LayoutReuse {
         FileHandle.standardError.write(
             Data(
                 "layout-reuse mismatch: \(view) proposed \(proposal) reused \(reused) computed \(computed)\n".utf8
+            )
+        )
+    }
+
+    /// Counts a final call that computed afresh. / 計入一次重新計算的最後一次呼叫。
+    static func countFreshFinalCall(hadRecord: Bool) {
+        if hadRecord { unreusableCount += 1 } else { noRecordCount += 1 }
+    }
+
+    /// Under the check, prints the counts since launch after each window commit,
+    /// so a GUI app shows whether reuse applies at all (todo.md, layout passes
+    /// item 2). `reusable` is final calls that reused, or under the check could
+    /// have; `unreusable` and `no-record` computed afresh.
+    /// 在檢查模式下，每次視窗 commit 後印出自啟動以來的次數，讓 GUI app 看得出重用究竟有沒有發生(todo.md,layout passes
+    /// 第 2 項)。`reusable` 是重用了(檢查模式下是「可以重用」)的最後一次呼叫;`unreusable` 與 `no-record` 是重新計算的。
+    static func reportCounts() {
+        guard isChecking else { return }
+        FileHandle.standardError.write(
+            Data(
+                ("layout-reuse counts: reusable \(candidateCount) unreusable \(unreusableCount) "
+                    + "no-record \(noRecordCount) mismatches \(mismatchCount)\n").utf8
             )
         )
     }

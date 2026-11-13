@@ -404,6 +404,11 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
             }
             reuseCandidate = cached
         }
+        // Not reused: count why, for `LayoutReuse.reportCounts()`.
+        // 沒有重用：記下原因，給 `LayoutReuse.reportCounts()`。
+        if reuseCandidate == nil, !environment.allowLayoutCaching, LayoutReuse.isRecording {
+            LayoutReuse.countFreshFinalCall(hadRecord: reuseRecords[proposedSize] != nil)
+        }
 
         // Stored without the pass-only values: `reusesBodies` belongs to this pass,
         // and the body cache belongs to whichever view it was meant for. Kept, the

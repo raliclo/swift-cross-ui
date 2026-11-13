@@ -130,6 +130,14 @@ struct LayoutReuseTests {
         #expect(LayoutReuse.mismatchCount == 0)
     }
 
+    @Test("The check counts final calls that computed afresh")
+    func checkCountsFreshFinalCalls() {
+        LayoutReuse.noRecordCount = 0
+        // The root's final call had no probe before it. / 根節點的最後一次呼叫之前沒有試探。
+        _ = committedGeometry(enabled: false, checking: true)
+        #expect(LayoutReuse.noRecordCount > 0)
+    }
+
     @Test("Off by default: nothing is recorded")
     func offByDefault() {
         LayoutReuse.candidateCount = 0

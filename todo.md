@@ -268,6 +268,25 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     變數路徑未驗證)。M4 在 AppKit P2 的臨時探針：子節點確實有重用(套用 16 次以上),但 P2 根節點的 body 次數仍為 7——
     啟動時三次視窗排版是各自獨立的完整更新，一輪內的重用本來就不是為了消除它們。待辦：在檢查旗標下印出重用命中次數
     (M4 的建議)、GTK 的結果、SoftPCB-UI,之後再決定預設值。
+  - 2026-11-13, **the reuse-hit counter exists, and GTK does reuse.** Under
+    `SCUI_LAYOUT_REUSE_CHECK=1`, every window commit prints `layout-reuse
+    counts: reusable R unreusable U no-record F mismatches M`, counted since
+    launch (`LayoutReuse.reportCounts()`). P116-gtk4: full mode reusable 3064,
+    unreusable 0, no-record 199, mismatches 0; text mode 1204 / 0 / 199 / 0.
+    So 94% of the final calls reuse on GTK, the same 3064 as the 2026-11-12
+    temporary counters, and nothing is excluded by `ScrollView`. The "no gain
+    on GTK" in the table above is therefore not missing reuse: the skipped
+    final calls are cheap on GTK (Text measurement is cached since f2f99186),
+    and its time goes elsewhere. Next for GTK: profile one launch to see
+    where. Regenerate: run `P116-gtk4.exe` with the check flag set, close it
+    with `taskkill -im`, and read the counts line.
+    2026-11-13,**重用命中計數器已加上，而 GTK 確實有重用。** 設定 `SCUI_LAYOUT_REUSE_CHECK=1` 時，每次視窗 commit
+    都會印出 `layout-reuse counts: reusable R unreusable U no-record F mismatches M`,為自啟動起的累計
+    (`LayoutReuse.reportCounts()`)。P116-gtk4:full 模式 reusable 3064、unreusable 0、no-record 199、mismatches 0;
+    text 模式 1204 / 0 / 199 / 0。所以 GTK 上 94% 的最後一次呼叫都重用了，與 2026-11-12 暫時計數的 3064 相同，也沒有任何
+    一筆被 `ScrollView` 排除。上表「GTK 沒有加速」因此不是沒重用：被省下的最後一次呼叫在 GTK 上本來就便宜(Text 量測自
+    f2f99186 起已快取),時間花在別處。GTK 的下一步：剖析一次啟動，看時間花在哪裡。重做方式：帶檢查旗標執行
+    `P116-gtk4.exe`,以 `taskkill -im` 關閉，讀計數那一行。
   - 2026-11-13, **the window passes, merged as 2df43059** (M4, branch
     `perf/window-passes`, fast-forwarded onto develop from e373e94f). In
     `WindowReference.update` only the first pass builds `scene.content()`; the

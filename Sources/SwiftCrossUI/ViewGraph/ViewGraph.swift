@@ -87,6 +87,7 @@ public class ViewGraph<Root: View> {
     public func commit() {
         committedProposal = latestProposal
         self.currentRootViewResult = rootNode.commit()
+        LayoutReuse.reportCounts()
         if isFirstUpdate {
             // **Weak**, because backends keep this handler for the life of the app
             // (a static in UIKitBackend and WinUIBackend, the app delegate in
