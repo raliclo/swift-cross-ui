@@ -478,6 +478,12 @@ jobs:
     # 這是在 run 43381098541 經由 MainWindowTitle 看到的。
     - name: P2 and P116 show their own windows (WinUIBackend)
       run: |
+        # A crash dump of anything that dies here, read with the SDK's cdb: P116 exited
+        # 0xC0000409 in run 43389319635 (fail-fast: a Swift trap or a CRT invalid parameter).
+        # 這裡當掉的行程留下傾印，用 SDK 的 cdb 讀取:run 43389319635 中 P116 以 0xC0000409 結束(快速失敗：Swift trap 或 CRT 無效參數)。
+        $dumps = Join-Path $env:RUNNER_TEMP dumps; New-Item -ItemType Directory -Force $dumps | Out-Null
+        $key = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"
+        New-Item -Force $key | Out-Null; Set-ItemProperty $key DumpFolder $dumps; Set-ItemProperty $key DumpType 2 -Type DWord
         $apps = [ordered]@{ "P2-WinUI.exe" = "P2 WinUI controls and styling"; "P116-WinUI.exe" = "P116 layout timing" }
         $failed = 0
         foreach ($exe in $apps.Keys) {
@@ -487,6 +493,11 @@ jobs:
           "$exe exited=$($p.HasExited) code=$(if ($p.HasExited) { "0x{0:X8}" -f $p.ExitCode }) title=[$($p.MainWindowTitle)] expected=[$($apps[$exe])]"
           if ($p.HasExited -or $p.MainWindowTitle -ne $apps[$exe]) { $failed++ }
           if (-not $p.HasExited) { Stop-Process -Id $p.Id }
+        }
+        $cdb = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+        Get-ChildItem $dumps -Filter *.dmp -ErrorAction SilentlyContinue | ForEach-Object {
+          "-- dump $($_.Name)"
+          if (Test-Path $cdb) { & $cdb -z $_.FullName -c ".ecxr; kn 40; q" | Select-String -Pattern "^\s*[0-9a-f]{2} |ExceptionCode|ucrtbase|Exception" } else { "no cdb at $cdb" }
         }
         if ($failed) { throw "$failed app(s) did not show their own window" }
 
