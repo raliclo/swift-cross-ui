@@ -117,6 +117,14 @@ done
 [[ "$(uname -s)" == (Darwin|Linux) ]] || die "test_android.zsh requires macOS or Linux (Linux: the CI android job)"
 
 android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
+# The AVDs live beside the SDK, off the system disk (2026-11-13: a full system
+# disk stopped a run). Only where that directory exists, so CI and other hosts
+# keep the emulator's default (~/.android/avd).
+# AVD 與 SDK 放在一起、不在系統碟上(2026-11-13:系統碟滿了，讓一次執行中斷)。只在該目錄存在時採用，
+# 所以 CI 與其他主機仍用模擬器的預設位置(~/.android/avd)。
+if [ -z "${ANDROID_AVD_HOME:-}" ] && [ -d "${repo_root:h}/.android-avd" ]; then
+    export ANDROID_AVD_HOME="${repo_root:h}/.android-avd"
+fi
 # macOS 27 can block the legacy IOKit USB backend while adb starts its server.
 # libusb keeps emulator-only testing responsive and can still be overridden by
 # callers that need the legacy backend.
@@ -338,14 +346,14 @@ elif [ -n "$running_serial" ]; then
     serial="$running_serial"
     print "==> Using running emulator: $serial"
 else
-    # The AVD's data can live on another volume behind a symlink -- on this
-    # machine ~/.android/avd/<name>.avd points into /Volumes/Windows since
-    # 2026-10-02, because its qcow2 overlay grows with every APK install
-    # (10 GB) and filled the system disk mid-sweep. If that volume is not
-    # mounted, say so here rather than let the emulator fail to boot.
-    # AVD 的資料可能透過 symlink 放在別的磁碟上——本機自 2026-10-02 起
-    # ~/.android/avd/<name>.avd 指向 /Volumes/Windows,因為它的 qcow2 每裝一次 APK 就變大
-    # (10 GB),曾在 sweep 中途塞滿系統碟。那顆磁碟沒掛上時，在這裡講清楚，而不是讓模擬器開不起來。
+    # The AVDs live off the system disk: their qcow2 overlay grows with every
+    # APK install, and 10 GB of it once filled the system disk mid-sweep.
+    # ANDROID_AVD_HOME, set near the top (~/proj/.android-avd on this machine),
+    # holds them. If the volume behind an AVD is not mounted, say so here rather
+    # than let the emulator fail to boot.
+    # AVD 放在系統碟以外：它的 qcow2 每裝一次 APK 就變大，曾在 sweep 中途以 10 GB 塞滿系統碟。
+    # 它們放在檔案前段設定的 ANDROID_AVD_HOME(本機為 ~/proj/.android-avd)。AVD 背後的磁碟沒掛上時，
+    # 在這裡講清楚，而不是讓模擬器開不起來。
     avd_dir="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$device_name.avd"
     if [ -L "$avd_dir" ] && [ ! -d "$avd_dir" ]; then
         die "AVD $device_name points to ${avd_dir:A}, which is not there -- is its volume mounted?"
