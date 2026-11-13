@@ -199,6 +199,18 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
     /// `proposal` 是否與 `last` 不同，而且在每個不同的軸上提議的正好是 `size`，也就是上次提議算出的尺寸。
     static func proposesOwnSize(_ proposal: ProposedViewSize, last: ProposedViewSize, size: ViewSize) -> Bool {
         guard proposal != last else { return false }
+        // Not after a proposal that gave neither axis, or an infinite one: the node then chose an ideal
+        // size from a degenerate stack cache with no minimum lengths, and its own commit would
+        // redistribute from that cache and starve a child. P41's `.fixedSize()` time row kept its
+        // `ForEach`, laid out at (nil, nil), and the ":" between the fields came out 0 wide on every
+        // backend (2026-11-13).
+        // 上次的提議兩軸都沒給、或有一軸是無限大時不沿用：節點那時是從沒有最小長度的退化 stack 快取選出理想尺寸，它自己的
+        // commit 會從那份快取重新分配，把子元件擠掉。P41 加了 `.fixedSize()` 的時間列沿用了以 (nil, nil) 排版的 `ForEach`,
+        // 欄位之間的 ":" 在每個 backend 上都變成 0 寬(2026-11-13)。
+        let lastAxes = [last.width, last.height]
+        guard lastAxes.contains(where: { $0 != nil }), !lastAxes.contains(where: { $0?.isInfinite == true }) else {
+            return false
+        }
         func matches(_ new: Double?, _ old: Double?, _ own: Double) -> Bool {
             new == old || new == own
         }

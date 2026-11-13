@@ -110,5 +110,49 @@ struct StackLayoutTests {
         #expect(!Node.proposesOwnSize(ProposedViewSize(193, 60), last: last, size: size))
         #expect(!Node.proposesOwnSize(ProposedViewSize(150, 40), last: last, size: size))
         #expect(!Node.proposesOwnSize(ProposedViewSize(174, nil), last: ProposedViewSize(174, nil), size: size))
+        // Not after a proposal that gave neither axis, or an infinite one. / 上次兩軸都沒給、或有一軸無限大時不沿用。
+        #expect(!Node.proposesOwnSize(ProposedViewSize(174, 40), last: ProposedViewSize(nil, nil), size: size))
+        #expect(!Node.proposesOwnSize(ProposedViewSize(174, 40), last: ProposedViewSize(.infinity, nil), size: size))
+    }
+
+    @MainActor
+    @Test("A kept child laid out at no proposal does not starve its children")
+    func keptChildAtNoProposalKeepsItsChildren() {
+        let view = ScrollView {
+            VStack(alignment: .leading) {
+                Text(".rows")
+                HStack(spacing: 6) {
+                    ForEach(Array(["h", "m", "p"].enumerated()), id: \.offset) { index, field in
+                        if index > 0 && field != "p" {
+                            Text(":")
+                        }
+                        switch field {
+                            case "p":
+                                HStack(spacing: 6) { Text("AM"); Text("x") }
+                                    .padding(.horizontal, 8).frame(height: 30).background(Color.gray).fixedSize()
+                            default:
+                                HStack(spacing: 12) {
+                                    Text("09").frame(minWidth: 22, alignment: .leading)
+                                    Text("-")
+                                    Text("+")
+                                }
+                                .padding(.horizontal, 8).frame(height: 30).background(Color.gray).fixedSize()
+                        }
+                    }
+                }
+                .fixedSize()
+                Text("09:46")
+            }
+        }
+        let node = ViewGraphHelpers.committedNode(for: view, proposedSize: ProposedViewSize(600, 400))
+        // P41's `.rows` time row, shapes left out: the ":" between the fields must keep its
+        // width. Kept at (nil, nil), the row's `ForEach` redistributed from a cache with no
+        // minimum lengths and squeezed every ":" to 0 (2026-11-13).
+        // P41 的 `.rows` 時間列(不含形狀):欄位之間的 ":" 必須保有寬度。以 (nil, nil) 沿用時，列的 `ForEach` 從沒有最小長度的
+        // 快取重新分配，把每個 ":" 擠成 0(2026-11-13)。
+        func textWidths(_ widget: DummyBackend.Widget) -> [Int] {
+            (widget is DummyBackend.TextView ? [widget.size.x] : []) + widget.getChildren().flatMap(textWidths)
+        }
+        #expect(!textWidths(node.widget).contains(0), "\(textWidths(node.widget))")
     }
 }
