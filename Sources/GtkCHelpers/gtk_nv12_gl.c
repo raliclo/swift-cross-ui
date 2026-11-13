@@ -1,6 +1,7 @@
 #include "gtk_nv12_gl.h"
 
 #include <epoxy/gl.h>
+#include <glib.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -66,8 +67,8 @@ static const GLfloat QUAD[] = {
 };
 
 static void set_error(SCUINV12Renderer *renderer, const char *message) {
-    free(renderer->error);
-    renderer->error = message ? strdup(message) : NULL;
+    g_free(renderer->error);
+    renderer->error = message ? g_strdup(message) : NULL;
 }
 
 static GLuint compile_stage(SCUINV12Renderer *renderer, GLenum kind, const char *source) {
@@ -127,7 +128,7 @@ void scui_nv12_renderer_free(SCUINV12Renderer *renderer) {
         glDeleteTextures(1, &renderer->texture_y);
         glDeleteTextures(1, &renderer->texture_uv);
     }
-    free(renderer->error);
+    g_free(renderer->error);
     free(renderer);
 }
 
