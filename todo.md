@@ -359,7 +359,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-12,`perf/body-once` 的 Windows GUI 回歸(執行檔於 09:49-09:59 由 2149422e 建置，以 `test.zsh Pn -win --no-build`
     執行):P50 WinUI 與 GTK(點擊後標題由 A 變 B)、P93 WinUI 與 GTK、P104 WinUI 與 GTK——全部 rc 0,每張截圖 85-97%
     非黑，每個動作檔都重放到結束。加上 M4 的 AppKit 136/136 與 iPhone 135/135,本項要求的 GUI 回歸已完成。
-- [ ] **4. Three P50 popover action files fail, on develop too.** Found
+- [x] **4. Three P50 popover action files fail, on develop too.** Found
   2026-11-13 in the 2df43059 regression and checked against a develop e373e94f
   build, 3 interleaved rounds per backend: identical on both builds. Every run
   stops at the first `origin=popover` row with "no popover, menu or modal is
@@ -380,6 +380,14 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     sweep point 10, popover (50,170). The file expects "press me" between 170
     and 180 and "close this panel" at 180, so the layout has moved. Re-measure
     the buttons (gtk_widget_pick) and fix the sweep points.
+    **Done 2026-11-13:** the pick lines put "press me" at y=130..150 and
+    "close this panel" at y=170, so the sweep now ends at y=170 and point 11
+    (y=180) is gone. Rerun on GTK: rc 0, "replayed ... (46 actions)", and the
+    events log has `popover counter 1`, `2`, `3`, then "closed
+    programmatically". `Scripts/check_action_files.zsh` rc 0.
+    **2026-11-13 完成:** pick 顯示「press me」在 y=130..150、「close this panel」在 y=170,所以掃描改在 y=170 結束，
+    移除 y=180 的第 11 點。GTK 重跑:rc 0、「replayed ... (46 actions)」,事件紀錄依序為 `popover counter 1`、`2`、`3`
+    與「closed programmatically」。`Scripts/check_action_files.zsh` rc 0。
   三個 P50 popover 動作檔失敗，在 develop 上也一樣。2026-11-13 在 2df43059 的回歸中發現，並以 develop e373e94f 的建置
   對照，每個 backend 交錯 3 輪：兩版完全相同。每次都停在第一個 `origin=popover` 列:「no popover, menu or modal is open
   over the window being driven」。WinUI 上的 `P50-popover-button-sweep` 與 `P50-probe-popover-centre` 都是 GtkBackend 的

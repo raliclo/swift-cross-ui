@@ -62,6 +62,14 @@ action,x,y,origin,button,key,micros,note,platform
 # counter is cumulative, so if two of the four are on the same button the log
 # shows `popover counter 1` then `popover counter 2`, which is also information:
 # it says the button works and is being hit twice.
+# MEASURED AGAIN 2026-11-13, and the sweep now ends at y=170. The popover is
+# 291x222, and the pick lines put "press me" at y=130..150 (counter 1, 2, 3)
+# and "close this panel" at y=170, which closes the panel. The old point 11 at
+# y=180 then found no popover and failed the replay (rc 6, on develop too), so
+# it is gone. 2026-11-13 重新量測，掃描改到 y=170 結束:popover 為 291x222,pick 顯示
+# 「press me」在 y=130..150(計數 1、2、3),「close this panel」在 y=170,按下即關閉面板。
+# 原本 y=180 的第 11 點因此找不到 popover、使重放失敗(rc 6,develop 上亦同),已移除。
+#
 #
 # expect: log-contains popover counter 1
 #
@@ -139,11 +147,8 @@ move,50,160,popover,,,,sweep point 9,windows
 sleep,,,,,,250000,let the pointer arrive,windows
 click,50,160,popover,left,,,sweep point 9,windows
 sleep,,,,,,400000,let any handler run,windows
-move,50,170,popover,,,,sweep point 10 -- press me sits between here and 180 on the 2026-09-10 layout,windows
+move,50,170,popover,,,,sweep point 10 -- the LAST point: MEASURED 2026-11-13 as close this panel (gtk_widget_pick GtkButton; the panel logs closed programmatically),windows
 sleep,,,,,,250000,let the pointer arrive,windows
 click,50,170,popover,left,,,sweep point 10,windows
 sleep,,,,,,400000,let any handler run,windows
-move,50,180,popover,,,,"sweep point 11 -- MEASURED as close this panel on 2026-09-10: gtk_widget_pick returned GtkButton here and the panel logged closed programmatically. The panel ends at this row, so nothing below it can say anything",windows
-sleep,,,,,,250000,let the pointer arrive,windows
-click,50,180,popover,left,,,sweep point 11,windows
 sleep,,,,,,2000000,hold and let the log catch up,windows
