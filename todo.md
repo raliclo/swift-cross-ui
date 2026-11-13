@@ -287,6 +287,38 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     一筆被 `ScrollView` 排除。上表「GTK 沒有加速」因此不是沒重用：被省下的最後一次呼叫在 GTK 上本來就便宜(Text 量測自
     f2f99186 起已快取),時間花在別處。GTK 的下一步：剖析一次啟動，看時間花在哪裡。重做方式：帶檢查旗標執行
     `P116-gtk4.exe`,以 `taskkill -im` 關閉，讀計數那一行。
+    Mac (M4) on baf796ad: host tests 415 in 58 suites + 15 pass.
+    Mac(M4)於 baf796ad:主機測試 58 個 suite 415 項 + 15 項通過。
+  - 2026-11-13, **where the first window update spends its time** (P116 full,
+    1750 nodes, 3 runs each, temporary `Date()` probes in
+    `WindowReference.update`, reverted, not committed; reuse off):
+    | Step | GTK | WinUI |
+    | --- | --- | --- |
+    | build the view graph | 7-11 ms | 12-18 ms |
+    | (0,0) probe pass | 242-346 ms | 205-231 ms |
+    | final pass at 1180x620 | 29-37 ms | 71-95 ms |
+    | from the final pass to commit | 37-39 ms | 69-91 ms |
+    | commit | 229-299 ms | 359-485 ms |
+    | show | 129-160 ms | 34-46 ms |
+    Layout reuse can only skip work in the final pass: about 30 ms on GTK,
+    which is why GTK shows no gain, and 70-95 ms on WinUI, matching its ~15%.
+    The (0,0) probe pass and the commit are each ~40% of the update on both
+    backends. So reuse is worth keeping, but the next gains are in those two,
+    not in more reuse. SoftPCB-W11 saw the same shape in SoftPCB-UI's field
+    matrix with reuse on: reusable 17580, unreusable 235, no-record 3216,
+    mismatches 0, and the (0,0) pass and commit dominate. Default: leave reuse
+    off until the GUI regression runs with it on.
+    Regenerate: add `Date()` deltas around `ViewGraph(...)`, each
+    `viewGraph.computeLayout` in `layoutPass`, `viewGraph.commit()` and
+    `backend.show(window:)`, then run P116 3 times per backend.
+    2026-11-13,**第一次視窗更新的時間花在哪裡**(P116 full、1750 個節點、各 3 次；在 `WindowReference.update` 加暫時的
+    `Date()` 探針，已還原、未提交；重用關閉):建 view graph GTK 7-11 / WinUI 12-18 ms;(0,0) 試探 242-346 / 205-231 ms;
+    1180x620 的最後一輪 29-37 / 71-95 ms;最後一輪到 commit 37-39 / 69-91 ms;commit 229-299 / 359-485 ms;
+    顯示 129-160 / 34-46 ms。layout reuse 只能省最後一輪：GTK 約 30 ms,所以看不出效果;WinUI 70-95 ms,與約 15% 相符。
+    兩個 backend 上 (0,0) 試探與 commit 各佔約 40%。所以重用值得保留，但接下來的收穫在這兩段，而不是更多重用。SoftPCB-W11
+    在 SoftPCB-UI 的欄位矩陣(開啟重用)看到同樣的形狀:reusable 17580、unreusable 235、no-record 3216、mismatches 0,
+    (0,0) 試探與 commit 為主。預設值：在開啟重用跑過 GUI 回歸之前維持關閉。重做方式：在 `ViewGraph(...)`、`layoutPass` 裡每次
+    `viewGraph.computeLayout`、`viewGraph.commit()` 與 `backend.show(window:)` 前後加 `Date()` 差值，各 backend 跑 P116 三次。
   - 2026-11-13, **the window passes, merged as 2df43059** (M4, branch
     `perf/window-passes`, fast-forwarded onto develop from e373e94f). In
     `WindowReference.update` only the first pass builds `scene.content()`; the
@@ -414,6 +446,32 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   要嘛給 WinUI 自己的錨點。GTK 上的 `P50-popover-button-sweep`:popover 有開啟(現為 291x222,檔案寫 291x221),6 次都在
   掃描第 10 點 popover (50,170) 點擊後消失。檔案預期「press me」在 170 到 180 之間、「close this panel」在 180,所以版面已
   移動。以 gtk_widget_pick 重新量測按鈕位置並修正掃描點。
+- [ ] **5. Windows run extra full window updates after they open.** Two
+  reports, 2026-11-13, cause not found yet:
+  - P116 on WinUI, 1 run in 3 (profiling above): after the first update the
+    content height went 620 -> 599 -> 598, and a second full update followed,
+    with a (0,0) pass of 106 ms and a commit of 345 ms. That looks like a
+    resize feedback loop between the requested and the actual client size.
+    The reuse counts showed the same second update (6128 after two commits).
+  - SoftPCB-UI on GTK (SoftPCB-W11, `--tab 9 --open-field-matrix`): after the
+    field matrix opens, with no input, the main window and the matrix keep
+    laying out and committing in pairs, 2-4 extra rounds about 2 s apart, until
+    about t=14 s. Each matrix round costs a 300-500 ms (0,0) pass plus a
+    700-1400 ms commit. No @Published in its models fired, so the trigger is
+    in the framework: activation or focus as the second window opens, or the
+    same resize loop. Logs: fm_trace.log and fm_trace2.log in SoftPCB-W11's
+    scratchpad of session 5d3c6f7a; SoftPCB-UI bugs/bug-Windows.md #2.
+  Accept: no window update after the first one until something it reads
+  changes, on WinUI and GTK; P116 and the field matrix measured before and
+  after.
+  Windows 上視窗開啟後還會多跑幾次完整的視窗更新。2026-11-13 兩份回報，原因未明。P116 在 WinUI 上(3 次中 1 次，見上方剖析):
+  第一次更新後內容高度 620 -> 599 -> 598,接著又一次完整更新((0,0) 試探 106 ms、commit 345 ms),看起來是要求的與實際的
+  client 尺寸之間的 resize 迴圈；重用計數也看到同一次第二次更新(兩次 commit 後 6128)。SoftPCB-UI 在 GTK 上(SoftPCB-W11,
+  `--tab 9 --open-field-matrix`):欄位矩陣開啟後，沒有任何輸入，主視窗與矩陣仍成對排版並 commit,每隔約 2 秒多 2-4 輪，直到約
+  t=14 秒；矩陣每輪 (0,0) 試探 300-500 ms 加 commit 700-1400 ms。它的 model 沒有任何 @Published 觸發，所以觸發者在框架裡：
+  第二個視窗開啟時的作用中或焦點變化，或同一個 resize 迴圈。紀錄:SoftPCB-W11 session 5d3c6f7a scratchpad 的 fm_trace.log
+  與 fm_trace2.log;SoftPCB-UI bugs/bug-Windows.md #2。驗收：WinUI 與 GTK 上，第一次更新之後，在它讀取的東西改變之前不再有
+  視窗更新;P116 與欄位矩陣前後量測。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
