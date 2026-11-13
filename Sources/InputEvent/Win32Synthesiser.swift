@@ -301,6 +301,8 @@
                 ShowWindow(window, SW_RESTORE)
             }
 
+            placeWindowOnce(window)
+
             // HWND_TOPMOST is `((HWND)-1)`, a macro Swift does not import -- the
             // same bit-pattern construction testapp/P6.swift uses.
             // HWND_TOPMOST 是 `((HWND)-1)` 巨集，Swift 不會匯入——此處採用與 testapp/P6.swift 相同的
@@ -442,6 +444,37 @@
         /// The driven window when the held button went down; see `currentWindowIdentity`.
         /// 按住的按鍵按下時被驅動的視窗;見 `currentWindowIdentity`。
         nonisolated(unsafe) private static var identityAtPress = 0
+        /// Whether `placeWindowOnce` has run. / `placeWindowOnce` 是否已執行。
+        nonisolated(unsafe) private static var didPlaceWindow = false
+
+        /// Moves the first window a replay drives to the same place on every run.
+        ///
+        /// Windows opens a window that names no position 32 px further down and
+        /// right than the last, across processes: ten launches of P2 on WinUI
+        /// landed at 32 through 224 and then wrapped back to 32. At 224 its
+        /// 911-high frame ended at 1135 on a 1080-high screen, so the file's last
+        /// click, near the bottom of the window, landed off the screen
+        /// (2026-11-13). Frame-relative coordinates do not help with that. Moved
+        /// once, before the first action; a window the file switches to later is
+        /// left where it opened. A maximised window is left alone.
+        ///
+        /// 把重放驅動的第一個視窗，每次都移到同一個位置。沒有指定位置的視窗，Windows 會開在比上一個往右下各 32 px 的地方，
+        /// 而且跨行程：WinUI 的 P2 啟動十次，依序落在 32 到 224,再繞回 32。在 224 時，它 911 高的外框下緣到 1135,螢幕只有
+        /// 1080 高，於是檔案最後一下靠近視窗底部的點擊落到螢幕外(2026-11-13)。相對於外框的座標幫不上這件事。只在第一個動作之前
+        /// 移動一次；檔案之後切換到的視窗留在它開啟的位置。最大化的視窗不動。
+        private func placeWindowOnce(_ window: HWND) {
+            guard !Self.didPlaceWindow else { return }
+            Self.didPlaceWindow = true
+            if IsZoomed(window) {
+                ActionFileReplay.report("the window is maximised; left where it opened")
+                return
+            }
+            if SetWindowPos(window, nil, 32, 32, 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)) {
+                ActionFileReplay.report("moved the window to (32, 32) before the first action")
+            } else {
+                ActionFileReplay.report("could not move the window to (32, 32): error \(GetLastError())")
+            }
+        }
 
         /// Hides this process's OWN console window, and only its own.
         ///
