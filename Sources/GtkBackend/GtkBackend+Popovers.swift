@@ -474,6 +474,9 @@ extension GtkBackend {
         // 以 `popoverClass` 限定,該 class 只加在這一個 popover 上,因此 provider 的 display-wide
         // 註冊(`gtk_style_context_add_provider_for_display`,CSSProvider.swift:14)不會把這個顏色
         // 漏到選單或 picker 上。
+        // The rule below names `contents`, a descendant, so it needs the
+        // display-wide provider. / 下方的規則指名後代 `contents`,所以需要 display 範圍的 provider。
+        popover.popover.cssProviderScope = .display
         if let backgroundColor {
             let colour = CSSProperty.rgba(backgroundColor.gtkColor)
             popover.popover.loadCSSText(

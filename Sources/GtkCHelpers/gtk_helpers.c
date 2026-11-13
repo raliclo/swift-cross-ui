@@ -70,6 +70,22 @@ void scui_css_provider_load(GtkCssProvider *provider, const char *data, gssize l
 #endif
 }
 
+GtkStyleContext *scui_widget_add_own_css_provider(GtkWidget *widget, GtkCssProvider *provider, guint priority) {
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), priority);
+G_GNUC_END_IGNORE_DEPRECATIONS
+    g_object_ref(context);
+    return context;
+}
+
+void scui_style_context_remove_own_css_provider(GtkStyleContext *context, GtkCssProvider *provider) {
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    gtk_style_context_remove_provider(context, GTK_STYLE_PROVIDER(provider));
+G_GNUC_END_IGNORE_DEPRECATIONS
+    g_object_unref(context);
+}
+
 void scui_calendar_set_date(GtkCalendar *calendar, GDateTime *date) {
 #if GTK_CHECK_VERSION(4, 20, 0)
     gtk_calendar_set_date(calendar, date);

@@ -71,13 +71,13 @@ open class Widget: GObject {
     private var loadedCSSText: String?
 
     /// Loads `text` into this widget's provider unless it is what the provider
-    /// already holds. The provider is added for the whole display, so every load
-    /// restyles every widget there: P96 on Windows GTK spent about 27 ms of each
+    /// already holds. A provider installed for the whole display, on every load,
+    /// restyles every widget (see `cssProviderScope`): P96 on Windows GTK spent about 27 ms of each
     /// frame in GTK's layout phase reloading styles that had not changed
     /// (2026-10-23). Every load of a widget's provider goes through here, so
     /// the remembered text is always what the provider holds.
-    /// 除非 provider 已經持有 `text`,否則將其載入本 widget 的 provider。provider 是加在整個 display 上的，所以每次
-    /// 載入都會重新替那裡的每個 widget 套樣式:Windows GTK 上的 P96 每幀約有 27 毫秒花在 GTK 的 layout 階段，重新載入
+    /// 除非 provider 已經持有 `text`,否則將其載入本 widget 的 provider。display 範圍的 provider 每次
+    /// 載入都會重新替每個 widget 套樣式(見 `cssProviderScope`):Windows GTK 上的 P96 每幀約有 27 毫秒花在 GTK 的 layout 階段，重新載入
     /// 根本沒變的樣式(2026-10-23)。widget provider 的每次載入都經過這裡，因此記住的文字永遠是 provider 實際持有的。
     public func loadCSSText(from text: String) {
         guard text != loadedCSSText else { return }
@@ -95,9 +95,36 @@ open class Widget: GObject {
         return className
     }()
 
-    /// A CSS provider specifically for this widget. Will get removed when
-    /// it deinits.
-    public lazy var cssProvider = CSSProvider()
+    /// Where this widget's `cssProvider` is installed. `.widget` (the default
+    /// since 2026-11-13) styles this widget's own node alone; a widget whose
+    /// rules name a descendant -- a picker's `label`, a popover's `contents`, a
+    /// menu's `modelbutton` -- sets `.display`. Changing it moves what is loaded.
+    /// 本 widget 的 `cssProvider` 安裝在哪裡。`.widget`(自 2026-11-13 起的預設)只替本 widget 自己的節點套樣式；規則會指名
+    /// 後代的 widget——picker 的 `label`、popover 的 `contents`、選單的 `modelbutton`——要設為 `.display`。改變它會把已載入的
+    /// 內容一併搬過去。
+    public var cssProviderScope: CSSProvider.Scope = .widget {
+        didSet {
+            guard cssProviderScope != oldValue, ownCSSProvider != nil else { return }
+            ownCSSProvider = nil
+            if let text = loadedCSSText {
+                loadedCSSText = nil
+                loadCSSText(from: text)
+            }
+        }
+    }
+
+    private var ownCSSProvider: CSSProvider?
+
+    /// A CSS provider specifically for this widget, installed as
+    /// `cssProviderScope` says. Will get removed when it deinits.
+    public var cssProvider: CSSProvider {
+        if let ownCSSProvider {
+            return ownCSSProvider
+        }
+        let provider = cssProviderScope == .widget ? CSSProvider(forWidget: widgetPointer) : CSSProvider()
+        ownCSSProvider = provider
+        return provider
+    }
 
     public func show() {
         gtk_widget_set_visible(widgetPointer, true.toGBoolean())

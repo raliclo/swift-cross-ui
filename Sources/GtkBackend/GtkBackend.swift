@@ -4130,8 +4130,8 @@ extension GtkBackend {
         environment: EnvironmentValues
     ) -> SIMD2<Int> {
         // A label's measurement is cached under a key of everything it reads; see
-        // CustomLabel.measuredSizes. Other widgets (TextView) are measured each time.
-        // label 的量測以它所讀取的一切為鍵快取；見 CustomLabel.measuredSizes。其他 widget(TextView)每次都量。
+        // CustomLabel.measuredSizes, shared by every label. Other widgets (TextView) are measured each time.
+        // label 的量測以它所讀取的一切為鍵，由所有 label 共用快取；見 CustomLabel.measuredSizes。其他 widget(TextView)每次都量。
         guard let label = widget as? CustomLabel else {
             return uncachedSize(
                 of: text, whenDisplayedIn: widget, proposedWidth: proposedWidth,
@@ -4139,17 +4139,17 @@ extension GtkBackend {
         }
         let key = textMeasurementKey(
             of: text, in: label, proposedWidth: proposedWidth, proposedHeight: proposedHeight)
-        if let cached = label.measuredSizes[key] {
+        if let cached = CustomLabel.measuredSizes[key] {
             gtk_label_set_xalign(label.opaquePointer, cached.xalign)
             return cached.size
         }
         let measured = uncachedSize(
             of: text, whenDisplayedIn: widget, proposedWidth: proposedWidth,
             proposedHeight: proposedHeight, environment: environment)
-        if label.measuredSizes.count >= 32 {
-            label.measuredSizes.removeAll(keepingCapacity: true)
+        if CustomLabel.measuredSizes.count >= 4096 {
+            CustomLabel.measuredSizes.removeAll(keepingCapacity: true)
         }
-        label.measuredSizes[key] = (measured, gtk_label_get_xalign(label.opaquePointer))
+        CustomLabel.measuredSizes[key] = (measured, gtk_label_get_xalign(label.opaquePointer))
         return measured
     }
 
@@ -4181,9 +4181,20 @@ extension GtkBackend {
             .map { owned(pango_attr_list_to_string($0)) } ?? ""
         let resolution = pango_cairo_context_get_resolution(context)
         let scale = gtk_widget_get_scale_factor(label.widgetPointer)
+        // The rest of the layout `Pango(likeLabel:)` copies, which shapes the
+        // lines. Needed since the cache is shared by every label (2026-11-13):
+        // two labels must not differ in anything the key leaves out.
+        // `Pango(likeLabel:)` 複製的 layout 中其餘會影響斷行的部分。自 2026-11-13 快取由所有 label 共用後必須加入：
+        // 兩個 label 不可在鍵以外的任何地方不同。
+        let shape = [
+            "\(pango_layout_get_alignment(layout))", "\(pango_layout_get_justify(layout))",
+            "\(pango_layout_get_wrap(layout))", "\(pango_layout_get_spacing(layout))",
+            "\(pango_layout_get_line_spacing(layout))", "\(pango_layout_get_single_paragraph_mode(layout))",
+            "\(pango_layout_get_indent(layout))",
+        ].joined(separator: " ")
         return [
             text, proposedWidth.map(String.init) ?? "-", proposedHeight.map(String.init) ?? "-",
-            "\(label.ellipsize)", contextFont, layoutFont, attributes, "\(resolution)", "\(scale)",
+            "\(label.ellipsize)", contextFont, layoutFont, attributes, "\(resolution)", "\(scale)", shape,
         ].joined(separator: "\u{1F}")
     }
 
@@ -4746,6 +4757,8 @@ extension GtkBackend {
         // Apply the current text styles to the dropdown's labels
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
         block.set(properties: cssProperties(for: environment))
+        // `.class label` names a descendant. / `.class label` 指名後代。
+        picker.cssProviderScope = .display
         picker.loadCSSText(from: block.stringRepresentation)
 
         guard hasChanged else {
@@ -4788,6 +4801,8 @@ extension GtkBackend {
     private func applyLabelStyles(to picker: Widget, environment: EnvironmentValues) {
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
         block.set(properties: cssProperties(for: environment))
+        // `.class label` names a descendant. / `.class label` 指名後代。
+        picker.cssProviderScope = .display
         picker.loadCSSText(from: block.stringRepresentation)
     }
 
@@ -4992,6 +5007,9 @@ extension GtkBackend {
         // Cleared rather than merely skipped, because the provider outlives a
         // single update: a menu that stops needing the override has to stop
         // carrying it.
+        // These rules name `contents modelbutton`, a descendant, so they need the
+        // display-wide provider. / 這些規則指名後代 `contents modelbutton`,所以需要 display 範圍的 provider。
+        menu.cssProviderScope = .display
         guard !themeDraws(environment.colorScheme) else {
             menu.loadCSSText(from: "")
             return
@@ -6527,10 +6545,19 @@ class CustomLabel: Gtk.Label {
     /// rebuilt a Pango layout and measured three to five times, about 450 ms of the
     /// page's first second on Windows GTK (2026-11-07).
     ///
+    /// Shared by every label since 2026-11-13, so a label created later finds
+    /// what an earlier one measured: turning a field-matrix-shaped page (P116,
+    /// rows replaced) measured every new label afresh, about 400 ms of each
+    /// turn's layout on Windows GTK. The key holds everything the measurement
+    /// reads, so it never depended on which label asked.
+    ///
     /// 此 label 已量過的文字尺寸，以量測所讀取的一切為鍵(見 ``GtkBackend/textMeasurementKey``);值為尺寸與量測
     /// 設定的 x 對齊。一次 layout 會多次詢問同一個 label 的尺寸：場矩陣的一頁約 170 個 label,`Text.computeLayout`
     /// 被呼叫 2354 次，每次都重建 Pango layout 並量測三到五次，在 Windows GTK 上佔了該頁第一秒裡約 450 毫秒(2026-11-07)。
-    var measuredSizes: [String: (size: SIMD2<Int>, xalign: Float)] = [:]
+    /// 自 2026-11-13 起由所有 label 共用，讓之後建立的 label 也查得到先前量過的結果：翻一頁欄位矩陣形狀的頁面(P116,列被換掉)
+    /// 時，每個新 label 都重新量測，在 Windows GTK 上約占每次翻頁排版的 400 毫秒。鍵包含量測讀取的一切，所以本來就與是哪個
+    /// label 來問無關。
+    @MainActor static var measuredSizes: [String: (size: SIMD2<Int>, xalign: Float)] = [:]
 
     override func setSizeRequest(width: Int, height: Int) {
         super.setSizeRequest(width: width, height: height)

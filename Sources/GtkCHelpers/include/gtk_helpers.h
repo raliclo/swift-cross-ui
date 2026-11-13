@@ -642,6 +642,24 @@ void scui_show_uri(const char *uri);
 // 之前用 gtk_css_provider_load_from_data(在 4.12 起已棄用)。
 void scui_css_provider_load(GtkCssProvider *provider, const char *data, gssize length);
 
+// Installs `provider` for `widget` alone, not for the whole display, and returns
+// the widget's style context with a reference the caller gives back through
+// scui_style_context_remove_own_css_provider. The only way to scope a provider to
+// one widget in GTK 4, deprecated in 4.10 with no replacement; a display-wide
+// provider per widget made every new widget's style lookup scan every other
+// widget's provider (P116 page turns grew with the square of the row count,
+// 2026-11-13).
+// 只為 `widget` 安裝 `provider`,而不是整個 display,並傳回該 widget 的 style context 與一個參考，由呼叫者經
+// scui_style_context_remove_own_css_provider 歸還。這是 GTK 4 中把 provider 限定在單一 widget 的唯一方式，自 4.10 起
+// 棄用且沒有替代品；每個 widget 一個 display 範圍的 provider,會讓每個新 widget 查樣式時掃過其他所有 widget 的 provider
+// (P116 翻頁的時間隨列數平方成長,2026-11-13)。
+GtkStyleContext *scui_widget_add_own_css_provider(GtkWidget *widget, GtkCssProvider *provider, guint priority);
+
+// Removes a provider scui_widget_add_own_css_provider installed, and drops the
+// context reference it returned.
+// 移除 scui_widget_add_own_css_provider 安裝的 provider,並釋放它傳回的 context 參考。
+void scui_style_context_remove_own_css_provider(GtkStyleContext *context, GtkCssProvider *provider);
+
 // Shows and selects `date`: gtk_calendar_set_date on GTK 4.20 and later,
 // gtk_calendar_select_day (deprecated there) before it.
 // 顯示並選取 `date`:GTK 4.20 起用 gtk_calendar_set_date,之前用 gtk_calendar_select_day
