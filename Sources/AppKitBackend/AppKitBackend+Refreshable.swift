@@ -95,28 +95,23 @@ extension AppKitBackend {
         //
         // axis 引數說的是「這個 view 不可以隨哪個方向捲動」。`.vertical` 讓它固定住不隨垂直捲動,
         // 而垂直正是這支 app 會捲的方向。
-        button.translatesAutoresizingMaskIntoConstraints = true
-        button.sizeToFit()
-        // AppKit's origin is bottom-left, so `y: 4` is four points from the
-        // BOTTOM. Measured: the button rendered in the bottom-left corner of
-        // P54's window while every comment and the app's own text said
-        // top-left. Nothing failed -- a button in the wrong corner is still a
-        // button, and it is only wrong against a sentence.
-        //
-        // `.minYMargin` keeps the gap to the top fixed as the window resizes;
-        // the default mask would keep the gap to the BOTTOM fixed and walk the
-        // button back down the window.
-        //
-        // AppKit 的原點在左下角,因此 `y: 4` 是距離**底部**四點。實測:那顆按鈕畫在 P54 視窗的
-        // 左下角,而每一段註解與這支 app 自己的文字都說是左上角。沒有任何東西失敗——一顆位置錯誤的
-        // 按鈕仍然是一顆按鈕,它只是與一句話不符。
-        //
-        // `.minYMargin` 讓「與頂端的間距」在視窗改變大小時維持固定;預設的 mask 會固定「與**底部**
-        // 的間距」,並讓按鈕沿著視窗一路走回下方。
-        button.setFrameOrigin(
-            NSPoint(x: 4, y: container.bounds.height - button.frame.height - 4)
-        )
-        button.autoresizingMask = [.minYMargin]
+        button.translatesAutoresizingMaskIntoConstraints = false
+        // Pinned by constraints to the scroll view's top-leading corner, four points in.
+        // It used to be placed once by frame, from the scroll view's bounds when the
+        // handler arrived, with `.minYMargin` to hold the top gap. When the handler
+        // arrives before the first layout those bounds are 0 x 0, the button went to
+        // y -31, and the floating-subview container never resized it back: P54 on
+        // AppKit had no Refresh button and its presses did nothing (2026-11-14; an
+        // 11-13 capture had it, the order of the two steps decided). A constraint does
+        // not depend on that order, and it is the corner in either y direction.
+        // 以約束固定在 scroll view 左上角往內四點。過去是在處理常式到來時，依 scroll view 的 bounds 以 frame
+        // 擺一次，再用 `.minYMargin` 維持與頂端的間距。處理常式在第一次排版之前到來時，那個 bounds 是 0 x 0,
+        // 按鈕落在 y -31,浮動子 view 容器也從未把它移回來:AppKit 上的 P54 沒有 Refresh 按鈕，按了也沒作用
+        // (2026-11-14;11-13 的擷圖有按鈕，取決於兩個步驟的先後)。約束不受先後影響，而且不論 y 方向都是那個角。
         container.addFloatingSubview(button, for: .vertical)
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            button.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+        ])
     }
 }
