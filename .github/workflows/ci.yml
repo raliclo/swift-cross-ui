@@ -181,7 +181,7 @@ jobs:
         name: ios-sweep
         path: |
           testapp/output/ios-sweep.csv2
-          testapp/output/*-ios-*.png
+          testapp/output/screenshots/*-ios-*.png  # where test_ios.zsh writes them; testapp/output/*.png matched none (2026-11-14)
           testapp/output/*.log
         if-no-files-found: warn
 
@@ -306,7 +306,7 @@ jobs:
         path: |
           testapp/output/android-sweep.csv2
           testapp/output/android-sweep-stdout.txt
-          testapp/output/*-android-*.png
+          testapp/output/screenshots/*-android-*.png  # where test_android.zsh writes them; testapp/output/*.png matched none (2026-11-14)
           testapp/output/*.log
         if-no-files-found: warn
 
