@@ -703,6 +703,18 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     285;第 1 頁各列 326/356/399;第 2、3 頁各列 326/356/386)。新檔案:disabled-item `expect: MET`,open-level-1 記下 level
     1、2、3,ctrl-k 觸發。舊的 disabled-item 檔第一次執行就是第一個真正的 `expect: UNMET`(exit 8)。待辦:P2 在 WinUI 上以
     uia_rects 量測，以及第三層的 toggle(第 13 項)。
+  - 2026-11-14, the same placement on Linux/WSLg (X11), for the user's plan
+    to run action files in CI: `scui_window_place_in_work_area` moves the X
+    window with USPosition before the map and again 100 ms after it, because
+    GDK maps at its own position: with only the pre-map move, 4 of 4 launches
+    opened at (0, 0). `XdotoolSynthesiser` reports "the window's client area
+    is at (x, y)" once. WSL P20 (`GDK_BACKEND=x11`), 6 launches: replay log
+    and `xwininfo` both (32, 32), 660x524 every time. Wayland cannot place a
+    toplevel, so CI needs an X server. AppKit is M4's (1a1d74cd).
+    2026-11-14,同樣的定位做到 Linux/WSLg(X11),配合使用者在 CI 跑動作檔的計畫:`scui_window_place_in_work_area` 在映射前以
+    USPosition 移動 X 視窗，映射 100 ms 後再移一次，因為 GDK 會以它自己的位置映射：只有映射前那次時，4 次啟動都開在 (0, 0)。
+    `XdotoolSynthesiser` 回報一次「the window's client area is at (x, y)」。WSL 的 P20(`GDK_BACKEND=x11`)啟動 6 次：重放日誌與
+    `xwininfo` 都是 (32, 32)、每次 660x524。Wayland 無法擺放頂層視窗，所以 CI 需要 X server。AppKit 由 M4 完成(1a1d74cd)。
   - 2026-11-14, P2 on WinUI measured with `measure_win.zsh P2` (uia_rects,
     window 793x911 px at 125%): Set 12345 67,262; Clear 145,262; expanded
     Picker 123,104; Enable button row 93,490; Allow window resizing 103,662

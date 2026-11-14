@@ -37,6 +37,9 @@
         /// nowhere.
         public let doubleClickInterval = 400_000
 
+        /// Whether the window position has been reported. / 是否已回報過視窗位置。
+        nonisolated(unsafe) private static var didReportPlacement = false
+
         /// Asks X where our own window is.
         ///
         /// Not `getwindowgeometry`. Under a reparenting window manager xdotool
@@ -98,6 +101,16 @@
                 throw SynthesiserError.toolFailed("xdotool getmouselocation", status: 0)
             }
 
+            // Once per run, where the window opened: GtkBackend places an
+            // action-file run's window at work area + (32, 32) on X11
+            // (DebugFeatures.replaysActionFile), and a CI run can check this line
+            // the way it checks Win32Synthesiser's "opened at (32, 32)".
+            // 每次執行一次，回報視窗開在哪裡:GtkBackend 在 X11 上把動作檔執行的視窗放在工作區 + (32, 32)
+            // (DebugFeatures.replaysActionFile),CI 可以像檢查 Win32Synthesiser 的「opened at (32, 32)」一樣檢查這一行。
+            if !Self.didReportPlacement {
+                Self.didReportPlacement = true
+                ActionFileReplay.report("the window's client area is at (\(Int(x)), \(Int(y)))")
+            }
             let inset = frameInset(of: window)
             // X reports pixels and has no notion of a logical point, so 1 is the
             // right default and a point is a pixel. On a scaled Wayland session

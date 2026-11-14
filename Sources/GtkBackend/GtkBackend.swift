@@ -2055,8 +2055,8 @@ extension GtkBackend {
         // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
         // 分離視窗。
         // An action-file run opens at a fixed place, placed while still hidden
-        // (DebugFeatures.replaysActionFile; Windows only, a no-op elsewhere).
-        // 動作檔執行時開在固定位置，趁還隱藏時擺好(DebugFeatures.replaysActionFile;只在 Windows 上，其他平台不做事)。
+        // (DebugFeatures.replaysActionFile; Windows and X11, a no-op elsewhere).
+        // 動作檔執行時開在固定位置，趁還隱藏時擺好(DebugFeatures.replaysActionFile;Windows 與 X11,其他平台不做事)。
         if DebugFeatures.replaysActionFile {
             let offset = DebugFeatures.replayWindowOffset
             _ = scui_window_place_in_work_area(window.widgetPointer, Int32(offset.x), Int32(offset.y))
