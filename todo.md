@@ -615,6 +615,16 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     label 共用快取，鍵包含完整的 Pango layout 形狀。GTK P116 10 列 item 模式：今早每頁 1.2 秒，現在 0.24 秒。待辦：推送後 M4 的
     AppKit/iOS/Android 數字；SoftPCB-UI 的「min width of 7 for height of 14」GTK 警告是否早於 CSS 改動(已請 SoftPCB-W11 以
     baf796ad 對照)。
+  - 2026-11-14, SoftPCB-W11 (SoftPCB-UI 1d2d07c, Windows GTK, tab 9, 12 turns
+    per run, 2 runs each, median): at the b3e86768 pin, release 250 / 250 ms
+    with layout reuse and 250 / 235 with `SCUI_LAYOUT_REUSE=0`; debug 515 /
+    516 against 532 / 516. Reuse makes no difference to a page turn, as
+    expected: a turn is a bottom-up update, and reuse only saves the final call
+    of a whole-window pass. Turns are about twice as fast as at dde4c701
+    (release 453 ms, debug about 1100); which commit gave that is not bisected.
+    2026-11-14,SoftPCB-W11(SoftPCB-UI 1d2d07c,Windows GTK,tab 9,每次 12 頁、各 2 次，中位數):釘在 b3e86768 時,release 開啟
+    重用 250 / 250 ms、`SCUI_LAYOUT_REUSE=0` 為 250 / 235;debug 515 / 516 對 532 / 516。重用對翻頁沒有影響，符合預期：翻頁是由下而上
+    的更新，重用只省整窗排版的最後一次呼叫。翻頁約比 dde4c701 快一倍(release 453 ms、debug 約 1100);是哪個 commit 帶來的，尚未二分查找。
 - [ ] **7. GtkBackend on Windows misses some synthesised clicks.** P2's
   `P2-controls-and-resizing-gtk4.actions` clicks three toggles; interleaved, 4
   runs each, the pre-fix build applied 7 of 12 and the current one 6 of 12,
