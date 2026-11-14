@@ -23,6 +23,6 @@ source_file="${script_path:h}/display_scale.c"
 tool="${script_path:h:h}/helper/bin/display_scale.exe"
 if [ ! -x "$tool" ] || [ "$source_file" -nt "$tool" ]; then
     mkdir -p "${tool:h}"
-    clang -O1 "$source_file" -o "$tool" -luser32 || { printf 'display_scale build failed\n' >&2; exit 1; }
+    clang -O1 "$source_file" -o "$tool" -luser32 -lshcore || { printf 'display_scale build failed\n' >&2; exit 1; }
 fi
 exec "$tool" "$@"

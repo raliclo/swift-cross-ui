@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <shellscalingapi.h>
 
 typedef struct {
     DISPLAYCONFIG_DEVICE_INFO_HEADER header;
@@ -64,6 +65,8 @@ int main(int argc, char **argv) {
         return 64;
     }
     int target = setting ? atoi(argv[2]) : 0;
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    // Per-monitor aware, so GetDpiForMonitor below reports the real scale. / per-monitor aware,下方的 GetDpiForMonitor 才會回報真正的縮放。
 
     UINT32 pathCount = 0, modeCount = 0;
     if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS) {
@@ -127,6 +130,18 @@ int main(int argc, char **argv) {
         if (setting && current != target) {
             ok = 0;
         }
+    }
+    // What a process started now sees: the primary display's effective DPI to a
+    // per-monitor-aware process (this one, see main). Run `get` as a fresh
+    // process after `set` and this is what the apps launched afterwards get --
+    // the number that matters, since a scale the API reports but apps do not see
+    // would change nothing.
+    // 現在啟動的行程看到什麼：主顯示器對 per-monitor-aware 行程(本行程，見 main)的有效 DPI。在 `set` 之後以新行程執行 `get`,
+    // 印出的就是之後啟動的 app 會拿到的值——這才是重要的數字，因為 API 回報了、app 卻看不到的縮放什麼都不會改變。
+    HMONITOR primary = MonitorFromPoint((POINT){0, 0}, MONITOR_DEFAULTTOPRIMARY);
+    UINT dpiX = 0, dpiY = 0;
+    if (primary != NULL && GetDpiForMonitor(primary, MDT_EFFECTIVE_DPI, &dpiX, &dpiY) == S_OK) {
+        printf("effective dpi %u (%u%%) for a process started now\n", dpiX, dpiX * 100 / 96);
     }
     return ok ? 0 : 1;
 }
