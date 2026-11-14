@@ -538,7 +538,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     秒後再檢查一次，以防焦點一直沒來。SoftPCB-W11 以暫時探針做的對照(各一次,`--tab 9 --open-field-matrix`):grace 0 在兩次
     通知之間記到 `app=inactive`,多出 2 對主視窗 + 矩陣的更新;grace 2 從未變成 inactive,只有一次主視窗本身的更新(它的 scene
     phase),矩陣沒有多餘的更新。P59(第二個視窗很輕)重現不出來：那裡兩次通知在同一輪送達。
-- [ ] **6. Turning a page is slow: about 1.2 s on GTK, 0.9 s on WinUI.** The
+- [x] **6. Turning a page is slow: about 1.2 s on GTK, 0.9 s on WinUI.** The
   user reported it (2026-11-13) in SoftPCB-UI's field matrix, which keys its
   rows by item (`ForEach(slice, id: \.self) { caseID in`) and keeps `page` in a
   `@Published` model, so a turn replaces every row and updates the whole
@@ -625,6 +625,15 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-14,SoftPCB-W11(SoftPCB-UI 1d2d07c,Windows GTK,tab 9,每次 12 頁、各 2 次，中位數):釘在 b3e86768 時,release 開啟
     重用 250 / 250 ms、`SCUI_LAYOUT_REUSE=0` 為 250 / 235;debug 515 / 516 對 532 / 516。重用對翻頁沒有影響，符合預期：翻頁是由下而上
     的更新，重用只省整窗排版的最後一次呼叫。翻頁約比 dde4c701 快一倍(release 453 ms、debug 約 1100);是哪個 commit 帶來的，尚未二分查找。
+  - 2026-11-14, the last open point closed (SoftPCB-W11, SoftPCB-UI f4c7cdb):
+    the GTK "min width" warnings predate the CSS change. Debug builds of
+    baf796ad and b3e86768, 15 s per run, 2 runs each: tab 8 gives 24 lines on
+    both (22 "reports min width of 4 for height of 18, but overall min width
+    of 10", 2 with 7); tab 9 with the field matrix 0 on both; the "height of
+    14" form never appeared. Item done; the warnings themselves are item 16.
+    2026-11-14,最後一個待辦也結束了(SoftPCB-W11,SoftPCB-UI f4c7cdb):GTK 的「min width」警告早於 CSS 修改。baf796ad 與
+    b3e86768 的 debug 建置，每次 15 秒、各 2 次:tab 8 兩者都是 24 行(22 行「reports min width of 4 for height of 18, but overall
+    min width of 10」、2 行為 7);tab 9 開欄位矩陣兩者都是 0;「height of 14」的形式從未出現。本項完成；警告本身見第 16 項。
 - [x] **7. GtkBackend on Windows misses some synthesised clicks.** P2's
   `P2-controls-and-resizing-gtk4.actions` clicks three toggles; interleaved, 4
   runs each, the pre-fix build applied 7 of 12 and the current one 6 of 12,
@@ -910,6 +919,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     多視窗 app)。SoftPCB-UI f978ff3 / SoftPCB f792373:RootView 的 `.onDisappear` 呼叫 `FieldMatrixModel.quitApp()`(AppKit 上
     經由 NSApplication terminate;其他平台取消求解後 `exit(0)`)。SoftPCB-W11 在 Windows GTK、d069ed77 上以動作檔(focus、Alt+F4)
     驗證：有這個修改時 app 結束，沒有時 20 秒後仍在執行；只關掉欄位矩陣時 app 繼續執行。框架不需修改。
+- [ ] **16. GTK warns "Widget reports min width of 4 for height of 18, but
+  overall min width of 10" in SoftPCB-UI's tab 8.** 24 lines per run (22 with
+  4, 2 with 7), the same at baf796ad and b3e86768 (SoftPCB-W11, 2026-11-14), so
+  it predates item 6. GTK prints it when a widget's minimum width for a given
+  height is smaller than its minimum width for no height, i.e. one of
+  GtkBackend's measure implementations answers the two inconsistently. Find
+  which widget (a probe on GTK's measure warnings, or tab 8's controls one by
+  one in a test app) and make the height-for-width answer at least the
+  unconstrained minimum.
+  GTK 在 SoftPCB-UI 的 tab 8 警告「Widget reports min width of 4 for height of 18, but overall min width of 10」。每次 24 行(22 行為
+  4、2 行為 7),baf796ad 與 b3e86768 相同(SoftPCB-W11,2026-11-14),所以早於第 6 項。當某個 widget 在給定高度時的最小寬度，小於不
+  限高度時的最小寬度,GTK 就會印出它，也就是 GtkBackend 的某個 measure 實作對這兩個問題回答不一致。找出是哪個 widget(對 GTK 的
+  measure 警告加探針，或在測試 app 裡逐一放入 tab 8 的控制項),讓給定高度時的答案至少等於不限高度時的最小值。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
