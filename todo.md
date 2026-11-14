@@ -562,6 +562,23 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   版本生效 12 下中的 7 下，目前版本 6 下，而每次漏掉的不是同一下(2026-11-13)。不是 CSS 或排版的改動(修改前的版本也漏),也不是
   視窗定位(修改前的版本不會移動視窗)。Win32 的命中測試顯示每一下都落在 GTK toplevel 的正確位置，所以按壓抵達了 surface,之後才
   遺失。找出在哪裡：在按鈕的 gesture 上加探針，如 #111 對 popover 所做。P2 的 WinUI 那半現在以自己的座標通過。
+- [ ] **9. iOS: P41's last row cannot be scrolled into view on an iPhone (Mac).** On
+  the 440 x 956 pt simulator, scrolling P41's page to its end stops with the
+  `.rows` / `.rows seconds` / `.rows date+time` row below the screen; at most
+  its headers show. The same with f1e915a4^'s core files (2026-11-14), so it
+  predates the stack-redistribution change. The app logs "the root ScrollView
+  is 820.0 pt high from .defaultSize and has more content than that; grown to
+  824.0 pt to fill the screen", 824 pt on a 956 pt screen, so the scroll
+  view's frame or its content inset likely leaves the bottom of the content
+  out of reach. Cost: the colon fix (6e115c14) could not be seen on iOS, and
+  `taplabel '.rows seconds'` taps the label off screen. Check the scroll
+  view's frame against the safe area and its contentSize against the content.
+  iOS:iPhone 上 P41 的最後一列捲不進畫面(Mac)。在 440 x 956 pt 的模擬器上，把 P41 整頁捲到底時，`.rows` /
+  `.rows seconds` / `.rows date+time` 那一列仍在螢幕下方，最多只露出標題。用 f1e915a4^ 的核心檔案也一樣
+  (2026-11-14),所以早於 stack 重新分配的改動。app 印出「root ScrollView 由 .defaultSize 得 820.0 pt,內容更多;
+  長到 824.0 pt 以填滿螢幕」,而螢幕是 956 pt,所以很可能是 scroll view 的外框或內容 inset 讓內容底部碰不到。代價:
+  冒號修正(6e115c14)在 iOS 上看不到，`taplabel '.rows seconds'` 也點在螢幕外的標籤上。對照 scroll view 的外框與
+  safe area,以及它的 contentSize 與內容。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
