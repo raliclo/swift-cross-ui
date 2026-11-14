@@ -625,7 +625,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-14,SoftPCB-W11(SoftPCB-UI 1d2d07c,Windows GTK,tab 9,每次 12 頁、各 2 次，中位數):釘在 b3e86768 時,release 開啟
     重用 250 / 250 ms、`SCUI_LAYOUT_REUSE=0` 為 250 / 235;debug 515 / 516 對 532 / 516。重用對翻頁沒有影響，符合預期：翻頁是由下而上
     的更新，重用只省整窗排版的最後一次呼叫。翻頁約比 dde4c701 快一倍(release 453 ms、debug 約 1100);是哪個 commit 帶來的，尚未二分查找。
-- [ ] **7. GtkBackend on Windows misses some synthesised clicks.** P2's
+- [x] **7. GtkBackend on Windows misses some synthesised clicks.** P2's
   `P2-controls-and-resizing-gtk4.actions` clicks three toggles; interleaved, 4
   runs each, the pre-fix build applied 7 of 12 and the current one 6 of 12,
   and a different click is lost each run (2026-11-13). Not the CSS or layout
@@ -638,6 +638,16 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   版本生效 12 下中的 7 下，目前版本 6 下，而每次漏掉的不是同一下(2026-11-13)。不是 CSS 或排版的改動(修改前的版本也漏),也不是
   視窗定位(修改前的版本不會移動視窗)。Win32 的命中測試顯示每一下都落在 GTK toplevel 的正確位置，所以按壓抵達了 surface,之後才
   遺失。找出在哪裡：在按鈕的 gesture 上加探針，如 #111 對 popover 所做。P2 的 WinUI 那半現在以自己的座標通過。
+  - 2026-11-14, gone once the window is placed before it is shown (2350b555,
+    item 12). P2-controls-and-resizing-gtk4.actions, 4 runs: every click took
+    effect in every run (Picker expanded, Length 0, button row enabled,
+    maximise button back), against 7 and 6 of 12 before. The likely cause was
+    Win32Synthesiser moving the shown window to (32, 32) just before the first
+    click while GDK was still taking the move. The one same-pixel case found
+    since (item 13) is fixed separately in 769e5298.
+    2026-11-14,視窗改為在顯示前就擺好之後(2350b555,第 12 項)就消失了。P2-controls-and-resizing-gtk4.actions 跑 4 次，每次
+    每一下都生效(Picker 擴充、Length 0、按鈕列啟用、最大化按鈕回來),之前是 12 下中 7 下與 6 下。可能的原因是 Win32Synthesiser
+    在第一下點擊之前才把已顯示的視窗移到 (32, 32),GDK 還在處理那次移動。之後發現的同一像素情況(第 13 項)另在 769e5298 修正。
 - [x] **8. The item 6 layout fix lost P41's ":" and P84's spacing.** f1e915a4
   kept a child's layout when the redistribution proposed its own size, also
   for a ForEach last laid out at no proposal (nil, nil). That stack cache has
