@@ -924,6 +924,65 @@ check_screen_macos() {
     return 0
 }
 
+# The screen every Windows desktop action-file run assumes (the user's rule,
+# 2026-11-14: CI and local replay at the same resolution). The files in
+# testapp/actions/win were measured on this machine, 1920x1080 at 125%: WinUI's
+# frame DIPs and GTK's frame pixels at layout scale 1 both move with the scale,
+# and a 911-px-high window (P2) does not fit a smaller screen. Read from
+# Win32Synthesiser's "screen WxH scale S" line. A mismatch fails the run on CI
+# (exit 9, as check_screen_macos) and warns locally. SCUI_REPLAY_SCREEN overrides.
+# 每次 Windows 桌面動作檔執行所假設的螢幕(使用者的規則,2026-11-14:CI 與本機在同一解析度上重放)。testapp/actions/win
+# 的檔案是在這台機器上量的,1920x1080、125%:WinUI 的外框 DIP 與 GTK 在 layout scale 1 下的外框像素都隨縮放改變，而 911 px
+# 高的視窗(P2)放不進較小的螢幕。讀自 Win32Synthesiser 的「screen WxH scale S」那一行。不符時,CI 上判失敗(exit 9,與
+# check_screen_macos 相同),本機只警告。SCUI_REPLAY_SCREEN 可覆寫。
+replay_screen_windows="${SCUI_REPLAY_SCREEN:-1920x1080 scale 1.25}"
+check_screen_windows() {
+    [ -n "$action_file" ] || return 0
+    local seen
+    seen="$(grep -ao 'screen [0-9]*x[0-9]* scale [0-9.]*' "$script_dir/output/$actionfile_log" 2>/dev/null | tail -1 || true)"
+    if [ -z "$seen" ]; then
+        printf '==> screen: UNCHECKED -- the replay did not report its screen\n'
+    elif [ "$seen" = "screen $replay_screen_windows" ]; then
+        printf '==> screen: %s, as the action files assume\n' "$replay_screen_windows"
+    elif [ -n "${CI:-}" ]; then
+        printf '!! screen: %s, but the action files assume %s\n' "${seen#screen }" "$replay_screen_windows" >&2
+        screen_failures=$((screen_failures + 1))
+    else
+        printf '!! screen: %s, but the action files assume %s; captures will not match CI (a failure there)\n' \
+            "${seen#screen }" "$replay_screen_windows" >&2
+    fi
+    return 0
+}
+
+# The screen every WSL/Linux action-file run assumes: WSLg's X screen here,
+# 1920x1080 at 96 dpi, which is also what CI's Xvfb must be given
+# (`-screen 0 1920x1080x24`; its default is 640x480). Read through WSL from
+# XdotoolSynthesiser's "screen WxH scale S" line; a mismatch fails on CI (exit 9)
+# and warns locally, as check_screen_windows. SCUI_REPLAY_SCREEN overrides.
+# 每次 WSL/Linux 動作檔執行所假設的螢幕：這裡 WSLg 的 X 螢幕,1920x1080、96 dpi,CI 的 Xvfb 也必須設成這樣
+# (`-screen 0 1920x1080x24`;它的預設是 640x480)。經由 WSL 讀取 XdotoolSynthesiser 的「screen WxH scale S」那一行；
+# 不符時 CI 上判失敗(exit 9),本機只警告，與 check_screen_windows 相同。SCUI_REPLAY_SCREEN 可覆寫。
+replay_screen_wsl="${SCUI_REPLAY_SCREEN:-1920x1080 scale 1}"
+check_screen_wsl() {
+    [ -n "$action_file" ] || return 0
+    local seen
+    seen="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
+        "grep -ao 'screen [0-9]*x[0-9]* scale [0-9.]*' ~/proj/swift-cross-ui/testapp/output/$actionfile_log 2>/dev/null | tail -1" \
+        | tr -d '\r' || true)"
+    if [ -z "$seen" ]; then
+        printf '==> screen: UNCHECKED -- the replay did not report its screen\n'
+    elif [ "$seen" = "screen $replay_screen_wsl" ]; then
+        printf '==> screen: %s, as the action files assume\n' "$replay_screen_wsl"
+    elif [ -n "${CI:-}" ]; then
+        printf '!! screen: %s, but the action files assume %s\n' "${seen#screen }" "$replay_screen_wsl" >&2
+        screen_failures=$((screen_failures + 1))
+    else
+        printf '!! screen: %s, but the action files assume %s; captures will not match CI (a failure there)\n' \
+            "${seen#screen }" "$replay_screen_wsl" >&2
+    fi
+    return 0
+}
+
 check_expectation() {
     local out="$script_dir/output" expected wrote=0
     [ -n "$action_file" ] || return 0
@@ -1498,6 +1557,7 @@ run_windows() {
 
     print_summary_windows
     check_expectation
+    check_screen_windows
 }
 
 # Keeps one small WSLg window open for as long as WSL runs, and refuses to start
@@ -1757,6 +1817,7 @@ run_wsl() {
     printf '==> Closed %s under WSLg\n' "$app"
     print_renderer_wsl "$renderer_stderr"
     print_summary_wsl
+    check_screen_wsl
 }
 
 # macOS uses AppKitSynthesiser, which posts directly into the app's own event

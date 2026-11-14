@@ -110,6 +110,21 @@
             if !Self.didReportPlacement {
                 Self.didReportPlacement = true
                 ActionFileReplay.report("the window's client area is at (\(Int(x)), \(Int(y)))")
+                // The X screen, for test.zsh's screen check (the user's rule,
+                // 2026-11-14: CI and local replay at the same resolution). X has
+                // no scale of its own, so the scale is the layout scale the
+                // replay uses, 1 unless GTK reported another.
+                // X 螢幕，供 test.zsh 比對螢幕(使用者的規則,2026-11-14:CI 與本機在同一解析度上重放)。X 本身沒有縮放，
+                // 所以縮放是重放使用的 layout scale,除非 GTK 回報別的值，否則為 1。
+                let size = (try? capture(["getdisplaygeometry"]))?
+                    .split(whereSeparator: \.isWhitespace) ?? []
+                let scale = layoutScale ?? 1
+                let scaleText = scale == scale.rounded() ? String(Int(scale)) : String(scale)
+                ActionFileReplay.report(
+                    size.count == 2
+                        ? "screen \(size[0])x\(size[1]) scale \(scaleText)"
+                        : "screen unknown (xdotool getdisplaygeometry failed)"
+                )
             }
             let inset = frameInset(of: window)
             // X reports pixels and has no notion of a logical point, so 1 is the

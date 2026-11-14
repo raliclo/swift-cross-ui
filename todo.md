@@ -758,6 +758,30 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     所以只有 GTK 有此問題。讀 GTK 原始碼(testapp/gtk4-source):tracker 把 `menu.3_1_1` 判為可啟動、CHECK role,而 CHECK 列的
     `clicked` 與一般列一樣會走到 `gtk_menu_tracker_item_activated`,所以最可能是 toggle 列的 `clicked` 根本沒觸發。下一步：在桌面
     空閒時，在那個 GtkModelButton 的 `clicked` 上加探針。
+- [ ] **14. Action files in CI: the runners' screens.** The user's rule
+  (2026-11-14): CI and local replay at the same resolution, not only at the
+  same window position. Done: every Windows and WSL replay prints `screen WxH
+  scale S` (Win32Synthesiser, XdotoolSynthesiser), and test.zsh compares it
+  (`check_screen_windows`, `check_screen_wsl`): a mismatch exits 9 when `CI`
+  is set and warns locally, as M4's `check_screen_macos`. Expected values:
+  Windows `1920x1080 scale 1.25` (where testapp/actions/win was measured),
+  WSL/Linux `1920x1080 scale 1` (WSLg's X screen); `SCUI_REPLAY_SCREEN`
+  overrides. Verified 2026-11-14: P2 WinUI and P20 GTK print `screen
+  1920x1080 scale 1.25` and pass; with `CI=1 SCUI_REPLAY_SCREEN='1024x768
+  scale 1'` P20 exits 9; WSL P20 prints `screen 1920x1080 scale 1` and
+  passes. Open, before an action-file CI job exists: GitHub's windows-latest
+  runner is reportedly 1024x768 at 100% (M4), so check what it reports, then
+  either set it to 1920x1080 at 125% or decide on another standard and
+  re-measure the files; the Linux job's `xvfb-run` needs `-s "-screen 0
+  1920x1080x24"` (its default is 640x480).
+  CI 上的動作檔：runner 的螢幕。使用者的規則(2026-11-14):CI 與本機在同一解析度上重放，不只是視窗位置相同。已完成：每次
+  Windows 與 WSL 的重放都印出 `screen WxH scale S`(Win32Synthesiser、XdotoolSynthesiser),test.zsh 加以比對
+  (`check_screen_windows`、`check_screen_wsl`):不符時，設了 `CI` 就以 9 結束，本機只警告，與 M4 的 `check_screen_macos`
+  相同。預期值:Windows `1920x1080 scale 1.25`(testapp/actions/win 量測時的環境),WSL/Linux `1920x1080 scale 1`(WSLg 的 X
+  螢幕);`SCUI_REPLAY_SCREEN` 可覆寫。2026-11-14 驗證:P2 WinUI 與 P20 GTK 印出 `screen 1920x1080 scale 1.25` 並通過；設
+  `CI=1 SCUI_REPLAY_SCREEN='1024x768 scale 1'` 時 P20 以 9 結束;WSL 的 P20 印出 `screen 1920x1080 scale 1` 並通過。待辦(在
+  建立動作檔的 CI 工作之前):據 M4 所說,GitHub 的 windows-latest runner 是 1024x768、100%,先確認它實際回報什麼，再決定是設成
+  1920x1080、125%,還是另定標準並重量檔案;Linux 工作的 `xvfb-run` 需要 `-s "-screen 0 1920x1080x24"`(預設 640x480)。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

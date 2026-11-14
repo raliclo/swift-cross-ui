@@ -447,6 +447,38 @@
         /// Whether `placeWindowOnce` has run. / `placeWindowOnce` 是否已執行。
         nonisolated(unsafe) private static var didPlaceWindow = false
 
+        /// The primary display as `screen WxH scale S`: its physical mode and
+        /// the scale Windows applies. The physical mode comes from
+        /// `EnumDisplaySettingsW`, which reports the adapter's mode whatever the
+        /// process's DPI awareness (see gtk_window_scale.c). The scale is that
+        /// mode over the virtual width for a virtualized process (GtkBackend),
+        /// and the window's DPI over 96 for an aware one (WinUIBackend), so both
+        /// backends print 1.25 on the same 125% desktop. Not
+        /// `GetScaleFactorForMonitor`: WinUIBackend recorded that it answers 100%
+        /// at 125%.
+        /// 主顯示器，格式為 `screen WxH scale S`:實體模式與 Windows 套用的縮放。實體模式取自
+        /// `EnumDisplaySettingsW`,不論行程的 DPI awareness 都回報顯示卡的模式(見 gtk_window_scale.c)。縮放：被虛擬化的
+        /// 行程(GtkBackend)用該模式除以虛擬寬度，有 awareness 的行程(WinUIBackend)用視窗 DPI 除以 96,所以兩個 backend 在
+        /// 同一個 125% 桌面上都印 1.25。不用 `GetScaleFactorForMonitor`:WinUIBackend 記錄過它在 125% 時回答 100%。
+        static func screenDescription(for window: HWND) -> String {
+            var mode = DEVMODEW()
+            mode.dmSize = WORD(MemoryLayout<DEVMODEW>.size)
+            // ENUM_CURRENT_SETTINGS is `((DWORD)-1)`, a macro Swift does not import.
+            // ENUM_CURRENT_SETTINGS 是 `((DWORD)-1)` 巨集,Swift 不會匯入。
+            guard EnumDisplaySettingsW(nil, DWORD(bitPattern: -1), &mode) else {
+                return "screen unknown (EnumDisplaySettingsW failed: \(GetLastError()))"
+            }
+            let physicalWidth = Double(mode.dmPelsWidth)
+            let virtualWidth = Double(GetSystemMetrics(SM_CXSCREEN))
+            let scale =
+                virtualWidth > 0 && virtualWidth < physicalWidth
+                    ? physicalWidth / virtualWidth
+                    : Double(GetDpiForWindow(window)) / 96
+            let rounded = (scale * 100).rounded() / 100
+            let text = rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
+            return "screen \(mode.dmPelsWidth)x\(mode.dmPelsHeight) scale \(text)"
+        }
+
         /// Moves the first window a replay drives to the same place on every run.
         ///
         /// Windows opens a window that names no position 32 px further down and
@@ -465,6 +497,11 @@
         private func placeWindowOnce(_ window: HWND) {
             guard !Self.didPlaceWindow else { return }
             Self.didPlaceWindow = true
+            // The screen this run replays on, once, for test.zsh's
+            // check_screen_windows (the user's rule, 2026-11-14: CI and local
+            // replay at the same resolution). / 這次重放所在的螢幕，只印一次，供 test.zsh 的
+            // check_screen_windows 比對(使用者的規則,2026-11-14:CI 與本機在同一解析度上重放)。
+            ActionFileReplay.report(Self.screenDescription(for: window))
             if IsZoomed(window) {
                 ActionFileReplay.report("the window is maximised; left where it opened")
                 return
