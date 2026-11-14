@@ -945,6 +945,28 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   4、2 行為 7),baf796ad 與 b3e86768 相同(SoftPCB-W11,2026-11-14),所以早於第 6 項。當某個 widget 在給定高度時的最小寬度，小於不
   限高度時的最小寬度,GTK 就會印出它，也就是 GtkBackend 的某個 measure 實作對這兩個問題回答不一致。找出是哪個 widget(對 GTK 的
   measure 警告加探針，或在測試 app 裡逐一放入 tab 8 的控制項),讓給定高度時的答案至少等於不限高度時的最小值。
+  - 2026-11-14, cause found and fixed for the 21 "4@18" lines. SoftPCB-W11
+    removed parts of tab 8 one at a time: not the TextEditor, but
+    BubbleText's blank paragraphs, `Text(" ")` in `.frame(width: 640)`
+    (as "." they turned into "3@18": the width follows the glyph). GtkBackend
+    creates every text label with wrap and `ellipsize = .end`, and then
+    GtkLabel's minimum width for no height is the "…" width (10) while for a
+    one-line height it is the glyph's. New P117 (the user asked for a new Pn)
+    reproduces it with variant e: 3 warnings (4, 3 and 6 for " ", ".", "x"),
+    the control d none. Fix in `updateTextView`: no ellipsis on a single
+    character. P117 now 0 warnings in every variant; GTK P41 change-seconds
+    and locale-switch pixel-identical to their earlier captures. A first
+    version that also dropped the ellipsis for 2-3 characters narrower than
+    "…" broke P41's clock ("10"-"12" and "AM" wrapped and drew as "…");
+    caught by that comparison and narrowed. Open: SoftPCB-W11 to re-count on
+    tab 8 (the 2 "7@18" lines) and tab 4 (the "7@14" line) with this build.
+    2026-11-14,找到 21 行「4@18」的原因並修正。SoftPCB-W11 逐一拿掉 tab 8 的部分：不是 TextEditor,而是 BubbleText 的空段落，放在
+    `.frame(width: 640)` 裡的 `Text(" ")`(改成 "." 後變成「3@18」:寬度跟著字形走)。GtkBackend 建立的每個文字 label 都開了換行與
+    `ellipsize = .end`,於是 GtkLabel 不限高度時的最小寬度是「…」的寬度(10),給定一行高度時卻是字形的寬度。新的 P117(使用者要求新增
+    Pn)以變體 e 重現:3 則警告(" "、"."、"x" 各為 4、3、6),對照組 d 沒有。修正在 `updateTextView`:單一字元不加省略號。P117 現在每個
+    變體 0 則警告;GTK 的 P41 change-seconds 與 locale-switch 與先前截圖逐像素相同。第一版對 2-3 個比「…」窄的字元也拿掉省略號，弄壞了
+    P41 的時鐘(「10」到「12」與「AM」折行，畫成「…」),靠那次比對抓到並縮小範圍。待辦：請 SoftPCB-W11 用這個建置重新計數 tab 8(2 行
+    「7@18」)與 tab 4(「7@14」那 1 行)。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

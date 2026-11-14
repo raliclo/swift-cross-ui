@@ -4130,6 +4130,23 @@ extension GtkBackend {
     ) {
         let textView = textView as! CustomLabel
         textView.label = content
+        // No ellipsis on a single character: there is nothing to shorten, and
+        // with `.end` GtkLabel answers two ways -- the "…" width (10) as its
+        // minimum for no height, the glyph's (a space is 4) for a one-line
+        // height -- which a G_ENABLE_DEBUG GTK reports as "Widget reports min
+        // width of 4 for height of 18, but overall min width of 10". SoftPCB-UI
+        // printed it 21 times per run for its blank-paragraph `Text(" ")`; P117
+        // variant e reproduces it (todo item 16, 2026-11-14). Only one
+        // character: a first version also dropped it for two or three
+        // characters narrower than "…", and P41's clock numerals "10"-"12" and
+        // "AM" then wrapped inside a width a pixel short of their own and drew
+        // as "…" -- a lone character cannot wrap.
+        // 單一字元不加省略號：沒有東西可以縮短，而且在 `.end` 下 GtkLabel 會給出兩個答案——不限高度時最小寬度是「…」的寬度(10),
+        // 給定一行高度時是字形的寬度(空格為 4)——G_ENABLE_DEBUG 的 GTK 會報成「Widget reports min width of 4 for height of 18, but
+        // overall min width of 10」。SoftPCB-UI 的空段落 `Text(" ")` 每次執行印 21 次;P117 變體 e 可重現(todo 第 16 項,2026-11-14)。
+        // 只限一個字元：第一版對兩三個字元、比「…」窄的文字也拿掉省略號，結果 P41 時鐘的「10」到「12」與「AM」在比自身少一個像素的
+        // 寬度裡折行，畫成「…」——單一字元不會折行。
+        textView.ellipsize = content.count <= 1 ? .none : .end
         textView.justify =
             switch environment.multilineTextAlignment {
                 case .leading:
