@@ -164,6 +164,24 @@
         private var replacedInputSourceID: String?
 
         public func prepareForReplay(_ actions: [InputAction]) throws {
+            // Where the window is and how big, once, before the first action: a CI
+            // replay has to start from a fixed place and size, and this is the line
+            // that shows it did (AppKitBackend places it, 2026-11-14). Points, from
+            // the top-left of the screen's visible frame.
+            // 在第一個動作之前回報一次視窗的位置與大小:CI 的重放必須從固定的位置與大小開始，這一行就是證明
+            // (由 AppKitBackend 擺放,2026-11-14)。單位是點，從螢幕可見區域的左上角量起。
+            let placement: String? = onMain {
+                guard let window = Self.targetWindow(), let screen = window.screen else { return nil }
+                let visible = screen.visibleFrame
+                let content = window.contentLayoutRect.size
+                return "window at (\(Int(window.frame.minX - visible.minX)), "
+                    + "\(Int(visible.maxY - window.frame.maxY))) from the visible frame, "
+                    + "frame \(Int(window.frame.width))x\(Int(window.frame.height)), "
+                    + "content \(Int(content.width))x\(Int(content.height)), "
+                    + "screen \(Int(screen.frame.width))x\(Int(screen.frame.height))"
+            }
+            if let placement { ActionFileReplay.report(placement) }
+
             let sendsKeys = actions.contains { action in
                 switch action {
                     case .key, .keyDown, .keyUp: return true

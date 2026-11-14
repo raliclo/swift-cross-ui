@@ -1,5 +1,6 @@
 import AppKit
 import Metal
+import DebugFeatures
 
 @_spi(Backends) import SwiftCrossUI
 
@@ -237,6 +238,27 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             window.setFrame(frame, display: true, animate: false)
         }
 
+        // **An action-file run opens at a fixed place and size** (2026-11-14, the
+        // user's rule for every platform, so CI replays start alike): the app's
+        // default size, not a size saved by an earlier run, with the top-left at
+        // `DebugFeatures.replayWindowOffset` from the visible frame's top-left corner,
+        // as GtkBackend and WinUIBackend place theirs. Placed before it is shown.
+        // **動作檔執行時，視窗開在固定的位置與大小**(2026-11-14,使用者對每個平台的規則，讓 CI 的重放起點一致):
+        // 用 app 的預設大小，而不是先前執行存下的大小；左上角在可見區域左上角往內 `DebugFeatures.replayWindowOffset`,
+        // 與 GtkBackend、WinUIBackend 相同。在顯示之前擺好。
+        if DebugFeatures.replaysActionFile, let screen = window.screen ?? NSScreen.main {
+            if let defaultSize {
+                window.setContentSize(NSSize(width: defaultSize.x, height: defaultSize.y))
+            }
+            let visible = screen.visibleFrame
+            window.setFrameTopLeftPoint(
+                NSPoint(
+                    x: visible.minX + CGFloat(DebugFeatures.replayWindowOffset.x),
+                    y: visible.maxY - CGFloat(DebugFeatures.replayWindowOffset.y)
+                )
+            )
+        }
+
         return window
     }
 
@@ -278,7 +300,16 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
+        // `setContentSize` keeps the bottom-left corner, so a height change moves the
+        // top edge. An action-file run keeps the top-left where createWindow put it,
+        // because the file's coordinates are measured from there.
+        // `setContentSize` 保留左下角，高度改變時上緣會移動。動作檔執行時保留 createWindow 擺好的左上角，
+        // 因為檔案的座標是從那裡量的。
+        let topLeft = NSPoint(x: window.frame.minX, y: window.frame.maxY)
         window.setContentSize(NSSize(width: newSize.x, height: newSize.y))
+        if DebugFeatures.replaysActionFile {
+            window.setFrameTopLeftPoint(topLeft)
+        }
     }
 
     public func setSizeLimits(
