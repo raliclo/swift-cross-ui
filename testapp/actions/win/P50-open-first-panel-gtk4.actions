@@ -1,4 +1,11 @@
 action,x,y,origin,button,key,micros,note,platform
+# Renamed 2026-11-14 from P50-open-first-panel.actions: its coordinates are GtkBackend's,
+# and only a -gtk4 name keeps test.zsh from running it on WinUI, where it read
+# expect: UNMET (exit 8) with the anchor off the WinUI layout. WinUI has no file
+# for this yet. / 2026-11-14 由 P50-open-first-panel.actions 改名：座標是 GtkBackend 的，只有
+# -gtk4 的名稱能讓 test.zsh 不在 WinUI 上執行它；在 WinUI 上它是 expect: UNMET(exit 8),錨點不在 WinUI 版面上。
+# WinUI 目前還沒有對應的檔案。
+#
 # P50 on Windows, GtkBackend: open the first popover, then click away to
 # light-dismiss it.
 #
