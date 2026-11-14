@@ -446,7 +446,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   要嘛給 WinUI 自己的錨點。GTK 上的 `P50-popover-button-sweep`:popover 有開啟(現為 291x222,檔案寫 291x221),6 次都在
   掃描第 10 點 popover (50,170) 點擊後消失。檔案預期「press me」在 170 到 180 之間、「close this panel」在 180,所以版面已
   移動。以 gtk_widget_pick 重新量測按鈕位置並修正掃描點。
-- [ ] **5. Windows run extra full window updates after they open.** Two
+- [x] **5. Windows run extra full window updates after they open.** Two
   reports, 2026-11-13, cause not found yet:
   - P116 on WinUI, 1 run in 3 (profiling above): after the first update the
     content height went 620 -> 599 -> 598, and a second full update followed,
@@ -484,6 +484,25 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     限在 599,`setSize` 再把 1.25 x 599 = 748.75 捨去成 748 px,讀回是 598,resize handler 於是又更新一次視窗。現在隱藏的
     視窗從工作區量起(第 11 項),`setSize` 改為進位。`SCUI_DEBUG_WINDOW_SIZE=1`,各交錯啟動 11 次：修改前 11 次中 2 次有
     3 次視窗更新(599、598、598);修改後 11 次都只有 1 次(620)。GTK 的回報(SoftPCB-UI 欄位矩陣)仍未解決。
+  - 2026-11-14, GTK half fixed. `GtkBackend.currentAppPhase` reported
+    `.inactive` whenever no window was active, and opening the field matrix
+    passes through that: the main window lost the focus 0.81 s before the
+    matrix gained it, in separate main-queue turns, so the app phase went
+    inactive and back and each change refreshed every window. Now a window
+    presented within `presentationGrace` (2 s) and not yet active counts as
+    taking the focus; `show(window:)` re-checks after 2.1 s in case it never
+    came. SoftPCB-W11's A/B with temporary probes (one run each, `--tab 9
+    --open-field-matrix`): grace 0 logged `app=inactive` between the two
+    notifications and 2 extra main+matrix pairs; grace 2 never went inactive,
+    with one main-only update (its scene phase) and no extra matrix update.
+    P59 (a light second window) does not reproduce it: both notifications
+    arrive in one turn there.
+  - 2026-11-14,GTK 那一半已修正。`GtkBackend.currentAppPhase` 只要沒有作用中的視窗就回報 `.inactive`,而開啟欄位矩陣時正好
+    經過這個狀態：主視窗失去焦點 0.81 秒後矩陣才取得，分在不同輪的主佇列，app phase 於是變 inactive 再變回來，每次變化都重新
+    整理所有視窗。現在寬限期 `presentationGrace`(2 秒)內 present、還沒作用過的視窗算作正在取得焦點;`show(window:)` 在 2.1
+    秒後再檢查一次，以防焦點一直沒來。SoftPCB-W11 以暫時探針做的對照(各一次,`--tab 9 --open-field-matrix`):grace 0 在兩次
+    通知之間記到 `app=inactive`,多出 2 對主視窗 + 矩陣的更新;grace 2 從未變成 inactive,只有一次主視窗本身的更新(它的 scene
+    phase),矩陣沒有多餘的更新。P59(第二個視窗很輕)重現不出來：那裡兩次通知在同一輪送達。
 - [ ] **6. Turning a page is slow: about 1.2 s on GTK, 0.9 s on WinUI.** The
   user reported it (2026-11-13) in SoftPCB-UI's field matrix, which keys its
   rows by item (`ForEach(slice, id: \.self) { caseID in`) and keeps `page` in a
@@ -716,6 +735,17 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     啟動狀態型的 `menu.3_1_1`。`GTK_DEBUG=actions` 顯示整組 `menu.*` 每次更新都被移除再加回(一次執行加回 17 次),也沒有畫出
     勾選記號，因此 tracker 可能從未把它當成布林狀態的 action。下一步：該列的 GtkMenuTrackerItem role,以及 P19 有效的 Toggle
     是否以同樣方式建立。
+  - 2026-11-14, M4: AppKit's nested menu Toggle works (mac/P20-open-the-
+    nested-menu.actions ends "level 3 toggle -> true"), so this is GTK-only.
+    GTK source read (testapp/gtk4-source): the tracker marks `menu.3_1_1`
+    activatable with the CHECK role, and a CHECK row's `clicked` reaches
+    `gtk_menu_tracker_item_activated` the same way a normal row does, so the
+    toggle row's `clicked` most likely never fires. Next: a probe on that
+    GtkModelButton's `clicked`, on a free desktop.
+    2026-11-14,M4:AppKit 的巢狀選單 Toggle 有效(mac/P20-open-the-nested-menu.actions 結尾為「level 3 toggle -> true」),
+    所以只有 GTK 有此問題。讀 GTK 原始碼(testapp/gtk4-source):tracker 把 `menu.3_1_1` 判為可啟動、CHECK role,而 CHECK 列的
+    `clicked` 與一般列一樣會走到 `gtk_menu_tracker_item_activated`,所以最可能是 toggle 列的 `clicked` 根本沒觸發。下一步：在桌面
+    空閒時，在那個 GtkModelButton 的 `clicked` 上加探針。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

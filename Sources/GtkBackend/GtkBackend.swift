@@ -534,6 +534,11 @@ public final class GtkBackend:
     /// Windows that have been active at least once; `windows` never drops a
     /// window, so an identifier is not reused. / 至少作用過一次的視窗；`windows` 不會移除視窗，所以識別碼不會被重用。
     var windowsSeenActive: Set<ObjectIdentifier> = []
+    /// When each window was last presented (`show(window:)`); see `currentAppPhase`.
+    /// 每個視窗最近一次 present 的時間(`show(window:)`);見 `currentAppPhase`。
+    var windowsPresentedAt: [ObjectIdentifier: DispatchTime] = [:]
+    /// How long a presented window counts as taking the focus. / present 後的視窗被視為正在取得焦點的時間。
+    static let presentationGrace: Double = 2
     /// Each window's environment-change action, from `setWindowEnvironmentChangeHandler`.
     /// 每個視窗的 environment 變更動作，來自 `setWindowEnvironmentChangeHandler`。
     var windowEnvironmentActions: [ObjectIdentifier: @MainActor () -> Void] = [:]
@@ -2065,6 +2070,13 @@ extension GtkBackend {
             let offset = DebugFeatures.replayWindowOffset
             _ = scui_window_place_in_work_area(window.widgetPointer, Int32(offset.x), Int32(offset.y))
         }
+        // Taking the focus from here on; see `currentAppPhase`. Checked again
+        // once the grace period is over, in case the focus never came.
+        // 從這裡開始取得焦點；見 `currentAppPhase`。寬限期過後再檢查一次，以防焦點一直沒來。
+        windowsPresentedAt[ObjectIdentifier(window)] = DispatchTime.now()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.presentationGrace + 0.1) { [weak self] in
+            self?.checkActivity()
+        }
         #if os(macOS)
             // After present(), when the NSWindow exists. See GtkBackend+ColourSpace.swift.
             // 在 present() 之後，此時 NSWindow 已存在。見 GtkBackend+ColourSpace.swift。
@@ -2730,7 +2742,28 @@ extension GtkBackend {
     /// 執行檔量得);從 `.inactive` 開始，會讓第一個視窗的啟用把整個 app 再排版一次。
     var currentAppPhase: AppPhase {
         if windows.contains(where: \.isActive) { return .active }
-        return windowsSeenActive.isEmpty ? .active : .inactive
+        if windowsSeenActive.isEmpty { return .active }
+        // A window presented within the grace period and not yet active is
+        // taking the focus. Without this, opening a second window passed
+        // through "no window active" on Windows: the first window lost the
+        // focus in one main-queue turn and the new one gained it in a later
+        // one, so the app phase went inactive and back and every window
+        // updated twice. SoftPCB-UI's field matrix showed it as two extra
+        // main+matrix update pairs within 1.8 s of opening (SoftPCB-W11,
+        // 2026-11-14).
+        // 寬限期內 present、還沒作用過的視窗正在取得焦點。少了這條，在 Windows 上開第二個視窗時會經過「沒有作用中的視窗」:
+        // 第一個視窗在某一輪主佇列失去焦點，新視窗在之後的一輪才取得，於是 app phase 變成 inactive 再變回來，每個視窗各更新兩次。
+        // SoftPCB-UI 的欄位矩陣開啟後 1.8 秒內多出兩對主視窗 + 矩陣的更新，就是這個(SoftPCB-W11,2026-11-14)。
+        let now = DispatchTime.now().uptimeNanoseconds
+        let grace = UInt64(Self.presentationGrace * 1_000_000_000)
+        let opening = windows.contains { window in
+            let id = ObjectIdentifier(window)
+            guard !windowsSeenActive.contains(id), let presented = windowsPresentedAt[id] else {
+                return false
+            }
+            return now &- presented.uptimeNanoseconds < grace
+        }
+        return opening ? .active : .inactive
     }
 
     /// The same rule for one window: a window not yet active is being opened.
