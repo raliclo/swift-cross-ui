@@ -42,17 +42,26 @@ action,x,y,origin,button,key,micros,note,platform
 # y 值比控制項偏了 12-17 點:2026-09-27 的擷圖顯示 options: 2、按鈕列仍是停用——expanded 開關、Enable
 # button row 與 Always enabled 全都落空——而 macOS sweep 把它算成通過,因為它只檢查重放有沒有跑。只有目標
 # 夠高的 Set/Clear 與 TextEditor 命中了。
-click,118,109,frame,left,,,Use expanded Picker options -- options: 2 must become 5,macos
+# **Re-measured again 2026-11-14 from p2-macos-final-20261114-115321.png (620 x
+# 660, 1x frame).** The layout had moved 13-17 points since 09-28, and the capture
+# showed the same misses as then: options: 2, the button row disabled, Always
+# enabled (0). The run still exited 0. After the change the capture shows options:
+# 5, the row enabled, Always enabled (1), resizing on. The window now opens at
+# (32, 32) from the visible frame for every replay, so only its size matters here.
+# **2026-11-14 依 p2-macos-final-20261114-115321.png(620 x 660,1 倍外框)再次重新量測。**版面自 09-28 起移動了
+# 13-17 點，擷圖顯示與當時相同的落空:options: 2、按鈕列停用、Always enabled (0),執行卻仍以 0 結束。改正後的擷圖:
+# options: 5、按鈕列啟用、Always enabled (1)、可調整大小。現在每次重放視窗都開在可見區域的 (32, 32),所以這裡只取決於大小。
+click,118,96,frame,left,,,Use expanded Picker options -- options: 2 must become 5,macos
 sleep,,,,,,800000,,macos
-click,208,144,frame,left,,,open the Flavor dropdown,macos
+click,207,131,frame,left,,,open the Flavor dropdown,macos
 sleep,,,,,,1200000,,macos
 key,,,,,escape,,close it again,macos
 sleep,,,,,,800000,,macos
-click,354,144,frame,left,,,Reset,macos
+click,354,131,frame,left,,,Reset,macos
 sleep,,,,,,800000,,macos
-click,61,243,frame,left,,,Set 12345 -- Length must become 5,macos
+click,62,245,frame,left,,,Set 12345 -- Length must become 5,macos
 sleep,,,,,,800000,,macos
-click,138,243,frame,left,,,Clear -- Length must become 0,macos
+click,142,245,frame,left,,,Clear -- Length must become 0,macos
 sleep,,,,,,800000,,macos
 click,400,285,frame,left,,,click into the TextEditor to focus it,macos
 sleep,,,,,,600000,,macos
@@ -60,17 +69,17 @@ key,,,,,a,,,macos
 key,,,,,b,,,macos
 key,,,,,c,,three keystrokes; Length must become exactly 3,macos
 sleep,,,,,,800000,,macos
-click,85,446,frame,left,,,Enable button row -- the row below must become enabled,macos
+click,85,463,frame,left,,,Enable button row -- the row below must become enabled,macos
 sleep,,,,,,800000,,macos
-click,77,475,frame,left,,,the formerly disabled action -- now it should respond,macos
+click,77,492,frame,left,,,the formerly disabled action -- now it should respond,macos
 sleep,,,,,,600000,,macos
-click,217,475,frame,left,,,Always enabled -- its label must read Always enabled (1),macos
+click,217,492,frame,left,,,Always enabled -- its label must read Always enabled (1),macos
 sleep,,,,,,600000,,macos
-click,345,475,frame,left,,,the formerly disabled toggle -- it stays disabled by design (.disabled(true)),macos
+click,355,492,frame,left,,,the formerly disabled toggle -- it stays disabled by design (.disabled(true)),macos
 sleep,,,,,,800000,,macos
-click,124,528,frame,left,,,the second Delete -- the one that should warn,macos
+click,126,545,frame,left,,,the second Delete -- the one that should warn,macos
 sleep,,,,,,800000,,macos
-click,199,528,frame,left,,,Cancel -- which should not,macos
+click,200,545,frame,left,,,Cancel -- which should not,macos
 sleep,,,,,,800000,,macos
-click,97,588,frame,left,,,Allow window resizing -- the full screen button must follow,macos
+click,97,605,frame,left,,,Allow window resizing -- the full screen button must follow,macos
 sleep,,,,,,1000000,,macos
