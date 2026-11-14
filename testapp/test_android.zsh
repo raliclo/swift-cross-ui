@@ -536,6 +536,15 @@ ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
 # 關閉手寫筆輸入。開啟時，對文字欄的合成點擊會讓 Gboard 跳出全螢幕的「Try out your stylus」,
 # 2026-10-02 的 sweep 有七張擷圖(P2 P9 P15 P21 P31 P32 P36)拍到的是那個畫面。
 ANDROID_SERIAL="$serial" "$adb" shell settings put secure stylus_handwriting_enabled 0 || true
+# No system "isn't responding" or crash dialogs. On CI's software-rendered emulator,
+# "Pixel Launcher isn't responding" came up over the app mid-replay, and taplabel
+# found only the dialog: P2-choose-from-the-picker and P114-sheet-back failed with
+# their targets drawn underneath (run 43587194980, 2026-11-14). Our own app's crash
+# is still caught, because its process ends; only the dialog is not shown.
+# 不顯示系統的「沒有回應」與當機對話框。CI 以軟體繪圖的模擬器上,「Pixel Launcher isn't responding」在重放途中蓋在
+# app 上,taplabel 只找得到對話框:P2-choose-from-the-picker 與 P114-sheet-back 失敗，而目標就畫在底下
+# (run 43587194980,2026-11-14)。我們自己 app 的當機仍抓得到，因為行程會結束；只是不顯示對話框。
+ANDROID_SERIAL="$serial" "$adb" shell settings put global hide_error_dialogs 1 || true
 # Start the declared launcher activity directly. `monkey` can return a non-zero
 # status for emulator input limitations even when it does not provide a useful
 # readiness check for action-file replay.
