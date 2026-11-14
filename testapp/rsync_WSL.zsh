@@ -28,7 +28,8 @@ usage() {
         "" \
         "Only syncs:" \
         "  **/*.swift" \
-        "  testapp/**/*.zsh"
+        "  **/*.c, **/*.h, **/*.modulemap" \
+        "  testapp/**/*.zsh, testapp/actions/**/*.actions, install_tool_wsl.sh"
 }
 
 while [ "$#" -gt 0 ]; do

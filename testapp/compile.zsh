@@ -924,7 +924,12 @@ if [ -z "$winui_package" ]; then
     exit 1
 fi
 winui_revision=${${winui_package#*revision: \"}%%\"*}
-winui_head=$(git -C "$repo_root/Vendor/swift-winui" rev-parse HEAD 2>/dev/null)
+# `|| true`: without the submodule as a git checkout (WSL's synced copy, a CI
+# job that skips it) git exits 128, and under `set -e` that ended the whole
+# build with no message (2026-11-14). No HEAD just means nothing to compare.
+# `|| true`:submodule 不是 git checkout 時(WSL 的同步副本、跳過它的 CI 工作),git 以 128 結束，在 `set -e` 下會讓整個
+# 建置無聲地中止(2026-11-14)。沒有 HEAD 只代表沒有東西可比對。
+winui_head=$(git -C "$repo_root/Vendor/swift-winui" rev-parse HEAD 2>/dev/null || true)
 if [ -n "$winui_head" ] && [ "$winui_head" != "$winui_revision" ]; then
     printf 'compile.zsh: warning: Vendor/swift-winui is at %s but Package.swift pins %s;\n' "$winui_head" "$winui_revision" >&2
     printf 'compile.zsh: warning: push the submodule and update the revision for its edits to count.\n' >&2
