@@ -26,9 +26,14 @@ import Foundation
 /// `ScrollView`, `Table`, `SplitView` -- do not conform, so they and everything
 /// above them recompute as before.
 ///
-/// **Off unless `SCUI_LAYOUT_REUSE=1`.** `SCUI_LAYOUT_REUSE_CHECK=1` computes the
+/// **On by default since 2026-11-14; `SCUI_LAYOUT_REUSE=0` turns it off.** `SCUI_LAYOUT_REUSE_CHECK=1` computes the
 /// result anyway and reports every reusable record whose result differs (the
 /// acceptance check in todo.md), and prints `layout-reuse counts:` after each window commit; it changes nothing else.
+/// Turned on by the user after the GUI regression with it on (todo Layout
+/// passes item 2): WinUI and GTK, 90 runs off and on interleaved, no layout
+/// difference; P116 appear-to-hop median WinUI 330 -> 284 ms, GTK 306 -> 282.
+/// 使用者在開啟重用的 GUI 回歸之後決定預設開啟(todo 排版次數第 2 項):WinUI 與 GTK 交錯關/開共 90 次，沒有版面差異;
+/// P116 appear-to-hop 中位數 WinUI 330 -> 284 ms、GTK 306 -> 282 ms。
 ///
 /// 在同一輪的最後一次呼叫中重用試探時算出的排版結果。
 ///
@@ -46,7 +51,7 @@ import Foundation
 /// 尺寸狀態的 representable 呼叫),而且其下每份紀錄都可重用。在試探時行為不同的 children 型別——`GeometryReader`、
 /// `List`、`ScrollView`、`Table`、`SplitView`——都沒有 conform,所以它們與其上的一切照舊重算。
 ///
-/// **除非 `SCUI_LAYOUT_REUSE=1`,否則關閉。** `SCUI_LAYOUT_REUSE_CHECK=1` 仍然照常計算，並回報每一份可重用、但結果
+/// **預設開啟(2026-11-14 起),`SCUI_LAYOUT_REUSE=0` 時關閉。** `SCUI_LAYOUT_REUSE_CHECK=1` 仍然照常計算，並回報每一份可重用、但結果
 /// 不同的紀錄(todo.md 裡的驗收檢查),並在每次視窗 commit 後印出 `layout-reuse counts:`;它不改變其他任何東西。
 @_spi(Backends)
 @MainActor
@@ -54,7 +59,7 @@ public enum LayoutReuse {
     static let environment = ProcessInfo.processInfo.environment
     /// Reuse probe results in the final call. A `var` so tests can switch it.
     /// 在最後一次呼叫中重用試探結果。是 `var`,讓測試可以切換。
-    static var isEnabled = environment["SCUI_LAYOUT_REUSE"] == "1"
+    static var isEnabled = environment["SCUI_LAYOUT_REUSE"] != "0"
     /// Compute anyway and report mismatches. / 仍然計算並回報不一致。
     static var isChecking = environment["SCUI_LAYOUT_REUSE_CHECK"] == "1"
     /// Mismatches seen by the check, for tests. / 檢查看到的不一致次數，供測試使用。

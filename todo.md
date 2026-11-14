@@ -146,7 +146,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     551-556 毫秒。已驗證：最小化時兩個 `onChange` 各觸發一次、視窗只更新一次；主機測試 53 個 suite 394 項通過(1 個 known
     issue 在 GridLayoutTests,無關);P50 標題 A -> B 在 WinUI 與 GTK 皆正確;P93 選單傾印在 WinUI 與 GTK 都有 File > New >
     New Alpha/Beta Window 與 Solo。
-- [ ] **2. Keep layout results across commits while nothing changed.** Today
+- [x] **2. Keep layout results across commits while nothing changed.** Today
   every commit clears each node's result cache, so each pass re-measures
   everything. Riskier: needs a precise invalidation rule (view, environment,
   proposal). Accept: layout calls per node drop, a re-measure-and-compare check
@@ -371,6 +371,17 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     檢查 0 不一致、WinUI 與 GTK 完整 GUI 回歸)在 Windows 上已達成;M4 在開啟重用下的 AppKit 136/136 與 iPhone 135/135
     先前已完成。待辦：由使用者決定是否預設開啟重用(`LayoutReuse.isEnabled`,影響每個 backend 的核心改動)。腳本與資料:
     session db768b0a 的 scratchpad reg/reg.zsh 與 reg/out/summary.txt。
+  - 2026-11-14, **on by default** (the user's decision, on branch
+    `perf/layout-reuse-default`, then merged). P116 appear-to-hop on current
+    develop, 10 interleaved rounds, min / median: WinUI off 323 / 330, on
+    276 / 284 ms (median -14%); GTK off 281 / 306, on 274 / 282 ms (-8%).
+    `LayoutReuse.isEnabled` is now `SCUI_LAYOUT_REUSE != "0"`. Host tests
+    405 + 15 pass with the default, with `SCUI_LAYOUT_REUSE_CHECK=1` (0
+    mismatch lines) and with `SCUI_LAYOUT_REUSE=0`.
+    2026-11-14,**預設開啟**(使用者的決定，在分支 `perf/layout-reuse-default` 上做完再合併)。目前 develop 上的 P116
+    appear-to-hop,交錯 10 輪，最小 / 中位數:WinUI 關閉 323 / 330、開啟 276 / 284 ms(中位數 -14%);GTK 關閉 281 / 306、
+    開啟 274 / 282 ms(-8%)。`LayoutReuse.isEnabled` 現在是 `SCUI_LAYOUT_REUSE != "0"`。主機測試 405 + 15 在預設、
+    `SCUI_LAYOUT_REUSE_CHECK=1`(0 行不一致)與 `SCUI_LAYOUT_REUSE=0` 下皆通過。
 - [x] **3. A new node evaluates its view's body twice.** Done 2026-11-13:
   f641f413 is on develop, and every acceptance check below passed (body
   probe, host tests, GUI regression on WinUI, GTK, AppKit and iPhone).
