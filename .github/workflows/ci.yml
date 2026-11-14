@@ -508,18 +508,22 @@ jobs:
         Get-ItemProperty 'HKCU:\Control Panel\Desktop' -Name LogPixels -ErrorAction SilentlyContinue | Format-List LogPixels
         Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' -Name AppliedDPI -ErrorAction SilentlyContinue | Format-List AppliedDPI
 
-    # todo item 14, option 2 (the user's choice, 2026-11-14): try the runner at
+    # todo item 14, option 2 (the user's choice, 2026-11-14): put the runner at
     # 125%, the scale testapp/actions/win was measured at, through the per-monitor
-    # scale API (display_scale.zsh). A trial: it prints the scale before and after
-    # and does not fail the job until a run has shown that it takes.
-    # todo 第 14 項選項 2(使用者的選擇,2026-11-14):嘗試把 runner 設成 125%,也就是 testapp/actions/win 量測時的縮放，
-    # 透過每台顯示器的縮放 API(display_scale.zsh)。這是試驗：印出設定前後的縮放，在某次執行證明它有效之前不讓工作失敗。
-    - name: Display scale 125% (trial)
+    # scale API (display_scale.zsh). Proven in run 43602448487: 100% and 96 dpi
+    # before, 125% and 120 dpi for a process started after. The step fails if the
+    # scale does not take, or a process started after it does not see 120 dpi.
+    # todo 第 14 項選項 2(使用者的選擇,2026-11-14):把 runner 設成 125%,也就是 testapp/actions/win 量測時的縮放，透過每台
+    # 顯示器的縮放 API(display_scale.zsh)。在 43602448487 證實：設定前 100%、96 dpi,之後啟動的行程為 125%、120 dpi。縮放沒有生效，
+    # 或之後啟動的行程看不到 120 dpi,這一步就失敗。
+    - name: Display scale 125% (as testapp/actions/win assumes)
       shell: bash
       run: |
-        zsh testapp/test_support/display_scale.zsh get || true
-        zsh testapp/test_support/display_scale.zsh set 125 || printf 'display_scale: set 125 did not take\n'
-        zsh testapp/test_support/display_scale.zsh get || true
+        zsh testapp/test_support/display_scale.zsh get
+        zsh testapp/test_support/display_scale.zsh set 125
+        after=$(zsh testapp/test_support/display_scale.zsh get)
+        printf '%s\n' "$after"
+        printf '%s\n' "$after" | grep -q 'effective dpi 120 '
 
     - name: Launch P2 and P116 (WinUIBackend)
       shell: bash

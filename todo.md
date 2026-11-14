@@ -840,7 +840,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     「Level 3 submenu」列相同的像素上：指標從未移動,GTK 沒有替滑進它下方的列送 enter,它的手勢也就不接這次放開。改點 x 150 就啟動了
     `3_1_1`。在 Win32Synthesiser 修正：游標已位於目標時，先離開一個像素再回來。未修改的 P20-open-level-1.actions 現在結尾為
     `level 3 toggle -> true`,3 次中 3 次。
-- [ ] **14. Action files in CI: the runners' screens.** The user's rule
+- [x] **14. Action files in CI: the runners' screens.** The user's rule
   (2026-11-14): CI and local replay at the same resolution, not only at the
   same window position. Done: every Windows and WSL replay prints `screen WxH
   scale S` (Win32Synthesiser, XdotoolSynthesiser), and test.zsh compares it
@@ -889,6 +889,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     大小,check_screen_windows 會以 9 結束。待使用者決定:(1) 本機改用 100%,重量受影響的檔案(單一標準,CI 不需特別設定);(2) 把
     runner 設成 125%(登錄檔，可能要重新登入；在 GitHub 的 runner 上未經證實);(3) 接受 CI 用不同縮放(`SCUI_REPLAY_SCREEN`),
     但這違反「同一解析度」的規則。日誌:session db768b0a 的 scratchpad ci_win.log / ci_lin.log。
+  - 2026-11-14, **option 2 chosen by the user and done.** display_scale.zsh /
+    display_scale.c set the per-monitor scale through DisplayConfigSetDeviceInfo
+    (no sign-in needed). Run 43587194980: 100% before, 125% read back after.
+    Run 43602448487 added the effective DPI a freshly started process sees: 96
+    before, 120 (125%) after. The windows job's step now fails if the scale does
+    not take or a process started after it does not see 120 dpi (checked
+    locally against both outputs). Linux's Xvfb is 1920x1080; macOS (M4) is
+    set to 1920x1080 scale 1 with its own check. Done for the screens; an
+    action-file CI job itself does not exist yet.
+    2026-11-14,**使用者選了選項 2,已完成。** display_scale.zsh / display_scale.c 透過 DisplayConfigSetDeviceInfo 設定每台顯示器的
+    縮放(不需重新登入)。43587194980:設定前 100%,讀回 125%。43602448487 加上新啟動行程看到的有效 DPI:之前 96,之後 120(125%)。
+    windows 工作的這一步現在會在縮放沒有生效、或之後啟動的行程看不到 120 dpi 時失敗(已在本機以兩種輸出驗證判斷)。Linux 的 Xvfb 是
+    1920x1080;macOS(M4)設為 1920x1080 scale 1,有自己的檢查。螢幕的部分完成；動作檔的 CI 工作本身還不存在。
 - [x] **15. `taskkill` without `-f` leaves a two-window app running
   (SoftPCB-W11, field matrix open).** Reproduced 2026-11-14 with P59 and
   its second window, 2 runs per case: with one window, `taskkill -im`
