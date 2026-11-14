@@ -841,6 +841,25 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     that run's output (the first uncancelled one), then decide the scale.
     2026-11-14,c3ea0ee3:linux 工作的 xvfb-run 加上 `-screen 0 1920x1080x24` 並印出 xrandr;windows 工作在有
     Set-DisplayResolution 的地方設成 1920x1080,並印出解析度與 DPI。待辦：讀那次 CI(第一次沒被取消的)的輸出，再決定縮放比例。
+  - 2026-11-14, run 43580086002 (769e5298, all jobs green), the first
+    uncancelled one: linux's Xvfb is 1920x1080 (xrandr), and P2 and P116
+    launch there; windows-latest is 1920x1080 at **100%** (Win32_VideoController
+    1920x1080, AppliedDPI 96, no LogPixels), so the resolution matches this
+    machine and the scale does not (125% here). Effect: WinUI's DIP screen is
+    1920x1080 there against 1536x864 here, and GTK, virtualized, the same, so
+    tall windows open at another size and check_screen_windows would exit 9.
+    For the user to decide: (1) run this machine at 100% and re-measure the
+    affected files (one standard, nothing special on CI); (2) set the runner to
+    125% (registry and probably a new sign-in; unproven on hosted runners);
+    (3) accept a different scale on CI (`SCUI_REPLAY_SCREEN`), which the rule
+    "same resolution" forbids. Logs: scratchpad ci_win.log / ci_lin.log of
+    session db768b0a.
+    2026-11-14,第一次沒被取消的 CI 43580086002(769e5298,全部通過):linux 的 Xvfb 是 1920x1080(xrandr),P2 與 P116 都能啟動；
+    windows-latest 是 1920x1080、**100%**(Win32_VideoController 1920x1080、AppliedDPI 96、沒有 LogPixels),解析度與本機相同，縮放
+    不同(本機 125%)。影響:WinUI 在那裡的 DIP 螢幕是 1920x1080,本機是 1536x864;被虛擬化的 GTK 也一樣，所以高的視窗會開成別的
+    大小,check_screen_windows 會以 9 結束。待使用者決定:(1) 本機改用 100%,重量受影響的檔案(單一標準,CI 不需特別設定);(2) 把
+    runner 設成 125%(登錄檔，可能要重新登入；在 GitHub 的 runner 上未經證實);(3) 接受 CI 用不同縮放(`SCUI_REPLAY_SCREEN`),
+    但這違反「同一解析度」的規則。日誌:session db768b0a 的 scratchpad ci_win.log / ci_lin.log。
 - [x] **15. `taskkill` without `-f` leaves a two-window app running
   (SoftPCB-W11, field matrix open).** Reproduced 2026-11-14 with P59 and
   its second window, 2 runs per case: with one window, `taskkill -im`
