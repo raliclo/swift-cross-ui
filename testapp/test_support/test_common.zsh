@@ -577,8 +577,8 @@ copy_mode_seen=0
 # Replays that did not run to the end; read at the bottom of this file.
 # 沒有跑完的重放次數；在本檔最底端讀取。
 replay_failures=0
-# `# expect: log-contains` lines not met; see check_expectation_windows.
-# 未達成的 `# expect: log-contains` 行數；見 check_expectation_windows。
+# `# expect: log-contains` lines not met; see check_expectation.
+# 未達成的 `# expect: log-contains` 行數；見 check_expectation。
 expect_failures=0
 
 # Minimises every titled window on this desktop before an app is launched (the
@@ -895,7 +895,7 @@ wait_for_marker_wsl() {
 # sweep-test/sweep_drive.zsh:MET;UNMET,app 有記東西但沒有那一行(計數，最後 exit 8);UNCHECKED,app 沒有寫出
 # 事件 log 可找(只說明、不判失敗：沒加 --debug 的 app 不寫)。只處理 log-contains:其他種類要看截圖或結束碼，
 # 本執行器交給讀者判斷。
-check_expectation_windows() {
+check_expectation() {
     local out="$script_dir/output" expected wrote=0
     [ -n "$action_file" ] || return 0
     expected="$(grep -m1 -E '^# *expect: *log-contains .' "$action_file" 2>/dev/null || true)"
@@ -1468,7 +1468,7 @@ run_windows() {
     fi
 
     print_summary_windows
-    check_expectation_windows
+    check_expectation
 }
 
 # Keeps one small WSLg window open for as long as WSL runs, and refuses to start
@@ -1944,6 +1944,7 @@ run_macos() {
     pkill -TERM -x "$app" 2>/dev/null || true
     printf '==> Closed %s on macOS\n' "$app"
     print_summary_macos
+    check_expectation  # macOS too since 2026-11-14: it ignored the line, as Windows did / macOS 自 2026-11-14 也檢查:過去和 Windows 一樣忽略這一行
 }
 
 wait_for_marker_macos() {
@@ -2256,9 +2257,9 @@ if [ "$replay_failures" -gt 0 ]; then
 fi
 
 # A replay that ran but never logged what its action file expects is a failed
-# test too; see check_expectation_windows. Exit 8, after the replay check above,
+# test too; see check_expectation. Exit 8, after the replay check above,
 # so a replay that did not run is reported as that.
-# 重放有跑完，卻沒有記下動作檔預期的那一行，也是失敗的測試；見 check_expectation_windows。exit 8 放在上面的
+# 重放有跑完，卻沒有記下動作檔預期的那一行，也是失敗的測試；見 check_expectation。exit 8 放在上面的
 # 重放檢查之後，所以沒有跑完的重放仍以那個原因回報。
 if [ "$expect_failures" -gt 0 ]; then
     printf '\n!! the run never logged what the action file expects; see "expect: UNMET" above.\n' >&2
