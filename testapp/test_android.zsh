@@ -567,6 +567,12 @@ app_args=()
 if [ -n "$action_file" ]; then
     [ -f "$action_file" ] || die "No such action file: $action_file"
     device_action_file="/data/local/tmp/$app.actions"
+    # The screen the replay runs on, said before it: Android action files are
+    # measured on a pixel_6 (1080 x 2400 px, 420 dpi), the local AVD and the
+    # profile CI pins (2026-11-14). Another screen reads the same coordinates elsewhere.
+    # 重放所用的螢幕，在重放之前說出來:Android 動作檔是在 pixel_6(1080 x 2400 px,420 dpi)上量的，也就是本機的
+    # AVD 與 CI 固定的 profile(2026-11-14)。換一個螢幕，同樣的座標就落在別處。
+    print "==> Screen: $(ANDROID_SERIAL="$serial" "$adb" shell wm size 2>/dev/null | tr -d '\r' | tail -1), $(ANDROID_SERIAL="$serial" "$adb" shell wm density 2>/dev/null | tr -d '\r' | tail -1), model $(ANDROID_SERIAL="$serial" "$adb" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
     print "==> Pushing $action_file -> $device_action_file"
     ANDROID_SERIAL="$serial" "$adb" push "$action_file" "$device_action_file" >/dev/null \
         || die "Could not push the action file to the device"

@@ -275,6 +275,7 @@ jobs:
         api-level: 34
         arch: x86_64
         target: google_apis
+        profile: pixel_6  # the local AVD's screen, 1080 x 2400 px at 420 dpi: Android action files are measured on it (2026-11-14) / 本機 AVD 的螢幕，動作檔在其上量測
         disable-animations: true
         emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
         script: mkdir -p testapp/output && zsh testapp/sweep_android.zsh $([ "$SWEEP_APPS" = all ] || echo $SWEEP_APPS) 2>&1 | tee testapp/output/android-sweep-stdout.txt
