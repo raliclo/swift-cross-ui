@@ -472,6 +472,18 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   第二個視窗開啟時的作用中或焦點變化，或同一個 resize 迴圈。紀錄:SoftPCB-W11 session 5d3c6f7a scratchpad 的 fm_trace.log
   與 fm_trace2.log;SoftPCB-UI bugs/bug-Windows.md #2。驗收：WinUI 與 GTK 上，第一次更新之後，在它讀取的東西改變之前不再有
   視窗更新;P116 與欄位矩陣前後量測。
+  - 2026-11-14, WinUI half fixed. The P116 report was the window opened low
+    in the cascade: `maximumSizeOnScreen` capped the first proposal at 599
+    from that corner, then `setSize` rounded 1.25 x 599 = 748.75 down to 748
+    px, which reads back as 598, so the resize handler updated the window
+    again. Now the hidden window is measured from the work area (item 11) and
+    `setSize` rounds up. `SCUI_DEBUG_WINDOW_SIZE=1`, 11 interleaved launches
+    each: before, 2 of 11 had 3 window updates (599, 598, 598); after, 11 of
+    11 had one (620). The GTK report (SoftPCB-UI field matrix) is still open.
+    2026-11-14,WinUI 那一半已修正。P116 那份回報是視窗在層疊中開得太低:`maximumSizeOnScreen` 從那個角落把第一次提議
+    限在 599,`setSize` 再把 1.25 x 599 = 748.75 捨去成 748 px,讀回是 598,resize handler 於是又更新一次視窗。現在隱藏的
+    視窗從工作區量起(第 11 項),`setSize` 改為進位。`SCUI_DEBUG_WINDOW_SIZE=1`,各交錯啟動 11 次：修改前 11 次中 2 次有
+    3 次視窗更新(599、598、598);修改後 11 次都只有 1 次(620)。GTK 的回報(SoftPCB-UI 欄位矩陣)仍未解決。
 - [ ] **6. Turning a page is slow: about 1.2 s on GTK, 0.9 s on WinUI.** The
   user reported it (2026-11-13) in SoftPCB-UI's field matrix, which keys its
   rows by item (`ForEach(slice, id: \.self) { caseID in`) and keeps `page` in a
@@ -605,7 +617,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   長到 824.0 pt 以填滿螢幕」,而螢幕是 956 pt,所以很可能是 scroll view 的外框或內容 inset 讓內容底部碰不到。代價:
   冒號修正(6e115c14)在 iOS 上看不到，`taplabel '.rows seconds'` 也點在螢幕外的標籤上。對照 scroll view 的外框與
   safe area,以及它的 contentSize 與內容。
-- [ ] **10. `.package(path: "Vendor/swift-winui")` breaks revision-pinned
+- [x] **10. `.package(path: "Vendor/swift-winui")` breaks revision-pinned
   consumers.** SoftPCB-W11 reported it: a project pinning swift-cross-ui by
   revision cannot resolve a path inside it. Now a URL plus revision equal to
   the submodule's HEAD; testapp/compile.zsh reads that line from Package.swift
@@ -614,7 +626,15 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   `.package(path: "Vendor/swift-winui")` 讓以 revision 釘住的使用者無法建置。SoftPCB-W11 回報：以 revision 釘住 swift-cross-ui
   的專案無法解析它裡面的路徑。現在改為 URL + 等於 submodule HEAD 的 revision;testapp/compile.zsh 從 Package.swift 讀那一行，
   submodule 在別處時警告。驗收：經 compile.zsh 建置 WinUI,以及一個以 revision 釘住此 commit 的暫存套件能解析。
-- [ ] **11. WinUI window height differs run to run.** Windows cascades
+  Done 2026-11-14 (7db619f0 before rebase): WinUI P41 built through
+  compile.zsh (swift-winui resolved at c4225f8); a scratch package pinning
+  swift-cross-ui by revision resolves at the new commit and, as the negative
+  control, fails at 6e115c14 with "depends on local package 'swift-winui',
+  which is not supported".
+  2026-11-14 完成(rebase 前為 7db619f0):經 compile.zsh 建置 WinUI P41(swift-winui 解析到 c4225f8);以 revision 釘住
+  swift-cross-ui 的暫存套件在新 commit 能解析，反向對照在 6e115c14 失敗:「depends on local package 'swift-winui', which is not
+  supported」。
+- [x] **11. WinUI window height differs run to run.** Windows cascades
   default-positioned windows, and a window placed low is clipped in height to
   the work area. `Win32Synthesiser.placeWindowOnce` moves the window to (32,32)
   but keeps the clipped size, so P84 (content centred) moves its buttons and
@@ -623,6 +643,15 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   WinUI 視窗高度每次不同。Windows 會層疊擺放預設位置的視窗，放得低的視窗高度會被工作區裁掉。`placeWindowOnce` 把視窗移到
   (32,32) 卻保留裁過的尺寸，所以 P84(內容置中)的按鈕位置會變，部分重放點擊落空。2026-11-14 驗證 6e115c14 時發現。驗收：每次重放
   的視窗 client 尺寸相同。
+  Fixed 2026-11-14: while the window is hidden, `maximumSizeOnScreen` measures
+  from the work area's corner, and `setSize` then moves a window that runs past
+  the work area up and left (`keepInsideWorkArea`), keeping its size. P84, 8
+  launches at cascade positions 26-179: always proposed 560x720, frame 574x758,
+  top clamped to 58 where the cascade put it lower. The same change ends the
+  WinUI half of item 5; see there.
+  2026-11-14 修正：視窗隱藏時 `maximumSizeOnScreen` 從工作區角落量起，`setSize` 之後把超出工作區的視窗往上、往左移
+  (`keepInsideWorkArea`),尺寸不變。P84 在層疊位置 26-179 啟動 8 次：提議一律 560x720、外框 574x758,層疊得較低時頂端
+  夾在 58。同一個修改也解決第 5 項的 WinUI 那一半，見該項。
 - [ ] **12. P20's action coordinates are stale on both backends** (y=241, the
   control is near 282), and the Windows harness does not check `# expect:`
   lines, so a stale file still reports rc 0. Re-measure P20 and P2 (WinUI)

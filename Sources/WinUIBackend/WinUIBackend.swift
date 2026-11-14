@@ -753,9 +753,12 @@ extension WinUIBackend {
     /// bar and the toolbar, in DIPs. From the corner and not the whole area
     /// because WinUI places a new window at y 128 at 125%, and a window sized
     /// to the work area from there still runs 128 px off the bottom.
+    /// Since 2026-11-14 that holds for a shown window only; a hidden one is
+    /// measured from the work area's corner, see `keepInsideWorkArea(_:)`.
     /// 視窗所在顯示器的工作區(扣掉工作列的螢幕),從視窗目前的左上角算起，再扣掉外框、選單列與工具列，單位為 DIP。
     /// 從左上角算而不是用整個工作區，是因為 WinUI 在 125% 下把新視窗放在 y 128,從那裡開一個工作區高的視窗，底部仍會
     /// 超出 128 px。
+    /// 2026-11-14 起，這只適用於已顯示的視窗；隱藏時從工作區角落算起，見 `keepInsideWorkArea(_:)`。
     public func maximumSizeOnScreen(ofWindow window: Window) -> SIMD2<Int>? {
         guard let hwnd = window.getHWND(),
             let monitor = MonitorFromWindow(hwnd, DWORD(bitPattern: MONITOR_DEFAULTTONEAREST))
@@ -767,8 +770,14 @@ extension WinUIBackend {
             return nil
         }
         let work = info.rcWork
-        let left = min(max(windowRect.left, work.left), work.right)
-        let top = min(max(windowRect.top, work.top), work.bottom)
+        // From the work area's corner while the window is hidden, so the size
+        // does not depend on where Windows cascaded it; `setSize` then moves it
+        // to fit (`keepInsideWorkArea(_:)`). From the window's corner once shown.
+        // 視窗隱藏時從工作區角落量起，尺寸因此不受 Windows 層疊擺放的位置影響;`setSize` 之後再把它移到放得下的
+        // 地方(`keepInsideWorkArea(_:)`)。顯示之後才從視窗的角落量起。
+        let fromWorkArea = !IsWindowVisible(hwnd)
+        let left = fromWorkArea ? work.left : min(max(windowRect.left, work.left), work.right)
+        let top = fromWorkArea ? work.top : min(max(windowRect.top, work.top), work.bottom)
 
         let dpi = GetDpiForWindow(hwnd)
         let effectiveDPI = dpi == 0 ? UINT(USER_DEFAULT_SCREEN_DPI) : dpi
@@ -798,11 +807,64 @@ extension WinUIBackend {
         let scaleFactor = window.scaleFactor
         let width = scaleFactor * Double(newSize.x)
         let height = scaleFactor * Double(newSize.y + window.contentHeightAdjustment)
+        // Rounded up, not toward zero, so `size(ofWindow:)`, which divides by
+        // the scale and rounds toward zero, reads back the size asked for. Toward
+        // zero lost a DIP whenever scale times size was not whole: at 125%, 599
+        // became 748.75 -> 748 px -> 598.4 -> 598, the resize handler saw a new
+        // size, and P116 ran a second full window update after opening
+        // (2026-11-13, todo Layout passes item 5). Up gives at most
+        // ceil(s*x)/s < x + 1/s, which rounds back to x for any scale of 100% or
+        // more.
+        // 進位而不是捨去，好讓 `size(ofWindow:)`(除以縮放後捨去)讀回的就是要求的尺寸。捨去時，只要縮放乘尺寸不是
+        // 整數就會少一個 DIP:125% 下 599 變成 748.75 -> 748 px -> 598.4 -> 598,resize handler 看到新的尺寸，
+        // P116 開啟後於是多跑一次完整的視窗更新(2026-11-13,todo 排版次數第 5 項)。進位最多得到 ceil(s*x)/s < x + 1/s,
+        // 縮放在 100% 以上時捨去後必回到 x。
         let size = UWP.SizeInt32(
-            width: Int32(width.rounded(.towardZero)),
-            height: Int32(height.rounded(.towardZero))
+            width: Int32(width.rounded(.up)),
+            height: Int32(height.rounded(.up))
         )
         try! window.appWindow.resizeClient(size)
+        // Before the first show only; see `keepInsideWorkArea(_:)`.
+        // 只在第一次顯示之前；見 `keepInsideWorkArea(_:)`。
+        if let hwnd = window.getHWND(), !IsWindowVisible(hwnd) {
+            Self.keepInsideWorkArea(hwnd)
+        }
+    }
+
+    /// Moves a window that runs past the bottom or right of its monitor's work
+    /// area back inside it, up and left, keeping its size. Used before the first
+    /// show, together with `maximumSizeOnScreen(ofWindow:)` measuring from the
+    /// work area's corner while the window is hidden: the window is sized for the
+    /// screen and then placed to fit, rather than shrunk to fit where Windows put
+    /// it. Windows cascades windows that name no position 32 px apart across
+    /// processes, so measuring from that corner gave P84 a different height on
+    /// each run, and its centred buttons moved under the replayed clicks
+    /// (2026-11-14). A window larger than the work area keeps its top-left at
+    /// the work area's corner.
+    ///
+    /// 視窗超出所在顯示器工作區的下緣或右緣時，把它往上、往左移回工作區內，尺寸不變。在第一次顯示之前使用，
+    /// 搭配視窗隱藏時 `maximumSizeOnScreen(ofWindow:)` 從工作區角落量起：先依螢幕決定視窗尺寸，再擺到放得下的
+    /// 位置，而不是依 Windows 放的位置把它縮小。沒有指定位置的視窗，Windows 會跨行程地每次錯開 32 px 層疊擺放，
+    /// 因此從那個角落量起時，P84 每次的高度都不同，置中的按鈕也跟著移到重放點擊之外(2026-11-14)。比工作區大的
+    /// 視窗，左上角放在工作區的角落。
+    private static func keepInsideWorkArea(_ hwnd: HWND) {
+        var windowRect = RECT()
+        guard GetWindowRect(hwnd, &windowRect),
+            let monitor = MonitorFromWindow(hwnd, DWORD(bitPattern: MONITOR_DEFAULTTONEAREST))
+        else { return }
+        var info = MONITORINFO()
+        info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
+        guard GetMonitorInfoW(monitor, &info) else { return }
+        let work = info.rcWork
+        let width = windowRect.right - windowRect.left
+        let height = windowRect.bottom - windowRect.top
+        let left = max(work.left, min(windowRect.left, work.right - width))
+        let top = max(work.top, min(windowRect.top, work.bottom - height))
+        guard left != windowRect.left || top != windowRect.top else { return }
+        _ = SetWindowPos(
+            hwnd, nil, left, top, 0, 0,
+            UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+        )
     }
 
     public func setSizeLimits(
