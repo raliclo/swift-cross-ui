@@ -841,7 +841,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     that run's output (the first uncancelled one), then decide the scale.
     2026-11-14,c3ea0ee3:linux 工作的 xvfb-run 加上 `-screen 0 1920x1080x24` 並印出 xrandr;windows 工作在有
     Set-DisplayResolution 的地方設成 1920x1080,並印出解析度與 DPI。待辦：讀那次 CI(第一次沒被取消的)的輸出，再決定縮放比例。
-- [ ] **15. `taskkill` without `-f` leaves a two-window app running
+- [x] **15. `taskkill` without `-f` leaves a two-window app running
   (SoftPCB-W11, field matrix open).** Reproduced 2026-11-14 with P59 and
   its second window, 2 runs per case: with one window, `taskkill -im`
   ends the app in 0.5 s; with two, it closes ONE window and the app keeps
@@ -858,6 +858,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   關掉的是第二個視窗,WinUI 是主視窗——再一次 `taskkill -im` 才結束。兩個 backend 相同，所以是 taskkill 每次呼叫只對多視窗 app
   送一次關閉，以及關掉一個視窗不會結束 app;不是 GtkBackend 的缺陷。待使用者決定：關掉主視窗時，是否要關掉其他視窗並結束(Windows
   常見做法),還是保留它們(macOS 上的 SwiftUI)?在那之前，要正常結束多視窗 app 的腳本，每個視窗送一次 `taskkill -im`,或用 `-f`。
+  - 2026-11-14, decided per app, as reported by SoftPCB-W11: the user chose
+    "closing the main window quits" for SoftPCB-UI only, and the framework
+    default stays (closing one window does not quit a multi-window app).
+    SoftPCB-UI f978ff3 / SoftPCB f792373: RootView's `.onDisappear` calls
+    `FieldMatrixModel.quitApp()` (NSApplication terminate on AppKit; cancel the
+    solve and `exit(0)` elsewhere). Checked by SoftPCB-W11 on Windows GTK at
+    d069ed77 with an action file (focus, Alt+F4): exits with the change, still
+    running at 20 s without it; closing only the field matrix keeps the app.
+    No framework change.
+    2026-11-14,依 app 決定(SoftPCB-W11 轉述):使用者只為 SoftPCB-UI 選擇「關掉主視窗就結束」,框架預設不變(關掉一個視窗不會結束
+    多視窗 app)。SoftPCB-UI f978ff3 / SoftPCB f792373:RootView 的 `.onDisappear` 呼叫 `FieldMatrixModel.quitApp()`(AppKit 上
+    經由 NSApplication terminate;其他平台取消求解後 `exit(0)`)。SoftPCB-W11 在 Windows GTK、d069ed77 上以動作檔(focus、Alt+F4)
+    驗證：有這個修改時 app 結束，沒有時 20 秒後仍在執行；只關掉欄位矩陣時 app 繼續執行。框架不需修改。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
