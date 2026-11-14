@@ -556,11 +556,19 @@ ANDROID_SERIAL="$serial" "$adb" shell settings put global hide_error_dialogs 1 |
 # am start 啟動 app,不需要 launcher,所以停用回應 HOME 的那個 app。只在設了 CI 時才做：本機模擬器是共用的
 # (SoftPCB 也用),停用的桌面會在那裡留到這次執行之後。
 if [ -n "${CI:-}" ]; then
-    home_app="$(ANDROID_SERIAL="$serial" "$adb" shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tr -d '\r' | tail -1)"
-    home_app="${home_app%%/*}"
-    if [ -n "$home_app" ] && [ "$home_app" != android ]; then
-        ANDROID_SERIAL="$serial" "$adb" shell pm disable-user --user 0 "$home_app" >/dev/null 2>&1 \
-            && print "==> CI: disabled the home app $home_app (its ANR dialog covered replays)"
+    # Pixel Launcher by name, once, and then a pause. Disabling "whatever answers
+    # HOME" on every launch also disabled Settings, which answers HOME once the
+    # launcher is gone (FallbackHome), and the first replay after the switch lost
+    # its popup: P2-choose-from-the-picker opened its dropdown, which closed again
+    # as the fallback home took the focus (run 43615329017, 9 of 10).
+    # 以名稱停用 Pixel Launcher,只停用一次，之後暫停一下。每次啟動都停用「回應 HOME 的那個 app」時，連 Settings 也被停用了——
+    # launcher 停用後由它(FallbackHome)回應 HOME——而切換之後的第一次重放失去了彈出視窗:P2-choose-from-the-picker 打開的下拉
+    # 清單在替代桌面取得焦點時又關上了(run 43615329017,10 個中 9 個)。
+    launcher=com.google.android.apps.nexuslauncher
+    if ANDROID_SERIAL="$serial" "$adb" shell pm list packages -e "$launcher" 2>/dev/null | tr -d '\r' | grep -qx "package:$launcher"; then
+        ANDROID_SERIAL="$serial" "$adb" shell pm disable-user --user 0 "$launcher" >/dev/null 2>&1 \
+            && printf '==> CI: disabled %s (its ANR dialog covered replays); letting the fallback home settle\n' "$launcher"
+        sleep 8
     fi
     ANDROID_SERIAL="$serial" "$adb" shell settings put secure anr_show_background 0 || true
 fi
