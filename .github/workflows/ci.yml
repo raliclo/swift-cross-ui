@@ -88,6 +88,14 @@ jobs:
     - name: Build P2 and P116 (AppKitBackend)
       run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
 
+    # The runner's screen, recorded (2026-11-14): desktop action-file runs assume
+    # 1920x1080 at scale 1 (test_common.zsh, check_screen_macos), and nothing said
+    # what this runner has. / 記下 runner 的螢幕：桌面動作檔執行假設 1920x1080、縮放 1。
+    - name: Screen (AppKitBackend)
+      run: |
+        system_profiler SPDisplaysDataType | grep -E "Resolution|UI Looks like|Main Display" || echo "no display reported"
+        swift -e 'import AppKit; for s in NSScreen.screens { print("screen", s.frame.size, "scale", s.backingScaleFactor, "visible", s.visibleFrame) }' || true
+
     - name: Launch P2 and P116 (AppKitBackend)
       run: |
         zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2

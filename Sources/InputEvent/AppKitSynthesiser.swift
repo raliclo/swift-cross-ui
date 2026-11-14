@@ -178,7 +178,7 @@
                     + "\(Int(visible.maxY - window.frame.maxY))) from the visible frame, "
                     + "frame \(Int(window.frame.width))x\(Int(window.frame.height)), "
                     + "content \(Int(content.width))x\(Int(content.height)), "
-                    + "screen \(Int(screen.frame.width))x\(Int(screen.frame.height))"
+                    + "screen \(Int(screen.frame.width))x\(Int(screen.frame.height)) scale \(Int(screen.backingScaleFactor))"
             }
             if let placement { ActionFileReplay.report(placement) }
 

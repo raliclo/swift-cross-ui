@@ -895,6 +895,35 @@ wait_for_marker_wsl() {
 # sweep-test/sweep_drive.zsh:MET;UNMET,app 有記東西但沒有那一行(計數，最後 exit 8);UNCHECKED,app 沒有寫出
 # 事件 log 可找(只說明、不判失敗：沒加 --debug 的 app 不寫)。只處理 log-contains:其他種類要看截圖或結束碼，
 # 本執行器交給讀者判斷。
+# The screen every desktop action-file run assumes (2026-11-14, the user's rule:
+# CI and local runs must replay on the same resolution). Frame-relative
+# coordinates are in points, so the point size decides whether the window fits and
+# where a fitted window sits, and the scale decides the captures' pixels, which
+# the files are judged by. Read from the replay's own "window at" line
+# (AppKitSynthesiser). A mismatch fails the run on CI (exit 9) and is a warning
+# locally, where a Retina display is common: this Mac ran at 2x on 11-13.
+# 每次桌面動作檔執行所假設的螢幕(2026-11-14,使用者的規則:CI 與本機要在同一解析度上重放)。相對外框的座標以點為單位，
+# 所以點的大小決定視窗放不放得下、放下之後在哪裡；縮放比例決定截圖的像素，而檔案是靠截圖判定的。讀自重放自己的
+# 「window at」那一行(AppKitSynthesiser)。不符時,CI 上判失敗(exit 9),本機只警告：本機常是 Retina,11-13 這台 Mac 就是 2x。
+replay_screen_macos="${SCUI_REPLAY_SCREEN:-1920x1080 scale 1}"
+screen_failures=0
+check_screen_macos() {
+    [ -n "$action_file" ] || return 0
+    local placed
+    placed="$(grep -ao 'window at .* screen [0-9]*x[0-9]* scale [0-9]*' "$script_dir/output/$actionfile_log" 2>/dev/null | tail -1 || true)"
+    if [ -z "$placed" ]; then
+        printf '==> screen: UNCHECKED -- the replay did not report its window\n'
+    elif [[ "$placed" == *"screen $replay_screen_macos" ]]; then
+        printf '==> screen: %s, as the action files assume\n' "$replay_screen_macos"
+    elif [ -n "${CI:-}" ]; then
+        printf '!! screen: %s, but the action files assume %s\n' "${placed##* screen }" "$replay_screen_macos" >&2
+        screen_failures=$((screen_failures + 1))
+    else
+        printf '!! screen: %s, but the action files assume %s; captures will not match CI (a failure there)\n' "${placed##* screen }" "$replay_screen_macos" >&2
+    fi
+    return 0
+}
+
 check_expectation() {
     local out="$script_dir/output" expected wrote=0
     [ -n "$action_file" ] || return 0
@@ -1945,6 +1974,7 @@ run_macos() {
     printf '==> Closed %s on macOS\n' "$app"
     print_summary_macos
     check_expectation  # macOS too since 2026-11-14: it ignored the line, as Windows did / macOS 自 2026-11-14 也檢查:過去和 Windows 一樣忽略這一行
+    check_screen_macos
 }
 
 wait_for_marker_macos() {
@@ -2264,4 +2294,12 @@ fi
 if [ "$expect_failures" -gt 0 ]; then
     printf '\n!! the run never logged what the action file expects; see "expect: UNMET" above.\n' >&2
     exit 8
+fi
+
+# The screen an action-file run used, when it was not the one the files assume;
+# see check_screen_macos. Exit 9, after the checks above.
+# 動作檔執行用的螢幕不是檔案所假設的那個時;見 check_screen_macos。exit 9,放在上面的檢查之後。
+if [ "$screen_failures" -gt 0 ]; then
+    printf '\n!! the replay ran on another screen than the action files assume; see "screen:" above.\n' >&2
+    exit 9
 fi
