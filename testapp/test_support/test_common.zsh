@@ -577,6 +577,9 @@ copy_mode_seen=0
 # Replays that did not run to the end; read at the bottom of this file.
 # 沒有跑完的重放次數；在本檔最底端讀取。
 replay_failures=0
+# `# expect: log-contains` lines not met; see check_expectation_windows.
+# 未達成的 `# expect: log-contains` 行數；見 check_expectation_windows。
+expect_failures=0
 
 # Minimises every titled window on this desktop before an app is launched (the
 # user's rule, 2026-10-08: "Shrink all windows before testing"). A maximised
@@ -874,6 +877,46 @@ wait_for_marker_wsl() {
 
     printf '\n==> Timed out after %ss\n' "$timeout_seconds"
     return 1
+}
+
+# Reads `# expect: log-contains <text>` from the action file and looks for that
+# text, with grep -F, in what THIS run wrote: the replay log and the app's
+# events log, both emptied before the launch, and TEST_EXTRA_LOG. The Windows
+# runner used to ignore the line, so a file whose clicks had gone stale still
+# exited 0: P20's coordinates were about 40 px off on both backends and nothing
+# said so (2026-11-14). The states are sweep-test/sweep_drive.zsh's: MET; UNMET,
+# the app logged something but not that (counted, exit 8 at the end); UNCHECKED,
+# the app wrote no events log to look in (said, not failed: an app run without
+# --debug writes none). Only log-contains: the other kinds are judged from a
+# capture or an exit, which this runner leaves to the reader.
+# 從動作檔讀出 `# expect: log-contains <文字>`,以 grep -F 在「這次執行」寫出的東西裡找：重放 log 與 app 的事件
+# log(兩者在啟動前都已清空),以及 TEST_EXTRA_LOG。Windows 的執行器過去忽略這一行，所以點擊座標已過時的檔案仍以 0
+# 結束:P20 的座標在兩個 backend 上都偏了約 40 px,卻沒有任何訊息(2026-11-14)。狀態沿用
+# sweep-test/sweep_drive.zsh:MET;UNMET,app 有記東西但沒有那一行(計數，最後 exit 8);UNCHECKED,app 沒有寫出
+# 事件 log 可找(只說明、不判失敗：沒加 --debug 的 app 不寫)。只處理 log-contains:其他種類要看截圖或結束碼，
+# 本執行器交給讀者判斷。
+check_expectation_windows() {
+    local out="$script_dir/output" expected wrote=0
+    [ -n "$action_file" ] || return 0
+    expected="$(grep -m1 -E '^# *expect: *log-contains .' "$action_file" 2>/dev/null || true)"
+    [ -n "$expected" ] || return 0
+    expected="${${expected#*log-contains }%$'\r'}"
+    local -a logs
+    logs=("$out/$actionfile_log" "$events_dir/$log_name")
+    if [ -n "$extra_log" ]; then
+        logs+=("$out/$extra_log")
+        [ -s "$out/$extra_log" ] && wrote=1
+    fi
+    [ -s "$events_dir/$log_name" ] && wrote=1
+    if cat "${logs[@]}" 2>/dev/null | grep -aqF -- "$expected"; then
+        printf '==> expect: MET -- the run logged "%s"\n' "$expected"
+    elif [ "$wrote" -eq 1 ]; then
+        printf '!! expect: UNMET -- the run never logged "%s"\n' "$expected" >&2
+        expect_failures=$((expect_failures + 1))
+    else
+        printf '==> expect: UNCHECKED -- no events log to look for "%s" in (run with --debug)\n' "$expected"
+    fi
+    return 0
 }
 
 print_summary_windows() {
@@ -1425,6 +1468,7 @@ run_windows() {
     fi
 
     print_summary_windows
+    check_expectation_windows
 }
 
 # Keeps one small WSLg window open for as long as WSL runs, and refuses to start
@@ -2209,4 +2253,14 @@ fi
 if [ "$replay_failures" -gt 0 ]; then
     printf '\n!! the action file did not replay to the end; see "Action file report" above.\n' >&2
     exit 6
+fi
+
+# A replay that ran but never logged what its action file expects is a failed
+# test too; see check_expectation_windows. Exit 8, after the replay check above,
+# so a replay that did not run is reported as that.
+# 重放有跑完，卻沒有記下動作檔預期的那一行，也是失敗的測試；見 check_expectation_windows。exit 8 放在上面的
+# 重放檢查之後，所以沒有跑完的重放仍以那個原因回報。
+if [ "$expect_failures" -gt 0 ]; then
+    printf '\n!! the run never logged what the action file expects; see "expect: UNMET" above.\n' >&2
+    exit 8
 fi

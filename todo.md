@@ -654,6 +654,15 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   with `uia_rects`, one click at a time with a capture after each.
   P20 的動作座標在兩個 backend 上都過時(y=241,控制項約在 282),而 Windows 測試工具不檢查 `# expect:` 行，所以過時的檔案仍回報
   rc 0。以 `uia_rects` 重新量測 P20 與 P2(WinUI),一次點一下，每下之後截圖。
+  - 2026-11-14, harness half done: `run_windows` now ends with
+    `check_expectation_windows`, which looks for the `# expect: log-contains`
+    text in what the run wrote (MET / UNMET / UNCHECKED, as sweep_drive.zsh),
+    and test.zsh exits 8 on UNMET. Checked offline on all three states with
+    a CR-terminated marker line. Still to do: the re-measure, on a desktop
+    nobody is using.
+    2026-11-14,測試工具那一半完成:`run_windows` 結尾改呼叫 `check_expectation_windows`,在這次執行寫出的東西裡找
+    `# expect: log-contains` 的文字(MET / UNMET / UNCHECKED,與 sweep_drive.zsh 相同),UNMET 時 test.zsh 以 8 結束。
+    已離線測過三種狀態，標記行以 CR 結尾也正確。待辦：重新量測，要在沒人使用的桌面上做。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
