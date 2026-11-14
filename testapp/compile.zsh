@@ -911,11 +911,24 @@ macos_appkit_product='.product(name: "AppKitBackend", package: "swift-cross-ui",
 # Dropped as well under -gtk4, not just its products. A package dependency with
 # nothing depending on it is still resolved and fetched.
 # -gtk4 時連同套件依賴一起移除，而不只是它的 product。無人依賴的套件依賴仍會被解析與取回。
-# The same local path as the root Package.swift (the Vendor/swift-winui submodule,
-# Windows App SDK 2.6.5, 2026-11-05); a URL here would clash with it on package identity.
-# 與根目錄 Package.swift 相同的本機路徑（Vendor/swift-winui submodule，Windows App SDK
-# 2.6.5，2026-11-05）；這裡若用 URL，會與它在套件身分上衝突。
-winui_package='.package(path: "'"$repo_root"'/Vendor/swift-winui"),'
+# Taken from the root Package.swift (URL plus revision since 2026-11-14), so the
+# two cannot pin different revisions; another URL or a path here would clash with
+# it on package identity. A Vendor/swift-winui submodule at another commit is
+# only a warning, but its local edits do not reach this build.
+# 取自根目錄 Package.swift（2026-11-14 起為 URL + revision），兩邊因此不會釘住不同的
+# revision；這裡若用別的 URL 或 path，會在套件身分上與它衝突。Vendor/swift-winui
+# submodule 在別的 commit 時只警告，但它的本機修改不會進到這次建置。
+winui_package=$(grep -m1 '\.package(url: "https://github.com/raliclo/swift-winui.git"' "$repo_root/Package.swift" | sed 's/^ *//')
+if [ -z "$winui_package" ]; then
+    printf 'compile.zsh: no swift-winui dependency line in %s\n' "$repo_root/Package.swift" >&2
+    exit 1
+fi
+winui_revision=${${winui_package#*revision: \"}%%\"*}
+winui_head=$(git -C "$repo_root/Vendor/swift-winui" rev-parse HEAD 2>/dev/null)
+if [ -n "$winui_head" ] && [ "$winui_head" != "$winui_revision" ]; then
+    printf 'compile.zsh: warning: Vendor/swift-winui is at %s but Package.swift pins %s;\n' "$winui_head" "$winui_revision" >&2
+    printf 'compile.zsh: warning: push the submodule and update the revision for its edits to count.\n' >&2
+fi
 
 if [ "$force_gtk4" -eq 1 ]; then
     # Gtk as well as GtkBackend. An app that only draws through SwiftCrossUI

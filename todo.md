@@ -562,6 +562,32 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   版本生效 12 下中的 7 下，目前版本 6 下，而每次漏掉的不是同一下(2026-11-13)。不是 CSS 或排版的改動(修改前的版本也漏),也不是
   視窗定位(修改前的版本不會移動視窗)。Win32 的命中測試顯示每一下都落在 GTK toplevel 的正確位置，所以按壓抵達了 surface,之後才
   遺失。找出在哪裡：在按鈕的 gesture 上加探針，如 #111 對 popover 所做。P2 的 WinUI 那半現在以自己的座標通過。
+- [x] **8. The item 6 layout fix lost P41's ":" and P84's spacing.** f1e915a4
+  kept a child's layout when the redistribution proposed its own size, also
+  for a ForEach last laid out at no proposal (nil, nil). That stack cache has
+  no minimum lengths, so the picker's ":" got width 0 on WinUI and AppKit, and
+  P84's title gap went 34 -> 21 px. Fixed in 6e115c14 (2026-11-14): no reuse
+  when the last proposal had no axis or an infinite one; test "A kept child
+  laid out at no proposal does not starve its children". Verified 2026-11-14 on
+  WinUI: the colons are back, change-seconds ends at 09:46:41 as before; P84
+  gap 34 px; GTK P41/P50/P84 captures pixel-identical to 2df43059; host tests
+  405 + 15 pass. P116 per turn after it: WinUI slot 187-203 / item 360-375 ms,
+  GTK 63-78 / 266-281 ms.
+  M4, 2026-11-14: colons back on AppKit and Android (P41-change-seconds 40 ->
+  41). iOS not shown: P41's last row cannot be scrolled into view on a 440x956
+  iPhone; it predates f1e915a4 (M4 checked), see item 9. P116 pre -> now,
+  median per turn: iOS sim slot 235-236 -> 87-111, item 413-430 -> 288-299;
+  Android slot 107-140 -> 47-70, item 310-406 -> 250-262; AppKit about the same
+  (slot 47-74, item 154-177).
+  M4,2026-11-14:AppKit 與 Android 的冒號回來了(P41-change-seconds 40 -> 41)。iOS 未能確認：在 440x956 的 iPhone 上 P41
+  最後一列捲不進畫面；早於 f1e915a4(M4 已查),見第 9 項。P116 前 -> 後，每頁中位數:iOS 模擬器 slot 235-236 -> 87-111、item
+  413-430 -> 288-299;Android slot 107-140 -> 47-70、item 310-406 -> 250-262;AppKit 大致相同(slot 47-74、item 154-177)。
+  第 6 項的排版修正讓 P41 的「:」與 P84 的間距消失。f1e915a4 在重新分配提議子元件自身尺寸時沿用其排版，連上次在無提議
+  (nil, nil) 下排版的 ForEach 也沿用；那個 stack 快取沒有最小長度，於是 WinUI 與 AppKit 上 picker 的「:」寬度為 0,P84 標題間距
+  34 -> 21 px。6e115c14 修正(2026-11-14):上次提議沒有任一軸或含無限大時不沿用；測試「A kept child laid out at no proposal does
+  not starve its children」。2026-11-14 在 WinUI 驗證：冒號回來了，change-seconds 結尾與先前同為 09:46:41;P84 間距 34 px;GTK
+  P41/P50/P84 截圖與 2df43059 逐像素相同；主機測試 405 + 15 通過。之後 P116 每頁:WinUI slot 187-203 / item 360-375 ms,GTK
+  63-78 / 266-281 ms。
 - [ ] **9. iOS: P41's last row cannot be scrolled into view on an iPhone (Mac).** On
   the 440 x 956 pt simulator, scrolling P41's page to its end stops with the
   `.rows` / `.rows seconds` / `.rows date+time` row below the screen; at most
@@ -579,6 +605,30 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   長到 824.0 pt 以填滿螢幕」,而螢幕是 956 pt,所以很可能是 scroll view 的外框或內容 inset 讓內容底部碰不到。代價:
   冒號修正(6e115c14)在 iOS 上看不到，`taplabel '.rows seconds'` 也點在螢幕外的標籤上。對照 scroll view 的外框與
   safe area,以及它的 contentSize 與內容。
+- [ ] **10. `.package(path: "Vendor/swift-winui")` breaks revision-pinned
+  consumers.** SoftPCB-W11 reported it: a project pinning swift-cross-ui by
+  revision cannot resolve a path inside it. Now a URL plus revision equal to
+  the submodule's HEAD; testapp/compile.zsh reads that line from Package.swift
+  and warns when the submodule is elsewhere. Accept: WinUI build through
+  compile.zsh, and a scratch package pinning this commit by revision resolves.
+  `.package(path: "Vendor/swift-winui")` 讓以 revision 釘住的使用者無法建置。SoftPCB-W11 回報：以 revision 釘住 swift-cross-ui
+  的專案無法解析它裡面的路徑。現在改為 URL + 等於 submodule HEAD 的 revision;testapp/compile.zsh 從 Package.swift 讀那一行，
+  submodule 在別處時警告。驗收：經 compile.zsh 建置 WinUI,以及一個以 revision 釘住此 commit 的暫存套件能解析。
+- [ ] **11. WinUI window height differs run to run.** Windows cascades
+  default-positioned windows, and a window placed low is clipped in height to
+  the work area. `Win32Synthesiser.placeWindowOnce` moves the window to (32,32)
+  but keeps the clipped size, so P84 (content centred) moves its buttons and
+  some replayed clicks miss. Found 2026-11-14 in the 6e115c14 validation.
+  Accept: the replayed window has the same client size on every run.
+  WinUI 視窗高度每次不同。Windows 會層疊擺放預設位置的視窗，放得低的視窗高度會被工作區裁掉。`placeWindowOnce` 把視窗移到
+  (32,32) 卻保留裁過的尺寸，所以 P84(內容置中)的按鈕位置會變，部分重放點擊落空。2026-11-14 驗證 6e115c14 時發現。驗收：每次重放
+  的視窗 client 尺寸相同。
+- [ ] **12. P20's action coordinates are stale on both backends** (y=241, the
+  control is near 282), and the Windows harness does not check `# expect:`
+  lines, so a stale file still reports rc 0. Re-measure P20 and P2 (WinUI)
+  with `uia_rects`, one click at a time with a capture after each.
+  P20 的動作座標在兩個 backend 上都過時(y=241,控制項約在 282),而 Windows 測試工具不檢查 `# expect:` 行，所以過時的檔案仍回報
+  rc 0。以 `uia_rects` 重新量測 P20 與 P2(WinUI),一次點一下，每下之後截圖。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

@@ -284,6 +284,12 @@ let package = Package(
         // swift-winui is our fork (raliclo/swift-winui, branch develop) as a
         // submodule, on Windows App SDK 2.6.5 since 2026-11-05. Regenerate with
         // Vendor/swift-winui/Support/generate-bindings.zsh.
+        // Since 2026-11-14 it is a URL plus revision, not a path: a path dependency
+        // only resolves inside this tree, so projects pinning swift-cross-ui by
+        // revision (SoftPCB-UI) failed to build. The revision must equal the
+        // submodule's HEAD; testapp/compile.zsh takes this line and warns when the
+        // two differ. For local submodule edits to count, push them to the fork and
+        // update the revision here.
         // Draft text, wrong (corrected 2026-11-06): "the 1.5 bindings need the 1.5
         // Main/DDLM runtime packages, which this machine no longer has after the
         // 2.x runtime install". That was never verified; 1.1-1.8 and 2.2-2.6.5 are
@@ -309,7 +315,11 @@ let package = Package(
         // 沒有 Main.1.5 或 DDLM 1.5；而 10-30 建置、搭配 1.5 bootstrap DLL 的 P80-WinUI.exe 會跳出
         // 「requires the Windows App Runtime Version 1.5」。所以 1.5 的建置目前確實無法在這台機器上執行；
         // 它們何時、為何被移除則未查證。
-        .package(path: "Vendor/swift-winui"),
+        // 2026-11-14 起改為 URL + revision，而不是 path：path 相依只在本樹裡解析得到，
+        // 以 revision 釘住 swift-cross-ui 的專案（SoftPCB-UI）因此建置失敗。revision 必須
+        // 等於 submodule 的 HEAD；testapp/compile.zsh 從這一行取用，並在兩者不同時警告。
+        // 要讓 submodule 的本機修改生效，先推到 fork，再更新這裡的 revision。
+        .package(url: "https://github.com/raliclo/swift-winui.git", revision: "c4225f8aef8f8dd27e2779552cc43c29df06f5a2"),
         .package(
             url: "https://github.com/stackotter/swift-benchmark",
             .upToNextMinor(from: "0.2.0")
