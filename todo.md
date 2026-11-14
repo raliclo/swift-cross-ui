@@ -347,6 +347,30 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     622 / 645 ms(最小 / 中位數),GTK 629 / 663 對 640 / 666——差距在 2% 內，此指標量不出變化。絕對值比上表高，是機器狀態
     不同；只有交錯的成對數字可以比較。原始資料:session db768b0a 的 scratchpad p116-ab.txt 與 sweep-2df43059/。重做方式：
     交錯執行 `P116dev-<be>.exe` 與 `P116wp-<be>.exe` 兩份副本，以 `taskkill -im` 關閉，讀 `appear-to-hop`。
+  - 2026-11-14, **the GUI regression with reuse on.** Every `actions/win`
+    file of P15, P17, P41, P84, P50, P93 and P104, each run with
+    `SCUI_LAYOUT_REUSE=0` and `=1` interleaved and the two final captures
+    compared by PSNR: WinUI 21 files, GTK 24 (90 runs). Identical captures
+    (PSNR inf): WinUI 10, GTK 15. The rest were checked side by side
+    (difference images): only the timing numbers P84/P104 print, and the
+    mouse cursor or its hover highlight (P41) -- no layout difference. Every
+    failure failed the same way with reuse off: on WinUI the two P50 files
+    that carry GtkBackend coordinates (renamed `-gtk4`, 15fb68b8), on GTK
+    `P50-press-inside-popover-gtk4`, which its header says is expected
+    UNMET. So the acceptance in this item (layout calls drop, 0 check
+    mismatches, full GUI regression on WinUI and GTK) is met on Windows; M4's
+    AppKit 136/136 and iPhone 135/135 with reuse on were already in. Open:
+    the user's decision to turn reuse on by default (`LayoutReuse.isEnabled`,
+    a core change for every backend). Script and data: scratchpad
+    reg/reg.zsh and reg/out/summary.txt of session db768b0a.
+    2026-11-14,**開啟重用的 GUI 回歸。** P15、P17、P41、P84、P50、P93、P104 在 `actions/win` 的每個動作檔，以
+    `SCUI_LAYOUT_REUSE=0` 與 `=1` 交錯各跑一次，兩張最後截圖以 PSNR 比較:WinUI 21 個檔案、GTK 24 個(共 90 次執行)。
+    截圖完全相同(PSNR inf):WinUI 10 個、GTK 15 個。其餘以差異圖並排檢查：只有 P84/P104 印出的計時數字，以及滑鼠游標或它的
+    懸停效果(P41)——沒有任何版面差異。每個失敗在關閉重用時也一樣失敗:WinUI 上是兩個帶 GtkBackend 座標的 P50 檔(已改名
+    `-gtk4`,15fb68b8),GTK 上是檔頭寫明預期 UNMET 的 `P50-press-inside-popover-gtk4`。所以本項的驗收(每節點排版次數下降、
+    檢查 0 不一致、WinUI 與 GTK 完整 GUI 回歸)在 Windows 上已達成;M4 在開啟重用下的 AppKit 136/136 與 iPhone 135/135
+    先前已完成。待辦：由使用者決定是否預設開啟重用(`LayoutReuse.isEnabled`,影響每個 backend 的核心改動)。腳本與資料:
+    session db768b0a 的 scratchpad reg/reg.zsh 與 reg/out/summary.txt。
 - [x] **3. A new node evaluates its view's body twice.** Done 2026-11-13:
   f641f413 is on develop, and every acceptance check below passed (body
   probe, host tests, GUI regression on WinUI, GTK, AppKit and iPhone).
