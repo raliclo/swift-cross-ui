@@ -1,3 +1,4 @@
+# 2026-11-15: every y moved down 33 to match a 1x capture; the capture now shows 9/24/2025 on .automatic and .compact and 17 highlighted on .graphical. / 依 1x 擷圖把所有 y 下移 33;擷圖顯示 .automatic 與 .compact 為 9/24/2025、.graphical 選中 17。
 action,x,y,origin,button,key,micros,note,platform
 # P41: change the date through each style and read the label under it.
 #
@@ -64,13 +65,13 @@ action,x,y,origin,button,key,micros,note,platform
 # three cells since 2026-10-18, so the 2026-09-28 points missed and one landed on the .wheel year. Stepper halves
 # at x 119 (.automatic) and 879 (.compact): up y 163-171, down 173-181; the 17th at (427,261).
 # **2026-10-20 依 p41-macos-final-20261020-221616.png 重新對準。**P41 自 2026-10-18 起是四列各三格,09-28 的點全部落空,一下打到 .wheel 的年份。
-click,119,167,frame,left,,,.automatic stepper up -- the month field moves,macos
+click,119,200,frame,left,,,.automatic stepper up -- the month field moves,macos
 sleep,,,,,,700000,,macos
-click,119,167,frame,left,,,again,macos
+click,119,200,frame,left,,,again,macos
 sleep,,,,,,700000,,macos
-click,119,177,frame,left,,,"and down once -- net one month forward: .automatic must read 9/24/2025",macos
+click,119,210,frame,left,,,"and down once -- net one month forward: .automatic must read 9/24/2025",macos
 sleep,,,,,,900000,,macos
-click,879,167,frame,left,,,".compact stepper up -- its own label must move to 9/24/2025 and the others must not",macos
+click,879,200,frame,left,,,".compact stepper up -- its own label must move to 9/24/2025 and the others must not",macos
 sleep,,,,,,900000,,macos
-click,427,261,frame,left,,,".graphical -- the 17th: the calendar must highlight 17, and the other two must keep their own dates",macos
+click,427,294,frame,left,,,".graphical -- the 17th: the calendar must highlight 17, and the other two must keep their own dates",macos
 sleep,,,,,,1200000,,macos

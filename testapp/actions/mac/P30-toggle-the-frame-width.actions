@@ -48,6 +48,7 @@ action,x,y,origin,button,key,micros,note,platform
 # `VisualEffects` 與 `GeometricEffects` 於 2026-09-02 實作完成，而判定它們的地方是 P39 與 P40；
 # 在此處，它們只被要求「不因底下的版面改變而消失」。
 #
+# 2026-11-15: the three presses are taplabels on the label the button has at that moment. (199, 217) had fallen below the button (centre y ~203), and the capture read frame width: 120. / 三次按壓改用 taplabel,依按鈕當下的文字。(199, 217) 已落在按鈕下方(中心約 y 203),擷圖顯示 frame width: 120。
 # origin=frame。視窗 860x648 點，擷取寬 1720px——scale 2。按鈕佔據影像 x 284..513、y 388..427，
 # 故其中心為 (199, 204) 點。
 #
@@ -66,9 +67,9 @@ action,x,y,origin,button,key,micros,note,platform
 # VERIFIED notes below are from an earlier layout.
 # **2026-09-28 重新瞄準:y 217 而非 204。**在 p30-macos-final-20260928-085459.png(860 x 648)上按鈕在 y 207-228,
 # 而那張擷圖讀到 "frame width: 120"、按鈕仍寫著 Use wide frame——三下都沒有命中。下面的 VERIFIED 來自較早的版面。
-click,199,217,frame,left,,,"Use wide frame -- the label must read 260 and the rectangle must reach x 401.5pt (VERIFIED on an earlier layout: log line ""size toggled wide=true"")",macos
+taplabel,,,,,Use wide frame,,"Use wide frame -- the label must read 260 and the rectangle must reach x 401.5pt (VERIFIED on an earlier layout: log line ""size toggled wide=true"")",macos
 sleep,,,,,,600000,let the layout settle,macos
-click,199,217,frame,left,,,"Use narrow frame -- back to 120 (VERIFIED on an earlier layout: ""size toggled wide=false"")",macos
+taplabel,,,,,Use narrow frame,,"Use narrow frame -- back to 120 (VERIFIED on an earlier layout: ""size toggled wide=false"")",macos
 sleep,,,,,,600000,,macos
-click,199,217,frame,left,,,"wide again so the final capture shows 260 -- frame width: 260 and the button reading Use narrow frame",macos
+taplabel,,,,,Use wide frame,,"wide again so the final capture shows 260 -- frame width: 260 and the button reading Use narrow frame",macos
 sleep,,,,,,900000,let the last state settle before the screenshot,macos

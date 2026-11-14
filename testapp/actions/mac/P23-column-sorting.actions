@@ -41,6 +41,7 @@ action,x,y,origin,button,key,micros,note,platform
 #                      重新朝上,而只有 setSortOrder 轉得動它:標題根本沒被碰過。
 #
 # origin=frame。視窗 820x648,擷取寬 820px——scale 1。2026-09-16 量自
+# 2026-11-15: Sort by Number is a taplabel; the Number header (639, 422) was re-measured from a 1x capture taken after it. (430, 413) had landed on Short, so the capture read sort: column 2 ascending. / Sort by Number 改用 taplabel;Number 表頭依按下後的 1x 擷圖重量為 (639, 422)。(430, 413) 點到的是 Short,擷圖顯示 sort: column 2 ascending。
 # p23-macos-final-20260916-200932.png。
 sleep,,,,,,700000,let the window settle before anything is sorted,macos
 # **Reordered 2026-09-28: Sort by Number first, then the header once.** The old order
@@ -53,7 +54,7 @@ sleep,,,,,,700000,let the window settle before anything is sorted,macos
 # **2026-09-28 調整順序:先 Sort by Number,再按表頭一次。**舊順序以 Sort by Number 結束,而它不論之前如何都設為
 # ascending,所以擷圖上的 "column 3 ascending" 完全說明不了第二次點表頭有沒有反轉。現在點表頭必須反轉程式設定的
 # 順序:擷圖必須讀到 column 3 descending。
-click,77,292,frame,left,,,Sort by Number -- the framework writing into the backend: column 3 ascending,macos
+taplabel,,,,,Sort by Number,,Sort by Number -- the framework writing into the backend: column 3 ascending,macos
 sleep,,,,,,900000,let setSortOrder redraw the indicator,macos
-click,430,413,frame,left,,,"the Number header -- it must REVERSE the order the code set, not restart: the capture must read sort: column 3 descending and the rows run 8 to 1",macos
+click,639,422,frame,left,,,"the Number header -- it must REVERSE the order the code set, not restart: the capture must read sort: column 3 descending and the rows run 8 to 1",macos
 sleep,,,,,,900000,let the rows reverse before the capture,macos
