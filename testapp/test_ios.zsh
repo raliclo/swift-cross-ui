@@ -279,6 +279,13 @@ codesign --force --deep --sign - "$bundle_dir" >/dev/null
 printf '==> Booting Simulator: %s\n' "$device_name"
 xcrun simctl boot "$device_name" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$device_name" -b
+# Which iPhone this run is on, said before anything is replayed: every action file
+# is measured on one screen (install_tools_ios.zsh pins iPhone 17 Pro Max, 440 x 956 pt,
+# 2026-11-14), and a run on another device reads the same coordinates elsewhere.
+# 在重放之前說出這次執行在哪一台 iPhone 上：每份動作檔都在同一個螢幕上量(install_tools_ios.zsh 固定為 iPhone 17 Pro Max,
+# 440 x 956 pt,2026-11-14),換一台裝置，同樣的座標就落在別處。
+sim_type="$(xcrun simctl list devices -j 2>/dev/null | jq -r --arg n "$device_name" '[.devices | to_entries[] | .key as $r | .value[] | select(.name == $n or .udid == $n) | "\(.deviceTypeIdentifier | sub(".*SimDeviceType\\."; "") | gsub("-"; " ")) on \($r | sub(".*SimRuntime\\."; ""))"] | first // "unknown"')"
+printf '==> Simulator: %s is an %s\n' "$device_name" "$sim_type"
 
 if printf '%s' "$device_name" | grep -Eq '^[0-9A-Fa-f-]{36}$'; then
     destination="platform=iOS Simulator,id=$device_name"
@@ -369,7 +376,7 @@ capture() {
         # these sit in the same folder.
         # mktemp 建立的權限是 0600，而其他平台的截圖是 0644，且兩者位於同一資料夾。
         chmod 644 "$shot" 2>/dev/null || true
-        printf '==> Screenshot: %s\n' "${shot:t}"
+        printf '==> Screenshot: %s (%s)\n' "${shot:t}" "$(sips -g pixelWidth -g pixelHeight "$shot" 2>/dev/null | awk '/pixelWidth/ {w=$2} /pixelHeight/ {h=$2} END {print w "x" h " px"}')"
         return 0
     fi
 

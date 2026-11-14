@@ -27,7 +27,11 @@
 set -euo pipefail
 
 DEVICE_NAME="${IOS_SIM_DEVICE:-swift-cross-ui}"
-DEVICE_TYPE="${IOS_SIM_DEVICE_TYPE:-iPhone 16}"
+# Pinned (2026-11-14, the user's choice for CI action-file runs): the iOS action files
+# are re-measured on this Mac's 440 x 956 pt simulator; CI created an iPhone 16 (393 x 852).
+# 固定(2026-11-14,使用者為 CI 動作檔執行所選):iOS 動作檔以本機 440 x 956 pt 的模擬器重新量測;CI 過去建立的是
+# iPhone 16(393 x 852)。
+DEVICE_TYPE="${IOS_SIM_DEVICE_TYPE:-iPhone 17 Pro Max}"
 
 # Captured at top level. zsh sets FUNCTION_ARGZERO by default, so inside a
 # function $0 is the function's own name, not this file -- reading the header
@@ -138,6 +142,14 @@ ensure_device() {
 
     if [ -n "$existing" ]; then
         note "Device: $DEVICE_NAME already exists"
+        # Its type decides the screen every iOS action file is measured on, so a
+        # device made earlier as another iPhone is said out loud, not reused silently.
+        # 它的型號決定每份 iOS 動作檔量測時的螢幕，所以先前以別的 iPhone 建立的裝置要明講，不默默沿用。
+        local existing_type
+        existing_type="$(xcrun simctl list devices -j 2>/dev/null | jq -r --arg n "$DEVICE_NAME" '[.devices[][] | select(.name == $n) | .deviceTypeIdentifier] | first // empty' | sed 's/.*SimDeviceType\.//; s/-/ /g')"
+        if [ -n "$existing_type" ] && [ "$existing_type" != "$DEVICE_TYPE" ]; then
+            warn "Device '$DEVICE_NAME' is a $existing_type, not the pinned $DEVICE_TYPE; action-file coordinates assume the $DEVICE_TYPE screen (delete it to recreate it)"
+        fi
         return
     fi
 
