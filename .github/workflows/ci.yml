@@ -88,22 +88,21 @@ jobs:
     - name: Build P2 and P116 (AppKitBackend)
       run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
 
-    # The runner's screen, recorded (2026-11-14): desktop action-file runs assume
-    # 1920x1080 at scale 1 (test_common.zsh, check_screen_macos), and nothing said
-    # what this runner has. / 記下 runner 的螢幕：桌面動作檔執行假設 1920x1080、縮放 1。
-    - name: Screen (AppKitBackend)
+    # The screen desktop action-file runs assume, 1920x1080 at scale 1 (check_screen_macos).
+    # The runner starts at 1024x768; displayplacer lists 1920x1080 as mode 10 and switches
+    # to it (run 43580086002, 2026-11-14). The step fails if the switch does not take.
+    # 桌面動作檔執行假設的螢幕:1920x1080、縮放 1。runner 起始為 1024x768;displayplacer 列出 1920x1080(mode 10)
+    # 並能切換過去(run 43580086002,2026-11-14)。切換沒生效時這一步失敗。
+    - name: Screen 1920x1080 (AppKitBackend)
       run: |
-        show() { swift -e 'import AppKit; for s in NSScreen.screens { print("screen", s.frame.size, "scale", s.backingScaleFactor, "visible", s.visibleFrame) }' || true; }
+        show() { swift -e 'import AppKit; for s in NSScreen.screens { print("screen \(Int(s.frame.width))x\(Int(s.frame.height)) scale \(Int(s.backingScaleFactor))") }'; }
         show
-        # Trial (2026-11-14): can this runner be set to 1920x1080, the screen desktop
-        # action files assume? It reported 1024x768. Not failing yet; it lists the
-        # modes, tries, and shows the result. / 試驗：這台 runner 能否設成 1920x1080?它回報 1024x768。先不判失敗。
-        brew install displayplacer >/dev/null 2>&1 || { echo "displayplacer not installed"; exit 0; }
-        displayplacer list | grep -E "Persistent screen id|Resolution|res:1920x1080|current mode" | head -20
+        brew install displayplacer >/dev/null 2>&1
         id=$(displayplacer list | awk '/Persistent screen id:/ {print $4; exit}')
-        displayplacer "id:$id res:1920x1080 scaling:off origin:(0,0) degree:0" || echo "displayplacer could not set 1920x1080"
+        displayplacer "id:$id res:1920x1080 scaling:off origin:(0,0) degree:0"
         sleep 3
-        show
+        now=$(show | head -1); echo "$now"
+        test "$now" = "screen 1920x1080 scale 1"
 
     - name: Launch P2 and P116 (AppKitBackend)
       run: |
@@ -185,12 +184,13 @@ jobs:
 
     - name: Upload captures and logs
       if: always()
+    # Captures are in testapp/output/screenshots/, where test_ios.zsh writes them. No trailing comment on a path line: inside the | block it is part of the path, and 88471f7d's matched nothing (2026-11-14).
       uses: actions/upload-artifact@v4
       with:
         name: ios-sweep
         path: |
           testapp/output/ios-sweep.csv2
-          testapp/output/screenshots/*-ios-*.png  # where test_ios.zsh writes them; testapp/output/*.png matched none (2026-11-14)
+          testapp/output/screenshots/*-ios-*.png
           testapp/output/*.log
         if-no-files-found: warn
 
@@ -309,13 +309,14 @@ jobs:
 
     - name: Upload captures and logs
       if: always()
+    # Captures are in testapp/output/screenshots/, where test_android.zsh writes them. No trailing comment on a path line: inside the | block it is part of the path, and 88471f7d's matched nothing (2026-11-14).
       uses: actions/upload-artifact@v4
       with:
         name: android-sweep
         path: |
           testapp/output/android-sweep.csv2
           testapp/output/android-sweep-stdout.txt
-          testapp/output/screenshots/*-android-*.png  # where test_android.zsh writes them; testapp/output/*.png matched none (2026-11-14)
+          testapp/output/screenshots/*-android-*.png
           testapp/output/*.log
         if-no-files-found: warn
 
