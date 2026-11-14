@@ -315,9 +315,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Package.swift takes swift-winui by path from this submodule on every host
-    # (2026-11-06), and checkout@v4 leaves submodules empty.
-    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    # Package.swift takes swift-winui by URL and revision since 2026-11-14 (a path into this submodule from 2026-11-06); the
+    # checkout stays for compile.zsh's HEAD check.
+    # Package.swift 自 2026-11-14 起以 URL + revision 引用 swift-winui(2026-11-06 起曾是指向這個 submodule 的路徑);保留這次 checkout,是因為 compile.zsh 會比對它的 HEAD。
     - name: Check out Vendor/swift-winui
       run: git submodule update --init --depth 1 Vendor/swift-winui
 
@@ -358,10 +358,17 @@ jobs:
     - name: Build P2 and P116 (GtkBackend)
       run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
 
+    # The X screen a replay would see (todo item 14): 1920x1080, as WSLg's here and
+    # as test.zsh's check_screen_wsl expects. xvfb-run's own default is 640x480x8.
+    # 重放會看到的 X 螢幕(todo 第 14 項):1920x1080,與這裡 WSLg 的相同，也是 test.zsh 的 check_screen_wsl 預期的值。
+    # xvfb-run 自己的預設是 640x480x8。
+    - name: Screen (1920x1080, as the action files assume)
+      run: xvfb-run --auto-servernum -s "-screen 0 1920x1080x24" xrandr --current
+
     - name: Launch P2 and P116 (GtkBackend)
       run: |
-        xvfb-run --auto-servernum zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2
-        xvfb-run --auto-servernum zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116
+        xvfb-run --auto-servernum -s "-screen 0 1920x1080x24" zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2
+        xvfb-run --auto-servernum -s "-screen 0 1920x1080x24" zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116
 
   windows:
     runs-on: windows-latest
@@ -371,9 +378,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Package.swift takes swift-winui by path from this submodule on every host
-    # (2026-11-06), and checkout@v4 leaves submodules empty.
-    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    # Package.swift takes swift-winui by URL and revision since 2026-11-14 (a path into this submodule from 2026-11-06); the
+    # checkout stays for Support/generate-bindings.zsh and compile.zsh's HEAD check.
+    # Package.swift 自 2026-11-14 起以 URL + revision 引用 swift-winui(2026-11-06 起曾是指向這個 submodule 的路徑);保留這次 checkout,是因為 Support/generate-bindings.zsh 在裡面，compile.zsh 也會比對它的 HEAD。
     - name: Check out Vendor/swift-winui
       run: git submodule update --init --depth 1 Vendor/swift-winui
 
@@ -471,6 +478,25 @@ jobs:
         & $f --quiet
         if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
         Get-AppxPackage -AllUsers *WindowsAppRuntime* | Format-Table Name,Version -AutoSize
+
+    # The screen a replay would see (todo item 14; the user's rule, 2026-11-14: CI
+    # and local replay at the same resolution). testapp/actions/win was measured at
+    # 1920x1080 and 125%, and test.zsh's check_screen_windows expects exactly that.
+    # The resolution is set where Set-DisplayResolution exists; the scale is only
+    # printed until a way to set it on the runner has been tried and seen to work.
+    # 重放會看到的螢幕(todo 第 14 項;使用者的規則,2026-11-14:CI 與本機在同一解析度上重放)。testapp/actions/win 是在
+    # 1920x1080、125% 下量的,test.zsh 的 check_screen_windows 預期的正是這個。有 Set-DisplayResolution 的地方就設定解析度；
+    # 縮放比例只印出，直到在 runner 上試過並確認某種設定方法有效為止。
+    - name: Screen (1920x1080 at 125%, as testapp/actions/win assumes)
+      run: |
+        if (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue) {
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force } catch { "Set-DisplayResolution failed: $_" }
+        } else {
+          "Set-DisplayResolution is not available on this runner"
+        }
+        Get-CimInstance Win32_VideoController | Format-List Name,CurrentHorizontalResolution,CurrentVerticalResolution
+        Get-ItemProperty 'HKCU:\Control Panel\Desktop' -Name LogPixels -ErrorAction SilentlyContinue | Format-List LogPixels
+        Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' -Name AppliedDPI -ErrorAction SilentlyContinue | Format-List AppliedDPI
 
     - name: Launch P2 and P116 (WinUIBackend)
       shell: bash
