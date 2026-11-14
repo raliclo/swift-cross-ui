@@ -169,6 +169,12 @@ final class NSCustomTapGestureTarget: NSView, NSGestureRecognizerDelegate {
         }
     }
 
+    /// The recogniser AppKit itself puts on controls; not one this backend added.
+    /// AppKit 自己掛在控制項上的辨識器，不是本 backend 加的。
+    static func isAppKitControlRecognizer(_ recognizer: NSGestureRecognizer) -> Bool {
+        String(describing: type(of: recognizer)) == "NSControlGestureRecognizer"
+    }
+
     // What counts as having something of its own to click. A label is an
     // NSTextField and an image is an NSImageView, both NSControls, yet neither
     // reacts to a click unless it is editable or selectable, so `onTapGesture`
@@ -176,7 +182,14 @@ final class NSCustomTapGestureTarget: NSView, NSGestureRecognizerDelegate {
     // 何謂「自己有可點之物」。標籤是 NSTextField、圖片是 NSImageView,兩者都是 NSControl,但除非可編輯
     // 或可選取，否則都不會回應點擊，所以 Text 或 Image 上的 `onTapGesture` 仍會觸發。
     static func takesOwnClicks(_ view: NSView) -> Bool {
-        if !view.gestureRecognizers.isEmpty {
+        // AppKit's own NSControlGestureRecognizer does not count. AppKit attaches it to
+        // some NSTextFields by itself (on P41's .rows fields, 2026-11-15), and a label
+        // with it still ignores a click; counting it made every Text("+").onTapGesture
+        // there give its click away to a label that dropped it, with a real mouse too.
+        // AppKit 自己的 NSControlGestureRecognizer 不算數。AppKit 會自行把它掛到某些 NSTextField 上(P41 的 .rows
+        // 欄位，2026-11-15),而掛著它的標籤仍然不理會點擊；把它算進去，那裡每一個 Text("+").onTapGesture 都把點擊
+        // 讓給了一個會把它丟掉的標籤，真實滑鼠也一樣。
+        if view.gestureRecognizers.contains(where: { !Self.isAppKitControlRecognizer($0) }) {
             return true
         }
         switch view {
