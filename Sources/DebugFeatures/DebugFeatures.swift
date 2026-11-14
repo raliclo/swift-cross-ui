@@ -49,6 +49,26 @@ public enum DebugFeatures {
     /// 有能力驅動自己的介面。
     public static var supportsActionFiles: Bool { isCompiledIn }
 
+    /// Whether this run replays an action file: `-actionfile <path>` in a build
+    /// that can. When it does, GtkBackend and WinUIBackend open the window at
+    /// ``replayWindowOffset`` from the work area's corner, placed BEFORE it is
+    /// shown. Windows cascades windows that name no position 32 px apart across
+    /// processes, so a replay used to start wherever the last launch left off
+    /// and `Win32Synthesiser` moved the shown window to (32, 32) just before the
+    /// first click (2026-11-14, the user's rule: fix the window's location first
+    /// for every action-file run, as WinUI does).
+    ///
+    /// 本次執行是否重放動作檔：在能重放的建置中帶了 `-actionfile <路徑>`。是的話,GtkBackend 與 WinUIBackend 會在
+    /// **顯示之前**把視窗放在距工作區角落 ``replayWindowOffset`` 的位置。沒有指定位置的視窗，Windows 會跨行程地每次
+    /// 錯開 32 px 層疊擺放，所以重放過去從上一次啟動停下的地方開始,`Win32Synthesiser` 再於第一下點擊之前才把已顯示的
+    /// 視窗移到 (32, 32)(2026-11-14,使用者的規則：每次動作檔執行都先固定視窗位置，比照 WinUI)。
+    public static let replaysActionFile: Bool = value(after: "-actionfile") != nil
+
+    /// Where an action-file run opens its window, in pixels from the work
+    /// area's top-left corner. The same (32, 32) `Win32Synthesiser` moves to.
+    /// 動作檔執行時視窗開啟的位置，距工作區左上角的像素數。與 `Win32Synthesiser` 移往的 (32, 32) 相同。
+    public static let replayWindowOffset = (x: 32, y: 32)
+
     /// The value after a flag, or `nil` when the flag is absent or last.
     ///
     /// Always returns `nil` in a release build, so a flag that only makes sense

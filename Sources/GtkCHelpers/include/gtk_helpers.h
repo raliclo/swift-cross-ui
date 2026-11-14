@@ -348,6 +348,15 @@ char *scui_window_scale_diagnostics(GtkWidget *window);
 // 因為一個工作區那麼高的視窗，放得多低就會超出底部多少。Wayland 不提供工作區，那裡用的是顯示器的範圍。
 gboolean scui_window_screen_space(GtkWidget *window, int *width, int *height);
 
+// Moves a window to (x, y) pixels from its monitor's work-area corner, before
+// it is shown or right after, realizing it first if needed. Windows only.
+// GtkBackend uses it for action-file runs (DebugFeatures.replaysActionFile),
+// so a replay does not start wherever Windows cascaded the window.
+// 在視窗顯示之前或剛顯示之後，把它移到距所在顯示器工作區角落 (x, y) 像素的位置，必要時先 realize。只在 Windows 上有效
+// (其他平台回傳 FALSE)。GtkBackend 在動作檔執行時使用(DebugFeatures.replaysActionFile),讓重放不從 Windows
+// 層疊擺放的位置開始。
+gboolean scui_window_place_in_work_area(GtkWidget *window, int x, int y);
+
 // The NSWindow behind a realized GTK window on macOS; NULL elsewhere and before
 // the window is realized. Implemented in gtk_window_native_macos.c.
 //

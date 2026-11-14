@@ -96,31 +96,40 @@ action,x,y,origin,button,key,micros,note,platform
 # 判斷選單請看**桌面**截圖，而非 `screenshot.zsh -w`：Windows 上的 GTK popover 是自己的 top-level
 # 視窗，因此對「P20 nested menus」做視窗擷取，得到的是一個沒有選單的 app 畫面。第一輪為此付出了
 # 兩次執行，而上方三組量測全部取自桌面截圖。
-click,106,241,frame,left,,,open the menu,windows
+#
+# Re-measured 2026-11-14 on GtkBackend from desktop captures, window at (32, 32)
+# (688x553): the content had moved down 26 px since these were written, so the
+# first click hit nothing and test.zsh reported rc 0 anyway, before it checked
+# the expect line. Button 285; page 1 rows 326 / 356 / 399; pages 2 and 3 rows
+# 326 / 356 / 386.
+# 2026-11-14 在 GtkBackend 上以桌面截圖重新量測，視窗位於 (32, 32)(688x553):內容比寫下這些座標時往下移了
+# 26 px,第一下點空，而 test.zsh 在檢查 expect 行之前仍回報 rc 0。按鈕 285;第 1 頁各列 326 / 356 / 399;
+# 第 2、3 頁各列 326 / 356 / 386。
+click,108,285,frame,left,,,open the menu,windows
 sleep,,,,,,1200000,let the popover appear,windows
-click,129,281,frame,left,,,press Level 1 item -- last action becomes level 1,windows
+click,129,326,frame,left,,,press Level 1 item -- last action becomes level 1,windows
 sleep,,,,,,1000000,,windows
-click,106,241,frame,left,,,reopen -- activating an item closed it,windows
+click,108,285,frame,left,,,reopen -- activating an item closed it,windows
 sleep,,,,,,1200000,,windows
-click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+click,129,399,frame,left,,,slide to the Level 2 submenu page,windows
 sleep,,,,,,1200000,,windows
-click,129,311,frame,left,,,press Level 2 item -- last action becomes level 2,windows
+click,129,356,frame,left,,,press Level 2 item -- last action becomes level 2,windows
 sleep,,,,,,1000000,,windows
-click,106,241,frame,left,,,reopen,windows
+click,108,285,frame,left,,,reopen,windows
 sleep,,,,,,1200000,,windows
-click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+click,129,399,frame,left,,,slide to the Level 2 submenu page,windows
 sleep,,,,,,1200000,,windows
-click,129,341,frame,left,,,slide to the Level 3 submenu page,windows
+click,129,386,frame,left,,,slide to the Level 3 submenu page,windows
 sleep,,,,,,1200000,,windows
-click,129,311,frame,left,,,press Level 3 item -- last action becomes level 3,windows
+click,129,356,frame,left,,,press Level 3 item -- last action becomes level 3,windows
 sleep,,,,,,1000000,,windows
-click,106,241,frame,left,,,reopen for the toggle,windows
+click,108,285,frame,left,,,reopen for the toggle,windows
 sleep,,,,,,1200000,,windows
-click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+click,129,399,frame,left,,,slide to the Level 2 submenu page,windows
 sleep,,,,,,1200000,,windows
-click,129,341,frame,left,,,slide to the Level 3 submenu page,windows
+click,129,386,frame,left,,,slide to the Level 3 submenu page,windows
 sleep,,,,,,1200000,,windows
-click,129,341,frame,left,,,tick Level 3 toggle -- state from a nested toggle,windows
+click,129,386,frame,left,,,tick Level 3 toggle -- state from a nested toggle,windows
 sleep,,,,,,1000000,,windows
 # A toggle does not close the popover the way a button does, and the popover
 # covers the two lines this file is judged by. So dismiss it by clicking empty

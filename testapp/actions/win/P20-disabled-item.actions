@@ -70,10 +70,19 @@ action,x,y,origin,button,key,micros,note,platform
 # rgb(255,255,255)，與啟用項目完全相同；之後則是 rgb(145,145,144) 對 rgb(238,238,236)。成因是
 # popover 強制寫入的 CSS 位階高於主題，而**不是**當初立案時所歸咎的「`modelbutton` 不在 opacity
 # 規則裡」。
+#
+# Re-measured 2026-11-14 on GtkBackend from desktop captures, window at (32, 32)
+# (688x553): the content had moved down 26 px since these were written, so the
+# first click hit nothing and test.zsh reported rc 0 anyway, before it checked
+# the expect line. Button 285; page 1 rows 326 / 356 / 399; pages 2 and 3 rows
+# 326 / 356 / 386.
+# 2026-11-14 在 GtkBackend 上以桌面截圖重新量測，視窗位於 (32, 32)(688x553):內容比寫下這些座標時往下移了
+# 26 px,第一下點空，而 test.zsh 在檢查 expect 行之前仍回報 rc 0。按鈕 285;第 1 頁各列 326 / 356 / 399;
+# 第 2、3 頁各列 326 / 356 / 386。
 sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
-click,104,259,frame,left,,,"""Open the menu""",windows
+click,108,285,frame,left,,,"""Open the menu""",windows
 sleep,,,,,,1200000,let the popover appear,windows
-click,100,330,frame,left,,,"""Disabled item"" -- must do nothing",windows
+click,98,356,frame,left,,,"""Disabled item"" -- must do nothing",windows
 sleep,,,,,,1000000,,windows
-click,95,299,frame,left,,,"""Level 1 item"" -- proves the coordinates were live",windows
+click,98,326,frame,left,,,"""Level 1 item"" -- proves the coordinates were live",windows
 sleep,,,,,,2500000,"hold: last action must read level 1",windows

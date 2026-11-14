@@ -469,6 +469,16 @@
                 ActionFileReplay.report("the window is maximised; left where it opened")
                 return
             }
+            // The backends now place an action-file run's window before showing
+            // it (DebugFeatures.replaysActionFile, 2026-11-14); this move is
+            // the fallback, and says so when it had nothing to do.
+            // backend 現在會在顯示之前就擺好動作檔執行的視窗(DebugFeatures.replaysActionFile,2026-11-14);這裡的移動
+            // 是後備，沒有需要移動時也照實說。
+            var rect = RECT()
+            if GetWindowRect(window, &rect), rect.left == 32, rect.top == 32 {
+                ActionFileReplay.report("the window opened at (32, 32); not moved")
+                return
+            }
             if SetWindowPos(window, nil, 32, 32, 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)) {
                 ActionFileReplay.report("moved the window to (32, 32) before the first action")
             } else {

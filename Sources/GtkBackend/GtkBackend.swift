@@ -2049,7 +2049,22 @@ extension GtkBackend {
         // 它，而「整個桌面」的截圖只會拍到當時位於前方的其他內容。更嚴重的是，從一個未取得焦點
         // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
         // 分離視窗。
+        // An action-file run opens at a fixed place, placed while still hidden
+        // (DebugFeatures.replaysActionFile; Windows only, a no-op elsewhere).
+        // 動作檔執行時開在固定位置，趁還隱藏時擺好(DebugFeatures.replaysActionFile;只在 Windows 上，其他平台不做事)。
+        if DebugFeatures.replaysActionFile {
+            let offset = DebugFeatures.replayWindowOffset
+            _ = scui_window_place_in_work_area(window.widgetPointer, Int32(offset.x), Int32(offset.y))
+        }
         window.present()
+        // Again after present: in 2 of 4 launches (2026-11-14) GDK's first show
+        // put the window back at Windows' cascade position (64,64; 224,224).
+        // present 之後再擺一次：4 次啟動中有 2 次(2026-11-14),GDK 第一次顯示時把視窗放回 Windows 的層疊位置
+        // (64,64;224,224)。
+        if DebugFeatures.replaysActionFile {
+            let offset = DebugFeatures.replayWindowOffset
+            _ = scui_window_place_in_work_area(window.widgetPointer, Int32(offset.x), Int32(offset.y))
+        }
         #if os(macOS)
             // After present(), when the NSWindow exists. See GtkBackend+ColourSpace.swift.
             // 在 present() 之後，此時 NSWindow 已存在。見 GtkBackend+ColourSpace.swift。

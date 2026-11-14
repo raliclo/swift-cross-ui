@@ -1,4 +1,5 @@
 import CWinRT
+import DebugFeatures
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
@@ -938,6 +939,24 @@ extension WinUIBackend {
     nonisolated(unsafe) private static var snapshotQuitTestStarted = false
 
     public func show(window: Window) {
+        // An action-file run opens at a fixed place, placed while still hidden
+        // and then kept inside the work area (DebugFeatures.replaysActionFile).
+        // 動作檔執行時開在固定位置，趁還隱藏時擺好，再確保在工作區內(DebugFeatures.replaysActionFile)。
+        if DebugFeatures.replaysActionFile, let hwnd = window.getHWND(), !IsWindowVisible(hwnd),
+            let monitor = MonitorFromWindow(hwnd, DWORD(bitPattern: MONITOR_DEFAULTTOPRIMARY))
+        {
+            var info = MONITORINFO()
+            info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
+            if GetMonitorInfoW(monitor, &info) {
+                let offset = DebugFeatures.replayWindowOffset
+                _ = SetWindowPos(
+                    hwnd, nil,
+                    info.rcWork.left + Int32(offset.x), info.rcWork.top + Int32(offset.y), 0, 0,
+                    UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+                )
+                Self.keepInsideWorkArea(hwnd)
+            }
+        }
         try! window.activate()
 
         // `SCUI_WINUI_SNAPSHOT_QUIT_TEST=1`: once the first window has content, ask the

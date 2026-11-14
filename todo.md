@@ -648,7 +648,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   2026-11-14 修正：視窗隱藏時 `maximumSizeOnScreen` 從工作區角落量起，`setSize` 之後把超出工作區的視窗往上、往左移
   (`keepInsideWorkArea`),尺寸不變。P84 在層疊位置 26-179 啟動 8 次：提議一律 560x720、外框 574x758,層疊得較低時頂端
   夾在 58。同一個修改也解決第 5 項的 WinUI 那一半，見該項。
-- [ ] **12. P20's action coordinates are stale on both backends** (y=241, the
+- [x] **12. P20's action coordinates are stale on both backends** (y=241, the
   control is near 282), and the Windows harness does not check `# expect:`
   lines, so a stale file still reports rc 0. Re-measure P20 and P2 (WinUI)
   with `uia_rects`, one click at a time with a capture after each.
@@ -663,6 +663,59 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-14,測試工具那一半完成:`run_windows` 結尾改呼叫 `check_expectation_windows`,在這次執行寫出的東西裡找
     `# expect: log-contains` 的文字(MET / UNMET / UNCHECKED,與 sweep_drive.zsh 相同),UNMET 時 test.zsh 以 8 結束。
     已離線測過三種狀態，標記行以 CR 結尾也正確。待辦：重新量測，要在沒人使用的桌面上做。
+  - 2026-11-14, window placement first (the user's rule: fix the window's
+    location for every action-file run, as WinUI does). With `-actionfile`
+    (`DebugFeatures.replaysActionFile`) WinUIBackend places the window at
+    work area + (32, 32) before `activate`, and GtkBackend before and again
+    right after `present` (GDK's first show put it back at the cascade
+    position in 2 of 4 launches); `placeWindowOnce` now says "opened at
+    (32, 32); not moved". P20 launches: WinUI 4 of 4 and GTK 6 of 6 opened at
+    (32, 32).
+  - P20 re-measured on GTK from desktop captures, one click at a time: the
+    content had moved down 26 px (button 285; page 1 rows 326/356/399; pages
+    2 and 3 rows 326/356/386). With the new files: disabled-item `expect:
+    MET`, open-level-1 logs level 1, 2 and 3, ctrl-k fires. The first run of
+    the old disabled-item file was the first real `expect: UNMET` (exit 8).
+    Still open: P2 on WinUI by uia_rects, and the level 3 toggle (item 13).
+  - 2026-11-14,先固定視窗位置(使用者的規則：每次動作檔執行都先固定視窗位置，比照 WinUI)。帶 `-actionfile` 時
+    (`DebugFeatures.replaysActionFile`),WinUIBackend 在 `activate` 之前把視窗放到工作區 + (32, 32),GtkBackend 在 `present`
+    之前與之後各放一次(GDK 第一次顯示時，4 次中有 2 次把它放回層疊位置);`placeWindowOnce` 改說「opened at (32, 32); not
+    moved」。P20 啟動:WinUI 4/4、GTK 6/6 都開在 (32, 32)。P20 在 GTK 上以桌面截圖一次一下重新量測：內容往下移了 26 px(按鈕
+    285;第 1 頁各列 326/356/399;第 2、3 頁各列 326/356/386)。新檔案:disabled-item `expect: MET`,open-level-1 記下 level
+    1、2、3,ctrl-k 觸發。舊的 disabled-item 檔第一次執行就是第一個真正的 `expect: UNMET`(exit 8)。待辦:P2 在 WinUI 上以
+    uia_rects 量測，以及第三層的 toggle(第 13 項)。
+  - 2026-11-14, P2 on WinUI measured with `measure_win.zsh P2` (uia_rects,
+    window 793x911 px at 125%): Set 12345 67,262; Clear 145,262; expanded
+    Picker 123,104; Enable button row 93,490; Allow window resizing 103,662
+    DIPs, all within 2 of the file. Replayed one click more per launch (k = 0
+    to 5) with a window capture each: after all five, Length 0, the Picker
+    expanded and the button row enabled. Done; GTK's lost clicks stay item 7.
+    2026-11-14,P2 在 WinUI 上以 `measure_win.zsh P2` 量測(uia_rects,視窗 793x911 px、125%):Set 12345 67,262;Clear
+    145,262;擴充 Picker 123,104;Enable button row 93,490;Allow window resizing 103,662 DIP,與檔案相差都在 2 以內。每次
+    啟動多重放一下(k = 0 到 5),各擷取一次視窗：五下之後 Length 0、Picker 已擴充、按鈕列已啟用。完成;GTK 漏點擊仍是第 7 項。
+- [ ] **13. GTK: the Toggle on P20's third menu page never reaches its
+  binding.** Clicked at the row measured on a page 3 capture (frame 129,386,
+  2026-11-14): `level 3 toggle` stays `false`, while the item rows on all
+  three pages respond. P20-open-level-1.actions has recorded the same since
+  2026-08-27 as an unproven observation; P19's flat-menu Toggle works. Check
+  by hand once, then find where the toggle row's activation goes.
+  GTK:P20 第三頁選單上的 Toggle 從未改到它的 binding。點在第 3 頁截圖量到的列上(frame 129,386,2026-11-14):`level 3
+  toggle` 仍是 `false`,而三頁的項目列都有反應。P20-open-level-1.actions 自 2026-08-27 起就把同一件事記為未證實的觀察;P19
+  扁平選單裡的 Toggle 則有效。先親手確認一次，再找出該 toggle 列的啟動去了哪裡。
+  - 2026-11-14 probe (a temporary stderr line in GSimpleAction's stateful
+    `activate` handler, reverted): never printed. The press lands on the
+    popover's own surface (hitTarget is the popover HWND, not the window),
+    and `menu.3_1_0` (Level 3 item, same page) does fire, so GTK takes the
+    click but does not activate the stateful `menu.3_1_1`. `GTK_DEBUG=actions`
+    shows the whole `menu.*` group removed and re-added on each update (17
+    adds in one run), and no check mark is drawn, so the tracker may never
+    see the action as boolean-stateful. Next: GtkMenuTrackerItem's role for
+    that row, and whether P19's working Toggle is built the same way.
+  - 2026-11-14 探針(GSimpleAction 狀態型 `activate` handler 裡暫時的一行 stderr,已移除):從未印出。按壓落在 popover
+    自己的 surface 上(hitTarget 是 popover 的 HWND),同頁的 `menu.3_1_0`(Level 3 item)有觸發，所以 GTK 收到了點擊，卻沒有
+    啟動狀態型的 `menu.3_1_1`。`GTK_DEBUG=actions` 顯示整組 `menu.*` 每次更新都被移除再加回(一次執行加回 17 次),也沒有畫出
+    勾選記號，因此 tracker 可能從未把它當成布林狀態的 action。下一步：該列的 GtkMenuTrackerItem role,以及 P19 有效的 Toggle
+    是否以同樣方式建立。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 

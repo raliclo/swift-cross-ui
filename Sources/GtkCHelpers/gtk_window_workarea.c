@@ -92,3 +92,37 @@ gboolean scui_window_screen_space(GtkWidget *window, int *width, int *height) {
     *height -= (int)(2.0 * shadow_y);
     return *width > 0 && *height > 0;
 }
+
+gboolean scui_window_place_in_work_area(GtkWidget *window, int x, int y) {
+#ifdef G_OS_WIN32
+    if (!GTK_IS_NATIVE(window)) {
+        return FALSE;
+    }
+    // Realized here, before present, so there is an HWND to move while the
+    // window is still hidden; present realizes it anyway.
+    // 在這裡、present 之前先 realize,好讓視窗還隱藏時就有 HWND 可移動;present 本來也會 realize。
+    if (!gtk_widget_get_realized(window)) {
+        gtk_widget_realize(window);
+    }
+    GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(window));
+    HWND handle = surface != NULL ? gdk_win32_surface_get_handle(surface) : NULL;
+    if (handle == NULL) {
+        return FALSE;
+    }
+    HMONITOR monitor = MonitorFromWindow(handle, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO info;
+    info.cbSize = sizeof info;
+    if (monitor == NULL || !GetMonitorInfoW(monitor, &info)) {
+        return FALSE;
+    }
+    return SetWindowPos(handle, NULL, info.rcWork.left + x, info.rcWork.top + y, 0, 0,
+                        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+               ? TRUE
+               : FALSE;
+#else
+    (void)window;
+    (void)x;
+    (void)y;
+    return FALSE;
+#endif
+}
