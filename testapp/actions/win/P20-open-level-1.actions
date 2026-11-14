@@ -11,6 +11,21 @@ action,x,y,origin,button,key,micros,note,platform
 # `last action -> level 3`, which is the whole point: every level opens and the
 # item on it responds.
 #
+# SETTLED 2026-11-14, and the paragraphs below are kept as written: it was a
+# replay artifact, not a GtkBackend defect. The toggle is clicked at the same
+# pixel as the "Level 3 submenu" row before it, so the pointer never moved; GTK
+# sent no enter to the toggle row that slid in under it, its GtkModelButton got
+# the press but never emitted `clicked`, and the stateful action never ran
+# (probes: the row's role was CHECK, `menu.3_1_1` never activated; clicking at
+# x 150 instead activated it). Win32Synthesiser now steps one pixel off and back
+# when the cursor is already on the target. Since then this file ends with
+# `level 3 toggle -> true`, 3 runs of 3. (todo item 13.)
+# 2026-11-14 已判定，下方段落保留原文：這是重放造成的假象，不是 GtkBackend 的缺陷。toggle 點在與前一下「Level 3 submenu」
+# 列相同的像素上，指標從未移動;GTK 沒有替滑進游標下方的 toggle 列送 enter,它的 GtkModelButton 收到按壓卻從未發出
+# `clicked`,狀態型 action 也就沒有執行(探針：該列 role 為 CHECK,`menu.3_1_1` 從未啟動；改點 x 150 就啟動了)。
+# Win32Synthesiser 現在在游標已位於目標時，先離開一個像素再回來。之後本檔結尾為 `level 3 toggle -> true`,3 次中 3 次。
+# (todo 第 13 項。)
+#
 # `level 3 toggle` stays `false`, and that looks like a finding rather than a
 # miss, though it is not proven. A desktop capture taken with the pointer on
 # that row shows the row prelit -- so the pointer was on the right row -- and

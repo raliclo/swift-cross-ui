@@ -1778,6 +1778,23 @@
             //
             // 此處的狀態碼 5 是 ERROR_ACCESS_DENIED，代表桌面被鎖定，或前方站著一個完整性等級更高的
             // 視窗。`testapp/ui-lock.zsh` 比對的是該狀態碼，而非「回報它的是哪一個呼叫」的名稱。
+            // Already there: step one pixel off and back first, so the toolkit
+            // sees motion. Moving to where the cursor already is generates no
+            // WM_MOUSEMOVE, and GTK does not send an enter to a widget that
+            // appeared under a pointer that never moved: P20's level 3 toggle
+            // row, clicked at the same pixel as the "Level 3 submenu" row that
+            // slid it into place, got the press and never emitted `clicked`, so
+            // its action never ran (todo item 13, 2026-11-14). A person always
+            // moves the mouse between two clicks; the replay now does too.
+            // 已經在目標位置時，先離開一個像素再回來，讓 toolkit 看到移動。移到游標已在的位置不會產生 WM_MOUSEMOVE,而
+            // GTK 不會替一個出現在「從未移動的指標」下方的 widget 送 enter:P20 第三層的 toggle 列，點在與把它滑進來的
+            // 「Level 3 submenu」列同一個像素上，收到了按壓卻從未發出 `clicked`,它的 action 因此沒有執行(todo 第 13 項,
+            // 2026-11-14)。人在兩下點擊之間一定會移動滑鼠；重放現在也會。
+            var current = POINT()
+            if GetCursorPos(&current), Int(current.x) == position.x, Int(current.y) == position.y {
+                _ = SetCursorPos(Int32(position.x + 1), Int32(position.y))
+                Thread.sleep(forTimeInterval: 0.03)
+            }
             if !SetCursorPos(Int32(position.x), Int32(position.y)) {
                 let setCursorPosError = Int32(GetLastError())
                 sendAbsoluteMouseMove(to: position)

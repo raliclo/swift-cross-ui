@@ -748,7 +748,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     2026-11-14,P2 在 WinUI 上以 `measure_win.zsh P2` 量測(uia_rects,視窗 793x911 px、125%):Set 12345 67,262;Clear
     145,262;擴充 Picker 123,104;Enable button row 93,490;Allow window resizing 103,662 DIP,與檔案相差都在 2 以內。每次
     啟動多重放一下(k = 0 到 5),各擷取一次視窗：五下之後 Length 0、Picker 已擴充、按鈕列已啟用。完成;GTK 漏點擊仍是第 7 項。
-- [ ] **13. GTK: the Toggle on P20's third menu page never reaches its
+- [x] **13. GTK: the Toggle on P20's third menu page never reaches its
   binding.** Clicked at the row measured on a page 3 capture (frame 129,386,
   2026-11-14): `level 3 toggle` stays `false`, while the item rows on all
   three pages respond. P20-open-level-1.actions has recorded the same since
@@ -782,6 +782,24 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     所以只有 GTK 有此問題。讀 GTK 原始碼(testapp/gtk4-source):tracker 把 `menu.3_1_1` 判為可啟動、CHECK role,而 CHECK 列的
     `clicked` 與一般列一樣會走到 `gtk_menu_tracker_item_activated`,所以最可能是 toggle 列的 `clicked` 根本沒觸發。下一步：在桌面
     空閒時，在那個 GtkModelButton 的 `clicked` 上加探針。
+  - 2026-11-14, **settled: a replay artifact, not a GtkBackend defect.**
+    Temporary probes (removed): a capture-phase press on the menu popover
+    picked `GtkLabel[Level 3 toggle] < GtkModelButton`, role
+    `GTK_BUTTON_ROLE_CHECK`, sensitive; the button's `clicked` fired for every
+    other row and never for the toggle, so `menu.3_1_1` never activated, while
+    P19's top-level toggle did (`stateful activate 3`). The toggle is clicked at
+    the same pixel as the "Level 3 submenu" row before it: the pointer never
+    moved, GTK sent no enter to the row that slid in under it, and its gesture
+    did not take the release. Clicking it at x 150 instead activated
+    `3_1_1`. Fixed in Win32Synthesiser: when the cursor is already on the
+    target it steps one pixel off and back first. The unchanged
+    P20-open-level-1.actions now ends `level 3 toggle -> true`, 3 runs of 3.
+  - 2026-11-14,**已判定：重放造成的假象，不是 GtkBackend 的缺陷。** 暫時探針(已移除):在選單 popover 的擷取階段，按壓 pick 到
+    `GtkLabel[Level 3 toggle] < GtkModelButton`,role 為 `GTK_BUTTON_ROLE_CHECK`、sensitive;其他每一列的按鈕都發出了
+    `clicked`,只有 toggle 從未發出，所以 `menu.3_1_1` 從未啟動，而 P19 頂層的 toggle 有(`stateful activate 3`)。toggle 點在與前一下
+    「Level 3 submenu」列相同的像素上：指標從未移動,GTK 沒有替滑進它下方的列送 enter,它的手勢也就不接這次放開。改點 x 150 就啟動了
+    `3_1_1`。在 Win32Synthesiser 修正：游標已位於目標時，先離開一個像素再回來。未修改的 P20-open-level-1.actions 現在結尾為
+    `level 3 toggle -> true`,3 次中 3 次。
 - [ ] **14. Action files in CI: the runners' screens.** The user's rule
   (2026-11-14): CI and local replay at the same resolution, not only at the
   same window position. Done: every Windows and WSL replay prints `screen WxH
