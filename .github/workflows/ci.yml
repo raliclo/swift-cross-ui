@@ -508,6 +508,19 @@ jobs:
         Get-ItemProperty 'HKCU:\Control Panel\Desktop' -Name LogPixels -ErrorAction SilentlyContinue | Format-List LogPixels
         Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' -Name AppliedDPI -ErrorAction SilentlyContinue | Format-List AppliedDPI
 
+    # todo item 14, option 2 (the user's choice, 2026-11-14): try the runner at
+    # 125%, the scale testapp/actions/win was measured at, through the per-monitor
+    # scale API (display_scale.zsh). A trial: it prints the scale before and after
+    # and does not fail the job until a run has shown that it takes.
+    # todo 第 14 項選項 2(使用者的選擇,2026-11-14):嘗試把 runner 設成 125%,也就是 testapp/actions/win 量測時的縮放，
+    # 透過每台顯示器的縮放 API(display_scale.zsh)。這是試驗：印出設定前後的縮放，在某次執行證明它有效之前不讓工作失敗。
+    - name: Display scale 125% (trial)
+      shell: bash
+      run: |
+        zsh testapp/test_support/display_scale.zsh get || true
+        zsh testapp/test_support/display_scale.zsh set 125 || printf 'display_scale: set 125 did not take\n'
+        zsh testapp/test_support/display_scale.zsh get || true
+
     - name: Launch P2 and P116 (WinUIBackend)
       shell: bash
       run: |
