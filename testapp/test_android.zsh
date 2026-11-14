@@ -545,6 +545,25 @@ ANDROID_SERIAL="$serial" "$adb" shell settings put secure stylus_handwriting_ena
 # app 上,taplabel 只找得到對話框:P2-choose-from-the-picker 與 P114-sheet-back 失敗，而目標就畫在底下
 # (run 43587194980,2026-11-14)。我們自己 app 的當機仍抓得到，因為行程會結束；只是不顯示對話框。
 ANDROID_SERIAL="$serial" "$adb" shell settings put global hide_error_dialogs 1 || true
+# On CI, no home app at all. hide_error_dialogs did not stop the launcher's own
+# "Pixel Launcher isn't responding" on CI's emulator: P2-choose-from-the-picker and
+# P114-sheet-back failed under it again (run 43610389446), each just after opening a
+# popup. Replays start the app with am start and need no launcher, so whatever
+# answers HOME is disabled for the user. Only when CI is set: the local emulator is
+# shared (SoftPCB uses it), and a disabled home app would outlive this run there.
+# CI 上完全不要桌面 app。hide_error_dialogs 擋不住 launcher 自己的「Pixel Launcher isn't responding」:
+# P2-choose-from-the-picker 與 P114-sheet-back 又在它底下失敗(run 43610389446),兩者都是剛開出彈出視窗之後。重放以
+# am start 啟動 app,不需要 launcher,所以停用回應 HOME 的那個 app。只在設了 CI 時才做：本機模擬器是共用的
+# (SoftPCB 也用),停用的桌面會在那裡留到這次執行之後。
+if [ -n "${CI:-}" ]; then
+    home_app="$(ANDROID_SERIAL="$serial" "$adb" shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tr -d '\r' | tail -1)"
+    home_app="${home_app%%/*}"
+    if [ -n "$home_app" ] && [ "$home_app" != android ]; then
+        ANDROID_SERIAL="$serial" "$adb" shell pm disable-user --user 0 "$home_app" >/dev/null 2>&1 \
+            && print "==> CI: disabled the home app $home_app (its ANR dialog covered replays)"
+    fi
+    ANDROID_SERIAL="$serial" "$adb" shell settings put secure anr_show_background 0 || true
+fi
 # Start the declared launcher activity directly. `monkey` can return a non-zero
 # status for emulator input limitations even when it does not provide a useful
 # readiness check for action-file replay.
