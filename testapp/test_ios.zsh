@@ -286,6 +286,18 @@ xcrun simctl bootstatus "$device_name" -b
 # 440 x 956 pt,2026-11-14),換一台裝置，同樣的座標就落在別處。
 sim_type="$(xcrun simctl list devices -j 2>/dev/null | jq -r --arg n "$device_name" '[.devices | to_entries[] | .key as $r | .value[] | select(.name == $n or .udid == $n) | "\(.deviceTypeIdentifier | sub(".*SimDeviceType\\."; "") | gsub("-"; " ")) on \($r | sub(".*SimRuntime\\."; ""))"] | first // "unknown"')"
 printf '==> Simulator: %s is an %s\n' "$device_name" "$sim_type"
+# The iPhone the action files assume (install_tools_ios.zsh pins it). A different one
+# fails the run on CI (exit 9, as on the desktop platforms) and is a warning locally.
+# 動作檔假設的 iPhone(由 install_tools_ios.zsh 固定)。不同時 CI 上判失敗(exit 9,與桌面平台相同),本機只警告。
+expected_sim="${IOS_SIM_DEVICE_TYPE:-iPhone 17 Pro Max}"
+if [[ "$sim_type" == "$expected_sim on "* ]]; then
+    printf '==> screen: %s, as the action files assume\n' "$expected_sim"
+elif [ -n "${CI:-}" ]; then
+    printf '!! screen: %s, but the action files assume %s\n' "$sim_type" "$expected_sim" >&2
+    exit 9
+else
+    printf '!! screen: %s, but the action files assume %s; captures will not match CI (a failure there)\n' "$sim_type" "$expected_sim" >&2
+fi
 
 if printf '%s' "$device_name" | grep -Eq '^[0-9A-Fa-f-]{36}$'; then
     destination="platform=iOS Simulator,id=$device_name"

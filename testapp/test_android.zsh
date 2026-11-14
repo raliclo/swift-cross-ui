@@ -609,6 +609,22 @@ if [ -n "$action_file" ]; then
     # 重放所用的螢幕，在重放之前說出來:Android 動作檔是在 pixel_6(1080 x 2400 px,420 dpi)上量的，也就是本機的
     # AVD 與 CI 固定的 profile(2026-11-14)。換一個螢幕，同樣的座標就落在別處。
     print "==> Screen: $(ANDROID_SERIAL="$serial" "$adb" shell wm size 2>/dev/null | tr -d '\r' | tail -1), $(ANDROID_SERIAL="$serial" "$adb" shell wm density 2>/dev/null | tr -d '\r' | tail -1), model $(ANDROID_SERIAL="$serial" "$adb" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
+    # The screen the action files assume: pixel_6, 1080x2400 at 420 dpi (2026-11-14).
+    # A mismatch fails the run on CI (exit 9, as on macOS, Windows and Linux) and is
+    # a warning locally. The effective values: an override wins over the physical
+    # one, so the last number wm prints is read. SCUI_REPLAY_SCREEN overrides.
+    # 動作檔假設的螢幕:pixel_6,1080x2400、420 dpi(2026-11-14)。不符時 CI 上判失敗(exit 9,與 macOS、Windows、Linux
+    # 相同),本機只警告。讀實際生效的值：有 override 時以它為準，所以取 wm 印出的最後一個數字。SCUI_REPLAY_SCREEN 可覆寫。
+    expected_screen="${SCUI_REPLAY_SCREEN:-1080x2400 420}"
+    actual_screen="$(ANDROID_SERIAL="$serial" "$adb" shell wm size 2>/dev/null | tr -d '\r' | grep -o '[0-9]*x[0-9]*' | tail -1) $(ANDROID_SERIAL="$serial" "$adb" shell wm density 2>/dev/null | tr -d '\r' | grep -o '[0-9][0-9]*$' | tail -1)"
+    if [ "$actual_screen" = "$expected_screen" ]; then
+        print "==> screen: $actual_screen, as the action files assume"
+    elif [ -n "${CI:-}" ]; then
+        print -u2 "!! screen: $actual_screen, but the action files assume $expected_screen"
+        exit 9
+    else
+        print -u2 "!! screen: $actual_screen, but the action files assume $expected_screen; captures will not match CI (a failure there)"
+    fi
     print "==> Pushing $action_file -> $device_action_file"
     ANDROID_SERIAL="$serial" "$adb" push "$action_file" "$device_action_file" >/dev/null \
         || die "Could not push the action file to the device"
