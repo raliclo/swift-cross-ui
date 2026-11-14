@@ -824,6 +824,29 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   `CI=1 SCUI_REPLAY_SCREEN='1024x768 scale 1'` 時 P20 以 9 結束;WSL 的 P20 印出 `screen 1920x1080 scale 1` 並通過。待辦(在
   建立動作檔的 CI 工作之前):據 M4 所說,GitHub 的 windows-latest runner 是 1024x768、100%,先確認它實際回報什麼，再決定是設成
   1920x1080、125%,還是另定標準並重量檔案;Linux 工作的 `xvfb-run` 需要 `-s "-screen 0 1920x1080x24"`(預設 640x480)。
+  - 2026-11-14, c3ea0ee3: the linux job's xvfb-run now has `-screen 0
+    1920x1080x24` and prints xrandr; the windows job sets 1920x1080 where
+    Set-DisplayResolution exists and prints the resolution and DPI. Open: read
+    that run's output (the first uncancelled one), then decide the scale.
+    2026-11-14,c3ea0ee3:linux 工作的 xvfb-run 加上 `-screen 0 1920x1080x24` 並印出 xrandr;windows 工作在有
+    Set-DisplayResolution 的地方設成 1920x1080,並印出解析度與 DPI。待辦：讀那次 CI(第一次沒被取消的)的輸出，再決定縮放比例。
+- [ ] **15. `taskkill` without `-f` leaves a two-window app running
+  (SoftPCB-W11, field matrix open).** Reproduced 2026-11-14 with P59 and
+  its second window, 2 runs per case: with one window, `taskkill -im`
+  ends the app in 0.5 s; with two, it closes ONE window and the app keeps
+  running with the other -- GTK closed the second window, WinUI the main
+  one -- and a second `taskkill -im` ends it. The same on both backends, so
+  it is taskkill delivering one close per call to a multi-window app, and
+  closing one window not ending the app; not a GtkBackend defect. Open, for
+  the user to decide: should closing the main window close the others and
+  quit (common on Windows), or keep them (SwiftUI on macOS)? Until then,
+  scripts that end a multi-window app gracefully send one `taskkill -im`
+  per window, or use `-f`.
+  `taskkill` 不加 `-f` 時，有兩個視窗的 app 不會結束(SoftPCB-W11,開著欄位矩陣)。2026-11-14 以 P59 與它的第二個視窗重現，
+  每種情況 2 次：只有一個視窗時,`taskkill -im` 在 0.5 秒內結束 app;有兩個時，它只關掉**一個**視窗,app 帶著另一個繼續執行——GTK
+  關掉的是第二個視窗,WinUI 是主視窗——再一次 `taskkill -im` 才結束。兩個 backend 相同，所以是 taskkill 每次呼叫只對多視窗 app
+  送一次關閉，以及關掉一個視窗不會結束 app;不是 GtkBackend 的缺陷。待使用者決定：關掉主視窗時，是否要關掉其他視窗並結束(Windows
+  常見做法),還是保留它們(macOS 上的 SwiftUI)?在那之前，要正常結束多視窗 app 的腳本，每個視窗送一次 `taskkill -im`,或用 `-f`。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
