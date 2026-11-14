@@ -600,23 +600,19 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
   not starve its children」。2026-11-14 在 WinUI 驗證：冒號回來了，change-seconds 結尾與先前同為 09:46:41;P84 間距 34 px;GTK
   P41/P50/P84 截圖與 2df43059 逐像素相同；主機測試 405 + 15 通過。之後 P116 每頁:WinUI slot 187-203 / item 360-375 ms,GTK
   63-78 / 266-281 ms。
-- [ ] **9. iOS: P41's last row cannot be scrolled into view on an iPhone (Mac).** On
-  the 440 x 956 pt simulator, scrolling P41's page to its end stops with the
-  `.rows` / `.rows seconds` / `.rows date+time` row below the screen; at most
-  its headers show. The same with f1e915a4^'s core files (2026-11-14), so it
-  predates the stack-redistribution change. The app logs "the root ScrollView
-  is 820.0 pt high from .defaultSize and has more content than that; grown to
-  824.0 pt to fill the screen", 824 pt on a 956 pt screen, so the scroll
-  view's frame or its content inset likely leaves the bottom of the content
-  out of reach. Cost: the colon fix (6e115c14) could not be seen on iOS, and
-  `taplabel '.rows seconds'` taps the label off screen. Check the scroll
-  view's frame against the safe area and its contentSize against the content.
-  iOS:iPhone 上 P41 的最後一列捲不進畫面(Mac)。在 440 x 956 pt 的模擬器上，把 P41 整頁捲到底時，`.rows` /
-  `.rows seconds` / `.rows date+time` 那一列仍在螢幕下方，最多只露出標題。用 f1e915a4^ 的核心檔案也一樣
-  (2026-11-14),所以早於 stack 重新分配的改動。app 印出「root ScrollView 由 .defaultSize 得 820.0 pt,內容更多;
-  長到 824.0 pt 以填滿螢幕」,而螢幕是 956 pt,所以很可能是 scroll view 的外框或內容 inset 讓內容底部碰不到。代價:
-  冒號修正(6e115c14)在 iOS 上看不到，`taplabel '.rows seconds'` 也點在螢幕外的標籤上。對照 scroll view 的外框與
-  safe area,以及它的 contentSize 與內容。
+- [x] **9. ~~iOS: P41's last row cannot be scrolled into view on an iPhone~~ --
+  not a bug (Mac, 2026-11-14).** A probe in RootScrollHost showed the layout
+  is right: the host fills the safe area (y 62-922 on the 440 x 956 pt
+  simulator), the root ScrollView ends at 922, and its contentSize (1270 pt)
+  matches the deepest laid-out view, so it scrolls 446 pt. One replayed
+  `scroll,0,40` swipe moves it only ~378 pt, leaving `.rows` ~68 pt below the
+  screen. Two swipes from blank space bring the row in, and it shows the
+  colons (6e115c14 confirmed on iOS). A scroll that starts on a wheel turns
+  the wheel instead (August -> March once), so start on blank space.
+  ~~iOS:iPhone 上 P41 的最後一列捲不進畫面~~——不是 bug(Mac,2026-11-14)。RootScrollHost 裡的探針顯示版面正確:host
+  填滿 safe area(440 x 956 pt 模擬器上 y 62-922),根 ScrollView 結束於 922,contentSize(1270 pt)與最深的 view
+  相符，所以可捲 446 pt。重放一次 `scroll,0,40` 只捲約 378 pt,`.rows` 還在螢幕下方約 68 pt。從空白處滑兩次就會出現，
+  而且冒號都在(6e115c14 在 iOS 上確認)。從轉輪上開始的捲動會轉動轉輪(曾把 August 轉成 March),所以要從空白處開始。
 - [x] **10. `.package(path: "Vendor/swift-winui")` breaks revision-pinned
   consumers.** SoftPCB-W11 reported it: a project pinning swift-cross-ui by
   revision cannot resolve a path inside it. Now a URL plus revision equal to
