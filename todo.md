@@ -932,7 +932,7 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     多視窗 app)。SoftPCB-UI f978ff3 / SoftPCB f792373:RootView 的 `.onDisappear` 呼叫 `FieldMatrixModel.quitApp()`(AppKit 上
     經由 NSApplication terminate;其他平台取消求解後 `exit(0)`)。SoftPCB-W11 在 Windows GTK、d069ed77 上以動作檔(focus、Alt+F4)
     驗證：有這個修改時 app 結束，沒有時 20 秒後仍在執行；只關掉欄位矩陣時 app 繼續執行。框架不需修改。
-- [ ] **16. GTK warns "Widget reports min width of 4 for height of 18, but
+- [x] **16. GTK warns "Widget reports min width of 4 for height of 18, but
   overall min width of 10" in SoftPCB-UI's tab 8.** 24 lines per run (22 with
   4, 2 with 7), the same at baf796ad and b3e86768 (SoftPCB-W11, 2026-11-14), so
   it predates item 6. GTK prints it when a widget's minimum width for a given
@@ -967,6 +967,14 @@ cells, 1751 view nodes) then spent ~400-480 ms of ~600 ms in layout: 19272
     變體 0 則警告;GTK 的 P41 change-seconds 與 locale-switch 與先前截圖逐像素相同。第一版對 2-3 個比「…」窄的字元也拿掉省略號，弄壞了
     P41 的時鐘(「10」到「12」與「AM」折行，畫成「…」),靠那次比對抓到並縮小範圍。待辦：請 SoftPCB-W11 用這個建置重新計數 tab 8(2 行
     「7@18」)與 tab 4(「7@14」那 1 行)。
+  - 2026-11-14, **closed** (SoftPCB-W11; SoftPCB-UI 08f52f2 now pins
+    604f1755): a debug build at 604f1755, tabs 1-8 for 12 s twice each, prints
+    0 min-width lines on every tab, against 23 on tab 8 and 1 on tab 4 before.
+    The two "7@18" and the tab 4 "7@14" lines were single-character labels
+    too. Tab 9 with the field matrix: 0, same update pattern as before.
+    2026-11-14,**結案**(SoftPCB-W11;SoftPCB-UI 08f52f2 已釘在 604f1755):604f1755 的 debug 建置，tab 1-8 各跑 12 秒兩次，每個分頁
+    都是 0 行 min-width 警告，之前 tab 8 是 23 行、tab 4 是 1 行。兩行「7@18」與 tab 4 的「7@14」也都是單一字元的 label。tab 9 開欄位
+    矩陣:0,更新模式與之前相同。
 
 ### Windows App SDK 2.6.5 follow-up / 升級後續 (2026-11-06, Windows)
 
