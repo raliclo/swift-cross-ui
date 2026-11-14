@@ -464,13 +464,29 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         return position
     }
 
+    /// How long `reveal` keeps looking for a label that is not shown yet. / `reveal` 等待尚未顯示之文字的時間上限。
+    private static let labelWait: TimeInterval = 5
+
     /// Where the view showing `label` is, after scrolling the root so that it is
     /// on screen. The position is read from the view itself, so it holds whatever
     /// the layout has become. 顯示 `label` 的 view 在哪裡(先把根捲到讓它在螢幕上)。位置讀自 view 本身，所以不論版面變成怎樣都成立。
     /// `offset` is the pixel offset an offset taplabel presses at; the point it names is
     /// scrolled into view with the label.
     /// `offset` 是帶位移的 taplabel 要按的像素位移；它所指的點會和標籤一起被捲進畫面。
-    private func reveal(label: String, offset: (x: Int32, y: Int32)) throws -> (x: Double, y: Double) {
+    private func reveal(
+        label: String,
+        offset: (x: Int32, y: Int32),
+        until deadline: Date? = nil
+    ) throws -> (x: Double, y: Double) {
+        // A label that is not shown yet is looked for again, every 0.2 s for up to
+        // `labelWait`: a menu or sheet the previous row opened can take longer than
+        // the file's sleep on a slow emulator. CI's software-rendered pixel_6 missed
+        // "Chocolate" and "Sheet: open Apples" that way, which a local pixel_6 shows in
+        // time (2026-11-14). A label that never shows still fails, only later.
+        // 還沒出現的文字，每 0.2 秒再找一次，最多 `labelWait`:前一列打開的選單或 sheet,在慢的模擬器上可能比檔案的
+        // sleep 更久才出現。CI 以軟體繪圖的 pixel_6 就這樣錯過了「Chocolate」與「Sheet: open Apples」,本機的 pixel_6
+        // 則及時顯示(2026-11-14)。始終不出現的文字仍然失敗，只是晚一點。
+        let deadline = deadline ?? Date().addingTimeInterval(Self.labelWait)
         let found = Self.onMainThread { () -> [Int32] in
             guard
                 let window = self.targetWindow(),
@@ -484,6 +500,10 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             return [centre[0] - moved[0], centre[1] - moved[1], moved[0], moved[1]]
         }
         guard found.count >= 2 else {
+            if Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.2)
+                return try reveal(label: label, offset: offset, until: deadline)
+            }
             throw SynthesiserError.labelNotFound(label)
         }
         if found.count == 4 {
