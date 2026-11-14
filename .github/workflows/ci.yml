@@ -50,9 +50,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Package.swift takes swift-winui by path from this submodule on every host
-    # (2026-11-06), and checkout@v4 leaves submodules empty.
-    # Package.swift 在每個主機上都以路徑引用這個 submodule(2026-11-06),checkout@v4 不會取出 submodule。
+    # Package.swift takes swift-winui by URL and revision since 2026-11-14 (a path into this submodule from 2026-11-06); the
+    # checkout stays for compile.zsh's HEAD check (P2 and P116 are built below).
+    # Package.swift 自 2026-11-14 起以 URL + revision 引用 swift-winui(2026-11-06 起曾是指向這個 submodule 的路徑);保留這次 checkout,是因為下方建置 P2 與 P116 時 compile.zsh 會比對它的 HEAD。
     - name: Check out Vendor/swift-winui
       run: git submodule update --init --depth 1 Vendor/swift-winui
 
@@ -93,8 +93,17 @@ jobs:
     # what this runner has. / 記下 runner 的螢幕：桌面動作檔執行假設 1920x1080、縮放 1。
     - name: Screen (AppKitBackend)
       run: |
-        system_profiler SPDisplaysDataType | grep -E "Resolution|UI Looks like|Main Display" || echo "no display reported"
-        swift -e 'import AppKit; for s in NSScreen.screens { print("screen", s.frame.size, "scale", s.backingScaleFactor, "visible", s.visibleFrame) }' || true
+        show() { swift -e 'import AppKit; for s in NSScreen.screens { print("screen", s.frame.size, "scale", s.backingScaleFactor, "visible", s.visibleFrame) }' || true; }
+        show
+        # Trial (2026-11-14): can this runner be set to 1920x1080, the screen desktop
+        # action files assume? It reported 1024x768. Not failing yet; it lists the
+        # modes, tries, and shows the result. / 試驗：這台 runner 能否設成 1920x1080?它回報 1024x768。先不判失敗。
+        brew install displayplacer >/dev/null 2>&1 || { echo "displayplacer not installed"; exit 0; }
+        displayplacer list | grep -E "Persistent screen id|Resolution|res:1920x1080|current mode" | head -20
+        id=$(displayplacer list | awk '/Persistent screen id:/ {print $4; exit}')
+        displayplacer "id:$id res:1920x1080 scaling:off origin:(0,0) degree:0" || echo "displayplacer could not set 1920x1080"
+        sleep 3
+        show
 
     - name: Launch P2 and P116 (AppKitBackend)
       run: |
