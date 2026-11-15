@@ -11,7 +11,17 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 步驟 5 通過的條件是長條內容有移動。步驟 6 通過的條件是其後外層視圖仍有反應——它所要防範的失敗
 # 是「內層視圖捲到盡頭後一切都凍結」，因此結尾的垂直捲動正是該項檢查，而非附加動作。
-move,320,453,,,,,over the horizontal strip,gtk
+#
+# 2026-11-15: the pointer is put on the strip with `taplabel H4` instead of
+# `move,320,453`. That point had drifted below the strip into the "Outer row"
+# area, so the sideways scroll went to the outer view and the strip never
+# moved -- while the sweep still counted the row as a pass. xdotool's
+# horizontal wheel itself works: button 7 scrolled a plain GTK4
+# ScrolledWindow from 0 to 543 in the same session.
+# 2026-11-15:改以 `taplabel H4` 把指標放到長條上，取代 `move,320,453`。那一點已偏到長條下方的「Outer row」區域，橫向捲動
+# 送到了外層視圖，長條從沒動過——sweep 卻仍算這列通過。xdotool 的水平滾輪本身沒問題：同一個 session 中按鈕 7 讓一個純 GTK4
+# ScrolledWindow 從 0 捲到 543。
+taplabel,,,,,H4,,over the horizontal strip -- a tap on its H4 label leaves the pointer there,gtk
 sleep,,,,,,400000,,gtk
 scroll,10,0,,,,,ten notches right -- past the strip's end,gtk
 sleep,,,,,,800000,,gtk

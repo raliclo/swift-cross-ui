@@ -526,8 +526,32 @@ ensure_wincap() {
         mkdir -p "$script_dir/helper/bin"
         mkdir -p "$wincap_projection"
         printf 'building wincap helper: %s\n' "$wincap_exe" >&2
-        local sdk_version='10.0.22621.0'
         local sdk_root='C:/Program Files (x86)/Windows Kits/10'
+        # 10.0.22621.0 where it is installed (this machine), otherwise the newest
+        # SDK that has both cppwinrt.exe and Windows.winmd. The CI runner has
+        # 10.0.26100.0 only, so a fixed 22621 left every Windows capture failing
+        # with "no such file or directory: ...10.0.22621.0/x64/cppwinrt.exe"
+        # (run 43685046606, 2026-11-15).
+        # 已安裝 10.0.22621.0 時用它(這台機器),否則用同時具備 cppwinrt.exe 與 Windows.winmd 的最新 SDK。CI runner 只有
+        # 10.0.26100.0,固定 22621 讓每張 Windows 擷圖都以「no such file or directory: ...10.0.22621.0/x64/cppwinrt.exe」
+        # 失敗(run 43685046606,2026-11-15)。
+        local sdk_version='10.0.22621.0' candidate
+        if [ ! -f "$sdk_root/bin/$sdk_version/x64/cppwinrt.exe" ]; then
+            sdk_version=''
+            for candidate in "$sdk_root"/bin/10.*(N/On); do
+                candidate="${candidate:t}"
+                if [ -f "$sdk_root/bin/$candidate/x64/cppwinrt.exe" ] \
+                    && [ -f "$sdk_root/UnionMetadata/$candidate/Windows.winmd" ]; then
+                    sdk_version="$candidate"
+                    break
+                fi
+            done
+            if [ -z "$sdk_version" ]; then
+                printf '!! screenshot.zsh: no Windows SDK with cppwinrt.exe and Windows.winmd under %s\n' "$sdk_root" >&2
+                return 1
+            fi
+            printf 'wincap: using Windows SDK %s\n' "$sdk_version" >&2
+        fi
         local cppwinrt="$sdk_root/bin/$sdk_version/x64/cppwinrt.exe"
         local winmd="$sdk_root/UnionMetadata/$sdk_version/Windows.winmd"
         if [ ! -f "$wincap_projection/winrt/Windows.Graphics.Capture.h" ]; then

@@ -47,6 +47,16 @@ file's header. Two findings, both silent before:
   never moved (still H0 first); only the outer view scrolled. Either #426 on
   GTK or xdotool's horizontal wheel not arriving -- not yet told apart.
   matrix_coverage/results.csv2 (2026-10-22) records it as ok with no note.
+  **Resolved the same day: neither.** xdotool's button 7 scrolled a plain
+  GTK4 ScrolledWindow from 0 to 543 (PyGObject probe). The file's
+  `move,320,453` had drifted below the strip into the outer rows; with
+  `taplabel H4` the strip scrolls to H4..H13 first and the outer view still
+  moves after. Checked with two captures taken without the final vertical
+  scroll (M4's request, as the mac file says "the strip must move and the
+  outer view must not"): after the tap alone and after the two sideways
+  scrolls, the outer view shows Outer row 0-3 in the same place both times;
+  only the strip changed (H0 first, then H4 first). The strip sits where row
+  4 would be, which is why a capture shows row 3 above it and row 5 below.
 - P2 under WSLg opens at (-32736, -32736) in about half the launches and
   stays there: the placement helper did move it to (32, 32) in a 0,0
   1920x1080 work area (probe), so the window manager put the frame at
