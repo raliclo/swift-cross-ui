@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12 on WinUI: the two of its three subjects a click can reach, in the order
+# of actions/mac/P12-tabs-margins-and-toggles.actions (see that file for why
+# each click is there). Added 2026-11-15 so CI replays P12 on Windows too.
+#
+# #580 (state across rotation): no rotation here, so the tab and the counter
+# must simply hold -- final capture shows "Selected tab: Second", "counter: 2".
+# #632 (margins): read off the capture; the two buttons are pressed anyway.
+# #544 (toggle state): after "Set opposite" the forced-on and forced-off
+# toggles must look different.
+#
+# Coordinates are frame DIPs, measured 2026-11-15 from a 125% capture of the
+# window placed at (32, 32): x = (capture px + 8 px left border) / 1.25,
+# y = capture px / 1.25 (p12-measure-20261115-124039.png).
+#
+# P12 於 WinUI:三個主題中點擊能觸及的兩個，順序與 actions/mac/P12-tabs-margins-and-toggles.actions 相同(每一下的理由見
+# 該檔)。2026-11-15 加入，讓 CI 在 Windows 上也重放 P12。#580:這裡沒有旋轉，分頁與計數器只要保得住——最終擷圖顯示
+# 「Selected tab: Second」、「counter: 2」。#632:從擷圖讀；兩顆按鈕仍要按。#544:按「Set opposite」之後，強制開與強制關的
+# toggle 必須看起來不同。座標是外框 DIP,2026-11-15 由視窗置於 (32, 32) 的 125% 截圖量得:x = (截圖 px + 左邊框 8 px) / 1.25,
+# y = 截圖 px / 1.25(p12-measure-20261115-124039.png)。
+click,146,281,frame,left,,,First -- Selected tab must leave Second,windows
+sleep,,,,,,700000,,windows
+click,283,281,frame,left,,,Third,windows
+sleep,,,,,,700000,,windows
+click,188,316,frame,left,,,Increment counter,windows
+sleep,,,,,,500000,,windows
+click,188,316,frame,left,,,again -- counter must reach 2,windows
+sleep,,,,,,500000,,windows
+click,213,281,frame,left,,,back to Second -- the counter must survive the tab change,windows
+sleep,,,,,,800000,,windows
+click,216,391,frame,left,,,the narrow button between the green bars -- #632,windows
+sleep,,,,,,600000,,windows
+click,217,430,frame,left,,,Wide button,windows
+sleep,,,,,,800000,,windows
+click,148,526,frame,left,,,the forced-on Toggle,windows
+sleep,,,,,,600000,,windows
+click,227,526,frame,left,,,the forced-off one,windows
+sleep,,,,,,700000,,windows
+click,186,614,frame,left,,,the switch-styled toggle -- before the two Set buttons (see the mac file),windows
+sleep,,,,,,700000,,windows
+click,163,562,frame,left,,,Set both on,windows
+sleep,,,,,,700000,,windows
+click,269,562,frame,left,,,"Set opposite -- #544; the capture must show forced-on and forced-off looking different, and the switch on",windows
+sleep,,,,,,1000000,,windows

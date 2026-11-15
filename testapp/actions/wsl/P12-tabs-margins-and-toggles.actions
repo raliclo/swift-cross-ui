@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12 on GtkBackend (WSLg here, xvfb on CI): the two of its three subjects a
+# click can reach, in the order of actions/mac/P12-tabs-margins-and-toggles.actions
+# (see that file for why each click is there). Added 2026-11-15 so CI replays
+# P12 on Linux too.
+#
+# #580: no rotation here, so the tab and the counter must simply hold -- the
+# final capture shows "Selected tab: Second", "counter: 2". #632: margins are
+# read off the capture; the two buttons are pressed anyway. #544: after "Set
+# opposite" the forced-on and forced-off toggles must look different.
+#
+# Every press is a taplabel, so no coordinate depends on the screen. The two
+# toggles are both labelled "Toggle" and taplabel takes the first, so they are
+# reached from the unique label above each ("Forced on", "Forced off"), 30
+# points down; the switch from "Switch", 53 points right. Offsets measured
+# 2026-11-15 on WSLg at scale 1 (p12-wsl-measure-20261115-124215.png).
+#
+# P12 於 GtkBackend(這裡是 WSLg,CI 上是 xvfb):三個主題中點擊能觸及的兩個，順序與
+# actions/mac/P12-tabs-margins-and-toggles.actions 相同(每一下的理由見該檔)。2026-11-15 加入，讓 CI 在 Linux 上也重放 P12。
+# 每一下都是 taplabel,沒有座標依賴螢幕。兩個 toggle 的標籤都是「Toggle」,taplabel 只取第一個，所以從各自上方唯一的標籤
+# (「Forced on」、「Forced off」)往下 30 點去按;switch 從「Switch」往右 53 點。位移於 2026-11-15 在 WSLg、scale 1 量得
+# (p12-wsl-measure-20261115-124215.png)。
+sleep,,,,,,1500000,let P12 settle,gtk
+taplabel,,,,,First,,First -- Selected tab must leave Second,gtk
+sleep,,,,,,700000,,gtk
+taplabel,,,,,Third,,Third,gtk
+sleep,,,,,,700000,,gtk
+taplabel,,,,,Increment counter,,Increment counter,gtk
+sleep,,,,,,500000,,gtk
+taplabel,,,,,Increment counter,,again -- counter must reach 2,gtk
+sleep,,,,,,500000,,gtk
+taplabel,,,,,Second,,back to Second -- the counter must survive the tab change,gtk
+sleep,,,,,,800000,,gtk
+taplabel,,,,,-,,the narrow button between the green bars -- #632,gtk
+sleep,,,,,,600000,,gtk
+taplabel,,,,,Wide button,,Wide button,gtk
+sleep,,,,,,800000,,gtk
+taplabel,0,30,,,Forced on,,the forced-on Toggle,gtk
+sleep,,,,,,600000,,gtk
+taplabel,0,30,,,Forced off,,the forced-off one,gtk
+sleep,,,,,,700000,,gtk
+taplabel,53,0,,,Switch,,the switch-styled toggle -- before the two Set buttons (see the mac file),gtk
+sleep,,,,,,700000,,gtk
+taplabel,,,,,Set both on,,Set both on,gtk
+sleep,,,,,,700000,,gtk
+taplabel,,,,,Set opposite,,"Set opposite -- #544; the capture must show forced-on and forced-off looking different, and the switch on",gtk
+sleep,,,,,,1000000,,gtk

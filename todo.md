@@ -28,6 +28,44 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### CI replays and photographs SWEEP_APPS on Linux and Windows / CI 在 Linux 與 Windows 重放並拍照 (2026-11-15, Windows)
+
+The user's request via M4 (2026-11-15), P12 included (confirmed here): CI
+replays action files and uploads captures for SWEEP_APPS = P2 P8 P12 P114
+P116 on every platform, not only launches them. iOS and Android already do;
+macOS added by M4 (2d93de8b). Missing on this side: actions/win and
+actions/wsl have no P12 or P116 file; the linux (xvfb 1920x1080) and windows
+(125%) jobs need build + replay + capture upload + every-row-must-pass.
+Done when both jobs run it on CI and each capture shows its expected state.
+
+2026-11-15, local: `testapp/sweep_desktop.zsh --windows|--linux` added (test.zsh
+for Windows; for Linux the app is launched directly with -actionfile under X11
+and its own X window captured, since test.zsh reaches Linux only via wsl.exe).
+WSLg sweep: 9 of 10 rows pass; each capture opened and checked against its
+file's header. Two findings, both silent before:
+- P8-scroll-strip-sideways (wsl) "passes" but its capture shows the strip
+  never moved (still H0 first); only the outer view scrolled. Either #426 on
+  GTK or xdotool's horizontal wheel not arriving -- not yet told apart.
+  matrix_coverage/results.csv2 (2026-10-22) records it as ok with no note.
+- P2 under WSLg opens at (-32736, -32736) in about half the launches and
+  stays there: the placement helper did move it to (32, 32) in a 0,0
+  1920x1080 work area (probe), so the window manager put the frame at
+  -32768. Clicks then miss and the replay still says `replayed`. The sweep
+  now fails such a row with "window off screen" rather than retrying. Not
+  seen for the other apps; Xvfb on CI has no window manager.
+
+2026-11-15 本機：新增 `testapp/sweep_desktop.zsh --windows|--linux`。WSLg sweep 10 列通過 9 列，每張擷圖都打開對照檔頭核對過。
+兩個先前沒被發現的問題:P8-scroll-strip-sideways(wsl)「通過」,擷圖卻顯示長條從沒動過，只有外層捲動——是 GTK 的 #426 還是
+xdotool 的水平滾輪沒送到，尚未分清;results.csv2(2026-10-22)記為 ok、沒有備註。P2 在 WSLg 下約一半的啟動開在
+(-32736, -32736) 並停在那裡：放置輔助函式確實把它移到 0,0 1920x1080 工作區的 (32, 32)(探針),所以是視窗管理員把外框放在
+-32768;點擊因此點空，重放卻照樣說 `replayed`。sweep 現在把這種列判為失敗並寫「window off screen」,不重試。其他 app 沒看到；
+CI 的 Xvfb 沒有視窗管理員。
+
+使用者經 M4 提出(2026-11-15),含 P12(已在此確認):CI 要對 SWEEP_APPS = P2 P8 P12 P114 P116 在每個平台重放動作檔並上傳
+擷圖，而不只是啟動。iOS 與 Android 已有;macOS 由 M4 加入(2d93de8b)。本側缺:actions/win 與 actions/wsl 沒有 P12、P116
+檔案;linux(xvfb 1920x1080)與 windows(125%)job 需要建置、重放、上傳擷圖、每列都必須通過。完成條件：兩個 job 在 CI 上
+執行，且每張擷圖都顯示預期狀態。
+
 ### Window icon API: `Scene.windowIcon(_:)` / 視窗圖示 API (2026-11-15, Windows)
 
 Asked by the user via SofPCB-W11 (approved 2026-11-15, with test app P118):

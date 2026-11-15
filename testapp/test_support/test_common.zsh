@@ -846,6 +846,18 @@ wait_for_marker_windows() {
             printf ' -- rendered after %ss\n' "$waited"
             return 0
         fi
+        # The action-file log too: an app that print()s its marker writes it to
+        # stdout, which reaches that log (and nowhere else on WinUI) only when a
+        # file is replayed. P116's "appear-to-hop" was there and test.zsh still
+        # timed out and captured `-timeout`, so a sweep found no final capture
+        # (2026-11-15).
+        # 也讀動作檔 log:以 print() 印出標記的 app 寫到 stdout,只有重放檔案時 stdout 才會進到那份 log(WinUI 上別無他處)。
+        # P116 的「appear-to-hop」就在那裡,test.zsh 卻仍然逾時並擷取 `-timeout`,sweep 因此找不到最終擷圖(2026-11-15)。
+        if [ -n "${action_file:-}" ] && [ -f "$script_dir/output/$actionfile_log" ] \
+            && grep -aq "$marker" "$script_dir/output/$actionfile_log" 2>/dev/null; then
+            printf ' -- rendered after %ss\n' "$waited"
+            return 0
+        fi
         sleep 1
         waited=$((waited + 1))
         printf '.'
