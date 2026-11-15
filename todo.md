@@ -28,6 +28,53 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### Window icon API: `Scene.windowIcon(_:)` / 視窗圖示 API (2026-11-15, Windows)
+
+Asked by the user via SofPCB-W11 (approved 2026-11-15, with test app P118):
+SoftPCB-UI sets its window icon by calling GTK itself (SoftPCB-UI 15af374,
+Support/WindowIcon.swift), which no WinUI build can use. Add a Scene modifier
+taking a bundled PNG, behind a new `BackendFeatures.WindowIcons` protocol.
+Branch `feature/window-icon`. Split per the platform division:
+- GtkBackend, WinUIBackend, core, P118 -- Windows side.
+- AppKitBackend, UIKitBackend, AndroidBackend -- Mac side (M4). Candidates to
+  verify, not conclusions: AppKit `NSApplication.applicationIconImage`
+  (Dock, unbundled runs); Android `Activity.setTaskDescription` (Recents icon,
+  takes a Bitmap); UIKit has no runtime arbitrary icon that we know of --
+  `setAlternateIconName` only takes icons declared at build time; per the repo
+  rule this must be shown, not asserted.
+- Out of scope: the .exe file icon in Explorer is a link-time resource.
+Done when: P118 reads the icon back from the platform on GTK (Windows, WSL)
+and WinUI; SoftPCB-UI drops its GTK calls.
+
+Verified 2026-11-15 (`P118_SEQUENCE=1 ./P118…`, exit 0 = steps a, b, none, a
+all matched): WinUI (HWND `WM_GETICON` drawn at 32x32, centre pixel), Windows
+GTK (same, plus icon-name, theme sizes, header-bar layout), WSL GTK (same GTK
+checks plus `_NET_WM_ICON` length 5638, 0 for none). Three GTK findings on the
+way, both silent:
+- A loose PNG on the search path is enough for the titlebar but gives the
+  platform nothing: GTK builds the WM icon list from theme-declared sizes
+  (`gtk_icon_theme_get_icon_sizes`), and a loose file has none. The HWND had
+  no icon while the titlebar showed one -- which is why SoftPCB-UI's taskbar
+  icon only ever came from the exe's ICO. GtkBackend now copies the PNG into
+  a private hicolor theme.
+- GDK X11 silently drops icons over the max request size; 256x256 (65538
+  longs) is over WSLg's 65435, so the theme declares 32, 48 and 256.
+- Clearing: GDK Windows returns early on an empty icon list, so the HWND kept
+  the old icon; `scui_window_clear_platform_icon` sends WM_SETICON 0.
+
+2026-11-15 驗證(`P118_SEQUENCE=1`,結束碼 0 = a、b、無、a 四步全部相符):WinUI、Windows GTK、WSL GTK(含 `_NET_WM_ICON`)。
+途中三個 GTK 發現，都是靜默的：搜尋路徑上的散裝 PNG 夠標題列用，卻不給平台任何東西——GTK 由主題宣告的尺寸建立 WM 圖示清單，
+散裝檔沒有尺寸,HWND 因此沒有圖示(SoftPCB-UI 的工作列圖示一直只來自 exe 的 ICO),GtkBackend 改為把 PNG 複製進私有 hicolor
+主題;GDK X11 默默丟掉超過最大請求的圖示,256x256 超過 WSLg 的上限，所以主題宣告 32、48、256。清除時 GDK Windows 遇到空清單
+直接返回,HWND 保留舊圖示，由 `scui_window_clear_platform_icon` 送 WM_SETICON 0。
+
+使用者經 SofPCB-W11 要求(2026-11-15 核准，含測試 app P118):SoftPCB-UI 自己呼叫 GTK 設定視窗圖示
+(SoftPCB-UI 15af374,Support/WindowIcon.swift),WinUI 建置無法使用。新增接受隨附 PNG 的 Scene modifier,
+後面是新的 `BackendFeatures.WindowIcons` protocol。分支 `feature/window-icon`。依平台分工:GtkBackend、
+WinUIBackend、核心、P118 由 Windows 端做;AppKit、UIKit、Android 由 Mac 端(M4)做——上列 API 是待查證的候選，
+不是結論。不在範圍內：檔案總管裡 .exe 的圖示是連結時的資源。完成條件:P118 在 GTK(Windows、WSL)與 WinUI 上
+從平台讀回圖示;SoftPCB-UI 移除自己的 GTK 呼叫。
+
 ### Layout passes: SoftPCB-UI's field matrix opens slowly / 排版次數過多 (2026-11-07, Windows)
 
 Branch `perf/layout-passes`, merged into develop only after verification (user,

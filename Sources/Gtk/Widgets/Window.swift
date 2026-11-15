@@ -33,6 +33,24 @@ open class Window: Widget {
         }
     }
 
+    /// The name of the window's icon, looked up in the icon theme.
+    /// 視窗圖示的名稱，在圖示主題中查找。
+    @GObjectProperty(named: "icon-name") public var iconName: String?
+
+    /// Whether the titlebar GTK draws shows the window's icon at its leading
+    /// edge, by adding `icon` to the header bar's `decoration-layout` (see
+    /// ``applyDecorationLayout()``). GTK's default layout has no icon.
+    ///
+    /// GTK 繪製的標題列是否在前緣顯示視窗圖示，做法是把 `icon` 加進 header bar 的 `decoration-layout`
+    /// (見 ``applyDecorationLayout()``)。GTK 的預設排列沒有圖示。
+    public var showsIcon = false {
+        didSet {
+            if showsIcon != oldValue {
+                applyDecorationLayout()
+            }
+        }
+    }
+
     /// The largest content size the window may be resized to, or `nil` for no
     /// limit. GTK 4 has no maximum window size, so nothing here enforces it on
     /// its own: GtkBackend hands it to the platform window where one can take
@@ -204,7 +222,7 @@ open class Window: Widget {
     /// 能在被決定之前先被量測。
     public func installMeasurableTitlebar() {
         gtk_window_set_titlebar(castedPointer(), gtk_header_bar_new())
-        if !minimizable {
+        if !minimizable || showsIcon {
             applyDecorationLayout()
         }
     }
@@ -273,7 +291,7 @@ open class Window: Widget {
         }
 
         gtk_window_set_titlebar(castedPointer(), headerBar)
-        if !minimizable {
+        if !minimizable || showsIcon {
             applyDecorationLayout()
         }
     }
@@ -312,15 +330,20 @@ open class Window: Widget {
     /// `nil`(依循設定)。每次替換 titlebar 時與 realize 時都會再執行，因為之後才建立的 bar 會從設定開始。
     public func applyDecorationLayout() {
         var layout: String?
-        if !minimizable {
+        if !minimizable || showsIcon {
             // GTK's own default when the setting is unset.
             // 設定未設時採用 GTK 自己的預設值。
             let setting = Settings.default?.decorationLayout ?? "menu:minimize,maximize,close"
-            layout = setting.split(separator: ":", omittingEmptySubsequences: false)
+            var sides = setting.split(separator: ":", omittingEmptySubsequences: false)
                 .map { side in
-                    side.split(separator: ",").filter { $0 != "minimize" }.joined(separator: ",")
+                    side.split(separator: ",").map(String.init).filter { minimizable || $0 != "minimize" }
                 }
-                .joined(separator: ":")
+            // The icon leads the left side, unless the setting already shows it.
+            // 圖示放在左側最前面，除非設定已經顯示它。
+            if showsIcon && !sides.contains(where: { $0.contains("icon") }) {
+                sides[0].insert("icon", at: 0)
+            }
+            layout = sides.map { $0.joined(separator: ",") }.joined(separator: ":")
         }
         var child = gtk_widget_get_first_child(castedPointer())
         while let current = child {
@@ -717,7 +740,7 @@ open class Window: Widget {
         // set, so `minimizable` is applied again once that bar exists.
         // 視窗沒有設定 header bar 時,GTK 會在 realize 時建立自己的那條，所以那條存在之後再套用一次 `minimizable`。
         addSignal(name: "realize") { [weak self] () in
-            guard let self, !self.minimizable else { return }
+            guard let self, !self.minimizable || self.showsIcon else { return }
             self.applyDecorationLayout()
         }
         addSignal(name: "destroy") { [weak self] () in

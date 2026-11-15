@@ -231,6 +231,24 @@ gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
 // _NET_WM_STATE_ABOVE 時(2026-10-20:WSLg 的仍然沒有);Wayland 永遠不行。GtkBackend 只在此為 TRUE 時提供 `.floating`。
 gboolean scui_window_topmost_supported(void);
 
+// Takes the icon off a window's platform window, after GTK's own icon name was
+// cleared. Needed on Windows only: with no icon, GTK hands GDK an empty list,
+// and GDK's Windows backend returns early on an empty list instead of clearing
+// (gdk_win32_surface_set_icon_list), so the HWND kept the last icon -- P118's
+// "none" step read it back on 2026-11-15. X11 deletes _NET_WM_ICON itself.
+// Does nothing before the window is realized or on other platforms.
+// 在 GTK 自己的圖示名稱清除之後，拿掉視窗的平台視窗圖示。只有 Windows 需要：沒有圖示時 GTK 交給 GDK 空清單，而 GDK 的
+// Windows backend 遇到空清單直接返回、不清除(gdk_win32_surface_set_icon_list),HWND 因此保留上一個圖示——P118 的「無」
+// 那一步於 2026-11-15 讀回了它。X11 會自己刪除 _NET_WM_ICON。視窗 realize 之前或其他平台上不做任何事。
+void scui_window_clear_platform_icon(GtkWidget *window);
+
+// The length in longs of the window's _NET_WM_ICON on X11, 0 when it has none,
+// -1 when this is not an X11 window or it is not realized. Read-only; for P118
+// to check that the icon reached the window manager, not only GTK.
+// X11 上視窗 _NET_WM_ICON 的長度(以 long 計),沒有時為 0,不是 X11 視窗或尚未 realize 時為 -1。唯讀；供 P118 確認圖示
+// 送到了視窗管理員，而不只是 GTK。
+long scui_window_x11_icon_length(GtkWidget *window);
+
 // Adds every .ttf in `directory` whose name starts with `prefix` (case-insensitive)
 // to fontconfig, for this process only. Linux only; returns how many were added, 0
 // elsewhere. Call before Pango builds its font map. See gtk_wsl_fonts.c.

@@ -125,3 +125,54 @@ gboolean scui_window_topmost_supported(void) {
     return FALSE;
 #endif
 }
+
+// See the declaration in include/gtk_helpers.h. / 見 include/gtk_helpers.h 的宣告。
+void scui_window_clear_platform_icon(GtkWidget *window) {
+#ifdef G_OS_WIN32
+    if (!GTK_IS_NATIVE(window)) {
+        return;
+    }
+    GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(window));
+    HWND handle = surface == NULL ? NULL : gdk_win32_surface_get_handle(surface);
+    if (handle != NULL) {
+        SendMessageW(handle, WM_SETICON, ICON_BIG, 0);
+        SendMessageW(handle, WM_SETICON, ICON_SMALL, 0);
+    }
+#else
+    (void)window;
+#endif
+}
+
+// See the declaration in include/gtk_helpers.h. / 見 include/gtk_helpers.h 的宣告。
+long scui_window_x11_icon_length(GtkWidget *window) {
+#if !defined(G_OS_WIN32) && !defined(__APPLE__) && defined(GDK_WINDOWING_X11)
+    if (!GTK_IS_NATIVE(window)) {
+        return -1;
+    }
+    GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(window));
+    if (surface == NULL || !GDK_IS_X11_SURFACE(surface)) {
+        return -1;
+    }
+    GdkDisplay *display = gdk_surface_get_display(surface);
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0, remaining = 0;
+    unsigned char *data = NULL;
+    int status = XGetWindowProperty(
+        gdk_x11_display_get_xdisplay(display), gdk_x11_surface_get_xid(surface),
+        gdk_x11_get_xatom_by_name_for_display(display, "_NET_WM_ICON"),
+        0, 0, False, AnyPropertyType, &type, &format, &count, &remaining, &data);
+    if (data != NULL) {
+        XFree(data);
+    }
+    if (status != Success) {
+        return -1;
+    }
+    // Asked for zero longs, so the whole property is in `remaining`, in bytes.
+    // 要求 0 個 long,所以整個屬性都在 `remaining`,單位是位元組。
+    return type == None ? 0 : (long)(remaining / 4);
+#else
+    (void)window;
+    return -1;
+#endif
+}

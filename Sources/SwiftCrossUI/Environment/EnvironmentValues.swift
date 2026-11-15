@@ -770,6 +770,11 @@ extension EnvironmentValues {
     /// Set by ``Scene/windowLevel(_:)``.
     @Entry internal var windowLevel: WindowLevel = .automatic
 
+    /// The icon of windows, a PNG file.
+    ///
+    /// Set by ``Scene/windowIcon(_:)``.
+    @Entry internal var windowIcon: URL? = nil
+
     /// The default launch behavior of windows.
     ///
     /// Set by ``Window/defaultLaunchBehavior(_:)->Scene``.

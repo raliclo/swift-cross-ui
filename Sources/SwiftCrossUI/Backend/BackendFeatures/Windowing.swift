@@ -1,3 +1,5 @@
+import Foundation
+
 extension BackendFeatures {
     /// Extra backend methods for window handling.
     ///
@@ -48,6 +50,27 @@ extension BackendFeatures {
         /// widget, and an app should still run on a platform that cannot
         /// provide it.
         func setLevel(ofWindow window: Window, to level: WindowLevel)
+    }
+
+    /// Backend methods for a window's icon, set with ``Scene/windowIcon(_:)``.
+    ///
+    /// Its own protocol, as ``WindowLevels`` is, so a backend that has not
+    /// implemented it still compiles; SwiftCrossUI logs once when a scene asks
+    /// for an icon such a backend cannot show.
+    ///
+    /// 視窗圖示的 backend 方法，以 ``Scene/windowIcon(_:)`` 設定。和 ``WindowLevels`` 一樣是獨立的 protocol,
+    /// 所以尚未實作的 backend 照樣能編譯；scene 要求這種 backend 顯示圖示時,SwiftCrossUI 會記錄一次。
+    @MainActor
+    public protocol WindowIcons<Window>: Core {
+        /// Sets a window's icon from a PNG file, or restores the platform's
+        /// default when `icon` is `nil`.
+        ///
+        /// Called before the window is first shown and again whenever the
+        /// scene's icon changes, never with an unchanged value.
+        ///
+        /// 由 PNG 檔設定視窗圖示,`icon` 為 `nil` 時恢復平台預設。在視窗第一次顯示之前呼叫，之後在 scene
+        /// 的圖示改變時再呼叫，不會以未改變的值呼叫。
+        func setIcon(ofWindow window: Window, to icon: URL?)
     }
 
     /// Backend methods for setting window behaviors.

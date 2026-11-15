@@ -40,6 +40,10 @@ final class WindowReference<SceneType: WindowingScene> {
     /// again, because `.automatic` and `.normal` can map to a platform-level
     /// "not topmost" call that would undo temporary external pins.
     private var lastRequestedWindowLevel: WindowLevel?
+    /// The icon last handed to the backend; see ``Scene/windowIcon(_:)``.
+    /// 最後交給 backend 的圖示；見 ``Scene/windowIcon(_:)``。
+    private var appliedWindowIcon: URL?
+    private var reportedUnsupportedWindowIcon = false
     /// The title last handed to the backend, whatever its source.
     ///
     /// Cached so an unchanged title is not re-applied on every layout pass.
@@ -641,6 +645,24 @@ final class WindowReference<SceneType: WindowingScene> {
 
         // Generally just used to update the window color scheme
         backend.updateWindow(window, environment: environment)
+
+        // The icon goes on before the first show, so the window never appears
+        // with the default one, and again only when the scene's icon changes.
+        // 圖示在第一次顯示之前設定，視窗才不會先以預設圖示出現；之後只在 scene 的圖示改變時再設定。
+        if environment.windowIcon != appliedWindowIcon {
+            if let iconBackend = backend as? any BackendFeatures.WindowIcons {
+                func setIcon<NewBackend: BackendFeatures.WindowIcons>(backend: NewBackend) {
+                    backend.setIcon(ofWindow: window as! NewBackend.Window, to: environment.windowIcon)
+                }
+                setIcon(backend: iconBackend)
+            } else if environment.windowIcon != nil && !reportedUnsupportedWindowIcon {
+                reportedUnsupportedWindowIcon = true
+                logger.warning(
+                    "windowIcon is not supported by \(String(describing: Backend.self)) yet; the window keeps the default icon"
+                )
+            }
+            appliedWindowIcon = environment.windowIcon
+        }
 
         // Delay committing the view graph so that the View.inspectWindow(_:)
         // modifiers can be used to overwrite certain SwiftCrossUI behaviors
