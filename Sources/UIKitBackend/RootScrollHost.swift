@@ -555,18 +555,36 @@ final class RootScrollHost: UIScrollView {
                 // After the transform, not before: scaling is about the centre,
                 // so the frame moves and the origin has to be set again.
                 // 在 transform 之後而非之前：縮放是繞中心進行的，frame 會移動，因此原點必須重新設定。
-                let origin = CGPoint(x: -box.minX * scale, y: -box.minY * scale)
+                var origin = CGPoint(x: -box.minX * scale, y: -box.minY * scale)
+                // **Content that would start under the mode button starts below it**,
+                // as in actualView. Scaled to fit the width, the root starts in the
+                // corner the button rests in, so P14's title sat under "rwdView"
+                // (2026-11-15: title at y 62, button at y 70 to 98). The point p of
+                // the content is shown at origin + p * scale.
+                // **會從模式按鈕底下開始的內容，改從按鈕下方開始**,與 actualView 相同。縮放到塞進寬度之後，
+                // 根從按鈕停放的角落開始，所以 P14 的標題被「rwdView」蓋住(2026-11-15:標題 y 62,按鈕 y 70 到 98)。
+                var drop: CGFloat = 0
+                let root = rootFrame ?? box
+                let lead = CGRect(
+                    x: origin.x + root.minX * scale, y: origin.y + root.minY * scale,
+                    width: root.width * scale, height: root.height * scale)
+                if let avoided = avoidedRect?.offsetBy(dx: -frame.minX, dy: -frame.minY),
+                    lead.intersects(avoided)
+                {
+                    drop = avoided.maxY - lead.minY
+                }
+                origin.y += drop
                 if content.frame.origin != origin {
                     content.frame.origin = origin
                 }
                 if contentInset != .zero {
                     contentInset = .zero
                 }
-                let size = CGSize(width: bounds.width, height: box.height * scale)
+                let size = CGSize(width: bounds.width, height: box.height * scale + drop)
                 if contentSize != size {
                     contentSize = size
                 }
-                isScrollEnabled = refreshControl != nil || box.height * scale > bounds.height
+                isScrollEnabled = refreshControl != nil || box.height * scale + drop > bounds.height
         }
     }
 }
