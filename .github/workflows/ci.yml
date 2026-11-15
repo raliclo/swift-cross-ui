@@ -46,7 +46,11 @@ concurrency:
 
 jobs:
   macos:
-    runs-on: macos-15
+    # macOS 26, not 15: the csv2 release binary is built for macOS 26 and aborted on macos-15 for want of
+    # libswift_DarwinFoundation1.dylib, so the sweep table and build-manifest.csv2 were never written (run 43674209622).
+    # macOS 26 而非 15:csv2 的發行檔是為 macOS 26 建置的，在 macos-15 上因缺少 libswift_DarwinFoundation1.dylib 而中止，
+    # sweep 結果表與 build-manifest.csv2 因此從未寫出(run 43674209622)。
+    runs-on: macos-26
     timeout-minutes: 120
     env:
       SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
