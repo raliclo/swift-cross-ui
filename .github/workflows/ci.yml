@@ -11,8 +11,8 @@
 #   there is no bare Linux machine here, so this is the only routine Linux check.
 # - windows: WinUIBackend built, plus P114, P2 and P116 through compile.zsh.
 # - lint: SwiftLint.
-# ios and android sweep P2 P8 P12 P114 P116; run by hand with full=true for every app.
-# macos, linux and windows build P2 and P116 and launch each for 20 s (ci_launch_check.zsh).
+# ios, android and macos sweep P2 P8 P12 P114 P116; run by hand with full=true for every app.
+# macos, linux and windows build P2 and P116 and launch each for 20 s (ci_launch_check.zsh); macos also replays and photographs the same apps from actions/mac/.
 # 六個工作，各自涵蓋本機無法在每次推送時檢查的部分:
 # - macos:核心與 AppKitBackend,建置並測試(swift test)。
 # - ios:以 xcodebuild 建置測試 app,在 iOS 模擬器上重放動作檔(sweep_apple.zsh),使用 xcode-27 映像。
@@ -20,8 +20,8 @@
 # - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查。
 # - windows:建置 WinUIBackend,另以 compile.zsh 建置 P114、P2 與 P116。
 # - lint:SwiftLint。
-# ios 與 android 跑 P2 P8 P12 P114 P116;手動執行時加 full=true 則跑每一支 app。
-# macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh)。
+# ios、android 與 macos 跑 P2 P8 P12 P114 P116;手動執行時加 full=true 則跑每一支 app。
+# macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh);macos 另重放 actions/mac/ 中同一組 app 的動作檔並拍照。
 #
 # Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
 # since its installer has no plain 6.4 download. / 各平台都用 Swift 6.4,與本機相同；Windows 的安裝程式沒有單純的 6.4 下載，所以指定確切版本 6.4.2。
@@ -36,7 +36,7 @@ on:
       full:
         # Every app with an action file, instead of the few below (SWEEP_APPS); slow.
         # 跑每一支有動作檔的 app,而不是下面那幾支(SWEEP_APPS);很慢。
-        description: 'Sweep every iOS and Android app (-full)'
+        description: 'Sweep every iOS, Android and macOS app (-full)'
         type: boolean
         default: false
 
@@ -47,6 +47,9 @@ concurrency:
 jobs:
   macos:
     runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -83,10 +86,12 @@ jobs:
         test -n "$bin"
         echo "${bin%/*}" >> "$GITHUB_PATH"
 
-    # P2 and P116 on every platform (2026-11-13); see the windows job.
-    # P2 與 P116 在每個平台(2026-11-13);見 windows 工作。
-    - name: Build P2 and P116 (AppKitBackend)
-      run: for app in P2 P116; do zsh testapp/compile.zsh "$app"; done
+    # P2 and P116 on every platform (2026-11-13), and on macOS the rest of SWEEP_APPS for the sweep below (2026-11-15).
+    # P2 與 P116 在每個平台(2026-11-13);macOS 另建置 SWEEP_APPS 的其餘 app,供下方的 sweep 使用(2026-11-15)。
+    - name: Build the macOS apps (AppKitBackend)
+      run: |
+        if [ "$SWEEP_APPS" = all ]; then apps=$(ls testapp/actions/mac/P*.actions | sed -E 's|.*/(P[0-9]+)-.*|\1|' | sort -u); else apps=$SWEEP_APPS; fi
+        for app in $apps; do zsh testapp/compile.zsh "$app"; done
 
     # The screen desktop action-file runs assume, 1920x1080 at scale 1 (check_screen_macos).
     # The runner starts at 1024x768; displayplacer lists 1920x1080 as mode 10 and switches
@@ -108,6 +113,37 @@ jobs:
       run: |
         zsh testapp/test_support/ci_launch_check.zsh 20 - testapp/output/P2
         zsh testapp/test_support/ci_launch_check.zsh 20 appear-to-hop testapp/output/P116
+
+    # The same apps as the iOS and Android sweeps, replayed from actions/mac/ and photographed
+    # (2026-11-15). The launch check above only proves the apps start; this presses them.
+    # Locally 8 of 8 files passed (P2 P8 P12 P114 P116) and each capture showed its expected state.
+    # 與 iOS、Android sweep 相同的 app,從 actions/mac/ 重放並拍照(2026-11-15)。上面的啟動檢查只證明 app 能啟動，
+    # 這一步實際操作它們。本機 8 份檔案全數通過(P2 P8 P12 P114 P116),每張擷圖都顯示預期的狀態。
+    - name: macOS sweep (AppKitBackend)
+      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --macos; else zsh testapp/sweep_apple.zsh --macos $SWEEP_APPS; fi
+
+    # The sweep exits 0 whatever happened; every row of its table has to be a pass.
+    # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
+    - name: Every macOS action file passes
+      run: |
+        t=testapp/output/macos-sweep.csv2
+        csv2 -r -i "$t"
+        total=$(csv2 -r --json -i "$t" | grep -c '"record":' || true)
+        passed=$(csv2 -r --json -i "$t" | grep -c '"result":"pass"' || true)
+        echo "$passed of $total pass"
+        test "$total" -gt 0 && test "$passed" -eq "$total"
+
+    - name: Upload macOS captures and logs
+      if: always()
+    # Captures are in testapp/output/screenshots/, where test.zsh writes them; the per-file logs are in output/sweep-macos/.
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-sweep
+        path: |
+          testapp/output/macos-sweep.csv2
+          testapp/output/screenshots/*-macos-*.png
+          testapp/output/sweep-macos/*.log
+        if-no-files-found: warn
 
   ios:
     # Xcode 27 (Swift 6.4) is only on the xcode-27 image; macos-26 still has Xcode 26.
