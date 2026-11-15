@@ -9,6 +9,9 @@ import SwiftCrossUI
 #if os(Windows)
     import WinSDK
 #endif
+#if canImport(AppKitBackend)
+    import AppKit
+#endif
 
 // P118 Window icon: Scene.windowIcon(_:) (todo "Window icon API", 2026-11-15).
 //
@@ -118,6 +121,17 @@ enum P118 {
                 problems.append("win32 still shows a P118 icon")
             }
         #endif
+        #if canImport(AppKitBackend)
+            let dock = appKitCentre()
+            log("readback appkit: applicationIconImage centre=\(dock.map(hex) ?? "no icon")")
+            if let expected {
+                if dock == nil || !close(dock!, expected.1) {
+                    problems.append("Dock icon centre is not the icon's")
+                }
+            } else if let dock, colours.values.contains(where: { close(dock, $0.1) }) {
+                problems.append("the Dock still shows a P118 icon")
+            }
+        #endif
         let verdict = problems.isEmpty ? "match" : "MISMATCH (\(problems.joined(separator: "; ")))"
         log("P118 icon \(expected == nil ? "none" : choice): \(verdict)")
         return problems.isEmpty
@@ -126,6 +140,37 @@ enum P118 {
     static func close(_ a: (UInt8, UInt8, UInt8), _ b: (UInt8, UInt8, UInt8)) -> Bool {
         abs(Int(a.0) - Int(b.0)) <= 8 && abs(Int(a.1) - Int(b.1)) <= 8 && abs(Int(a.2) - Int(b.2)) <= 8
     }
+
+    #if canImport(AppKitBackend)
+        /// The centre pixel of the application icon AppKit holds now, drawn at 32x32,
+        /// in sRGB. AppKit has no per-window icon; `windowIcon` sets the Dock icon.
+        /// AppKit 目前持有之 App 圖示的中心像素，以 32x32、sRGB 畫出。AppKit 沒有每個視窗的圖示;`windowIcon` 設定的是 Dock 圖示。
+        @MainActor
+        static func appKitCentre() -> (UInt8, UInt8, UInt8)? {
+            // What AppKit hands back is an sRGB snapshot in BGRA order, not the image it
+            // was given. Drawn once, unscaled, into a 1x1 sRGB RGBA context positioned on
+            // the centre: same colour space, so nothing is converted, and the byte order is
+            // the context's. Drawing it into a device-RGB bitmap first had moved the orange
+            // centre #F08C1E to #F59E26 (2026-11-15).
+            // AppKit 交還的是 BGRA 順序的 sRGB 快照，不是當初給它的圖片。原尺寸畫一次到對準中心的 1x1 sRGB RGBA 畫布：
+            // 色彩空間相同，不做任何轉換，位元組順序由畫布決定。先畫進 device-RGB 位圖時，橘色中心 #F08C1E 變成了 #F59E26(2026-11-15)。
+            guard let image = NSApplication.shared.applicationIconImage else { return nil }
+            var rect = NSRect(origin: .zero, size: image.size)
+            guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil),
+                let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+                let context = CGContext(
+                    data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: srgb,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return nil }
+            context.draw(
+                cg,
+                in: CGRect(
+                    x: -CGFloat(cg.width / 2), y: -CGFloat(cg.height / 2),
+                    width: CGFloat(cg.width), height: CGFloat(cg.height)))
+            guard let pixel = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+            return (pixel[0], pixel[1], pixel[2])
+        }
+    #endif
 
     #if canImport(CGtk)
         /// How many sizes the icon theme declares for `name`. GTK builds the
