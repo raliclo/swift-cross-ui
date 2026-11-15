@@ -1,9 +1,10 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "Show the cover", not (101, 366); the layout had moved and the click missed. / 改用 taplabel「Show the cover」而非 (101, 366);版面已移動，點擊落空。
 # P49 on iOS: fullScreenCover. Pass: the cover fills the whole window with no
 # drag indicator, and "cover opens" reads 1.
 # Measured 2026-10-01 at native size from the launch tree: "Show the cover" is
 # x 23-141, y 438-460.
 # P49 在 iOS 上:fullScreenCover。通過:cover 覆蓋整個視窗、沒有拖曳指示器,cover opens 讀到 1。
 sleep,,,,,,1500000,let P49 render,ios
-click,101,366,client,left,,,"Show the cover -- the cover must fill the window",ios
+taplabel,,,,,Show the cover,,"Show the cover -- the cover must fill the window",ios
 sleep,,,,,,1500000,let the presentation animate in,ios

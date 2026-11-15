@@ -1,4 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: the system picker's X re-measured at (342, 105) from a capture; (309, 100) missed it and the picker stayed open. It is not the app's, so taplabel cannot reach it. / 系統檔案選擇器的 X 依擷圖重量為 (342, 105);(309, 100) 沒點中，選擇器一直開著。它不屬於 app,所以 taplabel 碰不到。
+# 2026-11-15: taplabel "Open file dialog", not (310, 166); the layout had moved and the click missed. / 改用 taplabel「Open file dialog」而非 (310, 166);版面已移動，點擊落空。
 # Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
 # Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
 # Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
@@ -19,7 +21,7 @@ action,x,y,origin,button,key,micros,note,platform
 # the replay ended on "Open: Cancelled" (p1-ios-final-20261016-025749.png).
 # 2026-10-16 於 iPhone 17 模擬器重新瞄準：開啟的點擊本來就落在按鈕內;現在加上關閉選擇器的 X,
 # 重放結束時狀態列為「Open: Cancelled」。
-click,310,166,client,left,,,"Open file dialog -- at the centre of Button 'Open file dialog' {{251,155},{119,22}} in the 2026-10-16 --dump-tree",ios
-sleep,,,,,,2000000,let the picker animate in,ios
-click,309,100,client,left,,,"the picker's X (close) -- the Open line must then read Open: Cancelled",ios
+taplabel,,,,,Open file dialog,,"Open file dialog -- at the centre of Button 'Open file dialog' {{251,155},{119,22}} in the 2026-10-16 --dump-tree",ios
+sleep,,,,,,4000000,"let the picker animate in and load; at 2 s on 2026-11-15 the X was not yet live and the picker stayed open",ios
+click,342,105,client,left,,,"the picker's X (close) -- the Open line must then read Open: Cancelled",ios
 sleep,,,,,,1500000,let the picker dismiss and the status line redraw,ios

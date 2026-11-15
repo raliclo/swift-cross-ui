@@ -1,4 +1,5 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "Close this window", not (164, 419); the layout had moved and the click missed. / 改用 taplabel「Close this window」而非 (164, 419);版面已移動，點擊落空。
 # P75 on iOS (iPhone): Close this window -> dismissWindow().
 #
 # The first run of this file (2026-09-30) expected the app to leave the screen and
@@ -17,5 +18,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 視窗**留著**、close handler 不執行、stdout 出現 UIKitBackend 的說明「dismissWindow() left the app's only
 # window open」。多 scene 的路徑（iPad、Catalyst）則會結束 scene session。
 sleep,,,,,,1500000,let P75 render,ios
-click,164,419,client,left,,,Close this window,ios
+taplabel,,,,,Close this window,,Close this window,ios
 sleep,,,,,,2500000,let anything the close started finish,ios
