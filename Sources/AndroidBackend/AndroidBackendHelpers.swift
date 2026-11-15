@@ -172,6 +172,15 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func setTitleOfWindow(_ token: String, _ title: String)
 
+    @JavaMethod
+    func setWindowIcon(_ activity: Activity?, _ path: String)
+
+    @JavaMethod
+    func setIconOfWindow(_ token: String, _ path: String)
+
+    @JavaMethod
+    func taskIconCentre(_ activity: Activity?) -> Int32
+
     /// The URL an intent carries, or `nil`. Through Kotlin because
     /// AndroidKit declares `Intent.getDataString()` as returning a
     /// non-optional `String`, and an intent with no data returns null.

@@ -930,14 +930,25 @@ class AndroidBackendHelpers {
      */
     fun setWindowTitle(activity: Activity, title: String) {
         activity.title = title
-        val description =
-            if (Build.VERSION.SDK_INT >= 33) {
-                android.app.ActivityManager.TaskDescription.Builder().setLabel(title).build()
-            } else {
-                @Suppress("DEPRECATION") android.app.ActivityManager.TaskDescription(title)
-            }
-        activity.setTaskDescription(description)
+        // With the icon windowIcon set, if any; see ScuiWindowIcons.
+        // 連同 windowIcon 設定的圖示(若有);見 ScuiWindowIcons。
+        activity.setTaskDescription(ScuiWindowIcons.taskDescription(activity, title))
     }
+
+    /** windowIcon for the first window: a PNG path, or "" for the app's own icon. */
+    fun setWindowIcon(activity: Activity, path: String) {
+        ScuiWindowIcons.load(activity, path.ifEmpty { null })
+        activity.setTaskDescription(ScuiWindowIcons.taskDescription(activity, activity.title?.toString() ?: ""))
+    }
+
+    /** windowIcon for a window opened as a ScuiWindowActivity, applied when it exists. */
+    fun setIconOfWindow(token: String, path: String) {
+        if (path.isEmpty()) ScuiWindowIcons.byToken.remove(token) else ScuiWindowIcons.byToken[token] = path
+        ScuiWindows.activities[token]?.let { setWindowIcon(it, path) }
+    }
+
+    /** The centre pixel of the task icon the system holds; see ScuiWindowIcons. */
+    fun taskIconCentre(activity: Activity): Int = ScuiWindowIcons.taskIconCentre(activity)
 
     /** Opens a window after the first as a ScuiWindowActivity; see that file. */
     fun openWindow(

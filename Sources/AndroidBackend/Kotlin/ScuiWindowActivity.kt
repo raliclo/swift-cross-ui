@@ -53,6 +53,7 @@ open class ScuiWindowActivity : AppCompatActivity() {
             }
         }
         ScuiWindows.titles[token]?.let { AndroidBackendHelpers().setWindowTitle(this, it) }
+        ScuiWindowIcons.byToken[token]?.let { AndroidBackendHelpers().setWindowIcon(this, it) }
     }
 
     override fun onDestroy() {

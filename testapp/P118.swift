@@ -12,6 +12,9 @@ import SwiftCrossUI
 #if canImport(AppKitBackend)
     import AppKit
 #endif
+#if canImport(AndroidBackend)
+    import AndroidBackend
+#endif
 
 // P118 Window icon: Scene.windowIcon(_:) (todo "Window icon API", 2026-11-15).
 //
@@ -39,6 +42,17 @@ import SwiftCrossUI
 
 enum P118 {
     static let title = "P118 Window icon"
+
+    /// How long a step waits before reading the icon back. Android updates the task's
+    /// description in ActivityManager later than a second: at 1 s the readback still
+    /// held the previous icon, at 5 s the new one (2026-11-15).
+    /// 每一步在讀回圖示之前等多久。Android 在 ActivityManager 更新 task 描述的時間超過一秒：1 秒時讀回的仍是上一個圖示，
+    /// 5 秒時才是新的(2026-11-15)。
+    #if canImport(AndroidBackend)
+        static let settle: UInt64 = 4_000_000_000
+    #else
+        static let settle: UInt64 = 1_000_000_000
+    #endif
 
     /// (outer, centre) colours as RGB. / (外圍、中心)顏色,RGB。
     static let colours: [String: ((UInt8, UInt8, UInt8), (UInt8, UInt8, UInt8))] = [
@@ -130,6 +144,21 @@ enum P118 {
                 }
             } else if let dock, colours.values.contains(where: { close(dock, $0.1) }) {
                 problems.append("the Dock still shows a P118 icon")
+            }
+        #endif
+        #if canImport(AndroidBackend)
+            // The task icon in Recents, as ActivityManager holds it; 0 when none of its own.
+            // 「最近使用」中的 task 圖示，以 ActivityManager 持有的為準；沒有自己的圖示時為 0。
+            let argb = UInt32(bitPattern: AndroidBackend.taskIconCentre())
+            let task: (UInt8, UInt8, UInt8)? =
+                argb == 0 ? nil : (UInt8((argb >> 16) & 0xFF), UInt8((argb >> 8) & 0xFF), UInt8(argb & 0xFF))
+            log("readback android: task icon centre=\(task.map(hex) ?? "no icon")")
+            if let expected {
+                if task == nil || !close(task!, expected.1) {
+                    problems.append("Recents icon centre is not the icon's")
+                }
+            } else if let task, colours.values.contains(where: { close(task, $0.1) }) {
+                problems.append("Recents still shows a P118 icon")
             }
         #endif
         let verdict = problems.isEmpty ? "match" : "MISMATCH (\(problems.joined(separator: "; ")))"
@@ -389,7 +418,7 @@ struct P118View: View {
                 var failures = 0
                 for next in ["a", "b", "none", "a"] {
                     choice = next
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: P118.settle)
                     if !P118.check(next) {
                         failures += 1
                     }
@@ -403,7 +432,7 @@ struct P118View: View {
     func step(_ next: String) {
         choice = next
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(nanoseconds: P118.settle)
             _ = P118.check(next)
         }
     }
