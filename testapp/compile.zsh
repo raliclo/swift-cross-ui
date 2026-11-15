@@ -13,6 +13,7 @@ host_uname="$(uname -s 2>/dev/null || printf unknown)"
 # (test_support/swift_windows_env.zsh, 2026-11-06). Does nothing elsewhere.
 # Windows 上用已安裝的最新 Swift,而不是舊 shell 的 PATH 所指的版本(見該檔,2026-11-06)。其他平台不做事。
 source "${0:A:h}/test_support/swift_windows_env.zsh"
+source "${0:A:h}/test_support/ios_alternate_icons.zsh"
 
 windows_path() {
     case "$host_uname" in
@@ -1914,6 +1915,7 @@ if [ "$target_platform" = "ios" ]; then
             for resources in "$ios_products"/*_"$app_name".bundle(N); do
                 cp -R "$resources" "$app_bundle/"
             done
+            ios_add_alternate_icons "$app_bundle" "$app_name"  # windowIcon on iOS / iOS 的 windowIcon
             codesign --force --deep --sign - "$app_bundle" >/dev/null
             built_by="xcodebuild + iosContainer"
         else

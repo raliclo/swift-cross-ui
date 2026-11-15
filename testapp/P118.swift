@@ -15,6 +15,9 @@ import SwiftCrossUI
 #if canImport(AndroidBackend)
     import AndroidBackend
 #endif
+#if canImport(UIKitBackend)
+    import UIKit
+#endif
 
 // P118 Window icon: Scene.windowIcon(_:) (todo "Window icon API", 2026-11-15).
 //
@@ -42,6 +45,26 @@ import SwiftCrossUI
 
 enum P118 {
     static let title = "P118 Window icon"
+
+    /// Whether the steps run by themselves: P118_SEQUENCE=1, or the launch argument
+    /// --sequence for iOS and Android, whose apps get no environment variables. On
+    /// iOS the runner cannot press buttons here: a system alert confirms every icon
+    /// change, and XCUITest then cannot snapshot the app (2026-11-15).
+    /// 步驟是否自動執行:P118_SEQUENCE=1,或給 iOS 與 Android 的啟動參數 --sequence(它們的 app 收不到環境變數)。
+    /// iOS 上 runner 無法在這裡按按鈕：每次換圖示都有系統提示確認，XCUITest 於是無法擷取 app 的快照(2026-11-15)。
+    static let runsSequence =
+        ProcessInfo.processInfo.environment["P118_SEQUENCE"] == "1" || CommandLine.arguments.contains("--sequence")
+
+    /// Whether a step reads the icon back by itself. Not on iOS: every change brings
+    /// up a system alert, and until the user confirms it, reading alternateIconName
+    /// blocks the main thread. There the action file confirms, then presses Read back.
+    /// 每一步是否自動讀回圖示。iOS 不會：每次變更都會跳出系統提示，使用者確認之前讀 alternateIconName 會卡住主執行緒。
+    /// 在 iOS 上由動作檔先確認，再按 Read back。
+    #if canImport(UIKitBackend)
+        static let readsBackByItself = false
+    #else
+        static let readsBackByItself = true
+    #endif
 
     /// How long a step waits before reading the icon back. Android updates the task's
     /// description in ActivityManager later than a second: at 1 s the readback still
@@ -159,6 +182,16 @@ enum P118 {
                 }
             } else if let task, colours.values.contains(where: { close(task, $0.1) }) {
                 problems.append("Recents still shows a P118 icon")
+            }
+        #endif
+        #if canImport(UIKitBackend)
+            // The alternate app icon iOS reports, by name; nil is the primary icon.
+            // iOS 回報的替代 App 圖示名稱;nil 為主圖示。
+            let current = UIApplication.shared.alternateIconName
+            let wanted = expected == nil ? nil : "scui-p118-\(choice)"
+            log("readback ios: alternateIconName=\(current ?? "primary") supportsAlternateIcons=\(UIApplication.shared.supportsAlternateIcons)")
+            if current != wanted {
+                problems.append("iOS app icon is \(current ?? "primary")")
             }
         #endif
         let verdict = problems.isEmpty ? "match" : "MISMATCH (\(problems.joined(separator: "; ")))"
@@ -411,8 +444,8 @@ struct P118View: View {
             started = true
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
-                guard ProcessInfo.processInfo.environment["P118_SEQUENCE"] == "1" else {
-                    _ = P118.check(choice)
+                guard P118.runsSequence else {
+                    if P118.readsBackByItself { _ = P118.check(choice) }
                     return
                 }
                 var failures = 0
@@ -433,7 +466,7 @@ struct P118View: View {
         choice = next
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: P118.settle)
-            _ = P118.check(next)
+            if P118.readsBackByItself { _ = P118.check(next) }
         }
     }
 }

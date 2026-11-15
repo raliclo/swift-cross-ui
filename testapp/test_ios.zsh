@@ -224,6 +224,7 @@ fi
 # (whose .xctestrun is edited per run) are shared; see test_support/platform_lock.zsh.
 # 一次只跑一個 iOS:simulator、.compile-work-ios 與 testapp/.bundledApp(每次都改寫其 .xctestrun)是共用的。
 source "$script_dir/test_support/platform_lock.zsh" ios
+source "$script_dir/test_support/ios_alternate_icons.zsh"
 
 if [ "$do_build" -eq 1 ]; then
     printf '==> Building %s for the iOS Simulator\n' "$target"
@@ -274,6 +275,7 @@ chmod +x "$bundle_dir/$app_name"
 # even when the source Pn bundle was signed under a different identity.
 # 複製 template 後才替換執行檔。iOS Simulator 使用 ad-hoc signing 即可；即使來源 Pn
 # 以不同 identity 簽署，重新簽署仍可讓產生的 Bundle 正常安裝。
+ios_add_alternate_icons "$bundle_dir" "$target"  # windowIcon on iOS; see that file / iOS 的 windowIcon,見該檔
 codesign --force --deep --sign - "$bundle_dir" >/dev/null
 
 printf '==> Booting Simulator: %s\n' "$device_name"
