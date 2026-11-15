@@ -68,6 +68,16 @@ way, both silent:
 主題;GDK X11 默默丟掉超過最大請求的圖示,256x256 超過 WSLg 的上限，所以主題宣告 32、48、256。清除時 GDK Windows 遇到空清單
 直接返回,HWND 保留舊圖示，由 `scui_window_clear_platform_icon` 送 WM_SETICON 0。
 
+Status 2026-11-15: all five backends implemented. Mac side by M4 (90f2ad9b,
+898e0a9d, 3cc87131): AppKit Dock icon, Android Recents task icon, iOS
+build-time alternate icons (runtime PNGs measured impossible: 3328). At
+3cc87131 P118 still passes on WinUI, Windows GTK and WSL GTK. Open: SoftPCB-UI
+switching to the API and deleting WindowIcon.swift (SofPCB-W11).
+
+狀態 2026-11-15:五個 backend 都已實作。Mac 端由 M4 完成(90f2ad9b、898e0a9d、3cc87131):AppKit 設 Dock 圖示、Android 設
+最近使用畫面的工作圖示、iOS 用建置時宣告的替代圖示(執行期 PNG 實測不可行:3328)。在 3cc87131 上 P118 於 WinUI、Windows GTK、
+WSL GTK 仍然通過。待辦:SoftPCB-UI 改用此 API 並刪除 WindowIcon.swift(SofPCB-W11)。
+
 使用者經 SofPCB-W11 要求(2026-11-15 核准，含測試 app P118):SoftPCB-UI 自己呼叫 GTK 設定視窗圖示
 (SoftPCB-UI 15af374,Support/WindowIcon.swift),WinUI 建置無法使用。新增接受隨附 PNG 的 Scene modifier,
 後面是新的 `BackendFeatures.WindowIcons` protocol。分支 `feature/window-icon`。依平台分工:GtkBackend、
