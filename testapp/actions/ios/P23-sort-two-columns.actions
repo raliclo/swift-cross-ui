@@ -1,4 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "ID", not (117, 527); the layout had moved and the click missed. / 改用 taplabel「ID」而非 (117, 527);版面已移動，點擊落空。
+# 2026-11-15: taplabel "Number", not (323, 527); the layout had moved and the click missed. / 改用 taplabel「Number」而非 (323, 527);版面已移動，點擊落空。
 # P23 #125 sortOrder on iOS: a second header, which must start ascending.
 #
 # **Two jobs in one file, and the second is why it exists.** Tapping column 3
@@ -25,9 +27,9 @@ action,x,y,origin,button,key,micros,note,platform
 sleep,,,,,,900000,let the scene settle,ios
 move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
 scroll,8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
-click,323,527,client,left,,,"the Number header -- column 3 ascending (re-aimed 2026-10-01: headers span y 501-525; 525 is their bottom edge)",ios
+taplabel,,,,,Number,,"the Number header -- column 3 ascending (re-aimed 2026-10-01: headers span y 501-525; 525 is their bottom edge)",ios
 sleep,,,,,,800000,let that land,ios
 move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
 scroll,-8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
-click,117,527,client,left,,,"the ID header -- column 0, and it must start ascending",ios
+taplabel,,,,,ID,,"the ID header -- column 0, and it must start ascending",ios
 sleep,,,,,,900000,let the rows re-sort before the capture,ios

@@ -1,4 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "Number", not (325, 527); the layout had moved and the click missed. / 改用 taplabel「Number」而非 (325, 527);版面已移動，點擊落空。
+# 2026-11-15: taplabel "Number", not (323, 527); the layout had moved and the click missed. / 改用 taplabel「Number」而非 (323, 527);版面已移動，點擊落空。
 # P23 #125 sortOrder on iOS: the header direction, and the reversal.
 #
 # **Two taps on the same header, ending on DESCENDING, is what makes this file
@@ -43,7 +45,7 @@ action,x,y,origin,button,key,micros,note,platform
 sleep,,,,,,900000,let the scene settle before anything is sorted,ios
 move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
 scroll,8,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
-click,323,527,client,left,,,"the Number header -- column 3; this must become ascending (re-aimed 2026-10-01 at native size: the header spans 321-422 x 501-525, and y 525 is its bottom edge; the sweep read sort: none)",ios
+taplabel,,,,,Number,,"the Number header -- column 3; this must become ascending (re-aimed 2026-10-01 at native size: the header spans 321-422 x 501-525, and y 525 is its bottom edge; the sweep read sort: none)",ios
 sleep,,,,,,800000,let the arrow be drawn and the rows re-sort,ios
-click,325,527,client,left,,,"the SAME header again: descending, not a restart",ios
+taplabel,,,,,Number,,"the SAME header again: descending, not a restart",ios
 sleep,,,,,,900000,let the rows reverse before the capture,ios

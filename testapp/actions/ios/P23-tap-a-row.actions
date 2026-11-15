@@ -1,4 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "r5", not (195, 629); the layout had moved and the click missed. / 改用 taplabel「r5」而非 (195, 629);版面已移動，點擊落空。
+# 2026-11-15: taplabel "Select row 2", not (66, 331); the layout had moved and the click missed. / 改用 taplabel「Select row 2」而非 (66, 331);版面已移動，點擊落空。
 # P23 #125 on iOS: the tap direction, which needs its own capture.
 #
 # **The app's log file does not exist on iOS.** `P23Diagnostics.write` appends
@@ -36,7 +38,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
 # 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the scene settle,ios
-click,66,331,client,left,,,Select row 2 first -- put the band somewhere the tap must move it from,ios
+taplabel,,,,,Select row 2,,Select row 2 first -- put the band somewhere the tap must move it from,ios
 sleep,,,,,,800000,let the band be drawn on the third row,ios
-click,195,629,client,left,,,"row 5 -- the band must move here and the readout must read 4 (re-aimed 2026-10-01 at native size: row 5 is y 615; y 632 is row 6)",ios
+taplabel,,,,,r5,,"row 5 -- the band must move here and the readout must read 4 (re-aimed 2026-10-01 at native size: row 5 is y 615; y 632 is row 6)",ios
 sleep,,,,,,900000,let the layout pass move the band before the capture,ios
