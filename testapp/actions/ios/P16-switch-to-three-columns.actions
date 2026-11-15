@@ -1,4 +1,5 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: five notches, then taplabel "Switch to 3 column" instead of a click at (228, 182). The scroll distance varies a little from run to run (the button landed at x 71-83 in three runs), so the tap reads where the button is instead of assuming it; XCUITest does not scroll an off-screen button into view by itself ("Not hittable" at x 446). / 捲 5 格後以 taplabel「Switch to 3 column」點擊，而非點 (228, 182)。每次捲動距離略有不同(三次中按鈕落在 x 71-83),所以點擊以按鈕實際位置為準；XCUITest 不會自己把畫面外的按鈕捲進來(x 446 時回報 Not hittable)。
 # P16: switch the split view from two columns to three.
 #
 # #160 is about a split view's initial layout, and P16 prints the pane sizes so
@@ -40,6 +41,6 @@ action,x,y,origin,button,key,micros,note,platform
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。P16 塞得進寬度。
 move,220,478,client,,,,"the middle of the window, where the drag that brings the next row's target on screen starts (added by the 2026-10-12 re-aim)",ios
-scroll,4,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; this many notches bring it in (added by the 2026-10-12 re-aim)",ios
-click,228,182,client,left,,,"Switch to 3 column -- a middle pane must appear, the label must become Switch to 2 column, and detail must narrow from 239 to 161 (VERIFIED)",ios
+scroll,5,0,,,,,"the next row's target is off this 440 x 956 screen now that the app is laid out at its own default size; five notches bring it fully in (it started at x 446)",ios
+taplabel,,,,,Switch to 3 column,,"Switch to 3 column -- a middle pane must appear, the label must become Switch to 2 column, and detail must narrow (596 to 338 with middle 238 on 2026-11-15)",ios
 sleep,,,,,,900000,let the three panes settle,ios
