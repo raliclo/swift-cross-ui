@@ -1,6 +1,7 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: day 12 is reached from the calendar's "Show year picker" button, 44 pt right and 146 pt down from its centre (from --dump-tree), so the tap does not depend on how far the scroll went. A label of "12" also matches the clock faces. / 第 12 日由日曆的「Show year picker」按鈕中心往右 44 pt、往下 146 pt 取得(取自 --dump-tree),點擊因此不受捲動距離影響。「12」這個標籤也會比對到時鐘面。
 move,400,180,client,,,,park,ios
-scroll,13,0,client,,,,scroll right thirteen notches,ios
+scroll,8,0,client,,,,scroll right until the calendar is on screen,ios
 sleep,,,,,,800000,settle,ios
-click,201,423,client,left,,,tap day 12 in the calendar,ios
+taplabel,44,146,,,Show year picker,,"day 12 in the calendar -- the line under it must read 2025-08-12",ios
 sleep,,,,,,800000,settle,ios

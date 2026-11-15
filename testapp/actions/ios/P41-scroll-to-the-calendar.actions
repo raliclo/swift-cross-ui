@@ -1,7 +1,8 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: 8 notches, not 13. The calendar spans x 398-734 of the content and 13 notches moved about 637 pt, past its left edge; 8 move about 392. / 捲 8 格而非 13 格。日曆位於內容 x 398-734,13 格約移動 637 pt,越過了它的左緣;8 格約 392。
 # P41: scroll the page right so the .graphical calendar and the .wheel cell, which start
 # past the right edge of an iPhone, are on screen for the iOS/Android comparison.
 # P41:把頁面往右捲，讓起點在 iPhone 右緣之外的 .graphical 月曆與 .wheel 格子進入畫面，供 iOS/Android 比對。
 move,400,180,client,,,,park the finger on the title row near the right edge (no picker under it),ios
-scroll,13,0,client,,,,"scroll right thirteen notches (VERIFIED 2026-10-10: the whole calendar and all three wheels on screen, p41-ios-final-20261010-200445.png)",ios
+scroll,8,0,client,,,,"scroll right eight notches (VERIFIED 2026-11-15: the whole calendar on screen, from its month title to the Saturday column)",ios
 sleep,,,,,,800000,let momentum settle before the capture,ios

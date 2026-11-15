@@ -1,6 +1,7 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: taplabel "Show year picker" after 8 notches, not a click at (151, 277) after 13; 13 notches carried the calendar off the left edge. / 捲 8 格後以 taplabel「Show year picker」點擊，而非捲 13 格後點 (151, 277);13 格會把日曆帶出左緣。
 move,400,180,client,,,,park,ios
-scroll,13,0,client,,,,scroll right,ios
+scroll,8,0,client,,,,scroll right until the calendar is on screen,ios
 sleep,,,,,,800000,settle,ios
-click,151,277,client,left,,,tap the month title,ios
+taplabel,,,,,Show year picker,,"the month title -- the month and year wheel must replace the day grid",ios
 sleep,,,,,,1200000,settle,ios

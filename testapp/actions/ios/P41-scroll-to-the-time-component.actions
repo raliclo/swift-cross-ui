@@ -1,4 +1,5 @@
 action,x,y,origin,button,key,micros,note,platform
+# 2026-11-15: the drag starts at (78, 480), blank space under .automatic, not at (78, 732), which is now on the .wheel month column and turned August to May instead of moving the page. / 拖曳起點改為 (78, 480),即 .automatic 下方的空白，而非 (78, 732);後者現在落在 .wheel 的月份欄上，把 August 轉成 May,頁面沒有移動。
 # P41: scroll down to the .hourAndMinute cell.
 #
 # **P41 had never been built for iOS at all**, and the reason is the trap its
@@ -50,7 +51,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 2026-09-02 於 iPhone 16 模擬器上量測：視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView。
-move,78,732,client,,,,"the left margin, clear of every date picker",ios
+move,78,480,client,,,,"blank space under .automatic, clear of every date picker",ios
 sleep,,,,,,300000,,ios
 scroll,0,8,,,,,"the page must move up far enough to show .hourAndMinute (VERIFIED: it renders 9:46 AM over 2025-08-24 09:46, and .compact is still on screen above it)",ios
 sleep,,,,,,900000,let the scroll settle,ios
