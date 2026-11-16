@@ -533,6 +533,20 @@ jobs:
         uname -s; zsh --version; command -v git swift; git --version; swift --version
         echo "HOME=$HOME TMP=$TMP TEMP=$TEMP"
 
+    # wincap writes a BMP; screenshot.zsh uses FFmpeg to produce the required PNG.
+    # wincap 寫出 BMP；screenshot.zsh 用 FFmpeg 轉成驗收所需的 PNG。
+    - name: Install FFmpeg for Windows screenshots
+      run: |
+        if (-not (Get-Command ffmpeg.exe -ErrorAction SilentlyContinue)) {
+          choco install ffmpeg --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "FFmpeg installation failed: $LASTEXITCODE" }
+          Join-Path $env:ChocolateyInstall 'bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        }
+
+    - name: Verify FFmpeg in the Windows screenshot shell
+      shell: bash
+      run: zsh -c 'ffmpeg -version'
+
     # compile.zsh records each exe in output/build-manifest.csv2 through csv2.
     # compile.zsh 經由 csv2 把每個 exe 記進 output/build-manifest.csv2。
     - name: Install csv2
