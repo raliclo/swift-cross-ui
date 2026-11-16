@@ -1,6 +1,8 @@
 package dev.swiftcrossui.androidbackend
 
 import android.os.Bundle
+import android.content.Intent
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +22,13 @@ import androidx.appcompat.app.AppCompatActivity
 // 該 token 啟動此 activity;activity 把內容據為己有。
 open class ScuiWindowActivity : AppCompatActivity() {
     private var token: String? = null
+    private var replacingTask = false
+    private var contentView: View? = null
+    private val sizeListener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+            token?.let { ScuiWindows.onResized[it]?.call() }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,8 +42,11 @@ open class ScuiWindowActivity : AppCompatActivity() {
             return
         }
         this.token = token
+        val previous = ScuiWindows.activities[token]
+        previous?.detachSizeListener()
         (content.parent as? ViewGroup)?.removeView(content)
         setContentView(content)
+        contentView = content
         ScuiWindows.activities[token] = this
         // Closable, minimizable and resizable, set before the activity existed (WindowBehaviors.kt).
         // 在 activity 存在之前就設定的 closable、minimizable 與 resizable(WindowBehaviors.kt)。
@@ -47,19 +59,45 @@ open class ScuiWindowActivity : AppCompatActivity() {
         // hears about every new size rather than computing one up front.
         // 視窗尺寸就是此 activity 被分配到的大小——全螢幕、分割的一半、自由視窗——並隨之改變，所以 Swift 會聽到每個
         // 新尺寸，而不是事先算一個。
-        content.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
-                ScuiWindows.onResized[token]?.call()
-            }
-        }
+        content.addOnLayoutChangeListener(sizeListener)
         ScuiWindows.titles[token]?.let { AndroidBackendHelpers().setWindowTitle(this, it) }
         ScuiWindowIcons.byToken[token]?.let { AndroidBackendHelpers().setWindowIcon(this, it) }
+        if (previous?.replacingTask == true) {
+            previous.finishAndRemoveTask()
+            ScuiWindows.onResized[token]?.call()
+        }
+    }
+
+    private fun detachSizeListener() {
+        contentView?.removeOnLayoutChangeListener(sizeListener)
+        contentView = null
+    }
+
+    /** A task inherits its root's resizability. / task 繼承根 Activity 的可縮放性。 */
+    internal fun replaceWithResizableTask() {
+        val token = token ?: return
+        if (replacingTask || isFinishing || ScuiWindows.activities[token] !== this) return
+        replacingTask = true
+        try {
+            startActivity(
+                Intent(this, ScuiWindowActivity::class.java)
+                    .putExtra(EXTRA_TOKEN, token)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            )
+        } catch (error: RuntimeException) {
+            replacingTask = false
+            Log.w("SCUI-WindowBehaviors", "Could not replace the fixed-size task", error)
+        }
     }
 
     override fun onDestroy() {
         val token = token
-        if (token != null && isFinishing) {
+        detachSizeListener()
+        val currentActivity = token?.let { ScuiWindows.activities[it] }
+        if (token != null && ScuiWindows.activities[token] === this) {
             ScuiWindows.activities.remove(token)
+        }
+        if (token != null && isFinishing && currentActivity === this) {
             ScuiWindows.contents.remove(token)
             ScuiWindows.titles.remove(token)
             ScuiWindows.onResized.remove(token)

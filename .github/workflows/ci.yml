@@ -462,6 +462,7 @@ jobs:
           testapp/output/linux-sweep.csv2
           testapp/output/screenshots/*-linux-final-*.png
           testapp/output/sweep-linux/*.log
+          testapp/output/sweep-linux/*-desktop.png
         if-no-files-found: warn
 
   windows:

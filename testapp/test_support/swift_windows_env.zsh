@@ -39,8 +39,9 @@ if [[ $(uname -s) == *NT* ]]; then
     swift_windows_version=''
     for swift_windows_candidate in "${(Oa)swift_windows_toolchains[@]}"; do
         swift_windows_candidate_version=${${swift_windows_candidate:t}%%+*}
+        swift_windows_sdk=$swift_windows_base/Platforms/$swift_windows_candidate_version/Windows.platform/Developer/SDKs/Windows.sdk
         if [[ -d $swift_windows_base/Runtimes/$swift_windows_candidate_version/usr/bin &&
-              -d $swift_windows_candidate/usr/bin ]]; then
+              -d $swift_windows_candidate/usr/bin && -d $swift_windows_sdk ]]; then
             swift_windows_version=$swift_windows_candidate_version
             swift_windows_toolchain_bin=$swift_windows_candidate/usr/bin
             break
@@ -55,10 +56,7 @@ if [[ $(uname -s) == *NT* ]]; then
         path=(${path:#*\\Programs\\Swift\\(Runtimes|Toolchains)\\*})
         path=("$swift_windows_runtime_bin" "$swift_windows_toolchain_bin" $path)
         export PATH
-        swift_windows_sdk=$swift_windows_base/Platforms/$swift_windows_version/Windows.platform/Developer/SDKs/Windows.sdk
-        if [[ -d $swift_windows_sdk ]]; then
-            export SDKROOT="$(cygpath -w "$swift_windows_sdk")\\"
-        fi
+        export SDKROOT="$(cygpath -w "$swift_windows_sdk")\\"
     fi
     unset swift_windows_candidate swift_windows_candidate_version swift_windows_toolchains
 fi

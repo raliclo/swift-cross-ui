@@ -1,5 +1,5 @@
 {
-  "originHash" : "c6bccd7954ca875887b8837568d400827590db5f01e03f1fa480c398789fac87",
+  "originHash" : "9a54235d9760c865df62c52504cbba1d3d44c589d0bcdde7c2499d0981a582c6",
   "pins" : [
     {
       "identity" : "androidkit",
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/raliclo/swift-java",
       "state" : {
-        "branch" : "develop",
-        "revision" : "e04c0ed6af98936ca6300e94be9a19869df418a2"
+        "revision" : "e04c0ed6af98936ca6300e94be9a19869df418a2",
+        "version" : "0.5.1"
       }
     },
     {
@@ -177,7 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/raliclo/swift-winui.git",
       "state" : {
-        "revision" : "c4225f8aef8f8dd27e2779552cc43c29df06f5a2"
+        "revision" : "c4225f8aef8f8dd27e2779552cc43c29df06f5a2",
+        "version" : "0.2.3"
       }
     },
     {

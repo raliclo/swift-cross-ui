@@ -186,19 +186,23 @@ run_linux() {
             rm -f "$candidate"
         fi
     done
-    # The root only when no window of the app is off the screen: a root capture
-    # would then show the screen without the app and pass.
-    # 只有 app 沒有任何視窗在螢幕外時才拍 root:否則 root 擷圖會拍到沒有 app 的螢幕而通過。
+    # Keep a desktop capture for diagnostics, never as proof of an app capture.
+    # 桌面截圖只供診斷，不算作應用程式截圖。
     if [ "$best" -eq 0 ]; then
         shot=""
         if [ -z "$offscreen" ]; then
-            shot="$shots_dir/${app:l}-linux-final-$stem-$(date +%Y%m%d-%H%M%S).png"
-            import -window root "$shot" 2>>"$replay_log" || shot=""
+            local diagnostic="$run_dir/$stem-desktop.png"
+            if import -window root "$diagnostic" 2>>"$replay_log"; then
+                printf 'No app window captured; desktop diagnostic: %s\n' "$diagnostic" >> "$replay_log"
+            fi
         fi
     fi
     kill "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
-    cat "$events"/*.log >> "$replay_log" 2>/dev/null || true
+    local -a event_logs=("$events"/*.log(N))
+    if (( ${#event_logs} )); then
+        cat "${event_logs[@]}" >> "$replay_log"
+    fi
 }
 
 for f in "${files[@]}"; do

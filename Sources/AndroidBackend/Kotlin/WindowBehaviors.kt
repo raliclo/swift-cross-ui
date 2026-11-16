@@ -113,6 +113,11 @@ object ScuiWindowBehaviors {
             }
 
         init {
+            activity.lifecycle.addObserver(
+                LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_DESTROY) states.remove(activity)
+                }
+            )
             activity.onBackPressedDispatcher.addCallback(activity, backBlocker)
             activity.addOnMultiWindowModeChangedListener(
                 Consumer<MultiWindowModeChangedInfo> { info ->
@@ -131,6 +136,12 @@ object ScuiWindowBehaviors {
                 resizable = behaviors.resizable
                 Log.i(TAG, "resizable=$resizable")
                 if (!resizable) whenResumed { leaveFreeform() }
+            }
+            val fixedActivity = activity as? ScuiFixedSizeWindowActivity
+            if (resizable && fixedActivity != null) {
+                whenResumed {
+                    if (resizable) fixedActivity.replaceWithResizableTask()
+                }
             }
             if (minimizable != behaviors.minimizable) {
                 minimizable = behaviors.minimizable

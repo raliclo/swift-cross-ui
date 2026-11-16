@@ -315,11 +315,10 @@ let package = Package(
         // 沒有 Main.1.5 或 DDLM 1.5；而 10-30 建置、搭配 1.5 bootstrap DLL 的 P80-WinUI.exe 會跳出
         // 「requires the Windows App Runtime Version 1.5」。所以 1.5 的建置目前確實無法在這台機器上執行；
         // 它們何時、為何被移除則未查證。
-        // 2026-11-14 起改為 URL + revision，而不是 path：path 相依只在本樹裡解析得到，
-        // 以 revision 釘住 swift-cross-ui 的專案（SoftPCB-UI）因此建置失敗。revision 必須
-        // 等於 submodule 的 HEAD；testapp/compile.zsh 從這一行取用，並在兩者不同時警告。
-        // 要讓 submodule 的本機修改生效，先推到 fork，再更新這裡的 revision。
-        .package(url: "https://github.com/raliclo/swift-winui.git", revision: "c4225f8aef8f8dd27e2779552cc43c29df06f5a2"),
+        // Use a tagged release so downstream packages can depend on a version
+        // of SwiftCrossUI. Keep the tag and the submodule on the same commit.
+        // 使用版本標籤，讓下游套件可依版本引用 SwiftCrossUI；標籤與子模組應指向同一提交。
+        .package(url: "https://github.com/raliclo/swift-winui.git", exact: "0.2.3"),
         .package(
             url: "https://github.com/stackotter/swift-benchmark",
             .upToNextMinor(from: "0.2.0")
@@ -710,19 +709,19 @@ package.dependencies += [
         url: "https://github.com/moreSwift/AndroidKit",
         .upToNextMinor(from: "0.8.1")
     ),
-    // Our fork's develop branch (raliclo/swift-java, from stackotter's 0.5.1,
-    // e04c0ed6), so JNI performance fixes can land without waiting on upstream:
+    // Our fork's 0.5.1 tag currently points to e04c0ed6, the same commit
+    // as the previous develop pin. For context:
     // every call looks its method up by name (P96's first frame on Android,
     // 2026-10-24). AndroidKit, SwiftJavaLang and SwiftKotlin still name
     // stackotter's URL; the identity is the same, so SwiftPM builds this one for
     // all of them and warns "Conflicting identity" once for each.
-    // 我們 fork 的 develop 分支(raliclo/swift-java,起點為 stackotter 的 0.5.1,e04c0ed6),讓 JNI 效能修正
-    // 不必等上游：每個呼叫都以名稱查找方法(P96 在 Android 上的第一幀,2026-10-24)。AndroidKit、SwiftJavaLang
+    // 我們 fork 的 0.5.1 標籤與原 develop 鎖定的提交相同(e04c0ed6)。
+    // 每個呼叫都以名稱查找方法(P96 在 Android 上的第一幀,2026-10-24)。AndroidKit、SwiftJavaLang
     // 與 SwiftKotlin 仍指向 stackotter 的網址；套件識別相同，所以 SwiftPM 讓它們全都使用這一份，並各警告一次
     // 「Conflicting identity」。
     .package(
         url: "https://github.com/raliclo/swift-java",
-        branch: "develop"
+        exact: "0.5.1"
     ),
 ]
 

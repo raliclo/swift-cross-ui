@@ -61,9 +61,13 @@ final class ViewLabelToggleControl: UIControl {
         }
     }
 
+    override var accessibilityLabel: String? {
+        get { super.accessibilityLabel ?? UIKitBackend.firstText(in: self) }
+        set { super.accessibilityLabel = newValue }
+    }
+
     func updateAppearance() {
         backgroundColor = isOn ? tintColor : nil
-        accessibilityLabel = UIKitBackend.firstText(in: self)
         var traits: UIAccessibilityTraits = .button
         if #available(iOS 17.0, tvOS 17.0, macCatalyst 17.0, *) {
             traits = .toggleButton
