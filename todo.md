@@ -57,6 +57,26 @@ file's header. Two findings, both silent before:
   scrolls, the outer view shows Outer row 0-3 in the same place both times;
   only the strip changed (H0 first, then H4 first). The strip sits where row
   4 would be, which is why a capture shows row 3 above it and row 5 below.
+
+CI, 2026-11-17 (run 43983878134 on f71f001a, all six jobs green; Windows 8/8
+and Linux 10/10, every capture opened): two things the green rows hide.
+- **Linux P8-scroll-strip-sideways step 6 fails on Xvfb.** The strip scrolls
+  (H4..H13), but the closing vertical scroll leaves the outer view at Outer
+  row 0-3. On WSLg the same file moves it (row 3 at the top). That is the
+  very freeze the file guards against (#426), seen only under Xvfb so far.
+  Not yet told apart: a GTK bug when there is no window manager, or an
+  environment difference (core wheel events without XInput2 smooth deltas).
+  Needs Xvfb locally (`sudo apt-get install xvfb` in WSL; sudo asks for a
+  password, so the user has to run it).
+- **Xvfb has no title bar.** GTK draws no header bar there and uses the light
+  theme, so P2's #401 check (the maximise button returns) cannot be seen in
+  the Linux CI capture; it is visible on WSLg and on Windows.
+
+CI(2026-11-17,f71f001a 的 run 43983878134,六個 job 全綠;Windows 8/8、Linux 10/10,每張擷圖都打開過):綠燈底下藏著兩件事。
+Linux 的 P8-scroll-strip-sideways 第 6 步在 Xvfb 上失敗：長條有捲(H4..H13),但最後的垂直捲動沒讓外層移動(仍是 Outer row 0-3);
+WSLg 上同一份檔案會動。這正是該檔要防的凍結(#426),目前只在 Xvfb 上看到;是沒有視窗管理員時的 GTK bug,還是環境差異(沒有
+XInput2 平滑捲動的 core 滾輪事件),尚未分清。需要在本機裝 Xvfb(WSL 的 sudo 要密碼，須由使用者執行)。Xvfb 上沒有標題列:GTK 不畫
+header bar、用淺色主題，所以 P2 的 #401 檢查(最大化鈕回來)在 Linux CI 擷圖上看不到;WSLg 與 Windows 上看得到。
 - P2 under WSLg opens at (-32736, -32736) in about half the launches and
   stays there: the placement helper did move it to (32, 32) in a 0,0
   1920x1080 work area (probe), so the window manager put the frame at
