@@ -3984,6 +3984,11 @@ extension GtkBackend {
             hasVerticalScrollBar: hasVerticalScrollBar,
             hasHorizontalScrollBar: hasHorizontalScrollBar
         )
+        // On GTK before 4.20.1 a wheel across a one-axis scroll view (a
+        // vertical wheel over a horizontal strip) never reached the scroll
+        // view around it; see scui_scrolled_window_chain_cross_axis_wheel.
+        // GTK 4.20.1 之前，橫越單軸捲動視圖的滾輪(水平長條上的垂直滾輪)到不了外圍的捲動視圖；見 scui_scrolled_window_chain_cross_axis_wheel。
+        scui_scrolled_window_chain_cross_axis_wheel(scrollView.widgetPointer)
     }
 
     /// A virtualized GtkListView inside a bounded GtkScrolledWindow (#117).

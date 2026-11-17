@@ -249,6 +249,22 @@ void scui_window_clear_platform_icon(GtkWidget *window);
 // 送到了視窗管理員，而不只是 GTK。
 long scui_window_x11_icon_length(GtkWidget *window);
 
+// Lets a wheel scroll across a one-axis GtkScrolledWindow -- a vertical wheel
+// over a horizontal-only strip -- reach the nearest ancestor that scrolls that
+// way. GTK before 4.20.1 swallows it: scroll_controller_scroll returns
+// GDK_EVENT_STOP whenever the window scrolls in either axis, so P8's strip
+// inside a vertical ScrollView stopped the outer view (Ubuntu 24.04, GTK
+// 4.14.5, CI run 43992716580); 4.20.1 and later return PROPAGATE for the
+// non-scrollable direction (checked in GTK's sources 4.20.0 vs 4.20.1). Installs
+// a capture-phase scroll controller only on those older versions, so newer GTK
+// is untouched; SCUI_GTK_SCROLL_CHAIN=1 forces it on, =0 off. Shift+wheel
+// stays with the strip. Safe to call again on the same window.
+// 讓橫越單軸 GtkScrolledWindow 的滾輪捲動——只能水平捲的長條上的垂直滾輪——送到最近一個能往那個方向捲的祖先。GTK 4.20.1 之前會吞掉它:
+// 只要視窗在任一軸能捲,scroll_controller_scroll 就回傳 GDK_EVENT_STOP,所以垂直 ScrollView 裡的 P8 長條讓外層停住(Ubuntu 24.04、
+// GTK 4.14.5、CI run 43992716580);4.20.1 起對不能捲的方向回傳 PROPAGATE(比對 GTK 原始碼 4.20.0 與 4.20.1)。只在那些舊版本上安裝
+// capture 階段的捲動控制器，新版 GTK 不受影響;SCUI_GTK_SCROLL_CHAIN=1 強制開啟,=0 關閉。Shift+滾輪留給長條。對同一個視窗重複呼叫是安全的。
+void scui_scrolled_window_chain_cross_axis_wheel(GtkWidget *scrolled_window);
+
 // Adds every .ttf in `directory` whose name starts with `prefix` (case-insensitive)
 // to fontconfig, for this process only. Linux only; returns how many were added, 0
 // elsewhere. Call before Pango builds its font map. See gtk_wsl_fonts.c.

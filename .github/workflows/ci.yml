@@ -31,6 +31,10 @@ on:
   push:
     branches:
       - 'develop'
+      # Ubuntu-24-04-branch (2026-11-17, the user's decision): GTK 4.14 support,
+      # where the linux job runs on ubuntu-24.04; develop requires GTK 4.22.
+      # Ubuntu-24-04-branch(2026-11-17,使用者的決定):支援 GTK 4.14,這裡的 linux job 跑在 ubuntu-24.04;develop 要求 GTK 4.22。
+      - 'Ubuntu-24-04-branch'
   workflow_dispatch:
     inputs:
       full:
@@ -361,13 +365,15 @@ jobs:
         if-no-files-found: warn
 
   linux:
-    # Ubuntu 26.04 since 2026-11-17, the user's choice: the same release as this
-    # machine's WSL, so GTK is 4.22 on both. On 24.04 (GTK 4.14.5) P8's closing
-    # vertical scroll never reached the outer view, while WSL's 4.22.4 passed on bare
-    # Xvfb and with openbox (todo.md); that 4.14 behaviour is recorded, not chased.
-    # 自 2026-11-17 起用 Ubuntu 26.04,使用者的選擇：與本機 WSL 同一版，兩邊的 GTK 都是 4.22。在 24.04(GTK 4.14.5)上 P8 最後的
-    # 垂直捲動到不了外層，而 WSL 的 4.22.4 在純 Xvfb 與加 openbox 時都通過(todo.md);4.14 的這個行為記錄下來，不再追查。
-    runs-on: ubuntu-26.04
+    # Ubuntu-24-04-branch: Ubuntu 24.04 and its GTK 4.14.5, which develop does
+    # not support (it requires GTK 4.22, on ubuntu-26.04). Here the whole Linux
+    # sweep runs on 4.14, so P8-scroll-strip-sideways checks the workaround in
+    # gtk_scroll_chain.c: on 4.14 the closing vertical scroll never reached the
+    # outer view without it (CI run 43992716580).
+    # Ubuntu-24-04-branch:Ubuntu 24.04 與其 GTK 4.14.5,develop 不支援(develop 要求 GTK 4.22,跑在 ubuntu-26.04)。這裡整組
+    # Linux sweep 都在 4.14 上跑，所以 P8-scroll-strip-sideways 會檢查 gtk_scroll_chain.c 的 workaround:沒有它時，4.14 上最後的
+    # 垂直捲動到不了外層(CI run 43992716580)。
+    runs-on: ubuntu-24.04
     env:
       SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
     steps:
