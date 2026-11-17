@@ -68,6 +68,13 @@ and Linux 10/10, every capture opened): two things the green rows hide.
   environment difference (core wheel events without XInput2 smooth deltas).
   Needs Xvfb locally (`sudo apt-get install xvfb` in WSL; sudo asks for a
   password, so the user has to run it).
+  **2026-11-17, the user's decision: the row fails until it is fixed.** P8
+  logs "strip reached its end" and then "outer moved after the strip reached
+  its end" from onScrollGeometryChange on both ScrollViews, and the wsl file
+  expects the second line. On WSLg it passes (outer offset 36 after the
+  end). Openbox now runs in the CI Xvfb session, which also tells the two
+  causes apart: still failing there points at the wheel events, not the
+  missing window manager.
 - **Xvfb has no title bar.** GTK draws no header bar there and uses the light
   theme, so P2's #401 check (the maximise button returns) cannot be seen in
   the Linux CI capture; it is visible on WSLg and on Windows.

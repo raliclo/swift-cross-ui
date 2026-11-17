@@ -12,6 +12,14 @@ action,x,y,origin,button,key,micros,note,platform
 # 步驟 5 通過的條件是長條內容有移動。步驟 6 通過的條件是其後外層視圖仍有反應——它所要防範的失敗
 # 是「內層視圖捲到盡頭後一切都凍結」，因此結尾的垂直捲動正是該項檢查，而非附加動作。
 #
+# expect: log-contains outer moved after the strip reached its end
+#
+# Step 6 as a check (2026-11-17): P8 logs that line when the outer view's
+# offset changes after the strip reached H13. On Xvfb the strip reached H13
+# and the outer view stayed at row 0, yet the row passed (CI run 43983878134).
+# 第 6 步改為檢查(2026-11-17):長條到達 H13 之後外層位移若改變,P8 會記下這一行。Xvfb 上長條到了 H13,外層卻停在第 0 列，
+# 那一列仍然通過(CI run 43983878134)。
+#
 # 2026-11-15: the pointer is put on the strip with `taplabel H4` instead of
 # `move,320,453`. That point had drifted below the strip into the "Outer row"
 # area, so the sideways scroll went to the outer view and the strip never

@@ -216,6 +216,8 @@ case "${1:-}" in
             "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。" \
             "SCUI_BUILD_JOBS=4 by default (swift build -j); empty = SwiftPM default." \
             "SCUI_BUILD_JOBS 預設 4（swift build -j）；空字串 = SwiftPM 預設值。" \
+            "SCUI_SKIP_UPDATE=1 builds with the packages already fetched (no network)." \
+            "SCUI_SKIP_UPDATE=1 以已抓取的套件建置(沒有網路時)。" \
             "SCUI_DEBUG=1 by default, so -actionfile and --debug work in the" \
             "release build this produces. SCUI_DEBUG=0 builds without them." \
             "The two are independent: BUILD_CONFIG picks the optimiser," \
@@ -2052,6 +2054,13 @@ fi
 build_jobs="${SCUI_BUILD_JOBS-4}"
 build_jobs_flags=()
 if [ -n "$build_jobs" ]; then build_jobs_flags=(-j "$build_jobs"); fi
+# SCUI_SKIP_UPDATE=1 passes --skip-update, so a build with no network uses the
+# packages already fetched instead of failing in "Updating ..." (WSL lost its
+# route to github.com on 2026-11-17 and every build stopped there).
+# SCUI_SKIP_UPDATE=1 傳入 --skip-update,沒有網路時改用已抓取的套件，而不是在「Updating ...」失敗(2026-11-17 WSL 連不上
+# github.com,每次建置都停在那裡)。
+skip_update_flags=()
+if [ "${SCUI_SKIP_UPDATE:-0}" = 1 ]; then skip_update_flags=(--skip-update); fi
 
 for app_name in $app_names; do
     echo "==> Compiling $app_name"
@@ -2061,6 +2070,7 @@ for app_name in $app_names; do
         -c "$build_config" \
         "${build_jobs_flags[@]}" \
         "${debug_feature_flags[@]}" \
+        "${skip_update_flags[@]}" \
         "${gtk_build_flags[@]}"
 
     # On Windows the same app name can be built against either backend, and the

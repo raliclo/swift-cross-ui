@@ -68,6 +68,28 @@ enum P8Diagnostics {
             write("RENDER COMPLETE -- all P8 probes measured, safe to capture")
         }
     }
+
+    /// Whether the #426 strip has been scrolled to its far end. Step 6 of
+    /// P8-scroll-strip-sideways is the outer view moving AFTER that, which
+    /// is what this file's `# expect:` line reads: on Xvfb the strip reached
+    /// H13 and the closing vertical scroll left the outer view at row 0
+    /// (CI run 43983878134), while the row still counted as a pass.
+    /// #426 的長條是否已捲到盡頭。P8-scroll-strip-sideways 的第 6 步是外層在那**之後**移動，檔案的 `# expect:` 行讀的就是
+    /// 這個:Xvfb 上長條捲到 H13,最後的垂直捲動卻讓外層停在第 0 列(CI run 43983878134),那一列仍被算成通過。
+    nonisolated(unsafe) private static var stripAtEnd = false
+    nonisolated(unsafe) private static var reportedOuterAfterEnd = false
+
+    static func stripReachedEnd(_ atEnd: Bool) {
+        guard atEnd, !stripAtEnd else { return }
+        stripAtEnd = true
+        write("strip reached its end")
+    }
+
+    static func outerScrolled(to offset: Double) {
+        guard stripAtEnd, !reportedOuterAfterEnd else { return }
+        reportedOuterAfterEnd = true
+        write(String(format: "outer moved after the strip reached its end (offset %.0f)", offset))
+    }
 }
 
 struct P8Probe: View {
@@ -165,6 +187,12 @@ struct P8RootView: View {
                                         P8Probe(role: .innerStrip, size: proxy.size)
                                     }
                                 }
+                                .onScrollGeometryChange(for: Bool.self) { geometry in
+                                    geometry.contentOffset.x
+                                        >= Double(geometry.contentSize.width - geometry.containerSize.width) - 1
+                                } action: { _, atEnd in
+                                    P8Diagnostics.stripReachedEnd(atEnd)
+                                }
                             } else {
                                 Text("Outer row \(row)")
                                     .padding(6)
@@ -177,6 +205,11 @@ struct P8RootView: View {
                     GeometryReader { proxy in
                         P8Probe(role: .outerScroll, size: proxy.size)
                     }
+                }
+                .onScrollGeometryChange(for: Double.self) { geometry in
+                    geometry.contentOffset.y
+                } action: { _, offset in
+                    P8Diagnostics.outerScrolled(to: offset)
                 }
             }
         }

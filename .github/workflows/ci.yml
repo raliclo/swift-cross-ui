@@ -384,7 +384,7 @@ jobs:
     - name: Install GTK and a virtual X display
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-4-dev clang zsh zstd xvfb x11-xserver-utils xdotool imagemagick
+        sudo apt-get install -y libgtk-4-dev clang zsh zstd xvfb x11-xserver-utils xdotool imagemagick openbox
 
     - name: Build GtkBackend
       run: SCUI_HOST_BACKENDS_ONLY=1 swift build --target GtkBackend
@@ -432,15 +432,21 @@ jobs:
     # (2026-11-15, the user's request: every platform replays and photographs the CI
     # app set). testapp/sweep_desktop.zsh launches each app itself with -actionfile,
     # since test.zsh reaches Linux only through wsl.exe; xdotool does the clicks.
-    # Locally (WSLg, 2026-11-15) 9 of 10 files passed; P2 fails in about half the launches
-    # there because WSLg opens it off screen (todo.md), which Xvfb cannot do. P8-scroll-strip-sideways passes but its capture shows the strip never moved (todo.md).
+    # A window manager (openbox) runs inside the Xvfb session since 2026-11-17, the
+    # user's decision: without one GTK drew no title bar, so P2's #401 check (the
+    # maximise button returns) could not be seen in the capture. It also tells apart
+    # the causes of P8-scroll-strip-sideways step 6 failing on bare Xvfb (todo.md);
+    # that file now fails its row through `# expect:` when the outer view stays put.
     # 與其他 sweep 相同的 app,從 actions/wsl/ 重放並拍照(2026-11-15,使用者的要求：每個平台都重放並拍攝 CI 的 app 組)。
     # testapp/sweep_desktop.zsh 自己以 -actionfile 啟動每支 app,因為 test.zsh 只能經 wsl.exe 抵達 Linux;點擊由 xdotool 完成。
-    # 本機(WSLg,2026-11-15)10 份通過 9 份;P2 約一半的啟動被 WSLg 開在螢幕外而失敗(todo.md),Xvfb 不會;P8-scroll-strip-sideways 通過，但擷圖顯示長條沒動(todo.md)。
-    - name: Linux sweep (GtkBackend)
+    # 自 2026-11-17 起 Xvfb 工作階段裡執行視窗管理員(openbox),使用者的決定：沒有它時 GTK 不畫標題列,P2 的 #401 檢查(最大化鈕
+    # 回來)在擷圖裡看不到。它也能分辨 P8-scroll-strip-sideways 第 6 步在純 Xvfb 上失敗的成因(todo.md);外層不動時，該檔現在
+    # 經由 `# expect:` 讓該列失敗。
+    - name: Linux sweep (GtkBackend, openbox on Xvfb)
       run: |
         if [ "$SWEEP_APPS" = all ]; then set --; else set -- $SWEEP_APPS; fi
-        xvfb-run --auto-servernum -s "-screen 0 1920x1080x24" zsh testapp/sweep_desktop.zsh --linux "$@"
+        xvfb-run --auto-servernum -s "-screen 0 1920x1080x24" \
+          zsh -c 'openbox >/dev/null 2>&1 & sleep 2; xprop -root _NET_SUPPORTING_WM_CHECK; zsh testapp/sweep_desktop.zsh --linux "$@"' sweep "$@"
 
     # The sweep exits 0 whatever happened; every row of its table has to be a pass.
     # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
