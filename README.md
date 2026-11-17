@@ -226,7 +226,7 @@ SwiftCrossUI has a variety of backends tailored to different operating systems. 
 - [UIKitBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/uikitbackend): The native iOS & tvOS backend. Supports most SwiftCrossUI features.
 - [AndroidBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/androidbackend): The native Android backend. Supports most SwiftCrossUI features.
 - [WinUIBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/winuibackend): The native Windows backend. Supports most SwiftCrossUI features.
-- [GtkBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/gtkbackend): Works on Linux, macOS, and Windows. Requires gtk 4 to be installed. Supports most SwiftCrossUI features.
+- [GtkBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/gtkbackend): Works on Linux, macOS, and Windows. Requires GTK 4.22 or newer on this branch (checked at build time); GTK 4.14 (Ubuntu 24.04 LTS) is supported on `Ubuntu-24-04-branch`. Supports most SwiftCrossUI features.
 
 > [!TIP]
 > If you're using DefaultBackend, you can override the underlying backend during compilation by setting the `SCUI_DEFAULT_BACKEND` environment variable to the name of the desired backend. This is useful when you e.g. want to test the Gtk version of your app while using a Mac. Note that this only works for built-in backends and still requires the chosen backend to be compatible with your machine.

@@ -1,5 +1,18 @@
 #include "gtk_helpers.h"
 
+// develop requires GTK 4.22 or newer (the user's decision, 2026-11-17). GTK
+// 4.14 -- Ubuntu 24.04 LTS -- is supported on Ubuntu-24-04-branch instead,
+// which carries a workaround for a scroll-chaining difference: before 4.20.1
+// a wheel across a one-axis GtkScrolledWindow never reached the scroll view
+// around it (P8, CI run 43992716580). Checked here, at build time, so an
+// older GTK fails with this reason rather than at run time with a symptom.
+// develop 要求 GTK 4.22 以上(使用者的決定,2026-11-17)。GTK 4.14——Ubuntu 24.04 LTS——改由 Ubuntu-24-04-branch 支援，該分支帶有
+// 一個捲動轉交差異的 workaround:4.20.1 之前，橫越單軸 GtkScrolledWindow 的滾輪到不了外圍的捲動視圖(P8,CI run 43992716580)。
+// 在這裡、在建置時檢查，舊版 GTK 才會帶著這個原因失敗，而不是在執行時只看到症狀。
+#if !GTK_CHECK_VERSION(4, 22, 0)
+#error "swift-cross-ui develop requires GTK 4.22 or newer; for GTK 4.14 (Ubuntu 24.04) use the Ubuntu-24-04-branch branch"
+#endif
+
 GtkWidget *wrapped_gtk_message_dialog_new() {
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wdeprecated-declarations"

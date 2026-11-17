@@ -89,6 +89,12 @@ and Linux 10/10, every capture opened): two things the green rows hide.
   and local runs share GTK 4.22. The GTK 4.14 behaviour is recorded here and
   not chased; Ubuntu 24.04 users of GtkBackend may still see the outer view
   stop scrolling once a nested horizontal strip reaches its end.
+  **Superseded the same day by the user's next decision:** GTK 4.14 support
+  lives on `Ubuntu-24-04-branch` (e4bb1b55: gtk_scroll_chain.c, a
+  capture-phase scroll controller installed only below GTK 4.20.1, the first
+  release whose scroll_controller_scroll propagates the non-scrollable
+  direction; that branch's linux job runs on ubuntu-24.04). develop requires
+  GTK 4.22 or newer, checked at build time in gtk_helpers.c.
   CI capture of P2 had no title bar even with openbox: GTK leaves the bar
   to the window manager there, on a frame window, and the sweep captured
   only the app's own window. It now uses `import -frame` (locally: title

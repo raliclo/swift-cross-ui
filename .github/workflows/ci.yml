@@ -364,9 +364,9 @@ jobs:
     # Ubuntu 26.04 since 2026-11-17, the user's choice: the same release as this
     # machine's WSL, so GTK is 4.22 on both. On 24.04 (GTK 4.14.5) P8's closing
     # vertical scroll never reached the outer view, while WSL's 4.22.4 passed on bare
-    # Xvfb and with openbox (todo.md); that 4.14 behaviour is recorded, not chased.
+    # Xvfb and with openbox (todo.md). develop requires GTK 4.22 (gtk_helpers.c); 4.14 lives on Ubuntu-24-04-branch.
     # 自 2026-11-17 起用 Ubuntu 26.04,使用者的選擇：與本機 WSL 同一版，兩邊的 GTK 都是 4.22。在 24.04(GTK 4.14.5)上 P8 最後的
-    # 垂直捲動到不了外層，而 WSL 的 4.22.4 在純 Xvfb 與加 openbox 時都通過(todo.md);4.14 的這個行為記錄下來，不再追查。
+    # 垂直捲動到不了外層，而 WSL 的 4.22.4 在純 Xvfb 與加 openbox 時都通過(todo.md);develop 要求 GTK 4.22(gtk_helpers.c);4.14 由 Ubuntu-24-04-branch 支援。
     runs-on: ubuntu-26.04
     env:
       SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116' }}
