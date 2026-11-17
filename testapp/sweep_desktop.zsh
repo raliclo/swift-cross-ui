@@ -170,7 +170,13 @@ run_linux() {
     offscreen=""
     for id in $(xdotool search --pid "$pid" 2>/dev/null); do
         candidate="$run_dir/.window-$id.png"
-        if ! import -window "$id" "$candidate" 2>>"$replay_log"; then
+        # -frame: with a window manager in the session (openbox on CI since
+        # 2026-11-17) GTK leaves the title bar to it, drawn on a frame window
+        # around the app's own; without -frame the capture had no title bar
+        # and P2's #401 check could not be seen. WSLg has no X frame windows.
+        # -frame:工作階段裡有視窗管理員時(CI 自 2026-11-17 起有 openbox),GTK 把標題列交給它，畫在 app 視窗外圍的外框視窗上；
+        # 不加 -frame 擷圖就沒有標題列,P2 的 #401 檢查看不到。WSLg 沒有 X 外框視窗。
+        if ! import -frame -window "$id" "$candidate" 2>>"$replay_log"; then
             info="$(xwininfo -id "$id" 2>&1 | grep -E 'Absolute|Width|Height|Map State' | tr -s ' ' | tr '\n' ';')"
             printf 'unreadable window %s:%s\n' "$id" "$info" >> "$replay_log"
             if [[ "$info" == *IsViewable* && "$info" == *"upper-left X: -"* ]]; then

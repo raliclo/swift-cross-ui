@@ -75,6 +75,19 @@ and Linux 10/10, every capture opened): two things the green rows hide.
   end). Openbox now runs in the CI Xvfb session, which also tells the two
   causes apart: still failing there points at the wheel events, not the
   missing window manager.
+  **Measured 2026-11-17: not the window manager, not Xvfb.** CI run
+  43992716580 (openbox in Xvfb) still failed: "strip reached its end" logged,
+  "outer moved" never. Locally, with xvfb and openbox installed in WSL
+  (`wsl -u root -- apt-get install -y xvfb openbox`), the file passes on
+  bare Xvfb and on Xvfb + openbox (outer offset 36 both times). The
+  difference left is GTK: CI's Ubuntu 24.04 has 4.14.5, WSL's 26.04 has
+  4.22.4. Next: reproduce on GTK 4.14 (an Ubuntu 24.04 container or distro),
+  then decide whether GtkBackend has to hand the vertical wheel to the outer
+  view itself on older GTK.
+  CI capture of P2 had no title bar even with openbox: GTK leaves the bar
+  to the window manager there, on a frame window, and the sweep captured
+  only the app's own window. It now uses `import -frame` (locally: title
+  bar and maximise button visible on Xvfb + openbox).
 - **Xvfb has no title bar.** GTK draws no header bar there and uses the light
   theme, so P2's #401 check (the maximise button returns) cannot be seen in
   the Linux CI capture; it is visible on WSLg and on Windows.
