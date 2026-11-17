@@ -84,6 +84,11 @@ and Linux 10/10, every capture opened): two things the green rows hide.
   4.22.4. Next: reproduce on GTK 4.14 (an Ubuntu 24.04 container or distro),
   then decide whether GtkBackend has to hand the vertical wheel to the outer
   view itself on older GTK.
+  **The user's choice, 2026-11-17: the linux job moves to `ubuntu-26.04`**
+  (generally available, image 26.04.1), the same release as this WSL, so CI
+  and local runs share GTK 4.22. The GTK 4.14 behaviour is recorded here and
+  not chased; Ubuntu 24.04 users of GtkBackend may still see the outer view
+  stop scrolling once a nested horizontal strip reaches its end.
   CI capture of P2 had no title bar even with openbox: GTK leaves the bar
   to the window manager there, on a frame window, and the sweep captured
   only the app's own window. It now uses `import -frame` (locally: title
