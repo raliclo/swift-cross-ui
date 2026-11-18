@@ -4,8 +4,23 @@ G_DEFINE_FINAL_TYPE(GtkCustomRootWidget, gtk_custom_root_widget, GTK_TYPE_WIDGET
 
 static void gtk_custom_root_widget_init(GtkCustomRootWidget *self) {}
 
+// GTK leaves unparenting to the widget that called gtk_widget_set_parent. Without
+// this the root was finalized with its child still attached: GTK warned "still has
+// children left", and the child kept a parent pointer into freed memory, which the
+// next style change could follow (SoftPCB-UI, access violation in
+// gtk_widget_get_ancestor, 2026-11-18).
+// GTK 把解除父子關係的責任留給呼叫 gtk_widget_set_parent 的 widget。少了這一步，root 被釋放時子元件仍掛在上面：
+// GTK 警告「still has children left」，而子元件的 parent 指標指向已釋放的記憶體，下一次樣式變更可能沿著它走
+// (SoftPCB-UI，gtk_widget_get_ancestor 存取違規，2026-11-18)。
+static void gtk_custom_root_widget_dispose(GObject *object) {
+    GtkCustomRootWidget *self = GTK_CUSTOM_ROOT_WIDGET(object);
+    g_clear_pointer(&self->child, gtk_widget_unparent);
+    G_OBJECT_CLASS(gtk_custom_root_widget_parent_class)->dispose(object);
+}
+
 static void gtk_custom_root_widget_class_init(GtkCustomRootWidgetClass *klass) {
     GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+    G_OBJECT_CLASS(klass)->dispose = gtk_custom_root_widget_dispose;
     widget_class->measure = gtk_custom_root_widget_measure;
     widget_class->size_allocate = gtk_custom_root_widget_allocate;
     widget_class->get_request_mode = gtk_custom_root_widget_size_request_mode;
@@ -153,6 +168,9 @@ GtkWidget *gtk_custom_root_widget_new(void) {
 }
 
 void gtk_custom_root_widget_set_child(GtkCustomRootWidget *self, GtkWidget *child) {
+    // A replaced child has to leave this parent, or GTK refuses the new one.
+    // 被取代的子元件必須先離開這個 parent，否則 GTK 會拒絕新的子元件。
+    g_clear_pointer(&self->child, gtk_widget_unparent);
     self->child = child;
     gtk_widget_set_parent(child, GTK_WIDGET(self));
 }

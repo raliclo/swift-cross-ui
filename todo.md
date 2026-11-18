@@ -2643,6 +2643,16 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
+- [x] **Root widget left its child attached when freed (Windows).** 2026-11-18, reported by SoftPCB-UI on
+  GTK 4.24.1: `Finalizing GtkCustomRootWidget ..., but it still has children left`, then 42 s later an access
+  violation in `gtk_widget_get_ancestor` under `updatePicker`. `GtkCustomRootWidget` had no `dispose`, so
+  nothing called `gtk_widget_unparent`. Fixed in `gtk_custom_root_widget.c`. Measured with a temporary
+  self-driving app (40 cycles of sheet and split view toggles plus picker colour changes, 3 runs each):
+  40 warnings per run before, 0 after, no GTK criticals. **The crash itself was never reproduced**, not even
+  with freed blocks overwritten, so its link to this warning is inferred from the stack; the dump was not opened.
+  Root 釋放時子元件仍掛在上面(Windows)。`GtkCustomRootWidget` 沒有 `dispose`,因此沒有人呼叫 `gtk_widget_unparent`。
+  暫時的自動測試程式(40 輪、各 3 次):修正前每次 40 則警告，修正後 0 則。**當機本身從未重現**，與警告的關聯是由堆疊推論，dump 未開啟。
+
 - [x] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
   mesh drawable alternates 360x300 and 720x300 (its log), but after the window grew to 748 px no
   capture showed it narrow again, and every capture showed the mesh 360 wide, centred. Either
