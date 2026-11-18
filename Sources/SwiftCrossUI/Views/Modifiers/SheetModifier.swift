@@ -141,6 +141,10 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
 
         if isPresented.wrappedValue {
             let needsPresenting = children.sheet == nil
+            if needsPresenting {
+                children.presentation += 1
+            }
+            let presentation = children.presentation
 
             let sheet: NewBackend.Sheet
             if children.sheetContentNode == nil {
@@ -258,7 +262,7 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
                 // environment, not that of its content.
                 environment: environment,
                 size: result.size.vector,
-                onDismiss: { handleDismiss(children: children) },
+                onDismiss: { handleDismiss(children: children, presentation: presentation) },
                 cornerRadius: preferences.presentationCornerRadius,
                 detents: preferences.presentationDetents ?? [],
                 dragIndicatorVisibility: preferences.presentationDragIndicatorVisibility
@@ -328,6 +332,7 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
             // 整條路徑上沒有任何相等性檢查——`Value` 甚至沒有被約束為 `Equatable`
             // ——所以該次寫入**確實**會發佈，每次關閉都會多排一輪更新。真正讓它停下來的是上述第二點
             // 與第三點，而不是第一點。
+            children.presentation += 1
             backend.dismissSheet(
                 children.sheet as! NewBackend.Sheet,
                 window: children.window! as! NewBackend.Window,
@@ -340,8 +345,14 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
         }
     }
 
-    func handleDismiss(children: Children) {
+    func handleDismiss(children: Children, presentation: Int) {
         onDismiss?()
+        // UIKit reports a sheet closed from code when its animation ends. By then the
+        // next sheet can be up, and clearing these would orphan it: P119 ended on iOS with
+        // sheets on screen and `isPresented` false (2026-11-19).
+        // UIKit 在動畫結束時才回報以程式關閉的 sheet。那時下一張 sheet 可能已經出現，清掉這些狀態會讓它再也關不掉:
+        // P119 在 iOS 上結束時 `isPresented` 已是 false，畫面上卻還有 sheet(2026-11-19)。
+        guard children.presentation == presentation else { return }
         children.sheet = nil
         children.window = nil
         children.parentSheet = nil
@@ -368,6 +379,9 @@ class SheetModifierViewChildren<Child: View, SheetContent: View>: ViewGraphNodeC
     var sheet: Any?
     var window: Any?
     var parentSheet: Any?
+    /// Counts presentations, so a dismissal that finishes late can tell it is out of date.
+    /// 計算呈現次數，讓較晚才完成的關閉知道自己已經過期。
+    var presentation = 0
 
     init(
         childNode: AnyViewGraphNode<Child>,

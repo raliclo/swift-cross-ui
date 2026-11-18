@@ -67,6 +67,12 @@ extension UIKitBackend {
     /// #675 對 backend 的要求。轉場中的 view controller 同樣不能呈現,而一次更新裡的三個要求都在 A 還在
     /// 動畫進場時抵達,所以下一個要等那段轉場結束。
     static func presentOnTop(_ alert: UIViewController, in window: Window) {
+        // Closed while it waited for a transition: it must not appear now.
+        // 等待轉場時就被關閉了：現在不可以出現。
+        if let sheet = alert as? CustomSheet, sheet.dismissalRequested {
+            sheet.presentationCancelled()
+            return
+        }
         guard var top = window.rootViewController else { return }
         while let presented = top.presentedViewController, !presented.isBeingDismissed {
             top = presented

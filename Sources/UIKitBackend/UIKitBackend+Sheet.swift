@@ -105,6 +105,7 @@ extension UIKitBackend {
         window: Window,
         parentSheet: Sheet?
     ) {
+        sheet.dismissalRequested = false
         // From the top of the window's presentation chain, which is the parent
         // sheet when nothing is above it. Presenting from `parentSheet` itself
         // fails with only an "already presenting" log line when an alert,
@@ -266,7 +267,37 @@ public final class CustomSheet: UIViewController {
     var topConstraint: NSLayoutConstraint?
     var leadingConstraint: NSLayoutConstraint?
 
+    /// Set when the sheet is closed from code, cleared when it is presented.
+    /// 以程式關閉 sheet 時設定，呈現時清除。
+    var dismissalRequested = false
+
+    /// UIKit ignores `dismiss` while a sheet is still animating in, so a sheet closed
+    /// that early stayed up and the next one stacked on it: P119 ended with sheets on
+    /// screen and `isPresented` false (2026-11-19). The request now waits for the transition.
+    /// sheet 還在動畫進場時，UIKit 會忽略 `dismiss`，所以太早關閉的 sheet 會留在畫面上，下一張再疊上去：
+    /// P119 結束時 `isPresented` 已是 false，畫面上卻還有 sheet(2026-11-19)。現在這個要求會等轉場結束。
     func dismissProgrammatically() {
+        dismissalRequested = true
+        performRequestedDismissal()
+    }
+
+    /// Closed before it reached the screen: it still ended, so `onDismiss` still runs.
+    /// 還沒出現在畫面上就被關閉：它一樣結束了，所以 `onDismiss` 仍會執行。
+    func presentationCancelled() {
+        guard !hasNotifiedDismissal else { return }
+        hasNotifiedDismissal = true
+        onDismiss?()
+    }
+
+    private func performRequestedDismissal() {
+        guard dismissalRequested, presentingViewController != nil, !isBeingDismissed else { return }
+        if let coordinator = transitionCoordinator {
+            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.performRequestedDismissal()
+            }
+            return
+        }
+
         let hasNestedPresentation = presentedViewController != nil
         if hasNestedPresentation {
             // This will dismiss all nested presentations
