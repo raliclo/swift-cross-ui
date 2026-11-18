@@ -20,7 +20,7 @@ extension AppKitBackend: BackendFeatures.ContextMenus {
         // **用的是 `PopoverMenus` 所用的同一個 renderer,不是第二個。** `updatePopoverMenu` 會把一個
         // `ResolvedMenu` 轉成 `NSMenuItem`(含 toggle、分隔線與子選單),而那正是這個 backend 已經
         // 驗證過的東西。一個自己建項目的 context menu,等於多一個地方讓子選單長得不太一樣。
-        let nsMenu = target.menu as? NSMenu ?? NSMenu()
+        let nsMenu = target.menu ?? NSMenu()
         updatePopoverMenu(nsMenu, content: menu, environment: environment)
         target.menu = nsMenu
     }

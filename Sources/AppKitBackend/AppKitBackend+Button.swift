@@ -456,7 +456,7 @@ private final class NSButtonBackground: NSButton {
 }
 
 extension PrimitiveButtonStyle.Kind {
-    fileprivate func applyModifications(_ button: NSCustomButton) {
+    @MainActor fileprivate func applyModifications(_ button: NSCustomButton) {
         button.button.isHidden = true
         switch self {
             case .bordered:
@@ -485,7 +485,7 @@ extension PrimitiveButtonStyle.Kind {
         }
     }
 
-    fileprivate func drawFocusRingMask(on button: NSCustomButton) {
+    @MainActor fileprivate func drawFocusRingMask(on button: NSCustomButton) {
         switch self {
             case .bordered:
                 button.button.drawFocusRingMask()

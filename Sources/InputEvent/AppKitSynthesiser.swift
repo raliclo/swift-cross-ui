@@ -1563,7 +1563,12 @@
                     // 78.8、157.7、78.8(2026-10-16)。從這裡送 6 個 1 行事件結果相同，間隔 16 ms 或 120 ms 都一樣，因為這段
                     // 在主執行緒上：它返回之前沒有人讀佇列，而 AppKit 會把佇列裡等著的滾輪事件合併成一個。因此改由背景佇列
                     // 送出，`perform` 在重播執行緒上等最後一個送完，主執行緒則空著把每一個交給 GDK。
-                    let notches: [CGEvent] = (0..<max(abs(dx), abs(dy))).compactMap { notch in
+                    // CGEvent is not Sendable, but these events move to the background queue
+                    // whole: they are built here, nothing on this thread touches them after
+                    // `async`, and CGEventPost may be called from any thread.
+                    // CGEvent 不是 Sendable,但這些事件是整批交給背景佇列：在這裡建立，`async` 之後此執行緒
+                    // 不再碰它們，而 CGEventPost 可以從任何執行緒呼叫。
+                    nonisolated(unsafe) let notches: [CGEvent] = (0..<max(abs(dx), abs(dy))).compactMap { notch in
                         let one = CGEvent(
                             scrollWheelEvent2Source: nil,
                             units: .line,

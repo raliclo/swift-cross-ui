@@ -27,7 +27,7 @@ import AppKit
 ///
 /// 用「搜尋」而非「轉型」是一種嚴格的推廣:一個**本身就是**所要求型別的 widget 會在第一行就被回傳,
 /// 因此先前能用的東西沒有任何改變。
-private func scuiFirstDescendant<T: NSView>(_ type: T.Type, in view: NSView) -> T? {
+@MainActor private func scuiFirstDescendant<T: NSView>(_ type: T.Type, in view: NSView) -> T? {
     if let match = view as? T {
         return match
     }
@@ -41,7 +41,7 @@ private func scuiFirstDescendant<T: NSView>(_ type: T.Type, in view: NSView) -> 
 
 /// The view tree under `view`, for when the search finds nothing.
 /// 找不到時,`view` 底下那棵樹的樣子。
-private func scuiDescribe(_ view: NSView, depth: Int = 0) -> String {
+@MainActor private func scuiDescribe(_ view: NSView, depth: Int = 0) -> String {
     let indent = String(repeating: "  ", count: depth)
     return ([indent + "\(type(of: view))"]
         + view.subviews.map { scuiDescribe($0, depth: depth + 1) }).joined(separator: "\n")

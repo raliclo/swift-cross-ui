@@ -397,7 +397,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
                             NSApp.keyWindow ?? NSApp.mainWindow
                             ?? NSApp.windows.first { $0.isVisible }
                         guard let content = window?.contentView else { return nil }
-                        func find(_ view: NSView) -> NSView? {
+                        @MainActor func find(_ view: NSView) -> NSView? {
                             if view.isHidden { return nil }
                             if let button = view as? NSButton, button.title == label {
                                 return button
