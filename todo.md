@@ -2652,6 +2652,9 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   with freed blocks overwritten, so its link to this warning is inferred from the stack; the dump was not opened.
   Root 釋放時子元件仍掛在上面(Windows)。`GtkCustomRootWidget` 沒有 `dispose`,因此沒有人呼叫 `gtk_widget_unparent`。
   暫時的自動測試程式(40 輪、各 3 次):修正前每次 40 則警告，修正後 0 則。**當機本身從未重現**，與警告的關聯是由堆疊推論，dump 未開啟。
+  **Guard: P119** (2026-11-18, `P119_SEQUENCE=1`, exit 0 = PASS or SKIP). Windows GTK 4.24.1: unfixed widget FAIL 3 of 3
+  (22 warnings each), fixed PASS 3 of 3. WSL GTK 4.22.4 under Xvfb: fixed PASS 3 of 3. WinUI: SKIP 3 of 3. **Not yet run: macOS, iOS, Android.**
+  防護：P119。Windows GTK：未修正 3 次皆 FAIL(各 22 則)，修正後 3 次皆 PASS。WSL GTK：修正後 3 次皆 PASS。WinUI：3 次皆 SKIP。**尚未執行：macOS、iOS、Android。**
 
 - [x] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
   mesh drawable alternates 360x300 and 720x300 (its log), but after the window grew to 748 px no
