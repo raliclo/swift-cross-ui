@@ -802,7 +802,7 @@ capture "${app_id}-android-final"
 # 會誤判那些刻意離開 app 的檔案(P38 的瀏覽器、P75 的檔案管理員與關窗),所以這裡讀的是崩潰紀錄:
 # 自啟動以來，指名此 package 的 Java FATAL EXCEPTION 或原生崩潰。
 crash_lines="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
-    | grep -E "Process: $package_id, PID|>>> $package_id <<<" || true)"
+    | grep -E "Process: $package_id, PID|>>> $package_id <<<|Fatal signal [0-9]+.*\(${package_id[-15,-1]}\)" || true)"
 if [ -n "$crash_lines" ]; then
     print -u2 -r -- "!! $package_id crashed after launch; the captures above are not this app:"
     ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \

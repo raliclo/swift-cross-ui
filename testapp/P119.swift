@@ -5,6 +5,9 @@ import SwiftCrossUI
 #if canImport(CGtk)
     import CGtk
 #endif
+#if os(Android)
+    import Android
+#endif
 
 // P119 Root widget teardown: a regression guard for 77be6665.
 //
@@ -197,7 +200,19 @@ struct P119View: View {
         #endif
 
         if P119.runsSequence {
-            exit(passed ? 0 : 1)
+            #if os(Android)
+                // exit() runs the static destructors while the HWUI render threads are
+                // still using them: SIGABRT, "pthread_mutex_lock called on a destroyed
+                // mutex", on every run (2026-11-19). _exit() skips them. stdout reaches
+                // logcat through a pipe another thread reads, so give the verdict time.
+                // exit() 會執行靜態解構，而 HWUI 繪圖執行緒還在使用它們：每次都 SIGABRT,
+                //「pthread_mutex_lock called on a destroyed mutex」(2026-11-19)。_exit() 不執行解構。
+                // stdout 經由另一條執行緒讀取的 pipe 才到 logcat，所以留時間讓判定送達。
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                _exit(passed ? 0 : 1)
+            #else
+                exit(passed ? 0 : 1)
+            #endif
         }
     }
 }
