@@ -3,7 +3,7 @@
 #
 # P119 has no action file, so the sweeps never start it. It runs its own steps when
 # launched with --sequence, and then has to do three things, all checked here: print
-# the SKIP verdict after all 20 cycles, end by itself, and end without a crash.
+# the PASS verdict after all 20 cycles, end by itself, and end without a crash.
 # Neither phone hands back an exit status worth reading, so the log is the evidence.
 # The crash check is the one that matters: on Android P119 printed its verdict and
 # then died of SIGABRT inside exit(), and test_android.zsh still returned 0 (2026-11-19).
@@ -21,7 +21,7 @@ testapp="${0:A:h:h}"
 output="$testapp/output"
 shots="$output/screenshots"
 deadline="${P119_CI_DEADLINE:-300}"
-verdict="P119 SKIP: this backend has no GtkCustomRootWidget, cycles 20"
+verdict="P119 PASS: [0-9]+ backend containers recorded, 0 still alive off screen, 0 probes still attached, cycles 20"
 mkdir -p "$shots"
 
 fail() {
@@ -55,7 +55,7 @@ check_ios() {
         sleep 1
     done
 
-    grep -aqF -- "$verdict" "$log" || fail "no verdict line in ${log:t}"
+    grep -aqE -- "$verdict" "$log" || fail "no verdict line in ${log:t}"
     if xcrun simctl spawn "$device" launchctl list | grep -qE "^[0-9]+[[:space:]].*UIKitApplication:$bundle"; then
         fail "the app did not end by itself"
     fi
@@ -91,7 +91,7 @@ check_android() {
     "$adb" -s "$serial" exec-out screencap -p > "$shots/p119-android-sequence.png" || fail "no screenshot"
 
     SECONDS=0
-    until "$adb" -s "$serial" logcat -d -s Swift:I | grep -aqF -- "$verdict"; do
+    until "$adb" -s "$serial" logcat -d -s Swift:I | grep -aqE -- "$verdict"; do
         [ "$SECONDS" -lt "$deadline" ] || fail "no verdict line after $deadline s"
         sleep 1
     done
@@ -112,4 +112,4 @@ case "${1:-}" in
     --android) platform=Android; check_android ;;
     *) print -u2 "usage: ci_p119_mobile.zsh --ios|--android"; exit 64 ;;
 esac
-print -r -- "P119 on $platform: $verdict; ended by itself, no crash"
+print -r -- "P119 on $platform: PASS, every removed container released; ended by itself, no crash"

@@ -7,9 +7,18 @@ import SwiftCrossUI
 #endif
 #if os(Android)
     import Android
+    import AndroidBackend
+    import AndroidKit
+    import SwiftJava
 #endif
 #if canImport(UIKit)
     import UIKit
+#endif
+#if !canImport(CGtk) && canImport(UIKitBackend)
+    import UIKitBackend
+#elseif !canImport(CGtk) && canImport(AppKitBackend)
+    import AppKit
+    import AppKitBackend
 #endif
 
 // P119 Root widget teardown: a regression guard for 77be6665.
@@ -30,7 +39,7 @@ import SwiftCrossUI
 // what reuses the freed memory, and it did not reproduce in 6 runs of the unfixed
 // code, while the warning appeared on every removal of a split view.
 //
-// Only GTK has this widget. Other backends run the same steps and report SKIP.
+// GTK counts the widget's warning. UIKit, AppKit and Android put a native probe in each sheet and split pane, and check that every backend container removed with it was released and holds no child (2026-11-19). WinUI reports SKIP until it has a probe.
 //
 // P119 Root widget 拆除：77be6665 的回歸防護。
 //
@@ -46,7 +55,7 @@ import SwiftCrossUI
 // 防護看的是警告而不是當機：存取違規取決於誰重複使用了那塊已釋放的記憶體，未修正的程式碼跑 6 次都沒有重現，而警告在每次移除
 // 分割視圖時都會出現。
 //
-// 只有 GTK 有這個 widget。其他 backend 跑同樣的步驟，回報 SKIP。
+// GTK 計算這個 widget 的警告。UIKit、AppKit 與 Android 在每個 sheet 與分割視圖窗格放一個原生探針，檢查與它一起被移除的每個 backend 容器都已釋放、且沒有掛著子元件(2026-11-19)。WinUI 在有探針之前仍回報 SKIP。
 //
 // Build this file as a standalone app target.
 
@@ -135,6 +144,245 @@ enum P119 {
     }
 #endif
 
+#if !canImport(CGtk) && (canImport(UIKitBackend) || canImport(AppKitBackend))
+    #if canImport(UIKitBackend)
+        typealias P119NativeView = UIView
+    #else
+        typealias P119NativeView = NSView
+    #endif
+
+    /// What GTK's "still has children left" stands for under ARC, where nothing is freed
+    /// while referenced: a removed container that stays alive, and a child still attached
+    /// to one. Each probe sits in a sheet or a split view pane; the backend containers
+    /// above it are held weakly, and after the teardown none may be alive off screen.
+    /// GTK 的「still has children left」在 ARC 下對應的失敗(ARC 不會釋放仍被引用的物件):被移除的容器仍活著，
+    /// 以及子元件仍掛在這種容器上。每個探針放在 sheet 或分割視圖的窗格裡；它上方的 backend 容器以 weak 參照記下，
+    /// 拆除之後不可以有任何一個在畫面外仍活著。
+    @MainActor enum P119Teardown {
+        @MainActor final class Entry {
+            weak var object: AnyObject?
+            let name: String
+
+            init(_ object: AnyObject) {
+                self.object = object
+                name = String(describing: type(of: object))
+            }
+        }
+
+        static var probes: [Entry] = []
+        static var containers: [ObjectIdentifier: Entry] = [:]
+
+        static var recorded: Int { containers.count }
+
+        /// ARC frees on the last release; there is nothing to ask for.
+        /// ARC 在最後一次 release 時就釋放，沒有東西需要要求。
+        static func collect() {}
+
+        /// Only the backend's own objects: UIKit and AppKit keep some of theirs for reuse.
+        /// 只記 backend 自己的物件:UIKit 與 AppKit 會留下一些自己的物件以便重用。
+        static func record(_ object: AnyObject) {
+            let module = String(reflecting: type(of: object))
+            guard module.hasPrefix("UIKitBackend.") || module.hasPrefix("AppKitBackend.") else { return }
+            let id = ObjectIdentifier(object)
+            if containers[id]?.object == nil {
+                containers[id] = Entry(object)
+            }
+        }
+
+        /// Records the containers above every probe that is on screen now.
+        /// 記下目前在畫面上每個探針上方的容器。
+        static func sample() {
+            for probe in probes {
+                var current = (probe.object as? P119NativeView)?.superview
+                while let ancestor = current {
+                    record(ancestor)
+                    #if canImport(UIKitBackend)
+                        if let controller = ancestor.next as? UIViewController {
+                            record(controller)
+                        }
+                    #else
+                        if let window = ancestor.window {
+                            record(window)
+                        }
+                    #endif
+                    current = ancestor.superview
+                }
+            }
+        }
+
+        static func onScreen(_ object: AnyObject) -> Bool {
+            #if canImport(UIKitBackend)
+                if let view = object as? UIView {
+                    return view.window != nil
+                }
+                if let controller = object as? UIViewController {
+                    return controller.viewIfLoaded?.window != nil
+                }
+            #else
+                if let view = object as? NSView {
+                    return view.window?.isVisible == true
+                }
+                if let window = object as? NSWindow {
+                    return window.isVisible
+                }
+            #endif
+            return false
+        }
+
+        /// Containers that left the screen and are still alive.
+        /// 已離開畫面卻仍活著的容器。
+        static var leaked: [String] {
+            containers.values.compactMap { entry in
+                guard let object = entry.object, !onScreen(object) else { return nil }
+                return entry.name
+            }
+        }
+
+        /// Probes that left the screen and are still attached to a container.
+        /// 已離開畫面卻仍掛在容器上的探針。
+        static var attached: Int {
+            probes.filter { entry in
+                guard let view = entry.object as? P119NativeView else { return false }
+                return view.superview != nil && !onScreen(view)
+            }.count
+        }
+    }
+
+    #if canImport(UIKitBackend)
+        struct P119Probe: UIViewRepresentable {
+            func makeUIView(context: Context) -> UIView {
+                let view = UIView()
+                P119Teardown.probes.append(P119Teardown.Entry(view))
+                return view
+            }
+
+            func updateUIView(_ uiView: UIView, context: Context) {}
+        }
+    #else
+        struct P119Probe: NSViewRepresentable {
+            func makeNSView(context: Context) -> NSView {
+                let view = NSView()
+                P119Teardown.probes.append(P119Teardown.Entry(view))
+                return view
+            }
+
+            func updateNSView(_ nsView: NSView, context: Context) {}
+        }
+    #endif
+#endif
+
+
+#if os(Android)
+    /// The same check for Android, where the garbage collector frees what nothing
+    /// references. Weak global references stand in for Swift's weak: after a collection
+    /// a removed backend container may be neither alive nor holding a probe.
+    /// Android 上的同一項檢查：垃圾回收器釋放沒有被引用的物件。以 weak global reference 代替 Swift 的 weak:
+    /// 回收之後，被移除的 backend 容器既不可以仍活著，也不可以仍掛著探針。
+    @MainActor enum P119Teardown {
+        final class Entry {
+            let reference: jweak
+            let name: String
+
+            init(reference: jweak, name: String) {
+                self.reference = reference
+                self.name = name
+            }
+        }
+
+        static var environment: JNIEnvironment?
+        static var probes: [Entry] = []
+        static var containers: [Int32: [Entry]] = [:]
+
+        static var recorded: Int {
+            containers.values.reduce(0) { $0 + $1.count }
+        }
+
+        static func weakEntry(_ view: AndroidKit.View, name: String) -> Entry? {
+            guard let environment else { return nil }
+            guard let reference = environment.interface.NewWeakGlobalRef(environment, view.javaThis) else { return nil }
+            return Entry(reference: reference, name: name)
+        }
+
+        /// The object, or nil once it has been collected.
+        /// 物件本身；被回收之後為 nil。
+        static func view(_ entry: Entry) -> AndroidKit.View? {
+            guard let environment,
+                let local = environment.interface.NewLocalRef(environment, entry.reference)
+            else { return nil }
+            defer { environment.interface.DeleteLocalRef(environment, local) }
+            return AndroidKit.View(javaThis: local, environment: environment)
+        }
+
+        /// Only the backend's own classes: the framework keeps some of its views.
+        /// 只記 backend 自己的類別：框架會留下一些它自己的 view。
+        static func record(_ view: AndroidKit.View) {
+            guard let environment else { return }
+            let name = view.getClass().getName()
+            guard name.hasPrefix("dev.swiftcrossui.") else { return }
+            let hash = view.hashCode()
+            for entry in containers[hash] ?? [] {
+                if environment.interface.IsSameObject(environment, entry.reference, view.javaThis) != 0 {
+                    return
+                }
+            }
+            if let entry = weakEntry(view, name: String(name.split(separator: ".").last ?? "")) {
+                containers[hash, default: []].append(entry)
+            }
+        }
+
+        static func sample() {
+            for probe in probes {
+                guard let view = view(probe) else { continue }
+                var parent = view.getParent()?.as(AndroidKit.View.self)
+                while let ancestor = parent {
+                    record(ancestor)
+                    parent = ancestor.getParent()?.as(AndroidKit.View.self)
+                }
+            }
+        }
+
+        /// Asks for a collection, so that what is unreferenced is gone before the count.
+        /// 要求一次回收，讓沒有被引用的物件在計數前消失。
+        static func collect() {
+            guard let environment,
+                let system = environment.interface.FindClass(environment, "java/lang/System")
+            else { return }
+            defer { environment.interface.DeleteLocalRef(environment, system) }
+            for method in ["gc", "runFinalization"] {
+                if let id = environment.interface.GetStaticMethodID(environment, system, method, "()V") {
+                    environment.interface.CallStaticVoidMethodA(environment, system, id, nil)
+                }
+            }
+        }
+
+        static var leaked: [String] {
+            containers.values.flatMap { $0 }.compactMap { entry in
+                guard let view = view(entry), !view.isAttachedToWindow() else { return nil }
+                return entry.name
+            }
+        }
+
+        static var attached: Int {
+            probes.filter { entry in
+                guard let view = view(entry) else { return false }
+                return view.getParent() != nil && !view.isAttachedToWindow()
+            }.count
+        }
+    }
+
+    struct P119Probe: AndroidViewRepresentable {
+        func makeAndroidView(context: Self.Context) -> AndroidKit.View {
+            P119Teardown.environment = context.environment.jniEnv
+            let view = AndroidKit.View(context.environment.androidActivity, environment: context.environment.jniEnv)
+            if let entry = P119Teardown.weakEntry(view, name: "P119Probe") {
+                P119Teardown.probes.append(entry)
+            }
+            return view
+        }
+
+        func updateAndroidView(_ view: AndroidKit.View, context: Self.Context) {}
+    }
+#endif
 @main
 struct P119App: App {
     init() {
@@ -151,7 +399,19 @@ struct P119App: App {
     }
 }
 
-struct P119View: View {
+/// A probe on the backends that have one, nothing elsewhere.
+/// 有探針的 backend 放一個探針，其餘什麼都不放。
+struct P119ProbeSlot: SwiftCrossUI.View {
+    @ViewBuilder var body: some SwiftCrossUI.View {
+        #if !canImport(CGtk) && (canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android))
+            P119Probe().frame(width: 1, height: 1)
+        #else
+            EmptyView()
+        #endif
+    }
+}
+
+struct P119View: SwiftCrossUI.View {
     @State var cycle = 0
     @State var sheetShown = false
     @State var splitShown = true
@@ -159,7 +419,7 @@ struct P119View: View {
     @State var verdict = "running"
     @State var sheetsClosed = 0
 
-    var body: some View {
+    var body: some SwiftCrossUI.View {
         VStack(spacing: 8) {
             Text(P119.title)
             Text("Cycle \(cycle) of \(P119.cycles): \(verdict)")
@@ -167,16 +427,16 @@ struct P119View: View {
                 .foregroundColor(cycle % 2 == 0 ? Color.red : Color.blue)
             if splitShown {
                 NavigationSplitView {
-                    Text("Sidebar \(cycle)")
+                    VStack { Text("Sidebar \(cycle)"); P119ProbeSlot() }
                 } detail: {
-                    Text("Detail \(cycle)")
+                    VStack { Text("Detail \(cycle)"); P119ProbeSlot() }
                 }
                 .frame(height: 160)
             }
         }
         .padding(16)
         .sheet(isPresented: $sheetShown, onDismiss: { sheetsClosed += 1 }) {
-            Text("Sheet \(cycle)")
+            VStack { Text("Sheet \(cycle)"); P119ProbeSlot() }
                 .padding(40)
         }
         .task {
@@ -184,13 +444,21 @@ struct P119View: View {
         }
     }
 
-    func run() async {
+    @MainActor func sampleTeardown() {
+        #if !canImport(CGtk) && (canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android))
+            P119Teardown.sample()
+        #endif
+    }
+
+    @MainActor func run() async {
         for step in 1...P119.cycles {
             try? await Task.sleep(nanoseconds: 150_000_000)
             sheetShown.toggle()
             try? await Task.sleep(nanoseconds: 150_000_000)
+            sampleTeardown()
             splitShown.toggle()
             try? await Task.sleep(nanoseconds: 150_000_000)
+            sampleTeardown()
             cycle = step
         }
 
@@ -223,6 +491,23 @@ struct P119View: View {
             P119.log(
                 "P119 \(verdict): \(warnings) root widgets freed with children left, "
                     + "log writer probes seen \(P119Log.probes) of 1, cycles \(cycle)"
+            )
+        #elseif canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
+            // Releasing can wait for a transition or the next turn of the run loop.
+            // 釋放可能要等轉場結束，或等下一輪 run loop。
+            for _ in 0..<50 where !P119Teardown.leaked.isEmpty || P119Teardown.attached > 0 {
+                P119Teardown.collect()
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            let leaked = P119Teardown.leaked
+            let attached = P119Teardown.attached
+            let recorded = P119Teardown.recorded
+            passed = passed && recorded > 0 && leaked.isEmpty && attached == 0
+            verdict = passed ? "PASS" : "FAIL"
+            P119.log(
+                "P119 \(verdict): \(recorded) backend containers recorded, \(leaked.count) still alive off screen, "
+                    + "\(attached) probes still attached, cycles \(cycle)"
+                    + (leaked.isEmpty ? "" : " (\(Dictionary(grouping: leaked, by: { $0 }).map { "\($0.key) \($0.value.count)" }.sorted().joined(separator: ", ")))")
             )
         #else
             verdict = passed ? "SKIP" : "FAIL"
