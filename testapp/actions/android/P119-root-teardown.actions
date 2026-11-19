@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P119 opens and closes a sheet, adds and removes a split view and changes a
+# picker colour by itself for 20 cycles, then logs its verdict: nothing is pressed.
+# This backend may have no GtkCustomRootWidget, so PASS and SKIP both meet the line below; FAIL does not.
+# Added 2026-11-18 as the regression guard for 77be6665.
+#
+# expect: log-contains P119 finished without a failure
+#
+# P119 自己開關 sheet、加入並移除分割視圖、改變 picker 顏色共 20 輪，然後記下結果，不按任何東西。
+# 這個 backend 可能沒有 GtkCustomRootWidget,所以 PASS 與 SKIP 都符合下面那一行，FAIL 則不符合。
+# 2026-11-18 加入，作為 77be6665 的回歸防護。
+sleep,,,,,,45000000,let the 20 cycles finish and the verdict show,android

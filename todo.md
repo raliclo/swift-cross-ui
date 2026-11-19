@@ -2653,8 +2653,12 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   Root 釋放時子元件仍掛在上面(Windows)。`GtkCustomRootWidget` 沒有 `dispose`,因此沒有人呼叫 `gtk_widget_unparent`。
   暫時的自動測試程式(40 輪、各 3 次):修正前每次 40 則警告，修正後 0 則。**當機本身從未重現**，與警告的關聯是由堆疊推論，dump 未開啟。
   **Guard: P119** (2026-11-18, `P119_SEQUENCE=1`, exit 0 = PASS or SKIP). Windows GTK 4.24.1: unfixed widget FAIL 3 of 3
-  (22 warnings each), fixed PASS 3 of 3. WSL GTK 4.22.4 under Xvfb: fixed PASS 3 of 3. WinUI: SKIP 3 of 3. **Not yet run: macOS, iOS, Android.**
-  防護：P119。Windows GTK：未修正 3 次皆 FAIL(各 22 則)，修正後 3 次皆 PASS。WSL GTK：修正後 3 次皆 PASS。WinUI：3 次皆 SKIP。**尚未執行：macOS、iOS、Android。**
+  (22 warnings each), fixed PASS 3 of 3. WSL GTK 4.22.4 under Xvfb: fixed PASS 3 of 3. WinUI: SKIP 3 of 3. M4 at 04f041c2: macOS GTK 4.24.1 unfixed FAIL 3 of 3, fixed PASS 3 of 3; AppKit, iOS 27 Simulator
+  and Android emulator SKIP 3 of 3. **Android then aborted after every verdict** (exit() ran static destructors under HWUI's
+  threads). M4 fixed it in 0d925b6c (`_exit` after 500 ms) and added `ci_p119_mobile.zsh` to the ios and android jobs; run 44422330442 is green.
+  防護：P119。Windows GTK：未修正 3 次皆 FAIL(各 22 則)，修正後 3 次皆 PASS。WSL GTK：修正後 3 次皆 PASS。WinUI：3 次皆 SKIP。M4(04f041c2):macOS GTK 未修正 3 次皆 FAIL、修正後 3 次皆 PASS;AppKit、iOS 模擬器、Android 模擬器 3 次皆 SKIP。**Android 每次在結果之後中止**(exit() 在 HWUI 執行緒仍運作時執行靜態解構子)。M4 在 0d925b6c 修正(等 500 毫秒後 `_exit`),並把 `ci_p119_mobile.zsh` 加進 ios 與 android 工作；run 44422330442 全綠。
+  **In CI since 2026-11-19:** P119 joined SWEEP_APPS in the macos, linux and windows jobs, replayed from `actions/*/P119-root-teardown.actions`. Linux sweep in WSL: fixed row pass, unfixed row fail (`expect UNMET: P119 PASS:`, 22 warnings). Only linux checks the widget on CI; macos and windows report SKIP. **Open:** nothing checks that no sheet is left on screen when P119 ends (M4, 9798d0f8).
+  **2026-11-19 起納入 CI:** P119 加入 macos、linux、windows 工作的 SWEEP_APPS，重放 `actions/*/P119-root-teardown.actions`。WSL 的 Linux sweep：修正後該列 pass，未修正該列 fail(`expect UNMET: P119 PASS:`，22 則警告)。CI 上只有 linux 真正檢查這個 widget，macos 與 windows 回報 SKIP。**待辦：** 沒有任何檢查確認 P119 結束時畫面上沒有殘留的 sheet(M4，9798d0f8)。
 
 - [x] **P95 grow window: does it shrink back?** 2026-10-21, Windows GTK and WSLg, SCUI_P95_GROW=1: the
   mesh drawable alternates 360x300 and 720x300 (its log), but after the window grew to 748 px no

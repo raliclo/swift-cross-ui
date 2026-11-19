@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P119 opens and closes a sheet, adds and removes a split view and changes a
+# picker colour by itself for 20 cycles, then logs its verdict: nothing is pressed.
+# Only GtkBackend replays this file, so it must report PASS: a SKIP here would mean nothing was checked.
+# Added 2026-11-18 as the regression guard for 77be6665.
+#
+# expect: log-contains P119 PASS:
+#
+# P119 自己開關 sheet、加入並移除分割視圖、改變 picker 顏色共 20 輪，然後記下結果，不按任何東西。
+# 只有 GtkBackend 會重放這份檔案，所以必須回報 PASS:在這裡 SKIP 就表示什麼都沒檢查。
+# 2026-11-18 加入，作為 77be6665 的回歸防護。
+sleep,,,,,,30000000,let the 20 cycles finish and the verdict show,gtk

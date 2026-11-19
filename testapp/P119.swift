@@ -199,6 +199,13 @@ struct P119View: View {
             P119.log("P119 SKIP: this backend has no GtkCustomRootWidget, cycles \(cycle)")
         #endif
 
+        // One line for PASS and SKIP alike: testapp/actions/win and actions/mac are
+        // replayed by more than one backend, and `# expect:` takes a single text.
+        // PASS 與 SKIP 共用一行:testapp/actions/win 與 actions/mac 會由不只一個 backend 重放，而 `# expect:` 只能寫一段文字。
+        if passed {
+            P119.log("P119 finished without a failure")
+        }
+
         if P119.runsSequence {
             #if os(Android)
                 // exit() runs the static destructors while the HWUI render threads are
