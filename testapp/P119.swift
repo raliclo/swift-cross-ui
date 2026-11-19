@@ -8,6 +8,9 @@ import SwiftCrossUI
 #if os(Android)
     import Android
 #endif
+#if canImport(UIKit)
+    import UIKit
+#endif
 
 // P119 Root widget teardown: a regression guard for 77be6665.
 //
@@ -50,8 +53,20 @@ import SwiftCrossUI
 enum P119 {
     static let title = "P119 Root widget teardown"
     static let cycles = 20
+    /// The sheet toggles once per cycle, starting closed.
+    /// sheet 每個循環切換一次，一開始是關閉的。
+    static let sheetsOpened = (cycles + 1) / 2
     static let runsSequence =
         ProcessInfo.processInfo.environment["P119_SEQUENCE"] == "1" || CommandLine.arguments.contains("--sequence")
+
+    #if canImport(UIKit)
+        @MainActor static var sheetIsPresented: Bool {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .contains { $0.rootViewController?.presentedViewController != nil }
+        }
+    #endif
 
     static func log(_ message: String) {
         FileHandle.standardOutput.write(Data((message + "\n").utf8))
@@ -142,6 +157,7 @@ struct P119View: View {
     @State var splitShown = true
     @State var selection: String? = "a"
     @State var verdict = "running"
+    @State var sheetsClosed = 0
 
     var body: some View {
         VStack(spacing: 8) {
@@ -159,7 +175,7 @@ struct P119View: View {
             }
         }
         .padding(16)
-        .sheet(isPresented: $sheetShown) {
+        .sheet(isPresented: $sheetShown, onDismiss: { sheetsClosed += 1 }) {
             Text("Sheet \(cycle)")
                 .padding(40)
         }
@@ -184,19 +200,33 @@ struct P119View: View {
         splitShown = false
         try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-        var passed = true
+        // Every sheet opened has to be closed by now. On iOS a sheet closed during its
+        // transition used to stay up, stacked under the next one (9798d0f8, 2026-11-19).
+        // 開過的每一張 sheet 此時都必須已關閉。iOS 上在轉場中關閉的 sheet 曾經留在畫面上，疊在下一張底下(9798d0f8，2026-11-19)。
+        for _ in 0..<100 where sheetsClosed < P119.sheetsOpened {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        var sheetsGone = sheetsClosed == P119.sheetsOpened
+        #if canImport(UIKit)
+            sheetsGone = sheetsGone && !P119.sheetIsPresented
+        #endif
+        if !sheetsGone {
+            P119.log("P119 FAIL: \(P119.sheetsOpened) sheets opened, \(sheetsClosed) closed, one is left on screen")
+        }
+
+        var passed = sheetsGone
         #if canImport(CGtk)
             P119Log.sendProbe()
             let warnings = P119Log.leftChildren
-            passed = warnings == 0 && P119Log.probes == 1
+            passed = passed && warnings == 0 && P119Log.probes == 1
             verdict = passed ? "PASS" : "FAIL"
             P119.log(
                 "P119 \(verdict): \(warnings) root widgets freed with children left, "
                     + "log writer probes seen \(P119Log.probes) of 1, cycles \(cycle)"
             )
         #else
-            verdict = "SKIP"
-            P119.log("P119 SKIP: this backend has no GtkCustomRootWidget, cycles \(cycle)")
+            verdict = passed ? "SKIP" : "FAIL"
+            if passed { P119.log("P119 SKIP: this backend has no GtkCustomRootWidget, cycles \(cycle)") }
         #endif
 
         // One line for PASS and SKIP alike: testapp/actions/win and actions/mac are
