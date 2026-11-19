@@ -163,7 +163,15 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         // correctly.
         MenuBar.setUpMenuBar(extraMenus: [])
 
-        callback()
+        // Inside a pool of its own: this runs before NSApplication.run, so nothing else
+        // drains what the first window's build and layout autorelease, and the main thread's
+        // default pool never drains. Every view touched then stayed alive: P119 found the
+        // first split views' containers at a retain count of 64 against 3 for later ones,
+        // never released (2026-11-19).
+        // 放在自己的 pool 裡：這段在 NSApplication.run 之前執行，第一個視窗建置與排版時 autorelease 的物件沒有別人
+        // 清掉，而主執行緒預設的 pool 永遠不會清空。當時碰過的每個 view 都一直活著:P119 發現最早的分割視圖容器 retain
+        // 計數是 64，後來的只有 3，而且從未被釋放(2026-11-19)。
+        autoreleasepool { callback() }
         NSApplication.shared.activate(ignoringOtherApps: true)
         NSApplication.shared.run()
     }
