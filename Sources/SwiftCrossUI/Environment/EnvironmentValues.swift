@@ -961,7 +961,14 @@ extension EnvironmentValues {
 
     /// Backing store for ``EnvironmentValues/sheet``.
     /// Used to resolve "non-sendable type" warnings in Swift 5 and errors in Swift 6 language mode.
-    @Entry private var sheetStore = UncheckedSendable<Any?>(wrappedValue: nil)
+    /// Weak, because the environment is kept by widgets inside the sheet's own view
+    /// tree (a representable's context, for one): a strong reference made a cycle, and
+    /// no sheet was ever released. P119 found all 10 of its sheets alive on iOS and on
+    /// macOS (2026-11-19). The sheet modifier holds the sheet while it is presented.
+    /// 以 weak 保存，因為 environment 會被 sheet 自己視圖樹裡的元件保存(例如 representable 的 context):
+    /// 強參照形成循環，沒有任何 sheet 被釋放過。P119 在 iOS 與 macOS 上發現它的 10 張 sheet 全部仍活著
+    /// (2026-11-19)。sheet 呈現期間由 sheet modifier 持有。
+    @Entry private var sheetStore = UncheckedSendable<WeakSheetReference?>(wrappedValue: nil)
 
     /// The backend's representation of the sheet that the current view is
     /// in, if any.
@@ -969,10 +976,10 @@ extension EnvironmentValues {
     /// This is a very internal detail that should never get exposed to users.
     @_spi(Backends) public var sheet: Any? {
         get {
-            sheetStore.wrappedValue
+            sheetStore.wrappedValue?.value
         }
         set {
-            sheetStore.wrappedValue = newValue
+            sheetStore.wrappedValue = newValue.map(WeakSheetReference.init)
         }
     }
 
@@ -1146,4 +1153,25 @@ public protocol EnvironmentKey<Value> {
     associatedtype Value
     /// The default value for the key.
     static var defaultValue: Value { get }
+}
+
+/// A sheet held weakly when the backend's sheet is a class, as every shipped backend's is.
+/// 後端的 sheet 是 class 時(所有已發布的 backend 都是)以 weak 保存。
+struct WeakSheetReference {
+    private weak var object: AnyObject?
+    private let other: Any?
+
+    init(_ sheet: Any) {
+        if type(of: sheet) is AnyClass {
+            object = sheet as AnyObject
+            other = nil
+        } else {
+            object = nil
+            other = sheet
+        }
+    }
+
+    var value: Any? {
+        object ?? other
+    }
 }
