@@ -3104,6 +3104,14 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
 
 ## Test infrastructure / 測試基礎設施
 
+- [x] **CI windows: MSVC 14.52 refuses Swift 6.4.2's clang (Windows).** 2026-11-19: image win25-vs2026 20261116.315 brought MSVC
+  14.52.37025, whose STL stops clang before 22 with STL1000; Swift 6.4.2 ships clang 21.1.6, so run 44439590435 failed in
+  WinUIInterop's hide_others.cpp. CC, CXX and PATH did not change the clang SwiftPM ran; `--toolset` did. The windows job now writes a
+  toolset for Visual Studio's own clang (22.1.3 here) with `test_support/vs_clang_toolset.zsh`, and compile.zsh passes
+  `SCUI_SWIFT_TOOLSET` on. Locally a full WinUI rebuild of P119 with it passed in 2451 s and recompiled hide_others.o.
+  **This machine is exposed too**: its WinUIInterop objects predate MSVC 14.52, so a clean build without the toolset fails.
+  CI windows:MSVC 14.52 拒絕 Swift 6.4.2 的 clang 21.1.6(STL1000)。CC、CXX、PATH 都無效，`--toolset` 有效；windows 工作改用 Visual Studio 的 clang 22。**本機也一樣**:沒有 toolset 的乾淨建置會失敗。
+
 - [x] **A buttonless `move` is invisible to WinUI's pointer events.** (Windows) Win32Synthesiser
   performs it with SetCursorPos, a cursor jump: WinUI raises PointerEntered once and no
   PointerMoved, so onContinuousHover (P88) and menu items (P92) did nothing until their files used

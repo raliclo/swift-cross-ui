@@ -218,6 +218,8 @@ case "${1:-}" in
             "SCUI_BUILD_JOBS 預設 4（swift build -j）；空字串 = SwiftPM 預設值。" \
             "SCUI_SKIP_UPDATE=1 builds with the packages already fetched (no network)." \
             "SCUI_SKIP_UPDATE=1 以已抓取的套件建置(沒有網路時)。" \
+            "SCUI_SWIFT_TOOLSET=<file> passes --toolset (C/C++ compiler, e.g. clang 22 for MSVC 14.52)." \
+            "SCUI_SWIFT_TOOLSET=<檔案> 傳入 --toolset(C/C++ 編譯器，例如給 MSVC 14.52 用的 clang 22)。" \
             "SCUI_DEBUG=1 by default, so -actionfile and --debug work in the" \
             "release build this produces. SCUI_DEBUG=0 builds without them." \
             "The two are independent: BUILD_CONFIG picks the optimiser," \
@@ -2061,6 +2063,15 @@ if [ -n "$build_jobs" ]; then build_jobs_flags=(-j "$build_jobs"); fi
 # github.com,每次建置都停在那裡)。
 skip_update_flags=()
 if [ "${SCUI_SKIP_UPDATE:-0}" = 1 ]; then skip_update_flags=(--skip-update); fi
+# SCUI_SWIFT_TOOLSET=<file> passes --toolset, so C and C++ targets compile with the
+# compiler the file names. MSVC 14.52's STL refuses clang before 22 (STL1000), and
+# Swift 6.4.2 ships clang 21.1.6; CC, CXX and PATH did not change which clang
+# SwiftPM ran, a toolset did (2026-11-19, the CI windows job broke on that image).
+# SCUI_SWIFT_TOOLSET=<檔案> 傳入 --toolset,讓 C 與 C++ target 用該檔指定的編譯器編譯。MSVC 14.52 的 STL 拒絕 22 以前的
+# clang(STL1000),而 Swift 6.4.2 附的是 clang 21.1.6;CC、CXX 與 PATH 都改變不了 SwiftPM 執行的 clang,toolset 可以
+# (2026-11-19,CI 的 windows 工作在那個映像上壞掉)。
+toolset_flags=()
+if [ -n "${SCUI_SWIFT_TOOLSET:-}" ]; then toolset_flags=(--toolset "$SCUI_SWIFT_TOOLSET"); fi
 
 for app_name in $app_names; do
     echo "==> Compiling $app_name"
@@ -2071,6 +2082,7 @@ for app_name in $app_names; do
         "${build_jobs_flags[@]}" \
         "${debug_feature_flags[@]}" \
         "${skip_update_flags[@]}" \
+        "${toolset_flags[@]}" \
         "${gtk_build_flags[@]}"
 
     # On Windows the same app name can be built against either backend, and the
@@ -2139,7 +2151,7 @@ for app_name in $app_names; do
     # 並印出「-> ...exe」彷彿是新的。它隨後在啟動時以 0xC0000139(找不到進入點)死於 6.4.0 的 runtime——
     # 那看起來像建置壞了，而不是複製到舊檔。兩個檔案大小不同、時間差 42 分鐘，除此之外沒有任何東西指出這件事。
     bin_dir="$("$swift_bin" build --package-path "$package_dir" -c "$build_config" \
-        "${debug_feature_flags[@]}" "${gtk_build_flags[@]}" --show-bin-path 2>/dev/null \
+        "${debug_feature_flags[@]}" "${toolset_flags[@]}" "${gtk_build_flags[@]}" --show-bin-path 2>/dev/null \
         | tr -d '\r' | tail -n 1 || true)"
     if [ -n "$bin_dir" ] && command -v cygpath >/dev/null 2>&1; then
         bin_dir="$(cygpath -u "$bin_dir")"
