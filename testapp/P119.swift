@@ -4,6 +4,8 @@ import SwiftCrossUI
 
 #if canImport(CGtk)
     import CGtk
+    import Gtk
+    import GtkBackend
 #endif
 #if os(Android)
     import Android
@@ -39,7 +41,7 @@ import SwiftCrossUI
 // what reuses the freed memory, and it did not reproduce in 6 runs of the unfixed
 // code, while the warning appeared on every removal of a split view.
 //
-// GTK counts the widget's warning. UIKit, AppKit and Android put a native probe in each sheet and split pane, and check that every backend container removed with it was released and holds no child (2026-11-19). WinUI reports SKIP until it has a probe.
+// GTK also counts the widget's warning. Every backend puts a native probe in each sheet and split pane, and checks that every container removed with it was released and holds no child (2026-11-19, 11-20). WinUI reports SKIP until it has a probe.
 //
 // P119 Root widget 拆除：77be6665 的回歸防護。
 //
@@ -55,7 +57,7 @@ import SwiftCrossUI
 // 防護看的是警告而不是當機：存取違規取決於誰重複使用了那塊已釋放的記憶體，未修正的程式碼跑 6 次都沒有重現，而警告在每次移除
 // 分割視圖時都會出現。
 //
-// GTK 計算這個 widget 的警告。UIKit、AppKit 與 Android 在每個 sheet 與分割視圖窗格放一個原生探針，檢查與它一起被移除的每個 backend 容器都已釋放、且沒有掛著子元件(2026-11-19)。WinUI 在有探針之前仍回報 SKIP。
+// GTK 另外計算這個 widget 的警告。每個 backend 都在每個 sheet 與分割視圖窗格放一個原生探針，檢查與它一起被移除的每個容器都已釋放、且沒有掛著子元件(2026-11-19、11-20)。WinUI 在有探針之前仍回報 SKIP。
 //
 // Build this file as a standalone app target.
 
@@ -383,6 +385,79 @@ enum P119 {
         func updateAndroidView(_ view: AndroidKit.View, context: Self.Context) {}
     }
 #endif
+
+#if canImport(CGtk)
+    /// The same probe on GTK, on top of the warning count above: GObject weak
+    /// references to each probe and to every widget above it. After the teardown no
+    /// unmapped widget among them may be alive, and no probe may still have a parent.
+    /// GTK 上的同一個探針，加在上面的警告計數之外：以 GObject weak reference 記下每個探針與它上方的每個 widget。
+    /// 拆除之後，其中沒有對應到畫面的 widget 不可以仍活著，探針也不可以仍有 parent。
+    @MainActor enum P119Teardown {
+        final class Entry {
+            let reference = UnsafeMutablePointer<GWeakRef>.allocate(capacity: 1)
+            let name: String
+
+            init(_ widget: UnsafeMutablePointer<GtkWidget>) {
+                g_weak_ref_init(reference, widget)
+                name = String(cString: g_type_name_from_instance(UnsafeMutableRawPointer(widget).assumingMemoryBound(to: GTypeInstance.self)))
+            }
+
+            /// Runs `body` with the widget if it is still alive.
+            /// 若 widget 仍活著，以它執行 `body`。
+            func with<T>(_ body: (UnsafeMutablePointer<GtkWidget>) -> T) -> T? {
+                guard let object = g_weak_ref_get(reference) else { return nil }
+                defer { g_object_unref(object) }
+                return body(UnsafeMutableRawPointer(object).assumingMemoryBound(to: GtkWidget.self))
+            }
+        }
+
+        static var probes: [Entry] = []
+        static var containers: [UnsafeMutableRawPointer: Entry] = [:]
+
+        static var recorded: Int { containers.count }
+
+        /// GObject frees on the last unref; there is nothing to ask for.
+        /// GObject 在最後一次 unref 時就釋放，沒有東西需要要求。
+        static func collect() {}
+
+        static func sample() {
+            for probe in probes {
+                probe.with { widget in
+                    var parent = gtk_widget_get_parent(widget)
+                    while let ancestor = parent {
+                        let key = UnsafeMutableRawPointer(ancestor)
+                        if containers[key]?.with({ _ in true }) == nil {
+                            containers[key] = Entry(ancestor)
+                        }
+                        parent = gtk_widget_get_parent(ancestor)
+                    }
+                }
+            }
+        }
+
+        static var leaked: [String] {
+            containers.values.compactMap { entry in
+                entry.with { gtk_widget_get_mapped($0) == 0 ? entry.name : nil } ?? nil
+            }
+        }
+
+        static var attached: Int {
+            probes.filter { entry in
+                entry.with { gtk_widget_get_parent($0) != nil && gtk_widget_get_mapped($0) == 0 } ?? false
+            }.count
+        }
+    }
+
+    struct P119Probe: GtkWidgetRepresentable {
+        func makeGtkWidget(context: Context) -> Gtk.Label {
+            let label = Gtk.Label(string: "")
+            P119Teardown.probes.append(P119Teardown.Entry(label.widgetPointer))
+            return label
+        }
+
+        func updateGtkWidget(_ label: Gtk.Label, context: Context) {}
+    }
+#endif
 @main
 struct P119App: App {
     init() {
@@ -403,7 +478,7 @@ struct P119App: App {
 /// 有探針的 backend 放一個探針，其餘什麼都不放。
 struct P119ProbeSlot: SwiftCrossUI.View {
     @ViewBuilder var body: some SwiftCrossUI.View {
-        #if !canImport(CGtk) && (canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android))
+        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
             P119Probe().frame(width: 1, height: 1)
         #else
             EmptyView()
@@ -445,7 +520,7 @@ struct P119View: SwiftCrossUI.View {
     }
 
     @MainActor func sampleTeardown() {
-        #if !canImport(CGtk) && (canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android))
+        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
             P119Teardown.sample()
         #endif
     }
@@ -484,13 +559,19 @@ struct P119View: SwiftCrossUI.View {
 
         var passed = sheetsGone
         #if canImport(CGtk)
+            for _ in 0..<50 where !P119Teardown.leaked.isEmpty || P119Teardown.attached > 0 {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            let leaked = P119Teardown.leaked
+            let attached = P119Teardown.attached
+            let recorded = P119Teardown.recorded
             P119Log.sendProbe()
             let warnings = P119Log.leftChildren
-            passed = passed && warnings == 0 && P119Log.probes == 1
+            passed = passed && warnings == 0 && P119Log.probes == 1 && recorded > 0 && leaked.isEmpty && attached == 0
             verdict = passed ? "PASS" : "FAIL"
             P119.log(
                 "P119 \(verdict): \(warnings) root widgets freed with children left, "
-                    + "log writer probes seen \(P119Log.probes) of 1, cycles \(cycle)"
+                    + "log writer probes seen \(P119Log.probes) of 1, \(recorded) backend containers recorded, \(leaked.count) still alive off screen, \(attached) probes still attached, cycles \(cycle)"
             )
         #elseif canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
             // Releasing can wait for a transition or the next turn of the run loop.
