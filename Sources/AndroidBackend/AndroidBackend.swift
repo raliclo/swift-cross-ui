@@ -1423,6 +1423,10 @@ extension AndroidBackend {
                 }
             }
             height = Double(lines) * lineHeight
+            // Plus the vertical padding updateTextView set for baselineOffset(_:), which a
+            // height counted in lines leaves out. / 再加上 updateTextView 為 baselineOffset(_:) 設定的
+            // 上下 padding,以行數計算的高度不包含它。
+            height += Double(measuring.getPaddingTop() + measuring.getPaddingBottom()) / environment.windowScaleFactor
         }
         let size = SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
         Self.textSizes[key] = size

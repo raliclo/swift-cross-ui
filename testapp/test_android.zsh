@@ -843,3 +843,30 @@ fi
 if [ "$screenshot_failures" -gt 0 ]; then
     print -u2 -r -- "!! $screenshot_failures screenshot(s) could not be taken"
 fi
+
+# `# expect: log-contains <text>` lines of the action file, looked for in what the app
+# logged since launch: AndroidBackend sends stdout to logcat (its dup2), so an app's
+# verdict line arrives there. An unmet line fails the run with 8, as test_common.zsh
+# does on the desktop. Without this, P120 and P122 read as passes on Android whatever
+# they logged: P122 printed FAIL (baselineOffset 22 -> 22) and the sweep said pass
+# (2026-11-20).
+# 動作檔的 `# expect: log-contains <文字>` 行，在 app 自啟動以來記下的內容裡尋找:AndroidBackend 把 stdout
+# 導向 logcat(它的 dup2),因此 app 的判定行會出現在那裡。未達成時以 8 結束，與桌面上的 test_common.zsh
+# 相同。少了這一步,P120 與 P122 在 Android 上不論記下什麼都讀作通過:P122 印出 FAIL(baselineOffset
+# 22 -> 22),sweep 卻回報 pass(2026-11-20)。
+expect_unmet=0
+if [ -n "$action_file" ] && [ -f "$action_file" ]; then
+    app_log="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null || true)"
+    while IFS= read -r expectation; do
+        expected_text="${expectation#\# expect: log-contains }"
+        if print -r -- "$app_log" | grep -qF -- "$expected_text"; then
+            print -r -- "==> expect: MET -- the run logged \"$expected_text\""
+        else
+            print -u2 -r -- "!! expect: UNMET -- the run never logged \"$expected_text\""
+            expect_unmet=$((expect_unmet + 1))
+        fi
+    done < <(grep -E '^# expect: log-contains ' "$action_file" || true)
+fi
+if [ "$expect_unmet" -gt 0 ]; then
+    exit 8
+fi
