@@ -52,7 +52,7 @@ enum Analyzer {
         }
 
         for (_, extensionDecl) in extensions {
-            conformances[extensionDecl.identifier, default: []] += extensionDecl.inheritedTypes
+            conformances[extensionDecl.identifier.replacingOccurrences(of: "::", with: "."), default: []] += extensionDecl.inheritedTypes
         }
 
         // TODO: Include transitive conformances by iterating through protocols as well
@@ -127,7 +127,7 @@ enum Analyzer {
     /// protocol (as it spelled in the Swift interface files
     /// that we're interested in).
     static func isViewProtocol(_ type: String) -> Bool {
-        ["SwiftUICore.View", "SwiftCrossUI.View"].contains(type)
+        ["SwiftUICore.View", "SwiftCrossUI.View"].contains(type.replacingOccurrences(of: "::", with: "."))
     }
 
     /// Checks whether a set of attributes is loose enough for

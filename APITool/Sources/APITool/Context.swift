@@ -8,6 +8,11 @@ struct Context {
     static let swiftUIInterfacePath = "MacOSX.sdk/System/Library/Frameworks/SwiftUI.framework/Modules/SwiftUI.swiftmodule/arm64e-apple-macos.swiftinterface"
 
     static let swiftCrossUIInterfacePath = ".build/debug/SwiftCrossUI.build/SwiftCrossUI.swiftinterface"
+    /// Where swiftbuild writes the same interface, per architecture.
+    /// swiftbuild 寫出同一個介面的位置，依架構而異。
+    static let swiftBuildInterfacePaths = ["arm64", "x86_64"].map {
+        ".build/out/Intermediates.noindex/swift-cross-ui.build/Debug/SwiftCrossUI-t.build/Objects-normal/\($0)/SwiftCrossUI.swiftinterface"
+    }
 
     let swiftCrossUIAnalysis: Analyzer.Result
     let swiftUIAnalysis: Analyzer.Result
@@ -115,7 +120,24 @@ struct Context {
             )
         }
 
-        return swiftCrossUICheckout / swiftCrossUIInterfacePath
+        // SwiftPM's native build system writes the interface to
+        // `swiftCrossUIInterfacePath`; swiftbuild writes it under `.build/out`. The
+        // newest of those is the one this build made, and an older one is stale.
+        // SwiftPM 原生建置系統把介面寫到 `swiftCrossUIInterfacePath`;swiftbuild 則寫到 `.build/out`
+        // 底下。其中最新的那一個才是這次建置產生的，較舊的已過時。
+        let candidates = ([swiftCrossUIInterfacePath] + swiftBuildInterfacePaths).map {
+            swiftCrossUICheckout / $0
+        }
+        let newest = candidates.compactMap { url -> (URL, Date)? in
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            return (attributes?[.modificationDate] as? Date).map { (url, $0) }
+        }.max { $0.1 < $1.1 }
+        guard let (interface, _) = newest else {
+            throw GeneralError(
+                "Built SwiftCrossUI, but found no swiftinterface at any of: \(candidates.map(\.path))"
+            )
+        }
+        return interface
     }
 
     /// Gets the user's default developer directory by running

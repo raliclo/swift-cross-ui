@@ -27,24 +27,29 @@ enum InterfaceLoader {
         var structs: [Struct] = []
         var enums: [Enum] = []
         var extensions: [Extension] = []
-        for stmt in sourceFile.statements {
-            let decl: DeclSyntax
-            switch stmt.item {
-                case .decl(let declSyntax):
-                    decl = declSyntax
-                case .expr, .stmt:
+        // Xcode 27's interfaces put many declarations inside `#if compiler(...)`
+        // blocks; the first clause is the one a current compiler reads.
+        // Xcode 27 的介面把許多宣告放在 `#if compiler(...)` 區塊裡;第一個子句就是現行編譯器會讀的那一個。
+        func collect(_ items: CodeBlockItemListSyntax) {
+            for stmt in items {
+                guard case .decl(let decl) = stmt.item else { continue }
+                if let ifConfig = decl.as(IfConfigDeclSyntax.self) {
+                    if case .statements(let inner)? = ifConfig.clauses.first?.elements {
+                        collect(inner)
+                    }
                     continue
-            }
-
-            let wrapped = Decl(decl)
-            if let enumDecl = wrapped.asEnum {
-                enums.append(enumDecl)
-            } else if let structDecl = wrapped.asStruct {
-                structs.append(structDecl)
-            } else if let extensionDecl = wrapped._syntax.as(ExtensionDeclSyntax.self) {
-                extensions.append(Extension(extensionDecl))
+                }
+                let wrapped = Decl(decl)
+                if let enumDecl = wrapped.asEnum {
+                    enums.append(enumDecl)
+                } else if let structDecl = wrapped.asStruct {
+                    structs.append(structDecl)
+                } else if let extensionDecl = wrapped._syntax.as(ExtensionDeclSyntax.self) {
+                    extensions.append(Extension(extensionDecl))
+                }
             }
         }
+        collect(sourceFile.statements)
 
         return SwiftInterface(
             moduleName: moduleName,
