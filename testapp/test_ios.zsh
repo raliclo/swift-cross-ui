@@ -26,6 +26,7 @@ device_name="${IOS_SIM_DEVICE:-swift-cross-ui}"
 showtime_seconds=30
 do_build=1
 action_file=""
+expect_source=""  # the action file whose `# expect:` lines are checked at the end / 結尾檢查其 `# expect:` 行的動作檔
 dump_tree=0
 keep_stdout=0
 sleep_only_file=""
@@ -445,6 +446,7 @@ if [ -n "$action_file" ]; then
             sleep_only=0
         fi
     done
+    expect_source="$action_file"
     if [ "$sleep_only" -eq 1 ] && [ "$row_count" -gt 0 ]; then
         showtime_seconds=$(((sleep_micros + 999999) / 1000000))
         printf '==> %s presses nothing: running it without the XCUITest runner, stdout kept, for %ss\n' \
@@ -679,4 +681,30 @@ wait "$log_pid" 2>/dev/null || true
 printf '==> Simulator log: %s\n' "$log_file"
 if [ "$screenshot_failures" -gt 0 ]; then
     printf '!! %d screenshot(s) could not be taken\n' "$screenshot_failures" >&2
+fi
+
+# `# expect: log-contains <text>` lines of the action file, looked for in the app's
+# stdout. That is kept for files that only wait, which run without the XCUITest
+# runner; a file that presses something runs under the runner, whose app stdout is not
+# kept, and its lines are reported UNCHECKED rather than passed. An unmet line ends
+# the run with 8, as test_common.zsh and test_android.zsh do.
+# 動作檔的 `# expect: log-contains <文字>` 行，在 app 的 stdout 裡尋找。只有等待的動作檔不經 XCUITest runner 執行,
+# 會保留 stdout;有按任何東西的動作檔在 runner 下執行,app 的 stdout 不保留，其期望行回報為 UNCHECKED,而不是當作通過。
+# 未達成的行以 8 結束，與 test_common.zsh 及 test_android.zsh 相同。
+expect_unmet=0
+if [ -n "$expect_source" ] && [ -f "$expect_source" ]; then
+    while IFS= read -r expectation; do
+        expected_text="${expectation#\# expect: log-contains }"
+        if [ "$keep_stdout" -ne 1 ] || [ ! -f "${app_stdout:-}" ]; then
+            print -u2 -r -- "!! expect: UNCHECKED -- the app's stdout was not kept, so \"$expected_text\" was not looked for"
+        elif grep -qaF -- "$expected_text" "$app_stdout"; then
+            print -r -- "==> expect: MET -- the run logged \"$expected_text\""
+        else
+            print -u2 -r -- "!! expect: UNMET -- the run never logged \"$expected_text\""
+            expect_unmet=$((expect_unmet + 1))
+        fi
+    done < <(grep -E '^# expect: log-contains ' "$expect_source" || true)
+fi
+if [ "$expect_unmet" -gt 0 ]; then
+    exit 8
 fi
