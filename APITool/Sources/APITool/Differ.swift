@@ -76,7 +76,8 @@ enum Differ {
                 //   our usecase of analyzing known swiftinterface files).
                 //   We want to drop these module prefixes, even when the type
                 //   is wrapped in an optional, or included as a generic param etc.
-                var typeWithoutModule = parameter.type.normalizedDescription
+                // Swift 6.4 interfaces spell a module selector `Module::Type`. / Swift 6.4 的介面把模組選擇器寫成 `Module::Type`。
+                var typeWithoutModule = parameter.type.normalizedDescription.replacingOccurrences(of: "::", with: ".")
                 typeWithoutModule = typeWithoutModule.replacingOccurrences(of: "SwiftUI.", with: "")
                 typeWithoutModule = typeWithoutModule.replacingOccurrences(of: "SwiftUICore.", with: "")
                 typeWithoutModule = typeWithoutModule.replacingOccurrences(of: "SwiftCrossUI.", with: "")
