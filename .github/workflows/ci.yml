@@ -2,7 +2,7 @@
 # 本 fork 的 CI:每次推到 develop 時執行，也可以手動執行。
 #
 # Six jobs, each covering what the local machines cannot check on every push:
-# - macos: the core and AppKitBackend, built and tested (swift test).
+# - macos: the core and AppKitBackend, built and tested (swift test), on the xcode-27 image (macOS 27).
 # - ios: the test apps built with xcodebuild and their action files replayed on the
 #   iOS Simulator (sweep_apple.zsh), on the xcode-27 image.
 # - android: the test apps built for x86_64, installed on an emulator and their
@@ -14,7 +14,7 @@
 # All five platforms sweep P2 P8 P12 P114 P116 P120; macos, linux and windows also sweep P119 (only linux, on GTK, really checks it; ios and android use ci_p119_mobile.zsh); run by hand with full=true for every app.
 # macos, linux and windows build P2 and P116 and launch each for 20 s (ci_launch_check.zsh); all three also replay and photograph the same apps (actions/mac, actions/wsl, actions/win; 2026-11-15).
 # 六個工作，各自涵蓋本機無法在每次推送時檢查的部分:
-# - macos:核心與 AppKitBackend,建置並測試(swift test)。
+# - macos:核心與 AppKitBackend,建置並測試(swift test),使用 xcode-27 映像(macOS 27)。
 # - ios:以 xcodebuild 建置測試 app,在 iOS 模擬器上重放動作檔(sweep_apple.zsh),使用 xcode-27 映像。
 # - android:以 x86_64 建置測試 app,裝到 emulator 上並重放動作檔(sweep_android.zsh),在有 KVM 的 Ubuntu 上。
 # - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查；在 xvfb 下重放 actions/wsl 的 SWEEP_APPS(sweep_desktop.zsh)。
@@ -46,11 +46,11 @@ concurrency:
 
 jobs:
   macos:
-    # macOS 26, not 15: the csv2 release binary is built for macOS 26 and aborted on macos-15 for want of
-    # libswift_DarwinFoundation1.dylib, so the sweep table and build-manifest.csv2 were never written (run 43674209622).
-    # macOS 26 而非 15:csv2 的發行檔是為 macOS 26 建置的，在 macos-15 上因缺少 libswift_DarwinFoundation1.dylib 而中止，
-    # sweep 結果表與 build-manifest.csv2 因此從未寫出(run 43674209622)。
-    runs-on: macos-26
+    # xcode-27 (macOS 27.2), not macos-26: Apple platforms need 27 or later since 2026-11-20, so the apps
+    # this job builds would not launch on macOS 26. csv2, built for macOS 26, runs on 27 as well.
+    # 用 xcode-27(macOS 27.2)而非 macos-26:自 2026-11-20 起 Apple 平台需要 27 以上，本工作建置的 app 在 macOS 26
+    # 上無法啟動。為 macOS 26 建置的 csv2 在 27 上同樣能執行。
+    runs-on: xcode-27
     timeout-minutes: 120
     env:
       SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120' }}

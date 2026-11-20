@@ -1400,7 +1400,9 @@ let testAppDependencies: [Target.Dependency] = [
 
 let package = Package(
     name: "$package_name",
-    platforms: [.macOS(.v11), .iOS(.v13), .tvOS(.v13), .macCatalyst(.v13), .visionOS(.v1)],
+    // Apple platforms at 27 and up (2026-11-20). Strings, not .v27, which needs tools 6.4.
+    // Apple 平台最低為 27(2026-11-20)。用字串而非 .v27,後者需要 tools 6.4。
+    platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0"), .macCatalyst("27.0"), .visionOS("27.0")],
     dependencies: [
         .package(path: "$repo_root"),
         $image_formats_package
