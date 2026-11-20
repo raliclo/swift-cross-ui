@@ -21,6 +21,11 @@ import SwiftCrossUI
 #elseif !canImport(CGtk) && canImport(AppKitBackend)
     import AppKit
     import AppKitBackend
+#elseif !canImport(CGtk) && canImport(WinUIBackend)
+    import CWinRT
+    @_spi(WinRTInternal) import WinUI
+    import WinUIBackend
+    @_spi(WinRTInternal) import WindowsFoundation
 #endif
 
 // P119 Root widget teardown: a regression guard for 77be6665.
@@ -41,7 +46,7 @@ import SwiftCrossUI
 // what reuses the freed memory, and it did not reproduce in 6 runs of the unfixed
 // code, while the warning appeared on every removal of a split view.
 //
-// GTK also counts the widget's warning. Every backend puts a native probe in each sheet and split pane, and checks that every container removed with it was released and holds no child (2026-11-19, 11-20). WinUI reports SKIP until it has a probe.
+// GTK also counts the widget's warning. Every backend puts a native probe in each sheet and split pane, and checks that every container removed with it was released and holds no child (2026-11-19, 11-20). WinUI does it through WinRT weak references (2026-11-20). No backend reports SKIP any more.
 //
 // P119 Root widget 拆除：77be6665 的回歸防護。
 //
@@ -57,7 +62,7 @@ import SwiftCrossUI
 // 防護看的是警告而不是當機：存取違規取決於誰重複使用了那塊已釋放的記憶體，未修正的程式碼跑 6 次都沒有重現，而警告在每次移除
 // 分割視圖時都會出現。
 //
-// GTK 另外計算這個 widget 的警告。每個 backend 都在每個 sheet 與分割視圖窗格放一個原生探針，檢查與它一起被移除的每個容器都已釋放、且沒有掛著子元件(2026-11-19、11-20)。WinUI 在有探針之前仍回報 SKIP。
+// GTK 另外計算這個 widget 的警告。每個 backend 都在每個 sheet 與分割視圖窗格放一個原生探針，檢查與它一起被移除的每個容器都已釋放、且沒有掛著子元件(2026-11-19、11-20)。WinUI 透過 WinRT 弱參照做這件事(2026-11-20)。已經沒有 backend 會回報 SKIP。
 //
 // Build this file as a standalone app target.
 
@@ -458,6 +463,159 @@ enum P119 {
         func updateGtkWidget(_ label: Gtk.Label, context: Context) {}
     }
 #endif
+
+#if !canImport(CGtk) && canImport(WinUIBackend)
+    /// The same check for WinUI. A Swift reference to a WinUI object is a wrapper that
+    /// can come and go while the XAML object stays, so a Swift `weak` says nothing about
+    /// the element. WinRT's own weak references (IWeakReferenceSource) do: Resolve fails
+    /// once the element is released. "On screen" is FrameworkElement.IsLoaded, true only
+    /// while the element is in a live XAML tree.
+    /// WinUI 上的同一項檢查。指向 WinUI 物件的 Swift 參照只是包裝，XAML 物件還在時包裝可能已來來去去，所以 Swift 的
+    /// `weak` 說明不了元件的狀態。WinRT 自己的弱參照(IWeakReferenceSource)可以：元件被釋放後 Resolve 就失敗。
+    /// 「在畫面上」以 FrameworkElement.IsLoaded 判斷，只有元件在運作中的 XAML 樹裡時才為 true。
+    @MainActor enum P119Teardown {
+        final class Entry {
+            let reference: UnsafeMutablePointer<C_IWeakReference>
+            let name: String
+
+            init(reference: UnsafeMutablePointer<C_IWeakReference>, name: String) {
+                self.reference = reference
+                self.name = name
+            }
+
+            deinit {
+                _ = reference.pointee.lpVtbl.pointee.Release(reference)
+            }
+        }
+
+        static var probes: [Entry] = []
+        /// Keyed by the object's COM identity (its IUnknown pointer).
+        /// 以物件的 COM identity(它的 IUnknown 指標)為鍵。
+        static var containers: [UInt: Entry] = [:]
+
+        static var recorded: Int { containers.count }
+
+        static let weakReferenceSourceID = WindowsFoundation.IID(
+            Data1: 0x0000_0038, Data2: 0x0000, Data3: 0x0000,
+            Data4: (0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46)
+        )
+
+        /// The object's interface `iid`, owned by the caller (one Release each).
+        /// 物件的 `iid` 介面，由呼叫端擁有(各自 Release 一次)。
+        static func query(_ object: UnsafeMutablePointer<C_IInspectable>, _ iid: WindowsFoundation.IID) -> UnsafeMutableRawPointer? {
+            var iid = iid
+            var result: UnsafeMutableRawPointer?
+            guard object.pointee.lpVtbl.pointee.QueryInterface(object, &iid, &result) >= 0 else { return nil }
+            return result
+        }
+
+        static func release(_ pointer: UnsafeMutableRawPointer) {
+            let unknown = pointer.assumingMemoryBound(to: C_IUnknown.self)
+            _ = unknown.pointee.lpVtbl.pointee.Release(unknown)
+        }
+
+        /// The controlling object, not a wrapper's inner one: a WinUIBackend subclass
+        /// aggregates its XAML base, and only the outer object has the identity Resolve returns.
+        /// 控制物件，而不是包裝裡的內層物件:WinUIBackend 的子類別聚合了它的 XAML 基底，只有外層物件才有 Resolve 傳回的 identity。
+        static func abi(_ object: WinRTClass) -> UnsafeMutablePointer<C_IInspectable>? {
+            object._getABI()
+        }
+
+        static func identity(_ object: UnsafeMutablePointer<C_IInspectable>) -> UInt? {
+            guard let unknown = query(object, WindowsFoundation.IUnknown.IID) else { return nil }
+            release(unknown)
+            return UInt(bitPattern: unknown)
+        }
+
+        static func weakEntry(_ object: WinRTClass, name: String) -> Entry? {
+            guard let pointer = abi(object), let raw = query(pointer, weakReferenceSourceID) else { return nil }
+            defer { release(raw) }
+            let source = raw.assumingMemoryBound(to: C_IWeakReferenceSource.self)
+            var reference: UnsafeMutablePointer<C_IWeakReference>?
+            guard source.pointee.lpVtbl.pointee.GetWeakReference(source, &reference) >= 0, let reference else { return nil }
+            return Entry(reference: reference, name: name)
+        }
+
+        /// The element, or nil once it has been released.
+        /// 元件本身；被釋放之後為 nil。
+        static func element(_ entry: Entry) -> WinUI.DependencyObject? {
+            var iid = __ABI_Microsoft_UI_Xaml.IDependencyObject.IID
+            var object: UnsafeMutablePointer<C_IInspectable>?
+            guard entry.reference.pointee.lpVtbl.pointee.Resolve(entry.reference, &iid, &object) >= 0,
+                let object
+            else { return nil }
+            defer { _ = object.pointee.lpVtbl.pointee.Release(object) }
+            let typed = UnsafeMutableRawPointer(object)
+                .assumingMemoryBound(to: __x_ABI_CMicrosoft_CUI_CXaml_CIDependencyObject.self)
+            return __IMPL_Microsoft_UI_Xaml.DependencyObjectBridge.from(abi: ComPtr(typed))
+        }
+
+        static func identity(_ entry: Entry) -> UInt? {
+            guard let element = element(entry), let pointer = abi(element) else { return nil }
+            return identity(pointer)
+        }
+
+        /// The backend's own containers: its Swift subclasses, and the Canvas it builds every
+        /// container from (createContainer). XAML's template parts are left out, as Apple
+        /// leaves out UIKit's and AppKit's.
+        /// backend 自己的容器：它的 Swift 子類別，以及它建立每個容器所用的 Canvas(createContainer)。XAML 範本裡的部件不記，
+        /// 就像 Apple 版不記 UIKit 與 AppKit 的。
+        static func record(_ object: WinUI.DependencyObject) {
+            guard String(reflecting: type(of: object)).hasPrefix("WinUIBackend.") || object is WinUI.Canvas else { return }
+            guard let pointer = abi(object), let id = identity(pointer) else { return }
+            if let existing = containers[id], identity(existing) == id { return }
+            if let entry = weakEntry(object, name: String(describing: type(of: object))) {
+                containers[id] = entry
+            }
+        }
+
+        static func sample() {
+            for probe in probes {
+                guard let probe = element(probe) else { continue }
+                var parent = try? VisualTreeHelper.getParent(probe)
+                while let ancestor = parent {
+                    record(ancestor)
+                    parent = try? VisualTreeHelper.getParent(ancestor)
+                }
+            }
+        }
+
+        /// WinUI releases on the last COM Release; there is nothing to ask for.
+        /// WinUI 在最後一次 COM Release 時釋放，沒有東西需要要求。
+        static func collect() {}
+
+        static func onScreen(_ object: WinUI.DependencyObject) -> Bool {
+            (object as? WinUI.FrameworkElement)?.isLoaded == true
+        }
+
+        static var leaked: [String] {
+            containers.values.compactMap { entry in
+                guard let element = element(entry), !onScreen(element) else { return nil }
+                return entry.name
+            }
+        }
+
+        static var attached: Int {
+            probes.filter { entry in
+                guard let element = element(entry) else { return false }
+                return (try? VisualTreeHelper.getParent(element)) != nil && !onScreen(element)
+            }.count
+        }
+    }
+
+    struct P119Probe: WinUIElementRepresentable {
+        func makeWinUIElement(context: Context) -> WinUI.Canvas {
+            let element = WinUI.Canvas()
+            if let entry = P119Teardown.weakEntry(element, name: "P119Probe") {
+                P119Teardown.probes.append(entry)
+            }
+            return element
+        }
+
+        func updateWinUIElement(_ winUIElement: WinUI.Canvas, context: Context) {}
+    }
+#endif
+
 @main
 struct P119App: App {
     init() {
@@ -478,7 +636,7 @@ struct P119App: App {
 /// 有探針的 backend 放一個探針，其餘什麼都不放。
 struct P119ProbeSlot: SwiftCrossUI.View {
     @ViewBuilder var body: some SwiftCrossUI.View {
-        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
+        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android) || canImport(WinUIBackend)
             P119Probe().frame(width: 1, height: 1)
         #else
             EmptyView()
@@ -520,7 +678,7 @@ struct P119View: SwiftCrossUI.View {
     }
 
     @MainActor func sampleTeardown() {
-        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
+        #if canImport(CGtk) || canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android) || canImport(WinUIBackend)
             P119Teardown.sample()
         #endif
     }
@@ -573,7 +731,7 @@ struct P119View: SwiftCrossUI.View {
                 "P119 \(verdict): \(warnings) root widgets freed with children left, "
                     + "log writer probes seen \(P119Log.probes) of 1, \(recorded) backend containers recorded, \(leaked.count) still alive off screen, \(attached) probes still attached, cycles \(cycle)"
             )
-        #elseif canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android)
+        #elseif canImport(UIKitBackend) || canImport(AppKitBackend) || os(Android) || canImport(WinUIBackend)
             // Releasing can wait for a transition or the next turn of the run loop.
             // 釋放可能要等轉場結束，或等下一輪 run loop。
             for _ in 0..<50 where !P119Teardown.leaked.isEmpty || P119Teardown.attached > 0 {
