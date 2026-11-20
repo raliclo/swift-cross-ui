@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P122 measures plain and modified text a second after it appears and logs its verdict;
+# nothing is pressed. Tracking and kerning must widen the text, lineSpacing and
+# baselineOffset must make it taller. The screenshot shows the underlines.
+#
+# expect: log-contains P122 PASS
+#
+# P122 在出現一秒後量測原樣與套用後的文字並記下結果，不按任何東西。tracking 與 kerning 必須讓文字變寬,
+# lineSpacing 與 baselineOffset 必須讓文字變高。截圖顯示底線。
+sleep,,,,,,4000000,let the measurement and the verdict show,ios

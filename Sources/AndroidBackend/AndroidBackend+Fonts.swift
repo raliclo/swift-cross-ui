@@ -15,6 +15,10 @@ extension AndroidBackend {
         var lineHeightPixels: Int32
         var typeface: AndroidKit.Typeface
         var multilineTextAlignment: Int32
+        /// Paint flags for underline and strikethrough. / 底線與刪除線的 Paint 旗標。
+        var decorationFlags: Int32
+        /// Letter spacing in ems. / 以 em 為單位的字距。
+        var letterSpacingEm: Float
 
         func apply(to textView: AndroidKit.TextView) {
             let typedValue = try! JavaClass<AndroidKit.TypedValue>()
@@ -32,6 +36,10 @@ extension AndroidBackend {
             // 第一行上方與最後一行下方不加字型內距，讓一行就是文字樣式要求的行高——也就是 UIKit 量到的。加了它，每個 Text 都比
             // iOS 高約 2 dp,高度固定的清單在 Android 上露出 4.5 列、iOS 是 5 列(P11,2026-10-09)。量測用的 TextView 也經過這裡。
             textView.setIncludeFontPadding(false)
+            let paintClass = try! JavaClass<AndroidKit.Paint>()
+            let decorationMask = paintClass.UNDERLINE_TEXT_FLAG | paintClass.STRIKE_THRU_TEXT_FLAG
+            textView.setPaintFlags((textView.getPaintFlags() & ~decorationMask) | decorationFlags)
+            textView.setLetterSpacing(letterSpacingEm)
         }
     }
 
@@ -44,7 +52,9 @@ extension AndroidBackend {
         let color = environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
         return "\(font.design)|\(font.weight)|\(font.isItalic)|\(font.pointSize)|"
             + "\(font.lineHeight)|\(color)|\(environment.multilineTextAlignment)|"
-            + "\(environment.windowScaleFactor)"
+            + "\(environment.windowScaleFactor)|\(environment.underlineStyle != nil)|"
+            + "\(environment.strikethroughStyle != nil)|\(environment.resolvedLetterSpacing)|"
+            + "\(environment.lineSpacing)|\(environment.baselineOffset)"
     }
 
     /// TextStyles already built, by `textStyleKey`.
@@ -110,17 +120,36 @@ extension AndroidBackend {
         let lineHeightPixels = Int32(
             typedValue.applyDimension(
                 typedValue.COMPLEX_UNIT_SP,
-                Float(resolvedFont.lineHeight),
+                Float(resolvedFont.lineHeight + environment.lineSpacing),
                 environment.androidActivity.getResources().getDisplayMetrics()
             )
         )
+
+        // underline(_:) and strikethrough(_:) as Paint flags, drawn solid in the text's
+        // colour: a Text.LineStyle's pattern and colour are not shown on Android. Letter
+        // spacing is in ems: tracking(_:), else kerning(_:).
+        // underline(_:) 與 strikethrough(_:) 以 Paint 旗標實作，用文字顏色畫實線:Text.LineStyle 的樣式與顏色
+        // 在 Android 上不會顯示。字距以 em 為單位:tracking(_:),否則 kerning(_:)。
+        let paintClass = try! JavaClass<AndroidKit.Paint>()
+        var decorationFlags: Int32 = 0
+        if environment.underlineStyle != nil {
+            decorationFlags |= paintClass.UNDERLINE_TEXT_FLAG
+        }
+        if environment.strikethroughStyle != nil {
+            decorationFlags |= paintClass.STRIKE_THRU_TEXT_FLAG
+        }
+        let letterSpacingEm =
+            resolvedFont.pointSize > 0
+            ? Float(environment.resolvedLetterSpacing / resolvedFont.pointSize) : 0
 
         return TextStyle(
             color: colorInt,
             fontSize: Float(resolvedFont.pointSize),
             lineHeightPixels: lineHeightPixels,
             typeface: typeface,
-            multilineTextAlignment: textAlignment
+            multilineTextAlignment: textAlignment,
+            decorationFlags: decorationFlags,
+            letterSpacingEm: letterSpacingEm
         )
     }
 

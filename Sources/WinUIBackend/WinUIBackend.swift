@@ -1811,7 +1811,7 @@ extension WinUIBackend {
         )
 
         var usedHeight = size.y
-        let lineHeight = environment.resolvedFont.lineHeight
+        let lineHeight = environment.resolvedFont.lineHeight + environment.lineSpacing
 
         if let lineLimitSettings = environment.lineLimitSettings {
             let height = Int(
@@ -3688,12 +3688,39 @@ extension EnvironmentValues {
         } else {
             try! textBlock.clearValue(WinUI.TextBlock.foregroundProperty)
         }
-        textBlock.lineHeight = resolvedFont.lineHeight
+        textBlock.lineHeight = resolvedFont.lineHeight + lineSpacing
         textBlock.fontStyle = resolvedFont.isItalic ? .italic : .normal
         if let family = resolvedFont.winUIFontFamily {
             textBlock.fontFamily = family
         } else if textBlock.fontFamily?.source == winUIMonospacedFontFamilies {
             try! textBlock.clearValue(WinUI.TextBlock.fontFamilyProperty)
+        // underline(_:), strikethrough(_:), tracking(_:) or kerning(_:), and
+        // baselineOffset(_:). A TextBlock draws its lines solid and in the text's
+        // colour, so the pattern and colour of a Text.LineStyle are not shown here.
+        // CharacterSpacing is in thousandths of an em. The baseline offset is padding:
+        // below the text to raise it, above to lower it, which also makes the block that
+        // much taller, as a Pango rise does on GTK. Measuring goes through here as well.
+        // underline(_:)、strikethrough(_:)、tracking(_:) 或 kerning(_:),以及 baselineOffset(_:)。TextBlock
+        // 以實線與文字顏色畫線，因此 Text.LineStyle 的樣式與顏色在這裡不會顯示。CharacterSpacing 的單位是
+        // 千分之一 em。基線位移以 padding 實作：上移時加在文字下方，下移時加在上方，區塊也因此變高這麼多，
+        // 與 GTK 上的 Pango rise 相同。量測也經過這裡。
+        var decorations = UWP.TextDecorations.none.rawValue
+        if underlineStyle != nil {
+            decorations |= UWP.TextDecorations.underline.rawValue
+        }
+        if strikethroughStyle != nil {
+            decorations |= UWP.TextDecorations.strikethrough.rawValue
+        }
+        textBlock.textDecorations = UWP.TextDecorations(rawValue: decorations)
+        textBlock.characterSpacing =
+            resolvedFont.pointSize > 0
+            ? Int32((resolvedLetterSpacing / resolvedFont.pointSize * 1000).rounded()) : 0
+        textBlock.padding = Thickness(
+            left: 0,
+            top: max(0, -baselineOffset),
+            right: 0,
+            bottom: max(0, baselineOffset)
+        )
         }
     }
 }
