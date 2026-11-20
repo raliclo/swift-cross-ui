@@ -515,7 +515,14 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             }
             backend.setSize(of: widget, to: layout.size.vector)
             backend.setSelectionHandler(forSelectableListView: widget) { selectedIndex in
-                selection.wrappedValue = associatedSelectionValue(selectedIndex)
+                let chosen = associatedSelectionValue(selectedIndex)
+                selection.wrappedValue = chosen
+                // In a NavigationSplitView column, a chosen row moves a compact window to the
+                // next column; Back clears it again. / 在 NavigationSplitView 的欄裡，選中的列會讓
+                // compact 視窗前往下一欄;返回時再清除它。
+                environment.splitColumnSelection?.report(true) {
+                    selection.wrappedValue = nil
+                }
             }
             backend.updateSelectableListView(widget, environment: environment)
             backend.setSelectedItem(
@@ -558,7 +565,14 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
 
         backend.setSize(of: widget, to: layout.size.vector)
         backend.setSelectionHandler(forSelectableListView: widget) { selectedIndex in
-            selection.wrappedValue = associatedSelectionValue(selectedIndex)
+            let chosen = associatedSelectionValue(selectedIndex)
+            selection.wrappedValue = chosen
+            // In a NavigationSplitView column, a chosen row moves a compact window to the
+            // next column; Back clears it again. / 在 NavigationSplitView 的欄裡，選中的列會讓
+            // compact 視窗前往下一欄;返回時再清除它。
+            environment.splitColumnSelection?.report(true) {
+                selection.wrappedValue = nil
+            }
         }
 
         let selectedIndex: Int?

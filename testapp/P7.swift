@@ -218,7 +218,10 @@ struct P7RootView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("NavigationSplitView with a List (#556)")
                         .frame(width: 420, height: 24, alignment: .leading)
-                    NavigationSplitView {
+                    // Side by side at every width: this app tests the two-pane split, which a
+                    // compact NavigationSplitView would collapse. / 任何寬度都並排：此 app 測的是兩欄並排,
+                    // 而 compact 的 NavigationSplitView 會收合成一欄。
+                    SideBySideSplitView {
                         List(fruits, selection: $sidebarSelection) { fruit in
                             Text(fruit.name)
                         }

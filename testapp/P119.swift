@@ -501,7 +501,10 @@ struct P119View: SwiftCrossUI.View {
             Picker(of: ["a", "b"], selection: $selection)
                 .foregroundColor(cycle % 2 == 0 ? Color.red : Color.blue)
             if splitShown {
-                NavigationSplitView {
+                // Side by side at every width: this app tests the two-pane split, which a
+                // compact NavigationSplitView would collapse. / 任何寬度都並排：此 app 測的是兩欄並排,
+                // 而 compact 的 NavigationSplitView 會收合成一欄。
+                SideBySideSplitView {
                     VStack { Text("Sidebar \(cycle)"); P119ProbeSlot() }
                 } detail: {
                     VStack { Text("Detail \(cycle)"); P119ProbeSlot() }

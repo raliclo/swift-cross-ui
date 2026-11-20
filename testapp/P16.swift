@@ -139,7 +139,10 @@ struct P16RootView: View {
     }
 
     var doubleColumn: some View {
-        NavigationSplitView {
+        // Side by side at every width: this app tests the two-pane split, which a
+        // compact NavigationSplitView would collapse. / 任何寬度都並排：此 app 測的是兩欄並排,
+        // 而 compact 的 NavigationSplitView 會收合成一欄。
+        SideBySideSplitView {
             VStack {
                 P16PaneSize(label: "sidebar")
                 List(P16Area.allCases, selection: $selectedArea) { area in
@@ -188,7 +191,10 @@ struct P16RootView: View {
     }
 
     var tripleColumn: some View {
-        NavigationSplitView {
+        // Side by side at every width: this app tests the two-pane split, which a
+        // compact NavigationSplitView would collapse. / 任何寬度都並排：此 app 測的是兩欄並排,
+        // 而 compact 的 NavigationSplitView 會收合成一欄。
+        SideBySideSplitView {
             VStack {
                 P16PaneSize(label: "sidebar")
                 List(P16Area.allCases, selection: $selectedArea) { area in
