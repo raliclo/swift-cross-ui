@@ -3694,6 +3694,7 @@ extension EnvironmentValues {
             textBlock.fontFamily = family
         } else if textBlock.fontFamily?.source == winUIMonospacedFontFamilies {
             try! textBlock.clearValue(WinUI.TextBlock.fontFamilyProperty)
+        }
         // underline(_:), strikethrough(_:), tracking(_:) or kerning(_:), and
         // baselineOffset(_:). A TextBlock draws its lines solid and in the text's
         // colour, so the pattern and colour of a Text.LineStyle are not shown here.
@@ -3721,7 +3722,6 @@ extension EnvironmentValues {
             right: 0,
             bottom: max(0, baselineOffset)
         )
-        }
     }
 }
 
