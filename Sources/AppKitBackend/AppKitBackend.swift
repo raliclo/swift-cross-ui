@@ -1722,15 +1722,63 @@ extension AppKitBackend {
         let resolvedFont = environment.resolvedFont
 
         // This is definitely what these properties were intended for
-        paragraphStyle.minimumLineHeight = CGFloat(resolvedFont.lineHeight)
-        paragraphStyle.maximumLineHeight = CGFloat(resolvedFont.lineHeight)
-        paragraphStyle.lineSpacing = 0
+        paragraphStyle.minimumLineHeight = CGFloat(resolvedFont.lineHeight + abs(environment.baselineOffset))
+        paragraphStyle.maximumLineHeight = CGFloat(resolvedFont.lineHeight + abs(environment.baselineOffset))
+        paragraphStyle.lineSpacing = CGFloat(environment.lineSpacing)
 
-        return [
+        var attributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: Self.resolvedForegroundColor(environment),
             .font: font(for: resolvedFont),
             .paragraphStyle: paragraphStyle,
         ]
+        // underline(_:), strikethrough(_:), kerning(_:), tracking(_:) and baselineOffset(_:).
+        // Tracking wins over kerning, as in SwiftUI. Measured text goes through here too,
+        // so the size reported for a view includes all of them.
+        // underline(_:)、strikethrough(_:)、kerning(_:)、tracking(_:) 與 baselineOffset(_:)。
+        // 與 SwiftUI 相同,tracking 優先於 kerning。量測文字也經過這裡，因此回報的尺寸包含這些設定。
+        if let underline = environment.underlineStyle {
+            attributes[.underlineStyle] = Self.lineStyleMask(underline.pattern)
+            if let color = underline.color {
+                attributes[.underlineColor] = color.resolve(in: environment).nsColor
+            }
+        }
+        if let strikethrough = environment.strikethroughStyle {
+            attributes[.strikethroughStyle] = Self.lineStyleMask(strikethrough.pattern)
+            if let color = strikethrough.color {
+                attributes[.strikethroughColor] = color.resolve(in: environment).nsColor
+            }
+        }
+        if environment.tracking != 0 {
+            attributes[.tracking] = CGFloat(environment.tracking)
+        } else if environment.kerning != 0 {
+            attributes[.kern] = CGFloat(environment.kerning)
+        }
+        // baselineOffset(_:): every line is made |offset| taller, and TextKit puts the
+        // extra height above the text, so lowering needs nothing more; raising also
+        // lifts the glyphs by the offset. Either way the view grows by the offset, as
+        // padding does on WinUI and Android and a Pango rise on GTK.
+        // baselineOffset(_:):每一行加高 |offset|,而 TextKit 把多出的高度放在文字上方，因此下移不需要其他
+        // 處理；上移則再把字形抬高 offset。兩種情況下 view 都會變高 offset,與 WinUI、Android 的 padding 及
+        // GTK 的 Pango rise 相同。
+        if environment.baselineOffset > 0 {
+            attributes[.baselineOffset] = CGFloat(environment.baselineOffset)
+        }
+        return attributes
+    }
+
+    /// The `NSUnderlineStyle` bits for a line drawn in `pattern`; AppKit uses the
+    /// same bits for underlines and strikethroughs.
+    /// 以 `pattern` 畫線時的 `NSUnderlineStyle` 位元;AppKit 的底線與刪除線使用同一組位元。
+    static func lineStyleMask(_ pattern: Text.LineStyle.Pattern) -> Int {
+        let dashes: NSUnderlineStyle =
+            switch pattern {
+                case .solid: []
+                case .dot: .patternDot
+                case .dash: .patternDash
+                case .dashDot: .patternDashDot
+                case .dashDotDot: .patternDashDotDot
+            }
+        return NSUnderlineStyle.single.union(dashes).rawValue
     }
 
     /// The colour to paint with: what the application asked for, or the

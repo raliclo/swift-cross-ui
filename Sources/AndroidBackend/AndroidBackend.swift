@@ -1270,6 +1270,25 @@ extension AndroidBackend {
         let content = JavaString(content, environment: Self.env)
         textView.setText(content.as(CharSequence.self))
         getTextStyle(from: environment).apply(to: textView)
+        // baselineOffset(_:) as padding, below the text to raise it and above to lower it,
+        // so the view grows by that much, as on GTK and WinUI. Text views only: the
+        // TextStyle above is applied to button labels too, whose padding is their own.
+        // baselineOffset(_:) 以 padding 實作：上移時加在文字下方，下移時加在上方，view 因此變高這麼多，
+        // 與 GTK、WinUI 相同。只用於文字 view:上面的 TextStyle 也套用在按鈕標籤上，而按鈕的 padding 屬於按鈕自己。
+        let typedValue = try! JavaClass<AndroidKit.TypedValue>()
+        let offsetPixels = Int32(
+            typedValue.applyDimension(
+                typedValue.COMPLEX_UNIT_DIP,
+                Float(abs(environment.baselineOffset)),
+                environment.androidActivity.getResources().getDisplayMetrics()
+            ).rounded()
+        )
+        textView.setPadding(
+            0,
+            environment.baselineOffset < 0 ? offsetPixels : 0,
+            0,
+            environment.baselineOffset > 0 ? offsetPixels : 0
+        )
         if let fitted = widget.as(FittedTextView.self) {
             applyTextGradient(gradient, to: fitted, environment: environment)
         }

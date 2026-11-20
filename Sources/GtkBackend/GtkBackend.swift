@@ -4185,6 +4185,32 @@ extension GtkBackend {
         // 46.0 / 55.0 / 56.0(交錯量測,2026-10-23)。
         textView.css.set(properties: cssProperties(for: textEnvironment), clear: true)
         scaleColourEmoji(in: textView, text: content, size: environment.resolvedFont.pointSize)
+        applyBaselineOffset(environment.baselineOffset, to: textView)
+    }
+
+    /// baselineOffset(_:) as a Pango rise over the whole label. On macOS it is
+    /// added to the attributes scaleColourEmoji has just rebuilt; elsewhere the
+    /// label has no other attributes, so the list is built afresh each time and a
+    /// rise from an earlier update never stays behind.
+    ///
+    /// baselineOffset(_:) 以覆蓋整個標籤的 Pango rise 實作。在 macOS 上加到 scaleColourEmoji 剛重建的
+    /// 屬性之後；其他平台的標籤沒有別的屬性，因此每次都重新建立清單，先前更新的 rise 不會殘留。
+    func applyBaselineOffset(_ offset: Double, to label: CustomLabel) {
+        #if os(macOS)
+            let existing = gtk_label_get_attributes(label.opaquePointer)
+        #else
+            let existing: OpaquePointer? = nil
+        #endif
+        guard offset != 0 else {
+            if existing == nil {
+                gtk_label_set_attributes(label.opaquePointer, nil)
+            }
+            return
+        }
+        guard let list = existing.map({ pango_attr_list_copy($0) }) ?? pango_attr_list_new() else { return }
+        defer { pango_attr_list_unref(list) }
+        pango_attr_list_insert(list, pango_attr_rise_new(Int32((offset * Double(PANGO_SCALE)).rounded())))
+        gtk_label_set_attributes(label.opaquePointer, list)
     }
 
     public func size(
@@ -6333,6 +6359,39 @@ extension GtkBackend {
             properties.append(CSSProperty(key: "box-shadow", value: "none"))
         }
 
+        // underline(_:), strikethrough(_:), tracking(_:) or kerning(_:), and lineSpacing(_:).
+        // GTK's CSS draws solid, double and wavy lines only, so the dotted and dashed
+        // patterns are drawn solid; one CSS colour serves both lines, the underline's when
+        // both are set. baselineOffset(_:) is a Pango attribute: see applyBaselineOffset.
+        // underline(_:)、strikethrough(_:)、tracking(_:) 或 kerning(_:),以及 lineSpacing(_:)。GTK 的 CSS
+        // 只畫實線、雙線與波浪線，因此點線與虛線樣式畫成實線；兩條線共用一個 CSS 顏色，兩者都設定時用底線的。
+        // baselineOffset(_:) 是 Pango 屬性：見 applyBaselineOffset。
+        var decorationLines: [String] = []
+        if environment.underlineStyle != nil {
+            decorationLines.append("underline")
+        }
+        if environment.strikethroughStyle != nil {
+            decorationLines.append("line-through")
+        }
+        if !decorationLines.isEmpty {
+            properties.append(CSSProperty(key: "text-decoration-line", value: decorationLines.joined(separator: " ")))
+            if let lineColor = environment.underlineStyle?.color ?? environment.strikethroughStyle?.color {
+                properties.append(
+                    CSSProperty(
+                        key: "text-decoration-color",
+                        value: CSSProperty.rgba(lineColor.resolve(in: environment).gtkColor)
+                    )
+                )
+            }
+        }
+        if environment.resolvedLetterSpacing != 0 {
+            properties.append(CSSProperty(key: "letter-spacing", value: "\(environment.resolvedLetterSpacing)px"))
+        }
+        if environment.lineSpacing != 0, font.lineHeight > 0 {
+            // A factor of the font's line height. / 字型行高的倍數。
+            let factor = (font.lineHeight + environment.lineSpacing) / font.lineHeight
+            properties.append(CSSProperty(key: "line-height", value: "\(factor)"))
+        }
         return properties
     }
 
