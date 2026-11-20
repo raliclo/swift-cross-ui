@@ -560,7 +560,25 @@ ensure_wincap() {
                 return 1
             fi
         fi
-        if ! clang++ -std=c++20 -O2 -Wno-nontrivial-memcall -DUNICODE -D_UNICODE \
+        # A clang new enough for the MSVC STL. MSVC 14.52's STL stops clang before 22
+        # with STL1000, and on the CI runner the clang++ on PATH is Swift 6.4.2's 21.1.6:
+        # run 44625530908 failed every Windows capture there. Visual Studio ships its
+        # own clang (22.1.3 with 14.52), used when PATH's is older.
+        # 一個夠新、MSVC STL 接受的 clang。MSVC 14.52 的 STL 以 STL1000 擋下 22 以前的 clang,而 CI runner 上 PATH 裡的
+        # clang++ 是 Swift 6.4.2 的 21.1.6:run 44625530908 因此每張 Windows 擷圖都失敗。Visual Studio 自帶 clang(配 14.52 的是
+        # 22.1.3),PATH 裡的較舊時改用它。
+        local cxx=clang++ cxx_major vs_root vs_cxx
+        cxx_major="$(clang++ --version 2>/dev/null | sed -n 's/.*clang version \([0-9][0-9]*\)\..*/\1/p' | head -n 1)"
+        if [ "${cxx_major:-0}" -lt 22 ]; then
+            vs_root="$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' \
+                -property installationPath 2>/dev/null | tr -d '\r' | head -n 1)"
+            vs_cxx="$(cygpath -u "$vs_root" 2>/dev/null)/VC/Tools/Llvm/x64/bin/clang++.exe"
+            if [ -n "$vs_root" ] && [ -x "$vs_cxx" ]; then
+                cxx="$vs_cxx"
+            fi
+            printf 'wincap: clang++ on PATH is %s; compiling with %s\n' "${cxx_major:-unknown}" "$cxx" >&2
+        fi
+        if ! "$cxx" -std=c++20 -O2 -Wno-nontrivial-memcall -DUNICODE -D_UNICODE \
             -I "$wincap_projection" "$wincap_source" -o "$wincap_exe" \
             -ld3d11 -ldxgi -lruntimeobject -lwindowsapp -lole32 -luser32 -lgdi32 -ldwmapi; then
             printf '!! screenshot.zsh: failed to build wincap helper\n' >&2

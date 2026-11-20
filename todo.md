@@ -3111,6 +3111,8 @@ Found 2026-10-20 by the new actions/win files (rows in matrix_coverage/results.c
   `SCUI_SWIFT_TOOLSET` on. Locally a full WinUI rebuild of P119 with it passed in 2451 s and recompiled hide_others.o.
   **This machine is exposed too**: its WinUIInterop objects predate MSVC 14.52, so a clean build without the toolset fails.
   CI windows:MSVC 14.52 拒絕 Swift 6.4.2 的 clang 21.1.6(STL1000)。CC、CXX、PATH 都無效，`--toolset` 有效；windows 工作改用 Visual Studio 的 clang 22。**本機也一樣**:沒有 toolset 的乾淨建置會失敗。
+  **Follow-up 2026-11-20:** run 44625530908 failed every Windows capture the same way, in screenshot.zsh's wincap build, which used the clang++ on PATH (Swift's 21). It now takes Visual Studio's clang++ when PATH's is older than 22; locally Swift's clang reproduced STL1000 on wincap.cpp and the new path built it.
+  **2026-11-20 後續：** run 44625530908 每張 Windows 擷圖都同樣失敗，在 screenshot.zsh 建置 wincap 時，它用的是 PATH 上的 clang++(Swift 的 21)。現在 PATH 上的比 22 舊時改用 Visual Studio 的 clang++;本機以 Swift 的 clang 重現 wincap.cpp 的 STL1000，新路徑則建置成功。
 
 - [x] **A buttonless `move` is invisible to WinUI's pointer events.** (Windows) Win32Synthesiser
   performs it with SetCursorPos, a cursor jump: WinUI raises PointerEntered once and no
