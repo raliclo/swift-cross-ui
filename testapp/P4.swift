@@ -110,19 +110,22 @@ struct P4WinUISpecificAndStressView: View {
                     .frame(width: 220, height: 70)
                 #endif
 
-                NavigationSplitView {
+                // Side by side at every width: this app tests the two-pane split, which a
+                // compact NavigationSplitView would collapse. / 任何寬度都並排：此 app 測的是兩欄並排,
+                // 而 compact 的 NavigationSplitView 會收合成一欄。
+                SideBySideSplitView {
                     Text("sidebar")
                 } detail: {
                     Text("detail")
                 }
                 #if canImport(WinUIBackend)
                     .inspect(.afterUpdate) { (native: WinUI.SplitView) in
-                        Self.report("NavigationSplitView -> \(type(of: native))")
+                        Self.report("SideBySideSplitView -> \(type(of: native))")
                     }
                     .frame(width: 320, height: 90)
                 #elseif canImport(GtkBackend)
                     .inspect(.afterUpdate) { (native: Gtk.Paned) in
-                        Self.report("NavigationSplitView -> \(type(of: native))")
+                        Self.report("SideBySideSplitView -> \(type(of: native))")
                     }
                     .frame(width: 320, height: 90)
                 #else

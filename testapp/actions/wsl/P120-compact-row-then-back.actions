@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P120 starts its NavigationSplitView compact: only the sidebar List shows. Choosing
+# Banana must show the detail column with a "‹ Back" bar, and Back must return to
+# the sidebar with no row chosen; the app logs P120 PASS once it has seen both.
+#
+# expect: log-contains P120 PASS
+#
+# P120 的 NavigationSplitView 以 compact 啟動：只顯示側邊欄的 List。選 Banana 必須顯示帶有「‹ Back」列的
+# 詳細欄,Back 必須回到側邊欄且沒有選中的列;兩者都看到後 app 記下 P120 PASS。
+sleep,,,,,,3000000,let the window settle,gtk
+taplabel,,,,,Banana,,choose a row in the compact sidebar,gtk
+sleep,,,,,,1500000,the detail column and its back bar show,gtk
+taplabel,,,,,‹ Back,,return to the sidebar; the row is cleared,gtk
+sleep,,,,,,1500000,the verdict shows,gtk

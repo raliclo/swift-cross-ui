@@ -21,6 +21,9 @@ final class WindowReference<SceneType: WindowingScene> {
     private var isFirstUpdate = true
     /// The cached window size. Nil on first run or after a window is resized.
     private var cachedWindowSize: SIMD2<Int>?
+    /// The horizontal size class the window last laid its bodies out at.
+    /// 視窗上次排版其 body 時所用的水平尺寸類別。
+    private var bodiesSizeClass: UserInterfaceSizeClass?
     /// The environment most recently provided by this node's parent scene.
     private var parentEnvironment: EnvironmentValues
     /// The container used to center the root view in the window.
@@ -388,6 +391,20 @@ final class WindowReference<SceneType: WindowingScene> {
         // 取自上方四個呼叫點的 `windowSizeIsFinal` 引數所用的同一個呼叫,因此「這個視窗能不能調整大小」
         // 只有一個答案,不是兩個。
         environment.windowSizeIsFixed = !backend.isWindowProgrammaticallyResizable(window)
+        // The size class follows the window's width unless the app set one. Bodies
+        // laid out at the other class are not reused: a NavigationSplitView picks its
+        // columns in its body, so a resize across the line has to evaluate it again.
+        // 尺寸類別跟隨視窗寬度，除非 app 自己設定了。以另一個類別排版過的 body 不重用:
+        // NavigationSplitView 在 body 裡決定要顯示哪幾欄，所以跨過界線的縮放必須重新求值。
+        let sizeClass =
+            environment.horizontalSizeClass
+            ?? UserInterfaceSizeClass.forWindowWidth(proposedWindowSize.x)
+        environment.horizontalSizeClass = sizeClass
+        let sizeClassChanged = sizeClass != bodiesSizeClass
+        if sizeClassChanged {
+            environment.reusesBodies = false
+        }
+        bodiesSizeClass = sizeClass
 
         let outerColorScheme = environment.colorScheme
 
@@ -412,6 +429,9 @@ final class WindowReference<SceneType: WindowingScene> {
         // 東西都不會變，只有 preferredColorScheme preference 設定的配色例外(`updateEnvironment`),所以第一趟
         // 之後的各趟排版第一趟產生的 body(`reusesBodies`),只有配色變了才重新求值。
         var bodiesLaidOutWith = bodiesLaidOutWith
+        if sizeClassChanged {
+            bodiesLaidOutWith = nil
+        }
         func layoutPass(_ proposal: ProposedViewSize, caching: Bool) -> ViewLayoutResult {
             var passEnvironment = environment.with(\.allowLayoutCaching, caching)
             let reuse = bodiesLaidOutWith == environment.colorScheme
