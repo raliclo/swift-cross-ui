@@ -1,5 +1,9 @@
 import Foundation
-import Mutex
+#if canImport(Darwin)
+    import Synchronization
+#else
+    import Mutex
+#endif
 
 private let sceneStoragePublisherCache: Mutex<[String: Publisher]> = Mutex([:])
 

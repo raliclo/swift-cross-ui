@@ -1,5 +1,9 @@
 import Foundation
-import Mutex
+#if canImport(Darwin)
+    import Synchronization
+#else
+    import Mutex
+#endif
 
 let appStorageCache: Mutex<[String: any Codable & Sendable]> = Mutex([:])
 private let appStoragePublisherCache: Mutex<[String: Publisher]> = Mutex([:])

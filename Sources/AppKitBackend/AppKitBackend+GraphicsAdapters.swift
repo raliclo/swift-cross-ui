@@ -30,11 +30,17 @@ extension AppKitBackend: BackendFeatures.GraphicsAdapters {
                 first.registryID == systemDefault?.registryID
             }
         return ordered.map { device in
-            GraphicsAdapter(
-                name: device.name,
-                isRemovable: device.isRemovable,
-                isLowPower: device.isLowPower
-            )
+            #if arch(arm64)
+                // These distinctions do not apply to Apple Silicon GPUs.
+                // 這些分類不適用於 Apple Silicon GPU。
+                GraphicsAdapter(name: device.name, isRemovable: false, isLowPower: false)
+            #else
+                GraphicsAdapter(
+                    name: device.name,
+                    isRemovable: device.isRemovable,
+                    isLowPower: device.isLowPower
+                )
+            #endif
         }
     }
 
@@ -104,14 +110,16 @@ extension AppKitBackend: BackendFeatures.GraphicsAdapters {
         get { adapterRemovedHandler }
         set {
             adapterRemovedHandler = newValue
-            guard newValue != nil, metalDeviceObserver == nil else { return }
-            let (_, observer) = MTLCopyAllDevicesWithObserver(handler: { _, notification in
-                guard notification == .wasRemoved else { return }
-                MainActor.assumeIsolated {
-                    AppKitBackend.currentAdapterRemovedHandler?()
-                }
-            })
-            metalDeviceObserver = observer
+            #if arch(x86_64)
+                guard newValue != nil, metalDeviceObserver == nil else { return }
+                let (_, observer) = MTLCopyAllDevicesWithObserver(handler: { _, notification in
+                    guard notification == .wasRemoved else { return }
+                    MainActor.assumeIsolated {
+                        AppKitBackend.currentAdapterRemovedHandler?()
+                    }
+                })
+                metalDeviceObserver = observer
+            #endif
         }
     }
 }

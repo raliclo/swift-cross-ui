@@ -1,5 +1,9 @@
 import Foundation
-import Mutex
+#if canImport(Darwin)
+    import Synchronization
+#else
+    import Mutex
+#endif
 import Logging
 
 private struct SourceLocation: Hashable {

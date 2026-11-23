@@ -533,7 +533,7 @@
                 mipmapped: false
             )
             colourDescriptor.usage = [.renderTarget, .shaderRead]
-            #if os(macOS) && !targetEnvironment(macCatalyst)
+            #if os(macOS) && arch(x86_64) && !targetEnvironment(macCatalyst)
                 // `.managed` on macOS so `getBytes` sees what the GPU wrote; a
                 // `.private` texture cannot be read from the CPU at all, and
                 // `.shared` is not available for every macOS texture.
@@ -541,6 +541,8 @@
                 // 根本無法由 CPU 讀取,而 `.shared` 並非對每一種 macOS texture 都可用。
                 colourDescriptor.storageMode = .managed
             #else
+                // Apple Silicon uses unified memory; no managed synchronization is needed.
+                // Apple Silicon 使用統一記憶體，不需要 managed 同步。
                 colourDescriptor.storageMode = .shared
             #endif
 
@@ -570,7 +572,7 @@
             pass.depthAttachment.storeAction = .dontCare
 
             encodeScene(into: pass, commandBuffer: buffer)
-            #if os(macOS) && !targetEnvironment(macCatalyst)
+            #if os(macOS) && arch(x86_64) && !targetEnvironment(macCatalyst)
                 if let blit = buffer.makeBlitCommandEncoder() {
                     // A managed texture the GPU wrote is not visible to the CPU
                     // until it is synchronised. Without this, `getBytes` returns
