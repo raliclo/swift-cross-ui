@@ -63,10 +63,15 @@ jobs:
     - name: Check out Vendor/swift-winui
       run: git submodule update --init --depth 1 Vendor/swift-winui
 
-    - name: Install Swift 6.4
+    # Exactly 6.4.2: on 2026-11-24 the plain '6.4' installed 6.4.3, with which swiftbuild found
+    # no Darwin platform for any target ("Could not choose a single platform ... android
+    # freebsd linux ..."), so the build failed before compiling anything (run 45254378732).
+    # 固定為 6.4.2:2026-11-24 單寫 '6.4' 裝到了 6.4.3,而 swiftbuild 用它找不到任何 target 的 Darwin 平台
+    # (「Could not choose a single platform ... android freebsd linux ...」),建置在編譯前就失敗(run 45254378732)。
+    - name: Install Swift 6.4.2
       uses: SwiftyLab/setup-swift@v1
       with:
-        swift-version: '6.4'
+        swift-version: '6.4.2'
 
     - name: Swift version
       run: swift --version
