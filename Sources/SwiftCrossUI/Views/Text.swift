@@ -87,7 +87,9 @@ extension Text: ElementaryView {
     ) -> ViewLayoutResult {
         let factor = min(max(environment.minimumScaleFactor, 0.01), 1)
         let width = proposedSize.width.flatMap { $0 == .infinity ? nil : $0 }
-        guard factor < 1, width != 0, Self.heightLimit(proposedSize, environment) != nil || width != nil
+        let truncatesElsewhere = environment.truncationMode != .tail
+        guard factor < 1 || truncatesElsewhere, width != 0,
+            Self.heightLimit(proposedSize, environment) != nil || width != nil
         else {
             return layoutText(widget, proposedSize: proposedSize, environment: environment, backend: backend)
         }
@@ -95,13 +97,13 @@ extension Text: ElementaryView {
         func scaled(_ scale: Double) -> EnvironmentValues {
             environment.with(\.textScale, environment.textScale * scale)
         }
-        func fits(_ scale: Double) -> Bool {
+        func fits(_ scale: Double, _ content: String) -> Bool {
             let scaledEnvironment = scaled(scale)
             // Measured without the line limit: a backend that applies it reports the
             // limited height, which always fits. / 量測時不套用行數限制：會套用它的 backend 回報的是
             // 限制後的高度，永遠放得下。
             let measuring = scaledEnvironment.with(\.lineLimitSettings, nil)
-            let text = measuring.applyingTextTransforms(to: string)
+            let text = measuring.applyingTextTransforms(to: content)
             backend.updateTextView(widget, content: text, environment: measuring)
             let size = backend.size(
                 of: text,
@@ -119,14 +121,14 @@ extension Text: ElementaryView {
             return true
         }
         var chosen = 1.0
-        if !fits(1) {
+        if factor < 1, !fits(1, string) {
             chosen = factor
-            if fits(factor) {
+            if fits(factor, string) {
                 var fitting = factor
                 var tooBig = 1.0
                 for _ in 0..<7 {
                     let middle = (fitting + tooBig) / 2
-                    if fits(middle) {
+                    if fits(middle, string) {
                         fitting = middle
                     } else {
                         tooBig = middle
@@ -135,7 +137,51 @@ extension Text: ElementaryView {
                 chosen = fitting
             }
         }
-        return layoutText(widget, proposedSize: proposedSize, environment: scaled(chosen), backend: backend)
+        // truncationMode(_:) .head and .middle: every backend ends with an ellipsis
+        // natively, but WinUI cannot truncate anywhere else and Android only on one
+        // line, so the shortened string is made here, the same way for all of them.
+        // truncationMode(_:) 的 .head 與 .middle:每個 backend 原生都能在結尾加上刪節號，但 WinUI 無法在其他位置
+        // 截斷,Android 只能在單行時這樣做，因此縮短的字串在這裡產生，對所有 backend 都一樣。
+        var content = string
+        if truncatesElsewhere, !fits(chosen, string) {
+            content = Self.truncated(string, mode: environment.truncationMode) { fits(chosen, $0) }
+        }
+        return Text(content).layoutText(
+            widget, proposedSize: proposedSize, environment: scaled(chosen), backend: backend
+        )
+    }
+
+    /// The longest form of `string` truncated at `mode` with an ellipsis that `fits`,
+    /// found by bisection over how many characters are kept.
+    /// 以刪節號在 `mode` 位置截斷、且 `fits` 的 `string` 最長形式，以二分法搜尋保留的字元數得出。
+    static func truncated(
+        _ string: String,
+        mode: TruncationMode,
+        fits: (String) -> Bool
+    ) -> String {
+        let characters = Array(string)
+        func candidate(keeping kept: Int) -> String {
+            switch mode {
+                case .head:
+                    return "…" + String(characters.suffix(kept))
+                case .middle:
+                    let front = (kept + 1) / 2
+                    return String(characters.prefix(front)) + "…" + String(characters.suffix(kept - front))
+                case .tail:
+                    return String(characters.prefix(kept)) + "…"
+            }
+        }
+        var fitting = 0
+        var tooLong = characters.count
+        while fitting < tooLong {
+            let middle = (fitting + tooLong + 1) / 2
+            if fits(candidate(keeping: middle)) {
+                fitting = middle
+            } else {
+                tooLong = middle - 1
+            }
+        }
+        return candidate(keeping: fitting)
     }
 
     /// The height the text must fit in: the proposed height and the line limit, the

@@ -3,7 +3,7 @@ import Foundation
 import SwiftCrossUI
 
 // P122 Text decorations and spacing: underline(_:), strikethrough(_:), kerning(_:),
-// tracking(_:), baselineOffset(_:), lineSpacing(_:) and minimumScaleFactor(_:).
+// tracking(_:), baselineOffset(_:), lineSpacing(_:), minimumScaleFactor(_:) and truncationMode(_:).
 //
 // Each spacing modifier is shown twice, plain and modified, and both are measured
 // with a GeometryReader. A second after the window appears the app checks that
@@ -17,7 +17,7 @@ import SwiftCrossUI
 // solid in the text's colour.
 //
 // P122 文字裝飾與間距:underline(_:)、strikethrough(_:)、kerning(_:)、tracking(_:)、baselineOffset(_:)、
-// lineSpacing(_:) 與 minimumScaleFactor(_:)。每個間距 modifier 都顯示兩次(原樣與套用後),並以 GeometryReader 量測。視窗出現一秒後,
+// lineSpacing(_:)、minimumScaleFactor(_:) 與 truncationMode(_:)。每個間距 modifier 都顯示兩次(原樣與套用後),並以 GeometryReader 量測。視窗出現一秒後,
 // app 檢查 tracking 與 kerning 讓文字變寬、lineSpacing 與 baselineOffset 讓文字變高、minimumScaleFactor 縮小了過長的單行——這表示 backend 的量測
 // 包含了它們，而不只是繪製——並在 p122-debug-events.log(SCUI_DEBUG_EVENTS_DIR)與 stdout 記下
 // 「P122 PASS」或「P122 FAIL (...)」。底線與刪除線不改變尺寸，因此由截圖檢查：實線、點線、虛線與一條紅線。
@@ -146,6 +146,15 @@ struct P122View: View {
                     content: Text("A sentence too long for its frame").lineLimit(1).minimumScaleFactor(0.5)
                 )
                 .frame(width: 120)
+            }
+            // truncationMode(_:): the screenshot shows "…its frame" and "A sen…rame"-like
+            // forms, cut where asked, on one line each. / truncationMode(_:):截圖顯示在指定位置截斷、
+            // 各佔一行的形式。
+            HStack(alignment: .top, spacing: 12) {
+                Text("Head: a sentence too long for its frame").lineLimit(1).truncationMode(.head)
+                    .frame(width: 160)
+                Text("Middle: a sentence too long for its frame").lineLimit(1).truncationMode(.middle)
+                    .frame(width: 160)
             }
         }
         .padding(12)
