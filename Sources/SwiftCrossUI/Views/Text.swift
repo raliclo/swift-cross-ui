@@ -69,7 +69,92 @@ extension Text: ElementaryView {
         return backend.createTextView()
     }
 
+    /// Lays the text out, shrinking it towards ``View/minimumScaleFactor(_:)`` when it
+    /// does not fit: taller than the proposed height or the ``View/lineLimit(_:reservesSpace:)``
+    /// lines, or wider than the proposed width. The largest scale that fits is found by
+    /// bisection, measuring through the backend, and the text is then laid out (and its
+    /// widget updated) at that scale, so every backend shrinks it the same way. A zero
+    /// width is a probe for the minimum size and is never shrunk for.
+    ///
+    /// 排版文字；放不下時(比提議的高度或 ``View/lineLimit(_:reservesSpace:)`` 的行數高，或比提議的寬度寬)
+    /// 朝 ``View/minimumScaleFactor(_:)`` 縮小。以二分法透過 backend 量測找出放得下的最大倍率，再以該倍率排版
+    /// (並更新其 widget),因此每個 backend 縮小的方式都相同。寬度為零是在探測最小尺寸，不會因此縮小。
     public func computeLayout<Backend: BaseAppBackend>(
+        _ widget: Backend.Widget,
+        proposedSize: ProposedViewSize,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) -> ViewLayoutResult {
+        let factor = min(max(environment.minimumScaleFactor, 0.01), 1)
+        let width = proposedSize.width.flatMap { $0 == .infinity ? nil : $0 }
+        guard factor < 1, width != 0, Self.heightLimit(proposedSize, environment) != nil || width != nil
+        else {
+            return layoutText(widget, proposedSize: proposedSize, environment: environment, backend: backend)
+        }
+        let proposedWidth = width.map(LayoutSystem.roundSize).map { max(1, $0) }
+        func scaled(_ scale: Double) -> EnvironmentValues {
+            environment.with(\.textScale, environment.textScale * scale)
+        }
+        func fits(_ scale: Double) -> Bool {
+            let scaledEnvironment = scaled(scale)
+            // Measured without the line limit: a backend that applies it reports the
+            // limited height, which always fits. / 量測時不套用行數限制：會套用它的 backend 回報的是
+            // 限制後的高度，永遠放得下。
+            let measuring = scaledEnvironment.with(\.lineLimitSettings, nil)
+            let text = measuring.applyingTextTransforms(to: string)
+            backend.updateTextView(widget, content: text, environment: measuring)
+            let size = backend.size(
+                of: text,
+                whenDisplayedIn: widget,
+                proposedWidth: proposedWidth,
+                proposedHeight: nil,
+                environment: measuring
+            )
+            if let proposedWidth, size.x > proposedWidth {
+                return false
+            }
+            if let limit = Self.heightLimit(proposedSize, scaledEnvironment), Double(size.y) > limit + 0.5 {
+                return false
+            }
+            return true
+        }
+        var chosen = 1.0
+        if !fits(1) {
+            chosen = factor
+            if fits(factor) {
+                var fitting = factor
+                var tooBig = 1.0
+                for _ in 0..<7 {
+                    let middle = (fitting + tooBig) / 2
+                    if fits(middle) {
+                        fitting = middle
+                    } else {
+                        tooBig = middle
+                    }
+                }
+                chosen = fitting
+            }
+        }
+        return layoutText(widget, proposedSize: proposedSize, environment: scaled(chosen), backend: backend)
+    }
+
+    /// The height the text must fit in: the proposed height and the line limit, the
+    /// smaller of the two, or `nil` when neither bounds it.
+    /// 文字必須放得下的高度：提議的高度與行數限制兩者中較小的那個；都沒有限制時為 `nil`。
+    @MainActor
+    private static func heightLimit(_ proposedSize: ProposedViewSize, _ environment: EnvironmentValues) -> Double? {
+        var limit: Double? = nil
+        if let height = proposedSize.height, height != .infinity {
+            limit = height
+        }
+        if let lineLimit = environment.lineLimitSettings {
+            let lines = Double(max(lineLimit.limit, 1)) * environment.resolvedFont.lineHeight
+            limit = min(limit ?? lines, lines)
+        }
+        return limit
+    }
+
+    @MainActor private func layoutText<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
