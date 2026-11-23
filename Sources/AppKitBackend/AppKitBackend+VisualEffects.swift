@@ -203,5 +203,22 @@ extension AppKitBackend: BackendFeatures.VisualEffects {
             widget.layerUsesCoreImageFilters = true
             widget.layer?.filters = filters
         }
+        // shadow(color:radius:x:y:) as the layer's own shadow, which follows the alpha of
+        // what the layer and its sublayers draw. The colour carries the opacity; y is
+        // downwards in SwiftUI and upwards in an unflipped layer.
+        // shadow(color:radius:x:y:) 以 layer 本身的陰影實作，它跟著 layer 與其子 layer 所畫內容的透明度。
+        // 顏色帶有不透明度;SwiftUI 的 y 向下，未翻轉的 layer 則向上。
+        if let shadow = effect.shadow, let layer = widget.layer {
+            layer.masksToBounds = false
+            layer.shadowColor = shadow.color.nsColor.cgColor
+            layer.shadowOpacity = 1
+            layer.shadowRadius = CGFloat(shadow.radius)
+            layer.shadowOffset = CGSize(
+                width: shadow.x,
+                height: layer.isGeometryFlipped || widget.isFlipped ? shadow.y : -shadow.y
+            )
+        } else {
+            widget.layer?.shadowOpacity = 0
+        }
     }
 }

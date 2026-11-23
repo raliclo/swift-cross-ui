@@ -62,6 +62,14 @@ void gtk_passthrough_fixed_set_effect(
     float grayscale, float hue_degrees
 );
 
+// shadow(color:radius:x:y:) for a passthrough fixed: a drop shadow beneath its
+// children; an alpha of 0 removes it. / passthrough fixed 的 shadow(color:radius:x:y:):
+// 子元件下方的投影；alpha 為 0 時移除。
+void gtk_passthrough_fixed_set_shadow(
+    GtkWidget *widget, float red, float green, float blue, float alpha, float dx, float dy,
+    float radius
+);
+
 // A GtkDrawingArea that does not claim pointer events for a path it did not
 // fill. Implemented in gtk_passthrough_drawing_area.c, which records the
 // measurement it came from.

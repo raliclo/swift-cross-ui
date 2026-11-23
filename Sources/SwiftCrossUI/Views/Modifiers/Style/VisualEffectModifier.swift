@@ -64,6 +64,38 @@ extension View {
     ///
     /// 之所以公開：上方七個 modifier 各自會包一層，因此 `.saturation(0).brightness(0.2)` 會建立兩個
     /// 容器。那是正確的、也與 SwiftUI 一致，但當多種效果本來就是一起決定的，此處可用一個容器表達。
+    /// Casts a drop shadow of this view's content, as SwiftUI's
+    /// `shadow(color:radius:x:y:)`. The shadow follows the content's shape, is drawn
+    /// beneath it, and leaves the layout alone.
+    ///
+    /// - Parameters:
+    ///   - color: The shadow's colour; SwiftUI's default, black at 33%.
+    ///   - radius: How far the shadow is blurred, in points.
+    ///   - x: The shadow's offset to the right, in points.
+    ///   - y: The shadow's offset downwards, in points.
+    ///
+    /// 為此 view 的內容投出陰影，即 SwiftUI 的 `shadow(color:radius:x:y:)`。陰影跟著內容的形狀，畫在內容下方，
+    /// 且不影響版面。
+    public func shadow(
+        color: Color = Color.black.opacity(0.33),
+        radius: Double,
+        x: Double = 0,
+        y: Double = 0
+    ) -> some View {
+        VisualEffectModifier(
+            content: self,
+            effect: VisualEffect(
+                shadow: VisualEffect.Shadow(
+                    color: Color.Resolved(red: 0, green: 0, blue: 0, opacity: 0.33),
+                    radius: radius,
+                    x: x,
+                    y: y
+                )
+            ),
+            shadowColor: color
+        )
+    }
+
     public func visualEffect(_ effect: VisualEffect) -> some View {
         VisualEffectModifier(content: self, effect: effect)
     }
@@ -72,6 +104,10 @@ extension View {
 struct VisualEffectModifier<Content: View>: View, TypeSafeView {
     var content: Content
     var effect: VisualEffect
+    /// The colour of `effect.shadow`, resolved against the environment at commit:
+    /// a backend receives the shadow with its colour already resolved.
+    /// `effect.shadow` 的顏色，在 commit 時依環境解析:backend 收到的陰影顏色已經解析好。
+    var shadowColor: Color? = nil
 
     var body: TupleView1<Content> { content }
 
@@ -192,6 +228,10 @@ struct VisualEffectModifier<Content: View>: View, TypeSafeView {
         children.tween = tween
         tween.draw = setter
         tween.diagnosticsLabel = environment.effectDiagnosticsLabel
-        tween.commit(effect, transaction: EffectTransaction.current(in: environment))
+        var resolved = effect
+        if let shadowColor, resolved.shadow != nil {
+            resolved.shadow?.color = shadowColor.resolve(in: environment)
+        }
+        tween.commit(resolved, transaction: EffectTransaction.current(in: environment))
     }
 }

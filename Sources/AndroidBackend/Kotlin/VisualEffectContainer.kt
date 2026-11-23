@@ -1,6 +1,7 @@
 package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
+import android.graphics.BlendMode
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
@@ -63,6 +64,13 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         contrast: Float,
         grayscale: Float,
         hueRotationDegrees: Float,
+        shadowRed: Float,
+        shadowGreen: Float,
+        shadowBlue: Float,
+        shadowAlpha: Float,
+        shadowX: Float,
+        shadowY: Float,
+        shadowRadius: Float,
     ) {
         // Opacity through alpha, not through the colour matrix.
         //
@@ -84,7 +92,10 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // RenderEffect already set still holds, so it is not rebuilt.
         // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。除了 opacity 什麼都沒變時，
         // 已設定的 RenderEffect 仍然適用，因此不重建。
-        val filters = floatArrayOf(blurRadius, saturation, brightness, contrast, grayscale, hueRotationDegrees)
+        val filters = floatArrayOf(
+            blurRadius, saturation, brightness, contrast, grayscale, hueRotationDegrees,
+            shadowRed, shadowGreen, shadowBlue, shadowAlpha, shadowX, shadowY, shadowRadius,
+        )
         if (filters.contentEquals(lastFilters)) {
             return
         }
@@ -144,14 +155,77 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
             if (blurRadius <= 0f) null
             else RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
 
-        setRenderEffect(
+        val content =
             when {
                 blurEffect != null && colourEffect != null ->
                     RenderEffect.createChainEffect(colourEffect, blurEffect)
                 blurEffect != null -> blurEffect
                 else -> colourEffect
             }
+        setRenderEffect(
+            withShadow(content, shadowRed, shadowGreen, shadowBlue, shadowAlpha, shadowX, shadowY, shadowRadius)
         )
+    }
+
+    // shadow(color:radius:x:y:) in pixels, kept for onAttachedToWindow. / 以像素表示的
+    // shadow(color:radius:x:y:),供 onAttachedToWindow 使用。
+    private var hasShadow = false
+
+    // The content with a drop shadow beneath it: the content tinted to the shadow colour
+    // through its alpha, blurred, offset, and the content blended over it. The shadow is
+    // cast by the content as the other effects leave it. An alpha of 0 returns the
+    // content unchanged.
+    // 下方帶有投影的內容：把內容依其透明度染成陰影色、模糊、位移，再把內容疊在上面。陰影由套用其他效果
+    // 之後的內容投出。alpha 為 0 時原樣回傳內容。
+    private fun withShadow(
+        content: RenderEffect?,
+        red: Float,
+        green: Float,
+        blue: Float,
+        alpha: Float,
+        dx: Float,
+        dy: Float,
+        radius: Float,
+    ): RenderEffect? {
+        hasShadow = alpha > 0f
+        if (!hasShadow) {
+            return content
+        }
+        allowShadowOutsideBounds()
+        val tint =
+            ColorMatrixColorFilter(
+                ColorMatrix(
+                    floatArrayOf(
+                        0f, 0f, 0f, 0f, red * 255f,
+                        0f, 0f, 0f, 0f, green * 255f,
+                        0f, 0f, 0f, 0f, blue * 255f,
+                        0f, 0f, 0f, alpha, 0f,
+                    )
+                )
+            )
+        var shadow =
+            if (content == null) RenderEffect.createColorFilterEffect(tint)
+            else RenderEffect.createColorFilterEffect(tint, content)
+        if (radius > 0f) {
+            shadow = RenderEffect.createBlurEffect(radius, radius, shadow, Shader.TileMode.DECAL)
+        }
+        shadow = RenderEffect.createOffsetEffect(dx, dy, shadow)
+        val top = content ?: RenderEffect.createOffsetEffect(0f, 0f)
+        return RenderEffect.createBlendModeEffect(shadow, top, BlendMode.SRC_OVER)
+    }
+
+    // A parent clips its children to their bounds by default, which would cut the shadow
+    // off where it leaves this view, so the parent is told not to. / 父容器預設會把子 view 裁到
+    // 其範圍內，陰影離開此 view 的部分會被切掉，因此告訴父容器不要裁切。
+    private fun allowShadowOutsideBounds() {
+        (parent as? ViewGroup)?.clipChildren = false
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (hasShadow) {
+            allowShadowOutsideBounds()
+        }
     }
 
     // null when every input is its identity, so the common case attaches no

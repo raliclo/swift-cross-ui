@@ -38,6 +38,13 @@ typedef struct _GtkPassthroughFixed {
     float contrast;
     float grayscale;
     float hue_degrees;
+
+    // shadow(color:radius:x:y:), drawn beneath the (adjusted) children by
+    // gtk_snapshot_push_shadow; set by gtk_passthrough_fixed_set_shadow.
+    // shadow(color:radius:x:y:),以 gtk_snapshot_push_shadow 畫在(調整後的)子元件下方；由
+    // gtk_passthrough_fixed_set_shadow 設定。
+    gboolean has_shadow;
+    GskShadow shadow;
 } GtkPassthroughFixed;
 
 typedef struct _GtkPassthroughFixedClass {
@@ -129,6 +136,14 @@ static void scui_push_matrix(GtkSnapshot *snapshot, const float m[16], float off
 // 畫法;CSS 的 `brightness()` 是乘法，會讓黑色維持黑色，而其他 backend 會把它提亮。
 static int scui_push_adjustments(GtkSnapshot *snapshot, const GtkPassthroughFixed *self) {
     int pushes = 0;
+    // First of these, so blur and the colour controls below change what casts the shadow,
+    // not the shadow; hue rotation and grayscale, pushed around this, tint it too.
+    // 放在這些之中的第一個，因此下方的模糊與色彩控制改變的是投出陰影的內容，而不是陰影本身；在外圍套用的
+    // 色相旋轉與灰階也會改變陰影的顏色。
+    if (self->has_shadow) {
+        gtk_snapshot_push_shadow(snapshot, &self->shadow, 1);
+        pushes++;
+    }
     // Outermost first: the last effect to apply is pushed first.
     // 由外而內:最後套用的效果最先 push。
     if (self->contrast != 1.0f) {
@@ -343,8 +358,34 @@ void gtk_passthrough_fixed_set_effect(
     self->contrast = contrast;
     self->grayscale = grayscale;
     self->hue_degrees = hue_degrees;
-    self->has_effect = blur > 0.0f || saturation != 1.0f || brightness != 0.0f ||
+    self->has_effect = self->has_shadow || blur > 0.0f || saturation != 1.0f || brightness != 0.0f ||
                        contrast != 1.0f || grayscale > 0.0f || hue_degrees != 0.0f;
+    gtk_widget_queue_draw(widget);
+}
+
+void gtk_passthrough_fixed_set_shadow(
+    GtkWidget *widget, float red, float green, float blue, float alpha, float dx, float dy,
+    float radius
+) {
+    if (widget == NULL || !GTK_IS_PASSTHROUGH_FIXED(widget)) {
+        return;
+    }
+    GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
+    gboolean had_shadow = self->has_shadow;
+    self->shadow.color = (GdkRGBA){red, green, blue, alpha};
+    self->shadow.dx = dx;
+    self->shadow.dy = dy;
+    self->shadow.radius = radius;
+    self->has_shadow = alpha > 0.0f;
+    if (self->has_shadow) {
+        self->has_effect = TRUE;
+    } else if (had_shadow) {
+        // Recomputed from the other effects, which set_effect last stored.
+        // 由 set_effect 最後存下的其他效果重新計算。
+        self->has_effect = self->blur > 0.0f || self->saturation != 1.0f ||
+                           self->brightness != 0.0f || self->contrast != 1.0f ||
+                           self->grayscale > 0.0f || self->hue_degrees != 0.0f;
+    }
     gtk_widget_queue_draw(widget);
 }
 

@@ -54,5 +54,21 @@ extension GtkBackend: BackendFeatures.VisualEffects {
             Float(effect.grayscale),
             Float(effect.hueRotation.degrees)
         )
+        // shadow(color:radius:x:y:): GSK's radius is a CSS blur radius, twice the
+        // Gaussian spread that Core Animation's shadowRadius (SwiftUI's radius) names, as
+        // for blur above. An alpha of 0 removes the shadow.
+        // shadow(color:radius:x:y:):GSK 的半徑是 CSS 的模糊半徑，是 Core Animation shadowRadius(即 SwiftUI
+        // 的 radius)所指高斯擴散的兩倍，與上方的 blur 相同。alpha 為 0 時移除陰影。
+        let shadow = effect.shadow
+        gtk_passthrough_fixed_set_shadow(
+            widget.widgetPointer,
+            shadow?.color.red ?? 0,
+            shadow?.color.green ?? 0,
+            shadow?.color.blue ?? 0,
+            shadow?.color.opacity ?? 0,
+            Float(shadow?.x ?? 0),
+            Float(shadow?.y ?? 0),
+            Float(2 * (shadow?.radius ?? 0))
+        )
     }
 }
