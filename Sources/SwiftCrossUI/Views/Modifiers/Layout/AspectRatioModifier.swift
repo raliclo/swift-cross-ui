@@ -15,6 +15,22 @@ extension View {
         AspectRatioView(self, aspectRatio: aspectRatio, contentMode: contentMode)
     }
 
+    /// Scales this view to fit its parent, keeping its aspect ratio, as SwiftUI's
+    /// `scaledToFit()`: the same as `aspectRatio(contentMode: .fit)`.
+    /// 縮放此 view 以放進父 view 並維持長寬比，即 SwiftUI 的 `scaledToFit()`;等同於
+    /// `aspectRatio(contentMode: .fit)`。
+    public func scaledToFit() -> some View {
+        aspectRatio(contentMode: .fit)
+    }
+
+    /// Scales this view to fill its parent, keeping its aspect ratio, as SwiftUI's
+    /// `scaledToFill()`: the same as `aspectRatio(contentMode: .fill)`.
+    /// 縮放此 view 以填滿父 view 並維持長寬比，即 SwiftUI 的 `scaledToFill()`;等同於
+    /// `aspectRatio(contentMode: .fill)`。
+    public func scaledToFill() -> some View {
+        aspectRatio(contentMode: .fill)
+    }
+
     /// Modifies size proposals to match the aspect ratio of the provided size.
     ///
     /// This modifier doesn't guarantee that the view's size will maintain a
