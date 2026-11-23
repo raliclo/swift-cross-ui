@@ -560,7 +560,14 @@ ensure_wincap() {
                 return 1
             fi
         fi
-        if ! clang++ -std=c++20 -O2 -Wno-nontrivial-memcall -DUNICODE -D_UNICODE \
+        # _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH: MSVC 14.52's STL asserts "expected Clang
+        # 22 or newer", and the clang++ beside Swift is older, so wincap.exe failed to build;
+        # every -w capture after that failed with no fallback, while P114, which may fall
+        # back to the desktop, passed (CI runs 44717586900, 44738491365, 45259401445).
+        # _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH:MSVC 14.52 的 STL 斷言「需要 Clang 22 以上」,而 Swift 附帶的
+        # clang++ 比較舊，因此 wincap.exe 建置失敗；之後每個 -w 擷取都在沒有退路的情況下失敗，只有可退回桌面的
+        # P114 通過(CI run 44717586900、44738491365、45259401445)。
+        if ! clang++ -std=c++20 -O2 -Wno-nontrivial-memcall -DUNICODE -D_UNICODE -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH \
             -I "$wincap_projection" "$wincap_source" -o "$wincap_exe" \
             -ld3d11 -ldxgi -lruntimeobject -lwindowsapp -lole32 -luser32 -lgdi32 -ldwmapi; then
             printf '!! screenshot.zsh: failed to build wincap helper\n' >&2
