@@ -39,6 +39,7 @@ public struct DatePickerComponents: OptionSet, Sendable {
 
 @available(tvOS, unavailable)
 public struct DatePicker<Label: View> {
+    @Environment(\.labelsHidden) private var labelsHidden
     private var label: Label
     private var selection: Binding<Date>
     private var range: ClosedRange<Date>
@@ -96,7 +97,9 @@ public struct DatePicker<Label: View> {
 extension DatePicker: View {
     public var body: some View {
         HStack {
-            label
+            if !labelsHidden {
+                label
+            }
 
             // Routed through the style, exactly as `Picker` routes through
             // `PickerStyle`. `AnyView` because the style is existential and its

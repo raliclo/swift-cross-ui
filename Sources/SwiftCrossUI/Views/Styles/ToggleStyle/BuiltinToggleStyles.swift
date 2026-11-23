@@ -81,6 +81,7 @@ extension ToggleStyle where Self == CheckboxToggleStyle {
 public struct _BuiltinToggleImplementation: View {
     @Environment(\.backend) var backend
     @Environment(\.isEnabled) var isEnabled
+    @Environment(\.labelsHidden) var labelsHidden
 
     var style: BackendToggleStyle
     var label: String
@@ -92,9 +93,11 @@ public struct _BuiltinToggleImplementation: View {
         switch style {
             case .switch:
                 HStack {
-                    besideLabel
+                    if !labelsHidden {
+                        besideLabel
+                    }
 
-                    if backend.requiresToggleSwitchSpacer {
+                    if backend.requiresToggleSwitchSpacer, !labelsHidden {
                         Spacer()
                     }
 
@@ -120,7 +123,9 @@ public struct _BuiltinToggleImplementation: View {
                 }
             case .checkbox:
                 HStack {
-                    besideLabel
+                    if !labelsHidden {
+                        besideLabel
+                    }
 
                     Checkbox(isOn: isOn)
                         .accessibilityLabel(label.isEmpty ? nil : label)

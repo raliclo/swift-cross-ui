@@ -34,6 +34,7 @@
 /// 想要原生面板的 backend 日後可以自行加上，而不必改動這個 API——因為這個 API 就是一個
 /// `Binding<Color>` 加一個標籤，而 SwiftUI 的也就是這樣。
 public struct ColorPicker<Label: View>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     private let label: Label
     private let selection: Binding<Color>
 
@@ -52,7 +53,9 @@ public struct ColorPicker<Label: View>: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                label
+                if !labelsHidden {
+                    label
+                }
                 ColorPickerSwatch(color: selection.wrappedValue)
                 Button(isEditing ? "Done" : "Edit") {
                     isEditing.toggle()
