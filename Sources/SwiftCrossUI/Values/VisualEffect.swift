@@ -73,6 +73,11 @@ public struct VisualEffect: Equatable, Sendable {
     /// 色相繞色輪旋轉的角度。
     public var hueRotation: Angle
 
+    /// A drop shadow beneath the view, or `nil` for none. Set by
+    /// ``View/shadow(color:radius:x:y:)``.
+    /// view 下方的投影，`nil` 表示沒有。由 ``View/shadow(color:radius:x:y:)`` 設定。
+    public var shadow: Shadow?
+
     public init(
         opacity: Double = 1,
         blurRadius: Double = 0,
@@ -80,7 +85,8 @@ public struct VisualEffect: Equatable, Sendable {
         brightness: Double = 0,
         contrast: Double = 1,
         grayscale: Double = 0,
-        hueRotation: Angle = .zero
+        hueRotation: Angle = .zero,
+        shadow: Shadow? = nil
     ) {
         self.opacity = opacity
         self.blurRadius = blurRadius
@@ -89,6 +95,7 @@ public struct VisualEffect: Equatable, Sendable {
         self.contrast = contrast
         self.grayscale = grayscale
         self.hueRotation = hueRotation
+        self.shadow = shadow
     }
 
     /// The effect that changes nothing.
@@ -106,4 +113,31 @@ public struct VisualEffect: Equatable, Sendable {
     /// 值得在動工前先檢查：backend 可以完全略過安裝 filter 的步驟，而只設定了一種效果的 view，其餘
     /// 六項會是中性值而非指令。
     public var isIdentity: Bool { self == .identity }
+}
+
+extension VisualEffect {
+    /// A drop shadow cast by a view's drawn content, as SwiftUI's `shadow`: it follows
+    /// the content's shape (a text's glyphs, a circle's edge), not its frame, and does
+    /// not change the view's size.
+    ///
+    /// view 繪製內容所投出的陰影，即 SwiftUI 的 `shadow`:它跟著內容的形狀(文字的字形、圓形的邊緣),
+    /// 而不是 view 的框，且不改變 view 的尺寸。
+    public struct Shadow: Equatable, Sendable {
+        /// The shadow's colour, already resolved for the view's environment.
+        /// 陰影的顏色，已依 view 的環境解析。
+        public var color: Color.Resolved
+        /// How far the shadow is blurred, in points. / 陰影的模糊程度(點)。
+        public var radius: Double
+        /// The shadow's offset to the right, in points. / 陰影向右的位移(點)。
+        public var x: Double
+        /// The shadow's offset downwards, in points. / 陰影向下的位移(點)。
+        public var y: Double
+
+        public init(color: Color.Resolved, radius: Double, x: Double, y: Double) {
+            self.color = color
+            self.radius = radius
+            self.x = x
+            self.y = y
+        }
+    }
 }

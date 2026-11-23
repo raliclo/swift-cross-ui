@@ -13,6 +13,46 @@ private let visualEffectChildren = Mutex<[UInt: WinUIVisualEffectChild]>([:])
 /// 每個 widget 的效果圖上次建立時，效果中 opacity 以外的部分。
 private let visualEffectLastFilters = Mutex<[UInt: VisualEffect]>([:])
 private let visualEffectStates = Mutex<[UInt: WinUIVisualEffectState]>([:])
+
+/// The DropShadow behind one effect container: a host Canvas under the child (ZIndex
+/// -1, after it in the children so the child keeps index 0), whose child visual casts
+/// a shadow masked by a surface of the child's visual -- so the shadow follows the
+/// child's alpha, not its frame.
+/// 一個效果容器後方的 DropShadow:子元件下方的宿主 Canvas(ZIndex -1,排在子元件之後，讓子元件保有
+/// index 0),其 child visual 以子元件 visual 的表面為遮罩投出陰影——因此陰影跟著子元件的透明度，而不是它的框。
+private final class WinUIShadowState: @unchecked Sendable {
+    let host: WinUI.Canvas
+    let surface: WinAppSDK.CompositionVisualSurface
+    let dropShadow: WinAppSDK.DropShadow
+    let mask: WinAppSDK.CompositionSurfaceBrush
+    let sprite: WinAppSDK.SpriteVisual
+
+    init(
+        host: WinUI.Canvas,
+        surface: WinAppSDK.CompositionVisualSurface,
+        dropShadow: WinAppSDK.DropShadow,
+        mask: WinAppSDK.CompositionSurfaceBrush,
+        sprite: WinAppSDK.SpriteVisual
+    ) {
+        self.host = host
+        self.surface = surface
+        self.dropShadow = dropShadow
+        self.mask = mask
+        self.sprite = sprite
+    }
+
+    /// Follows the container's size: the host, and the surface the mask is cut from.
+    /// 跟隨容器的尺寸：宿主，以及遮罩所取自的表面。
+    @MainActor func resize(to container: WinUI.FrameworkElement) {
+        let width = max(0, container.width.isNaN ? container.actualWidth : container.width)
+        let height = max(0, container.height.isNaN ? container.actualHeight : container.height)
+        host.width = width
+        host.height = height
+        surface.sourceSize = WindowsFoundation.Vector2(x: Float(width), y: Float(height))
+    }
+}
+
+private let visualEffectShadows = Mutex<[UInt: WinUIShadowState]>([:])
 private let win2DActivation = Mutex<Win2DActivationState>(Win2DActivationState())
 
 private struct Win2DActivationState {
@@ -65,6 +105,12 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
         widget.opacity = effect.opacity
 
         let key = winUIVisualEffectKey(widget)
+        // shadow(color:radius:x:y:) is drawn by its own DropShadow beneath the child (see
+        // applyShadow); the filter graph below never sees it. / shadow(color:radius:x:y:) 由它自己的
+        // DropShadow 畫在子元件下方(見 applyShadow);下方的濾鏡圖不會看到它。
+        applyShadow(effect.shadow, to: widget, key: key)
+        var effect = effect
+        effect.shadow = nil
 
         // The direct path sets the effect every frame while opacity animates
         // (EffectAnimation.swift). When only the opacity changed, the effect graph
@@ -910,3 +956,60 @@ private let win2DManifest = """
   </file>
 </assembly>
 """
+
+extension WinUIBackend {
+    /// shadow(color:radius:x:y:) for one effect container; `nil` makes the shadow
+    /// transparent and keeps its host for the next one. The DropShadow's blurRadius is
+    /// a CSS-style blur, twice the Gaussian spread SwiftUI's radius names, as on GTK.
+    /// 一個效果容器的 shadow(color:radius:x:y:);`nil` 讓陰影變透明並保留其宿主供下次使用。DropShadow 的
+    /// blurRadius 是 CSS 式的模糊，是 SwiftUI radius 所指高斯擴散的兩倍，與 GTK 相同。
+    fileprivate func applyShadow(_ shadow: VisualEffect.Shadow?, to widget: Widget, key: UInt) {
+        let existing = visualEffectShadows.withLock { $0[key] }
+        guard let shadow else {
+            existing?.dropShadow.opacity = 0
+            return
+        }
+        let state: WinUIShadowState
+        if let existing {
+            state = existing
+        } else {
+            guard let container = widget as? Canvas,
+                  let child = visualEffectChildren.withLock({ $0[key] })?.widget,
+                  let sourceVisual = try? child.getVisualInternal(),
+                  let compositor = sourceVisual.compositor,
+                  let surface = try? compositor.createVisualSurface(),
+                  let mask = try? compositor.createSurfaceBrush(surface),
+                  let dropShadow = try? compositor.createDropShadow(),
+                  let sprite = try? compositor.createSpriteVisual()
+            else {
+                winUIVisualEffectDebug("shadow could not be built for key \(key)")
+                return
+            }
+            surface.sourceVisual = sourceVisual
+            dropShadow.mask = mask
+            sprite.relativeSizeAdjustment = WindowsFoundation.Vector2(x: 1, y: 1)
+            sprite.shadow = dropShadow
+            let host = Canvas()
+            host.isHitTestVisible = false
+            container.children.append(host)
+            try? Canvas.setZIndex(host, -1)
+            try? WinUIElementCompositionPreview.setElementChildVisual(of: host, to: sprite)
+            state = WinUIShadowState(
+                host: host, surface: surface, dropShadow: dropShadow, mask: mask, sprite: sprite
+            )
+            visualEffectShadows.withLock { $0[key] = state }
+            container.sizeChanged.addHandler { [weak container] _, _ in
+                MainActor.assumeIsolated {
+                    guard let container, let state = visualEffectShadows.withLock({ $0[key] })
+                    else { return }
+                    state.resize(to: container)
+                }
+            }
+        }
+        state.resize(to: widget)
+        state.dropShadow.color = shadow.color.uwpColor
+        state.dropShadow.opacity = 1
+        state.dropShadow.blurRadius = Float(2 * shadow.radius)
+        state.dropShadow.offset = WindowsFoundation.Vector3(x: Float(shadow.x), y: Float(shadow.y), z: 0)
+    }
+}

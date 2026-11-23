@@ -133,6 +133,27 @@ extension VisualEffect: InterpolatableEffect {
         effect.contrast = mix(start.contrast, end.contrast)
         effect.grayscale = mix(start.grayscale, end.grayscale)
         effect.hueRotation = Angle(radians: mix(start.hueRotation.radians, end.hueRotation.radians))
+        // A missing shadow is the other one made transparent, so a shadow fades in and
+        // out where it will be rather than flying in from the origin.
+        // 缺少的陰影視為另一方的透明版本，因此陰影在原位淡入淡出，而不是從原點飛入。
+        if start.shadow != nil || end.shadow != nil {
+            var from = start.shadow ?? end.shadow!
+            var to = end.shadow ?? start.shadow!
+            if start.shadow == nil { from.color.opacity = 0 }
+            if end.shadow == nil { to.color.opacity = 0 }
+            func mixFloat(_ a: Float, _ b: Float) -> Float { a + (b - a) * Float(progress) }
+            effect.shadow = VisualEffect.Shadow(
+                color: Color.Resolved(
+                    red: mixFloat(from.color.red, to.color.red),
+                    green: mixFloat(from.color.green, to.color.green),
+                    blue: mixFloat(from.color.blue, to.color.blue),
+                    opacity: mixFloat(from.color.opacity, to.color.opacity)
+                ),
+                radius: mix(from.radius, to.radius),
+                x: mix(from.x, to.x),
+                y: mix(from.y, to.y)
+            )
+        }
         return effect
     }
 }

@@ -131,6 +131,23 @@ final class VisualEffectWidget: BaseViewWidget {
         // 因此它不走影像那條路，也因而保持活的。
         alpha = CGFloat(effect.opacity)
 
+        // shadow(color:radius:x:y:) as this view's layer shadow, which follows the alpha
+        // of what the layer and its sublayers draw -- the child, or the filtered image
+        // standing in for it. Set before the early return below, which compares the
+        // filters only. UIKit's y is downwards, as SwiftUI's is.
+        // shadow(color:radius:x:y:) 以此 view 的 layer 陰影實作，它跟著 layer 與其子 layer 所畫內容的透明度——
+        // 也就是子 view,或代替它的濾鏡影像。設定在下方只比較濾鏡的提前返回之前。UIKit 的 y 向下，與 SwiftUI 相同。
+        if let shadow = effect.shadow {
+            clipsToBounds = false
+            layer.masksToBounds = false
+            layer.shadowColor = shadow.color.uiColor.cgColor
+            layer.shadowOpacity = 1
+            layer.shadowRadius = CGFloat(shadow.radius)
+            layer.shadowOffset = CGSize(width: shadow.x, height: shadow.y)
+        } else {
+            layer.shadowOpacity = 0
+        }
+
         // The direct path sets the effect every frame while opacity animates
         // (EffectAnimation.swift). When nothing but the opacity changed, the
         // filtered snapshot is still right, so it is not rendered again.

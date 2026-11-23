@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P123 measures plain and shadowed views a second after it appears and logs its
+# verdict; nothing is pressed. A shadow must not change any size. The screenshot
+# shows the shadows: red ones 6 points right and 6 down, following each shape.
+#
+# expect: log-contains P123 PASS
+#
+# P123 在出現一秒後量測原樣與有陰影的 view 並記下結果，不按任何東西。陰影不可改變任何尺寸。截圖顯示
+# 陰影：紅色陰影向右 6 點、向下 6 點，跟著各形狀。
+sleep,,,,,,4000000,let the measurement and the verdict show,android
