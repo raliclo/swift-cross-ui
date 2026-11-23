@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P124 measures its scaled images, toggles and steppers a second after it appears
+# and logs its verdict; nothing is pressed. scaledToFit must give 100x50, scaledToFill
+# 200x100, and labelsHidden must make each control narrower.
+#
+# expect: log-contains P124 PASS
+#
+# P124 在出現一秒後量測縮放的圖片、toggle 與 stepper 並記下結果，不按任何東西。scaledToFit 必須得到 100x50,
+# scaledToFill 為 200x100,labelsHidden 必須讓每個控制項變窄。
+sleep,,,,,,4000000,let the measurement and the verdict show,windows
