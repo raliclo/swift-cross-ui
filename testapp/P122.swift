@@ -3,21 +3,22 @@ import Foundation
 import SwiftCrossUI
 
 // P122 Text decorations and spacing: underline(_:), strikethrough(_:), kerning(_:),
-// tracking(_:), baselineOffset(_:) and lineSpacing(_:).
+// tracking(_:), baselineOffset(_:), lineSpacing(_:) and minimumScaleFactor(_:).
 //
 // Each spacing modifier is shown twice, plain and modified, and both are measured
 // with a GeometryReader. A second after the window appears the app checks that
 // tracking and kerning made the text wider, and that lineSpacing and baselineOffset
-// made it taller -- which shows the backend's measurement includes them, not only
-// its drawing -- and logs "P122 PASS" or "P122 FAIL (...)" to p122-debug-events.log
-// (SCUI_DEBUG_EVENTS_DIR) and stdout. Underline and strikethrough do not change a
-// size, so the screenshot is their check: solid, dotted and dashed lines, and a
-// red one. Only AppKit and UIKit draw the patterns and the colour so far; GTK,
-// WinUI and Android draw every line solid in the text's colour.
+// made it taller, and that minimumScaleFactor shrank a line too long for its frame --
+// which shows the measurement includes them, not only the drawing -- and logs
+// "P122 PASS" or "P122 FAIL (...)" to p122-debug-events.log (SCUI_DEBUG_EVENTS_DIR)
+// and stdout. Underline and strikethrough do not change a size, so the screenshot is
+// their check: solid, dotted and dashed lines, and a red one. Only AppKit and UIKit
+// draw the patterns and the colour so far; GTK, WinUI and Android draw every line
+// solid in the text's colour.
 //
-// P122 文字裝飾與間距:underline(_:)、strikethrough(_:)、kerning(_:)、tracking(_:)、baselineOffset(_:) 與
-// lineSpacing(_:)。每個間距 modifier 都顯示兩次(原樣與套用後),並以 GeometryReader 量測。視窗出現一秒後,
-// app 檢查 tracking 與 kerning 讓文字變寬、lineSpacing 與 baselineOffset 讓文字變高——這表示 backend 的量測
+// P122 文字裝飾與間距:underline(_:)、strikethrough(_:)、kerning(_:)、tracking(_:)、baselineOffset(_:)、
+// lineSpacing(_:) 與 minimumScaleFactor(_:)。每個間距 modifier 都顯示兩次(原樣與套用後),並以 GeometryReader 量測。視窗出現一秒後,
+// app 檢查 tracking 與 kerning 讓文字變寬、lineSpacing 與 baselineOffset 讓文字變高、minimumScaleFactor 縮小了過長的單行——這表示 backend 的量測
 // 包含了它們，而不只是繪製——並在 p122-debug-events.log(SCUI_DEBUG_EVENTS_DIR)與 stdout 記下
 // 「P122 PASS」或「P122 FAIL (...)」。底線與刪除線不改變尺寸，因此由截圖檢查：實線、點線、虛線與一條紅線。
 // 目前只有 AppKit 與 UIKit 會畫出樣式與顏色;GTK、WinUI 與 Android 都以文字顏色畫實線。
@@ -45,17 +46,19 @@ enum P122 {
         }
     }
 
-    /// The checks: which pair, which axis, and that the modified one must be larger.
-    /// 檢查項目：哪一對、哪一軸，以及套用後的那個必須比較大。
+    /// The checks: which pair, which axis, and whether the modified one must be larger
+    /// (true) or smaller. / 檢查項目：哪一對、哪一軸，以及套用後的那個必須較大(true)或較小。
     @MainActor static func verdict() -> String {
-        let checks: [(String, KeyPath<ViewSize, Double>, String)] = [
-            ("tracking", \.width, "width"),
-            ("kerning", \.width, "width"),
-            ("lineSpacing", \.height, "height"),
-            ("baselineOffset", \.height, "height"),
+        let checks: [(String, KeyPath<ViewSize, Double>, String, Bool)] = [
+            ("tracking", \.width, "width", true),
+            ("kerning", \.width, "width", true),
+            ("lineSpacing", \.height, "height", true),
+            ("baselineOffset", \.height, "height", true),
+            // Shrunk to fit one line of a narrow frame, so its line is shorter.
+            ("minimumScaleFactor", \.height, "height", false),
         ]
         var failures: [String] = []
-        for (name, axis, axisName) in checks {
+        for (name, axis, axisName, grows) in checks {
             guard let plain = sizes["\(name) plain"], let modified = sizes["\(name) modified"] else {
                 failures.append("\(name) not measured")
                 continue
@@ -63,7 +66,7 @@ enum P122 {
             let before = plain[keyPath: axis]
             let after = modified[keyPath: axis]
             log("P122 \(name) \(axisName): \(before) -> \(after)")
-            if !(after > before) {
+            if grows ? !(after > before) : !(after < before) {
                 failures.append("\(name) \(axisName) \(before) -> \(after)")
             }
         }
@@ -131,6 +134,18 @@ struct P122View: View {
             HStack(alignment: .top, spacing: 12) {
                 P122Measured(name: "baselineOffset plain", content: Text("Baseline"))
                 P122Measured(name: "baselineOffset modified", content: Text("Baseline").baselineOffset(8))
+            }
+            HStack(alignment: .top, spacing: 12) {
+                P122Measured(
+                    name: "minimumScaleFactor plain",
+                    content: Text("A sentence too long for its frame").lineLimit(1)
+                )
+                .frame(width: 120)
+                P122Measured(
+                    name: "minimumScaleFactor modified",
+                    content: Text("A sentence too long for its frame").lineLimit(1).minimumScaleFactor(0.5)
+                )
+                .frame(width: 120)
             }
         }
         .padding(12)

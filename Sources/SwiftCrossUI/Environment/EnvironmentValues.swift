@@ -23,7 +23,13 @@ public struct EnvironmentValues {
     /// fonts.
     @MainActor
     @_spi(Backends) public var resolvedFont: Font.Resolved {
-        font.resolve(in: fontResolutionContext)
+        var resolved = font.resolve(in: fontResolutionContext)
+        // minimumScaleFactor(_:): the scale Text chose to fit. / Text 為了放得下而選擇的倍率。
+        if textScale != 1 {
+            resolved.pointSize *= textScale
+            resolved.lineHeight *= textScale
+        }
+        return resolved
     }
 
     /// The suggested foreground color for backends to use.
