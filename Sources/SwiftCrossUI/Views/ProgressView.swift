@@ -2,6 +2,7 @@ import Foundation
 
 /// A progress indicator; either a bar or a spinner.
 public struct ProgressView<Label: View>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     /// The label for this progress view.
     private var label: Label
     /// The current progress, if this is a progress bar.
@@ -12,7 +13,7 @@ public struct ProgressView<Label: View>: View {
     typealias Kind = _ProgressIndicatorKind
 
     public var body: some View {
-        if label as? EmptyView == nil {
+        if label as? EmptyView == nil, !labelsHidden {
             progressIndicator
             label
         } else {

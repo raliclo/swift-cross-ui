@@ -16,6 +16,7 @@
 /// 排列；它們屬於 `GaugeStyle` 的範疇，此處不宣稱擁有。此處提供的是桌面上 SwiftUI 的 `.automatic`
 /// gauge，也就是線性那一種。
 public struct Gauge<Label: View, CurrentValueLabel: View>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     private let value: Double
     private let bounds: ClosedRange<Double>
     private let label: Label
@@ -74,7 +75,9 @@ public struct Gauge<Label: View, CurrentValueLabel: View>: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            label
+            if !labelsHidden {
+                label
+            }
             ProgressView(value: fraction)
             currentValueLabel
         }

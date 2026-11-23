@@ -126,3 +126,14 @@ public struct Binding<Value> {
         )
     }
 }
+
+extension Binding {
+    /// A binding to a value that never changes: reads return `value`, writes are
+    /// ignored. As SwiftUI's `Binding.constant(_:)`, for previews, tests and controls
+    /// that only display.
+    /// 指向一個永不改變之值的 binding:讀取回傳 `value`,寫入被忽略。即 SwiftUI 的 `Binding.constant(_:)`,
+    /// 用於預覽、測試與只做顯示的控制項。
+    public static func constant(_ value: Value) -> Binding<Value> {
+        Binding(get: { value }, set: { _ in })
+    }
+}

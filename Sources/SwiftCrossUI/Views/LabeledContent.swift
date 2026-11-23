@@ -15,6 +15,7 @@
 /// 那個 `Spacer` 正是它與「把兩個 view 並排寫」的全部差別，也正是 `testapp/P33.swift` 手工近似
 /// 版本所遺漏的東西：少了它，值會貼著標籤而不是貼著尾端邊緣，而一整欄這樣的項目就不會對齊。
 public struct LabeledContent<Label: View, Content: View>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     private let label: Label
     private let content: Content
 
@@ -35,10 +36,14 @@ public struct LabeledContent<Label: View, Content: View>: View {
     }
 
     public var body: some View {
-        HStack {
-            label
-            Spacer()
+        if labelsHidden {
             content
+        } else {
+            HStack {
+                label
+                Spacer()
+                content
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ import DebugFeatures
 
 /// A control for selecting from a set of values.
 public struct Picker<Value: Equatable>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     /// The options to be offered by the picker.
     private var options: [Value]
     /// A binding to the picker's selected option.
@@ -190,7 +191,7 @@ public struct Picker<Value: Equatable>: View {
         // picker 的版面,而且是在沒有任何呼叫點改動的情況下發生。
         return AnyView(
             Group {
-                if let label {
+                if let label, !labelsHidden {
                     HStack {
                         Text(label)
                         control

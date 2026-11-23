@@ -12,6 +12,7 @@
 /// 上同時成立。這正是它與它的鄰居先於協定層級的 parity 項目被實作的全部理由：一個「只是把既有
 /// 原語重新排列」的 view，不可能發生「在 GTK 上實作了、在 Android 上沒有」的情況。
 public struct Stepper<Label: View>: View {
+    @Environment(\.labelsHidden) private var labelsHidden
     /// Bound so the caller sees every change, which is what separates this from
     /// two buttons that each mutate their own copy.
     /// 使用 binding，讓呼叫端看得到每一次變動；這正是它與「兩顆各自改自己副本的按鈕」的差別。
@@ -75,7 +76,9 @@ public struct Stepper<Label: View>: View {
 
     public var body: some View {
         HStack(spacing: 8) {
-            label
+            if !labelsHidden {
+                label
+            }
             Button("-") {
                 if canDecrement { value.wrappedValue -= step }
             }
