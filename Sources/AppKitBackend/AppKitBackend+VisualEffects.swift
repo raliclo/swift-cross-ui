@@ -236,5 +236,46 @@ extension AppKitBackend: BackendFeatures.VisualEffects {
         } else {
             widget.layer?.shadowOpacity = 0
         }
+
+        // blendMode(_:) as the layer's compositingFilter, which Core Animation uses to
+        // composite this layer, with everything inside it, onto what the window has
+        // drawn behind it. The value is the name of one of Core Animation's own
+        // compositing filters (see `BlendMode.coreAnimationFilterName`), the same names
+        // UIKitBackend uses, so both platforms blend alike; nil is normal.
+        // blendMode(_:) 以 layer 的 compositingFilter 實作:Core Animation 用它把這個 layer(連同其內部的一切)
+        // 合成到視窗在其後方已畫好的內容上。值是 Core Animation 自身合成濾鏡的名稱(見
+        // `BlendMode.coreAnimationFilterName`),與 UIKitBackend 使用的名稱相同，因此兩個平台混合結果一致;nil 即 normal。
+        widget.layer?.compositingFilter = effect.blendMode.coreAnimationFilterName
+    }
+}
+
+extension BlendMode {
+    /// The name of Core Animation's compositing filter for this mode, or nil for
+    /// `.normal`. Every one of SwiftUI's modes has one, so none is approximated.
+    /// 此模式對應的 Core Animation 合成濾鏡名稱,`.normal` 為 nil。SwiftUI 的每一種模式都有對應，因此沒有近似。
+    var coreAnimationFilterName: String? {
+        switch self {
+            case .normal: nil
+            case .multiply: "multiplyBlendMode"
+            case .screen: "screenBlendMode"
+            case .overlay: "overlayBlendMode"
+            case .darken: "darkenBlendMode"
+            case .lighten: "lightenBlendMode"
+            case .colorDodge: "colorDodgeBlendMode"
+            case .colorBurn: "colorBurnBlendMode"
+            case .softLight: "softLightBlendMode"
+            case .hardLight: "hardLightBlendMode"
+            case .difference: "differenceBlendMode"
+            case .exclusion: "exclusionBlendMode"
+            case .hue: "hueBlendMode"
+            case .saturation: "saturationBlendMode"
+            case .color: "colorBlendMode"
+            case .luminosity: "luminosityBlendMode"
+            case .sourceAtop: "sourceAtop"
+            case .destinationOver: "destOver"
+            case .destinationOut: "destOut"
+            case .plusDarker: "plusD"
+            case .plusLighter: "plusL"
+        }
     }
 }

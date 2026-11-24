@@ -70,6 +70,38 @@ void gtk_passthrough_fixed_set_shadow(
     float radius
 );
 
+// blendMode(_:) for a passthrough fixed: how its children, after the effect chain,
+// combine with what is drawn behind it. The values are SwiftCrossUI's BlendMode
+// cases in declaration order; SCUI_BLEND_NORMAL draws as usual. See
+// scui_snapshot_blended in gtk_passthrough_fixed.c for the node each one is drawn by.
+// passthrough fixed 的 blendMode(_:):其子元件(經過效果鏈之後)如何與後方已畫好的內容結合。各值依 SwiftCrossUI
+// BlendMode 的宣告順序;SCUI_BLEND_NORMAL 照常繪製。每種模式由哪個節點繪製，見 gtk_passthrough_fixed.c 的
+// scui_snapshot_blended。
+enum {
+    SCUI_BLEND_NORMAL = 0,
+    SCUI_BLEND_MULTIPLY,
+    SCUI_BLEND_SCREEN,
+    SCUI_BLEND_OVERLAY,
+    SCUI_BLEND_DARKEN,
+    SCUI_BLEND_LIGHTEN,
+    SCUI_BLEND_COLOR_DODGE,
+    SCUI_BLEND_COLOR_BURN,
+    SCUI_BLEND_SOFT_LIGHT,
+    SCUI_BLEND_HARD_LIGHT,
+    SCUI_BLEND_DIFFERENCE,
+    SCUI_BLEND_EXCLUSION,
+    SCUI_BLEND_HUE,
+    SCUI_BLEND_SATURATION,
+    SCUI_BLEND_COLOR,
+    SCUI_BLEND_LUMINOSITY,
+    SCUI_BLEND_SOURCE_ATOP,
+    SCUI_BLEND_DESTINATION_OVER,
+    SCUI_BLEND_DESTINATION_OUT,
+    SCUI_BLEND_PLUS_DARKER,
+    SCUI_BLEND_PLUS_LIGHTER,
+};
+void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode);
+
 // A GtkDrawingArea that does not claim pointer events for a path it did not
 // fill. Implemented in gtk_passthrough_drawing_area.c, which records the
 // measurement it came from.

@@ -78,6 +78,13 @@ public struct VisualEffect: Equatable, Sendable {
     /// 是否反轉紅、綠、藍通道，即 SwiftUI 的 `colorInvert()`。backend 在其他所有色彩調整之後套用它。
     public var colorInvert: Bool
 
+    /// How the view composites with what is behind it, as SwiftUI's `blendMode(_:)`;
+    /// `.normal` draws it over. Unlike the fields above it changes how the result is
+    /// combined with the backdrop, not the view's own pixels, so backends apply it last.
+    /// view 如何與後方內容合成，即 SwiftUI 的 `blendMode(_:)`;`.normal` 是直接疊上。與上方各欄位不同，它改變的是
+    /// 結果與背景的結合方式，而不是 view 自己的像素，因此 backend 最後才套用它。
+    public var blendMode: BlendMode
+
     /// A drop shadow beneath the view, or `nil` for none. Set by
     /// ``View/shadow(color:radius:x:y:)``.
     /// view 下方的投影，`nil` 表示沒有。由 ``View/shadow(color:radius:x:y:)`` 設定。
@@ -92,6 +99,7 @@ public struct VisualEffect: Equatable, Sendable {
         grayscale: Double = 0,
         hueRotation: Angle = .zero,
         colorInvert: Bool = false,
+        blendMode: BlendMode = .normal,
         shadow: Shadow? = nil
     ) {
         self.opacity = opacity
@@ -102,6 +110,7 @@ public struct VisualEffect: Equatable, Sendable {
         self.grayscale = grayscale
         self.hueRotation = hueRotation
         self.colorInvert = colorInvert
+        self.blendMode = blendMode
         self.shadow = shadow
     }
 

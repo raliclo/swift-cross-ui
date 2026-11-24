@@ -71,5 +71,43 @@ extension GtkBackend: BackendFeatures.VisualEffects {
             Float(shadow?.y ?? 0),
             Float(2 * (shadow?.radius ?? 0))
         )
+        // blendMode(_:), drawn by the container against a copy of what is already drawn
+        // behind it (scui_snapshot_blended, gtk_passthrough_fixed.c). Every mode has a
+        // GSK route there, so none is approximated.
+        // blendMode(_:),由容器對著其後方已畫好內容的副本繪製(gtk_passthrough_fixed.c 的
+        // scui_snapshot_blended)。每種模式在那裡都有 GSK 的畫法，因此沒有近似。
+        gtk_passthrough_fixed_set_blend_mode(widget.widgetPointer, effect.blendMode.gtkHelperValue)
+    }
+}
+
+extension BlendMode {
+    /// The SCUI_BLEND_* value gtk_helpers.h names for this mode.
+    /// gtk_helpers.h 為此模式命名的 SCUI_BLEND_* 值。
+    var gtkHelperValue: Int32 {
+        let value =
+            switch self {
+                case .normal: SCUI_BLEND_NORMAL
+                case .multiply: SCUI_BLEND_MULTIPLY
+                case .screen: SCUI_BLEND_SCREEN
+                case .overlay: SCUI_BLEND_OVERLAY
+                case .darken: SCUI_BLEND_DARKEN
+                case .lighten: SCUI_BLEND_LIGHTEN
+                case .colorDodge: SCUI_BLEND_COLOR_DODGE
+                case .colorBurn: SCUI_BLEND_COLOR_BURN
+                case .softLight: SCUI_BLEND_SOFT_LIGHT
+                case .hardLight: SCUI_BLEND_HARD_LIGHT
+                case .difference: SCUI_BLEND_DIFFERENCE
+                case .exclusion: SCUI_BLEND_EXCLUSION
+                case .hue: SCUI_BLEND_HUE
+                case .saturation: SCUI_BLEND_SATURATION
+                case .color: SCUI_BLEND_COLOR
+                case .luminosity: SCUI_BLEND_LUMINOSITY
+                case .sourceAtop: SCUI_BLEND_SOURCE_ATOP
+                case .destinationOver: SCUI_BLEND_DESTINATION_OVER
+                case .destinationOut: SCUI_BLEND_DESTINATION_OUT
+                case .plusDarker: SCUI_BLEND_PLUS_DARKER
+                case .plusLighter: SCUI_BLEND_PLUS_LIGHTER
+            }
+        return Int32(value)
     }
 }

@@ -40,6 +40,12 @@ typedef struct _GtkPassthroughFixed {
     float hue_degrees;
     gboolean invert;
 
+    // blendMode(_:), one of the SCUI_BLEND_* values (gtk_helpers.h); SCUI_BLEND_NORMAL,
+    // 0, draws as before. Set by gtk_passthrough_fixed_set_blend_mode; see scui_snapshot_blended.
+    // blendMode(_:),為 SCUI_BLEND_* 之一(gtk_helpers.h);SCUI_BLEND_NORMAL(0)照舊繪製。由
+    // gtk_passthrough_fixed_set_blend_mode 設定；見 scui_snapshot_blended。
+    int blend_mode;
+
     // shadow(color:radius:x:y:), drawn beneath the (adjusted) children by
     // gtk_snapshot_push_shadow; set by gtk_passthrough_fixed_set_shadow.
     // shadow(color:radius:x:y:),以 gtk_snapshot_push_shadow 畫在(調整後的)子元件下方；由
@@ -289,7 +295,9 @@ static void scui_snapshot_grey(GtkWidget *widget, GtkSnapshot *snapshot, float a
 }
 #endif
 
-static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
+// The children through the visual-effect chain; drawn as is when there is none.
+// 子元件經過視覺效果鏈繪製；沒有效果時原樣繪製。
+static void scui_snapshot_content(GtkWidget *widget, GtkSnapshot *snapshot) {
     GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
     if (!self->has_effect) {
         if (!scui_snapshot_children_painting_text(widget, snapshot)) {
@@ -352,6 +360,122 @@ static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snaps
     }
     if (self->invert) {
         gtk_snapshot_pop(snapshot);
+    }
+}
+
+// blendMode(_:): the content (with its effect chain) combined with what has already
+// been drawn behind this container. GSK 4.22's copy node is what reaches those
+// pixels: gtk_snapshot_push_copy stores the render target as it stands -- the window
+// background and every widget drawn before this one, up to the nearest offscreen
+// group such as an opacity below 1 -- and gtk_snapshot_append_paste draws it again
+// inside the push. Each mode is drawn by the GSK node that computes it:
+//
+//   multiply ... luminosity   a blend node: bottom the pasted backdrop, top the
+//                             content. Its result covers the backdrop over `bounds`,
+//                             which matters only where the backdrop is translucent.
+//   sourceAtop, destinationOver, destinationOut
+//                             a composite node with that Porter-Duff operator,
+//                             which composites the content onto the backdrop
+//                             itself, restricted to `bounds` by its mask.
+//   plusLighter, plusDarker   no GSK node adds two images, so a cross-fade at 0.5
+//                             averages the backdrop with the content made opaque
+//                             (over black for plusLighter, over white for
+//                             plusDarker, where those leave the backdrop as it
+//                             is), and a colour matrix doubles it: 2x, clamped, is
+//                             min(1, S + D); 2x - 1 is max(0, S + D - 1). Exact
+//                             where the backdrop is opaque, as a window is.
+//
+// blendMode(_:):內容(連同其效果鏈)與本容器後方已畫好的內容結合。取得那些像素靠的是 GSK 4.22 的 copy 節點:
+// gtk_snapshot_push_copy 把 render target 的現狀存下——視窗背景，以及在本元件之前畫好的每個 widget,直到最近的
+// 離屏群組(例如小於 1 的 opacity)為止——gtk_snapshot_append_paste 則在 push 之內把它再畫一次。每種模式都由能算出
+// 它的 GSK 節點繪製：
+//
+//   multiply ... luminosity   blend 節點：下層是貼上的背景，上層是內容。其結果覆蓋 `bounds` 內的背景，這只在
+//                             背景半透明之處有差別。
+//   sourceAtop、destinationOver、destinationOut
+//                             以該 Porter-Duff 運算子的 composite 節點，把內容直接合成到背景上，並以其遮罩限制在
+//                             `bounds` 之內。
+//   plusLighter、plusDarker   GSK 沒有把兩張影像相加的節點，因此以 0.5 的 cross-fade 平均背景與變為不透明的內容
+//                             (plusLighter 疊在黑色上、plusDarker 疊在白色上——這兩者會讓背景維持原樣),再以色彩
+//                             矩陣加倍:2 倍並箝制即 min(1, S + D);2 倍減 1 即 max(0, S + D - 1)。背景不透明時
+//                             (視窗即是)完全精確。
+static void scui_snapshot_blended(GtkWidget *widget, GtkSnapshot *snapshot, int mode) {
+    graphene_rect_t bounds = GRAPHENE_RECT_INIT(
+        0, 0, (float)gtk_widget_get_width(widget), (float)gtk_widget_get_height(widget)
+    );
+    if (mode == SCUI_BLEND_SOURCE_ATOP || mode == SCUI_BLEND_DESTINATION_OVER ||
+        mode == SCUI_BLEND_DESTINATION_OUT) {
+        GskPorterDuff op = mode == SCUI_BLEND_SOURCE_ATOP ? GSK_PORTER_DUFF_SOURCE_ATOP_DEST
+                           : mode == SCUI_BLEND_DESTINATION_OVER ? GSK_PORTER_DUFF_DEST_OVER_SOURCE
+                                                                 : GSK_PORTER_DUFF_DEST_OUT_SOURCE;
+        const GdkRGBA mask = {1, 1, 1, 1};
+        gtk_snapshot_push_composite(snapshot, op);
+        gtk_snapshot_append_color(snapshot, &mask, &bounds);
+        gtk_snapshot_pop(snapshot);
+        scui_snapshot_content(widget, snapshot);
+        gtk_snapshot_pop(snapshot);
+        return;
+    }
+
+    gtk_snapshot_push_copy(snapshot);
+    if (mode == SCUI_BLEND_PLUS_LIGHTER || mode == SCUI_BLEND_PLUS_DARKER) {
+        gboolean lighter = mode == SCUI_BLEND_PLUS_LIGHTER;
+        const float m[16] = {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1};
+        const GdkRGBA under = lighter ? (GdkRGBA){0, 0, 0, 1} : (GdkRGBA){1, 1, 1, 1};
+        scui_push_matrix(snapshot, m, lighter ? 0.0f : -1.0f);
+        gtk_snapshot_push_cross_fade(snapshot, 0.5);
+        gtk_snapshot_append_paste(snapshot, &bounds, 0);
+        gtk_snapshot_pop(snapshot);
+        gtk_snapshot_append_color(snapshot, &under, &bounds);
+        scui_snapshot_content(widget, snapshot);
+        gtk_snapshot_pop(snapshot);
+        gtk_snapshot_pop(snapshot);
+    } else {
+        // SwiftUI's order from multiply to luminosity, as GSK names them.
+        // SwiftUI 從 multiply 到 luminosity 的順序，以 GSK 的名稱表示。
+        static const GskBlendMode modes[] = {
+            [SCUI_BLEND_MULTIPLY] = GSK_BLEND_MODE_MULTIPLY,
+            [SCUI_BLEND_SCREEN] = GSK_BLEND_MODE_SCREEN,
+            [SCUI_BLEND_OVERLAY] = GSK_BLEND_MODE_OVERLAY,
+            [SCUI_BLEND_DARKEN] = GSK_BLEND_MODE_DARKEN,
+            [SCUI_BLEND_LIGHTEN] = GSK_BLEND_MODE_LIGHTEN,
+            [SCUI_BLEND_COLOR_DODGE] = GSK_BLEND_MODE_COLOR_DODGE,
+            [SCUI_BLEND_COLOR_BURN] = GSK_BLEND_MODE_COLOR_BURN,
+            [SCUI_BLEND_SOFT_LIGHT] = GSK_BLEND_MODE_SOFT_LIGHT,
+            [SCUI_BLEND_HARD_LIGHT] = GSK_BLEND_MODE_HARD_LIGHT,
+            [SCUI_BLEND_DIFFERENCE] = GSK_BLEND_MODE_DIFFERENCE,
+            [SCUI_BLEND_EXCLUSION] = GSK_BLEND_MODE_EXCLUSION,
+            [SCUI_BLEND_HUE] = GSK_BLEND_MODE_HUE,
+            [SCUI_BLEND_SATURATION] = GSK_BLEND_MODE_SATURATION,
+            [SCUI_BLEND_COLOR] = GSK_BLEND_MODE_COLOR,
+            [SCUI_BLEND_LUMINOSITY] = GSK_BLEND_MODE_LUMINOSITY,
+        };
+        gtk_snapshot_push_blend(snapshot, modes[mode]);
+        gtk_snapshot_append_paste(snapshot, &bounds, 0);
+        gtk_snapshot_pop(snapshot);
+        scui_snapshot_content(widget, snapshot);
+        gtk_snapshot_pop(snapshot);
+    }
+    gtk_snapshot_pop(snapshot);
+}
+
+static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
+    int mode = ((GtkPassthroughFixed *)widget)->blend_mode;
+    if (mode > SCUI_BLEND_NORMAL && mode <= SCUI_BLEND_PLUS_LIGHTER) {
+        scui_snapshot_blended(widget, snapshot, mode);
+    } else {
+        scui_snapshot_content(widget, snapshot);
+    }
+}
+
+void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode) {
+    if (widget == NULL || !GTK_IS_PASSTHROUGH_FIXED(widget)) {
+        return;
+    }
+    GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
+    if (self->blend_mode != mode) {
+        self->blend_mode = mode;
+        gtk_widget_queue_draw(widget);
     }
 }
 

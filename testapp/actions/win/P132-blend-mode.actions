@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P132 measures every blended square against the plain one a second after it
+# appears and logs its verdict; nothing is pressed. A blend mode must not change
+# any size.
+#
+# The screenshot shows the colours. Each cell is a yellow-to-blue gradient with a
+# pink square (230, 51, 128) over its right part; the square's right and bottom
+# edges stick out onto the window background. Where the square covers the bluish
+# part of the gradient, about (76, 107, 185):
+#   normal           the plain pink square (the control)
+#   multiply         dark purple, about (68, 21, 92); never lighter than either
+#   screen           light pink-violet, about (237, 137, 220)
+#   overlay          purple, about (137, 43, 185)
+#   darken           dull violet, about (76, 51, 128)
+#   lighten          pink-violet, about (230, 107, 185)
+#   colorDodge       very light, towards white
+#   colorBurn        dark, towards black and blue
+#   softLight        the gradient slightly tinted pink
+#   hardLight        a mid pink-purple, closer to the square than overlay
+#   difference       brick red, about (154, 56, 57)
+#   exclusion        greyish mauve, about (169, 116, 128)
+#   hue              the gradient's lightness with a pink hue
+#   saturation       the gradient's hue, as saturated as the square
+#   color            pink with the gradient's lightness
+#   luminosity       the gradient's hue with the square's lightness
+#   sourceAtop       the plain square, as normal: everything behind it is opaque,
+#                    the window background included, so it is drawn everywhere
+#   destinationOver  no square at all: the gradient and the opaque window
+#                    background both stay on top of it
+#   destinationOut   a hole where the square is -- gradient and window background
+#                    erased (white on macOS, 2026-11-25); the square is not drawn
+#   plusDarker       near black, about (50, 0, 57)
+#   plusLighter      light pink-magenta, about (255, 158, 255)
+#
+# expect: log-contains P132 PASS
+#
+# P132 在出現一秒後把每個混合後的方塊與一般方塊比較尺寸並記下結果，不按任何東西。混合模式不可改變任何尺寸。
+# 截圖顯示顏色：每格是黃到藍的漸層，其右半部上方有一個粉紅方塊(230, 51, 128),方塊的右緣與下緣超出漸層，落在
+# 視窗背景上。方塊覆蓋漸層偏藍處(約 (76, 107, 185))時：normal 為原樣的粉紅方塊(對照組);multiply 深紫約
+# (68, 21, 92);screen 淡粉紫約 (237, 137, 220);overlay 紫約 (137, 43, 185);darken 暗紫約 (76, 51, 128);
+# lighten 粉紫約 (230, 107, 185);colorDodge 很亮、趨近白;colorBurn 暗、趨近黑與藍;softLight 漸層略帶粉紅;
+# hardLight 中等粉紫，比 overlay 更接近方塊;difference 磚紅約 (154, 56, 57);exclusion 灰紫約 (169, 116, 128);
+# hue 漸層的亮度配粉紅色相;saturation 漸層的色相配方塊的飽和度;color 粉紅配漸層的亮度;luminosity 漸層的
+# 色相配方塊的亮度;sourceAtop 與 normal 相同(後方包括視窗背景都不透明，所以處處畫出);destinationOver 完全看不到方塊
+# (漸層與不透明的視窗背景都在它上面);destinationOut 方塊處挖出一個洞(macOS 上為白色，2026-11-25),方塊本身不畫;plusDarker 近黑約 (50, 0, 57);plusLighter
+# 淡粉洋紅約 (255, 158, 255)。
+#
+# WinUI: destinationOut computes the erased gradient but draws it over the untouched one, so that cell shows the gradient with no square (WinUIBackend+VisualEffects.swift, BlendMode.direct2D). / WinUI:destinationOut 算出擦除後的漸層，卻畫在未改動的漸層上，因此該格只見漸層、不見方塊。
+sleep,,,,,,4000000,let the measurement and the verdict show,windows

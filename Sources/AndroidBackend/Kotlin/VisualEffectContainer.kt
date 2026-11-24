@@ -4,11 +4,14 @@ import android.app.Activity
 import android.graphics.BlendMode
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.graphics.Xfermode
 import android.os.Build
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 
@@ -65,6 +68,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         grayscale: Float,
         hueRotationDegrees: Float,
         invert: Boolean,
+        blendMode: Int,
         shadowRed: Float,
         shadowGreen: Float,
         shadowBlue: Float,
@@ -87,6 +91,9 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // 的 alpha，每個後代會各自淡出，兩個半透明的同層元件會互相透出。AppKitBackend 基於同樣理由
         // 使用 NSView.alphaValue，GtkBackend 則使用 gtk_widget_set_opacity。
         alpha = opacity
+        // Before the early return below, which compares the filters only.
+        // 在下方只比較濾鏡的提前返回之前。
+        applyBlendMode(blendMode)
 
         // The direct path sets the effect every frame while opacity animates
         // (EffectAnimation.swift). When nothing but the opacity changed, the
@@ -188,6 +195,63 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         setRenderEffect(
             withShadow(content, shadowRed, shadowGreen, shadowBlue, shadowAlpha, shadowX, shadowY, shadowRadius)
         )
+    }
+
+    /// The blend mode ordinal applied last; 0 (normal) before the first.
+    /// 上次套用的混合模式序號;第一次之前為 0(normal)。
+    private var blendModeOrdinal = 0
+
+    // blendMode(_:) as a hardware layer whose paint carries the blend mode: the
+    // container, effects and all, is drawn into its own layer, and the layer is
+    // composited onto what the parent has drawn behind it with the paint's mode --
+    // View.setLayerPaint's documented use of the paint's blend mode. Normal removes
+    // the layer.
+    //
+    // plusDarker has no android.graphics.BlendMode. On API 36 it is a
+    // RuntimeXfermode with PLUS_DARKER_BLENDER's formula, made by reflection because this
+    // module compiles against API 35. Below API 36 Android has no public way to
+    // compute it, and it is drawn as MULTIPLY, the nearest mode that only darkens:
+    // the same where either colour is black or white, lighter than plusDarker in
+    // between.
+    //
+    // blendMode(_:) 以一個 hardware layer 實作，其 paint 帶有混合模式：容器(連同效果)畫進它自己的 layer,
+    // 該 layer 再以 paint 的模式合成到父容器在其後方已畫好的內容上——即 View.setLayerPaint 文件所述 paint 混合模式的
+    // 用途。normal 會移除該 layer。
+    //
+    // plusDarker 沒有對應的 android.graphics.BlendMode。在 API 36 上它是使用 PLUS_DARKER_BLENDER 公式的 RuntimeXfermode,因為本模組
+    // 以 API 35 編譯，所以經由 reflection 建立。API 36 以下 Android 沒有公開的方式算出它，因此畫成 MULTIPLY——
+    // 只會變暗的模式中最接近的一個：任一方為黑或白時兩者相同，介於其間時比 plusDarker 亮。
+    private fun applyBlendMode(ordinal: Int) {
+        if (ordinal == blendModeOrdinal) {
+            return
+        }
+        blendModeOrdinal = ordinal
+        if (ordinal <= 0 || ordinal >= BLEND_MODES.size) {
+            setLayerType(View.LAYER_TYPE_NONE, null)
+            return
+        }
+        val paint = Paint()
+        val mode = BLEND_MODES[ordinal]
+        if (mode != null) {
+            paint.blendMode = mode
+        } else if (ordinal == PLUS_DARKER) {
+            val runtime =
+                if (Build.VERSION.SDK_INT >= 36) {
+                    try {
+                        Class.forName("android.graphics.RuntimeXfermode")
+                            .getConstructor(String::class.java)
+                            .newInstance(PLUS_DARKER_BLENDER) as Xfermode
+                    } catch (error: ReflectiveOperationException) {
+                        null
+                    }
+                } else null
+            if (runtime != null) {
+                paint.xfermode = runtime
+            } else {
+                paint.blendMode = BlendMode.MULTIPLY
+            }
+        }
+        setLayerType(View.LAYER_TYPE_HARDWARE, paint)
     }
 
     // shadow(color:radius:x:y:) in pixels, kept for onAttachedToWindow. / 以像素表示的
@@ -406,6 +470,52 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
     }
 
     companion object {
+        // SwiftCrossUI's BlendMode cases in declaration order (the ordinal Swift
+        // passes) as Android's BlendMode; null for normal, which needs no layer, and
+        // for plusDarker, which Android has no BlendMode for (see applyBlendMode).
+        // SwiftCrossUI BlendMode 依宣告順序(即 Swift 傳入的序號)對應的 Android BlendMode;normal 不需要
+        // layer、plusDarker 在 Android 沒有對應的 BlendMode(見 applyBlendMode),兩者為 null。
+        private val BLEND_MODES =
+            arrayOf(
+                null,
+                BlendMode.MULTIPLY,
+                BlendMode.SCREEN,
+                BlendMode.OVERLAY,
+                BlendMode.DARKEN,
+                BlendMode.LIGHTEN,
+                BlendMode.COLOR_DODGE,
+                BlendMode.COLOR_BURN,
+                BlendMode.SOFT_LIGHT,
+                BlendMode.HARD_LIGHT,
+                BlendMode.DIFFERENCE,
+                BlendMode.EXCLUSION,
+                BlendMode.HUE,
+                BlendMode.SATURATION,
+                BlendMode.COLOR,
+                BlendMode.LUMINOSITY,
+                BlendMode.SRC_ATOP,
+                BlendMode.DST_OVER,
+                BlendMode.DST_OUT,
+                null,
+                BlendMode.PLUS,
+            )
+        private const val PLUS_DARKER = 19
+
+        // plusDarker on premultiplied colour: max(0, S + D - Sa Da) per channel, alpha
+        // Sa + Da - Sa Da. Where D is opaque this is max(0, S + D - Sa), Core
+        // Graphics' max(0, 1 - ((1 - D) + (1 - S))) for S over white -- what
+        // GtkBackend draws -- and a transparent S leaves D as it is.
+        // 預乘色彩上的 plusDarker:每個通道 max(0, S + D - Sa Da),alpha 為 Sa + Da - Sa Da。D 不透明時即
+        // max(0, S + D - Sa),也就是 S 疊在白色上時 Core Graphics 的 max(0, 1 - ((1 - D) + (1 - S)))
+        // ——GtkBackend 畫的就是這個——而透明的 S 讓 D 維持原樣。
+        private const val PLUS_DARKER_BLENDER =
+            """
+            half4 main(half4 src, half4 dst) {
+                half both = src.a * dst.a;
+                return half4(max(half3(0.0), src.rgb + dst.rgb - half3(both)), src.a + dst.a - both);
+            }
+            """
+
         // CIColorMonochrome as Core Image runs it in a linear working space:
         // decode sRGB, take luminance with its weights, overlay it against the
         // tint c (0.5 grey, linear 0.21404) -- 2Lc below 0.5, 1 - 2(1 - L)(1 - c)

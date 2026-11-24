@@ -158,6 +158,15 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
                 throw WinUIVisualEffectError.emptyEffectGraph
             }
             try effectBrush.setSourceParameter("source", sourceBrush)
+            // blendMode(_:)'s destination: what the compositor has drawn behind the
+            // sprite. The child is at opacity 0 below, so it is not part of it.
+            // blendMode(_:) 的目的地：合成器在 sprite 後方已畫好的內容。子元件在下方被設為 opacity 0,所以不在其中。
+            if graph.usesBackdrop {
+                guard let backdrop = try compositor.createBackdropBrush() else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                try effectBrush.setSourceParameter("backdrop", backdrop)
+            }
             guard let spriteVisual = try compositor.createSpriteVisual() else {
                 throw WinUIVisualEffectError.emptyEffectGraph
             }
@@ -207,6 +216,63 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
     }
 }
 
+private extension SwiftCrossUI.BlendMode {
+    /// The Direct2D node that draws this mode -- the effect kind, its mode property
+    /// and the mode -- or nil for normal, which needs none.
+    ///
+    /// Blend's own modes cover multiply through luminosity; plusLighter is its
+    /// LINEAR_DODGE, min(1, S + D), and plusDarker its LINEAR_BURN,
+    /// max(0, S + D - 1). sourceAtop, destinationOver and destinationOut are
+    /// Porter-Duff operators, drawn by Composite.
+    ///
+    /// One gap, stated precisely: the result is a sprite drawn over the backdrop it
+    /// was computed from, and Composition cannot erase the visuals underneath it. So
+    /// destinationOut, which erases the backdrop where the view is opaque, computes
+    /// the erased backdrop and draws it over the untouched one -- the cell looks as
+    /// if nothing were drawn there, instead of showing what lies behind the
+    /// backdrop. Every other mode's result covers the backdrop where the view is and
+    /// equals it elsewhere, so drawing it over the backdrop is exact wherever the
+    /// backdrop is opaque.
+    ///
+    /// 畫出此模式的 Direct2D 節點——效果種類、其模式屬性與模式值——normal 不需要節點，為 nil。
+    ///
+    /// Blend 自身的模式涵蓋 multiply 到 luminosity;plusLighter 是它的 LINEAR_DODGE,即 min(1, S + D),plusDarker
+    /// 是它的 LINEAR_BURN,即 max(0, S + D - 1)。sourceAtop、destinationOver 與 destinationOut 是 Porter-Duff
+    /// 運算子，由 Composite 繪製。
+    ///
+    /// 唯一的缺口，明確說明如下：結果是一個畫在「用來計算它的背景」之上的 sprite,而 Composition 無法擦除其下方的
+    /// visual。因此 destinationOut(在 view 不透明處擦除背景)算出了擦除後的背景，卻把它畫在未被改動的背景上——
+    /// 該格看起來像什麼都沒畫，而不是露出背景後方的內容。其他每種模式的結果在 view 所在處覆蓋背景、其餘處等於背景，
+    /// 因此只要背景不透明，畫在背景之上就完全精確。
+    var direct2D: (kind: Int, property: Int, mode: Int)? {
+        let blend = { (mode: Int) in (SCUI_EFFECT_BLEND, SCUI_D2DBLEND_MODE, mode) }
+        let composite = { (mode: Int) in (SCUI_EFFECT_COMPOSITE, SCUI_D2DCOMPOSITE_MODE, mode) }
+        switch self {
+            case .normal: return nil
+            case .multiply: return blend(SCUI_D2DBLEND_MULTIPLY)
+            case .screen: return blend(SCUI_D2DBLEND_SCREEN)
+            case .overlay: return blend(SCUI_D2DBLEND_OVERLAY)
+            case .darken: return blend(SCUI_D2DBLEND_DARKEN)
+            case .lighten: return blend(SCUI_D2DBLEND_LIGHTEN)
+            case .colorDodge: return blend(SCUI_D2DBLEND_COLOR_DODGE)
+            case .colorBurn: return blend(SCUI_D2DBLEND_COLOR_BURN)
+            case .softLight: return blend(SCUI_D2DBLEND_SOFT_LIGHT)
+            case .hardLight: return blend(SCUI_D2DBLEND_HARD_LIGHT)
+            case .difference: return blend(SCUI_D2DBLEND_DIFFERENCE)
+            case .exclusion: return blend(SCUI_D2DBLEND_EXCLUSION)
+            case .hue: return blend(SCUI_D2DBLEND_HUE)
+            case .saturation: return blend(SCUI_D2DBLEND_SATURATION)
+            case .color: return blend(SCUI_D2DBLEND_COLOR)
+            case .luminosity: return blend(SCUI_D2DBLEND_LUMINOSITY)
+            case .sourceAtop: return composite(SCUI_D2DCOMPOSITE_SOURCE_ATOP)
+            case .destinationOver: return composite(SCUI_D2DCOMPOSITE_DESTINATION_OVER)
+            case .destinationOut: return composite(SCUI_D2DCOMPOSITE_DESTINATION_OUT)
+            case .plusDarker: return blend(SCUI_D2DBLEND_LINEAR_BURN)
+            case .plusLighter: return blend(SCUI_D2DBLEND_LINEAR_DODGE)
+        }
+    }
+}
+
 private extension VisualEffect {
     var needsOnlyOpacity: Bool {
         blurRadius == 0
@@ -216,6 +282,7 @@ private extension VisualEffect {
             && grayscale == 0
             && hueRotation == .zero
             && !colorInvert
+            && blendMode == .normal
     }
 
     /// The non-default components, for a diagnostic that names the effect.
@@ -236,6 +303,7 @@ private extension VisualEffect {
         if grayscale != 0 { parts.append("grayscale \(grayscale)") }
         if hueRotation != .zero { parts.append("hueRotation \(hueRotation.degrees)") }
         if colorInvert { parts.append("colorInvert") }
+        if blendMode != .normal { parts.append("blendMode \(blendMode)") }
         return parts.isEmpty ? "identity" : parts.joined(separator: ", ")
     }
 }
@@ -247,6 +315,9 @@ private typealias D2DSource = UnsafeMutablePointer<
 private struct D2DEffectGraph {
     let rootEffect: UWP.AnyIGraphicsEffect
     let effectObjects: [Any]
+    /// Whether the graph has a "backdrop" source to bind (blendMode(_:)).
+    /// 效果圖是否有需要繫結的 "backdrop" 來源(blendMode(_:))。
+    let usesBackdrop: Bool
 
     init(effect: VisualEffect) throws {
         let sourceParameter = WinAppSDK.CompositionEffectSourceParameter("source")
@@ -441,6 +512,7 @@ private struct D2DEffectGraph {
                 prefix.grayscale = 0
                 prefix.hueRotation = .zero
                 prefix.colorInvert = false
+                prefix.blendMode = .normal
                 if prefix.needsOnlyOpacity {
                     let parameter = WinAppSDK.CompositionEffectSourceParameter("source")
                     guard let wrapper =
@@ -576,6 +648,31 @@ private struct D2DEffectGraph {
                 from: currentSource
             )
         }
+
+        // blendMode(_:) last, after every other effect, on what the effects produced:
+        // a Direct2D Blend or Composite node whose destination (input 0) is the
+        // "backdrop" parameter, which setVisualEffect binds to a CompositionBackdropBrush
+        // -- the pixels the compositor has drawn behind this container's sprite -- and
+        // whose source (input 1) is the view. See `BlendMode.direct2D` for the node
+        // each mode uses.
+        // blendMode(_:) 排在最後，在其他所有效果之後，作用於效果產出的結果:Direct2D 的 Blend 或 Composite 節點，
+        // 其目的地(輸入 0)是 "backdrop" 參數——setVisualEffect 把它繫結到 CompositionBackdropBrush,也就是合成器在
+        // 本容器 sprite 後方已畫好的像素——來源(輸入 1)則是 view。每種模式用哪個節點，見 `BlendMode.direct2D`。
+        if let blend = effect.blendMode.direct2D {
+            let backdropParameter = WinAppSDK.CompositionEffectSourceParameter("backdrop")
+            guard let backdropWrapper =
+                __ABI_Windows_Graphics_Effects.IGraphicsEffectSourceWrapper(backdropParameter)
+            else {
+                throw WinUIVisualEffectError.emptyEffectGraph
+            }
+            objects.append(backdropWrapper)
+            var backdrop: D2DSource = nil
+            try backdropWrapper.toABI { backdrop = $0 }
+            let node = try D2DEffect(blend.kind, sources: [backdrop, currentSource])
+            try node.set(blend.property, .uint(blend.mode))
+            try append(node)
+        }
+        usesBackdrop = effect.blendMode.direct2D != nil
 
         guard let currentRoot else {
             throw WinUIVisualEffectError.emptyEffectGraph
