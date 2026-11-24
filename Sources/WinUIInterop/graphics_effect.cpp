@@ -67,7 +67,7 @@ struct GraphicsEffectD2D1Interop : public IUnknown {
 };
 
 constexpr UINT kMaxProperties = 17; // GammaTransfer's, the most of these effects
-constexpr UINT kMaxSources = 2;     // ArithmeticComposite's
+constexpr UINT kMaxSources = 2;     // ArithmeticComposite's, Blend's and Composite's
 
 class EffectNode final : public GraphicsEffect, public GraphicsEffectD2D1Interop {
   public:
@@ -247,6 +247,28 @@ static_assert(int(SCUI_GAMMA_ALPHA_AMPLITUDE) == int(D2D1_GAMMATRANSFER_PROP_ALP
 static_assert(int(SCUI_GAMMA_ALPHA_DISABLE) == int(D2D1_GAMMATRANSFER_PROP_ALPHA_DISABLE), "");
 static_assert(int(SCUI_GAMMA_CLAMP) == int(D2D1_GAMMATRANSFER_PROP_CLAMP_OUTPUT), "");
 static_assert(int(SCUI_HUE_ANGLE) == int(D2D1_HUEROTATION_PROP_ANGLE), "");
+static_assert(int(SCUI_D2DBLEND_MODE) == int(D2D1_BLEND_PROP_MODE), "");
+static_assert(int(SCUI_D2DBLEND_MULTIPLY) == int(D2D1_BLEND_MODE_MULTIPLY), "");
+static_assert(int(SCUI_D2DBLEND_SCREEN) == int(D2D1_BLEND_MODE_SCREEN), "");
+static_assert(int(SCUI_D2DBLEND_DARKEN) == int(D2D1_BLEND_MODE_DARKEN), "");
+static_assert(int(SCUI_D2DBLEND_LIGHTEN) == int(D2D1_BLEND_MODE_LIGHTEN), "");
+static_assert(int(SCUI_D2DBLEND_COLOR_BURN) == int(D2D1_BLEND_MODE_COLOR_BURN), "");
+static_assert(int(SCUI_D2DBLEND_LINEAR_BURN) == int(D2D1_BLEND_MODE_LINEAR_BURN), "");
+static_assert(int(SCUI_D2DBLEND_COLOR_DODGE) == int(D2D1_BLEND_MODE_COLOR_DODGE), "");
+static_assert(int(SCUI_D2DBLEND_LINEAR_DODGE) == int(D2D1_BLEND_MODE_LINEAR_DODGE), "");
+static_assert(int(SCUI_D2DBLEND_OVERLAY) == int(D2D1_BLEND_MODE_OVERLAY), "");
+static_assert(int(SCUI_D2DBLEND_SOFT_LIGHT) == int(D2D1_BLEND_MODE_SOFT_LIGHT), "");
+static_assert(int(SCUI_D2DBLEND_HARD_LIGHT) == int(D2D1_BLEND_MODE_HARD_LIGHT), "");
+static_assert(int(SCUI_D2DBLEND_DIFFERENCE) == int(D2D1_BLEND_MODE_DIFFERENCE), "");
+static_assert(int(SCUI_D2DBLEND_EXCLUSION) == int(D2D1_BLEND_MODE_EXCLUSION), "");
+static_assert(int(SCUI_D2DBLEND_HUE) == int(D2D1_BLEND_MODE_HUE), "");
+static_assert(int(SCUI_D2DBLEND_SATURATION) == int(D2D1_BLEND_MODE_SATURATION), "");
+static_assert(int(SCUI_D2DBLEND_COLOR) == int(D2D1_BLEND_MODE_COLOR), "");
+static_assert(int(SCUI_D2DBLEND_LUMINOSITY) == int(D2D1_BLEND_MODE_LUMINOSITY), "");
+static_assert(int(SCUI_D2DCOMPOSITE_MODE) == int(D2D1_COMPOSITE_PROP_MODE), "");
+static_assert(int(SCUI_D2DCOMPOSITE_DESTINATION_OVER) == int(D2D1_COMPOSITE_MODE_DESTINATION_OVER), "");
+static_assert(int(SCUI_D2DCOMPOSITE_DESTINATION_OUT) == int(D2D1_COMPOSITE_MODE_DESTINATION_OUT), "");
+static_assert(int(SCUI_D2DCOMPOSITE_SOURCE_ATOP) == int(D2D1_COMPOSITE_MODE_SOURCE_ATOP), "");
 
 } // namespace
 
@@ -279,6 +301,18 @@ extern "C" void *scui_effect_create(int kind) {
     case SCUI_EFFECT_HUE_ROTATION:
         id = &CLSID_D2D1HueRotation;
         properties = SCUI_HUE_ANGLE + 1;
+        break;
+    // Two sources each: the destination (the backdrop), then the source.
+    // 各有兩個來源：先是目的地(背景),再來是來源。
+    case SCUI_EFFECT_BLEND:
+        id = &CLSID_D2D1Blend;
+        properties = SCUI_D2DBLEND_MODE + 1;
+        sources = 2;
+        break;
+    case SCUI_EFFECT_COMPOSITE:
+        id = &CLSID_D2D1Composite;
+        properties = SCUI_D2DCOMPOSITE_MODE + 1;
+        sources = 2;
         break;
     default:
         return nullptr;

@@ -125,6 +125,9 @@ extension VisualEffect: InterpolatableEffect {
         progress: Double
     ) -> VisualEffect {
         func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * progress }
+        // Starts from `end`, so what does not interpolate -- colorInvert, blendMode --
+        // switches to its new value at once, as SwiftUI's does. / 由 `end` 出發，因此不能插值的部分
+        // (colorInvert、blendMode)立刻換成新值，與 SwiftUI 相同。
         var effect = end
         effect.opacity = mix(start.opacity, end.opacity)
         effect.blurRadius = mix(start.blurRadius, end.blurRadius)

@@ -37,6 +37,7 @@ class VisualEffectContainer: AndroidKit.ViewGroup {
         _ grayscale: Float,
         _ hueRotationDegrees: Float,
         _ invert: Bool,
+        _ blendMode: Int32,
         _ shadowRed: Float,
         _ shadowGreen: Float,
         _ shadowBlue: Float,
@@ -84,6 +85,10 @@ extension AndroidBackend: BackendFeatures.VisualEffects {
             Float(effect.grayscale),
             Float(effect.hueRotation.degrees),
             effect.colorInvert,
+            // blendMode(_:) as its ordinal in BlendMode's declaration order, which the
+            // Kotlin side's BLEND_MODES table follows. / blendMode(_:) 以它在 BlendMode 宣告順序中的序號傳入，
+            // Kotlin 端的 BLEND_MODES 表依同一順序。
+            Int32(SwiftCrossUI.BlendMode.allCases.firstIndex(of: effect.blendMode) ?? 0),
             // shadow(color:radius:x:y:), in pixels like the blur radius; alpha 0 is none.
             // shadow(color:radius:x:y:),與模糊半徑一樣以像素表示;alpha 為 0 表示沒有陰影。
             effect.shadow?.color.red ?? 0,

@@ -60,16 +60,28 @@ extension View {
         visualEffect(VisualEffect(colorInvert: true))
     }
 
+    /// Sets how this view composites with what is drawn behind it, as SwiftUI's
+    /// `blendMode(_:)`: `.multiply` darkens the backdrop by the view's colour,
+    /// `.screen` lightens it, `.difference` subtracts, and so on (see ``BlendMode``).
+    /// The view's layout is unchanged; only how its pixels meet the backdrop is.
+    ///
+    /// 設定此 view 如何與後方已畫好的內容合成，即 SwiftUI 的 `blendMode(_:)`:`.multiply` 以 view 的顏色壓暗
+    /// 背景、`.screen` 提亮、`.difference` 相減，其餘見 ``BlendMode``。view 的版面不變，改變的只是其像素與
+    /// 背景相遇的方式。
+    public func blendMode(_ blendMode: BlendMode) -> some View {
+        visualEffect(VisualEffect(blendMode: blendMode))
+    }
+
     /// Applies several compositing effects in one container.
     ///
-    /// Public because the eight modifiers above each wrap separately, so
+    /// Public because the nine modifiers above each wrap separately, so
     /// `.saturation(0).brightness(0.2)` builds two containers. That is correct
     /// and matches SwiftUI, but when several effects are known together this
     /// says so in one.
     ///
     /// 以單一容器套用多種合成效果。
     ///
-    /// 之所以公開：上方八個 modifier 各自會包一層，因此 `.saturation(0).brightness(0.2)` 會建立兩個
+    /// 之所以公開：上方九個 modifier 各自會包一層，因此 `.saturation(0).brightness(0.2)` 會建立兩個
     /// 容器。那是正確的、也與 SwiftUI 一致，但當多種效果本來就是一起決定的，此處可用一個容器表達。
     /// Casts a drop shadow of this view's content, as SwiftUI's
     /// `shadow(color:radius:x:y:)`. The shadow follows the content's shape, is drawn

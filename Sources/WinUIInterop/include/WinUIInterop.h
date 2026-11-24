@@ -143,6 +143,8 @@ enum {
     SCUI_EFFECT_LINEAR_TRANSFER = 3,
     SCUI_EFFECT_GAMMA_TRANSFER = 4,
     SCUI_EFFECT_HUE_ROTATION = 5,
+    SCUI_EFFECT_BLEND = 6,
+    SCUI_EFFECT_COMPOSITE = 7,
 };
 enum {
     SCUI_COLORMATRIX_MATRIX = 0,      // 20 floats, row-major 5x4 / 20 個 float,逐列的 5x4
@@ -178,6 +180,32 @@ enum {
     SCUI_GAMMA_ALPHA_DISABLE = 15,
     SCUI_GAMMA_CLAMP = 16,
     SCUI_HUE_ANGLE = 0,               // Single, in degrees / Single,單位為度
+    // Blend: input 0 is the destination (the backdrop), input 1 the source.
+    // Blend:輸入 0 是目的地(背景),輸入 1 是來源。
+    SCUI_D2DBLEND_MODE = 0,           // UInt32, a D2D1_BLEND_MODE
+    SCUI_D2DBLEND_MULTIPLY = 0,
+    SCUI_D2DBLEND_SCREEN = 1,
+    SCUI_D2DBLEND_DARKEN = 2,
+    SCUI_D2DBLEND_LIGHTEN = 3,
+    SCUI_D2DBLEND_COLOR_BURN = 5,
+    SCUI_D2DBLEND_LINEAR_BURN = 6,
+    SCUI_D2DBLEND_COLOR_DODGE = 9,
+    SCUI_D2DBLEND_LINEAR_DODGE = 10,
+    SCUI_D2DBLEND_OVERLAY = 11,
+    SCUI_D2DBLEND_SOFT_LIGHT = 12,
+    SCUI_D2DBLEND_HARD_LIGHT = 13,
+    SCUI_D2DBLEND_DIFFERENCE = 18,
+    SCUI_D2DBLEND_EXCLUSION = 19,
+    SCUI_D2DBLEND_HUE = 20,
+    SCUI_D2DBLEND_SATURATION = 21,
+    SCUI_D2DBLEND_COLOR = 22,
+    SCUI_D2DBLEND_LUMINOSITY = 23,
+    // Composite: input 0 is the destination, input 1 the source.
+    // Composite:輸入 0 是目的地，輸入 1 是來源。
+    SCUI_D2DCOMPOSITE_MODE = 0,       // UInt32, a D2D1_COMPOSITE_MODE
+    SCUI_D2DCOMPOSITE_DESTINATION_OVER = 1,
+    SCUI_D2DCOMPOSITE_DESTINATION_OUT = 5,
+    SCUI_D2DCOMPOSITE_SOURCE_ATOP = 6,
 };
 void *scui_effect_create(int kind);
 int scui_effect_set_property(void *effect, unsigned index, void *propertyValue);

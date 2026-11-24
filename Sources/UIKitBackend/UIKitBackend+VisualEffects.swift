@@ -148,6 +148,18 @@ final class VisualEffectWidget: BaseViewWidget {
             layer.shadowOpacity = 0
         }
 
+        // blendMode(_:) as this view's layer compositingFilter, set before the early
+        // return below, which compares the filters only. Unlike `layer.filters`, which
+        // iOS ignores (see the type's comment), Core Animation reads a compositing
+        // filter named by one of its own filter names on iOS, and it composites the
+        // live layer -- the child or the filtered image standing in for it -- onto
+        // what is drawn behind. The names are AppKitBackend's; nil is normal.
+        // blendMode(_:) 以此 view 的 layer compositingFilter 實作，設定在下方只比較濾鏡的提前返回之前。與 iOS
+        // 會忽略的 `layer.filters`(見本型別的註解)不同,iOS 上的 Core Animation 會讀取以其自身濾鏡名稱指定的
+        // compositing filter,並把活的 layer(子 view,或代替它的濾鏡影像)合成到後方已畫好的內容上。名稱與
+        // AppKitBackend 相同;nil 即 normal。
+        layer.compositingFilter = effect.blendMode.coreAnimationFilterName
+
         // The direct path sets the effect every frame while opacity animates
         // (EffectAnimation.swift). When nothing but the opacity changed, the
         // filtered snapshot is still right, so it is not rendered again.
@@ -337,5 +349,38 @@ extension UIKitBackend: BackendFeatures.VisualEffects {
 
     public func setVisualEffect(_ effect: VisualEffect, ofWidget widget: Widget) {
         (widget as! VisualEffectWidget).setEffect(effect)
+    }
+}
+
+extension BlendMode {
+    /// The name of Core Animation's compositing filter for this mode, or nil for
+    /// `.normal` -- the names AppKitBackend uses. Every one of SwiftUI's modes has
+    /// one, so none is approximated.
+    /// 此模式對應的 Core Animation 合成濾鏡名稱,`.normal` 為 nil——與 AppKitBackend 使用的名稱相同。SwiftUI 的每一種
+    /// 模式都有對應，因此沒有近似。
+    var coreAnimationFilterName: String? {
+        switch self {
+            case .normal: nil
+            case .multiply: "multiplyBlendMode"
+            case .screen: "screenBlendMode"
+            case .overlay: "overlayBlendMode"
+            case .darken: "darkenBlendMode"
+            case .lighten: "lightenBlendMode"
+            case .colorDodge: "colorDodgeBlendMode"
+            case .colorBurn: "colorBurnBlendMode"
+            case .softLight: "softLightBlendMode"
+            case .hardLight: "hardLightBlendMode"
+            case .difference: "differenceBlendMode"
+            case .exclusion: "exclusionBlendMode"
+            case .hue: "hueBlendMode"
+            case .saturation: "saturationBlendMode"
+            case .color: "colorBlendMode"
+            case .luminosity: "luminosityBlendMode"
+            case .sourceAtop: "sourceAtop"
+            case .destinationOver: "destOver"
+            case .destinationOut: "destOut"
+            case .plusDarker: "plusD"
+            case .plusLighter: "plusL"
+        }
     }
 }

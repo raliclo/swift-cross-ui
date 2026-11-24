@@ -119,6 +119,9 @@ public struct AnyTransition: Sendable {
             )
             // Two inversions cancel. / 兩次反轉互相抵消。
             visual.colorInvert = visual.colorInvert != other.visual.colorInvert
+            // A blend mode is not a quantity: the other one's wins unless it is normal.
+            // 混合模式不是數量：以另一方的為準，除非它是 normal。
+            if other.visual.blendMode != .normal { visual.blendMode = other.visual.blendMode }
             return Effects(geometric: geometric, visual: visual)
         }
 
