@@ -32,6 +32,8 @@ extension AndroidBackend {
             onEditingChanged(false)
         })
         slider.setBounds(min: Float(minimum), max: Float(maximum), places: Int32(decimalPlaces))
+        // The active track and thumb in the tint, 0 for the theme's. 已作用的軌道與滑塊用 tint,0 為主題的顏色。
+        slider.setTint(tintColorInt(environment))
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {

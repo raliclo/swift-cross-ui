@@ -4546,6 +4546,8 @@ extension GtkBackend {
     ) {
         let switchWidget = switchWidget as! Gtk.Switch
         switchWidget.sensitive = environment.isEnabled
+        // The on track in the tint. 開啟時的軌道用 tint。
+        applyTint(of: environment, to: switchWidget, parts: [":checked:not(:disabled)"])
         switchWidget.notifyActive = { widget, _ in
             onChange(widget.active)
         }
@@ -4570,6 +4572,12 @@ extension GtkBackend {
     ) {
         let checkboxWidget = checkboxWidget as! Gtk.CheckButton
         checkboxWidget.sensitive = environment.isEnabled
+        // The checked box in the tint. 勾選的方塊用 tint。
+        applyTint(
+            of: environment,
+            to: checkboxWidget,
+            parts: [":not(:disabled) check:checked", ":not(:disabled) check:indeterminate"]
+        )
         checkboxWidget.notifyActive = { widget, _ in
             onChange(widget.active)
         }
@@ -4640,6 +4648,8 @@ extension GtkBackend {
         // 2026-09-10 的探針(pressed 1、released 0、end 1)量到的是 GtkScale claim 序列後 GestureClick 的行為——
         // 而 `end` 在 claim 時、也就是按下時就來了，早於拖曳的值(P61,2026-10-16)。
         GtkSliderEditing.setHandler(on: slider, onEditingChanged)
+        // The filled part of the trough in the tint. 軌道已填滿的部分用 tint。
+        applyTint(of: environment, to: slider, parts: [":not(:disabled) trough highlight"])
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {
@@ -5055,12 +5065,19 @@ extension GtkBackend {
         // 限定在此 bar 自己的 class:provider 是加在整個 display 上的，所以單獨的 `trough` 選擇器會把 app
         // 中每一個 trough——連同 slider 與 scale——都重新上色。widget 自己的 `css` 區塊放在前面，因為一次載入
         // 會取代 provider 的內容。
+        // For the whole display, as the comment above says and as the
+        // descendant selectors need: a provider on the bar's own node styles
+        // neither the trough nor the tint's `trough progress` (see GtkBackend+Tint.swift).
+        // 安裝在整個 display 上，如上方註解所說，也是後代選擇器所需要的：只裝在 bar 自己節點上的 provider,
+        // trough 與 tint 的 `trough progress` 都套不到(見 GtkBackend+Tint.swift)。
+        progressBar.cssProviderScope = .display
         progressBar.loadCSSText(
             from: """
                 \(progressBar.css.stringRepresentation)
                 .\(progressBar.css.cssClass) trough {
                     background-color: \(CSSProperty.rgba(backgroundColor));
                 }
+                \(tintCSS(of: environment, for: progressBar, parts: [" trough progress"]))
                 """
         )
     }

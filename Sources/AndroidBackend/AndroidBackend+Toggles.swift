@@ -17,7 +17,7 @@ extension AndroidBackend {
             Self.activity,
             environment: Self.env
         )
-        helpers.styleToggleButton(toggle)
+        helpers.styleToggleButton(toggle, 0)
         return toggle
     }
 
@@ -28,7 +28,7 @@ extension AndroidBackend {
         )
         // Shaped at creation, so the first measurement is the 30 pt square.
         // 建立時就定形，讓第一次量測就是 30 pt 的方塊。
-        helpers.styleCheckbox(checkbox.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true)
+        helpers.styleCheckbox(checkbox.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true, 0)
         return checkbox
     }
 
@@ -41,7 +41,7 @@ extension AndroidBackend {
         // size; styled only in update, a checked switch was measured with the
         // framework drawables and its thumb came out clipped (P15, 2026-10-09).
         // 建立時就套上形狀，讓第一次量測就是膠囊的尺寸;只在 update 時套用，開啟的開關是以框架的圖量測的，滑塊被裁掉了(P15)。
-        helpers.styleSwitch(switchWidget.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true)
+        helpers.styleSwitch(switchWidget.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true, 0)
         return switchWidget
     }
 
@@ -92,7 +92,10 @@ extension AndroidBackend {
         // White on the filled (checked) state, the tint otherwise, 38% when
         // disabled -- see AndroidBackendHelpers.applyToggleButtonTextColors.
         // 開(填滿)時白色，其他時候強調色，停用時 38%——見 AndroidBackendHelpers.applyToggleButtonTextColors。
-        helpers.applyToggleButtonTextColors(toggle, environment.isEnabled)
+        // The fill and the off label in the tint, restyled only when it changes.
+        // 填色與關閉時的標籤用 tint,只在改變時重新設定。
+        helpers.styleToggleButton(toggle, tintColorInt(environment))
+        helpers.applyToggleButtonTextColors(toggle, environment.isEnabled, tintColorInt(environment))
     }
 
     public func updateCheckbox(
@@ -105,7 +108,9 @@ extension AndroidBackend {
         helpers.styleCheckbox(
             checkboxWidget,
             environment.suggestedForegroundColor.resolve(in: environment).asColorInt(),
-            environment.isEnabled
+            environment.isEnabled,
+            // The checked fill in the tint, 0 for systemBlue. 勾選的填色用 tint,0 為 systemBlue。
+            tintColorInt(environment)
         )
     }
 
@@ -119,7 +124,9 @@ extension AndroidBackend {
         helpers.styleSwitch(
             switchWidget,
             environment.suggestedForegroundColor.resolve(in: environment).asColorInt(),
-            environment.isEnabled
+            environment.isEnabled,
+            // The on track in the tint, 0 for systemGreen. 開啟的軌道用 tint,0 為 systemGreen。
+            tintColorInt(environment)
         )
     }
 

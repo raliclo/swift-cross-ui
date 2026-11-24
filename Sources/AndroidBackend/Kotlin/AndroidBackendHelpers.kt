@@ -434,9 +434,15 @@ class AndroidBackendHelpers {
     // ToggleButton(`.toggleStyle(.button)`,即預設樣式)只靠一條細底線的顏色表示開關，在 API 36 emulator 上兩者
     // 看起來一樣:P12 的「相反狀態必須看起來不同」不成立,P2/P15 的開關看不出是開的。改為以按鈕本體表示——
     // 開時填滿 accent,關時透明——如同 UIKit 把選取的按鈕樣式開關填滿。
-    fun styleToggleButton(button: android.widget.ToggleButton) {
+    // The fill is the tint when there is one (0: colorPrimary); restyled only when it
+    // changes. 填色有 tint 時用它(0:colorPrimary);只在改變時重新設定。
+    private val toggleButtonStyles = java.util.WeakHashMap<android.view.View, Int>()
+
+    fun styleToggleButton(button: android.widget.ToggleButton, tint: Int) {
+        if (toggleButtonStyles[button] == tint) return
+        toggleButtonStyles[button] = tint
         val context = button.context
-        val primary = themeColorOf(context, android.R.attr.colorPrimary)
+        val primary = if (tint != 0) tint else themeColorOf(context, android.R.attr.colorPrimary)
         val density = context.resources.displayMetrics.density
         // As UIKit draws a button-style toggle, so Android lines
         // up with iOS: off is a borderless label in the tint, on is the tint
@@ -482,8 +488,8 @@ class AndroidBackendHelpers {
     // state, the tint otherwise, both at 38% when disabled. Called after the text
     // style, which sets one solid colour. 按鈕樣式開關的標籤顏色：填滿(開)時白色，其他時候強調色，停用時兩者都 38%。
     // 在文字樣式之後呼叫，因為文字樣式只設單一顏色。
-    fun applyToggleButtonTextColors(button: android.widget.ToggleButton, enabled: Boolean) {
-        val primary = themeColorOf(button.context, android.R.attr.colorPrimary)
+    fun applyToggleButtonTextColors(button: android.widget.ToggleButton, enabled: Boolean, tint: Int) {
+        val primary = if (tint != 0) tint else themeColorOf(button.context, android.R.attr.colorPrimary)
         fun fade(c: Int) = if (enabled) c else (c and 0x00FFFFFF) or 0x61000000
         button.setTextColor(
             android.content.res.ColorStateList(
@@ -499,9 +505,10 @@ class AndroidBackendHelpers {
     // showed, where iOS draws a dark grey track (P15-DARK, 2026-10-09).
     // 依 SwiftCrossUI 的配色而非 activity 主題替 Switch 上色，畫成 iOS 的 UISwitch(細節見 styleSwitch 內)。
     // 在 preferredColorScheme(.dark) 下，淺色主題的關閉軌道在黑底上看不見，只剩一個灰點，iOS 則畫出深灰的軌道(P15-DARK,2026-10-09)。
-    fun styleSwitch(switchView: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
+    // The on track is the tint when there is one (0: systemGreen). 開啟的軌道有 tint 時用它(0:systemGreen)。
+    fun styleSwitch(switchView: android.widget.CompoundButton, foreground: Int, enabled: Boolean, tint: Int) {
         if (switchView !is android.widget.Switch) return
-        val key = "$foreground/$enabled"
+        val key = "$foreground/$enabled/$tint"
         if (switchStyles[switchView] == key) return
         switchStyles[switchView] = key
         val density = switchView.context.resources.displayMetrics.density
@@ -516,7 +523,7 @@ class AndroidBackendHelpers {
         // iOS 26 所畫的 UISwitch,於 P21 量測(2026-10-10):63 x 28 的軌道，開啟時為 systemGreen(#34C759,深色
         // #30D158),關閉時為 44% 的 (120,120,128)——白底上 197、黑底上約 52——上面一個 37 x 24 的白色膠囊，距兩端各 2 pt。
         val dark = android.graphics.Color.luminance(foreground) > 0.5f
-        val green = if (dark) 0xFF30D158.toInt() else 0xFF34C759.toInt()
+        val green = if (tint != 0) tint else if (dark) 0xFF30D158.toInt() else 0xFF34C759.toInt()
         val trackWidth = 63 * density
         val trackHeight = 28 * density
         val track = android.graphics.drawable.GradientDrawable()
@@ -601,14 +608,15 @@ class AndroidBackendHelpers {
     // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16% 的
     // (120,120,128)),開啟時為 systemBlue(#0088FF,深色 #0091FF)加上前景色的勾號，停用時整個控制項 40%。框架的
     // CheckBox 是 Material 的外框方塊(P21,2026-10-10)。
-    fun styleCheckbox(checkBox: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
+    // The checked fill is the tint when there is one (0: systemBlue). 勾選時的填色有 tint 時用它(0:systemBlue)。
+    fun styleCheckbox(checkBox: android.widget.CompoundButton, foreground: Int, enabled: Boolean, tint: Int) {
         checkBox.alpha = if (enabled) 1f else 0.4f
-        val key = "$foreground"
+        val key = "$foreground/$tint"
         if (checkboxStyles[checkBox] == key) return
         checkboxStyles[checkBox] = key
         val density = checkBox.context.resources.displayMetrics.density
         val dark = android.graphics.Color.luminance(foreground) > 0.5f
-        val blue = if (dark) 0xFF0091FF.toInt() else 0xFF0088FF.toInt()
+        val blue = if (tint != 0) tint else if (dark) 0xFF0091FF.toInt() else 0xFF0088FF.toInt()
         val faces = android.graphics.drawable.StateListDrawable()
         faces.addState(
             intArrayOf(android.R.attr.state_checked),
@@ -638,9 +646,16 @@ class AndroidBackendHelpers {
     // grey barber-pole (P29).
     // 進度條畫成 UIKitBackend 的樣子:UIProgressView 的 .bar 樣式，透明軌道上 3 pt 的 tint 色;沒有數值時，一段寬三分之一的
     // tint 色段來回滑動。框架的 Widget.ProgressBar.Horizontal 是粗的黃色條與灰色斜紋(P29)。
-    fun styleProgressBar(bar: android.widget.ProgressBar) {
+    // `tintColor` is the SwiftCrossUI tint, 0 for colorPrimary; 0 means the same
+    // on every tint parameter in this file. `tintColor` 是 SwiftCrossUI 的 tint,0 表示 colorPrimary;本檔每個 tint
+    // 參數的 0 都是同樣意思。
+    fun styleProgressBar(bar: android.widget.ProgressBar, tintColor: Int) {
+        // Restyled only when the tint changes: a new indeterminate drawable restarts
+        // the slide. 只在 tint 改變時重新設定：新的不確定 drawable 會讓滑動重新開始。
+        if (progressBarStyles[bar] == tintColor) return
+        progressBarStyles[bar] = tintColor
         val density = bar.context.resources.displayMetrics.density
-        val tint = themeColorOf(bar.context, android.R.attr.colorPrimary)
+        val tint = if (tintColor != 0) tintColor else themeColorOf(bar.context, android.R.attr.colorPrimary)
         val fill =
             android.graphics.drawable.ClipDrawable(
                 android.graphics.drawable.ColorDrawable(tint),
@@ -666,6 +681,8 @@ class AndroidBackendHelpers {
         bar.maxHeight = height
         bar.minimumHeight = height
     }
+
+    private val progressBarStyles = java.util.WeakHashMap<android.view.View, Int>()
 
     // The indeterminate segment. ProgressBar starts an Animatable indeterminate
     // drawable while the bar is visible and stops it when it is not.

@@ -31,6 +31,11 @@ class CustomSlider: JavaObject {
     @JavaMethod
     func setBounds(min: Float, max: Float, places: Int32)
 
+    /// The active track and thumb in the tint, 0 for the theme's; see the Kotlin side.
+    /// 已作用的軌道與滑塊用 tint,0 表示主題的顏色；見 Kotlin 端。
+    @JavaMethod
+    func setTint(_ tint: Int32)
+
     // Inherited from Slider
     @JavaMethod
     func getValue() -> Float

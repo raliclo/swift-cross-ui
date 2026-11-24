@@ -70,7 +70,7 @@ final class ToggleWidget: WrapperWidget<UIButton> {
     /// 相同——那讀起來像是 toggle 沒有作用，而且是更難診斷的一種失敗，因為狀態確實改變了。
     func updateAppearance() {
         if child.isSelected {
-            child.backgroundColor = .tintColor.withAlphaComponent(0.25)
+            child.backgroundColor = child.tintColor.withAlphaComponent(0.25)
         } else {
             child.backgroundColor = nil
         }
@@ -100,6 +100,10 @@ extension UIKitBackend {
         // 停用時變淡。標題是 `.normal` 狀態下釘死顏色的 attributed string,所以 UIButton 自己的停用變淡永遠不會出現,
         // P21 的 toggle-button 列把 "Disabled" 畫得和 "Enabled" 一模一樣——這就是 UIKit 上的 #390 問題。
         toggleWidget.child.alpha = environment.isEnabled ? 1 : 0.4
+        // On in toggleColor, else the tint, else the inherited tintColor.
+        // 開啟時用 toggleColor,否則 tint,否則繼承的 tintColor。
+        toggleWidget.child.tintColor = (environment.toggleColor ?? environment.tint)?
+            .resolve(in: environment).uiColor
         toggleWidget.updateAppearance()
     }
 

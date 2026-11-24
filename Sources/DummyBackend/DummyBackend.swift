@@ -116,6 +116,8 @@ public final class DummyBackend:
     public class ToggleSwitch: Widget {
         public var toggleHandler: ((Bool) -> Void)?
         public var state = false
+        /// The `tint` its last update carried. / 上一次更新帶來的 `tint`。
+        public var tint: SwiftCrossUI.Color?
 
         override public var naturalSize: SIMD2<Int> {
             SIMD2(20, 10)
@@ -125,6 +127,7 @@ public final class DummyBackend:
     public class Checkbox: Widget {
         public var toggleHandler: ((Bool) -> Void)?
         public var state = false
+        public var tint: SwiftCrossUI.Color?
 
         override public var naturalSize: SIMD2<Int> {
             SIMD2(10, 10)
@@ -140,6 +143,7 @@ public final class DummyBackend:
         /// Held so a test can drive an edit, not only a value.
         /// 保留下來，好讓測試能驅動一次「編輯」，而不只是一個數值。
         public var editingChangedHandler: ((Bool) -> Void)?
+        public var tint: SwiftCrossUI.Color?
 
         override public var naturalSize: SIMD2<Int> {
             SIMD2(20, 10)
@@ -800,6 +804,7 @@ extension DummyBackend {
         onChange: @escaping (Bool) -> Void
     ) {
         (switchWidget as! ToggleSwitch).toggleHandler = onChange
+        (switchWidget as! ToggleSwitch).tint = environment.tint
     }
 
     public func setState(ofSwitch switchWidget: Widget, to state: Bool) {
@@ -816,6 +821,7 @@ extension DummyBackend {
         onChange: @escaping (Bool) -> Void
     ) {
         (checkboxWidget as! Checkbox).toggleHandler = onChange
+        (checkboxWidget as! Checkbox).tint = environment.tint
     }
 
     public func setState(ofCheckbox checkboxWidget: Widget, to state: Bool) {
@@ -844,6 +850,7 @@ extension DummyBackend {
         // backend the way it drives a value.
         // 選擇存下而非丟棄，好讓測試能以「驅動數值」的同一種方式，透過這個 backend 驅動一次編輯。
         slider.editingChangedHandler = onEditingChanged
+        slider.tint = environment.tint
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {

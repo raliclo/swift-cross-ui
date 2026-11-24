@@ -78,23 +78,23 @@ class AndroidBackendHelpers: JavaObject {
 
     /// Tints a ToggleButton by its checked state.
     @JavaMethod
-    func styleToggleButton(_ button: AndroidKit.ToggleButton?)
+    func styleToggleButton(_ button: AndroidKit.ToggleButton?, _ tint: Int32)
 
     /// Switch colours from the SwiftCrossUI scheme; see the Kotlin side.
     @JavaMethod
-    func styleSwitch(_ switchView: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
+    func styleSwitch(_ switchView: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool, _ tint: Int32)
 
     /// `.checkbox` as UIKitBackend draws it; see the Kotlin side. 與 UIKitBackend 相同的 `.checkbox`;見 Kotlin 端。
     @JavaMethod
-    func styleCheckbox(_ checkBox: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
+    func styleCheckbox(_ checkBox: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool, _ tint: Int32)
 
     /// A progress bar as UIKitBackend draws it; see the Kotlin side. 與 UIKitBackend 相同的進度條;見 Kotlin 端。
     @JavaMethod
-    func styleProgressBar(_ bar: AndroidKit.ProgressBar?)
+    func styleProgressBar(_ bar: AndroidKit.ProgressBar?, _ tintColor: Int32)
 
     /// Label colours for a button-style toggle; see the Kotlin side.
     @JavaMethod
-    func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool)
+    func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool, _ tint: Int32)
 
     /// `.listStyle(.sidebar)` on, or back to the default.
     @JavaMethod

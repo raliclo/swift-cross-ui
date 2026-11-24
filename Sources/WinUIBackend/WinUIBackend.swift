@@ -2332,6 +2332,8 @@ extension WinUIBackend {
         slider.minimum = minimum
         slider.maximum = maximum
         environment.apply(to: slider)
+        // The filled track and the thumb in the tint. 已填滿的軌道與滑塊用 tint。
+        applyTint(environment.tint?.resolve(in: environment), to: slider, keys: Self.sliderTintKeys)
         // Rounded to `decimalPlaces` before it is reported, as UIKit, AppKit
         // and Android do (GTK sets `digits`).
         // 回報前先依 `decimalPlaces` 四捨五入，與 UIKit、AppKit、Android 相同(GTK 設定 `digits`)。
@@ -2808,6 +2810,12 @@ extension WinUIBackend {
         ).apply(to: block)
 
         environment.apply(to: toggle)
+        // On in toggleColor, else the tint, else the accent. 開啟時用 toggleColor,否則 tint,否則強調色。
+        applyTint(
+            (environment.toggleColor ?? environment.tint)?.resolve(in: environment),
+            to: toggle,
+            keys: Self.toggleButtonTintKeys
+        )
 
         internalState.toggleClickActions[ObjectIdentifier(toggle)] = { state in
             onChange(state)
@@ -2846,6 +2854,12 @@ extension WinUIBackend {
         let toggleSwitch = toggleSwitch as! ToggleSwitch
         internalState.switchClickActions[ObjectIdentifier(toggleSwitch)] = onChange
         environment.apply(to: toggleSwitch)
+        // The on track in the tint; see WinUIBackend+Tint.swift. 開啟時的軌道用 tint。
+        applyTint(
+            environment.tint?.resolve(in: environment),
+            to: toggleSwitch,
+            keys: Self.toggleSwitchTintKeys
+        )
     }
 
     public func setState(ofSwitch switchWidget: Widget, to state: Bool) {
@@ -2895,6 +2909,10 @@ extension WinUIBackend {
         checkbox.padding = Thickness(left: 0, top: 0, right: 0, bottom: 0)
         checkbox.onToggle = onChange
         environment.apply(to: checkbox)
+        // The checked box in the tint; see WinUIBackend+Tint.swift. 勾選的方塊用 tint。
+        applyTint(
+            environment.tint?.resolve(in: environment), to: checkbox, keys: Self.checkBoxTintKeys
+        )
     }
 
     public func setState(ofCheckbox checkboxWidget: Widget, to state: Bool) {
@@ -3148,6 +3166,14 @@ extension WinUIBackend {
             progressBar.value = progressBar.maximum * progressFraction
         } else {
             progressBar.isIndeterminate = true
+        }
+        // The fill in the tint, through the bar's own Foreground, which its template
+        // binds; cleared, it is the theme's accent again. 填色用 tint,經由範本所綁定的 bar 自身
+        // Foreground;清除後又是主題的強調色。
+        if let tint = environment.tint {
+            progressBar.foreground = SolidColorBrush(tint.resolve(in: environment).uwpColor)
+        } else {
+            try? progressBar.clearValue(WinUI.Control.foregroundProperty)
         }
     }
 

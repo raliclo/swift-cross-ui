@@ -111,6 +111,11 @@ extension UIKitBackend: BackendFeatures.ViewLabelToggleButtons {
         // As `updateToggle(_:label:environment:onChange:)` dims a disabled toggle.
         // 與 `updateToggle(_:label:environment:onChange:)` 讓停用的 toggle 變淡的方式相同。
         control.alpha = environment.isEnabled ? 1 : 0.4
+        // On in toggleColor, else the tint, else the inherited tintColor; a change
+        // repaints through tintColorDidChange. 開啟時用 toggleColor,否則 tint,否則繼承的 tintColor;
+        // 改變時經由 tintColorDidChange 重畫。
+        control.tintColor = (environment.toggleColor ?? environment.tint)?
+            .resolve(in: environment).uiColor
         control.updateAppearance()
     }
 

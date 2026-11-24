@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P128 reads the tint through the environment and measures both columns a second
+# after it appears, then logs its verdict; nothing is pressed. The left column has
+# no tint, the right one .tint(.green). The screenshot shows the colours: on the
+# right the switch's on track, the checked checkbox, the slider's filled track,
+# the progress bar's fill and the borderless button's label are green; on the
+# left the same parts are the platform's own accent; everything else (labels,
+# knobs, unfilled tracks) is the same in both columns, and so is every size.
+#
+# expect: log-contains P128 PASS
+#
+# P128 在出現一秒後經由 environment 讀取 tint 並量測兩欄，然後記下結果，不按任何東西。左欄不加 tint,右欄加
+# .tint(.green)。截圖顯示顏色：右欄的開關開啟軌道、勾選的核取方塊、滑桿已填滿的軌道、進度條填色與無框按鈕的標籤是
+# 綠色；左欄同樣的部分是平台自己的強調色；其餘(標籤、滑塊、未填滿的軌道)兩欄相同，每個尺寸也相同。
+sleep,,,,,,4000000,let the measurement and the verdict show,gtk

@@ -29,6 +29,20 @@ final class ProgressBarWidget: WrapperWidget<UIProgressView> {
         }
     }
 
+    /// The tint, or nil for the inherited tintColor. UIProgressView fills with
+    /// its tintColor when progressTintColor is nil, and the segment reads it in
+    /// layoutSubviews, so a change lays out again -- only a change, because a
+    /// layout restarts the sliding animation.
+    /// tint,nil 表示沿用繼承的 tintColor。progressTintColor 為 nil 時 UIProgressView 以 tintColor 填色，色段則在
+    /// layoutSubviews 中讀取它，所以改變時重新排版——只在改變時，因為排版會讓滑動動畫重新開始。
+    var tint: UIColor? {
+        didSet {
+            guard tint != oldValue else { return }
+            child.tintColor = tint
+            setNeedsLayout()
+        }
+    }
+
     override init(child: UIProgressView) {
         super.init(child: child)
         segment.isHidden = true
@@ -76,6 +90,8 @@ extension UIKitBackend {
         environment: EnvironmentValues
     ) {
         let wrapper = widget as! ProgressBarWidget
+        // The fill and the indeterminate segment in the tint. 填色與不確定狀態的色段用 tint。
+        wrapper.tint = environment.tint?.resolve(in: environment).uiColor
         wrapper.isIndeterminate = progressFraction == nil
         guard let progressFraction else { return }
 

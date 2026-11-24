@@ -106,6 +106,12 @@ final class TextEditorWidget: WrapperWidget<UITextView>, UITextViewDelegate {
         func setOn(_ on: Bool) {
             child.selectedSegmentIndex = on ? 1 : 0
         }
+
+        /// The selected ("ON" or "OFF") segment in the tint; nil is the default.
+        /// 選取的區段用 tint;nil 是預設。
+        func setTint(_ tint: UIColor?) {
+            child.selectedSegmentTintColor = tint
+        }
     }
 #else
     final class SwitchWidget: WrapperWidget<UISwitch> {
@@ -131,6 +137,12 @@ final class TextEditorWidget: WrapperWidget<UITextView>, UITextViewDelegate {
 
         func setOn(_ on: Bool) {
             child.setOn(on, animated: true)
+        }
+
+        /// The on track in the tint; nil gives UISwitch's green back.
+        /// 開啟的軌道用 tint;nil 還原 UISwitch 的綠色。
+        func setTint(_ tint: UIColor?) {
+            child.onTintColor = tint
         }
     }
 #endif
@@ -353,8 +365,10 @@ extension UIKitBackend {
                 UIKitBackend.attributedString(
                     text: label,
                     environment: environment,
-                    // Handle Mac Catalyst
-                    defaultForegroundColor: deviceClass == .desktop ? .label : .link
+                    // Handle Mac Catalyst; on a phone the title is in the tint, else .link.
+                    // 處理 Mac Catalyst;手機上標題用 tint,否則 .link。
+                    defaultForegroundColor: deviceClass == .desktop
+                        ? .label : environment.tint?.resolve(in: environment).uiColor ?? .link
                 ),
                 for: .normal
             )
@@ -615,6 +629,7 @@ extension UIKitBackend {
         let wrapper = switchWidget as! SwitchWidget
         wrapper.onChange = onChange
         wrapper.child.isEnabled = environment.isEnabled
+        wrapper.setTint(environment.tint?.resolve(in: environment).uiColor)
     }
 
     public func setState(ofSwitch switchWidget: Widget, to state: Bool) {
@@ -643,6 +658,10 @@ extension UIKitBackend {
             sliderWidget.onChange = onChange
             sliderWidget.onEditingChanged = onEditingChanged
             sliderWidget.decimalPlaces = decimalPlaces
+            // The filled (minimum) track in the tint; nil is UISlider's own.
+            // 已填滿(最小值側)的軌道用 tint;nil 是 UISlider 自己的顏色。
+            sliderWidget.child.minimumTrackTintColor = environment.tint?
+                .resolve(in: environment).uiColor
         }
 
         public func setValue(ofSlider slider: Widget, to value: Double) {
