@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on WSL GtkBackend: ported 2026-10-20 from actions/win/P91-focusable.actions; the steps and pass condition are the Windows file's, quoted below. Positions from the AT-SPI dump under WSLg (x11), client coordinates, origin empty; a control named in a row's note was looked up by that name. Estimated rather than read, to be checked against the capture: 100,164 240,164 370,164 .
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # P91(WSL):由 actions/win/P91-focusable.actions 移植(2026-10-20),步驟與通過條件同下方 Windows 原文；座標取自 WSLg 下的 AT-SPI,為 client 座標。
 # P91 on Windows, WinUIBackend: .focusable() on plain colour panels -- the same
 # steps as actions/mac/P91-focusable.actions, re-measured for WinUI.

@@ -22,6 +22,7 @@
 // 都增加;聚焦之前什麼都聽不到。失敗:按色塊沒反應、按鍵到了錯的色塊或哪裡都沒到、Tab 留在 A,或 off 取得焦點。
 
 import DefaultBackend
+import Foundation
 @_spi(Backends) import SwiftCrossUI
 
 enum P91Field: Hashable {
@@ -54,6 +55,7 @@ struct P91View: View {
     /// 由「focus off」設定:之後 refusal 那一行跟著焦點所在而變。
     @State var askedOff = false
     @State var name = ""
+    @State var settleToken = 0
 
     static func typed(_ press: KeyPress) -> String {
         // Key-downs that type something; Tab moves the focus and is not text.
@@ -109,11 +111,48 @@ struct P91View: View {
         .padding(16)
         .onChange(of: field) {
             changes += 1
+            noteChange()
             if askedOff {
                 refusal =
                     field == .off
                         ? "NOT refused -- the off panel took the focus (wrong)"
                         : "refused (correct)"
+            }
+        }
+        .onChange(of: heardA) { noteChange() }
+        .onChange(of: heardB) { noteChange() }
+        .onChange(of: heardOff) { noteChange() }
+        .onChange(of: refusal) { noteChange() }
+    }
+
+    /// "P91 SETTLED ..." once nothing has changed for 1.5 s: what each panel heard,
+    /// and the refusal line. The action files' `# expect:` lines name the final state,
+    /// so a press that moved the focus too late (a key landing on the wrong panel, seen
+    /// on Windows GTK 2026-11-25) fails the run instead of passing on a capture.
+    /// Written to stdout and p91-debug-events.log (SCUI_DEBUG_EVENTS_DIR).
+    /// 1.5 秒內不再變化時記下「P91 SETTLED ...」:各面板聽到什麼，以及 refusal 那一行。action file 的
+    /// `# expect:` 指名最終狀態，因此焦點移得太晚(按鍵落在錯的面板，2026-11-25 於 Windows GTK 所見)會讓
+    /// 該次執行失敗，而不是靠一張擷圖通過。寫到 stdout 與 p91-debug-events.log(SCUI_DEBUG_EVENTS_DIR)。
+    func noteChange() {
+        settleToken += 1
+        let token = settleToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            MainActor.assumeIsolated {
+                guard token == settleToken else { return }
+                let line = "P91 SETTLED A=\(heardA) B=\(heardB) off=\(heardOff) refusal=\(refusal)"
+                FileHandle.standardOutput.write(Data((line + "\n").utf8))
+                let url = URL(
+                    fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                        ?? FileManager.default.currentDirectoryPath
+                ).appendingPathComponent("p91-debug-events.log")
+                let data = Data("\(Date()) \(line)\n".utf8)
+                if let handle = try? FileHandle(forWritingTo: url) {
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: data)
+                    try? handle.close()
+                } else {
+                    try? data.write(to: url)
+                }
             }
         }
     }

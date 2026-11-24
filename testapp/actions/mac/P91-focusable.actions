@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on macOS (AppKitBackend): .focusable() on plain colour panels.
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # Window 420 x 548 with its title bar; points are in the window frame. Panels at y 173-243:
 # A x 31-141, B x 155-265, off x 279-389. Buttons at y 357: focus A 65, focus B 143,
 # focus none 232; focus off (70, 386).

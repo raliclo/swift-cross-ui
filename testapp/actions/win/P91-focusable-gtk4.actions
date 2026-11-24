@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on Windows, GtkBackend (TEST_BACKEND=gtk4): .focusable() on plain colour panels -- the steps of
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # actions/win/P91-focusable.actions, re-measured for GTK.
 #   TEST_BACKEND=gtk4 zsh testapp/test.zsh P91 --windows --showtime 14 --actionfile testapp/actions/win/P91-focusable-gtk4.actions
 # Positions from the test.zsh capture on 2026-10-23 (origin=frame: the capture's own pixels, CSD shadow included).

@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on Windows, WinUIBackend: .focusable() on plain colour panels -- the same
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # steps as actions/mac/P91-focusable.actions, re-measured for WinUI.
 # Measured 2026-10-19 with testapp/test_support/measure/measure_win.zsh, in DIPs
 # (display at 125%; Win32Synthesiser scales DIPs to pixels). Window 434 x 558 DIPs.

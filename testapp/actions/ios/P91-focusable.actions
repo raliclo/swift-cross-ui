@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on iOS (iPhone simulator, 440 x 956 points): .focusable() on plain colour panels.
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # Panels at y 234-304: A x 17-127, B x 141-251, off x 265-375. Buttons are pressed by label.
 # Keys are a hardware keyboard's, sent by the runner.
 # Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,

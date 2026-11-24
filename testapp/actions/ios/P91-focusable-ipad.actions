@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on iPad: Tab moves the focus from one .focusable() view to the next.
+# expect: log-contains P91 SETTLED A=a B=d off= refusal=
 #
 #   zsh testapp/test_ios.zsh P91 --device "iPad Pro 11-inch (M5)" \
 #       --actionfile testapp/actions/ios/P91-focusable-ipad.actions

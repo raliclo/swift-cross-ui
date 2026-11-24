@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P91 on Android (emulator 1080 x 2400 px at 2.625, 411 x 914 dp): .focusable() on plain panels.
+# expect: log-contains P91 SETTLED A=ab B=cde off= refusal=refused (correct)
 # Points are dp; this app's client frame starts at (-4.2, 35.8), so a point is
 # screen px / 2.625 minus that. Panels at screen y 577-760 px: A x 49-337, B x 374-662,
 # off x 700-988. Buttons are pressed by label.
