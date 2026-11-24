@@ -6,7 +6,7 @@ action,x,y,origin,button,key,micros,note,platform
 # same view out at different sizes -- this window captures 588x628, WinUI's is
 # 562x604 -- so one set of coordinates cannot serve both.
 #
-# Coordinates measured off screen-20260916-113536.png. Frame origin, because
+# Coordinates re-measured 2026-11-24 off a 588x708 capture (the window grew in 37cafb49). Frame origin, because
 # that capture includes the title bar.
 #
 # It drives all four protocol methods and one refusal; see P70-focus.actions for
@@ -21,15 +21,15 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 它驅動協定的全部四個方法與一次拒絕;每一步在斷言什麼、以及欄位點擊為何排在最前面,見 P70-focus.actions。
 sleep,,,,,,2500000,let the window settle and take the foreground,windows
-click,294,281,frame,left,,,click the email field -- the app did not ask for this,windows
+click,294,303,frame,left,,,click the email field -- the app did not ask for this,windows
 sleep,,,,,,800000,observe focused field = email and the counter increase,windows
-click,294,237,frame,left,,,and back to name,windows
+click,294,259,frame,left,,,and back to name,windows
 sleep,,,,,,800000,observe focused field = name and the counter increase again,windows
-click,84,325,frame,left,,,"focus name, this time programmatically",windows
+click,84,347,frame,left,,,"focus name, this time programmatically",windows
 sleep,,,,,,800000,observe focus(_:) moved it,windows
-click,192,325,frame,left,,,focus email programmatically,windows
+click,192,347,frame,left,,,focus email programmatically,windows
 sleep,,,,,,800000,observe focus(_:) moved it again,windows
-click,299,325,frame,left,,,clear focus -- unfocus(_:),windows
+click,299,347,frame,left,,,clear focus -- unfocus(_:),windows
 sleep,,,,,,800000,observe focused field returns to none,windows
-click,102,441,frame,left,,,ask both for focus -- the disabled button must be refused,windows
+click,102,463,frame,left,,,ask both for focus -- the disabled button must be refused,windows
 sleep,,,,,,1200000,let the refusal be reported,windows
