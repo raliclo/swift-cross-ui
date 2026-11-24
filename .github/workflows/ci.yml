@@ -164,6 +164,120 @@ jobs:
           testapp/output/sweep-macos/*.log
         if-no-files-found: warn
 
+  # GtkBackend on macOS: the macos job's apps and actions/mac files through compile.zsh -gtk4 and
+  # sweep_apple.zsh --macos-gtk4 (2026-11-25, the user: "Add CI for GTK-macOS as well like others").
+  # macOS 上的 GtkBackend:與 macos 工作相同的 app 與 actions/mac 檔，經 compile.zsh -gtk4 與 sweep_apple.zsh --macos-gtk4(2026-11-25,使用者的要求)。
+  macos-gtk:
+    # xcode-27 (macOS 27.2), not macos-26: Apple platforms need 27 or later since 2026-11-20, so the apps
+    # this job builds would not launch on macOS 26. csv2, built for macOS 26, runs on 27 as well.
+    # 用 xcode-27(macOS 27.2)而非 macos-26:自 2026-11-20 起 Apple 平台需要 27 以上，本工作建置的 app 在 macOS 26
+    # 上無法啟動。為 macOS 26 建置的 csv2 在 27 上同樣能執行。
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P30 P39 P48 P70 P91 P101 P114 P116 P119 P120 P122 P123 P124 P125 P126 P127 P133' }}
+    steps:
+    - uses: actions/checkout@v4
+
+    # Package.swift takes swift-winui by URL and revision since 2026-11-14 (a path into this submodule from 2026-11-06); the
+    # checkout stays for compile.zsh's HEAD check (P2 and P116 are built below).
+    # Package.swift 自 2026-11-14 起以 URL + revision 引用 swift-winui(2026-11-06 起曾是指向這個 submodule 的路徑);保留這次 checkout,是因為下方建置 P2 與 P116 時 compile.zsh 會比對它的 HEAD。
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    # 6.4.3, the newest release (the user's choice, 2026-11-24). It was held at 6.4.2 for a day because
+    # 6.4.3 found no macOS platform (run 45254378732); the cause was DEVELOPER_DIR, set right below.
+    # 6.4.3,最新的 release(使用者的選擇,2026-11-24)。曾因 6.4.3 找不到 macOS 平台而停在 6.4.2 一天(run 45254378732);
+    # 原因是 DEVELOPER_DIR,在下方修正。
+    - name: Install Swift 6.4.3
+      uses: SwiftyLab/setup-swift@v1
+      with:
+        swift-version: '6.4.3'
+
+    # setup-swift sets DEVELOPER_DIR to the .app bundle (/Applications/Xcode_27.2.app). xcrun accepts
+    # that, but the 6.4.3 toolchain's swiftbuild then loads no macOS platform: every target failed with
+    # "Could not choose a single platform ... android freebsd linux ..." (runs 45254378732, 45301410933),
+    # with each of Xcode 27.0, 27.1 and 27.2 (run 45303137065). Contents/Developer works; reproduced locally.
+    # setup-swift 把 DEVELOPER_DIR 設成 .app 本身(/Applications/Xcode_27.2.app)。xcrun 接受這種寫法，但 6.4.3 工具鏈的
+    # swiftbuild 因此載入不到 macOS 平台：每個 target 都以「Could not choose a single platform ... android freebsd linux ...」
+    # 失敗(run 45254378732、45301410933),Xcode 27.0、27.1、27.2 皆然(run 45303137065)。改成 Contents/Developer 就能建置，本機已重現。
+    - name: Point DEVELOPER_DIR at Contents/Developer
+      run: |
+        case "$DEVELOPER_DIR" in *.app) echo "DEVELOPER_DIR=$DEVELOPER_DIR/Contents/Developer" >> "$GITHUB_ENV" ;; esac
+
+    - name: Swift version
+      run: swift --version
+
+    - name: Install GTK
+      run: brew install pkg-config gtk4 || true
+
+    # compile.zsh records each executable in output/build-manifest.csv2 through csv2.
+    # compile.zsh 經由 csv2 把每個執行檔記進 output/build-manifest.csv2。
+    - name: Install csv2
+      run: |
+        v=0.2.0; f=csv2-$v-macos-arm64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        shasum -a 256 -c "$f.sha256"
+        mkdir -p "$RUNNER_TEMP/csv2" && zstd -dc "$f" | tar -x -C "$RUNNER_TEMP/csv2"
+        bin=$(find "$RUNNER_TEMP/csv2" -type f -name csv2 -perm -u+x | head -1)
+        test -n "$bin"
+        echo "${bin%/*}" >> "$GITHUB_PATH"
+
+    # P2 and P116 on every platform (2026-11-13), and on macOS the rest of SWEEP_APPS for the sweep below (2026-11-15).
+    # P2 與 P116 在每個平台(2026-11-13);macOS 另建置 SWEEP_APPS 的其餘 app,供下方的 sweep 使用(2026-11-15)。
+    - name: Build the macOS apps (GtkBackend, -gtk4)
+      run: |
+        if [ "$SWEEP_APPS" = all ]; then apps=$(ls testapp/actions/mac/P*.actions | sed -E 's|.*/(P[0-9]+)-.*|\1|' | sort -u); else apps=$SWEEP_APPS; fi
+        for app in $apps; do zsh testapp/compile.zsh -gtk4 "$app"; done
+
+    # The screen desktop action-file runs assume, 1920x1080 at scale 1 (check_screen_macos).
+    # The runner starts at 1024x768; displayplacer lists 1920x1080 as mode 10 and switches
+    # to it (run 43580086002, 2026-11-14). The step fails if the switch does not take.
+    # 桌面動作檔執行假設的螢幕:1920x1080、縮放 1。runner 起始為 1024x768;displayplacer 列出 1920x1080(mode 10)
+    # 並能切換過去(run 43580086002,2026-11-14)。切換沒生效時這一步失敗。
+    - name: Screen 1920x1080 (GtkBackend)
+      run: |
+        show() { swift -e 'import AppKit; for s in NSScreen.screens { print("screen \(Int(s.frame.width))x\(Int(s.frame.height)) scale \(Int(s.backingScaleFactor))") }'; }
+        show
+        brew install displayplacer >/dev/null 2>&1
+        id=$(displayplacer list | awk '/Persistent screen id:/ {print $4; exit}')
+        displayplacer "id:$id res:1920x1080 scaling:off origin:(0,0) degree:0"
+        sleep 3
+        now=$(show | head -1); echo "$now"
+        test "$now" = "screen 1920x1080 scale 1"
+
+    # The same apps as the iOS and Android sweeps, replayed from actions/mac/ and photographed
+    # (2026-11-15). The launch check above only proves the apps start; this presses them.
+    # Locally 8 of 8 files passed (P2 P8 P12 P114 P116) and each capture showed its expected state.
+    # 與 iOS、Android sweep 相同的 app,從 actions/mac/ 重放並拍照(2026-11-15)。上面的啟動檢查只證明 app 能啟動，
+    # 這一步實際操作它們。本機 8 份檔案全數通過(P2 P8 P12 P114 P116),每張擷圖都顯示預期的狀態。
+    - name: macOS sweep (GtkBackend)
+      run: if [ "$SWEEP_APPS" = all ]; then zsh testapp/sweep_apple.zsh --macos-gtk4; else zsh testapp/sweep_apple.zsh --macos-gtk4 $SWEEP_APPS; fi
+
+    # The sweep exits 0 whatever happened; every row of its table has to be a pass.
+    # sweep 無論結果都以 0 結束；結果表的每一列都必須是 pass。
+    - name: Every macOS GTK action file passes
+      run: |
+        t=testapp/output/macos-gtk4-sweep.csv2
+        csv2 -r -i "$t"
+        total=$(csv2 -r --json -i "$t" | grep -c '"record":' || true)
+        passed=$(csv2 -r --json -i "$t" | grep -c '"result":"pass"' || true)
+        echo "$passed of $total pass"
+        test "$total" -gt 0 && test "$passed" -eq "$total"
+
+    - name: Upload macOS GTK captures and logs
+      if: always()
+    # Captures are in testapp/output/screenshots/, where test.zsh writes them; the per-file logs are in output/sweep-macos/.
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-gtk4-sweep
+        path: |
+          testapp/output/macos-gtk4-sweep.csv2
+          testapp/output/screenshots/*-macos-gtk4-*.png
+          testapp/output/sweep-macos-gtk4/*.log
+        if-no-files-found: warn
+
   ios:
     # Xcode 27 (Swift 6.4) is only on the xcode-27 image; macos-26 still has Xcode 26.
     # Xcode 27(Swift 6.4)只在 xcode-27 映像上；macos-26 仍是 Xcode 26。
