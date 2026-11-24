@@ -38,6 +38,58 @@ public struct Tab {
         // 情況下被抹除。
         self.content = AnyView(content())
     }
+
+    /// What the tab's badge shows, or `nil` for no badge.
+    /// 分頁徽章所顯示的內容;`nil` 表示沒有徽章。
+    var badge: Text?
+
+    /// Shows a count beside the tab's label. Zero hides it.
+    ///
+    /// SwiftUI's iOS 18 spelling, `Tab(...) { ... }.badge(3)`: the badge belongs
+    /// to the tab, not to its content. The badge is drawn by SwiftCrossUI as a
+    /// red pill after the tab's button, the same on every backend.
+    ///
+    /// 在分頁標籤旁顯示一個數字；零會隱藏它。採 SwiftUI iOS 18 的寫法
+    /// `Tab(...) { ... }.badge(3)`:徽章屬於分頁而非其內容。徽章由 SwiftCrossUI 畫成分頁按鈕之後的紅色
+    /// 膠囊，在每個 backend 上都相同。
+    ///
+    /// - Parameter count: The number to show; `0` hides the badge.
+    public func badge(_ count: Int) -> Tab {
+        var tab = self
+        tab.badge = Badge.label(for: count)
+        return tab
+    }
+
+    /// Shows a text beside the tab's label. `nil` hides it.
+    /// 在分頁標籤旁顯示一段文字;`nil` 會隱藏它。
+    ///
+    /// - Parameter label: The text to show; `nil` hides the badge.
+    public func badge(_ label: Text?) -> Tab {
+        var tab = self
+        tab.badge = label
+        return tab
+    }
+
+    /// Shows a string beside the tab's label. An empty string hides it.
+    /// 在分頁標籤旁顯示一個字串；空字串會隱藏它。
+    ///
+    /// - Parameter key: The string to show.
+    public func badge(_ key: String) -> Tab {
+        var tab = self
+        tab.badge = Badge.label(for: key)
+        return tab
+    }
+
+    /// Shows a string beside the tab's label. `nil` or an empty string hides it.
+    /// 在分頁標籤旁顯示一個字串;`nil` 或空字串會隱藏它。
+    ///
+    /// - Parameter label: The string to show; `nil` hides the badge.
+    @_disfavoredOverload
+    public func badge<S: StringProtocol>(_ label: S?) -> Tab {
+        var tab = self
+        tab.badge = Badge.label(for: label)
+        return tab
+    }
 }
 
 /// Collects the tabs written inside a ``TabView``.
@@ -113,8 +165,21 @@ public struct TabView: View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 ForEach(Array(tabs.enumerated()), id: \.offset) { entry in
-                    Button(label(for: entry.offset, title: entry.element.title)) {
-                        select(entry.offset)
+                    // A tab's badge sits just after its button, drawn by
+                    // SwiftCrossUI (see BadgeModifier.swift for why it is not a
+                    // native badge). Beside rather than over the button's
+                    // corner, so the badge takes its own space in the strip's
+                    // layout and nothing draws outside the button's frame.
+                    // 分頁的徽章緊接在其按鈕之後，由 SwiftCrossUI 繪製(為何不是原生徽章見
+                    // BadgeModifier.swift)。放在按鈕旁邊而非蓋在按鈕角落，使徽章在分頁列的版面中
+                    // 佔有自己的空間，也沒有任何東西畫到按鈕 frame 之外。
+                    HStack(spacing: 2) {
+                        Button(label(for: entry.offset, title: entry.element.title)) {
+                            select(entry.offset)
+                        }
+                        if let badge = entry.element.badge {
+                            BadgePill(label: badge, background: .red)
+                        }
                     }
                 }
                 Spacer()

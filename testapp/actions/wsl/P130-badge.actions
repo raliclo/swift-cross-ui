@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P130 measures its tab strips and list rows a second after it appears and logs
+# its verdict; nothing is pressed. Badges must widen a strip and push a row to its
+# trailing edge, and badge(0) must change nothing. The screenshot shows a red pill
+# after the Inbox and News tabs, a grey pill at the end of the Inbox and News rows,
+# and nothing beside Archive.
+#
+# expect: log-contains P130 PASS
+#
+# P130 在出現一秒後量測其分頁列與清單列並記下結果，不按任何東西。徽章必須讓分頁列變寬、把列推到
+# 尾端，而 badge(0) 不可改變任何東西。截圖中 Inbox 與 News 分頁後各有一顆紅色膠囊，Inbox 與 News
+# 列的尾端各有一顆灰色膠囊,Archive 旁邊則什麼都沒有。
+sleep,,,,,,4000000,let the measurement and the verdict show,gtk

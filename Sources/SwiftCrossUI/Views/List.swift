@@ -162,6 +162,15 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // Every row is built and laid out in an environment that says it is a
+        // list row, which is what lets `badge(_:)` on a row's content draw at
+        // the row's trailing edge. Shadowed here, before either path, so the
+        // node is created and laid out with the same value -- a row whose body
+        // saw `false` when built and `true` when laid out would be rebuilt.
+        // 每一列都在「這是清單列」的環境中建立與排版，這正是寫在列內容上的 `badge(_:)` 能畫在列尾端
+        // 的原因。在兩條路徑之前就在此遮蔽，使節點建立與排版時看到同一個值——建立時看到 `false`、
+        // 排版時看到 `true` 的列會被重建。
+        let environment = environment.with(\.isListRowContent, true)
         // Padding that the backend could not remove (some frameworks have a small
         // constant amount of required padding within each row).
         let baseRowPadding = backend.baseItemPadding(ofSelectableListView: widget)
