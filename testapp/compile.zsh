@@ -2263,16 +2263,6 @@ for app_name in $app_names; do
     done
 
     if [ "$target_platform" = "host" ] && [ "$force_gtk4" -eq 0 ] && [ "${output_path:e}" = "exe" ]; then
-        win2d_dll="${WIN2D_DLL:-}"
-        if [ -z "$win2d_dll" ]; then
-            win2d_dll="$(find "$HOME/.nuget/packages/microsoft.graphics.win2d" \
-                -path '*/runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll' \
-                -print 2>/dev/null | sort -V | tail -n 1 || true)"
-        fi
-        if [ -n "$win2d_dll" ] && [ -f "$win2d_dll" ]; then
-            cp "$win2d_dll" "$output_dir/Microsoft.Graphics.Canvas.dll"
-            echo "    -> $output_dir/Microsoft.Graphics.Canvas.dll"
-        fi
         # WebView2's WinRT component, beside the exe. The Windows App SDK 2.x
         # framework package no longer carries it (1.5's did), so swift-winui
         # ships it as a CWinAppSDK resource; WinUI's WebView2 found it next to

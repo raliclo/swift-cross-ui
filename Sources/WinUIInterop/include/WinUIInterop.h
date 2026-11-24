@@ -125,6 +125,63 @@ int scui_dxgi_watch_adapters(void (*changed)(void));
 // 不啟用地最小化——即 Win+Home 的效果——並記下來；回傳數量。Show All 還原記下且仍最小化的視窗；回傳數量(hide_others.cpp)。
 int scui_win32_hide_other_applications(void);
 int scui_win32_show_hidden_applications(void);
+
+// Direct2D built-in effects as Windows.Graphics.Effects.IGraphicsEffect nodes, for a
+// CompositionEffectFactory, without Win2D (graphics_effect.cpp). scui_effect_create
+// returns an IGraphicsEffect* holding one reference, or NULL; properties are
+// IPropertyValue objects (passed as IInspectable*) at the indices below, which
+// graphics_effect.cpp checks against d2d1effects.h; sources are IGraphicsEffectSource
+// objects. Both setters take their own reference and return 1 on success.
+// 把 Direct2D 內建效果做成 Windows.Graphics.Effects.IGraphicsEffect 節點，供 CompositionEffectFactory 使用，
+// 不經過 Win2D(graphics_effect.cpp)。scui_effect_create 回傳持有一個參考的 IGraphicsEffect*,或 NULL;屬性是
+// 位於下列索引的 IPropertyValue 物件(以 IInspectable* 傳入),graphics_effect.cpp 會與 d2d1effects.h 比對這些索引；
+// 來源是 IGraphicsEffectSource 物件。兩個 setter 都自行持有參考，成功時回傳 1。
+enum {
+    SCUI_EFFECT_COLOR_MATRIX = 0,
+    SCUI_EFFECT_GAUSSIAN_BLUR = 1,
+    SCUI_EFFECT_ARITHMETIC_COMPOSITE = 2,
+    SCUI_EFFECT_LINEAR_TRANSFER = 3,
+    SCUI_EFFECT_GAMMA_TRANSFER = 4,
+    SCUI_EFFECT_HUE_ROTATION = 5,
+};
+enum {
+    SCUI_COLORMATRIX_MATRIX = 0,      // 20 floats, row-major 5x4 / 20 個 float,逐列的 5x4
+    SCUI_COLORMATRIX_ALPHA_MODE = 1,  // UInt32
+    SCUI_COLORMATRIX_CLAMP = 2,       // Boolean
+    SCUI_COLORMATRIX_ALPHA_PREMULTIPLIED = 1,
+    SCUI_BLUR_DEVIATION = 0,          // Single
+    SCUI_BLUR_OPTIMIZATION = 1,       // UInt32
+    SCUI_BLUR_BORDER_MODE = 2,        // UInt32
+    SCUI_BLUR_OPTIMIZATION_BALANCED = 1,
+    SCUI_BLUR_BORDER_SOFT = 0,
+    SCUI_ARITHMETIC_COEFFICIENTS = 0, // 4 floats: multiply, source 1, source 2, offset
+    SCUI_ARITHMETIC_CLAMP = 1,        // Boolean
+    // Each channel: intercept, slope, disable; red, green, blue, alpha, then clamp.
+    // 每個通道：截距、斜率、停用；依序紅、綠、藍、alpha,最後是 clamp。
+    SCUI_LINEAR_RED_INTERCEPT = 0,
+    SCUI_LINEAR_RED_SLOPE = 1,
+    SCUI_LINEAR_RED_DISABLE = 2,
+    SCUI_LINEAR_GREEN_INTERCEPT = 3,
+    SCUI_LINEAR_BLUE_INTERCEPT = 6,
+    SCUI_LINEAR_ALPHA_INTERCEPT = 9,
+    SCUI_LINEAR_ALPHA_DISABLE = 11,
+    SCUI_LINEAR_CLAMP = 12,
+    // Each channel: amplitude, exponent, offset, disable; red, green, blue, alpha, clamp.
+    // 每個通道：振幅、指數、偏移、停用；依序紅、綠、藍、alpha,最後是 clamp。
+    SCUI_GAMMA_RED_AMPLITUDE = 0,
+    SCUI_GAMMA_RED_EXPONENT = 1,
+    SCUI_GAMMA_RED_OFFSET = 2,
+    SCUI_GAMMA_RED_DISABLE = 3,
+    SCUI_GAMMA_GREEN_AMPLITUDE = 4,
+    SCUI_GAMMA_BLUE_AMPLITUDE = 8,
+    SCUI_GAMMA_ALPHA_AMPLITUDE = 12,
+    SCUI_GAMMA_ALPHA_DISABLE = 15,
+    SCUI_GAMMA_CLAMP = 16,
+    SCUI_HUE_ANGLE = 0,               // Single, in degrees / Single,單位為度
+};
+void *scui_effect_create(int kind);
+int scui_effect_set_property(void *effect, unsigned index, void *propertyValue);
+int scui_effect_set_source(void *effect, unsigned index, void *source);
 #ifdef __cplusplus
 }
 #endif
