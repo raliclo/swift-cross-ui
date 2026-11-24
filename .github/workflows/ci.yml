@@ -413,7 +413,7 @@ jobs:
     - name: Install GTK and a virtual X display
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-4-dev clang zsh zstd xvfb x11-xserver-utils xdotool imagemagick openbox
+        sudo apt-get install -y libgtk-4-dev clang zsh zstd xvfb x11-xserver-utils x11-utils xdotool imagemagick openbox
 
     - name: Build GtkBackend
       run: SCUI_HOST_BACKENDS_ONLY=1 swift build --target GtkBackend
