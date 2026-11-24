@@ -859,7 +859,12 @@ if [ -n "$action_file" ] && [ -f "$action_file" ]; then
     app_log="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null || true)"
     while IFS= read -r expectation; do
         expected_text="${expectation#\# expect: log-contains }"
-        if print -r -- "$app_log" | grep -qF -- "$expected_text"; then
+        # A here-string, not `print | grep -q`: under pipefail grep leaving at its first match
+        # sent print a SIGPIPE on a long logcat, and a logged verdict read as UNMET. P70 logged
+        # "P70 CHECK PASS" and was failed (2026-11-25), as P122 was on the desktop (test_common.zsh).
+        # 用 here-string 而不是 `print | grep -q`:在 pipefail 下 grep 一找到就離開，logcat 很長時 print 收到 SIGPIPE,
+        # 已記下的判定便讀成 UNMET。P70 記下了「P70 CHECK PASS」卻被判失敗(2026-11-25),同桌面上的 P122(test_common.zsh)。
+        if grep -qF -- "$expected_text" <<< "$app_log"; then
             print -r -- "==> expect: MET -- the run logged \"$expected_text\""
         else
             print -u2 -r -- "!! expect: UNMET -- the run never logged \"$expected_text\""
