@@ -180,6 +180,17 @@ gboolean scui_window_place_in_work_area(GtkWidget *window, int x, int y) {
     if (!GTK_IS_NATIVE(window)) {
         return FALSE;
     }
+    // Under WSLg only the move after the map is made. The USPosition hint and
+    // move before it made WSLg's window manager park the frame at -32768: the
+    // X window sat at (-32736, -32736), the pointer clamped to (0, 0), and every
+    // click of a replay landed on the desktop corner (P70, 2026-11-25). Measured
+    // per variant: none (1121, 93); before only (-32736, -32736); after only
+    // (32, 32); both (-32736, -32736). Elsewhere (Xvfb with openbox on CI) both
+    // stay, as before.
+    // WSLg 下只做映射之後的那次移動。映射前的 USPosition hint 與移動會讓 WSLg 的視窗管理員把外框停在 -32768:X 視窗在
+    // (-32736, -32736),指標被夾在 (0, 0),重放的每一下都點在桌面角落(P70,2026-11-25)。逐一量測：都不做 (1121, 93);
+    // 只做映射前 (-32736, -32736);只做映射後 (32, 32);兩者都做 (-32736, -32736)。其他環境(CI 上 Xvfb 加 openbox)照舊兩者都做。
+    gboolean under_wslg = g_getenv("WSL_DISTRO_NAME") != NULL;
     if (!gtk_widget_get_realized(window)) {
         gtk_widget_realize(window);
     }
@@ -204,12 +215,14 @@ gboolean scui_window_place_in_work_area(GtkWidget *window, int x, int y) {
     if (!XGetWMNormalHints(xdisplay, xid, &hints, &supplied)) {
         memset(&hints, 0, sizeof hints);
     }
-    hints.flags |= USPosition;
-    hints.x = area.x + x;
-    hints.y = area.y + y;
-    XSetWMNormalHints(xdisplay, xid, &hints);
-    XMoveWindow(xdisplay, xid, area.x + x, area.y + y);
-    XFlush(xdisplay);
+    if (!under_wslg) {
+        hints.flags |= USPosition;
+        hints.x = area.x + x;
+        hints.y = area.y + y;
+        XSetWMNormalHints(xdisplay, xid, &hints);
+        XMoveWindow(xdisplay, xid, area.x + x, area.y + y);
+        XFlush(xdisplay);
+    }
     // GDK maps the window at its own idea of the position (0, 0 under WSLg),
     // which overrides a move made before the map: four launches opened at
     // (0, 0) every time (2026-11-14). Moved once more 100 ms after the map,
