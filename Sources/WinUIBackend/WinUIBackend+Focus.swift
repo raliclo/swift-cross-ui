@@ -1,3 +1,4 @@
+import Foundation
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
@@ -159,9 +160,30 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     /// 以 `isFocused` 作為前置條件,使這個呼叫不可能從一個不相干的控制項手上偷走焦點。少了這個防護,
     /// 每一次對「本來就沒有焦點的 widget」呼叫 `unfocus` 的 layout pass,都會把焦點從真正持有它的
     /// 那個東西上移開。
+    ///
+    /// **On the next main-queue turn, and only if the widget still holds the
+    /// focus then.** Moving the focus from one view to another, SwiftCrossUI
+    /// unfocuses the old one and focuses the new one in the same turn, and the
+    /// root's `focus` hands the focus on to the first focusable element in the
+    /// window. Done at once, that element's `gotFocus` arrived after the new
+    /// view's focus and wrote the binding back to it: P127 moving from "after"
+    /// to "ring off" logged `gotFocus` on "before" and failed "ring off could not
+    /// be focused from code" (traced 2026-11-24). Deferred, the new view already
+    /// holds the focus and this does nothing.
+    ///
+    /// **延到主佇列的下一輪，而且只在那時 widget 仍持有焦點才做。** 焦點從一個 view 換到另一個時，SwiftCrossUI 在同一輪裡
+    /// 對舊的 unfocus、對新的 focus,而 root 的 `focus` 會把焦點轉交給視窗裡第一個可聚焦的元素。立刻執行時，那個元素的
+    /// `gotFocus` 比新 view 的聚焦晚到，把 binding 寫回成它:P127 從「after」換到「ring off」時記到「before」的
+    /// `gotFocus`,判定「ring off could not be focused from code」(2026-11-24 追蹤)。延後執行時，新 view 已經持有焦點，
+    /// 這裡什麼也不做。
     public func unfocus(_ widget: Widget) {
-        guard isFocused(widget), let root = widget.xamlRoot?.content else { return }
-        _ = try? root.focus(.programmatic)
+        guard isFocused(widget) else { return }
+        DispatchQueue.main.async { [weak self, weak widget] in
+            guard let self, let widget, self.isFocused(widget),
+                let root = widget.xamlRoot?.content
+            else { return }
+            _ = try? root.focus(.programmatic)
+        }
     }
 
     /// Whether this widget, or anything inside it, currently holds the focus.
