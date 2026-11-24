@@ -133,7 +133,8 @@ extension AndroidBackend {
                 environment.suggestedForegroundColor.opacity(0.3)
             )
         }
-        guard environment.foregroundColor == nil, let primary = primaryColor(for: environment)
+        // A `.tint` first, then colorPrimary. 先用 `.tint`,再用 colorPrimary。
+        guard environment.foregroundColor == nil, let primary = accentColor(for: environment)
         else { return environment }
         return environment.with(\.foregroundColor, primary)
     }
@@ -164,7 +165,8 @@ extension AndroidBackend {
                 \.foregroundColor, environment.suggestedForegroundColor.opacity(0.3)
             )
         }
-        guard environment.foregroundColor == nil, let primary = primaryColor(for: environment)
+        // A `.tint` first, then colorPrimary. 先用 `.tint`,再用 colorPrimary。
+        guard environment.foregroundColor == nil, let primary = accentColor(for: environment)
         else { return environment }
         return environment.with(\.foregroundColor, primary)
     }

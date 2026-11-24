@@ -28,6 +28,8 @@ protocol CheckboxWidget: WidgetProtocol {
 
         func update(environment: EnvironmentValues, onChange: @escaping (Bool) -> Void) {
             child.isEnabled = environment.isEnabled
+            // The checkbox's checked fill in the tint. 核取方塊勾選時的填色用 tint。
+            child.onTintColor = environment.tint?.resolve(in: environment).uiColor
             self.onChange = onChange
         }
 
@@ -47,12 +49,20 @@ final class UIButtonCheckbox: WrapperWidget<UIButton>, CheckboxWidget {
             } else {
                 child.setImage(nil, for: .normal)
             }
-
-            #if !os(tvOS)
-                child.backgroundColor = child
-                    .isEnabled && state ? .systemBlue : .secondarySystemFill
-            #endif
+            applyFill()
         }
+    }
+
+    /// The checked fill; nil is systemBlue. 勾選時的填色;nil 為 systemBlue。
+    var tint: UIColor? {
+        didSet { applyFill() }
+    }
+
+    private func applyFill() {
+        #if !os(tvOS)
+            child.backgroundColor = child
+                .isEnabled && state ? (tint ?? .systemBlue) : .secondarySystemFill
+        #endif
     }
 
     private var onChange: ((Bool) -> Void)?
@@ -88,6 +98,8 @@ final class UIButtonCheckbox: WrapperWidget<UIButton>, CheckboxWidget {
         // 停用時變淡:未勾選的方塊是一塊平塗,啟用與停用看起來一樣,P21 把兩者顯示成兩個相同的灰色方塊。
         child.alpha = environment.isEnabled ? 1 : 0.4
         self.onChange = onChange
+        // The checked fill in the tint, systemBlue without one. 勾選時的填色用 tint,沒有時是 systemBlue。
+        tint = environment.tint?.resolve(in: environment).uiColor
     }
 
     @objc func tapped() {

@@ -134,6 +134,9 @@ extension UIKitBackend {
     /// 否則用主視窗的 tint(app 沒改過就是 `.systemBlue`),並依 environment 的配色解析。手機與平板上
     /// borderless 或 bordered 按鈕的標題用的就是它。
     static func accentColor(in environment: EnvironmentValues) -> Color {
+        // A `.tint` on the subtree first, as SwiftUI reads it before the app's accent.
+        // 先用子樹上的 `.tint`,SwiftUI 也是先讀它，再讀 app 的強調色。
+        if let tint = environment.tint { return tint }
         let uiColor = UIColor(named: "AccentColor") ?? mainWindow?.tintColor ?? .systemBlue
         let traits = UITraitCollection(
             userInterfaceStyle: environment.colorScheme.userInterfaceStyle
@@ -157,7 +160,7 @@ extension UIKitBackend {
             labelEnvironment = labelEnvironment.with(
                 \.foregroundColor,
                 environment.foregroundColor
-                    ?? environment.suggestedForegroundColor.opacity(0.7)
+                    ?? environment.tint ?? environment.suggestedForegroundColor.opacity(0.7)
             )
         } else if
             deviceClass == .phone || deviceClass == .tablet,

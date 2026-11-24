@@ -141,11 +141,16 @@ extension BackendFeatures.ViewLabelButtons {
             buttonStyle == .borderless,
             deviceClass == .desktop
         {
-            // Approximately equivalent to Color.secondary in SwiftUI.
+            // Approximately equivalent to Color.secondary in SwiftUI, unless a
+            // `.tint` names the accent: SwiftUI draws an enabled borderless
+            // label in the tint then. A disabled one stays secondary.
+            // 約等於 SwiftUI 的 Color.secondary,除非 `.tint` 指定了強調色:那時 SwiftUI 以 tint 繪製啟用中的
+            // 無框標籤。停用的仍是 secondary。
             let opacity = environment.colorScheme == .dark ? 0.7 : 0.5
             labelEnvironment = labelEnvironment.with(
                 \.foregroundColor,
-                environment.foregroundColor ?? environment.suggestedForegroundColor.opacity(opacity)
+                environment.foregroundColor ?? (environment.isEnabled ? environment.tint : nil)
+                    ?? environment.suggestedForegroundColor.opacity(opacity)
             )
         }
 

@@ -35,6 +35,11 @@ class ViewLabelToggleButton(activity: Activity) : FrameLayout(activity) {
     var action: SwiftAction? = null
     private var on = false
 
+    // The on fill and the theme colour it starts in; declared before `init`,
+    // which sets them. 開啟時的填色與其起始的主題色；宣告在設定它們的 `init` 之前。
+    private var fill: GradientDrawable? = null
+    private var themePrimary = 0
+
     companion object {
         const val verticalPadding = 6
         const val fillOutset = 6
@@ -57,6 +62,8 @@ class ViewLabelToggleButton(activity: Activity) : FrameLayout(activity) {
         val filled = GradientDrawable()
         filled.cornerRadius = 6 * density
         filled.setColor(primary)
+        fill = filled
+        themePrimary = primary
         val outset = -(fillOutset * density).toInt()
         val states = StateListDrawable()
         states.addState(
@@ -85,6 +92,11 @@ class ViewLabelToggleButton(activity: Activity) : FrameLayout(activity) {
     fun setOn(value: Boolean) {
         on = value
         isActivated = value
+    }
+
+    // The on fill in the SwiftCrossUI tint, 0 for colorPrimary. 開啟時的填色用 SwiftCrossUI 的 tint,0 表示 colorPrimary。
+    fun setTint(tint: Int) {
+        fill?.setColor(if (tint != 0) tint else themePrimary)
     }
 
     fun isOn(): Boolean = on

@@ -11,6 +11,7 @@
 ### Color
 
 - ``View/foregroundColor(_:)``
+- ``View/tint(_:)``
 - ``View/colorScheme(_:)``
 - ``ColorScheme``
 

@@ -29,6 +29,9 @@ class ViewLabelToggleButton: AndroidKit.FrameLayout {
 
     @JavaMethod
     func isOn() -> Bool
+
+    @JavaMethod
+    func setTint(_ tint: Int32)
 }
 
 extension JavaClass where JavaClass_T == ViewLabelToggleButton {
@@ -54,6 +57,8 @@ extension AndroidBackend: BackendFeatures.ViewLabelToggleButtons {
             onChange(toggle.isOn())
         }
         toggle.set(action: action, isEnabled: environment.isEnabled)
+        // The on fill in the tint. 開啟時的填色用 tint。
+        toggle.setTint(tintColorInt(environment))
     }
 
     public func setState(ofViewLabelToggle toggle: Widget, to state: Bool) {
@@ -83,7 +88,7 @@ extension AndroidBackend: BackendFeatures.ViewLabelToggleButtons {
     ) -> EnvironmentValues {
         guard environment.foregroundColor == nil else { return environment }
         let base: SwiftCrossUI.Color =
-            isOn ? .white : (primaryColor(for: environment) ?? environment.suggestedForegroundColor)
+            isOn ? .white : (accentColor(for: environment) ?? environment.suggestedForegroundColor)
         return environment.with(
             \.foregroundColor, environment.isEnabled ? base : base.opacity(0.38)
         )

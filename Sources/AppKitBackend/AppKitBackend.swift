@@ -1099,6 +1099,8 @@ extension AppKitBackend {
     ) {
         let toggleSwitch = toggleSwitch as! NSSwitch
         toggleSwitch.isEnabled = environment.isEnabled
+        // The on track in the tint. 開啟時的軌道用 tint。
+        applyTint(of: environment, to: toggleSwitch)
         toggleSwitch.onAction = { toggleSwitch in
             let toggleSwitch = toggleSwitch as! NSSwitch
             onChange(toggleSwitch.state == .on)
@@ -1127,7 +1129,9 @@ extension AppKitBackend {
             for: label,
             in: environment.with(\.multilineTextAlignment, .center)
         )
-        toggle.onStateBezelColor = environment.toggleColor?
+        // toggleColor, else the tint, else the platform's on bezel.
+        // toggleColor,否則 tint,否則平台的開啟外框。
+        toggle.onStateBezelColor = (environment.toggleColor ?? environment.tint)?
             .resolve(in: environment).nsColor
         // Re-applied here, not only in `setState`, so that a toggle whose colour
         // changes while it is already on repaints. `setState` is called when the
@@ -1164,6 +1168,8 @@ extension AppKitBackend {
     ) {
         let checkbox = checkbox as! NSButton
         checkbox.isEnabled = environment.isEnabled
+        // The checked box in the tint. 勾選的方塊用 tint。
+        applyTint(of: environment, to: checkbox)
         checkbox.onAction = { toggle in
             let checkbox = toggle as! NSButton
             onChange(checkbox.state == .on)
@@ -1246,6 +1252,8 @@ extension AppKitBackend {
             }
         }
         slider.isEnabled = environment.isEnabled
+        // The filled track in the tint. 已填滿的軌道用 tint。
+        applyTint(of: environment, to: slider)
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {
@@ -1300,6 +1308,9 @@ extension AppKitBackend {
             picker.bezelStyle = .regularSquare
         } else if let picker = picker as? NSSegmentedControl {
             picker.isEnabled = environment.isEnabled
+            // The selected segment in the tint where AppKit draws it in the accent.
+            // AppKit 以強調色繪製選取區段時，改用 tint。
+            applyTint(of: environment, to: picker)
             picker.segmentCount = options.count
             for (i, option) in options.enumerated() {
                 picker.setLabel(option, forSegment: i)
@@ -1942,6 +1953,8 @@ extension AppKitBackend {
             progressBar.isIndeterminate = false
             progressBar.stopAnimation(nil)
         }
+        // The fill in the tint; see AppKitBackend+Tint.swift. 填色用 tint;見 AppKitBackend+Tint.swift。
+        applyTint(of: environment, to: progressBar)
     }
 
     public func createAlert() -> Alert {

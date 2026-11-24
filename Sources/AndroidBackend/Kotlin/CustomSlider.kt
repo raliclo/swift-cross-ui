@@ -116,4 +116,29 @@ class CustomSlider(activity: Activity) : Slider(activity) {
         valueFrom = min
         valueTo = max
     }
+
+    // The theme's own colours, kept so a tint of 0 can give them back.
+    // 主題自己的顏色，保留下來讓 tint 為 0 時可以還原。
+    private val themeTrackActive = trackActiveTintList
+    private val themeThumb = thumbTintList
+    private val themeHalo = haloTintList
+    private var appliedTint = 0
+
+    // The active track, the thumb and its halo in the SwiftCrossUI tint, as
+    // Material draws them in colorPrimary; 0 restores the theme's.
+    // 已作用的軌道、滑塊與其光暈用 SwiftCrossUI 的 tint,如同 Material 以 colorPrimary 繪製它們;0 還原主題的顏色。
+    fun setTint(tint: Int) {
+        if (tint == appliedTint) return
+        appliedTint = tint
+        if (tint == 0) {
+            trackActiveTintList = themeTrackActive
+            thumbTintList = themeThumb
+            haloTintList = themeHalo
+        } else {
+            trackActiveTintList = android.content.res.ColorStateList.valueOf(tint)
+            thumbTintList = android.content.res.ColorStateList.valueOf(tint)
+            haloTintList =
+                android.content.res.ColorStateList.valueOf((tint and 0x00FFFFFF) or 0x3D000000)
+        }
+    }
 }

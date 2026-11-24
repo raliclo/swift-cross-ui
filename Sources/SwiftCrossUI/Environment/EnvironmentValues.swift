@@ -733,6 +733,24 @@ extension EnvironmentValues {
     /// The active background color of button-style toggles.
     @Entry public var toggleColor: Color?
 
+    /// The accent colour of the controls in this subtree, set by
+    /// ``View/tint(_:)``; `nil` means the platform's own accent.
+    ///
+    /// Each backend gives it to what the platform draws in its accent colour:
+    /// a switch's on track, a checked checkbox, a slider's filled track, a
+    /// linear progress bar's fill, and the label of a button the platform
+    /// draws in the accent (a borderless button, a bordered one on a phone or
+    /// tablet, and a menu picker's title there). An application colour on a
+    /// label still wins, as in SwiftUI. A button-style toggle takes it where
+    /// its on state is the accent, unless ``toggleColor`` is set.
+    ///
+    /// 這個子樹中控制項的強調色，由 ``View/tint(_:)`` 設定;`nil` 表示用平台自己的強調色。
+    ///
+    /// 每個 backend 把它交給平台以強調色繪製的部分：開關開啟時的軌道、勾選的核取方塊、滑桿已填滿的軌道、
+    /// 線性進度條的填色，以及平台以強調色繪製標籤的按鈕(無框按鈕；手機與平板上還有有框按鈕與選單 picker 的標題)。標籤上 app 指定的顏色
+    /// 仍然優先，與 SwiftUI 相同。按鈕樣式 toggle 在其開啟狀態是強調色時也用它，除非設定了 ``toggleColor``。
+    @Entry public var tint: Color?
+
     /// Whether the text should be selectable.
     ///
     /// Set by ``View/textSelectionEnabled(_:)``.

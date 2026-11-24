@@ -250,7 +250,10 @@ final class UIButtonPicker: WrapperWidget<UIButton>, Picker {
     func updateEnvironment(_ environment: EnvironmentValues) {
         child.isEnabled = environment.isEnabled
 
-        let color = environment.foregroundColor?.resolve(in: environment).uiColor ?? .link
+        // The title in the tint, else .link, as a menu button's; an app colour wins.
+        // 標題用 tint,否則 .link,與選單按鈕相同;app 指定的顏色優先。
+        let tint = environment.tint?.resolve(in: environment).uiColor ?? .link
+        let color = environment.foregroundColor?.resolve(in: environment).uiColor ?? tint
         let title = selectedIndex.map { options[$0] } ?? ""
 
         #if os(tvOS)
@@ -260,7 +263,7 @@ final class UIButtonPicker: WrapperWidget<UIButton>, Picker {
                 UIKitBackend.attributedString(
                     text: title,
                     environment: environment,
-                    defaultForegroundColor: .link
+                    defaultForegroundColor: tint
                 ),
                 for: .normal
             )
@@ -396,7 +399,8 @@ final class UIRadioGroupPicker: WrapperWidget<UIStackView>, Picker {
     func updateEnvironment(_ environment: EnvironmentValues) {
         font = environment.resolvedFont.uiFont
         textColor = environment.foregroundColor?.resolve(in: environment).uiColor ?? .label
-        markColor = .link
+        // The mark in the tint, else .link. 記號用 tint,否則 .link。
+        markColor = environment.tint?.resolve(in: environment).uiColor ?? .link
         child.isUserInteractionEnabled = environment.isEnabled
         // Dimmed when disabled, as every UIKit control is; a radio group that
         // looked the same enabled and disabled would say nothing about refusing

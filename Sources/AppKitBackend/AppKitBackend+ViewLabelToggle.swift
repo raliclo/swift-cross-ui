@@ -194,7 +194,8 @@ extension AppKitBackend: BackendFeatures.ViewLabelToggleButtons {
         let toggle = toggle as! NSViewLabelToggle
         toggle.onChange = onChange
         toggle.isEnabled = environment.isEnabled
-        toggle.bezel.onStateBezelColor = environment.toggleColor?
+        // toggleColor, else the tint. toggleColor,否則 tint。
+        toggle.bezel.onStateBezelColor = (environment.toggleColor ?? environment.tint)?
             .resolve(in: environment).nsColor
         // Re-applied here as `updateToggle(_:label:environment:onChange:)` does,
         // so a colour change while the toggle is on repaints.
