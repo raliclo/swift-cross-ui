@@ -897,6 +897,10 @@ private func ensureWin2DActivationContext() -> Bool {
         let directory = URL(fileURLWithPath: executable).deletingLastPathComponent()
         let dllURL = directory.appendingPathComponent("Microsoft.Graphics.Canvas.dll")
         guard FileManager.default.fileExists(atPath: dllURL.path) else {
+            // Said once (this runs once), because every filter effect is skipped from here
+            // on: CI built without Win2D for weeks and nothing reported it (2026-11-24).
+            // 只說一次(此處只執行一次),因為之後每個濾鏡效果都會被略過:CI 曾在沒有 Win2D 的情況下建置數週而沒有任何回報(2026-11-24)。
+            logger.warning("Microsoft.Graphics.Canvas.dll (Win2D) is not beside the executable; blur, saturation, grayscale, hueRotation and colorInvert are not drawn")
             return false
         }
 

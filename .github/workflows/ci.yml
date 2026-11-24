@@ -615,6 +615,24 @@ jobs:
         "$bin" --version
         cygpath -w "${bin%/*}" >> "$GITHUB_PATH"
 
+    # Win2D's Microsoft.Graphics.Canvas.dll, which compile.zsh copies beside each exe from
+    # WIN2D_DLL. Without it every WinUI filter effect (blur, saturation, grayscale, colorInvert
+    # ...) is skipped: P126's inverted cell stayed red in run 45328291879 (2026-11-24).
+    # 1.4.0, the version whose IIDs WinUIBackend+VisualEffects.swift uses; the package is pinned by sha256.
+    # Win2D 的 Microsoft.Graphics.Canvas.dll,compile.zsh 依 WIN2D_DLL 把它複製到每個 exe 旁。沒有它，WinUI 的所有濾鏡效果
+    # (blur、saturation、grayscale、colorInvert 等)都會被略過:run 45328291879 中 P126 反轉的那格仍是紅色(2026-11-24)。
+    # 版本為 1.4.0,即 WinUIBackend+VisualEffects.swift 所用 IID 的版本；套件以 sha256 固定。
+    - name: Install Win2D for WinUI visual effects
+      shell: bash
+      run: |
+        dir="$(cygpath -u "$RUNNER_TEMP")/win2d"; mkdir -p "$dir" && cd "$dir"
+        curl -fsSL --retry 3 -o win2d.nupkg https://www.nuget.org/api/v2/package/Microsoft.Graphics.Win2D/1.4.0
+        echo 'e13866088b3c50205aae36e9e4cb3c23b21d11c4b4590ddcbeaafa9ea2c79f48  win2d.nupkg' | sha256sum -c
+        python -m zipfile -e win2d.nupkg .
+        dll="$dir/runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll"
+        test -f "$dll"
+        echo "WIN2D_DLL=$dll" >> "$GITHUB_ENV"
+
     # SWEEP_APPS through testapp/compile.zsh, the way W11 builds them, SCUI_DEBUG=1 so
     # -actionfile is compiled in (2026-11-15; P114 alone from 2026-11-10, P2 and P116
     # from 2026-11-13). Two jobs: four once cost the runner its memory (2026-11-10).
