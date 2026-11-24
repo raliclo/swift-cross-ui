@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on Windows: does focus move, report, and refuse? (#122)
+# expect: log-contains P70 CHECK PASS
 #
 # Coordinates measured off screen-20260916-113235.png, a wincap of the WinUI
 # window. Frame origin, because that capture includes the title bar.

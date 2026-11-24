@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on iOS: focus state (#122). Pass: tapping between the two fields changes
+# expect: log-contains P70 CHECK PASS
 # "focused field" and raises "focus changes heard"; after "ask both for focus" the
 # disabled button reports focused: no.
 # Measured 2026-10-01 at native size from the launch tree: name field y 362-384,

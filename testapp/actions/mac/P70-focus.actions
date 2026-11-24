@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70: focus moving for a reason the app did not cause.
+# expect: log-contains P70 CHECK PASS
 #
 # Coordinates are origin=frame, read off testapp/output/screenshots/
 # p70-macos-final-20260916-085841.png, a 560x588 capture of a 560x560 window --

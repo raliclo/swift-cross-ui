@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 launched with -start email: the focus request a window opens with must survive opening it.
+# expect: log-contains P70 START PASS
 # launch-args: -start email
 # Nothing is clicked or typed; see actions/mac/P70-focus-start.actions for why EMAIL and not the first field.
 # Expected at the end: the caret in the email field, "focused field: email", "focus changes heard: 0".

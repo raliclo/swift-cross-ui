@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on GtkBackend on macOS (TEST_BACKEND=gtk4): focus moved by clicks on the fields, never by the focus buttons, must still reach @FocusState and its counter; then ask both for focus.
+# expect: log-contains P70 CHECK PASS
 # Measured 2026-10-16 from p70-macos-gtk4-final-20261016-022612.png (1120x1176, halved to 560x588; origin=frame, 28 pt native title bar, geometry frame=(680,214) client=(680,242)): name field y 192-224, email y 236-268, ask both for focus y 393-427.
 # The AppKit file's back to name click (280,225) landed just below the name field and ask both (85,375) on the a plain Text label on GTK's layout (gtk4-aim-20261016.csv2). The email click had landed and is re-centred.
 # Re-measured 2026-11-24 from p70-macos-gtk4-final-20261124-125913.png (560x672 frame; the 640-high window of 37cafb49): name y 264, email y 296, ask both for focus (88, 423). The clicks above had been landing on empty space since that resize.

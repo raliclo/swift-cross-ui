@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 launched with -start email: the focus request a window opens with must survive opening it.
+# expect: log-contains P70 START PASS
 # launch-args: -start email
 # Nothing is clicked or typed. The app asks for the EMAIL field (not the first one, which AppKit focuses
 # by itself) in its first body, before the window is on screen.

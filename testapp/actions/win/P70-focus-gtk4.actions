@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on Win-gtk4: does focus move, report, and refuse? (#122)
+# expect: log-contains P70 CHECK PASS
 #
 # The WinUI half is P70-focus.actions. Two files because the two backends lay the
 # same view out at different sizes -- this window captures 588x628, WinUI's is

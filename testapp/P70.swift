@@ -257,6 +257,7 @@ struct P70RootView: View {
                 // 下一輪再讀回來:這個 modifier 是在「這次狀態改變所觸發的那一次版面計算」中做調和的,
                 // 因此在此處讀取,讀到的是剛剛寫下去的值,而不是平台對它的回答。
                 refusal = "asked -- see next line after a redraw"
+                reportAfterAsking()
             }
             Text("disabled button reports focused: \(disabledFocused ? "YES (wrong)" : "no (correct)")")
             Text("plain Text reports focused: \(textFocused ? "yes" : "no") (platform's answer)")
@@ -276,6 +277,7 @@ struct P70RootView: View {
             P70Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P70Diagnostics.renderComplete()
             driveFocusIfAsked()
+            reportStartIfAsked()
         }
         .onChange(of: field) {
             changes += 1
@@ -307,6 +309,55 @@ struct P70RootView: View {
         for (delay, step) in steps {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 MainActor.assumeIsolated(step)
+            }
+        }
+    }
+
+    /// The verdicts the action files' `# expect: log-contains` lines look for, on
+    /// stdout and in p70-debug-events.log whatever `--debug` says. Without them a
+    /// sweep only knew that a replay ran and a capture was taken: a click that
+    /// missed every field (Android's stale coordinates, 2026-11-24) and a start
+    /// request that WinUI lost both "passed".
+    /// action file 的 `# expect: log-contains` 行所找的判定，不論有沒有 `--debug`,都寫到 stdout 與
+    /// p70-debug-events.log。沒有它們時，sweep 只知道重放跑完、擷圖拍到：每一下都沒點中欄位(Android 過時的座標,
+    /// 2026-11-24)與 WinUI 弄丟的啟動要求，兩者都「通過」。
+    func report(_ line: String) {
+        print(line)
+        P70Diagnostics.write(line)
+    }
+
+    /// `-start X`: one second after the window appears, the field asked for holds
+    /// the focus and no change has been heard -- a refusal written back would be one.
+    /// `-start X`:視窗出現一秒後，所要求的欄位持有焦點，且沒有聽到任何變化——寫回的拒絕就會是一次變化。
+    func reportStartIfAsked() {
+        guard let start = p70StartField() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            MainActor.assumeIsolated {
+                let now = field.map(String.init(describing:)) ?? "none"
+                report(
+                    field == start && changes == 0
+                        ? "P70 START PASS (focused \(now), 0 changes)"
+                        : "P70 START FAIL (focused \(now), \(changes) changes; asked for \(start))"
+                )
+            }
+        }
+    }
+
+    /// After "ask both for focus": at least two focus changes heard (the clicks on
+    /// the two fields landed and were reported) and the disabled button refused.
+    /// A tap that misses this button leaves no line at all, which fails too.
+    /// 按下「ask both for focus」之後：至少聽到兩次焦點變化(點兩個欄位都點中且有回報),
+    /// 且停用的按鈕拒絕了。沒點中這顆按鈕就一行都不會有，同樣算失敗。
+    func reportAfterAsking() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            MainActor.assumeIsolated {
+                let now = field.map(String.init(describing:)) ?? "none"
+                let disabled = disabledFocused ? "disabled focused" : "disabled refused"
+                report(
+                    changes >= 2 && !disabledFocused
+                        ? "P70 CHECK PASS (focused \(now), \(changes) changes, \(disabled))"
+                        : "P70 CHECK FAIL (focused \(now), \(changes) changes, \(disabled))"
+                )
             }
         }
     }

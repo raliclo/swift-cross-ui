@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on Android: focus state (#122). Pass: tapping between the two fields changes
+# expect: log-contains P70 CHECK PASS
 # "focused field" and raises "focus changes heard"; after "ask both for focus" the
 # disabled button reports focused: no.
 # name field y 259-304, email y 314-359 (x 20-390); "ask both for focus" x 20-188,
