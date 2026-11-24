@@ -230,7 +230,7 @@ final class AppKitHitTestingContainer: NSView {
             // a 40 pt container, could only be picked up at its layout frame.
             // 由自己的幾何效果移動後畫出的子元件，可能位於此容器之外：也詢問它，而它只對自己畫出的矩形回應。以 P108
             // 量到：在 40 點容器中滑行 126 點的卡片，只能在它的版面 frame 上拿起。
-            for child in subviews.reversed() {
+            for child in subviewsFrontToBack {
                 guard let moved = child as? AppKitHitTestingContainer,
                     let effect = moved.geometricEffect, effect != .identity,
                     !moved.isHidden, moved.alphaValue > 0,
@@ -246,7 +246,7 @@ final class AppKitHitTestingContainer: NSView {
             return nil
         }
 
-        for child in subviews.reversed() {
+        for child in subviewsFrontToBack {
             guard !child.isHidden, child.alphaValue > 0 else { continue }
             // No containment check of our own: `hitTest` already answers nil
             // for a point outside the child, and it accounts for the child's

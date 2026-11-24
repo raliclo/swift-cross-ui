@@ -87,6 +87,32 @@ open class Fixed: Widget {
         child.parentWidget = self
     }
 
+    /// Whether the GTK sibling order currently differs from `children`.
+    /// GTK 的兄弟順序目前是否與 `children` 不同。
+    private var hasDrawingOrder = false
+
+    /// Draws the children in `order` -- indices into `children`, back to front
+    /// -- or in `children` order for `nil`.
+    ///
+    /// GTK draws and picks children in sibling order, so the siblings are
+    /// rearranged while `children` keeps declaration order: indices still mean
+    /// what the caller says, and only what is drawn over what changes.
+    ///
+    /// 以 `order`(`children` 的索引，由後到前)繪製子元件;`nil` 則依 `children` 的順序。GTK 依兄弟順序
+    /// 繪製與挑選子元件，所以重排的是兄弟節點,`children` 維持宣告順序：索引仍是呼叫端所說的意思，改變的只有
+    /// 誰畫在誰之上。
+    public func setDrawingOrder(_ order: [Int]?) {
+        let order = order.flatMap { $0.count == children.count ? $0 : nil }
+        guard order != nil || hasDrawingOrder else { return }
+        hasDrawingOrder = order != nil
+        var previous: Widget?
+        for index in order ?? Array(children.indices) {
+            let child = children[index]
+            gtk_widget_insert_after(child.widgetPointer, widgetPointer, previous?.widgetPointer)
+            previous = child
+        }
+    }
+
     /// Moves `child`, keeping the matrix it is drawn under, if any.
     /// 移動 `child`,並保留它被畫在其下的矩陣(若有)。
     public func move(_ child: Widget, x: Double, y: Double) {

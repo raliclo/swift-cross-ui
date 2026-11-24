@@ -191,7 +191,7 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         val point = FloatArray(2)
         val inverse = Matrix()
         for (i in childCount - 1 downTo 0) {
-            val child = getChildAt(i)
+            val child = getChildAt(drawingIndex(i))
             if (child.visibility != View.VISIBLE) continue
             val x = ev.x + scrollX - child.x
             val y = ev.y + scrollY - child.y
@@ -252,7 +252,7 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
             return false
         }
         for (i in childCount - 1 downTo 0) {
-            val child = getChildAt(i)
+            val child = getChildAt(drawingIndex(i))
             if (child !is CustomContainer || child.visibility != View.VISIBLE) continue
             if (child.clipChildren || !child.matrix.isIdentity) continue
             val x = ev.x + scrollX - child.x
@@ -266,6 +266,40 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
             }
         }
         return false
+    }
+
+    // zIndex: the order children are drawn in, back to front, as indices; null
+    // for declaration order. ViewGroup draws in getChildDrawingOrder's order
+    // and offers touches in its reverse, so drawing and touch follow it
+    // together, and the children keep their indices. The loops here that pick
+    // a child for a touch themselves walk it through drawingIndex too, and the
+    // elevation check below compares Z along this order rather than the index,
+    // because this is the order that is drawn.
+    //
+    // zIndex:子元件由後到前的繪製順序(索引);null 表示宣告順序。ViewGroup 依 getChildDrawingOrder
+    // 的順序繪製，並以其反序交出觸控，所以繪製與觸控一起跟著它走，而子元件保留它們的索引。此處自行為觸控挑選子
+    // 元件的迴圈也經由 drawingIndex 走它。下方的 elevation 檢查沿著這個順序(而非索引)比較 Z,因為畫出來的
+    // 就是這個順序。
+    private var drawingOrder: IntArray? = null
+
+    fun setDrawingOrder(order: IntArray) {
+        val next = if (order.isEmpty()) null else order
+        if (next == null && drawingOrder == null) return
+        drawingOrder = next
+        isChildrenDrawingOrderEnabled = next != null
+        invalidate()
+    }
+
+    // The index of the child drawn at `position`, counting from the back.
+    // 由後往前數，第 `position` 個被畫出的子元件的索引。
+    private fun drawingIndex(position: Int): Int {
+        val order = drawingOrder
+        return if (order != null && order.size == childCount) order[position] else position
+    }
+
+    override fun getChildDrawingOrder(childCount: Int, drawingPosition: Int): Int {
+        val order = drawingOrder
+        return if (order != null && order.size == childCount) order[drawingPosition] else drawingPosition
     }
 
     // Android orders siblings by Z first and by child index second. SwiftCrossUI
@@ -308,7 +342,7 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         var highest = 0f
         var disagrees = false
         for (i in 0..<childCount) {
-            val z = getChildAt(i).z
+            val z = getChildAt(drawingIndex(i)).z
             if (z < highest) {
                 disagrees = true
                 break

@@ -31,6 +31,11 @@ class CustomContainer: JavaObject {
 
     @JavaMethod
     func setClipToPadding(_ clip: Bool)
+
+    /// Child indices back to front, or empty for declaration order; see
+    /// `AndroidBackend.setDrawingOrder`. / 由後到前的子元件索引，空陣列表示宣告順序。
+    @JavaMethod
+    func setDrawingOrder(_ order: [Int32])
 }
 
 extension CustomContainer {
