@@ -255,7 +255,7 @@ private struct D2DEffectGraph {
         else {
             throw WinUIVisualEffectError.emptyEffectGraph
         }
-        var currentSource: D2DSource
+        var currentSource: D2DSource = nil
         var currentRoot: UWP.AnyIGraphicsEffect?
         var objects: [Any] = [sourceParameterWrapper]
         try sourceParameterWrapper.toABI { sourceParameterABI in
