@@ -23,8 +23,8 @@
 # 五個平台都跑 P2 P8 P12 P114 P116 P120 P122 P123 P124;macos、linux 與 windows 另外 sweep P119(只有 linux 的 GTK 真正檢查它,ios 與 android 用 ci_p119_mobile.zsh);手動執行時加 full=true 則跑每一支 app。
 # macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh);三者也重放同一組 app 的動作檔並拍照(actions/mac、actions/wsl、actions/win;2026-11-15)。
 #
-# Swift 6.4.3, the newest release, on macos, linux and android (2026-11-24); ios builds with Xcode's own Swift, and windows names 6.4.2 until W11 moves it.
-# macos、linux 與 android 用最新的 release 6.4.3(2026-11-24);ios 用 Xcode 附的 Swift;windows 仍指定 6.4.2,等 W11 升級。
+# Swift 6.4.3, the newest release, on macos, linux, android and windows (2026-11-24); ios builds with Xcode's own Swift.
+# macos、linux、android 與 windows 用最新的 release 6.4.3(2026-11-24);ios 用 Xcode 附的 Swift。
 name: CI
 
 on:
@@ -519,11 +519,11 @@ jobs:
     - name: Setup VS Dev Environment
       uses: seanmiddleditch/gha-setup-vsdevenv@v5
 
-    - name: Install Swift 6.4.2
+    - name: Install Swift 6.4.3
       uses: compnerd/gha-setup-swift@v0.3.0
       with:
-        branch: swift-6.4.2-release
-        tag: 6.4.2-RELEASE
+        branch: swift-6.4.3-release
+        tag: 6.4.3-RELEASE
 
     - name: Swift version
       run: swift --version
@@ -566,12 +566,12 @@ jobs:
         echo "HOME=$HOME TMP=$TMP TEMP=$TEMP"
 
     # C and C++ through Visual Studio's clang 22+, not Swift's own. Image win25-vs2026 20261116.315
-    # brought MSVC 14.52, whose STL stops clang before 22 with STL1000, and Swift 6.4.2 ships clang
-    # 21.1.6: run 44439590435 failed in WinUIInterop's hide_others.cpp. SwiftPM ignores CC, CXX and
+    # brought MSVC 14.52, whose STL stops clang before 22 with STL1000, and Swift 6.4.2 and 6.4.3 ship clang
+    # 21.1.6 (LLVMVersion.cmake at both tags, 2026-11-24): run 44439590435 failed in WinUIInterop's hide_others.cpp. SwiftPM ignores CC, CXX and
     # PATH for this, so a toolset names the compiler; compile.zsh passes it on (SCUI_SWIFT_TOOLSET).
     # The step fails if the image has no clang 22 or newer.
     # C 與 C++ 改用 Visual Studio 的 clang 22 以上，而不是 Swift 自己的。映像 win25-vs2026 20261116.315 帶來 MSVC 14.52,
-    # 它的 STL 以 STL1000 擋下 22 以前的 clang,而 Swift 6.4.2 附的是 clang 21.1.6:run 44439590435 在 WinUIInterop 的
+    # 它的 STL 以 STL1000 擋下 22 以前的 clang,而 Swift 6.4.2 與 6.4.3 附的都是 clang 21.1.6(兩個標籤的 LLVMVersion.cmake,2026-11-24):run 44439590435 在 WinUIInterop 的
     # hide_others.cpp 失敗。SwiftPM 在這件事上不理會 CC、CXX 與 PATH,所以由 toolset 指定編譯器;compile.zsh 會把它傳下去
     # (SCUI_SWIFT_TOOLSET)。映像沒有 clang 22 以上時這一步失敗。
     - name: C/C++ compiler (Visual Studio clang 22+)
