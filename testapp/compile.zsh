@@ -219,7 +219,9 @@ case "${1:-}" in
             "SCUI_SKIP_UPDATE=1 builds with the packages already fetched (no network)." \
             "SCUI_SKIP_UPDATE=1 以已抓取的套件建置(沒有網路時)。" \
             "SCUI_SWIFT_TOOLSET=<file> passes --toolset (C/C++ compiler, e.g. clang 22 for MSVC 14.52)." \
+            "  Unset on Windows with a Swift clang before 22: Visual Studio's clang is used." \
             "SCUI_SWIFT_TOOLSET=<檔案> 傳入 --toolset(C/C++ 編譯器，例如給 MSVC 14.52 用的 clang 22)。" \
+            "  Windows 上未設定且 Swift 的 clang 早於 22 時，改用 Visual Studio 的 clang。" \
             "SCUI_DEBUG=1 by default, so -actionfile and --debug work in the" \
             "release build this produces. SCUI_DEBUG=0 builds without them." \
             "The two are independent: BUILD_CONFIG picks the optimiser," \
@@ -2089,6 +2091,32 @@ if [ "${SCUI_SKIP_UPDATE:-0}" = 1 ]; then skip_update_flags=(--skip-update); fi
 # (2026-11-19,CI 的 windows 工作在那個映像上壞掉)。
 toolset_flags=()
 if [ -n "${SCUI_SWIFT_TOOLSET:-}" ]; then toolset_flags=(--toolset "$SCUI_SWIFT_TOOLSET"); fi
+# Without SCUI_SWIFT_TOOLSET, a Windows host build whose Swift clang is older than 22
+# writes the Visual Studio clang toolset itself, as screenshot.zsh does for wincap: W11's
+# Visual Studio reached MSVC 14.52 too, and a plain build stopped on STL1000 in
+# WinUIInterop (2026-11-24, Swift 6.4.3 still ships clang 21.1.6). Host builds only:
+# -android and -ios compile C with their own SDK's clang.
+# 沒有設 SCUI_SWIFT_TOOLSET 時，若是 Windows 主機建置且 Swift 的 clang 早於 22,就自己寫出 Visual Studio clang 的 toolset,
+# 與 screenshot.zsh 替 wincap 做的相同:W11 的 Visual Studio 也到了 MSVC 14.52,一般建置在 WinUIInterop 停在 STL1000
+# (2026-11-24,Swift 6.4.3 附的仍是 clang 21.1.6)。只限主機建置:-android 與 -ios 用各自 SDK 的 clang 編譯 C。
+if [ ${#toolset_flags[@]} -eq 0 ] && [ "$target_platform" = host ]; then
+    case "$host_uname" in
+        MINGW*|MSYS*|CYGWIN*)
+            swift_clang_major="$(clang --version 2>/dev/null | head -n 1 | sed -nE 's/.*clang version ([0-9]+)\..*/\1/p')"
+            if [ -n "$swift_clang_major" ] && [ "$swift_clang_major" -lt 22 ]; then
+                mkdir -p "$output_dir"
+                if vs_toolset="$(zsh "$script_dir/test_support/vs_clang_toolset.zsh" "$output_dir/vs-clang-toolset.json")"; then
+                    printf '==> Swift clang %s is older than 22; C/C++ use Visual Studio clang (%s)\n' \
+                        "$swift_clang_major" "$vs_toolset"
+                    toolset_flags=(--toolset "$vs_toolset")
+                else
+                    printf '==> Swift clang %s is older than 22 and Visual Studio has no clang 22; MSVC 14.52 will stop the C++ targets (STL1000)\n' \
+                        "$swift_clang_major" >&2
+                fi
+            fi
+            ;;
+    esac
+fi
 
 for app_name in $app_names; do
     echo "==> Compiling $app_name"
