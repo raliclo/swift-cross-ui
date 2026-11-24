@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P133 grows a ScrollView from 312 to 400 points a second after it appears and logs
+# its verdict; nothing is pressed. The content must not move: the screenshot shows
+# "Top row" as the first line inside the ScrollView, with more rows below it.
+#
+# expect: log-contains P133 PASS
+#
+# P133 在出現一秒後把 ScrollView 從 312 點加高到 400 點並記下結果，不按任何東西。內容不可移動：截圖中
+# ScrollView 裡的第一行是「Top row」,下方顯示更多列。
+sleep,,,,,,4000000,let the growth and the verdict show,macos
