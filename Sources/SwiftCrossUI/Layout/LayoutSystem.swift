@@ -437,6 +437,7 @@ public enum LayoutSystem {
 
             position[component: orientation] += child.size[component: orientation] + Double(spacing)
         }
+        commitDrawingOrder(of: renderedChildren, in: container, backend: backend)
     }
 }
 
@@ -869,6 +870,7 @@ extension LayoutSystem {
             backend.setPosition(ofChildAt: index, in: container, to: position)
             children[index].onPosition?(position)
         }
+        commitDrawingOrder(of: renderedChildren, in: container, backend: backend)
     }
 }
 
@@ -1195,6 +1197,8 @@ extension LayoutSystem {
             children[index].onPosition?(position)
         }
 
+        commitDrawingOrder(of: results, in: container, backend: backend)
+
         backend.setSize(of: container, to: layout.size.vector)
     }
 
@@ -1247,5 +1251,49 @@ extension LayoutSystem {
         return plan.axis == .vertical
             ? ViewSize(Double(cross), Double(along))
             : ViewSize(Double(along), Double(cross))
+    }
+}
+
+extension LayoutSystem {
+    /// The order a container's children are drawn in, back to front, or `nil`
+    /// when no child has a ``View/zIndex(_:)`` and declaration order stands.
+    /// Ties keep declaration order.
+    ///
+    /// 容器子元件由後到前的繪製順序;沒有任何子元件設定 ``View/zIndex(_:)`` 時為 `nil`,維持宣告順序。
+    /// 值相同時維持宣告順序。
+    static func drawingOrder(of results: [ViewLayoutResult]) -> [Int]? {
+        guard results.contains(where: { $0.preferences.zIndex != 0 }) else { return nil }
+        return results.indices.sorted { a, b in
+            (results[a].preferences.zIndex, a) < (results[b].preferences.zIndex, b)
+        }
+    }
+
+    /// Hands the container's drawing order to the backend after a layout.
+    ///
+    /// Called with `nil` too, on every layout, so that a container whose
+    /// children have lost their `zIndex` goes back to declaration order; the
+    /// backends keep that case cheap.
+    ///
+    /// 排版之後把容器的繪製順序交給 backend。也會以 `nil` 呼叫(每次排版都會),讓子元件失去 `zIndex` 的容器
+    /// 回到宣告順序;backend 讓這種情況保持便宜。
+    @MainActor
+    static func commitDrawingOrder<Backend: BaseAppBackend>(
+        of results: [ViewLayoutResult],
+        in container: Backend.Widget,
+        backend: Backend
+    ) {
+        let order = drawingOrder(of: results)
+        func apply<B: BaseAppBackend & BackendFeatures.ZIndices>(_ backend: B) {
+            backend.setDrawingOrder(ofChildrenIn: container as! B.Widget, to: order)
+        }
+        guard let capable = backend as? any BaseAppBackend & BackendFeatures.ZIndices else {
+            if order != nil {
+                logger.warnOnce(
+                    "\(type(of: backend)) doesn't support zIndex; drawing in declaration order"
+                )
+            }
+            return
+        }
+        apply(capable)
     }
 }

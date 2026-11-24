@@ -180,7 +180,7 @@ class BaseViewWidget: UIView, WidgetProtocolHelpers {
         // P23、P26 塞得下，它們裡面的每一個按鈕都有反應。
         //
         // 由最上層先問，使「被畫在另一個之上的兄弟元件」仍然先被詢問，讓人看得見的層序就是決定的層序。
-        for child in subviews.reversed() {
+        for child in subviewsFrontToBack {
             if let hit = child.hitTest(convert(point, to: child), with: event) { return hit }
         }
 

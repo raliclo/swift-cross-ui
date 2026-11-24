@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P125 taps the centre of a ZStack twice. Red is declared first with zIndex 2 and
+# must be on top, so the first tap must reach red; after "Drop zIndex" every zIndex
+# is 0 and the second tap must reach blue, the last declared. The label at the
+# centre does not take hits, so it only aims the tap.
+#
+# expect: log-contains P125 PASS
+#
+# P125 點擊 ZStack 中心兩次。紅色最先宣告、zIndex 2,必須在最上面，所以第一次點擊必須到達紅色;「Drop zIndex」
+# 之後每個 zIndex 都是 0,第二次點擊必須到達最後宣告的藍色。中心的標籤不接受點擊，只用來瞄準。
+sleep,,,,,,1500000,let P125 render,windows
+taplabel,,,,,Tap zIndex stack,,must reach red (zIndex 2),windows
+sleep,,,,,,800000,,windows
+taplabel,,,,,Drop zIndex,,every zIndex back to 0,windows
+sleep,,,,,,800000,,windows
+taplabel,,,,,Tap zIndex stack,,must reach blue (declared last),windows
+sleep,,,,,,2000000,let the verdict show,windows

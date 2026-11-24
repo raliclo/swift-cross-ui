@@ -116,6 +116,17 @@ public struct PreferenceValues: Sendable {
     /// 或 `.frame` 包起來之後存活，而且絕不可以橫向洩漏給兄弟節點。
     var gridCellColumns: Int
 
+    /// Where this view is drawn among its siblings; see ``View/zIndex(_:)``.
+    ///
+    /// Travels up the way ``layoutPriority`` does: kept through a wrapper with
+    /// one child, so `.zIndex(1).padding()` still counts, and reset otherwise,
+    /// so a stack does not take one of its children's value as its own.
+    ///
+    /// 此 view 在兄弟元件之間被畫在哪一層;見 ``View/zIndex(_:)``。向上傳遞的方式與 ``layoutPriority``
+    /// 相同：經過只有一個子元件的包裝層時保留，所以 `.zIndex(1).padding()` 仍然有效;其餘情況重設，
+    /// 所以 stack 不會把某個子元件的值當成自己的。
+    var zIndex: Double = 0
+
     /// One entry per ``GridRow``, in declaration order, each listing that row's
     /// cells.
     ///
@@ -193,9 +204,11 @@ extension PreferenceValues {
         if let firstChild = children.first, children.count == 1 {
             layoutPriority = firstChild.layoutPriority
             gridCellColumns = firstChild.gridCellColumns
+            zIndex = firstChild.zIndex
         } else {
             layoutPriority = Self.defaultLayoutPriority
             gridCellColumns = Self.defaultGridCellColumns
+            zIndex = 0
         }
     }
 }
