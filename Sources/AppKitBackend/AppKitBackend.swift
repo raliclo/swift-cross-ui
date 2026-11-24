@@ -1347,6 +1347,9 @@ extension AppKitBackend {
 
     public func createScrollContainer(for child: Widget) -> Widget {
         let scrollView = NSScrollView()
+        // Top-anchored, so a taller window shows more below rather than hiding the top.
+        // 錨定在頂端，因此視窗加高時會在下方多顯示內容，而不是藏住頂端。
+        scrollView.contentView = FlippedClipView()
 
         let clipView = scrollView.contentView
         let documentView = NSStackView()
@@ -3098,6 +3101,24 @@ final class NSCustomApplicationDelegate: NSObject, NSApplicationDelegate {
 /// `BackendFeatures.ScrollingLists` 為有實作它的 backend 反轉了這件事,而 `setViewportHeight`
 /// 會重新啟用捲軸。轉交行為仍然保留,因為 `createSelectableListView` 與那條沒有視口的路徑是共用的
 /// ——一個位於尚未轉換之 backend 上的清單,仍然需要它。
+/// A clip view with its origin at the top, as every other backend's scroll view has.
+///
+/// AppKit's default clip view is not flipped, so when it grows it keeps the
+/// document's distance from the BOTTOM: a window made 88 points taller after the
+/// first layout scrolled every ScrollView's content up by 88 points and hid its top
+/// (SoftPCB-UI, 2026-11-25; reproduced with this container: 88 pt hidden with the
+/// default clip, 0 with this one). Flipped, the document keeps its top in place.
+/// ScrollOffsets and ScrollTo already read `clipView.isFlipped`.
+///
+/// 原點在頂端的 clip view,與其他每個 backend 的 scroll view 相同。
+///
+/// AppKit 預設的 clip view 沒有翻轉，因此它變大時維持的是文件與**底部**的距離：第一次排版後把視窗加高 88 點，
+/// 每個 ScrollView 的內容都被往上捲 88 點而藏住頂端(SoftPCB-UI,2026-11-25;以此容器重現：預設 clip 藏住 88 pt,
+/// 這個則為 0)。翻轉之後，文件的頂端維持不動。ScrollOffsets 與 ScrollTo 本來就讀 `clipView.isFlipped`。
+final class FlippedClipView: NSClipView {
+    override var isFlipped: Bool { true }
+}
+
 final class NSDisabledScrollView: NSScrollView {
     /// Set by `setViewportHeight` once this list owns its own scrolling.
     /// 一旦這個清單擁有自己的捲動,便由 `setViewportHeight` 設定。
