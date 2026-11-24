@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P126 measures plain and inverted views a second after it appears and logs its
+# verdict; nothing is pressed. Inversion must not change any size. The screenshot
+# shows the colours: red becomes cyan, mid grey stays near mid grey, black text on
+# white becomes white on black, and inverting twice gives the original back.
+#
+# expect: log-contains P126 PASS
+#
+# P126 在出現一秒後量測原樣與反轉後的 view 並記下結果，不按任何東西。反轉不可改變任何尺寸。截圖顯示
+# 顏色：紅變青、中灰維持接近中灰、白底黑字變為黑底白字，反轉兩次回到原樣。
+sleep,,,,,,4000000,let the measurement and the verdict show,android

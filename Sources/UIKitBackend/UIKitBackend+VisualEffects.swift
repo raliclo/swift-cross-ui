@@ -219,6 +219,12 @@ final class VisualEffectWidget: BaseViewWidget {
             }
         }
 
+        // colorInvert() last, after every other colour adjustment.
+        // colorInvert() 排在最後，在其他所有色彩調整之後。
+        if effect.colorInvert, let invert = CIFilter(name: "CIColorInvert") {
+            colorFilters.append(invert)
+        }
+
         refresh()
     }
 

@@ -52,7 +52,8 @@ extension GtkBackend: BackendFeatures.VisualEffects {
             Float(effect.brightness),
             Float(effect.contrast),
             Float(effect.grayscale),
-            Float(effect.hueRotation.degrees)
+            Float(effect.hueRotation.degrees),
+            effect.colorInvert ? 1 : 0
         )
         // shadow(color:radius:x:y:): GSK's radius is a CSS blur radius, twice the
         // Gaussian spread that Core Animation's shadowRadius (SwiftUI's radius) names, as

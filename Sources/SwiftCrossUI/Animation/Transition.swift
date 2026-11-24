@@ -117,6 +117,8 @@ public struct AnyTransition: Sendable {
             visual.hueRotation = Angle(
                 radians: visual.hueRotation.radians + other.visual.hueRotation.radians
             )
+            // Two inversions cancel. / 兩次反轉互相抵消。
+            visual.colorInvert = visual.colorInvert != other.visual.colorInvert
             return Effects(geometric: geometric, visual: visual)
         }
 

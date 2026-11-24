@@ -223,6 +223,7 @@ private extension VisualEffect {
             && contrast == 1
             && grayscale == 0
             && hueRotation == .zero
+            && !colorInvert
     }
 
     /// The non-default components, for a diagnostic that names the effect.
@@ -242,6 +243,7 @@ private extension VisualEffect {
         if contrast != 1 { parts.append("contrast \(contrast)") }
         if grayscale != 0 { parts.append("grayscale \(grayscale)") }
         if hueRotation != .zero { parts.append("hueRotation \(hueRotation.degrees)") }
+        if colorInvert { parts.append("colorInvert") }
         return parts.isEmpty ? "identity" : parts.joined(separator: ", ")
     }
 }
@@ -526,6 +528,7 @@ private struct Win2DEffectGraph {
                 var prefix = effect
                 prefix.grayscale = 0
                 prefix.hueRotation = .zero
+                prefix.colorInvert = false
                 if prefix.needsOnlyOpacity {
                     let parameter = WinAppSDK.CompositionEffectSourceParameter("source")
                     guard let wrapper =
@@ -658,6 +661,32 @@ private struct Win2DEffectGraph {
                 currentSource
             ))
             try append(hueRotation.object)
+        }
+
+        // colorInvert() after every other colour adjustment, as on AppKit: 1 minus each
+        // of red, green and blue. ColorMatrixEffect un-premultiplies before the matrix
+        // (its default alpha mode), so alpha is kept and edges are not darkened.
+        // colorInvert() 在其他所有色彩調整之後(同 AppKit):紅綠藍各自變為 1 減原值。ColorMatrixEffect 在套用
+        // 矩陣前會先解除預乘(預設的 alpha 模式),因此 alpha 不變，邊緣也不會變暗。
+        if effect.colorInvert {
+            let invert = try Win2DGpuEffect(
+                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
+                iid: .colorMatrixEffect,
+                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+            )
+            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
+                invert.pointer,
+                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
+                    M11: -1, M12: 0, M13: 0, M14: 0,
+                    M21: 0, M22: -1, M23: 0, M24: 0,
+                    M31: 0, M32: 0, M33: -1, M34: 0,
+                    M41: 0, M42: 0, M43: 0, M44: 1,
+                    M51: 1, M52: 1, M53: 1, M54: 0
+                )
+            ))
+            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_ClampOutput(invert.pointer, 1))
+            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_Source(invert.pointer, currentSource))
+            try append(invert.object)
         }
 
         guard let currentRoot else {
