@@ -14,11 +14,11 @@
 # The SDK is kept on the project volume by default. This script prepares the
 # platform-tools/adb, Android NDK, and emulator components required to build and
 # deliver the test apps, and -- since 2026-10-05 -- the swift.org toolchain and
-# Swift Android SDK that must match each other exactly (Swift 6.4.0, NDK r30).
+# Swift Android SDK that must match each other exactly (Swift 6.4.3, NDK r30).
 #
 # 在 macOS 準備 Android SDK、platform-tools/adb、Android NDK 與 ARM64 emulator。預設將 SDK
 # 放在 project volume；自 2026-10-05 起也負責彼此必須完全相符的 swift.org toolchain 與 Swift
-# Android SDK（Swift 6.4.0、NDK r30）。
+# Android SDK（Swift 6.4.3、NDK r30）。
 
 set -euo pipefail
 
@@ -223,18 +223,23 @@ fi
 # 編譯器」——那是來自 swift.org 的另一項產物。下方每一項檢查，都對應到 2026-09-02 當天一次
 # 「錯誤訊息指向真正原因以外之處」的建置失敗。完整說明見 testapp/build_time_android.md。
 # One version number drives the toolchain, the SDK and their URLs, because they
-# must match exactly. 6.3.3 until 2026-10-05; the checksum is the one swift.org
-# publishes for 6.4.0 and must be supplied with any other version.
-# 同一個版本號決定 toolchain、SDK 與它們的網址，因為兩者必須完全相符。2026-10-05 之前是 6.3.3；
-# checksum 是 swift.org 為 6.4.0 公布的那一個，換其他版本時必須一併提供。
-swift_android_version="${SWIFT_ANDROID_VERSION:-6.4.0}"
+# must match exactly. 6.3.3 until 2026-10-05, 6.4.0 until 2026-11-24. The
+# checksums below are the ones swift.org lists in
+# https://www.swift.org/api/v1/install/releases.json; any other version must be
+# given one through SWIFT_ANDROID_SDK_CHECKSUM.
+# 同一個版本號決定 toolchain、SDK 與它們的網址，因為兩者必須完全相符。2026-10-05 之前是 6.3.3，
+# 2026-11-24 之前是 6.4.0。下面的 checksum 取自 swift.org 的 releases.json(網址見上);其他版本
+# 必須以 SWIFT_ANDROID_SDK_CHECKSUM 提供。
+swift_android_version="${SWIFT_ANDROID_VERSION:-6.4.3}"
 swift_android_sdk="${SWIFT_ANDROID_SDK:-swift-${swift_android_version}-RELEASE_android}"
 swift_android_url="${SWIFT_ANDROID_SDK_URL:-https://download.swift.org/swift-${swift_android_version}-release/android-sdk/swift-${swift_android_version}-RELEASE/swift-${swift_android_version}-RELEASE_android.artifactbundle.tar.gz}"
-if [ "$swift_android_version" = 6.4.0 ]; then
-    swift_android_checksum="${SWIFT_ANDROID_SDK_CHECKSUM:-21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43}"
-else
-    swift_android_checksum="${SWIFT_ANDROID_SDK_CHECKSUM:?set SWIFT_ANDROID_SDK_CHECKSUM for Swift $swift_android_version}"
-fi
+case "$swift_android_version" in
+    6.4.3) known_checksum=a78839edf4ec161e03b9f1e22a0ef94e565ece3f3ce5c03e3c79246c6b71f0a9 ;;
+    6.4.0) known_checksum=21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43 ;;
+    *) known_checksum= ;;
+esac
+swift_android_checksum="${SWIFT_ANDROID_SDK_CHECKSUM:-$known_checksum}"
+[ -n "$swift_android_checksum" ] || die "set SWIFT_ANDROID_SDK_CHECKSUM for Swift $swift_android_version"
 swift_toolchain_name="swift-${swift_android_version}-RELEASE.xctoolchain"
 swift_toolchain_dir="${SWIFT_ANDROID_TOOLCHAIN_DIR:-$HOME/Library/Developer/Toolchains/$swift_toolchain_name}"
 swift_toolchain_pkg_url="${SWIFT_TOOLCHAIN_PKG_URL:-https://download.swift.org/swift-${swift_android_version}-release/xcode/swift-${swift_android_version}-RELEASE/swift-${swift_android_version}-RELEASE-osx.pkg}"

@@ -750,6 +750,21 @@ else
             ;;
     esac
 fi
+
+# macOS builds use the swift.org toolchain that swift-latest points at (6.4.3 since 2026-11-24, the
+# user's choice, kept current by install_tools_android.zsh), the same release CI's macOS job uses,
+# not Xcode's: Xcode 27.0 here ships 6.4.0 and Xcode 27.2 ships 6.4.2. TOOLCHAINS or SWIFT_BIN set by
+# the caller win. iOS is left alone: xcodebuild reads TOOLCHAINS too, and iOS builds with Xcode's Swift.
+# macOS 建置改用 swift-latest 指向的 swift.org toolchain(自 2026-11-24 起為 6.4.3,使用者的選擇，由
+# install_tools_android.zsh 保持最新),與 CI 的 macOS 工作同一版，而非 Xcode 的：本機 Xcode 27.0 附 6.4.0,Xcode 27.2 附
+# 6.4.2。呼叫端已設的 TOOLCHAINS 或 SWIFT_BIN 優先。iOS 不動:xcodebuild 也讀 TOOLCHAINS,而 iOS 用 Xcode 的 Swift 建置。
+if [ "$target_platform" = "host" ] && [ "$(uname -s)" = "Darwin" ] && [ -z "${TOOLCHAINS:-}" ] && [ -z "${SWIFT_BIN:-}" ]; then
+    latest_toolchain="$HOME/Library/Developer/Toolchains/swift-latest.xctoolchain"
+    if [ -x "$latest_toolchain/usr/bin/swift" ]; then
+        export TOOLCHAINS="$(plutil -extract CFBundleIdentifier raw "$latest_toolchain/Info.plist" 2>/dev/null)"
+        echo "==> macOS build with $("$latest_toolchain/usr/bin/swift" --version 2>/dev/null | head -1) ($TOOLCHAINS)"
+    fi
+fi
 package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"
 

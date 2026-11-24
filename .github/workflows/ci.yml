@@ -23,8 +23,8 @@
 # 五個平台都跑 P2 P8 P12 P114 P116 P120 P122 P123 P124;macos、linux 與 windows 另外 sweep P119(只有 linux 的 GTK 真正檢查它,ios 與 android 用 ci_p119_mobile.zsh);手動執行時加 full=true 則跑每一支 app。
 # macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh);三者也重放同一組 app 的動作檔並拍照(actions/mac、actions/wsl、actions/win;2026-11-15)。
 #
-# Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
-# since its installer has no plain 6.4 download. / 各平台都用 Swift 6.4,與本機相同；Windows 的安裝程式沒有單純的 6.4 下載，所以指定確切版本 6.4.2。
+# Swift 6.4.3, the newest release, on macos, linux and android (2026-11-24); ios builds with Xcode's own Swift, and windows names 6.4.2 until W11 moves it.
+# macos、linux 與 android 用最新的 release 6.4.3(2026-11-24);ios 用 Xcode 附的 Swift;windows 仍指定 6.4.2,等 W11 升級。
 name: CI
 
 on:
@@ -63,15 +63,25 @@ jobs:
     - name: Check out Vendor/swift-winui
       run: git submodule update --init --depth 1 Vendor/swift-winui
 
-    # Exactly 6.4.2: on 2026-11-24 the plain '6.4' installed 6.4.3, with which swiftbuild found
-    # no Darwin platform for any target ("Could not choose a single platform ... android
-    # freebsd linux ..."), so the build failed before compiling anything (run 45254378732).
-    # 固定為 6.4.2:2026-11-24 單寫 '6.4' 裝到了 6.4.3,而 swiftbuild 用它找不到任何 target 的 Darwin 平台
-    # (「Could not choose a single platform ... android freebsd linux ...」),建置在編譯前就失敗(run 45254378732)。
-    - name: Install Swift 6.4.2
+    # 6.4.3, the newest release (the user's choice, 2026-11-24). It was held at 6.4.2 for a day because
+    # 6.4.3 found no macOS platform (run 45254378732); the cause was DEVELOPER_DIR, set right below.
+    # 6.4.3,最新的 release(使用者的選擇,2026-11-24)。曾因 6.4.3 找不到 macOS 平台而停在 6.4.2 一天(run 45254378732);
+    # 原因是 DEVELOPER_DIR,在下方修正。
+    - name: Install Swift 6.4.3
       uses: SwiftyLab/setup-swift@v1
       with:
-        swift-version: '6.4.2'
+        swift-version: '6.4.3'
+
+    # setup-swift sets DEVELOPER_DIR to the .app bundle (/Applications/Xcode_27.2.app). xcrun accepts
+    # that, but the 6.4.3 toolchain's swiftbuild then loads no macOS platform: every target failed with
+    # "Could not choose a single platform ... android freebsd linux ..." (runs 45254378732, 45301410933),
+    # with each of Xcode 27.0, 27.1 and 27.2 (run 45303137065). Contents/Developer works; reproduced locally.
+    # setup-swift 把 DEVELOPER_DIR 設成 .app 本身(/Applications/Xcode_27.2.app)。xcrun 接受這種寫法，但 6.4.3 工具鏈的
+    # swiftbuild 因此載入不到 macOS 平台：每個 target 都以「Could not choose a single platform ... android freebsd linux ...」
+    # 失敗(run 45254378732、45301410933),Xcode 27.0、27.1、27.2 皆然(run 45303137065)。改成 Contents/Developer 就能建置，本機已重現。
+    - name: Point DEVELOPER_DIR at Contents/Developer
+      run: |
+        case "$DEVELOPER_DIR" in *.app) echo "DEVELOPER_DIR=$DEVELOPER_DIR/Contents/Developer" >> "$GITHUB_ENV" ;; esac
 
     - name: Swift version
       run: swift --version
@@ -266,10 +276,10 @@ jobs:
 
     # The toolchain must be the exact release the Android SDK was built with.
     # toolchain 必須與 Android SDK 建置時所用的版本完全相同。
-    - name: Install Swift 6.4.0
+    - name: Install Swift 6.4.3
       uses: SwiftyLab/setup-swift@v1
       with:
-        swift-version: '6.4.0'
+        swift-version: '6.4.3'
 
     - name: Install zsh, csv2 and JDK 17
       run: |
@@ -301,8 +311,8 @@ jobs:
         test -d "$ndk/toolchains/llvm/prebuilt"
         echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
         swift sdk install \
-          https://download.swift.org/swift-6.4.0-release/android-sdk/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE_android.artifactbundle.tar.gz \
-          --checksum 21fb555122a3d801ad943d48df7ebffdd8824de61c25c180bb792d3edaee0b43
+          https://download.swift.org/swift-6.4.3-release/android-sdk/swift-6.4.3-RELEASE/swift-6.4.3-RELEASE_android.artifactbundle.tar.gz \
+          --checksum a78839edf4ec161e03b9f1e22a0ef94e565ece3f3ce5c03e3c79246c6b71f0a9
         # Linux keeps it under ~/.swiftpm or ~/.config/swiftpm depending on the toolchain; find it.
         # Linux 視 toolchain 而定放在 ~/.swiftpm 或 ~/.config/swiftpm;直接找。
         bundle=$(find "$HOME/.swiftpm" "$HOME/.config/swiftpm" -maxdepth 3 -type d -name '*android.artifactbundle' 2>/dev/null | head -1)
