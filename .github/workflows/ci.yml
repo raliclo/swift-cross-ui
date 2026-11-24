@@ -757,6 +757,188 @@ jobs:
         Get-ChildItem testapp/output -ErrorAction SilentlyContinue | Format-Table Name,Length -AutoSize
         if (Test-Path testapp/.compile-work-winui) { "{0:N1} GB in .compile-work-winui" -f ((Get-ChildItem testapp/.compile-work-winui -Recurse -File -Force | Measure-Object Length -Sum).Sum / 1GB) }
 
+  # GtkBackend on Windows (-gtk4), with the same SWEEP_APPS as every other platform (2026-11-25, the
+  # user: "add CI/CD like other platforms, same amount of Pn"). No job built or ran GTK on Windows
+  # before, so P91 losing keys there passed unseen. A file with a `-gtk4` twin in actions/win uses
+  # the twin; the rest use the WinUI file (sweep_desktop.zsh --windows-gtk4).
+  # Windows 上的 GtkBackend(-gtk4),SWEEP_APPS 與其他平台相同(2026-11-25,使用者:「像其他平台一樣加 CI/CD,Pn 數量相同」)。
+  # 之前沒有工作在 Windows 上建置或執行 GTK,所以 P91 在那裡漏掉按鍵也沒人看見。actions/win 有 `-gtk4` 對應檔的用它，其餘用 WinUI 的檔案。
+  windows-gtk:
+    runs-on: windows-latest
+    env:
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P30 P39 P48 P70 P91 P101 P114 P116 P119 P120 P122 P123 P124 P125 P126 P127 P133' }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+    - uses: actions/checkout@v4
+
+    # Package.swift takes swift-winui by URL and revision since 2026-11-14 (a path into this submodule from 2026-11-06); the
+    # checkout stays for Support/generate-bindings.zsh and compile.zsh's HEAD check.
+    # Package.swift 自 2026-11-14 起以 URL + revision 引用 swift-winui(2026-11-06 起曾是指向這個 submodule 的路徑);保留這次 checkout,是因為 Support/generate-bindings.zsh 在裡面，compile.zsh 也會比對它的 HEAD。
+    - name: Check out Vendor/swift-winui
+      run: git submodule update --init --depth 1 Vendor/swift-winui
+
+    - name: Setup VS Dev Environment
+      uses: seanmiddleditch/gha-setup-vsdevenv@v5
+
+    - name: Install Swift 6.4.3
+      uses: compnerd/gha-setup-swift@v0.3.0
+      with:
+        branch: swift-6.4.3-release
+        tag: 6.4.3-RELEASE
+
+    - name: Swift version
+      run: swift --version
+
+    # One test app through testapp/compile.zsh, the way W11 builds them, to learn what
+    # an app costs on this runner before adding more: a WinUI exe is ~234 MB stripped
+    # (matrix_coverage/executable-size.md).
+    # 以 testapp/compile.zsh 建置一支測試 app(與 W11 相同),先看一支 app 在這台 runner 上的代價再決定加多少：
+    # WinUI exe strip 後約 234 MB(matrix_coverage/executable-size.md)。
+
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: MSYS
+        path-type: inherit
+        install: zsh
+
+    - name: Put zsh into Git Bash
+      shell: msys2 {0}
+      run: |
+        git_usr="$(cygpath -u 'C:\Program Files\Git\usr')"
+        cp -v /usr/bin/zsh*.exe "$git_usr/bin/"
+        for dll in $(ldd /usr/bin/zsh.exe | awk '/\/usr\/bin\// {print $3}'); do
+          [ -e "$git_usr/bin/${dll##*/}" ] || cp -v "$dll" "$git_usr/bin/"
+        done
+        cp -r /usr/lib/zsh "$git_usr/lib/"
+        cp -r /usr/share/zsh "$git_usr/share/"
+
+    - name: What Git Bash sees
+      shell: bash
+      run: |
+        uname -s; zsh --version; command -v git swift; git --version; swift --version
+        echo "HOME=$HOME TMP=$TMP TEMP=$TEMP"
+
+    # C and C++ through Visual Studio's clang 22+, not Swift's own. Image win25-vs2026 20261116.315
+    # brought MSVC 14.52, whose STL stops clang before 22 with STL1000, and Swift 6.4.2 and 6.4.3 ship clang
+    # 21.1.6 (LLVMVersion.cmake at both tags, 2026-11-24): run 44439590435 failed in WinUIInterop's hide_others.cpp. SwiftPM ignores CC, CXX and
+    # PATH for this, so a toolset names the compiler; compile.zsh passes it on (SCUI_SWIFT_TOOLSET).
+    # The step fails if the image has no clang 22 or newer.
+    # C 與 C++ 改用 Visual Studio 的 clang 22 以上，而不是 Swift 自己的。映像 win25-vs2026 20261116.315 帶來 MSVC 14.52,
+    # 它的 STL 以 STL1000 擋下 22 以前的 clang,而 Swift 6.4.2 與 6.4.3 附的都是 clang 21.1.6(兩個標籤的 LLVMVersion.cmake,2026-11-24):run 44439590435 在 WinUIInterop 的
+    # hide_others.cpp 失敗。SwiftPM 在這件事上不理會 CC、CXX 與 PATH,所以由 toolset 指定編譯器;compile.zsh 會把它傳下去
+    # (SCUI_SWIFT_TOOLSET)。映像沒有 clang 22 以上時這一步失敗。
+    - name: C/C++ compiler (Visual Studio clang 22+)
+      shell: bash
+      run: |
+        toolset=$(zsh testapp/test_support/vs_clang_toolset.zsh "$(cygpath -u "$RUNNER_TEMP")/vs-clang-toolset.json")
+        cat "$(cygpath -u "$toolset")"
+        echo "SCUI_SWIFT_TOOLSET=$toolset" >> "$GITHUB_ENV"
+
+
+    # MSVC-built GTK 4 from gvsbuild into C:/gtk4, where compile.zsh -gtk4 and test.zsh look for it.
+    # gvsbuild 以 MSVC 建置的 GTK 4,裝到 C:/gtk4,compile.zsh -gtk4 與 test.zsh 都在那裡找。
+    - name: Install GTK 4 (gvsbuild, MSVC)
+      shell: bash
+      run: zsh testapp/install_gtk4_windows.zsh
+
+    - name: Install FFmpeg for Windows screenshots
+      run: |
+        if (-not (Get-Command ffmpeg.exe -ErrorAction SilentlyContinue)) {
+          choco install ffmpeg --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "FFmpeg installation failed: $LASTEXITCODE" }
+          Join-Path $env:ChocolateyInstall 'bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        }
+
+    - name: Verify FFmpeg in the Windows screenshot shell
+      shell: bash
+      run: zsh -c 'ffmpeg -version'
+
+    # compile.zsh records each exe in output/build-manifest.csv2 through csv2.
+    # compile.zsh 經由 csv2 把每個 exe 記進 output/build-manifest.csv2。
+    - name: Install csv2
+      shell: bash
+      run: |
+        v=0.2.0; f=csv2-$v-windows-x86_64.tar.zst
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f"
+        curl -fsSLO "https://github.com/raliclo/csv2/releases/download/v$v/$f.sha256"
+        sha256sum -c "$f.sha256"
+        dir="$(cygpath -u "$RUNNER_TEMP")/csv2"; mkdir -p "$dir" && zstd -dc "$f" | tar -x -C "$dir"
+        bin=$(find "$dir" -type f -iname 'csv2.exe' | head -1)
+        test -n "$bin"
+        # A csv2 that cannot load fails here, not silently later (macOS, 2026-11-15).
+        # 無法載入的 csv2 在這裡就失敗，而不是之後默默失敗(macOS,2026-11-15)。
+        "$bin" --version
+        cygpath -w "${bin%/*}" >> "$GITHUB_PATH"
+
+    # SWEEP_APPS through testapp/compile.zsh, the way W11 builds them, SCUI_DEBUG=1 so
+    # -actionfile is compiled in (2026-11-15; P114 alone from 2026-11-10, P2 and P116
+    # from 2026-11-13). Two jobs: four once cost the runner its memory (2026-11-10).
+    # 以 testapp/compile.zsh 建置 SWEEP_APPS(與 W11 相同),SCUI_DEBUG=1 以編入 -actionfile(2026-11-15;2026-11-10 起只有 P114,
+    # 2026-11-13 起加上 P2 與 P116)。兩個 job:四個曾耗盡 runner 記憶體(2026-11-10)。
+    - name: Build SWEEP_APPS (GtkBackend, SCUI_DEBUG=1)
+      shell: bash
+      run: |
+        if [ "$SWEEP_APPS" = all ]; then apps=$(ls testapp/actions/win/P*.actions | sed -E "s|.*/(P[0-9]+)-.*|\1|" | sort -u); else apps=$SWEEP_APPS; fi
+        for app in $apps; do SCUI_DEBUG=1 SCUI_BUILD_JOBS=2 zsh testapp/compile.zsh -gtk4 "$app"; done
+
+    - name: Screen (1920x1080 at 125%, as testapp/actions/win assumes)
+      run: |
+        if (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue) {
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force } catch { "Set-DisplayResolution failed: $_" }
+        } else {
+          "Set-DisplayResolution is not available on this runner"
+        }
+        Get-CimInstance Win32_VideoController | Format-List Name,CurrentHorizontalResolution,CurrentVerticalResolution
+        Get-ItemProperty 'HKCU:\Control Panel\Desktop' -Name LogPixels -ErrorAction SilentlyContinue | Format-List LogPixels
+        Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' -Name AppliedDPI -ErrorAction SilentlyContinue | Format-List AppliedDPI
+
+    # todo item 14, option 2 (the user's choice, 2026-11-14): put the runner at
+    # 125%, the scale testapp/actions/win was measured at, through the per-monitor
+    # scale API (display_scale.zsh). Proven in run 43602448487: 100% and 96 dpi
+    # before, 125% and 120 dpi for a process started after. The step fails if the
+    # scale does not take, or a process started after it does not see 120 dpi.
+    # todo 第 14 項選項 2(使用者的選擇,2026-11-14):把 runner 設成 125%,也就是 testapp/actions/win 量測時的縮放，透過每台
+    # 顯示器的縮放 API(display_scale.zsh)。在 43602448487 證實：設定前 100%、96 dpi,之後啟動的行程為 125%、120 dpi。縮放沒有生效，
+    # 或之後啟動的行程看不到 120 dpi,這一步就失敗。
+    - name: Display scale 125% (as testapp/actions/win assumes)
+      shell: bash
+      run: |
+        zsh testapp/test_support/display_scale.zsh get
+        zsh testapp/test_support/display_scale.zsh set 125
+        after=$(zsh testapp/test_support/display_scale.zsh get)
+        printf '%s\n' "$after"
+        printf '%s\n' "$after" | grep -q 'effective dpi 120 '
+
+    - name: Windows GTK sweep (GtkBackend)
+      shell: bash
+      run: |
+        if [ "$SWEEP_APPS" = all ]; then set --; else set -- $SWEEP_APPS; fi
+        zsh testapp/sweep_desktop.zsh --windows-gtk4 "$@"
+
+    - name: Every Windows GTK action file passes
+      shell: bash
+      run: |
+        t=testapp/output/windows-gtk4-sweep.csv2
+        csv2 -r -i "$t"
+        total=$(csv2 -r --json -i "$t" | grep -c "\"record\":" || true)
+        passed=$(csv2 -r --json -i "$t" | grep -c "\"result\":\"pass\"" || true)
+        echo "$passed of $total pass"
+        test "$total" -gt 0 && test "$passed" -eq "$total"
+
+    - name: Upload Windows GTK captures and logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-gtk4-sweep
+        path: |
+          testapp/output/windows-gtk4-sweep.csv2
+          testapp/output/screenshots/*-windows*-final-*.png
+          testapp/output/sweep-windows-gtk4/*.log
+        if-no-files-found: warn
+
   lint:
     runs-on: ubuntu-latest
     steps:

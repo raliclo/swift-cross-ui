@@ -3,6 +3,7 @@
 # native Linux (GtkBackend under X11), one file at a time, for CI.
 #
 #   zsh testapp/sweep_desktop.zsh --windows P2 P8      actions/win/, WinUI builds
+#   zsh testapp/sweep_desktop.zsh --windows-gtk4 P70  actions/win/ (-gtk4 twins first), -gtk4 builds
 #   zsh testapp/sweep_desktop.zsh --linux P2 P8        actions/wsl/, GTK builds, $DISPLAY
 #   zsh testapp/sweep_desktop.zsh --help
 #
@@ -47,7 +48,8 @@ platform=""
 case "$1" in
     --windows) platform=windows; action_dir="$script_dir/actions/win" ;;
     --linux) platform=linux; action_dir="$script_dir/actions/wsl" ;;
-    *) printf 'first argument must be --windows or --linux (got %s)\n' "$1" >&2; exit 64 ;;
+    --windows-gtk4) platform=windows-gtk4; action_dir="$script_dir/actions/win" ;;
+    *) printf 'first argument must be --windows, --windows-gtk4 or --linux (got %s)\n' "$1" >&2; exit 64 ;;
 esac
 shift
 apps=("$@")
@@ -84,6 +86,12 @@ for f in "$action_dir"/P*.actions(N); do
     if [ "$platform" = windows ] && [[ "${f:t}" == *-gtk4.actions ]]; then
         continue
     fi
+    # --windows-gtk4 takes a file's `-gtk4` twin when there is one, else the file itself
+    # (P70-focus-start has no twin; its launch args drive either backend).
+    # --windows-gtk4 有 `-gtk4` 對應檔時用它，沒有時用原檔(P70-focus-start 沒有對應檔，它的啟動參數兩個 backend 都適用)。
+    if [ "$platform" = windows-gtk4 ] && [[ "${f:t}" != *-gtk4.actions ]] && [ -f "${f%.actions}-gtk4.actions" ]; then
+        continue
+    fi
     files+=("$f")
 done
 if [ "${#files[@]}" -eq 0 ]; then
@@ -96,6 +104,8 @@ source "$script_dir/test_support/csv2_rows.zsh"
 today="$(date +%Y-%m-%d)"
 backend=WinUI
 [ "$platform" = linux ] && backend=gtk4
+test_backend=WinUI
+[ "$platform" = windows-gtk4 ] && backend=gtk4 && test_backend=gtk4
 device="$(uname -sm)"
 csv2_new "$out_csv" \
     "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,device,note" \
@@ -225,19 +235,19 @@ for f in "${files[@]}"; do
     offscreen=""
     rc=0
 
-    if [ "$platform" = windows ]; then
+    if [ "$platform" != linux ]; then
         # TEST_BACKEND=WinUI: with a -gtk4 build beside the WinUI one, test.zsh
         # refuses to guess (six of eight files failed that way locally,
         # 2026-11-15). -n: the builds are the SCUI_DEBUG=1 ones made beforehand.
         # TEST_BACKEND=WinUI:旁邊有 -gtk4 建置時 test.zsh 拒絕猜測(本機 8 份中有 6 份因此失敗,2026-11-15)。-n:用事先建好的
         # SCUI_DEBUG=1 建置。
-        TEST_BACKEND=WinUI TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
+        TEST_BACKEND=$test_backend TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
             timeout "$timeout_s" zsh "$script_dir/test.zsh" "$app" -win -n --showtime 2 --actionfile "$f" > "$log" 2>&1
         rc=$?
         replay_log="$log"
         [ -f "$output_dir/${app:l}-actionfile.log" ] && cp "$output_dir/${app:l}-actionfile.log" "$run_dir/$stem-actionfile.log" \
             && replay_log="$run_dir/$stem-actionfile.log"
-        for s in "$shots_dir"/${app:l}-windows-final-*.png(N.om); do
+        for s in "$shots_dir"/${app:l}-windows*-final-*.png(N.om); do
             [ "$s" -nt "$marker" ] && shot="$s"
             break
         done
