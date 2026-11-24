@@ -36,6 +36,7 @@ class VisualEffectContainer: AndroidKit.ViewGroup {
         _ contrast: Float,
         _ grayscale: Float,
         _ hueRotationDegrees: Float,
+        _ invert: Bool,
         _ shadowRed: Float,
         _ shadowGreen: Float,
         _ shadowBlue: Float,
@@ -82,6 +83,7 @@ extension AndroidBackend: BackendFeatures.VisualEffects {
             Float(effect.contrast),
             Float(effect.grayscale),
             Float(effect.hueRotation.degrees),
+            effect.colorInvert,
             // shadow(color:radius:x:y:), in pixels like the blur radius; alpha 0 is none.
             // shadow(color:radius:x:y:),與模糊半徑一樣以像素表示;alpha 為 0 表示沒有陰影。
             effect.shadow?.color.red ?? 0,

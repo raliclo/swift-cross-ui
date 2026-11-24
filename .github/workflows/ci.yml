@@ -11,7 +11,7 @@
 #   there is no bare Linux machine here, so this is the only routine Linux check; SWEEP_APPS replayed from actions/wsl under xvfb (sweep_desktop.zsh).
 # - windows: WinUIBackend built, plus SWEEP_APPS through compile.zsh, replayed from actions/win at 125% and photographed (sweep_desktop.zsh).
 # - lint: SwiftLint.
-# All five platforms sweep P2 P8 P12 P114 P116 P120 P122 P123 P124 P125; macos, linux and windows also sweep P119 (only linux, on GTK, really checks it; ios and android use ci_p119_mobile.zsh); run by hand with full=true for every app.
+# All five platforms sweep P2 P8 P12 P114 P116 P120 P122 P123 P124 P125 P126; macos, linux and windows also sweep P119 (only linux, on GTK, really checks it; ios and android use ci_p119_mobile.zsh); run by hand with full=true for every app.
 # macos, linux and windows build P2 and P116 and launch each for 20 s (ci_launch_check.zsh); all three also replay and photograph the same apps (actions/mac, actions/wsl, actions/win; 2026-11-15).
 # 六個工作，各自涵蓋本機無法在每次推送時檢查的部分:
 # - macos:核心與 AppKitBackend,建置並測試(swift test),使用 xcode-27 映像(macOS 27)。
@@ -20,7 +20,7 @@
 # - linux:GtkBackend 在 Ubuntu 上建置，並在虛擬 X 顯示器下測試；這裡沒有實體 Linux 機器，所以這是唯一的例行 Linux 檢查；在 xvfb 下重放 actions/wsl 的 SWEEP_APPS(sweep_desktop.zsh)。
 # - windows:建置 WinUIBackend,另以 compile.zsh 建置 SWEEP_APPS,在 125% 下重放 actions/win 並拍照(sweep_desktop.zsh)。
 # - lint:SwiftLint。
-# 五個平台都跑 P2 P8 P12 P114 P116 P120 P122 P123 P124 P125;macos、linux 與 windows 另外 sweep P119(只有 linux 的 GTK 真正檢查它,ios 與 android 用 ci_p119_mobile.zsh);手動執行時加 full=true 則跑每一支 app。
+# 五個平台都跑 P2 P8 P12 P114 P116 P120 P122 P123 P124 P125 P126;macos、linux 與 windows 另外 sweep P119(只有 linux 的 GTK 真正檢查它,ios 與 android 用 ci_p119_mobile.zsh);手動執行時加 full=true 則跑每一支 app。
 # macos、linux 與 windows 建置 P2 與 P116,並各啟動 20 秒(ci_launch_check.zsh);三者也重放同一組 app 的動作檔並拍照(actions/mac、actions/wsl、actions/win;2026-11-15)。
 #
 # Swift 6.4 everywhere, the version the local machines use; Windows names an exact release (6.4.2),
@@ -53,7 +53,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 120
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125 P126' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -160,7 +160,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 120
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P120 P122 P123 P124 P125' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P120 P122 P123 P124 P125 P126' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -254,7 +254,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P120 P122 P123 P124 P125' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P120 P122 P123 P124 P125 P126' }}
       ANDROID_TRIPLE: x86_64-unknown-linux-android31
       ANDROID_NDK_VERSION: 30.0.16248370
       SCUI_ANDROID_SOFTWARE_GL: 1  # no GPU on this runner; see test_android.zsh / 這台 runner 沒有 GPU
@@ -382,7 +382,7 @@ jobs:
     # 垂直捲動到不了外層，而 WSL 的 4.22.4 在純 Xvfb 與加 openbox 時都通過(todo.md);develop 要求 GTK 4.22(gtk_helpers.c);4.14 由 Ubuntu-24-04-branch 支援。
     runs-on: ubuntu-26.04
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125 P126' }}
     steps:
     - uses: actions/checkout@v4
 
@@ -493,7 +493,7 @@ jobs:
   windows:
     runs-on: windows-latest
     env:
-      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125' }}
+      SWEEP_APPS: ${{ inputs.full && 'all' || 'P2 P8 P12 P114 P116 P119 P120 P122 P123 P124 P125 P126' }}
     defaults:
       run:
         shell: pwsh

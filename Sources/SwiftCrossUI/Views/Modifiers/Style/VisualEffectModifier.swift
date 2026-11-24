@@ -53,16 +53,23 @@ extension View {
         visualEffect(VisualEffect(hueRotation: angle))
     }
 
+    /// Inverts the colours of this view, as SwiftUI's `colorInvert()`: each of red,
+    /// green and blue becomes one minus itself; alpha is kept.
+    /// 反轉此 view 的顏色，即 SwiftUI 的 `colorInvert()`:紅、綠、藍各自變為 1 減去原值；alpha 不變。
+    public func colorInvert() -> some View {
+        visualEffect(VisualEffect(colorInvert: true))
+    }
+
     /// Applies several compositing effects in one container.
     ///
-    /// Public because the seven modifiers above each wrap separately, so
+    /// Public because the eight modifiers above each wrap separately, so
     /// `.saturation(0).brightness(0.2)` builds two containers. That is correct
     /// and matches SwiftUI, but when several effects are known together this
     /// says so in one.
     ///
     /// 以單一容器套用多種合成效果。
     ///
-    /// 之所以公開：上方七個 modifier 各自會包一層，因此 `.saturation(0).brightness(0.2)` 會建立兩個
+    /// 之所以公開：上方八個 modifier 各自會包一層，因此 `.saturation(0).brightness(0.2)` 會建立兩個
     /// 容器。那是正確的、也與 SwiftUI 一致，但當多種效果本來就是一起決定的，此處可用一個容器表達。
     /// Casts a drop shadow of this view's content, as SwiftUI's
     /// `shadow(color:radius:x:y:)`. The shadow follows the content's shape, is drawn

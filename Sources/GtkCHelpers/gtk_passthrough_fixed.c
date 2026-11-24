@@ -38,6 +38,7 @@ typedef struct _GtkPassthroughFixed {
     float contrast;
     float grayscale;
     float hue_degrees;
+    gboolean invert;
 
     // shadow(color:radius:x:y:), drawn beneath the (adjusted) children by
     // gtk_snapshot_push_shadow; set by gtk_passthrough_fixed_set_shadow.
@@ -97,7 +98,7 @@ void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque) {
 }
 
 // The visual-effect chain, in the order AppKitBackend applies it: blur, then
-// saturation, brightness and contrast, then grayscale, then hue. Drawn here
+// saturation, brightness and contrast, then grayscale, then hue, then inversion. Drawn here
 // rather than through a CSS `filter` because CSS has no grayscale that matches
 // AppKit's: `grayscale(1)` is the same operation as `saturate(0)`, while
 // AppKit's CIColorMonochrome tinted with 0.5 grey maps the luminance through an
@@ -105,7 +106,7 @@ void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque) {
 // (P39, 2026-10-16: the user chose AppKit's). That needs per-channel curves,
 // which only a component transfer node can draw.
 //
-// 視覺效果鏈，順序與 AppKitBackend 相同：模糊，然後飽和度、亮度與對比，然後灰階，最後色相。
+// 視覺效果鏈，順序與 AppKitBackend 相同：模糊，然後飽和度、亮度與對比，然後灰階，然後色相，最後顏色反轉。
 // 之所以在此繪製而不經由 CSS `filter`，是因為 CSS 沒有與 AppKit 相符的灰階:`grayscale(1)` 與
 // `saturate(0)` 是同一個運算，而 AppKit 以 0.5 灰上色的 CIColorMonochrome 會在線性光中把亮度經過
 // overlay 映射，得到比 saturation 0 更暗的灰(P39,2026-10-16:使用者選擇以 AppKit 為準)。那需要
@@ -297,6 +298,13 @@ static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snaps
         return;
     }
 
+    // colorInvert() is the last effect to apply, so it is pushed first: 1 minus each
+    // of red, green and blue. / colorInvert() 是最後套用的效果，因此最先 push:紅綠藍各自變為 1 減原值。
+    if (self->invert) {
+        const float m[16] = {-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1};
+        scui_push_matrix(snapshot, m, 1.0f);
+    }
+
     gboolean hue = self->hue_degrees != 0.0f;
     if (hue) {
         // The CSS Filter Effects hue rotation, as gtkcssfiltervalue.c builds it.
@@ -342,11 +350,14 @@ static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snaps
     if (hue) {
         gtk_snapshot_pop(snapshot);
     }
+    if (self->invert) {
+        gtk_snapshot_pop(snapshot);
+    }
 }
 
 void gtk_passthrough_fixed_set_effect(
     GtkWidget *widget, float blur, float saturation, float brightness, float contrast,
-    float grayscale, float hue_degrees
+    float grayscale, float hue_degrees, gboolean invert
 ) {
     if (widget == NULL || !GTK_IS_PASSTHROUGH_FIXED(widget)) {
         return;
@@ -358,8 +369,9 @@ void gtk_passthrough_fixed_set_effect(
     self->contrast = contrast;
     self->grayscale = grayscale;
     self->hue_degrees = hue_degrees;
+    self->invert = invert;
     self->has_effect = self->has_shadow || blur > 0.0f || saturation != 1.0f || brightness != 0.0f ||
-                       contrast != 1.0f || grayscale > 0.0f || hue_degrees != 0.0f;
+                       contrast != 1.0f || grayscale > 0.0f || hue_degrees != 0.0f || invert;
     gtk_widget_queue_draw(widget);
 }
 
@@ -384,7 +396,7 @@ void gtk_passthrough_fixed_set_shadow(
         // 由 set_effect 最後存下的其他效果重新計算。
         self->has_effect = self->blur > 0.0f || self->saturation != 1.0f ||
                            self->brightness != 0.0f || self->contrast != 1.0f ||
-                           self->grayscale > 0.0f || self->hue_degrees != 0.0f;
+                           self->grayscale > 0.0f || self->hue_degrees != 0.0f || self->invert;
     }
     gtk_widget_queue_draw(widget);
 }

@@ -73,6 +73,11 @@ public struct VisualEffect: Equatable, Sendable {
     /// 色相繞色輪旋轉的角度。
     public var hueRotation: Angle
 
+    /// Whether the red, green and blue channels are inverted, as SwiftUI's
+    /// `colorInvert()`. Backends apply it after every other colour adjustment.
+    /// 是否反轉紅、綠、藍通道，即 SwiftUI 的 `colorInvert()`。backend 在其他所有色彩調整之後套用它。
+    public var colorInvert: Bool
+
     /// A drop shadow beneath the view, or `nil` for none. Set by
     /// ``View/shadow(color:radius:x:y:)``.
     /// view 下方的投影，`nil` 表示沒有。由 ``View/shadow(color:radius:x:y:)`` 設定。
@@ -86,6 +91,7 @@ public struct VisualEffect: Equatable, Sendable {
         contrast: Double = 1,
         grayscale: Double = 0,
         hueRotation: Angle = .zero,
+        colorInvert: Bool = false,
         shadow: Shadow? = nil
     ) {
         self.opacity = opacity
@@ -95,6 +101,7 @@ public struct VisualEffect: Equatable, Sendable {
         self.contrast = contrast
         self.grayscale = grayscale
         self.hueRotation = hueRotation
+        self.colorInvert = colorInvert
         self.shadow = shadow
     }
 
@@ -105,13 +112,13 @@ public struct VisualEffect: Equatable, Sendable {
     /// Whether this effect would leave the view untouched.
     ///
     /// Worth checking before doing any work: a backend can skip installing a
-    /// filter entirely, and a view that sets one effect gets the other six as
+    /// filter entirely, and a view that sets one effect gets the others as
     /// their neutral values rather than as instructions.
     ///
     /// 此效果是否會讓 view 維持原樣。
     ///
     /// 值得在動工前先檢查：backend 可以完全略過安裝 filter 的步驟，而只設定了一種效果的 view，其餘
-    /// 六項會是中性值而非指令。
+    /// 各項會是中性值而非指令。
     public var isIdentity: Bool { self == .identity }
 }
 

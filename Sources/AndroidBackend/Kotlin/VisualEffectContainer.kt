@@ -64,6 +64,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         contrast: Float,
         grayscale: Float,
         hueRotationDegrees: Float,
+        invert: Boolean,
         shadowRed: Float,
         shadowGreen: Float,
         shadowBlue: Float,
@@ -93,7 +94,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。除了 opacity 什麼都沒變時，
         // 已設定的 RenderEffect 仍然適用，因此不重建。
         val filters = floatArrayOf(
-            blurRadius, saturation, brightness, contrast, grayscale, hueRotationDegrees,
+            blurRadius, saturation, brightness, contrast, grayscale, hueRotationDegrees, if (invert) 1f else 0f,
             shadowRed, shadowGreen, shadowBlue, shadowAlpha, shadowX, shadowY, shadowRadius,
         )
         if (filters.contentEquals(lastFilters)) {
@@ -141,6 +142,28 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
                         colourEffect,
                     )
             }
+        }
+
+        // colorInvert() after every other colour adjustment, as on AppKit: 255 minus
+        // each of red, green and blue on unpremultiplied colour; alpha is kept.
+        // colorInvert() 在其他所有色彩調整之後(同 AppKit):在未預乘的顏色上，紅綠藍各自變為 255 減原值;alpha 不變。
+        if (invert) {
+            val inversion =
+                RenderEffect.createColorFilterEffect(
+                    ColorMatrixColorFilter(
+                        ColorMatrix(
+                            floatArrayOf(
+                                -1f, 0f, 0f, 0f, 255f,
+                                0f, -1f, 0f, 0f, 255f,
+                                0f, 0f, -1f, 0f, 255f,
+                                0f, 0f, 0f, 1f, 0f,
+                            )
+                        )
+                    )
+                )
+            colourEffect =
+                if (colourEffect == null) inversion
+                else RenderEffect.createChainEffect(inversion, colourEffect)
         }
 
         // Blur before colour, so the blur reads the original pixels rather than

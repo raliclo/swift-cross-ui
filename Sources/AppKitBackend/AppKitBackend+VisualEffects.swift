@@ -176,6 +176,22 @@ extension AppKitBackend: BackendFeatures.VisualEffects {
             }
         }
 
+        // colorInvert() last, after every other colour adjustment, as 1 minus each sRGB
+        // value -- what UIKitBackend (no working colour space), GtkBackend, WinUIBackend
+        // and AndroidBackend compute. Core Image works in linear light here, where
+        // CIColorInvert alone turned P126's mid grey 128 into about 225 and red into a
+        // pale cyan (2026-11-24), so the values are encoded to sRGB around it.
+        // colorInvert() 排在最後，在其他所有色彩調整之後，結果為 1 減去各 sRGB 數值——UIKitBackend(不設工作
+        // 色彩空間)、GtkBackend、WinUIBackend 與 AndroidBackend 算的都是這個。Core Image 在此是在線性光中運算，
+        // 單用 CIColorInvert 時 P126 的中灰 128 變成約 225、紅色變成淡青色(2026-11-24),因此前後各做一次 sRGB 編碼與解碼。
+        if effect.colorInvert,
+            let encode = CIFilter(name: "CILinearToSRGBToneCurve"),
+            let invert = CIFilter(name: "CIColorInvert"),
+            let decode = CIFilter(name: "CISRGBToneCurveToLinear")
+        {
+            filters.append(contentsOf: [encode, invert, decode])
+        }
+
         // nil, not []. An empty array is still a filter chain and keeps the
         // layer on the Core Image path; nil takes it off.
         // 使用 nil 而非 []。空陣列仍然是一條 filter 鏈，會讓該 layer 留在 Core Image 的路徑上；
