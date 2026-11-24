@@ -297,14 +297,14 @@ esac
 #
 # Derived from testapp/P*.swift and the four naming rules further down, rather
 # than from a glob over output/. A glob would be wrong here: output/ also holds
-# run logs, a WebView2 user-data directory, Microsoft.Graphics.Canvas.dll and
+# run logs, a WebView2 user-data directory, a Microsoft.Graphics.Canvas.dll left from before 2026-11-24 and
 # whatever else a test run dropped, and calling those "unrecorded artefacts"
 # would make the audit cry wolf until nobody read it.
 #
 # 本腳本可能產出、且確實存在於磁碟上的每一個產物名稱。
 #
 # 由 testapp/P*.swift 與下方四條命名規則推導，而不是對 output/ 做 glob。在此 glob 是錯的：
-# output/ 裡還有執行 log、WebView2 的使用者資料目錄、Microsoft.Graphics.Canvas.dll，以及
+# output/ 裡還有執行 log、WebView2 的使用者資料目錄、2026-11-24 以前留下的 Microsoft.Graphics.Canvas.dll，以及
 # 測試執行留下的其他東西；把那些叫做「未記錄的產物」會讓稽核一直誤報，直到沒有人再看它。
 manifest_artefact_files() {
     for manifest_src in "$script_dir"/P*.swift; do

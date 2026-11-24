@@ -14,7 +14,7 @@ Index as of 2026-10-24; each line links one topic.
 - [Stack and threading](windows/winui-stack-and-threading.md) -- swift-winui 0.2.1 on WinAppSDK 1.5 preview (since 2026-11-06 a fork submodule on 2.6.5); the STA start and its copied tickler; main queue drained by a wait (P66); never subclass WebView2.
 - [Layout and hit testing](windows/winui-layout-and-hit-testing.md) -- a transparent brush swallows clicks (use nil); text +1 DIP at 125%; parent links before load; ComboBox measurement; gesture handlers.
 - [Controls](windows/winui-controls.md) -- own date wheels for `\.locale`, shell file dialogs, popover arrow, sheets as ContentDialog popups, menus, Ctrl+Shift+Z redo.
-- [Effects, gradients and Mesh3D](windows/winui-effects-and-3d.md) -- Win2D effect graph (contrast matrix, AppKit grayscale), conic gradients, SVG text via DirectWrite, D3D11 meshes and the rasterization scale.
+- [Effects, gradients and Mesh3D](windows/winui-effects-and-3d.md) -- Direct2D effect graph without Win2D since 2026-11-24 (contrast matrix, AppKit grayscale), conic gradients, SVG text via DirectWrite, D3D11 meshes and the rasterization scale.
 
 ## GtkBackend on Windows
 
@@ -68,7 +68,7 @@ Index as of 2026-10-24; each line links one topic.
 - [技術堆疊與執行緒](windows/winui-stack-and-threading.md)——WinAppSDK 1.5 預覽版上的 swift-winui 0.2.1(2026-11-06 起改為 2.6.5 上的 fork submodule);STA 啟動與複製來的 tickler;以等待排空主佇列(P66);絕不繼承 WebView2。
 - [版面與點擊判定](windows/winui-layout-and-hit-testing.md)——透明筆刷會吞掉點擊(用 nil);125% 下文字加 1 DIP;載入前的父連結;ComboBox 量測；手勢 handler。
 - [控制項](windows/winui-controls.md)——為 `\.locale` 自繪日期滾輪、shell 檔案對話框、popover 箭頭、sheet 是 ContentDialog popup、選單、Ctrl+Shift+Z 重做。
-- [效果、漸層與 Mesh3D](windows/winui-effects-and-3d.md)——Win2D 效果圖(對比矩陣、AppKit 灰階)、圓錐漸層、經 DirectWrite 的 SVG 文字、D3D11 mesh 與 rasterization scale。
+- [效果、漸層與 Mesh3D](windows/winui-effects-and-3d.md)——Direct2D 效果圖(2026-11-24 起不用 Win2D;對比矩陣、AppKit 灰階)、圓錐漸層、經 DirectWrite 的 SVG 文字、D3D11 mesh 與 rasterization scale。
 
 ## Windows 上的 GtkBackend
 

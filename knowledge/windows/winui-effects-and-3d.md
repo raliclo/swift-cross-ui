@@ -5,7 +5,9 @@ Written 2026-10-24 from Sources/WinUIBackend, Sources/WinUIInterop, commits
 (windows, winui: P39 2026-10-19; P72, P76, P77 2026-10-07; P85, P86, P112
 2026-10-20).
 
-## Visual effects are a Win2D effect graph
+## Visual effects are a Direct2D effect graph (Win2D until 2026-11-24)
+
+- Since 2026-11-24 the nodes are Direct2D built-in effects reached through WinUIInterop's own `IGraphicsEffectD2D1Interop` (`graphics_effect.cpp`), with no `Microsoft.Graphics.Canvas.dll`: the CI runner had no Win2D, so every filter effect was silently skipped there (the user's decision). The graphs below are unchanged; the class names are the Win2D ones they replaced, each the Direct2D effect of the same name. Hue rotation now takes degrees.
 
 - Blur is `GaussianBlurEffect`; saturation and brightness are
   `ColorMatrixEffect` (Win2D `SaturationEffect` rejects values above 1 with
@@ -56,7 +58,9 @@ Written 2026-10-24 from Sources/WinUIBackend, Sources/WinUIInterop, commits
 a94c68af,以及 results.csv2(windows、winui:P39 2026-10-19;P72、P76、P77 2026-10-07;P85、P86、P112
 2026-10-20)寫成。
 
-## 視覺效果是 Win2D 效果圖
+## 視覺效果是 Direct2D 效果圖(2026-11-24 前為 Win2D)
+
+- 2026-11-24 起節點是 Direct2D 內建效果，經 WinUIInterop 自寫的 `IGraphicsEffectD2D1Interop`(`graphics_effect.cpp`)接上，不再需要 `Microsoft.Graphics.Canvas.dll`:CI 機器沒有 Win2D,所有濾鏡效果在那裡都被無聲略過(使用者的決定)。下列效果圖不變；類別名是被取代的 Win2D 名稱，各自對應同名的 Direct2D 效果。色相旋轉改以度為單位。
 
 - 模糊用 `GaussianBlurEffect`;飽和度與亮度用 `ColorMatrixEffect`(Win2D 的 `SaturationEffect` 對大於 1 的值回
   E_INVALIDARG);色相旋轉用 `HueRotationEffect`;只有不透明度時走快速路徑。
