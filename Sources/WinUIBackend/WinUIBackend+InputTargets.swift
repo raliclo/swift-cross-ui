@@ -676,7 +676,9 @@ extension WinUIBackend: BackendFeatures.FocusableTargets {
             ring.height = target.actualHeight
         }
         target.gotFocus.addHandler { [weak target] _, args in
-            guard let target, (args?.originalSource as AnyObject?) === target else { return }
+            guard let target, !target.focusEffectDisabled,
+                (args?.originalSource as AnyObject?) === target
+            else { return }
             target.focusRing?.visibility = .visible
         }
         target.lostFocus.addHandler { [weak target] _, args in
@@ -714,7 +716,9 @@ extension WinUIBackend: BackendFeatures.FocusableTargets {
             unfocus(target)
         }
         target.focusableWanted = wanted
-        target.isTabStop = wanted
+        // Out of the tab order while under .focusDisabled (WinUIBackend+FocusEffects.swift).
+        // 在 .focusDisabled 之下時不在 Tab 順序裡(WinUIBackend+FocusEffects.swift)。
+        target.isTabStop = wanted && !WinUIFocusMarks.excludes(target)
     }
 
     /// Fluent's focus stroke from the app's theme resources; Windows blue when
@@ -757,5 +761,8 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var isFocusableTarget = false
     var focusableWanted = false
     var focusRing: WinUI.Border?
+    /// Under `.focusEffectDisabled`: the ring stays hidden while focused.
+    /// 在 `.focusEffectDisabled` 之下：取得焦點時焦點環仍保持隱藏。
+    var focusEffectDisabled = false
 }
 // swiftlint:enable force_try

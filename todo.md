@@ -28,6 +28,22 @@ Mac 與 Windows 兩端工作之間唯一共享的紀錄，而一項量測結果�
 
 ## Now / 現在
 
+### WinUI focusEffectDisabled and focusDisabled; reruns of the focus and effect apps / WinUI 的 focusEffectDisabled 與 focusDisabled;重跑焦點與效果相關 app (2026-11-24, Windows)
+
+M4's request, accepted by the user (2026-11-24): BackendFeatures.FocusEffects and
+FocusDisabledContainers on WinUIBackend (WinUIBackend+FocusEffects.swift), a
+WinUI ring probe in P127, P127 in the windows SWEEP_APPS; then rerun P30, P39,
+P70-focus, P70-focus-start, P91, P126 and P127 on WinUI, Windows GTK and WSL GTK,
+re-measuring stale coordinates (the P70 window grew to 640 in 37cafb49). P126 on
+WinUI stays unverified until M6's Direct2D rewrite of VisualEffects lands.
+Done when the code is pushed to develop and each rerun has a recorded result.
+
+M4 的要求，使用者同意(2026-11-24):在 WinUIBackend 實作 BackendFeatures.FocusEffects 與
+FocusDisabledContainers(WinUIBackend+FocusEffects.swift),P127 加上 WinUI 的焦點環 probe,並把 P127 加進
+windows 的 SWEEP_APPS;之後在 WinUI、Windows GTK 與 WSL GTK 重跑 P30、P39、P70-focus、P70-focus-start、P91、
+P126 與 P127,座標過時的重新量測(37cafb49 把 P70 的視窗加到 640)。WinUI 上的 P126 在 M6 以 Direct2D 改寫
+VisualEffects 之前都算未驗證。推送到 develop、且每支重跑都記下結果時完成。
+
 ### CI replays and photographs SWEEP_APPS on Linux and Windows / CI 在 Linux 與 Windows 重放並拍照 (2026-11-15, Windows)
 
 The user's request via M4 (2026-11-15), P12 included (confirmed here): CI

@@ -17,6 +17,9 @@ import Foundation
 #elseif !canImport(CGtk) && canImport(AppKitBackend)
     import AppKit
     import AppKitBackend
+#elseif !canImport(CGtk) && canImport(WinUIBackend)
+    import WinUI
+    import WinUIBackend
 #endif
 
 // P127 .focusDisabled() and .focusEffectDisabled(), checked by the app itself.
@@ -81,6 +84,27 @@ enum P127 {
     /// Reads whether a panel draws a focus ring now, from its native view.
     /// 從原生 view 讀出某個色塊此刻是否畫出焦點環。
     @MainActor static var ringProbes: [String: @MainActor () -> Bool] = [:]
+
+    #if !canImport(CGtk) && canImport(WinUIBackend)
+        /// A visible 3-px ring Border at or under `element`.
+        /// `element` 本身或其下有一個可見的 3 px 焦點環 Border。
+        @MainActor static func winUIRingShown(in element: WinUI.UIElement) -> Bool {
+            if let border = element as? WinUI.Border, border.borderThickness.left == 3,
+                border.visibility == .visible
+            {
+                return true
+            }
+            let count = (try? WinUI.VisualTreeHelper.getChildrenCount(element)) ?? 0
+            for index in 0..<count {
+                if let child = try? WinUI.VisualTreeHelper.getChild(element, index) as? WinUI.UIElement,
+                    winUIRingShown(in: child)
+                {
+                    return true
+                }
+            }
+            return false
+        }
+    #endif
 
     static func log(_ message: String) {
         FileHandle.standardOutput.write(Data((message + "\n").utf8))
@@ -147,6 +171,16 @@ extension SwiftCrossUI.View {
             return inspect(.afterUpdate) { (native: NSView) in
                 P127.ringProbes[name] = { [weak native] in
                     (native?.focusRingType ?? .none) != .none
+                }
+            }
+        #elseif !canImport(CGtk) && canImport(WinUIBackend)
+            // WinUIBackend draws a .focusable() target's ring as a 3-px Border,
+            // visible while the target holds the focus.
+            // WinUIBackend 以 3 px 的 Border 畫 .focusable() target 的焦點環，target 持有焦點時可見。
+            return inspect(.afterUpdate) { (native: WinUI.FrameworkElement) in
+                P127.ringProbes[name] = { [weak native] in
+                    guard let native else { return false }
+                    return P127.winUIRingShown(in: native)
                 }
             }
         #else

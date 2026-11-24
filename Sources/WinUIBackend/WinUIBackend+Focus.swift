@@ -71,13 +71,20 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         // 加在 widget 本身的 `isEnabled` 檢查根本不會執行，因為對 wrapper 的 `Control` 轉型會失敗。
         // AppKit 拒絕的是完全相同的情形：它的 `responder(in:)` 會退回該 widget,而「把那層 wrapper 交給
         // `makeFirstResponder`」正是它的註解所警告的事。
+        // Inside a `.focusDisabled` container the answer is no before WinUI is
+        // asked (WinUIBackend+FocusEffects.swift); its GettingFocus cancel would
+        // refuse too, but this is the answer `@FocusState` reads.
+        // 在 `.focusDisabled` 容器之內，在詢問 WinUI 之前就回答否(WinUIBackend+FocusEffects.swift);它的 GettingFocus
+        // 取消也會拒絕，但 `@FocusState` 讀的是這個回答。
         if let target = Self.focusableTarget(in: widget) {
             // A `.focusable(false)` or disabled target is refused, as a
             // disabled control is above. / `.focusable(false)` 或停用的 target 會被拒絕，與上面停用的控制項相同。
-            guard target.focusableWanted else { return false }
+            guard target.focusableWanted, !WinUIFocusMarks.excludes(target) else { return false }
             return (try? target.focus(.programmatic)) ?? false
         }
-        guard let target = Self.focusableControl(in: widget) else { return false }
+        guard let target = Self.focusableControl(in: widget),
+            !WinUIFocusMarks.excludes(target)
+        else { return false }
         return (try? target.focus(.programmatic)) ?? false
     }
 

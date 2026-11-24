@@ -4,7 +4,7 @@ extension BackendFeatures {
     ///
     /// | AppKit | UIKit | GTK | Android | WinUI |
     /// | --- | --- | --- | --- | --- |
-    /// | `focusRingType = .none` | `focusEffect = nil` (iOS 15) | a class whose CSS has no `outline` | `setDefaultFocusHighlightEnabled(false)` (API 26) | `UseSystemFocusVisuals = false` (not yet implemented, 2026-11-24) |
+    /// | `focusRingType = .none` | `focusEffect = nil` (iOS 15) | a class whose CSS has no `outline` | `setDefaultFocusHighlightEnabled(false)` (API 26) | `UseSystemFocusVisuals = false`, and a `.focusable()` target's own ring kept hidden |
     ///
     /// **Called once per view-graph node, and only when the setting changes.**
     /// ``ViewGraphNode`` calls it for every node under a `.focusEffectDisabled`,
@@ -40,7 +40,7 @@ extension BackendFeatures {
     ///
     /// | AppKit | UIKit | GTK | Android | WinUI |
     /// | --- | --- | --- | --- | --- |
-    /// | the window refuses `makeFirstResponder`, and `selectKeyView` steps over | text fields refuse to begin editing, `.focusable()` targets refuse first responder, and their Tab skips | `can-focus = false` on the container | `FOCUS_BLOCK_DESCENDANTS` | not yet implemented (2026-11-24) |
+    /// | the window refuses `makeFirstResponder`, and `selectKeyView` steps over | text fields refuse to begin editing, `.focusable()` targets refuse first responder, and their Tab skips | `can-focus = false` on the container | `FOCUS_BLOCK_DESCENDANTS` | `IsTabStop = false` on everything inside, and `GettingFocus` cancelled on the container |
     ///
     /// The container is one ``Core`` container (`createContainer`) holding the
     /// modified view; the core lays it out. This protocol only marks it.
