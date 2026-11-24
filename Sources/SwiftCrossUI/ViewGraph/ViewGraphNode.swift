@@ -75,6 +75,10 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
     /// Where the parent's layout last placed the widget in its container.
     /// 父層排版上次把 widget 放在其容器中的位置。
     var committedPosition: SIMD2<Int>?
+    /// The focus ring setting last handed to the backend for this node widget;
+    /// see `FocusEffectApplication`.
+    /// 上次為這個節點的 widget 交給 backend 的焦點環設定;見 `FocusEffectApplication`。
+    private var appliedFocusEffectDisabled: Bool?
 
     /// The dynamic property updater for this view.
     private var dynamicPropertyUpdater: DynamicPropertyUpdater<NodeView>
@@ -606,6 +610,17 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend> {
         commitEnvironment.cachedBody = lastBody.map {
             CachedBody(owner: ObjectIdentifier(NodeView.self), body: $0)
         }
+        // The focus ring setting, before the view commits its children, so that
+        // an inner node setting lands after an outer one on a widget they share
+        // (FocusEffectModifiers.swift).
+        // 焦點環設定，在 view commit 子節點之前套用，讓共用同一個 widget 時，內層節點的設定晚於外層的落地
+        // (FocusEffectModifiers.swift)。
+        FocusEffectApplication.apply(
+            parentEnvironment.focusEffectDisabledSetting,
+            applied: &appliedFocusEffectDisabled,
+            to: widget,
+            backend: backend
+        )
         view.commit(
             widget,
             children: children,

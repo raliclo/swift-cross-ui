@@ -125,6 +125,9 @@ extension GtkBackend: BackendFeatures.FocusableTargets {
         let ring = EventControllerFocus()
         ring.enter = { [weak target, weak ringArea] _ in
             guard let target, let ringArea else { return }
+            // Not under `.focusEffectDisabled` (GtkBackend+FocusEffects.swift).
+            // 不在 `.focusEffectDisabled` 之下時才顯示(GtkBackend+FocusEffects.swift)。
+            guard !GtkBackend.isFocusEffectDisabled(target.widgetPointer) else { return }
             // The target's size, once it has one: focus given at launch arrives
             // before the window is laid out, when the target is still 0 x 0.
             // 目標有尺寸之後才取用：啟動時給的焦點會在視窗排版前到達，那時目標仍是 0 x 0。

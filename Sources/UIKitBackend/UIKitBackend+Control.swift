@@ -48,6 +48,13 @@ final class TextFieldWidget: WrapperWidget<UITextField>, UITextFieldDelegate {
         child.delegate = self
     }
 
+    // Refused inside `.focusDisabled` (UIKitBackend+FocusEffects.swift): a tap,
+    // `.focused` and Tab all begin editing through here.
+    // 在 `.focusDisabled` 之內拒絕(UIKitBackend+FocusEffects.swift):點按、`.focused` 與 Tab 都經由這裡開始編輯。
+    func textFieldShouldBeginEditing(_ field: UITextField) -> Bool {
+        !UIKitFocusMarks.excludes(field)
+    }
+
     func textFieldShouldReturn(_: UITextField) -> Bool {
         onSubmit?()
         return false
@@ -78,7 +85,7 @@ final class TextEditorWidget: WrapperWidget<UITextView>, UITextViewDelegate {
     }
 
     func textViewShouldBeginEditing(_: UITextView) -> Bool {
-        return isEditable
+        return isEditable && !UIKitFocusMarks.excludes(child)
     }
 }
 

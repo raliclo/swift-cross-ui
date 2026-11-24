@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P127 again, for the other half of the picture: after the app has logged its
+# verdict (see P127-focus-disabling.actions) the focus is on "after", and one more
+# Tab moves it onto "ring off", which is under .focusEffectDisabled(). The capture
+# must show the orange panel focused ("focus: ring off" in the third line) with NO
+# ring around it.
+#
+# expect: log-contains P127 PASS
+#
+# 再跑一次 P127,拍另一半的畫面:app 記下結果之後(見 P127-focus-disabling.actions)焦點在「after」,再按一次 Tab
+# 會移到在 .focusEffectDisabled() 之下的「ring off」。擷圖必須顯示橘色色塊有焦點(第三行寫著「focus: ring off」),
+# 而周圍**沒有**焦點環。
+sleep,,,,,,5000000,let the app ask for the focus twice and wait for Tab,windows
+key,,,,,tab,,Tab from before must land on after,windows
+sleep,,,,,,3500000,let the rings be read and the verdict logged,windows
+key,,,,,tab,,one more Tab: onto ring off,windows
+sleep,,,,,,1500000,hold for the capture: ring off focused with no ring,windows

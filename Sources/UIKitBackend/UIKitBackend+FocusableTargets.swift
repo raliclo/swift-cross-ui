@@ -50,6 +50,12 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
         }
     }
 
+    /// False under `.focusEffectDisabled` (UIKitBackend+FocusEffects.swift).
+    /// 在 `.focusEffectDisabled` 之下為 false(UIKitBackend+FocusEffects.swift)。
+    var showsFocusRing = true {
+        didSet { ring.isHidden = !isFirstResponder || !showsFocusRing }
+    }
+
     private let ring = CALayer()
 
     init() {
@@ -78,8 +84,8 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
         ring.borderColor = tintColor.cgColor
     }
 
-    override var canBecomeFirstResponder: Bool { isFocusable }
-    override var canBecomeFocused: Bool { isFocusable }
+    override var canBecomeFirstResponder: Bool { isFocusable && !UIKitFocusMarks.excludes(self) }
+    override var canBecomeFocused: Bool { isFocusable && !UIKitFocusMarks.excludes(self) }
 
     @discardableResult
     override func becomeFirstResponder() -> Bool {
@@ -96,7 +102,7 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
     }
 
     private func focusChanged() {
-        ring.isHidden = !isFirstResponder
+        ring.isHidden = !isFirstResponder || !showsFocusRing
         NotificationCenter.default.post(name: Self.focusDidChange, object: self)
     }
 
@@ -133,7 +139,7 @@ final class FocusableView: UIView, UIGestureRecognizerDelegate {
         }
         var stops: [UIView] = []
         func collect(_ view: UIView) {
-            guard !view.isHidden, view.isUserInteractionEnabled else { return }
+            guard !view.isHidden, view.isUserInteractionEnabled, !UIKitFocusMarks.isExcluding(view) else { return }
             if view is FocusableView || view is UITextField || view is UITextView {
                 if view.canBecomeFirstResponder { stops.append(view) }
                 return

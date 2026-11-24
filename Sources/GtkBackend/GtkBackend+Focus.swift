@@ -57,7 +57,12 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         // 使用原生的 `gboolean`,而非 `toGBoolean()` / `toBool()` 兩個輔助函式:它們是 Gtk 模組的
         // internal,從 GtkBackend 看不到。
         gtk_widget_set_can_focus(pointer, 1)
-        if GtkBackend.grabFocus(in: pointer) { return true }
+        if GtkBackend.grabFocus(in: pointer) {
+            // A ring for a focus the app asked for, as AppKit draws one
+            // (GtkBackend+FocusEffects.swift). 為 app 要求的聚焦畫焦點環，如同 AppKit(GtkBackend+FocusEffects.swift)。
+            Self.showFocusRing(after: pointer)
+            return true
+        }
         // Refused. Before the window is mapped that is GTK, not the widget:
         // the request is applied when the window maps (see `focusWhenMapped`),
         // and `false` is still the honest answer now.

@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P127 runs its own checks and logs its verdict; this file only presses Tab.
+# A second after the window appears the app asks for the focus on the text field
+# inside the .focusDisabled() row (it must be refused), then focuses "before" from
+# code. The Tab below must land on "after", stepping over the disabled row. The app
+# then reads the focus rings off the native views ("after" draws one, "ring off"
+# under .focusEffectDisabled() does not) and ends with the focus on "after", so the
+# capture shows the green panel with its ring.
+#
+# expect: log-contains P127 PASS
+#
+# P127 自己執行檢查並記下結果;這個檔案只按 Tab。視窗出現一秒後,app 要求讓 .focusDisabled() 那一列裡的文字欄位
+# 取得焦點(必須被拒絕),再從程式讓「before」取得焦點。下面的 Tab 必須落在「after」,跨過被停用的那一列。之後 app
+# 從原生 view 讀出焦點環(「after」有;在 .focusEffectDisabled() 之下的「ring off」沒有),最後焦點停在「after」,
+# 所以擷圖會顯示帶焦點環的綠色色塊。
+sleep,,,,,,5000000,let the app ask for the focus twice and wait for Tab,ios
+key,,,,,tab,,Tab from before must land on after,ios
+sleep,,,,,,3500000,let the rings be read and the verdict logged,ios
