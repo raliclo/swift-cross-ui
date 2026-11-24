@@ -64,7 +64,13 @@ script_path="${0:A}"
 # 封存檔與相符的 Static Linux SDK 都已確認存在(HTTP 200)。本腳本只安裝工具鏈；static SDK 是每個使用者各自
 # 安裝的，且必須與工具鏈版本相符，否則 --swift-sdk 建置會失敗；請以該使用者身分用上面那行(帶 swift.org 的 checksum)安裝。
 # 裝好之後移除舊的那個(swift sdk remove ...6.4.1...)：兩個並存時 --swift-sdk x86_64-swift-linux-musl 會同時對到兩者而失敗。
-SWIFT_VERSION="${SWIFT_VERSION:-6.4.2}"
+# 6.4.3 since 2026-11-24: CI moved to 6.4.3 (the user's choice, newest release) and
+# Windows followed, so WSL did too. Same steps as 6.4.2; the static SDK line is now
+#   swift sdk install https://download.swift.org/swift-6.4.3-release/static-sdk/swift-6.4.3-RELEASE/swift-6.4.3-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz --checksum 529e6982974de78793c8348c1459105a772f54b464a51edf074e5b9c4bfe7c73
+# then swift sdk remove swift-6.4.2-RELEASE_static-linux-0.1.0. 6.4.3 still ships clang 21.1.6.
+# 2026-11-24 起為 6.4.3:CI 換到 6.4.3(使用者選的最新 release),Windows 跟進,WSL 也跟著換。步驟與 6.4.2 相同，
+# static SDK 改用上面那行(checksum 取自 swift.org/install/linux),再移除 6.4.2 的那個。6.4.3 附的仍是 clang 21.1.6。
+SWIFT_VERSION="${SWIFT_VERSION:-6.4.3}"
 SWIFT_PLATFORM="${SWIFT_PLATFORM:-ubuntu24.04}"
 SWIFT_PREFIX="${SWIFT_PREFIX:-/usr/local/swift}"
 COMPAT_DIR="/usr/local/lib/swift-compat"
