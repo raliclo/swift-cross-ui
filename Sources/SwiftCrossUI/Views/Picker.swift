@@ -205,13 +205,17 @@ public struct Picker<Value: Equatable>: View {
 
     /// The control for a picker whose options display themselves.
     /// 選項自己就是顯示內容時的控制項。
+    ///
+    /// A built-in style is drawn at `controlSize(_:)`, here and in
+    /// `labelledControl`. / 內建 style 以 `controlSize(_:)` 繪製，此處與 `labelledControl` 皆然。
     private var plainControl: AnyView {
-        AnyView(
+        controlSizedStyleBody(
             environment.pickerStyle.makeView(
                 options: options,
                 selection: value,
                 environment: environment
-            )
+            ),
+            isBuiltin: environment.pickerStyle is any _BuiltinPickerStyle
         )
     }
 
@@ -249,12 +253,13 @@ public struct Picker<Value: Equatable>: View {
             }
         )
 
-        return AnyView(
+        return controlSizedStyleBody(
             environment.pickerStyle.makeView(
                 options: wrapped,
                 selection: wrappedSelection,
                 environment: environment
-            )
+            ),
+            isBuiltin: environment.pickerStyle is any _BuiltinPickerStyle
         )
     }
 }

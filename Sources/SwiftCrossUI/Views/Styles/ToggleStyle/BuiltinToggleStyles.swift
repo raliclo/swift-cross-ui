@@ -103,6 +103,10 @@ public struct _BuiltinToggleImplementation: View {
 
                     ToggleSwitch(isOn: isOn)
                         .accessibilityLabel(label.isEmpty ? nil : label)
+                        // Drawn at `controlSize(_:)`; outside the accessibility label,
+                        // which belongs on the switch itself. / 以 `controlSize(_:)` 繪製；放在輔助使用標籤之外，
+                        // 因為該標籤屬於 switch 本身。
+                        .scaledToControlSize()
                 }
             case .button:
                 if let labelView {
@@ -119,7 +123,7 @@ public struct _BuiltinToggleImplementation: View {
                         }
                     }
                 } else {
-                    ToggleButton(label, isOn: isOn)
+                    ToggleButton(label, isOn: isOn).scaledToControlSize()
                 }
             case .checkbox:
                 HStack {
@@ -129,6 +133,7 @@ public struct _BuiltinToggleImplementation: View {
 
                     Checkbox(isOn: isOn)
                         .accessibilityLabel(label.isEmpty ? nil : label)
+                        .scaledToControlSize()
                 }
         }
     }

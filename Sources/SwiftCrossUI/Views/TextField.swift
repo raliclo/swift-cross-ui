@@ -104,12 +104,17 @@ public struct TextField: View {
         // 正是這一點讓 `TextFieldStyle` 得以開放，而非比照 SwiftUI 那個封閉且空白的 protocol。
         // 在 `commit` 之中解析 style、並讓 `TextField` 維持為 elementary，只能支援 backend 畫得出來的
         // 那四種外形——應用程式自訂的 style 帶著一個 view 要算繪，而一個葉節點 view 沒有地方可以算繪它。
-        AnyView(
+        //
+        // A built-in style is drawn at `controlSize(_:)`; a custom style reads
+        // `controlSize` from the environment and sizes itself.
+        // 內建 style 以 `controlSize(_:)` 繪製；自訂 style 從 environment 讀取 `controlSize` 自行決定尺寸。
+        controlSizedStyleBody(
             textFieldStyle.makeView(
                 placeholder: placeholder,
                 text: $text,
                 environment: environment
-            )
+            ),
+            isBuiltin: textFieldStyle is any _BuiltinTextFieldStyle
         )
     }
 }

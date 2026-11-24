@@ -86,6 +86,8 @@ extension ProgressViewStyle where Self: _BuiltinProgressViewStyle {
 
 /// Draws whichever of the backend's two indicators the style resolved to.
 /// 繪製樣式所解析出的那一個 backend 指示器。
+///
+/// Both are drawn at `controlSize(_:)`. / 兩者都以 `controlSize(_:)` 繪製。
 public struct _BuiltinProgressViewImplementation: View {
     var kind: _ProgressIndicatorKind
     var progress: Double?
@@ -94,9 +96,9 @@ public struct _BuiltinProgressViewImplementation: View {
     public var body: some View {
         switch kind {
             case .spinner:
-                ProgressSpinnerView(isResizable: isSpinnerResizable)
+                ProgressSpinnerView(isResizable: isSpinnerResizable).scaledToControlSize()
             case .bar:
-                ProgressBarView(value: progress)
+                ProgressBarView(value: progress).scaledToControlSize()
         }
     }
 }
