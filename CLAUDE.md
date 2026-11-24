@@ -106,8 +106,8 @@ line number, and bytes are kept as they are (LF and the trailing newline too).
 - Find: `csv2 --headers 0 -contains 'text' -i FILE` (reports line numbers).
 - One line: `-update-where 'old line' 'new line' -i FILE --in-place`. It refuses
   unless exactly one line matches, so it is the safe default.
-- A block: `-update N:1 --value-file F -i FILE --in-place`. F must not end in a
-  newline, or a blank line appears. One `-update` per call with `--value-file`.
+- A block: one value per line, in ONE call: `-update N:1 '…'` for the first line and `-insert N+1 '…'` for each
+  of the rest (every position is the original file's). A value cannot hold a newline -- in line mode a record is one line -- so csv2 0.2.3 refuses a multi-line `--value-file`.
 - Separate calls shift line numbers, so edit bottom-up. Several `-insert N` at the
   same N keep their order.
 - A `.csv`/`.csv2` suffix forces CSV parsing even with `--headers 0`. Action files
@@ -129,8 +129,8 @@ If csv2 cannot express an edit, say so and name the tool used instead.
 
 - 找：`csv2 --headers 0 -contains '文字' -i FILE`(回報行號)。
 - 改一行：`-update-where '舊行' '新行' -i FILE --in-place`。恰好一行相符才會執行，所以是安全的預設。
-- 改一段：`-update N:1 --value-file F -i FILE --in-place`。F 不可以換行結尾，否則會多出一行空行。
-  配合 `--value-file` 時一次只能一個 `-update`。
+- 改一段：一行一個值，在**同一次**呼叫裡完成：第一行用 `-update N:1 '…'`,其餘每行 `-insert N+1 '…'`(位置都指原檔)。
+  一個值不能含換行(逐行模式下一筆紀錄就是一行),所以 csv2 0.2.3 拒絕多行的 `--value-file`。
 - 分開呼叫會讓行號位移，所以由下往上改。同一個 N 的多個 `-insert N` 會保持順序。
 - `.csv`/`.csv2` 副檔名即使加了 `--headers 0` 也會強制以 CSV 解析。動作檔有 `#` 開頭的行,因此自 2026-10-14 起副檔名是 `.actions`,
   逐行模式可以像其他檔案一樣直接讀。真正的 `.csv` 要逐行處理時從 stdin 讀:`csv2 -si --headers 0 -get N:1 < file.csv`。

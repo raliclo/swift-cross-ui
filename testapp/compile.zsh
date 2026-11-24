@@ -767,6 +767,19 @@ if [ "$target_platform" = "host" ] && [ "$(uname -s)" = "Darwin" ] && [ -z "${TO
         echo "==> macOS build with $("$latest_toolchain/usr/bin/swift" --version 2>/dev/null | head -1) ($TOOLCHAINS)"
     fi
 fi
+# iOS refuses a TOOLCHAINS that names a swift.org toolchain. xcodebuild obeys it, and that toolchain
+# has no Apple ld, so resolving the package fails with "Could not resolve package dependencies ...
+# posix_spawn failed: No such file or directory" -- which reads like a network or manifest error. Found
+# 2026-11-25: the TOOLCHAINS a macOS build had exported was still set for the iOS one.
+# iOS 拒絕指向 swift.org toolchain 的 TOOLCHAINS。xcodebuild 會照它用那個 toolchain,而它沒有 Apple 的 ld,
+# 解析套件就以「Could not resolve package dependencies ... posix_spawn failed」失敗，看起來像網路或 manifest 的錯。
+# 2026-11-25 發現：為 macOS 建置 export 的 TOOLCHAINS 在 iOS 建置時仍然設著。
+if [ "$target_platform" = "ios" ] && [ -n "${TOOLCHAINS:-}" ] && [[ "$TOOLCHAINS" != com.apple.dt.toolchain.* ]]; then
+    echo "error: -ios builds with Xcode's Swift, but TOOLCHAINS=$TOOLCHAINS names another toolchain;" >&2
+    echo "       xcodebuild would use it and fail to link the package manifest. Run: unset TOOLCHAINS" >&2
+    echo "錯誤:-ios 用 Xcode 的 Swift 建置，但 TOOLCHAINS=$TOOLCHAINS 指向別的 toolchain;請先 unset TOOLCHAINS。" >&2
+    exit 2
+fi
 package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"
 
