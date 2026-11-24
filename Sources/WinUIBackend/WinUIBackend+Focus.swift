@@ -77,16 +77,36 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
         // refuse too, but this is the answer `@FocusState` reads.
         // 在 `.focusDisabled` 容器之內，在詢問 WinUI 之前就回答否(WinUIBackend+FocusEffects.swift);它的 GettingFocus
         // 取消也會拒絕，但 `@FocusState` 讀的是這個回答。
+        let element: UIElement
         if let target = Self.focusableTarget(in: widget) {
             // A `.focusable(false)` or disabled target is refused, as a
             // disabled control is above. / `.focusable(false)` 或停用的 target 會被拒絕，與上面停用的控制項相同。
             guard target.focusableWanted, !WinUIFocusMarks.excludes(target) else { return false }
-            return (try? target.focus(.programmatic)) ?? false
+            element = target
+        } else {
+            guard let control = Self.focusableControl(in: widget),
+                !WinUIFocusMarks.excludes(control)
+            else { return false }
+            element = control
         }
-        guard let target = Self.focusableControl(in: widget),
-            !WinUIFocusMarks.excludes(target)
-        else { return false }
-        return (try? target.focus(.programmatic)) ?? false
+        // **Not in a window yet: held until it is, and answered yes.** A
+        // request made in the first commit (`@FocusState var field = .email`)
+        // and its next-turn retry both come before WinUI has put the content in
+        // the window: traced 2026-11-24 on P70 `-start email`, both calls saw
+        // `xamlRoot == nil, isLoaded == false` and were refused, so the binding
+        // was written back to none. The request is applied on `Loaded`; if the
+        // element refuses it then, the refusal is reported through the focus
+        // change handler, so the binding does not keep a `true` nobody honoured.
+        // **還不在視窗裡：保留到它進入視窗，並回答「是」。** 第一次 commit 提出的要求(`@FocusState var field = .email`)
+        // 與它下一輪的重試，都發生在 WinUI 把內容放進視窗之前:2026-11-24 追蹤 P70 `-start email`,兩次呼叫都看到
+        // `xamlRoot == nil, isLoaded == false` 而被拒絕，binding 被寫回 none。要求在 `Loaded` 時套用；若那時元素拒絕，
+        // 就透過焦點變化 handler 回報，binding 不會留著一個沒人履行的 `true`。
+        if widget.xamlRoot == nil {
+            WinUIPendingFocus.hold(widget: widget, element: element, backend: self)
+            return true
+        }
+        WinUIPendingFocus.cancel(widget)
+        return (try? element.focus(.programmatic)) ?? false
     }
 
     /// The first control inside `widget` that can actually take the focus.
@@ -177,6 +197,11 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     /// `gotFocus`,判定「ring off could not be focused from code」(2026-11-24 追蹤)。延後執行時，新 view 已經持有焦點，
     /// 這裡什麼也不做。
     public func unfocus(_ widget: Widget) {
+        // A held request is withdrawn, not applied. 被保留的要求直接撤回，不套用。
+        if WinUIPendingFocus.isPending(widget) {
+            WinUIPendingFocus.cancel(widget)
+            return
+        }
         guard isFocused(widget) else { return }
         DispatchQueue.main.async { [weak self, weak widget] in
             guard let self, let widget, self.isFocused(widget),
@@ -206,6 +231,9 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     /// 以該 widget 自己的 `xamlRoot` 為範圍。不帶參數的 `getFocusedElement()` 回答的是「WinUI 認為
     /// 目前是哪一個 root」,而在一個有兩個視窗的 app 中,那不必然是這個 widget 的 root。
     public func isFocused(_ widget: Widget) -> Bool {
+        // A held request (see focus(_:)) counts as focused until it is applied.
+        // 被保留的要求(見 focus(_:))在套用之前算作已聚焦。
+        if WinUIPendingFocus.isPending(widget) { return true }
         guard let root = widget.xamlRoot else { return false }
         guard let focused = try! FocusManager.getFocusedElement(root) as? DependencyObject else {
             return false
@@ -266,6 +294,55 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
             guard let widget else { return }
             internalState?.focusChangeHandlers[ObjectIdentifier(widget)]?(false)
         }
+    }
+}
+
+/// Focus requests made before their widget was in a window, applied on its
+/// `Loaded` (see ``WinUIBackend/focus(_:)``). The element is held strongly:
+/// the wrapper a visual-tree walk returns is not kept alive by anything else.
+/// 在 widget 進入視窗之前提出的聚焦要求，於它的 `Loaded` 套用(見 ``WinUIBackend/focus(_:)``)。元素以強參考持有：
+/// visual tree 走訪傳回的包裝沒有其他東西讓它存活。
+@MainActor
+enum WinUIPendingFocus {
+    private final class Request {
+        weak var widget: FrameworkElement?
+        var element: UIElement
+
+        init(widget: FrameworkElement, element: UIElement) {
+            self.widget = widget
+            self.element = element
+        }
+    }
+
+    private static var requests: [ObjectIdentifier: Request] = [:]
+
+    static func hold(widget: FrameworkElement, element: UIElement, backend: WinUIBackend) {
+        let key = ObjectIdentifier(widget)
+        if let request = requests[key], request.widget === widget {
+            request.element = element
+            return
+        }
+        requests = requests.filter { $0.value.widget != nil }
+        requests[key] = Request(widget: widget, element: element)
+        widget.loaded.addHandler { [weak backend, weak widget] _, _ in
+            guard let widget, let request = requests[ObjectIdentifier(widget)],
+                request.widget === widget
+            else { return }
+            requests[ObjectIdentifier(widget)] = nil
+            let took = (try? request.element.focus(.programmatic)) ?? false
+            if !took {
+                backend?.internalState.focusChangeHandlers[ObjectIdentifier(widget)]?(false)
+            }
+        }
+    }
+
+    static func isPending(_ widget: FrameworkElement) -> Bool {
+        guard let request = requests[ObjectIdentifier(widget)] else { return false }
+        return request.widget === widget
+    }
+
+    static func cancel(_ widget: FrameworkElement) {
+        if isPending(widget) { requests[ObjectIdentifier(widget)] = nil }
     }
 }
 // swiftlint:enable force_try
