@@ -5,6 +5,7 @@ import Mutex
 @_spi(WinRTInternal) import UWP
 @_spi(WinRTInternal) import WinAppSDK
 import WinSDK
+import WinUIInterop
 @_spi(WinRTInternal) import WinUI
 @_spi(WinRTInternal) @preconcurrency import WindowsFoundation
 
@@ -53,14 +54,6 @@ private final class WinUIShadowState: @unchecked Sendable {
 }
 
 private let visualEffectShadows = Mutex<[UInt: WinUIShadowState]>([:])
-private let win2DActivation = Mutex<Win2DActivationState>(Win2DActivationState())
-
-private struct Win2DActivationState {
-    var attempted = false
-    var activated = false
-    var handle: HANDLE?
-    var cookie: ULONG_PTR = 0
-}
 
 private struct WinUIVisualEffectChild: @unchecked Sendable {
     nonisolated(unsafe) let widget: WinUI.FrameworkElement
@@ -138,8 +131,7 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
             return
         }
 
-        guard ensureWin2DActivationContext(),
-              let child = visualEffectChildren.withLock({ $0[key] })?.widget
+        guard let child = visualEffectChildren.withLock({ $0[key] })?.widget
         else {
             return
         }
@@ -159,7 +151,7 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
             guard let sourceBrush = try compositor.createSurfaceBrush(sourceSurface) else {
                 throw WinUIVisualEffectError.emptyEffectGraph
             }
-            let graph = try Win2DEffectGraph(effect: effect)
+            let graph = try D2DEffectGraph(effect: effect)
             guard let effectFactory = try compositor.createEffectFactory(graph.rootEffect),
                   let effectBrush = try effectFactory.createBrush()
             else {
@@ -248,7 +240,11 @@ private extension VisualEffect {
     }
 }
 
-private struct Win2DEffectGraph {
+private typealias D2DSource = UnsafeMutablePointer<
+    __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
+>?
+
+private struct D2DEffectGraph {
     let rootEffect: UWP.AnyIGraphicsEffect
     let effectObjects: [Any]
 
@@ -259,16 +255,15 @@ private struct Win2DEffectGraph {
         else {
             throw WinUIVisualEffectError.emptyEffectGraph
         }
-        var currentSource: UnsafeMutablePointer<
-            __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
-        >?
+        var currentSource: D2DSource
         var currentRoot: UWP.AnyIGraphicsEffect?
         var objects: [Any] = [sourceParameterWrapper]
         try sourceParameterWrapper.toABI { sourceParameterABI in
             currentSource = sourceParameterABI
         }
 
-        func append(_ object: WindowsFoundation.IInspectable) throws {
+        func append(_ node: D2DEffect) throws {
+            let object = node.object
             let graphicsEffect: __ABI_Windows_Graphics_Effects.IGraphicsEffect =
                 try object.QueryInterface()
             currentRoot = __IMPL_Windows_Graphics_Effects.IGraphicsEffectBridge.from(
@@ -283,168 +278,120 @@ private struct Win2DEffectGraph {
             objects.append(object)
         }
 
+        // A Direct2D colour matrix, row-major 5x4 (the fifth row is added), in
+        // premultiplied alpha mode: the effect un-premultiplies, applies the matrix and
+        // premultiplies again, so alpha is kept and edges are not darkened.
+        // Direct2D 的色彩矩陣，逐列的 5x4(第五列為加上的常數),採預乘 alpha 模式：效果先解除預乘、套用矩陣、
+        // 再預乘回去，因此 alpha 不變，邊緣也不會變暗。
+        func colorMatrix(_ matrix: [Float], clamp: Bool, from source: D2DSource) throws -> D2DSource {
+            let node = try D2DEffect(SCUI_EFFECT_COLOR_MATRIX, sources: [source])
+            try node.set(SCUI_COLORMATRIX_MATRIX, .singles(matrix))
+            try node.set(SCUI_COLORMATRIX_ALPHA_MODE, .uint(SCUI_COLORMATRIX_ALPHA_PREMULTIPLIED))
+            try node.set(SCUI_COLORMATRIX_CLAMP, .boolean(clamp))
+            try append(node)
+            return currentSource
+        }
+
         if effect.blurRadius != 0 {
-            let blur = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect",
-                iid: .gaussianBlurEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGaussianBlurEffect.self
-            )
-            try CHECKED(blur.pointer.pointee.lpVtbl.pointee.put_BlurAmount(
-                blur.pointer,
-                FLOAT(effect.blurRadius)
-            ))
-            try CHECKED(blur.pointer.pointee.lpVtbl.pointee.put_Source(blur.pointer, currentSource))
-            try append(blur.object)
+            let blur = try D2DEffect(SCUI_EFFECT_GAUSSIAN_BLUR, sources: [currentSource])
+            try blur.set(SCUI_BLUR_DEVIATION, .single(Float(effect.blurRadius)))
+            try blur.set(SCUI_BLUR_OPTIMIZATION, .uint(SCUI_BLUR_OPTIMIZATION_BALANCED))
+            try blur.set(SCUI_BLUR_BORDER_MODE, .uint(SCUI_BLUR_BORDER_SOFT))
+            try append(blur)
         }
 
         if effect.saturation != 1 {
-            // A colour matrix, not SaturationEffect, because that effect cannot
-            // express oversaturation: it wraps D2D's saturation, whose property
-            // range stops at 1, so P39's "saturation 2.5" cell was rejected with
-            // 0x80070057 E_INVALIDARG while "saturation 0" worked. Measured
-            // 2026-09-02: 7 effects attempted, 6 applied, that one failed.
+            // A colour matrix, not Direct2D's saturation effect, because that effect
+            // cannot express oversaturation: its property range stops at 1, so P39's
+            // "saturation 2.5" cell was rejected with 0x80070057 E_INVALIDARG while
+            // "saturation 0" worked. Measured 2026-09-02: 7 effects attempted, 6
+            // applied, that one failed.
             //
-            // The matrix also removes a semantic dependency. SwiftCrossUI means
-            // 1 by "unchanged", and whether Win2D's scale agreed was never
-            // tested -- P39 exercises 0 and 2.5 but nothing between, so a wrong
-            // midpoint would have gone unseen. Written out, the meaning is
-            // whatever these coefficients say and matches SwiftCrossUI by
-            // construction at every value.
+            // The matrix also removes a semantic dependency. SwiftCrossUI means 1 by
+            // "unchanged"; written out, the meaning is whatever these coefficients
+            // say and matches SwiftCrossUI by construction at every value.
             //
-            // 使用色彩矩陣而非 SaturationEffect，因為後者無法表達過飽和：它包的是 D2D 的
-            // saturation，其屬性值域止於 1，因此 P39 的「saturation 2.5」一格被以
-            // 0x80070057 E_INVALIDARG 拒絕，而「saturation 0」則正常。2026-09-02 實測：
-            // 嘗試 7 個效果，6 個成功，失敗的就是那一個。
+            // 使用色彩矩陣而非 Direct2D 的 saturation 效果，因為後者無法表達過飽和：其屬性值域止於 1,
+            // 因此 P39 的「saturation 2.5」一格被以 0x80070057 E_INVALIDARG 拒絕，而「saturation 0」
+            // 則正常。2026-09-02 實測：嘗試 7 個效果，6 個成功，失敗的就是那一個。
             //
-            // 改用矩陣也移除了一項語意依賴。SwiftCrossUI 以 1 表示「不變」，而 Win2D 的
-            // 刻度是否與之一致從未被測過——P39 只驗了 0 與 2.5，中間沒有任何一點，因此
-            // 中段若對應錯誤也不會被看見。明寫出來之後，其語意就是這些係數所述，並在每一個
-            // 值上都依構造與 SwiftCrossUI 一致。
+            // 改用矩陣也移除了一項語意依賴。SwiftCrossUI 以 1 表示「不變」;明寫出來之後，其語意就是這些
+            // 係數所述，並在每一個值上都依構造與 SwiftCrossUI 一致。
             //
-            // out = s * in + (1 - s) * luma(in), with Rec. 709 weights.
-            // out = s * in + (1 - s) * luma(in)，採用 Rec. 709 權重。
-            let s = FLOAT(effect.saturation)
+            // out = s * in + (1 - s) * luma(in), with Rec. 709 weights. Oversaturation
+            // drives channels past 1, so the output is clamped.
+            // out = s * in + (1 - s) * luma(in)，採用 Rec. 709 權重。過飽和會使色版超過 1,因此輸出要箝制。
+            let s = Float(effect.saturation)
             let inverse = 1 - s
-            let lumaR = FLOAT(0.2126)
-            let lumaG = FLOAT(0.7152)
-            let lumaB = FLOAT(0.0722)
-            let saturation = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
-                iid: .colorMatrixEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+            let r = inverse * 0.2126
+            let g = inverse * 0.7152
+            let b = inverse * 0.0722
+            _ = try colorMatrix(
+                [
+                    s + r, r, r, 0,
+                    g, s + g, g, 0,
+                    b, b, s + b, 0,
+                    0, 0, 0, 1,
+                    0, 0, 0, 0,
+                ],
+                clamp: true,
+                from: currentSource
             )
-            try CHECKED(saturation.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
-                saturation.pointer,
-                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                    M11: s + inverse * lumaR, M12: inverse * lumaR,
-                    M13: inverse * lumaR, M14: 0,
-
-                    M21: inverse * lumaG, M22: s + inverse * lumaG,
-                    M23: inverse * lumaG, M24: 0,
-
-                    M31: inverse * lumaB, M32: inverse * lumaB,
-                    M33: s + inverse * lumaB, M34: 0,
-
-                    M41: 0, M42: 0, M43: 0, M44: 1,
-                    M51: 0, M52: 0, M53: 0, M54: 0
-                )
-            ))
-            // Oversaturation drives channels past 1, and without clamping those
-            // wrap rather than saturate, which shows as the wrong hue in the
-            // brightest areas instead of as a flat highlight.
-            // 過飽和會使色版超過 1，未經箝制時它們會繞回而非飽和，於是在最亮的區域呈現為
-            // 錯誤的色相，而不是一片平坦的高光。
-            try CHECKED(saturation.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
-                saturation.pointer,
-                1
-            ))
-            try CHECKED(saturation.pointer.pointee.lpVtbl.pointee.put_Source(
-                saturation.pointer,
-                currentSource
-            ))
-            try append(saturation.object)
         }
 
         if effect.brightness != 0 {
-            let colorMatrix = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
-                iid: .colorMatrixEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+            let amount = Float(min(max(effect.brightness, -0.99), 0.99))
+            _ = try colorMatrix(
+                [
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1,
+                    amount, amount, amount, 0,
+                ],
+                clamp: true,
+                from: currentSource
             )
-            let amount = FLOAT(min(max(effect.brightness, -0.99), 0.99))
-            try CHECKED(colorMatrix.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
-                colorMatrix.pointer,
-                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                    M11: 1, M12: 0, M13: 0, M14: 0,
-                    M21: 0, M22: 1, M23: 0, M24: 0,
-                    M31: 0, M32: 0, M33: 1, M34: 0,
-                    M41: 0, M42: 0, M43: 0, M44: 1,
-                    M51: amount, M52: amount, M53: amount, M54: 0
-                )
-            ))
-            try CHECKED(colorMatrix.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
-                colorMatrix.pointer,
-                1
-            ))
-            try CHECKED(colorMatrix.pointer.pointee.lpVtbl.pointee.put_Source(
-                colorMatrix.pointer,
-                currentSource
-            ))
-            try append(colorMatrix.object)
         }
 
         if effect.contrast != 1 {
-            // SwiftUI's contrast is linear about mid grey, c' = (c - 0.5) * k + 0.5,
-            // done here as a colour matrix like brightness above. Not Win2D's
-            // ContrastEffect: Direct2D's contrast is its own curve, and with
-            // `k - 1` P39's contrast 0.3 cell came out nearly the control: (11,
-            // 160, 215) -> (16, 147, 200), where the formula gives (93, 137,
-            // 154) and GtkBackend draws it washed out.
+            // SwiftUI's contrast is linear about mid grey, c' = (c - 0.5) * k + 0.5, done
+            // here as a colour matrix like brightness above. Not Direct2D's contrast
+            // effect: it is its own curve, and with `k - 1` P39's contrast 0.3 cell came
+            // out nearly the control: (11, 160, 215) -> (16, 147, 200), where the formula
+            // gives (93, 137, 154) and GtkBackend draws it washed out.
             // SwiftUI 的 contrast 以中灰為中心呈線性,c' = (c - 0.5) * k + 0.5,此處與上面的 brightness 一樣用
-            // 顏色矩陣實作。不用 Win2D 的 ContrastEffect:Direct2D 的 contrast 是它自己的曲線，傳入 `k - 1` 時
-            // P39 的 contrast 0.3 那格幾乎等於對照格:(11, 160, 215) -> (16, 147, 200),公式給的是 (93, 137, 154),
-            // GtkBackend 畫出來也是褪色的。
-            let k = FLOAT(max(effect.contrast, 0))
-            let offset = FLOAT(0.5) * (1 - k)
-            let contrast = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
-                iid: .colorMatrixEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+            // 顏色矩陣實作。不用 Direct2D 的 contrast 效果：它是自己的曲線，傳入 `k - 1` 時 P39 的 contrast 0.3
+            // 那格幾乎等於對照格:(11, 160, 215) -> (16, 147, 200),公式給的是 (93, 137, 154),GtkBackend 畫出來
+            // 也是褪色的。
+            let k = Float(max(effect.contrast, 0))
+            let offset = 0.5 * (1 - k)
+            _ = try colorMatrix(
+                [
+                    k, 0, 0, 0,
+                    0, k, 0, 0,
+                    0, 0, k, 0,
+                    0, 0, 0, 1,
+                    offset, offset, offset, 0,
+                ],
+                clamp: true,
+                from: currentSource
             )
-            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
-                contrast.pointer,
-                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                    M11: k, M12: 0, M13: 0, M14: 0,
-                    M21: 0, M22: k, M23: 0, M24: 0,
-                    M31: 0, M32: 0, M33: k, M34: 0,
-                    M41: 0, M42: 0, M43: 0, M44: 1,
-                    M51: offset, M52: offset, M53: offset, M54: 0
-                )
-            ))
-            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
-                contrast.pointer,
-                1
-            ))
-            try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_Source(
-                contrast.pointer,
-                currentSource
-            ))
-            try append(contrast.object)
         }
 
         if effect.grayscale != 0 {
-            // AppKit's grey, the reference for P39, which GtkBackend,
-            // UIKitBackend and AndroidBackend draw too: CIColorMonochrome tinted
-            // with 0.5 grey, in linear light. Not Win2D's GrayscaleEffect: it is
-            // the sRGB-luma grey (the same as saturation 0, lighter than
-            // AppKit's) and has no amount, so grayscale(0.5) drew fully grey.
+            // AppKit's grey, the reference for P39, which GtkBackend, UIKitBackend and
+            // AndroidBackend draw too: CIColorMonochrome tinted with 0.5 grey, in
+            // linear light. Not Direct2D's grayscale effect: it is the sRGB-luma grey
+            // (the same as saturation 0, lighter than AppKit's) and has no amount, so
+            // grayscale(0.5) drew fully grey.
             //
             //   decode   sRGB to linear, (v + 0.055) / 1.055 then the power 2.4
             //   L        linear luminance with CIColorMonochrome's weights
             //   overlay  2cL below L = 0.5, 1 - 2(1 - L)(1 - c) above, with the
             //            tint c = 0.5 grey in linear light. That is
             //            2c * L + (1 - 2c) * max(0, 2L - 1): a weighted sum
-            //            whose weights add to 1, so ArithmeticComposite, which
+            //            whose weights add to 1, so the arithmetic composite, which
             //            works on premultiplied colour, keeps alpha as it was.
             //   amount   below 1, the grey and the decoded original are mixed
             //            in linear light, as Core Image does
@@ -454,65 +401,30 @@ private struct Win2DEffectGraph {
             // as GtkBackend's curves do: at most 3 of 255 levels, below 15.
             //
             // AppKit 的灰，是 P39 的基準,GtkBackend、UIKitBackend 與 AndroidBackend 也都這樣畫：以 0.5 灰上色的
-            // CIColorMonochrome,在線性光中進行。不用 Win2D 的 GrayscaleEffect:那是 sRGB 亮度的灰(與 saturation 0
-            // 相同，比 AppKit 的亮),而且沒有強度，所以 grayscale(0.5) 畫成全灰。
+            // CIColorMonochrome,在線性光中進行。不用 Direct2D 的 grayscale 效果：那是 sRGB 亮度的灰(與
+            // saturation 0 相同，比 AppKit 的亮),而且沒有強度，所以 grayscale(0.5) 畫成全灰。
             //
             //   decode   sRGB 轉線性:(v + 0.055) / 1.055，再取 2.4 次方
             //   L        線性亮度，權重同 CIColorMonochrome
             //   overlay  L < 0.5 時為 2cL，以上為 1 - 2(1 - L)(1 - c)，上色值 c 為線性光中的 0.5 灰。
             //            也就是 2c * L + (1 - 2c) * max(0, 2L - 1):權重和為 1 的加權和，因此在預乘
-            //            色彩上運算的 ArithmeticComposite 會讓 alpha 維持原值。
+            //            色彩上運算的 arithmetic composite 會讓 alpha 維持原值。
             //   amount   小於 1 時，灰圖與解碼後的原圖在線性光中混合，與 Core Image 相同
             //   encode   1.055 v^(1/2.4) - 0.055
             //
             // decode 與 encode 都略去 sRGB 在黑色附近那一小段線性區，與 GtkBackend 的曲線相同：
             // 255 階中最多 3 階，且只在 15 以下。
-            typealias Source = UnsafeMutablePointer<
-                __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
-            >?
-            let tint = FLOAT(0.214_041) // ((0.5 + 0.055) / 1.055)^2.4
-
-            func colorMatrix(
-                _ matrix: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4,
-                clamp: Bool,
-                from source: Source
-            ) throws -> Source {
-                let effect = try Win2DGpuEffect(
-                    "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
-                    iid: .colorMatrixEffect,
-                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
-                )
-                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
-                    effect.pointer, matrix
-                ))
-                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_ClampOutput(
-                    effect.pointer, clamp ? 1 : 0
-                ))
-                try CHECKED(effect.pointer.pointee.lpVtbl.pointee.put_Source(
-                    effect.pointer, source
-                ))
-                try append(effect.object)
-                return currentSource
-            }
+            let tint = Float(0.214_041) // ((0.5 + 0.055) / 1.055)^2.4
 
             func weightedSum(
-                _ first: Source, _ firstAmount: FLOAT,
-                _ second: Source, _ secondAmount: FLOAT
-            ) throws -> Source {
-                let effect = try Win2DGpuEffect(
-                    "Microsoft.Graphics.Canvas.Effects.ArithmeticCompositeEffect",
-                    iid: .arithmeticCompositeEffect,
-                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIArithmeticCompositeEffect.self
-                )
-                let vtable = effect.pointer.pointee.lpVtbl.pointee
-                try CHECKED(vtable.put_MultiplyAmount(effect.pointer, 0))
-                try CHECKED(vtable.put_Source1Amount(effect.pointer, firstAmount))
-                try CHECKED(vtable.put_Source2Amount(effect.pointer, secondAmount))
-                try CHECKED(vtable.put_Offset(effect.pointer, 0))
-                try CHECKED(vtable.put_ClampOutput(effect.pointer, 1))
-                try CHECKED(vtable.put_Source1(effect.pointer, first))
-                try CHECKED(vtable.put_Source2(effect.pointer, second))
-                try append(effect.object)
+                _ first: D2DSource, _ firstAmount: Float,
+                _ second: D2DSource, _ secondAmount: Float
+            ) throws -> D2DSource {
+                let node = try D2DEffect(SCUI_EFFECT_ARITHMETIC_COMPOSITE, sources: [first, second])
+                // multiply, source 1, source 2, offset / 相乘、來源 1、來源 2、偏移
+                try node.set(SCUI_ARITHMETIC_COEFFICIENTS, .singles([0, firstAmount, secondAmount, 0]))
+                try node.set(SCUI_ARITHMETIC_CLAMP, .boolean(true))
+                try append(node)
                 return currentSource
             }
 
@@ -524,7 +436,7 @@ private struct Win2DEffectGraph {
             // 灰色上游一切的全新副本：來源與它之前的調整。Composition 只接受**樹**——讓兩個分支共用同一個
             // 解碼節點時失敗,"Non-tree shaped effect graph"(2026-10-19)——因此每個分支各有一份，以同一段
             // 程式、去掉灰階與色相建成。
-            func freshPrefix() throws -> Source {
+            func freshPrefix() throws -> D2DSource {
                 var prefix = effect
                 prefix.grayscale = 0
                 prefix.hueRotation = .zero
@@ -537,11 +449,11 @@ private struct Win2DEffectGraph {
                         throw WinUIVisualEffectError.emptyEffectGraph
                     }
                     objects.append(wrapper)
-                    var pointer: Source = nil
+                    var pointer: D2DSource = nil
                     try wrapper.toABI { pointer = $0 }
                     return pointer
                 }
-                let graph = try Win2DEffectGraph(effect: prefix)
+                let graph = try D2DEffectGraph(effect: prefix)
                 objects.append(contentsOf: graph.effectObjects)
                 guard let last = graph.effectObjects.last as? WindowsFoundation.IInspectable else {
                     throw WinUIVisualEffectError.emptyEffectGraph
@@ -552,51 +464,64 @@ private struct Win2DEffectGraph {
                 return pointer
             }
 
-            func decode(from source: Source) throws -> Source {
-                let shift = try Win2DGpuEffect(
-                    "Microsoft.Graphics.Canvas.Effects.LinearTransferEffect",
-                    iid: .linearTransferEffect,
-                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CILinearTransferEffect.self
-                )
-                let shiftTable = shift.pointer.pointee.lpVtbl.pointee
-                let slope = FLOAT(1 / 1.055)
-                let intercept = FLOAT(0.055 / 1.055)
-                try CHECKED(shiftTable.put_RedSlope(shift.pointer, slope))
-                try CHECKED(shiftTable.put_GreenSlope(shift.pointer, slope))
-                try CHECKED(shiftTable.put_BlueSlope(shift.pointer, slope))
-                try CHECKED(shiftTable.put_RedOffset(shift.pointer, intercept))
-                try CHECKED(shiftTable.put_GreenOffset(shift.pointer, intercept))
-                try CHECKED(shiftTable.put_BlueOffset(shift.pointer, intercept))
-                try CHECKED(shiftTable.put_AlphaDisable(shift.pointer, 1))
-                try CHECKED(shiftTable.put_Source(shift.pointer, source))
-                try append(shift.object)
-
-                let power = try Win2DGpuEffect(
-                    "Microsoft.Graphics.Canvas.Effects.GammaTransferEffect",
-                    iid: .gammaTransferEffect,
-                    as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGammaTransferEffect.self
-                )
-                let powerTable = power.pointer.pointee.lpVtbl.pointee
-                try CHECKED(powerTable.put_RedExponent(power.pointer, 2.4))
-                try CHECKED(powerTable.put_GreenExponent(power.pointer, 2.4))
-                try CHECKED(powerTable.put_BlueExponent(power.pointer, 2.4))
-                try CHECKED(powerTable.put_AlphaDisable(power.pointer, 1))
-                try CHECKED(powerTable.put_Source(power.pointer, currentSource))
-                try append(power.object)
+            // Red, green and blue through `curve`; alpha left alone. A transfer
+            // effect's properties come in one group per channel, red first.
+            // 紅綠藍經過 `curve`;alpha 不變。transfer 效果的屬性每個通道一組，紅色在前。
+            func linearTransfer(slope: Float, intercept: Float, from source: D2DSource) throws -> D2DSource {
+                let node = try D2DEffect(SCUI_EFFECT_LINEAR_TRANSFER, sources: [source])
+                for base in [SCUI_LINEAR_RED_INTERCEPT, SCUI_LINEAR_GREEN_INTERCEPT, SCUI_LINEAR_BLUE_INTERCEPT] {
+                    try node.set(base, .single(intercept))
+                    try node.set(base + 1, .single(slope))
+                    try node.set(base + 2, .boolean(false))
+                }
+                try node.set(SCUI_LINEAR_ALPHA_INTERCEPT, .single(0))
+                try node.set(SCUI_LINEAR_ALPHA_INTERCEPT + 1, .single(1))
+                try node.set(SCUI_LINEAR_ALPHA_DISABLE, .boolean(true))
+                try node.set(SCUI_LINEAR_CLAMP, .boolean(false))
+                try append(node)
                 return currentSource
+            }
+
+            func gammaTransfer(
+                amplitude: Float, exponent: Float, offset: Float, clamp: Bool,
+                from source: D2DSource
+            ) throws -> D2DSource {
+                let node = try D2DEffect(SCUI_EFFECT_GAMMA_TRANSFER, sources: [source])
+                for base in [SCUI_GAMMA_RED_AMPLITUDE, SCUI_GAMMA_GREEN_AMPLITUDE, SCUI_GAMMA_BLUE_AMPLITUDE] {
+                    try node.set(base, .single(amplitude))
+                    try node.set(base + 1, .single(exponent))
+                    try node.set(base + 2, .single(offset))
+                    try node.set(base + 3, .boolean(false))
+                }
+                try node.set(SCUI_GAMMA_ALPHA_AMPLITUDE, .single(1))
+                try node.set(SCUI_GAMMA_ALPHA_AMPLITUDE + 1, .single(1))
+                try node.set(SCUI_GAMMA_ALPHA_AMPLITUDE + 2, .single(0))
+                try node.set(SCUI_GAMMA_ALPHA_DISABLE, .boolean(true))
+                try node.set(SCUI_GAMMA_CLAMP, .boolean(clamp))
+                try append(node)
+                return currentSource
+            }
+
+            func decode(from source: D2DSource) throws -> D2DSource {
+                let shifted = try linearTransfer(
+                    slope: Float(1 / 1.055), intercept: Float(0.055 / 1.055), from: source
+                )
+                return try gammaTransfer(
+                    amplitude: 1, exponent: 2.4, offset: 0, clamp: false, from: shifted
+                )
             }
 
             // Linear luminance in every channel, CIColorMonochrome's weights.
             // 每個通道都是線性亮度，權重同 CIColorMonochrome。
-            func luminance(from source: Source) throws -> Source {
+            func luminance(from source: D2DSource) throws -> D2DSource {
                 try colorMatrix(
-                    __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                        M11: 0.2125, M12: 0.2125, M13: 0.2125, M14: 0,
-                        M21: 0.7154, M22: 0.7154, M23: 0.7154, M24: 0,
-                        M31: 0.0721, M32: 0.0721, M33: 0.0721, M34: 0,
-                        M41: 0, M42: 0, M43: 0, M44: 1,
-                        M51: 0, M52: 0, M53: 0, M54: 0
-                    ),
+                    [
+                        0.2125, 0.2125, 0.2125, 0,
+                        0.7154, 0.7154, 0.7154, 0,
+                        0.0721, 0.0721, 0.0721, 0,
+                        0, 0, 0, 1,
+                        0, 0, 0, 0,
+                    ],
                     clamp: false,
                     from: source
                 )
@@ -606,87 +531,50 @@ private struct Win2DEffectGraph {
             // L,以及由第二份 L 算出的 max(0, 2L - 1)。
             let lower = try luminance(from: decode(from: currentSource))
             let upper = try colorMatrix(
-                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                    M11: 2, M12: 0, M13: 0, M14: 0,
-                    M21: 0, M22: 2, M23: 0, M24: 0,
-                    M31: 0, M32: 0, M33: 2, M34: 0,
-                    M41: 0, M42: 0, M43: 0, M44: 1,
-                    M51: -1, M52: -1, M53: -1, M54: 0
-                ),
+                [
+                    2, 0, 0, 0,
+                    0, 2, 0, 0,
+                    0, 0, 2, 0,
+                    0, 0, 0, 1,
+                    -1, -1, -1, 0,
+                ],
                 clamp: true,
                 from: luminance(from: decode(from: freshPrefix()))
             )
             var grey = try weightedSum(lower, 2 * tint, upper, 1 - 2 * tint)
 
-            let amount = FLOAT(min(max(effect.grayscale, 0), 1))
+            let amount = Float(min(max(effect.grayscale, 0), 1))
             if amount < 1 {
                 grey = try weightedSum(grey, amount, decode(from: freshPrefix()), 1 - amount)
             }
 
-            // encode
-            let encode = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.GammaTransferEffect",
-                iid: .gammaTransferEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGammaTransferEffect.self
+            _ = try gammaTransfer(
+                amplitude: 1.055, exponent: Float(1 / 2.4), offset: -0.055, clamp: true, from: grey
             )
-            let encodeTable = encode.pointer.pointee.lpVtbl.pointee
-            let inverseGamma = FLOAT(1 / 2.4)
-            try CHECKED(encodeTable.put_RedAmplitude(encode.pointer, 1.055))
-            try CHECKED(encodeTable.put_GreenAmplitude(encode.pointer, 1.055))
-            try CHECKED(encodeTable.put_BlueAmplitude(encode.pointer, 1.055))
-            try CHECKED(encodeTable.put_RedExponent(encode.pointer, inverseGamma))
-            try CHECKED(encodeTable.put_GreenExponent(encode.pointer, inverseGamma))
-            try CHECKED(encodeTable.put_BlueExponent(encode.pointer, inverseGamma))
-            try CHECKED(encodeTable.put_RedOffset(encode.pointer, -0.055))
-            try CHECKED(encodeTable.put_GreenOffset(encode.pointer, -0.055))
-            try CHECKED(encodeTable.put_BlueOffset(encode.pointer, -0.055))
-            try CHECKED(encodeTable.put_AlphaDisable(encode.pointer, 1))
-            try CHECKED(encodeTable.put_ClampOutput(encode.pointer, 1))
-            try CHECKED(encodeTable.put_Source(encode.pointer, grey))
-            try append(encode.object)
         }
 
         if effect.hueRotation != .zero {
-            let hueRotation = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.HueRotationEffect",
-                iid: .hueRotationEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIHueRotationEffect.self
-            )
-            try CHECKED(hueRotation.pointer.pointee.lpVtbl.pointee.put_Angle(
-                hueRotation.pointer,
-                FLOAT(effect.hueRotation.radians)
-            ))
-            try CHECKED(hueRotation.pointer.pointee.lpVtbl.pointee.put_Source(
-                hueRotation.pointer,
-                currentSource
-            ))
-            try append(hueRotation.object)
+            // Direct2D's angle is in degrees. / Direct2D 的角度單位是度。
+            let hue = try D2DEffect(SCUI_EFFECT_HUE_ROTATION, sources: [currentSource])
+            try hue.set(SCUI_HUE_ANGLE, .single(Float(effect.hueRotation.degrees)))
+            try append(hue)
         }
 
         // colorInvert() after every other colour adjustment, as on AppKit: 1 minus each
-        // of red, green and blue. ColorMatrixEffect un-premultiplies before the matrix
-        // (its default alpha mode), so alpha is kept and edges are not darkened.
-        // colorInvert() 在其他所有色彩調整之後(同 AppKit):紅綠藍各自變為 1 減原值。ColorMatrixEffect 在套用
-        // 矩陣前會先解除預乘(預設的 alpha 模式),因此 alpha 不變，邊緣也不會變暗。
+        // of red, green and blue.
+        // colorInvert() 在其他所有色彩調整之後(同 AppKit):紅綠藍各自變為 1 減原值。
         if effect.colorInvert {
-            let invert = try Win2DGpuEffect(
-                "Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect",
-                iid: .colorMatrixEffect,
-                as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIColorMatrixEffect.self
+            _ = try colorMatrix(
+                [
+                    -1, 0, 0, 0,
+                    0, -1, 0, 0,
+                    0, 0, -1, 0,
+                    0, 0, 0, 1,
+                    1, 1, 1, 0,
+                ],
+                clamp: true,
+                from: currentSource
             )
-            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_ColorMatrix(
-                invert.pointer,
-                __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CMatrix5x4(
-                    M11: -1, M12: 0, M13: 0, M14: 0,
-                    M21: 0, M22: -1, M23: 0, M24: 0,
-                    M31: 0, M32: 0, M33: -1, M34: 0,
-                    M41: 0, M42: 0, M43: 0, M44: 1,
-                    M51: 1, M52: 1, M53: 1, M54: 0
-                )
-            ))
-            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_ClampOutput(invert.pointer, 1))
-            try CHECKED(invert.pointer.pointee.lpVtbl.pointee.put_Source(invert.pointer, currentSource))
-            try append(invert.object)
         }
 
         guard let currentRoot else {
@@ -697,94 +585,104 @@ private struct Win2DEffectGraph {
     }
 }
 
-private struct Win2DGpuEffect<Interface> {
+/// One Direct2D built-in effect as an IGraphicsEffect (WinUIInterop's
+/// graphics_effect.cpp), so Composition compiles the graph with no Win2D.
+/// 一個 Direct2D 內建效果，以 IGraphicsEffect 的形式提供(WinUIInterop 的 graphics_effect.cpp),
+/// 讓 Composition 不經 Win2D 編譯效果圖。
+private struct D2DEffect {
     let object: WindowsFoundation.IInspectable
-    let pointer: UnsafeMutablePointer<Interface>
+    private let node: UnsafeMutableRawPointer
 
-    init(_ className: String, iid: WindowsFoundation.IID, as interface: Interface.Type) throws {
-        object = try RoActivateInstance(HString(className))
-
-        var iid = iid
-        var raw: UnsafeMutableRawPointer?
-        try object.QueryInterface(&iid, &raw)
-        guard let raw else {
-            throw WinUIVisualEffectError.missingWin2DInterface(className)
+    init(_ kind: Int, sources: [D2DSource]) throws {
+        guard let node = scui_effect_create(Int32(kind)) else {
+            throw WinUIVisualEffectError.effectNotCreated(kind)
         }
-        pointer = raw.bindMemory(to: Interface.self, capacity: 1)
+        let unknown = node.assumingMemoryBound(to: C_IUnknown.self)
+        // ComPtr takes a reference of its own; the one scui_effect_create returned is
+        // then given back, so `object` owns the node.
+        // ComPtr 自己取得一個參考；scui_effect_create 回傳的那個隨即歸還，因此由 `object` 擁有節點。
+        object = WindowsFoundation.IInspectable(ComPtr(unknown))
+        _ = unknown.pointee.lpVtbl.pointee.Release(unknown)
+        self.node = node
+        for (index, source) in sources.enumerated() {
+            guard let source, scui_effect_set_source(node, UInt32(index), source) == 1 else {
+                throw WinUIVisualEffectError.emptyEffectGraph
+            }
+        }
+    }
+
+    func set(_ index: Int, _ value: D2DPropertyValue) throws {
+        let boxed = try value.make()
+        guard scui_effect_set_property(node, UInt32(index), boxed.get()) == 1 else {
+            throw WinUIVisualEffectError.propertyNotSet(index)
+        }
     }
 }
 
-private extension WindowsFoundation.IID {
-    static let colorMatrixEffect = WindowsFoundation.IID(
-        Data1: 0xe6ae54c4,
-        Data2: 0x883d,
-        Data3: 0x588e,
-        Data4: (0xb4, 0x51, 0xe9, 0xeb, 0xe3, 0x83, 0x04, 0x37)
-    )
-    static let contrastEffect = WindowsFoundation.IID(
-        Data1: 0xda8a2b9f,
-        Data2: 0x594e,
-        Data3: 0x560a,
-        Data4: (0x9e, 0xaa, 0x1f, 0x91, 0x24, 0x08, 0xfe, 0x79)
-    )
-    static let gaussianBlurEffect = WindowsFoundation.IID(
-        Data1: 0xa82ec394,
-        Data2: 0x6734,
-        Data3: 0x5830,
-        Data4: (0x91, 0x23, 0x2c, 0x82, 0xb2, 0x7d, 0xd3, 0xc0)
-    )
-    static let grayscaleEffect = WindowsFoundation.IID(
-        Data1: 0x78e13b83,
-        Data2: 0x0638,
-        Data3: 0x53f8,
-        Data4: (0xb0, 0xb3, 0x5b, 0x0b, 0x32, 0x0a, 0x9a, 0xd2)
-    )
-    // From Win2D 1.4.0's include/x64/Microsoft.Graphics.Canvas.h (MIDL_INTERFACE),
-    // where the grayscale IID above also stands.
-    // 取自 Win2D 1.4.0 的 include/x64/Microsoft.Graphics.Canvas.h(MIDL_INTERFACE),上面的灰階 IID 也在那裡。
-    static let linearTransferEffect = WindowsFoundation.IID(
-        Data1: 0x43d27ad0,
-        Data2: 0x8937,
-        Data3: 0x5fdb,
-        Data4: (0x87, 0x6a, 0x4e, 0x91, 0xcb, 0x47, 0x54, 0x0c)
-    )
-    static let gammaTransferEffect = WindowsFoundation.IID(
-        Data1: 0xb4576b6b,
-        Data2: 0x6c3e,
-        Data3: 0x534a,
-        Data4: (0x85, 0x76, 0xd4, 0x6d, 0xf4, 0xfc, 0xe9, 0x3d)
-    )
-    static let arithmeticCompositeEffect = WindowsFoundation.IID(
-        Data1: 0xbeeb682b,
-        Data2: 0xd64c,
-        Data3: 0x5c8b,
-        Data4: (0xa1, 0xfb, 0x33, 0x21, 0x62, 0xed, 0x09, 0x9c)
-    )
-    static let hueRotationEffect = WindowsFoundation.IID(
-        Data1: 0xc172ebf2,
-        Data2: 0xe35f,
-        Data3: 0x58ae,
-        Data4: (0xad, 0x2c, 0x56, 0x1e, 0xce, 0xaf, 0x26, 0x94)
-    )
-    /// Unused since saturation moved to a colour matrix on 2026-09-02, and kept
-    /// deliberately: SaturationEffect is still the right effect for a
-    /// 0-to-1 saturation, and re-deriving a Win2D IID by hand is the expensive
-    /// part of adding one back. What it cannot do is oversaturate, which is the
-    /// only reason it is not in use.
-    /// 自 2026-09-02 飽和度改用色彩矩陣後即無使用者，此處刻意保留：對 0 至 1 的飽和度而言
-    /// SaturationEffect 仍是正確的效果，而重新手工推導一個 Win2D IID 正是要加回它時最花成本
-    /// 的部分。它做不到的只有過飽和，而那也是它目前未被使用的唯一原因。
-    static let saturationEffect = WindowsFoundation.IID(
-        Data1: 0xf85a5ed7,
-        Data2: 0x7212,
-        Data3: 0x57a6,
-        Data4: (0xb3, 0x57, 0x61, 0x03, 0x89, 0x61, 0xc5, 0x8d)
-    )
+/// A Windows.Foundation.PropertyValue for an effect property, of the type Direct2D's
+/// property expects: Single, a Single array (a matrix or a vector), UInt32 (an enum)
+/// or Boolean.
+/// 效果屬性用的 Windows.Foundation.PropertyValue,型別即 Direct2D 屬性所預期的:Single、Single 陣列
+/// (矩陣或向量)、UInt32(列舉)或 Boolean。
+private enum D2DPropertyValue {
+    case single(Float)
+    case singles([Float])
+    case uint(Int)
+    case boolean(Bool)
+
+    nonisolated(unsafe) private static let statics: UnsafeMutablePointer<
+        __x_ABI_CWindows_CFoundation_CIPropertyValueStatics
+    >? = {
+        guard let factory: WindowsFoundation.IInspectable =
+            try? RoGetActivationFactory(HString("Windows.Foundation.PropertyValue"))
+        else {
+            return nil
+        }
+        // IPropertyValueStatics / IPropertyValueStatics 的 IID
+        var iid = WindowsFoundation.IID(
+            Data1: 0x629B_DBC8,
+            Data2: 0xD932,
+            Data3: 0x4FF4,
+            Data4: (0x96, 0xB9, 0x8D, 0x96, 0xC5, 0xC1, 0xE8, 0x58)
+        )
+        var raw: UnsafeMutableRawPointer?
+        try? factory.QueryInterface(&iid, &raw)
+        return raw?.bindMemory(to: __x_ABI_CWindows_CFoundation_CIPropertyValueStatics.self, capacity: 1)
+    }()
+
+    func make() throws -> ComPtr<C_IInspectable> {
+        guard let statics = Self.statics else {
+            throw WinUIVisualEffectError.emptyEffectGraph
+        }
+        let table = statics.pointee.lpVtbl.pointee
+        let (value) = try ComPtrs.initialize { (out: inout UnsafeMutablePointer<C_IInspectable>?) in
+            switch self {
+            case .single(let number):
+                try CHECKED(table.CreateSingle(statics, number, &out))
+            case .singles(let numbers):
+                var numbers = numbers
+                try numbers.withUnsafeMutableBufferPointer { buffer in
+                    try CHECKED(table.CreateSingleArray(
+                        statics, UInt32(buffer.count), buffer.baseAddress, &out
+                    ))
+                }
+            case .uint(let number):
+                try CHECKED(table.CreateUInt32(statics, UInt32(number), &out))
+            case .boolean(let flag):
+                try CHECKED(table.CreateBoolean(statics, flag ? 1 : 0, &out))
+            }
+        }
+        guard let value else {
+            throw WinUIVisualEffectError.emptyEffectGraph
+        }
+        return value
+    }
 }
 
 private enum WinUIVisualEffectError: Swift.Error {
     case emptyEffectGraph
-    case missingWin2DInterface(String)
+    case effectNotCreated(Int)
+    case propertyNotSet(Int)
 }
 
 private enum WinUIElementCompositionPreview {
@@ -845,7 +743,7 @@ private extension WinUI.FrameworkElement {
 /// two are not the same thing. The scaffolding drew stand-in visuals -- a
 /// magenta block, the unfiltered source -- to answer "does anything reach the
 /// screen at all", and that question is settled. This writes down failures, and
-/// without it a Win2D effect that cannot be built renders as an ordinary view,
+/// without it an effect graph that cannot be built renders as an ordinary view,
 /// which is indistinguishable from the effect being unsupported.
 ///
 /// 當 `SCUI_DEBUG_VISUAL_EFFECTS=1` 時，於執行檔旁的 `winui-visual-effects-debug.log`
@@ -853,7 +751,7 @@ private extension WinUI.FrameworkElement {
 ///
 /// 本檔其餘的除錯鷹架被移除時保留了它，因為兩者並非同一回事。那些鷹架會畫出替身畫面——洋紅色
 /// 方塊、未經處理的來源——用以回答「究竟有沒有任何東西送上螢幕」，而那個問題已經有答案了。
-/// 這一個記錄的是失敗；少了它，一個建不起來的 Win2D 效果會呈現為一般畫面，與「該效果未受支援」
+/// 這一個記錄的是失敗；少了它，一個建不起來的效果圖會呈現為一般畫面，與「該效果未受支援」
 /// 無從分辨。
 private func winUIVisualEffectDebug(_ message: @autoclosure () -> String) {
     if ProcessInfo.processInfo.environment["SCUI_DEBUG_VISUAL_EFFECTS"] == "1" {
@@ -882,113 +780,6 @@ private func winUIVisualEffectKey(_ widget: WinUI.FrameworkElement) -> UInt {
         widget._getABI()
     return UInt(bitPattern: pointer)
 }
-
-private func ensureWin2DActivationContext() -> Bool {
-    win2DActivation.withLock { state in
-        if state.attempted {
-            return state.activated
-        }
-        state.attempted = true
-
-        guard let executable = CommandLine.arguments.first else {
-            return false
-        }
-
-        let directory = URL(fileURLWithPath: executable).deletingLastPathComponent()
-        let dllURL = directory.appendingPathComponent("Microsoft.Graphics.Canvas.dll")
-        guard FileManager.default.fileExists(atPath: dllURL.path) else {
-            // Said once (this runs once), because every filter effect is skipped from here
-            // on: CI built without Win2D for weeks and nothing reported it (2026-11-24).
-            // 只說一次(此處只執行一次),因為之後每個濾鏡效果都會被略過:CI 曾在沒有 Win2D 的情況下建置數週而沒有任何回報(2026-11-24)。
-            logger.warning("Microsoft.Graphics.Canvas.dll (Win2D) is not beside the executable; blur, saturation, grayscale, hueRotation and colorInvert are not drawn")
-            return false
-        }
-
-        let manifestURL = directory.appendingPathComponent("SwiftCrossUI.Win2D.manifest")
-        if (try? String(contentsOf: manifestURL, encoding: .utf8)) != win2DManifest {
-            do {
-                try win2DManifest.write(to: manifestURL, atomically: true, encoding: .utf8)
-            } catch {
-                return false
-            }
-        }
-
-        do {
-            try manifestURL.path.withCString(encodedAs: UTF16.self) { manifestPath in
-                var context = ACTCTXW(
-                    cbSize: ULONG(MemoryLayout<ACTCTXW>.size),
-                    dwFlags: 0,
-                    lpSource: manifestPath,
-                    wProcessorArchitecture: 0,
-                    wLangId: 0,
-                    lpAssemblyDirectory: nil,
-                    lpResourceName: nil,
-                    lpApplicationName: nil,
-                    hModule: nil
-                )
-                let handle = CreateActCtxW(&context)
-                guard handle != INVALID_HANDLE_VALUE else {
-                    throw WinUIVisualEffectError.emptyEffectGraph
-                }
-                var cookie: ULONG_PTR = 0
-                guard ActivateActCtx(handle, &cookie) else {
-                    throw WinUIVisualEffectError.emptyEffectGraph
-                }
-                state.handle = handle
-                state.cookie = cookie
-                state.activated = true
-            }
-        } catch {
-            state.activated = false
-        }
-
-        return state.activated
-    }
-}
-
-private let win2DManifest = """
-<?xml version="1.0" encoding="utf-8"?>
-<assembly
-  manifestVersion="1.0"
-  xmlns="urn:schemas-microsoft-com:asm.v1"
-  xmlns:winrt="urn:schemas-microsoft-com:winrt.v1">
-  <assemblyIdentity
-    version="1.0.0.0"
-    name="SwiftCrossUI.WinUI.VisualEffects"/>
-  <file name="Microsoft.Graphics.Canvas.dll">
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.ArithmeticCompositeEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.BrightnessEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.ContrastEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.GammaTransferEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.GrayscaleEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.HueRotationEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.LinearTransferEffect"
-      threadingModel="both"/>
-    <winrt:activatableClass
-      name="Microsoft.Graphics.Canvas.Effects.SaturationEffect"
-      threadingModel="both"/>
-  </file>
-</assembly>
-"""
 
 extension WinUIBackend {
     /// shadow(color:radius:x:y:) for one effect container; `nil` makes the shadow
