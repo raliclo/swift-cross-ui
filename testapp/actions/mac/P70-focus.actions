@@ -18,10 +18,14 @@ action,x,y,origin,button,key,micros,note,platform
 # 整件事的重點是:此處**沒有任何一行**去按「focus name」或「focus email」。底下每一次移動都是點在
 # 某個欄位上,而那正是「一個只由 app 寫入的 `@FocusState`」會弄錯的情況:游標會動,而那個屬性不會。
 # 那個計數器就是讓這件事現形的東西。
+# Re-measured 2026-11-24 from p70-macos-final-20261124-125138.png (560x672, the 560x640 window of 37cafb49 with its title bar): name y 263, email y 297, ask both for focus (85, 425). The 560-high coordinates above clicked empty space since then.
+# 2026-11-24 依 p70-macos-final-20261124-125138.png 重新量測(560x672,即 37cafb49 的 560x640 視窗加標題列):name y 263、email y 297、ask both for focus (85, 425)。上面以 560 高量的座標自那之後點在空白處。
+# After this file: focused field: name, focus changes heard: 3 (AppKit focuses name when the window opens), refusal check: refused (correct).
+# 跑完之後:focused field: name、focus changes heard: 3(視窗開啟時 AppKit 讓 name 取得焦點)、refusal check: refused (correct)。
 sleep,,,,,,600000,let the window settle and take its own first responder,macos
-click,280,257,frame,left,,,click the email field -- the app did not ask for this,macos
+click,280,297,frame,left,,,click the email field -- the app did not ask for this,macos
 sleep,,,,,,500000,,macos
-click,280,225,frame,left,,,and back to name,macos
+click,280,263,frame,left,,,and back to name,macos
 sleep,,,,,,500000,,macos
-click,85,375,frame,left,,,ask both for focus -- the disabled button must be refused,macos
+click,85,425,frame,left,,,ask both for focus -- the disabled button must be refused,macos
 sleep,,,,,,700000,let the refusal be reported,macos

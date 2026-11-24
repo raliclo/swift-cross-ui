@@ -36,9 +36,43 @@ import android.view.ViewTreeObserver
  * **用一個 id 加一個 native method,而不是存一個 closure。** 一個 JNI native method 不帶任何被捕捉的
  * 狀態,因此 Swift 那一側保有 handler,而這個類別帶著鍵——與 `CustomListAdapter` 的懶載入列是同一種
  * 安排。`SwiftAction` 不夠用:它不帶引數,而那個 id 正是必須被帶過去的東西。
+ *
+ * **On the window's observer only while the view is attached.** The listener used to be added to
+ * `getViewTreeObserver()` once and never removed, so the window kept every listener for every view
+ * that had ever been `.focused`, each reporting an id whose Swift watch held its view. The view now
+ * holds this as an attach-state listener and moves it on and off the observer; nothing but the
+ * view holds the view, and when Swift says the id is gone the listener takes itself off.
+ *
+ * **只在 view 附加期間掛在視窗的 observer 上。** 這個 listener 原本一次加到 `getViewTreeObserver()` 上、
+ * 從不移除，於是視窗留著每一個曾經 `.focused` 的 view 的 listener,各自回報一個「其 Swift watch 持有該 view」
+ * 的 id。現在由 view 以 attach-state listener 持有它，並把它掛上、拿下 observer;除了 view 自己沒有東西持有
+ * view,而 Swift 說 id 已不存在時,listener 會把自己拿掉。
  */
 class SwiftFocusChangeListener(private val id: Int) :
-    ViewTreeObserver.OnGlobalFocusChangeListener {
+    ViewTreeObserver.OnGlobalFocusChangeListener, View.OnAttachStateChangeListener {
+
+    private var observer: ViewTreeObserver? = null
+
+    fun install(view: View) {
+        view.addOnAttachStateChangeListener(this)
+        if (view.isAttachedToWindow) attach(view)
+    }
+
+    override fun onViewAttachedToWindow(v: View) = attach(v)
+
+    override fun onViewDetachedFromWindow(v: View) = detach()
+
+    private fun attach(view: View) {
+        detach()
+        val treeObserver = view.viewTreeObserver
+        treeObserver.addOnGlobalFocusChangeListener(this)
+        observer = treeObserver
+    }
+
+    private fun detach() {
+        observer?.let { if (it.isAlive) it.removeOnGlobalFocusChangeListener(this) }
+        observer = null
+    }
 
     override fun onGlobalFocusChanged(oldFocus: View?, newFocus: View?) {
         // No view is passed on. Swift re-asks its own widget `hasFocus()` instead, because the
@@ -47,8 +81,8 @@ class SwiftFocusChangeListener(private val id: Int) :
         // 不傳遞任何 view。Swift 改為重新去問它自己的 widget `hasFocus()`,因為問題是「被觀察的那個
         // widget、或它裡面的任何東西,有沒有焦點」——而 `oldFocus` 與 `newFocus` 都無法在不於此處
         // 走訪整棵樹的情況下回答它。
-        swiftFocusChanged(id)
+        if (!swiftFocusChanged(id)) detach()
     }
 
-    private external fun swiftFocusChanged(id: Int)
+    private external fun swiftFocusChanged(id: Int): Boolean
 }

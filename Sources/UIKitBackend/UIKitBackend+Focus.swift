@@ -73,10 +73,19 @@ extension UIKitBackend: BackendFeatures.FocusableViews {
         // notification.
         // 換掉 handler、保留 observer——讓這件事成為必要的那次量測見 AppKit 那個檔案:一個被重建的
         // observer 會從當下的值開始,而當那一幀跑贏通知時,它什麼都不會回報。
-        if let existing = Self.focusObservers[ObjectIdentifier(widget.view)] {
+        //
+        // Only while it is the same view: an address can be reused once a view
+        // is freed, and the dead view's observer -- its `view` already `nil` --
+        // would take the new handler and never report (see the AppKit file).
+        // Dead observers are dropped when a new one is made.
+        // 只限同一個 view:view 被釋放後位址可能被重用，而已死 view 的 observer(它的 `view` 已是 `nil`)會接下
+        // 新的 handler、卻永遠不回報(見 AppKit 那個檔案)。建立新的 observer 時清掉已死的。
+        let key = ObjectIdentifier(widget.view)
+        if let existing = Self.focusObservers[key], existing.view === widget.view {
             existing.handler = handler
         } else {
-            Self.focusObservers[ObjectIdentifier(widget.view)] = FocusObserver(
+            Self.focusObservers = Self.focusObservers.filter { $0.value.view != nil }
+            Self.focusObservers[key] = FocusObserver(
                 view: widget.view,
                 handler: handler,
                 backend: self
@@ -93,7 +102,7 @@ extension UIKitBackend: BackendFeatures.FocusableViews {
     /// 完整的推理見 AppKit 那個檔案。
     @MainActor
     final class FocusObserver {
-        private weak var view: UIView?
+        private(set) weak var view: UIView?
         var handler: (Bool) -> Void
         private let backend: UIKitBackend
         private var lastValue: Bool

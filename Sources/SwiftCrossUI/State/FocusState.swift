@@ -200,23 +200,23 @@ struct FocusModifier<Content: View>: TypeSafeView {
         children.child0.widget.into()
     }
 
-    /// Installs the handler and reconciles the binding against the backend.
+    /// Lays the child out, and nothing else.
     ///
-    /// In `computeLayout` for the reason ``AccessibilityModifier`` records: this
-    /// is the pass that runs for every view on every frame, and a passthrough
-    /// modifier's later passes are not guaranteed to.
+    /// **The focus work moved to ``commit``.** It ran here once, for the reason
+    /// ``AccessibilityModifier`` gives for its own work, but layout is the pass
+    /// that runs several times a frame -- once for every proposal a parent
+    /// tries -- and the one whose result can be thrown away. Moving the keyboard
+    /// is a side effect on the platform; commit runs once per frame, after the
+    /// layout it belongs to has been chosen. The accessibility reason does not
+    /// carry over: that modifier overrides a property its child writes during
+    /// layout, and a child's layout does not move the focus.
     ///
-    /// **Only a DISAGREEMENT is acted on, and only in one direction per frame.**
-    /// The binding says what the app wants and `isFocused` says what the
-    /// platform has; writing both every frame would have the modifier fight the
-    /// user, stealing the focus back a frame after they clicked away.
+    /// 只排版子元件，別的什麼都不做。
     ///
-    /// 在 `computeLayout` 裡,理由與 ``AccessibilityModifier`` 所記載的相同:這是「每一幀對每一個
-    /// view 都會跑」的那個階段,而直通型 modifier 的後段階段並不保證會執行。
-    ///
-    /// **只有在兩者「不一致」時才動作,而且每一幀只往一個方向動。** binding 說的是 app 想要什麼,
-    /// `isFocused` 說的是平台目前是什麼;每一幀都兩邊都寫,會讓這個 modifier 與使用者對打——在他們
-    /// 點開之後的下一幀又把焦點搶回來。
+    /// **焦點的工作移到了 ``commit``。** 它曾經在這裡執行，理由與 ``AccessibilityModifier`` 為自己的工作所給的
+    /// 相同；但 layout 是一幀之內會跑好幾次的階段——父容器嘗試的每個提案各一次——也是結果可能被丟棄的那個
+    /// 階段。移動鍵盤是對平台的副作用，而 commit 每幀只跑一次，在它所屬的版面被選定之後。無障礙的理由在此
+    /// 不成立：那個 modifier 覆寫的是子元件在 layout 期間寫入的屬性，而子元件的 layout 不會移動焦點。
     func computeLayout<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
         children: Children,
@@ -224,11 +224,34 @@ struct FocusModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        let result = children.child0.computeLayout(
+        children.child0.computeLayout(
             with: body.view0,
             proposedSize: proposedSize,
             environment: environment
         )
+    }
+
+    /// Commits the child, installs the handler and reconciles the binding
+    /// against the backend.
+    ///
+    /// **Only a DISAGREEMENT is acted on, and only in one direction per frame.**
+    /// The binding says what the app wants and `isFocused` says what the
+    /// platform has; writing both every frame would have the modifier fight the
+    /// user, stealing the focus back a frame after they clicked away.
+    ///
+    /// 提交子元件、安裝 handler,並讓 binding 與 backend 對齊。
+    ///
+    /// **只有在兩者「不一致」時才動作,而且每一幀只往一個方向動。** binding 說的是 app 想要什麼,
+    /// `isFocused` 說的是平台目前是什麼;每一幀都兩邊都寫,會讓這個 modifier 與使用者對打——在他們
+    /// 點開之後的下一幀又把焦點搶回來。
+    func commit<Backend: BaseAppBackend>(
+        _ widget: Backend.Widget,
+        children: Children,
+        layout: ViewLayoutResult,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) {
+        _ = children.child0.commit()
 
         // A conformance check rather than `@CastBackend`, which expands to
         // `fatalError`: taking an app down because the keyboard could not be
@@ -237,7 +260,7 @@ struct FocusModifier<Content: View>: TypeSafeView {
         // app 拖垮」會遠比「鍵盤沒有移動」更糟。
         guard let focusable = backend as? any BackendFeatures.FocusableViews else {
             logger.warnOnce("\(type(of: backend)) does not support focus")
-            return result
+            return
         }
 
         func apply<B: BackendFeatures.FocusableViews>(_ backend: B) {
@@ -260,6 +283,13 @@ struct FocusModifier<Content: View>: TypeSafeView {
             let previous = FocusRequests.exchange(widget as AnyObject, wanted: wanted)
             let has = backend.isFocused(widget)
             guard wanted != has else { return }
+            // A request waiting for its second attempt (below) is that attempt's
+            // to settle. A frame in between -- showing a window resizes it, and
+            // the resize updates -- would otherwise read "asked for, recorded, not
+            // focused" as the platform moving the focus away and write `false`.
+            // 正在等第二次嘗試(見下方)的要求，由那次嘗試來定案。否則中間的一幀——顯示視窗會調整它的大小，
+            // 而調整大小會觸發更新——會把「要求過、記下了、沒有焦點」讀成平台把焦點移走，並寫入 `false`。
+            if wanted, FocusRequests.isRetryPending(widget as AnyObject) { return }
             // The app asked for nothing new, so the PLATFORM moved the focus -- a
             // press, Tab -- and the handler has not been heard yet. Follow it.
             // Acting on this disagreement took the focus back from the view the
@@ -273,61 +303,91 @@ struct FocusModifier<Content: View>: TypeSafeView {
                 binding.wrappedValue = has
                 return
             }
-            if wanted {
-                // A refusal is left in the binding rather than papered over. On
-                // Android a view in touch mode legitimately declines, and a
-                // property that said `true` while the keyboard was elsewhere
-                // would be the exact lie this type exists to prevent.
-                // 被拒絕時就把結果留在 binding 裡,而不是粉飾過去。在 Android 上,touch mode 中的
-                // view 會正當地拒絕;而一個「鍵盤在別處、它卻說 `true`」的屬性,正是這個型別所要
-                // 防止的那種謊言。
+            guard wanted else {
+                backend.unfocus(widget)
+                return
+            }
+            _ = backend.focus(widget)
+            // **Asked twice: now, and once more on the next turn of the main
+            // loop, and only the second answer is written back.** The first
+            // request is often made before the view can hold the focus at all.
+            // `@FocusState var field = .email` is asked for in the first commit,
+            // before the window is on screen, and showing the window then moved
+            // the focus to AppKit's own first key view: P70 launched with
+            // `-start email` opened with the caret in NAME and `focused field:
+            // name` (2026-11-24). GtkBackend refuses a grab until the window is
+            // mapped and then focuses its own first widget (GtkBackend+Focus.swift
+            // holds the request until then). By the next turn the window has been shown, and a refusal
+            // then is a refusal: on Android a view in touch mode legitimately
+            // declines, and a property that said `true` while the keyboard was
+            // elsewhere would be the exact lie this type exists to prevent.
+            // **要求兩次：現在一次，主迴圈的下一輪再一次，而只有第二次的答案會被寫回。** 第一次要求常常發生在
+            // view 根本還無法持有焦點的時候。`@FocusState var field = .email` 在第一次 commit 時就被要求，那時視窗
+            // 還不在螢幕上，而顯示視窗接著把焦點移到 AppKit 自己的第一個 key view:以 `-start email` 啟動的 P70,
+            // 開啟時游標在 NAME、畫面寫著 `focused field: name`(2026-11-24)。GtkBackend 在視窗 map 之前拒絕 grab,之後又聚焦
+            // 自己挑的第一個 widget(GtkBackend+Focus.swift 會把要求留到那時)。到了下一輪視窗已經顯示，那時的拒絕
+            // 就是真正的拒絕：在 Android 上,touch mode 中的 view 會正當地拒絕；而一個「鍵盤在別處、它卻說 `true`」
+            // 的屬性，正是這個型別所要防止的那種謊言。
+            let key = widget as AnyObject
+            FocusRequests.setRetryPending(key, true)
+            backend.runInMainThread {
+                FocusRequests.setRetryPending(key, false)
+                guard binding.wrappedValue, !backend.isFocused(widget) else { return }
                 if !backend.focus(widget) {
                     binding.wrappedValue = false
                 }
-            } else {
-                backend.unfocus(widget)
             }
         }
         apply(focusable)
-        return result
-    }
-
-    func commit<Backend: BaseAppBackend>(
-        _ widget: Backend.Widget,
-        children: Children,
-        layout: ViewLayoutResult,
-        environment: EnvironmentValues,
-        backend: Backend
-    ) {
-        _ = children.child0.commit()
     }
 }
 
 /// What each `.focused` view last asked for, so that "the app changed its mind"
-/// can be told from "the platform moved the focus".
-/// 每個 `.focused` view 上一次要求的是什麼，用來分辨「app 改變了主意」與「平台移動了焦點」。
+/// can be told from "the platform moved the focus", and whether its request is
+/// waiting for the second attempt ``FocusModifier`` makes.
+/// 每個 `.focused` view 上一次要求的是什麼，用來分辨「app 改變了主意」與「平台移動了焦點」;以及它的要求
+/// 是否正在等 ``FocusModifier`` 的第二次嘗試。
 @MainActor
 enum FocusRequests {
     private struct Entry {
         weak var widget: AnyObject?
         var wanted: Bool
+        var retryPending = false
     }
 
     private static var entries: [ObjectIdentifier: Entry] = [:]
 
     /// Records `wanted` for `widget` and returns what was recorded before, or
     /// `nil` the first time.
-    /// 記下 `widget` 的 `wanted`,並回傳先前記的值;第一次回傳 `nil`。
+    /// 記下 `widget` 的 `wanted`,並回傳先前記的值；第一次回傳 `nil`。
     static func exchange(_ widget: AnyObject, wanted: Bool) -> Bool? {
         let key = ObjectIdentifier(widget)
         var previous: Bool?
+        var pending = false
         if let entry = entries[key], entry.widget === widget {
             previous = entry.wanted
+            pending = entry.retryPending
         }
-        entries[key] = Entry(widget: widget, wanted: wanted)
+        entries[key] = Entry(widget: widget, wanted: wanted, retryPending: pending)
         if entries.count > 256 {
             entries = entries.filter { $0.value.widget != nil }
         }
         return previous
+    }
+
+    /// Whether a second attempt to focus `widget` is still to run.
+    /// 對 `widget` 的第二次聚焦嘗試是否還沒執行。
+    static func isRetryPending(_ widget: AnyObject) -> Bool {
+        guard let entry = entries[ObjectIdentifier(widget)], entry.widget === widget else {
+            return false
+        }
+        return entry.retryPending
+    }
+
+    static func setRetryPending(_ widget: AnyObject, _ pending: Bool) {
+        let key = ObjectIdentifier(widget)
+        guard var entry = entries[key], entry.widget === widget else { return }
+        entry.retryPending = pending
+        entries[key] = entry
     }
 }

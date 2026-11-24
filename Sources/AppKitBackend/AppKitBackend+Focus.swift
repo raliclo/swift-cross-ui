@@ -45,7 +45,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
         // `makeFirstResponder`,等於要求 AppKit 去聚焦一層包裝,而回來的東西不保證是 `false`。
         // 在此拒絕,才讓本協定所承諾的那個答案——「它有沒有接受焦點」——出自那個真正決定它的問題。
         guard target.acceptsFirstResponder, let window = widget.window else { return false }
-        defer { Self.recheckFocusObservers() }
+        Self.watchFirstResponder(of: window)
         return window.makeFirstResponder(target)
     }
 
@@ -65,7 +65,6 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
     public func unfocus(_ widget: Widget) {
         guard isFocused(widget), let window = widget.window else { return }
         window.makeFirstResponder(window)
-        Self.recheckFocusObservers()
     }
 
     /// Whether the first responder is this widget or something inside it.
@@ -98,7 +97,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
     /// it. The window is the one object that sees every move.
     ///
     /// Keyed by the widget so re-installing replaces rather than accumulates --
-    /// this runs from `computeLayout`, so it is called on every frame.
+    /// this runs from the modifier's commit, so it is called on every frame.
     ///
     /// 回報焦點的抵達與離開,無論原因為何。
     ///
@@ -107,7 +106,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
     /// 放棄了焦點;而 Tab、點到別處、VoiceOver,全都會在不問它的情況下移動焦點。視窗是唯一看得見
     /// 每一次移動的那個物件。
     ///
-    /// 以 widget 為鍵,好讓重新安裝是**取代**而不是累加——這段是從 `computeLayout` 執行的,因此每一幀
+    /// 以 widget 為鍵,好讓重新安裝是**取代**而不是累加——這段是從 modifier 的 commit 執行的,因此每一幀
     /// 都會被呼叫一次。
     public func setFocusChangeHandler(
         ofWidget widget: Widget,
@@ -117,7 +116,7 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
         // replaced.
         //
         // **Rebuilding it here swallowed changes, and the swallow was silent.**
-        // This runs from `computeLayout`, so it runs on every frame -- including
+        // This runs on every frame (from `computeLayout` then; from commit now) -- including
         // the frame a focus change itself triggers. A fresh observer starts with
         // `lastValue` set to the CURRENT state, so if the new frame beats the
         // notification, the observer compares the new value against the new
@@ -127,108 +126,154 @@ extension AppKitBackend: BackendFeatures.FocusableViews {
         //
         // 既有的 observer 保留它的 `lastValue`;只有 handler 被替換。
         //
-        // **在此重建它會吞掉改變,而且吞得無聲無息。** 這段是從 `computeLayout` 執行的,因此每一幀都會
-        // 跑——包括「一次焦點改變本身所觸發的那一幀」。一個全新的 observer 會把 `lastValue` 設為
+        // **在此重建它會吞掉改變,而且吞得無聲無息。** 這段每一幀都會執行(當時從 `computeLayout`,現在從 commit)
+        // ——包括「一次焦點改變本身所觸發的那一幀」。一個全新的 observer 會把 `lastValue` 設為
         // **當下**的狀態;因此若那個新的一幀跑在通知之前,該 observer 拿新值與新值相比,什麼都不會
         // 回報。2026-09-16 以 P70 量到:從 name 欄位點開之後,畫面上仍寫著 `focused field: name`,
         // 而焦點環明明已經不見了。
-        if let existing = Self.focusObservers[ObjectIdentifier(widget)] {
+        //
+        // **And only while it is the same widget.** The key is an address, and
+        // an observer outlives nothing it watches: its widget is weak, so when a
+        // widget was freed and a new one took its address, the new widget found
+        // the dead one's observer, swapped its handler in, and was never
+        // reported -- `check()` stops at a `nil` widget. A mismatch builds a new
+        // observer and drops every dead one, the way WinUIBackend+Focus.swift
+        // already did.
+        // **而且只限同一個 widget。** 鍵是一個位址，而 observer 的 widget 是弱參照：一個 widget 被釋放、
+        // 新的 widget 佔用它的位址時，新 widget 找到舊的 observer、換上自己的 handler,卻永遠不會被回報
+        // ——`check()` 遇到 `nil` widget 就停。不相符時建一個新的 observer 並清掉所有已死的，與
+        // WinUIBackend+Focus.swift 原本的做法相同。
+        let key = ObjectIdentifier(widget)
+        if let existing = Self.focusObservers[key], existing.widget === widget {
             existing.handler = handler
         } else {
-            Self.focusObservers[ObjectIdentifier(widget)] = FocusObserver(
+            Self.focusObservers = Self.focusObservers.filter { $0.value.widget != nil }
+            Self.focusObservers[key] = FocusObserver(
                 widget: widget,
                 handler: handler,
                 backend: self
             )
+        }
+        if let window = widget.window {
+            Self.watchFirstResponder(of: window)
         }
     }
 
     /// One observer per watched widget.
     ///
     /// Static because the backend is a value and the observation has to outlive
-    /// any one call; keyed by the widget's identity so the table does not grow
-    /// with frames.
+    /// any one call. Keyed by the widget's identity so the table does not grow
+    /// with frames, and an entry counts only while its widget is the one asking:
+    /// see ``setFocusChangeHandler(ofWidget:to:)``.
     /// 每一個被觀察的 widget 一個 observer。
     ///
-    /// 使用 static,因為 backend 是一個值,而這個觀察必須活得比任何單一次呼叫更久;以 widget 的身分
-    /// 為鍵,好讓這張表不會隨著幀數成長。
+    /// 使用 static,因為 backend 是一個值，而這個觀察必須活得比任何單一次呼叫更久。以 widget 的身分為鍵，
+    /// 好讓這張表不會隨著幀數成長；而一個項目只有在它的 widget 就是發問者時才算數：見
+    /// ``setFocusChangeHandler(ofWidget:to:)``。
     @MainActor static var focusObservers: [ObjectIdentifier: FocusObserver] = [:]
 
-    /// Has every observer look again, on the next turn of the main queue.
+    /// A window whose `firstResponder` is observed, held weakly with its observation.
+    /// 一個 `firstResponder` 正被觀察的視窗(弱參照),連同它的觀察。
+    @MainActor
+    final class FirstResponderWatch {
+        weak var window: NSWindow?
+        let observation: NSKeyValueObservation
+
+        init(window: NSWindow, observation: NSKeyValueObservation) {
+            self.window = window
+            self.observation = observation
+        }
+    }
+
+    @MainActor static var firstResponderWatches: [ObjectIdentifier: FirstResponderWatch] = [:]
+    @MainActor static var focusCheckScheduled = false
+
+    /// Observes this window's first responder, once per window.
     ///
-    /// The observers look when a window updates, which follows an event. A focus
-    /// moved from code -- `focus(_:)`, `unfocus(_:)` -- is followed by none, so the
-    /// observer kept its old answer; when the user then pressed the same view the
-    /// answer was already "focused" and the press was never reported (P91,
-    /// 2026-10-13). Deferred, because these are called during layout.
-    /// 讓每個 observer 在主佇列的下一輪再看一次。observer 在視窗更新時查看，而那跟在事件之後。由程式移動的焦點
-    /// (`focus(_:)`、`unfocus(_:)`)後面沒有事件，observer 就留著舊答案;使用者接著按同一個 view 時答案早已是
-    /// 「已聚焦」,那次按壓就從未被回報。延後執行，因為這些是在 layout 期間被呼叫的。
-    static func recheckFocusObservers() {
+    /// **Key-value observation of `firstResponder`, the event AppKit itself
+    /// emits when the focus moves**, for any reason: a click, Tab, VoiceOver,
+    /// `makeFirstResponder` from this file. Upstream swift-cross-ui observes the
+    /// same key path (786899cf, a1a105aa); this tree keeps its own per-widget
+    /// observers and has the window tell them to look.
+    ///
+    /// A text field hands the first responder on to the window's field editor
+    /// straight after taking it, so one click is two changes, the first naming
+    /// the field and the second an `NSTextView`. ``isFocused(_:)`` maps the
+    /// field editor back to its field, and the look is deferred to the next turn
+    /// of the main queue and coalesced, so the observers see where the focus
+    /// came to rest rather than the step in between -- and so a change made
+    /// during a commit is not reported into the middle of that commit.
+    ///
+    /// 觀察這個視窗的 first responder,每個視窗一次。
+    ///
+    /// **對 `firstResponder` 做 key-value observation——焦點移動時 AppKit 自己發出的事件**,無論原因：點擊、
+    /// Tab、VoiceOver、本檔的 `makeFirstResponder`。上游 swift-cross-ui 觀察同一個 key path(786899cf、
+    /// a1a105aa);本樹保留自己的逐 widget observer,由視窗通知它們去看。
+    ///
+    /// 文字欄位一取得 first responder 就把它轉交給視窗的 field editor,所以一次點擊是兩次改變：第一次指向
+    /// 欄位，第二次指向一個 `NSTextView`。``isFocused(_:)`` 把 field editor 對回它的欄位；而查看延到主佇列的
+    /// 下一輪並合併，因此 observer 看到的是焦點停下的位置，而不是中間那一步——也因此 commit 期間造成的
+    /// 改變，不會被回報進那次 commit 的中途。
+    @MainActor
+    static func watchFirstResponder(of window: NSWindow) {
+        let key = ObjectIdentifier(window)
+        if let watch = firstResponderWatches[key], watch.window === window { return }
+        firstResponderWatches = firstResponderWatches.filter { $0.value.window != nil }
+        let observation = window.observe(\.firstResponder, options: []) { _, _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { scheduleFocusCheck() }
+            }
+        }
+        firstResponderWatches[key] = FirstResponderWatch(window: window, observation: observation)
+    }
+
+    /// Has every observer look again, once, on the next turn of the main queue.
+    /// 讓每個 observer 在主佇列的下一輪再看一次(只一次)。
+    @MainActor
+    static func scheduleFocusCheck() {
+        guard !focusCheckScheduled else { return }
+        focusCheckScheduled = true
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
+                focusCheckScheduled = false
                 for observer in focusObservers.values { observer.check() }
             }
         }
     }
 
-    /// `@MainActor` on the class, not on its methods.
+    /// One watched widget and the answer it last reported.
     ///
-    /// A `@MainActor` class is `Sendable`, which is what lets the notification
-    /// closure -- a `@Sendable` closure -- hold a reference to it at all. With
-    /// the isolation on the methods instead, the class is not `Sendable` and the
-    /// capture is a data race the compiler correctly refuses.
-    /// `@MainActor` 標在類別上,不是標在它的方法上。
+    /// **No notification of its own any more.** It used to observe
+    /// `NSWindow.didUpdateNotification`, which every window posts after every
+    /// event, so each watched widget re-asked the responder chain on every mouse
+    /// move -- and still missed a focus moved from code, which no event follows
+    /// (P91, 2026-10-13, patched by an explicit re-check after `focus` and
+    /// `unfocus`). The window's `firstResponder` is now observed instead, see
+    /// ``watchFirstResponder(of:)``, and that is the one fact both cases change.
     ///
-    /// 一個 `@MainActor` 類別是 `Sendable` 的,而那正是讓那個通知 closure(一個 `@Sendable` closure)
-    /// 能夠持有它的參照的原因。若把隔離標在方法上,該類別就不是 `Sendable`,而那個捕捉就是編譯器
-    /// 正確拒絕的一個資料競爭。
+    /// `@MainActor` on the class, so it is `Sendable` and the deferred check
+    /// can hold it.
+    ///
+    /// 一個被觀察的 widget,以及它上一次回報的答案。
+    ///
+    /// **它不再有自己的通知。** 它原本觀察 `NSWindow.didUpdateNotification`——每個視窗在每個事件之後都會發出
+    /// ——因此每個被觀察的 widget 在每次滑鼠移動時都重問一次 responder chain;而由程式移動的焦點後面沒有
+    /// 事件，它仍然漏掉(P91,2026-10-13,以 `focus`/`unfocus` 之後的明確重查補上)。現在改為觀察視窗的
+    /// `firstResponder`,見 ``watchFirstResponder(of:)``;兩種情形改變的都是這一個事實。
+    ///
+    /// `@MainActor` 標在類別上，好讓它是 `Sendable`,能被延後的檢查持有。
     @MainActor
     final class FocusObserver {
-        private weak var widget: NSView?
+        private(set) weak var widget: NSView?
         var handler: (Bool) -> Void
         private let backend: AppKitBackend
         private var lastValue: Bool
-        /// `nonisolated(unsafe)` so `deinit` can reach it.
-        ///
-        /// A `@MainActor` class's `deinit` is nonisolated and cannot touch
-        /// isolated state. The token is written once in `init` and read once
-        /// here, so there is no window in which two threads could see it
-        /// differently -- which is what makes the annotation a statement of fact
-        /// rather than a way past the checker.
-        /// 標為 `nonisolated(unsafe)`,好讓 `deinit` 能取用它。
-        ///
-        /// 一個 `@MainActor` 類別的 `deinit` 是 nonisolated 的,碰不到被隔離的狀態。這個 token 在
-        /// `init` 中寫入一次、在此處讀取一次,因此不存在「兩個執行緒看到不同值」的時間窗——而那正是
-        /// 讓這個標註成為一項**事實陳述**、而不是一條繞過檢查器的路的原因。
-        private nonisolated(unsafe) var observation: NSObjectProtocol?
 
         init(widget: NSView, handler: @escaping (Bool) -> Void, backend: AppKitBackend) {
             self.widget = widget
             self.handler = handler
             self.backend = backend
             self.lastValue = backend.isFocused(widget)
-
-            // Two notifications, because one window's key state and its first
-            // responder are different facts and both change what "focused"
-            // means to the user. A field in a window that is not key is not
-            // where the keystrokes go.
-            // 兩個通知,因為「某個視窗是不是 key」與「它的 first responder 是誰」是兩個不同的事實,
-            // 而兩者都會改變「有焦點」對使用者的意義。一個位於非 key 視窗中的欄位,不是按鍵會去的
-            // 地方。
-            observation = NotificationCenter.default.addObserver(
-                forName: NSWindow.didUpdateNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.check() }
-            }
-        }
-
-        deinit {
-            if let observation {
-                NotificationCenter.default.removeObserver(observation)
-            }
         }
 
         fileprivate func check() {

@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70 launched with -start email: the focus request a window opens with must survive opening it.
+# launch-args: -start email
+# Nothing is clicked or typed; see actions/mac/P70-focus-start.actions for why EMAIL and not the first field.
+# Expected at the end: the caret in the email field, "focused field: email", "focus changes heard: 0".
+# "focused field: none" (or name) with the counter at 1 or more is the request written back as a refusal.
+# P70 以 -start email 啟動：視窗開啟時帶著的焦點要求，必須撐過視窗開啟。不點擊、不打字。
+# 結束時應為：游標在 email 欄位、focused field: email、focus changes heard: 0。
+sleep,,,,,,2000000,let the window open and settle -- the request is already made,ios

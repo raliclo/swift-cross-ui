@@ -8,12 +8,19 @@ import SwiftCrossUI
 class SwiftFocusChangeListener: JavaObject {
     @JavaMethod
     @_nonoverride convenience init(_ id: Int32, environment: JNIEnvironment? = nil)
+
+    /// Adds the listener to the view, which puts it on its window's observer while attached.
+    /// 把 listener 加到 view 上；view 附加期間會把它放到所屬視窗的 observer 上。
+    @JavaMethod
+    func install(_ view: AndroidKit.View?)
 }
 
 @JavaImplementation("dev.swiftcrossui.androidbackend.SwiftFocusChangeListener")
 extension SwiftFocusChangeListener {
+    /// `false` tells the listener its id is gone, and it takes itself off.
+    /// `false` 告訴 listener 它的 id 已不存在，它便把自己拿掉。
     @JavaMethod
-    func swiftFocusChanged(_ id: Int32) {
+    func swiftFocusChanged(_ id: Int32) -> Bool {
         FocusHandlers.recheck(id: id)
     }
 }
@@ -42,59 +49,115 @@ enum FocusHandlers {
     /// it, every watched view would report on every move, and `@FocusState`
     /// would write itself the same value repeatedly -- a view-graph update per
     /// keystroke-sized event.
-    /// 一個被觀察的 widget:要呼叫什麼,以及它上一次的答案是什麼。
     ///
-    /// 保留 `lastValue`,是因為那個全域 listener 會為視窗內**每一次**焦點移動觸發,而其中大多數與
-    /// 別的 widget 有關。少了它,每一個被觀察的 view 都會在每一次移動時回報,而 `@FocusState` 會反覆
+    /// **The view is held through a Java weak reference.** It was held by its
+    /// Swift wrapper, which is a JNI global reference: this table lives for the
+    /// process, so every view that was ever `.focused` stayed alive, and so did
+    /// the listener its window's observer held. See `JavaWeakReference`.
+    /// 一個被觀察的 widget:要呼叫什麼，以及它上一次的答案是什麼。
+    ///
+    /// 保留 `lastValue`,是因為那個全域 listener 會為視窗內**每一次**焦點移動觸發，而其中大多數與
+    /// 別的 widget 有關。少了它，每一個被觀察的 view 都會在每一次移動時回報，而 `@FocusState` 會反覆
     /// 把同一個值寫給自己——每一個按鍵大小的事件就是一次 view graph 更新。
+    ///
+    /// **view 經由 Java 弱參照持有。** 它原本由它的 Swift 包裝持有，那是一個 JNI 全域參照：這張表與行程同壽，
+    /// 所以每一個曾經 `.focused` 的 view 都一直活著，它的視窗 observer 所持有的 listener 也是。見 `JavaWeakReference`。
     final class Watch {
-        let widget: AndroidKit.View
+        private let view: JavaWeakReference
         var handler: (Bool) -> Void
         var lastValue: Bool
 
-        init(widget: AndroidKit.View, handler: @escaping (Bool) -> Void) {
-            self.widget = widget
+        @MainActor init(widget: AndroidKit.View, handler: @escaping (Bool) -> Void) {
+            self.view = JavaWeakReference(widget, environment: AndroidBackend.env)
             self.handler = handler
             self.lastValue = widget.hasFocus()
+        }
+
+        /// The view, or `nil` once Java has collected it.
+        /// 那個 view;Java 回收它之後為 `nil`。
+        var widget: AndroidKit.View? {
+            view.get()?.as(AndroidKit.View.self)
+        }
+    }
+
+    /// The Swift wrapper an id was issued for, held weakly.
+    ///
+    /// **Weakly, so a freed wrapper's address cannot pass its id on.** The
+    /// table was keyed by `ObjectIdentifier` alone, and a new widget at a dead
+    /// one's address was handed the dead one's id: its handler replaced the
+    /// old one's, but the watch still asked the OLD view, and no listener was
+    /// ever installed on the new one.
+    /// 某個 id 當初發給的那個 Swift 包裝，以弱參照持有。
+    ///
+    /// **用弱參照，好讓已釋放之包裝的位址無法把它的 id 傳下去。** 這張表原本只以 `ObjectIdentifier` 為鍵，
+    /// 而位於已死 widget 位址上的新 widget 會拿到舊的 id:它的 handler 取代了舊的，但 watch 問的仍是**舊的**
+    /// view,而新的 view 上從來沒有裝過 listener。
+    final class Registration {
+        weak var widget: AndroidKit.View?
+        let id: Int32
+
+        init(widget: AndroidKit.View, id: Int32) {
+            self.widget = widget
+            self.id = id
         }
     }
 
     nonisolated(unsafe) private static var watches: [Int32: Watch] = [:]
+    nonisolated(unsafe) private static var registrations: [ObjectIdentifier: Registration] = [:]
     nonisolated(unsafe) private static var nextID: Int32 = 1
 
-    /// Registers a widget, reusing its id where one was already issued.
+    /// Registers a widget, or replaces the handler of one already registered.
     ///
-    /// Reuse matters because this is called from `computeLayout` -- every frame.
-    /// A fresh id per frame would leave the table growing without bound, and a
-    /// fresh `Watch` would take `lastValue` from the CURRENT state, which is the
-    /// silent swallow the AppKit file records: the frame beats the callback and
-    /// the change is compared against itself.
-    /// 註冊一個 widget;若先前已發過 id 則沿用。
+    /// Returns the new id when a listener has to be installed, `nil` when the
+    /// widget already has one. Reuse matters because this is called on every
+    /// frame: a fresh `Watch` would take `lastValue` from the CURRENT state,
+    /// which is the silent swallow the AppKit file records -- the frame beats the
+    /// callback and the change is compared against itself. Entries whose wrapper
+    /// has been freed are dropped when a new widget registers.
+    /// 註冊一個 widget,或替換已註冊者的 handler。
     ///
-    /// 沿用很重要,因為這是從 `computeLayout` 呼叫的——每一幀都會。每幀發一個新 id 會讓那張表無上限
-    /// 地成長;而一個全新的 `Watch` 會把 `lastValue` 取自**當下**的狀態,那正是 AppKit 那個檔案所
-    /// 記載的那種無聲吞噬:那一幀跑贏了回呼,於是那次改變是拿自己跟自己比。
-    static func register(
+    /// 需要安裝 listener 時回傳新的 id,widget 已有 listener 時回傳 `nil`。沿用很重要，因為這是每一幀都會
+    /// 呼叫的：一個全新的 `Watch` 會把 `lastValue` 取自**當下**的狀態，那正是 AppKit 那個檔案所記載的無聲
+    /// 吞噬——那一幀跑贏了回呼，於是那次改變是拿自己跟自己比。新的 widget 註冊時，清掉包裝已被釋放的項目。
+    @MainActor static func register(
         widget: AndroidKit.View,
-        handler: @escaping (Bool) -> Void,
-        reusing existing: Int32?
-    ) -> Int32 {
-        if let existing, let watch = watches[existing] {
+        handler: @escaping (Bool) -> Void
+    ) -> Int32? {
+        let key = ObjectIdentifier(widget)
+        if let registration = registrations[key], registration.widget === widget,
+            let watch = watches[registration.id]
+        {
             watch.handler = handler
-            return existing
+            return nil
         }
-        let id = existing ?? nextID
-        if existing == nil { nextID += 1 }
+        for (deadKey, registration) in registrations where registration.widget == nil {
+            registrations[deadKey] = nil
+            watches[registration.id] = nil
+        }
+        let id = nextID
+        nextID += 1
+        registrations[key] = Registration(widget: widget, id: id)
         watches[id] = Watch(widget: widget, handler: handler)
         return id
     }
 
-    static func recheck(id: Int32) {
-        guard let watch = watches[id] else { return }
-        let now = watch.widget.hasFocus()
-        guard now != watch.lastValue else { return }
+    /// Reports a change for this id, if there is one.
+    ///
+    /// `false` when the id is no longer watched -- its widget was dropped, or Java
+    /// collected the view -- which tells the listener to take itself off.
+    /// 若這個 id 有改變就回報。id 已不再被觀察(widget 被清掉，或 view 已被 Java 回收)時回傳 `false`,
+    /// 讓 listener 把自己拿掉。
+    static func recheck(id: Int32) -> Bool {
+        guard let watch = watches[id] else { return false }
+        guard let widget = watch.widget else {
+            watches[id] = nil
+            return false
+        }
+        let now = widget.hasFocus()
+        guard now != watch.lastValue else { return true }
         watch.lastValue = now
         watch.handler(now)
+        return true
     }
 }
 
@@ -160,11 +223,10 @@ extension AndroidBackend: BackendFeatures.FocusableViews {
         ofWidget widget: Widget,
         to handler: @escaping (Bool) -> Void
     ) {
-        let key = ObjectIdentifier(widget)
-        let existing = Self.focusListenerIDs[key]
-        let id = FocusHandlers.register(widget: widget, handler: handler, reusing: existing)
-        guard existing == nil else { return }
-        Self.focusListenerIDs[key] = id
+        // `nil` when this widget already has its listener: only the handler was
+        // replaced.
+        // widget 已有 listener 時為 `nil`:只換了 handler。
+        guard let id = FocusHandlers.register(widget: widget, handler: handler) else { return }
         // Installed once, not once per frame: a listener added on every layout
         // pass would allocate a Java object per frame AND leave every previous
         // one attached to the observer, so one focus move would fire the handler
@@ -180,11 +242,15 @@ extension AndroidBackend: BackendFeatures.FocusableViews {
         //
         // 掛在 view tree observer 上,不是掛在 view 上。`setOnFocusChangeListener` 只回報它被設定的
         // 那個 view——排除它的那次量測見那個 Kotlin 檔案。
-        widget.getViewTreeObserver()!.addOnGlobalFocusChangeListener(
-            SwiftFocusChangeListener(id, environment: Self.env)
-                .as(AndroidKit.ViewTreeObserver.OnGlobalFocusChangeListener.self)
-        )
+        //
+        // **Installed on the view, which adds it to its window's observer while
+        // attached and takes it off when detached.** It used to go straight onto
+        // `getViewTreeObserver()` and stay there for the life of the window,
+        // reporting an id whose watch held the view strongly: neither the view
+        // nor the listener could ever be freed. See the Kotlin file.
+        // **裝在 view 上，由 view 在附加期間把它加進所屬視窗的 observer、分離時拿掉。** 它原本直接掛在
+        // `getViewTreeObserver()` 上，與視窗同壽，回報一個「其 watch 強參照著 view」的 id:view 與 listener
+        // 都永遠無法被釋放。見那個 Kotlin 檔案。
+        SwiftFocusChangeListener(id, environment: Self.env).install(widget)
     }
-
-    nonisolated(unsafe) static var focusListenerIDs: [ObjectIdentifier: Int32] = [:]
 }

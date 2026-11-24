@@ -6,10 +6,12 @@ action,x,y,origin,button,key,micros,note,platform
 # Expected at the end: "A heard: ab", "B heard: cde", "off heard:" empty,
 # "refusal check: refused (correct)", and the focus on A from the last button.
 # c is typed after pressing B, d after Tab from A, e after the "focus B" button.
+# Re-measured 2026-11-24 from p91-macos-gtk4-final-20261124-132328.png (420x552): the buttons sit at y 348-372 (focus off at 391), so the clicks at y 345 had been missing them; panels unchanged.
+# 2026-11-24 依 p91-macos-gtk4-final-20261124-132328.png(420x552)重新量測：按鈕在 y 348-372(focus off 在 391),y 345 的點擊一直沒點到；色塊不變。
 # macOS 上 GtkBackend 的 P91:普通色塊上的 .focusable()。座標以視窗框為準。
 # 結束時應為:A heard: ab、B heard: cde、off heard: 空白、refusal check: refused (correct),焦點因最後的按鈕在 A。
 sleep,,,,,,1200000,let the window settle,macos
-click,260,345,frame,left,,,focus none first -- as the AppKit file does,macos
+click,260,360,frame,left,,,focus none first -- as the AppKit file does,macos
 sleep,,,,,,300000,,macos
 click,86,188,frame,left,,,press panel A -- focused: a,macos
 sleep,,,,,,500000,,macos
@@ -20,21 +22,21 @@ click,210,188,frame,left,,,press panel B -- focused: b,macos
 sleep,,,,,,500000,,macos
 key,,,,,c,,B heard: c,macos
 sleep,,,,,,300000,,macos
-click,75,345,frame,left,,,the focus A button -- from code,macos
+click,75,360,frame,left,,,the focus A button -- from code,macos
 sleep,,,,,,500000,,macos
 key,,,,,tab,,Tab from A must reach B,macos
 sleep,,,,,,500000,,macos
 key,,,,,d,,B heard: cd,macos
 sleep,,,,,,300000,,macos
-click,260,345,frame,left,,,focus none,macos
+click,260,360,frame,left,,,focus none,macos
 sleep,,,,,,500000,,macos
 key,,,,,y,,no panel is focused -- nobody may hear this,macos
 sleep,,,,,,300000,,macos
-click,160,345,frame,left,,,the focus B button,macos
+click,160,360,frame,left,,,the focus B button,macos
 sleep,,,,,,500000,,macos
 key,,,,,e,,B heard: cde,macos
 sleep,,,,,,300000,,macos
-click,75,387,frame,left,,,focus off -- must be refused,macos
+click,75,391,frame,left,,,focus off -- must be refused,macos
 sleep,,,,,,700000,,macos
 key,,,,,z,,the off panel must not hear this,macos
 sleep,,,,,,300000,,macos
@@ -42,5 +44,5 @@ click,334,188,frame,left,,,press the off panel itself -- still no focus,macos
 sleep,,,,,,500000,,macos
 key,,,,,z,,,macos
 sleep,,,,,,300000,,macos
-click,75,345,frame,left,,,end on A so the focus ring is in the capture,macos
+click,75,360,frame,left,,,end on A so the focus ring is in the capture,macos
 sleep,,,,,,800000,,macos

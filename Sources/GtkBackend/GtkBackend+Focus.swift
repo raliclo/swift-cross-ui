@@ -57,7 +57,19 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         // 使用原生的 `gboolean`,而非 `toGBoolean()` / `toBool()` 兩個輔助函式:它們是 Gtk 模組的
         // internal,從 GtkBackend 看不到。
         gtk_widget_set_can_focus(pointer, 1)
-        return gtk_widget_grab_focus(pointer) != 0
+        if GtkBackend.grabFocus(in: pointer) { return true }
+        // Refused. Before the window is mapped that is GTK, not the widget:
+        // the request is applied when the window maps (see `focusWhenMapped`),
+        // and `false` is still the honest answer now.
+        // 被拒絕。視窗 map 之前，那是 GTK 而不是 widget 的拒絕：要求在視窗 map 時套用(見 `focusWhenMapped`),
+        // 而此刻誠實的答案仍是 `false`。
+        if let window = windowRoot(of: widget) {
+            let windowWidget = UnsafeMutableRawPointer(window).assumingMemoryBound(to: GtkWidget.self)
+            if gtk_widget_get_mapped(windowWidget) == 0 {
+                focusWhenMapped(widget, window: windowWidget)
+            }
+        }
+        return false
     }
 
     /// Moves the focus off this widget by clearing it on the window.
@@ -118,7 +130,7 @@ extension GtkBackend: BackendFeatures.FocusableViews {
     /// inside it is being typed into.
     ///
     /// The controller is installed at most once per widget. This is called from
-    /// `computeLayout`, so it runs on every frame -- adding a controller each
+    /// the modifier's commit, so it runs on every frame -- adding a controller each
     /// time is the defect measured on this backend's slider, where one press
     /// reported `began=5`, and the one the gesture code was restructured to
     /// avoid. Only the handler is replaced.
@@ -129,7 +141,7 @@ extension GtkBackend: BackendFeatures.FocusableViews {
     /// 「焦點進入該 widget **或其任一子節點**」,而那正是它與上方 ``isFocused(_:)`` 一致的原因;
     /// 那個屬性談的是單一 widget,在其內部的 entry 正被輸入時它會維持 false。
     ///
-    /// 控制器每個 widget 最多安裝一次。本方法由 `computeLayout` 呼叫,因此每一幀都會跑——每次都新增
+    /// 控制器每個 widget 最多安裝一次。本方法由 modifier 的 commit 呼叫,因此每一幀都會跑——每次都新增
     /// 一個控制器,正是本 backend slider 上量到的那個缺陷(按一次回報 `began=5`),也正是手勢程式碼
     /// 被重構所要避開的那一個。此處只替換 handler。
     public func setFocusChangeHandler(
@@ -137,17 +149,20 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         to handler: @escaping (Bool) -> Void
     ) {
         let key = ObjectIdentifier(widget)
-        focusChangeHandlers[key] = handler
-        guard !widgetsWithFocusController.contains(key) else { return }
-        widgetsWithFocusController.insert(key)
+        if let watch = focusWatches[key], watch.widget === widget {
+            watch.handler = handler
+            return
+        }
+        // A new widget, or a new one at a dead one's address: dead entries go,
+        // as WinUIBackend+Focus.swift drops them.
+        // 新的 widget,或位於已死 widget 位址上的新 widget:清掉已死的項目，與 WinUIBackend+Focus.swift 相同。
+        focusWatches = focusWatches.filter { $0.value.widget != nil }
+        let watch = FocusWatch(widget: widget, handler: handler)
+        focusWatches[key] = watch
 
         let controller = EventControllerFocus()
-        controller.enter = { [weak self] _ in
-            self?.focusChangeHandlers[key]?(true)
-        }
-        controller.leave = { [weak self] _ in
-            self?.focusChangeHandlers[key]?(false)
-        }
+        controller.enter = { [weak watch] _ in watch?.report(true) }
+        controller.leave = { [weak watch] _ in watch?.report(false) }
         widget.addEventController(controller)
     }
 
@@ -173,5 +188,125 @@ extension GtkBackend: BackendFeatures.FocusableViews {
         // `OpaquePointer` 的 list-view 呼叫不同。匯入器在這件事上並不一致,因此型別是**從錯誤訊息讀來**
         // 的,而不是從隔壁檔案推定的。
         return UnsafeMutableRawPointer(root).assumingMemoryBound(to: GtkWindow.self)
+    }
+
+    /// One watched widget: the widget, held weakly, and its current handler.
+    ///
+    /// **The widget is held so its identity can be checked, not only its
+    /// address.** The table used to be keyed by `ObjectIdentifier` alone, and
+    /// an identifier outlives the object it was taken from: a widget freed and
+    /// replaced by a new one at the same address found its key already marked
+    /// "controller installed", so the new widget never got a controller and
+    /// its focus was never reported. The controller's closures hold the watch
+    /// weakly, so a GtkWidget that outlives its Swift wrapper reports into
+    /// nothing rather than into the next widget's handler.
+    ///
+    /// 一個被觀察的 widget:弱參照的 widget 本身，以及它目前的 handler。
+    ///
+    /// **保存 widget 是為了比對身分，而不只是位址。** 這張表原本只以 `ObjectIdentifier` 為鍵，而識別碼
+    /// 活得比它所取自的物件久：一個被釋放、又被同一位址上的新 widget 取代的 widget,會發現自己的鍵早已
+    /// 標為「已安裝控制器」,於是新 widget 永遠沒有控制器，它的焦點也永遠不會被回報。控制器的 closure
+    /// 以弱參照持有 watch,因此一個比 Swift 包裝活得久的 GtkWidget 會回報到空處，而不是回報進下一個
+    /// widget 的 handler。
+    final class FocusWatch {
+        weak var widget: Widget?
+        var handler: (Bool) -> Void
+
+        init(widget: Widget, handler: @escaping (Bool) -> Void) {
+            self.widget = widget
+            self.handler = handler
+        }
+
+        func report(_ focused: Bool) {
+            guard widget != nil else { return }
+            handler(focused)
+        }
+    }
+
+    /// A focus request made before its window was mapped, applied when it is.
+    ///
+    /// **GTK refuses `grab_focus` until the window is mapped, and then picks a
+    /// focus of its own.** `@FocusState var field = .email` is asked for in the
+    /// first commit, before `present()`; the grab returned false, and showing the
+    /// window moved the focus to the FIRST focusable widget -- P70 launched with
+    /// `-start email` on GtkBackend opened with the caret in NAME and `focused
+    /// field: name` (2026-11-24), and by the time ``FocusModifier`` asked again
+    /// the name field had already reported itself focused. So the request waits
+    /// for the window's `map` signal. `gtk_window_show` maps the window and only
+    /// then, if no widget has the focus, moves it to the first one; a grab made
+    /// from the `map` handler is in place before that check, so GTK leaves it.
+    ///
+    /// 一個在視窗 map 之前提出的聚焦要求，在視窗 map 時套用。
+    ///
+    /// **視窗 map 之前 GTK 會拒絕 `grab_focus`,map 之後又自己挑一個焦點。** `@FocusState var field = .email`
+    /// 在第一次 commit 時提出，那時還沒 `present()`;grab 回傳 false,顯示視窗時焦點被移到**第一個**可聚焦的 widget
+    /// ——以 `-start email` 在 GtkBackend 上啟動的 P70,開啟時游標在 NAME、畫面寫著 `focused field: name`
+    /// (2026-11-24),而等 ``FocusModifier`` 再問一次時,name 欄位早已回報自己取得焦點。因此這個要求等視窗的
+    /// `map` signal。`gtk_window_show` 先 map 視窗，之後若沒有 widget 持有焦點才把它移到第一個；在 `map` handler
+    /// 裡做的 grab 早於那個檢查，所以 GTK 不會動它。
+    final class FocusWhenMapped {
+        weak var widget: Widget?
+        var handlerID: gulong = 0
+
+        init(widget: Widget) {
+            self.widget = widget
+        }
+    }
+
+    func focusWhenMapped(_ widget: Widget, window: UnsafeMutablePointer<GtkWidget>) {
+        let box = FocusWhenMapped(widget: widget)
+        let onMap: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Void = {
+            instance, data in
+            guard let instance, let data else { return }
+            let box = Unmanaged<FocusWhenMapped>.fromOpaque(data).takeUnretainedValue()
+            let handlerID = box.handlerID
+            if let target = box.widget?.widgetPointer, gtk_widget_get_sensitive(target) != 0 {
+                GtkBackend.grabFocus(in: target)
+            }
+            // One-shot. Disconnecting runs the destroy notify, which releases
+            // the box, so it is not touched after this line.
+            // 只執行一次。斷開連線會執行 destroy notify 並釋放 box,所以這一行之後不再碰它。
+            g_signal_handler_disconnect(instance, handlerID)
+        }
+        let release: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<GClosure>?) -> Void = {
+            data, _ in
+            guard let data else { return }
+            Unmanaged<FocusWhenMapped>.fromOpaque(data).release()
+        }
+        box.handlerID = g_signal_connect_data(
+            UnsafeMutableRawPointer(window),
+            "map",
+            unsafeBitCast(onMap, to: GCallback.self),
+            Unmanaged.passRetained(box).toOpaque(),
+            release,
+            GConnectFlags(rawValue: 0)
+        )
+    }
+
+    /// Focuses this widget, or the first thing inside it that takes the focus.
+    ///
+    /// **`grab_focus` alone focused nothing a `TextField` is made of.** GTK 4
+    /// separates `can-focus` (this widget or something in it may hold the focus)
+    /// from `focusable` (this widget itself may), and `grab_focus` on a widget
+    /// that is not focusable returns false. The widget this backend hands out for
+    /// a field is a `PassthroughFixed` around the `GtkEntry`, focusable=0, so
+    /// every request from code was refused -- P70 on GtkBackend (macOS,
+    /// 2026-11-24) logged `grab refused mapped=1 focusable=0` for `field =
+    /// .email` and wrote `none` back. `gtk_widget_child_focus` is GTK's own way of
+    /// moving the focus INTO a widget, the same search Tab uses, so the wrapper
+    /// is asked that next.
+    ///
+    /// 讓這個 widget——或它裡面第一個能取得焦點的東西——取得焦點。
+    ///
+    /// **單靠 `grab_focus`,`TextField` 的任何組成部分都不會取得焦點。** GTK 4 把 `can-focus`(這個 widget 或
+    /// 它裡面的東西可以持有焦點)與 `focusable`(這個 widget 本身可以)分開，而對不是 focusable 的 widget 呼叫
+    /// `grab_focus` 會回傳 false。本 backend 為欄位交出去的 widget 是包著 `GtkEntry` 的 `PassthroughFixed`,
+    /// focusable=0,所以每個來自程式的要求都被拒絕——GtkBackend 上的 P70(macOS,2026-11-24)對 `field = .email`
+    /// 記下 `grab refused mapped=1 focusable=0`,並寫回 `none`。`gtk_widget_child_focus` 是 GTK 自己把焦點
+    /// **移進**一個 widget 的方式，與 Tab 用的是同一個搜尋，所以接著問 wrapper 這一個。
+    @discardableResult
+    nonisolated static func grabFocus(in widget: UnsafeMutablePointer<GtkWidget>) -> Bool {
+        gtk_widget_grab_focus(widget) != 0
+            || gtk_widget_child_focus(widget, GTK_DIR_TAB_FORWARD) != 0
     }
 }

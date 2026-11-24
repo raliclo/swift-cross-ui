@@ -156,13 +156,42 @@ func p70AutoFocusEnabled() -> Bool {
     ProcessInfo.processInfo.environment["SCUI_P70_AUTOFOCUS"] != nil
 }
 
+/// The field `-start email` (or `-start name`) asks for before the window is shown.
+///
+/// **The request a window opens with is the one most easily lost.** `focus(_:)`
+/// returns `false` for a widget that is not in a window yet, and a modifier that
+/// takes that as a refusal writes `nil` back before anyone has seen the window --
+/// `@FocusState var field = .email` would open with the caret nowhere and the
+/// property saying so. `email` rather than `name` on purpose: AppKit gives a new
+/// window's first key view the focus by itself, so a request for the FIRST field
+/// would pass whether or not it was honoured. `P70-focus-start.actions` launches
+/// with it and expects `focused field: email` and `focus changes heard: 0`.
+///
+/// `-start email`(或 `-start name`)要求在視窗顯示之前取得焦點的欄位。
+///
+/// **視窗開啟時帶著的那個要求，是最容易遺失的。** 對還不在視窗裡的 widget,`focus(_:)` 回傳 `false`;
+/// 把它當成拒絕的 modifier,會在任何人看到視窗之前就把 `nil` 寫回去——`@FocusState var field = .email`
+/// 會以「游標不在任何地方、屬性也這麼說」的樣子開啟。刻意用 `email` 而不是 `name`:AppKit 會自己把焦點給新視窗的
+/// 第一個 key view,所以對**第一個**欄位的要求不論有沒有被履行都會通過。`P70-focus-start.actions` 以它啟動，
+/// 預期 `focused field: email` 與 `focus changes heard: 0`。
+func p70StartField() -> P70Field? {
+    guard let index = CommandLine.arguments.firstIndex(of: "-start"),
+        index + 1 < CommandLine.arguments.count
+    else { return nil }
+    switch CommandLine.arguments[index + 1] {
+    case "name": return .name
+    case "email": return .email
+    default: return nil
+    }
+}
+
 struct P70RootView: View {
     @State var name = ""
     @State var email = ""
     @State var changes = 0
     @State var refusal = "not asked"
 
-    @FocusState var field: P70Field?
+    @FocusState var field: P70Field? = p70StartField()
 
     /// A second, independent focus binding, on a view that cannot take focus.
     ///
