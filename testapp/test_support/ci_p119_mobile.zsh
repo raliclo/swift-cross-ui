@@ -91,7 +91,10 @@ check_android() {
     "$adb" -s "$serial" exec-out screencap -p > "$shots/p119-android-sequence.png" || fail "no screenshot"
 
     SECONDS=0
-    until "$adb" -s "$serial" logcat -d -s Swift:I | grep -aqE -- "$verdict"; do
+    # No -q: grep leaving early would SIGPIPE adb, and under pipefail the verdict would read as
+    # missing (see check_expectation in test_common.zsh). / 不加 -q:grep 提早離開會讓 adb 收到 SIGPIPE,在 pipefail
+    # 之下判定行就讀成不存在(見 test_common.zsh 的 check_expectation)。
+    until "$adb" -s "$serial" logcat -d -s Swift:I | grep -aE -- "$verdict" > /dev/null; do
         [ "$SECONDS" -lt "$deadline" ] || fail "no verdict line after $deadline s"
         sleep 1
     done

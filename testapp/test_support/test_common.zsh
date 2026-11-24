@@ -1008,7 +1008,14 @@ check_expectation() {
         [ -s "$out/$extra_log" ] && wrote=1
     fi
     [ -s "$events_dir/$log_name" ] && wrote=1
-    if cat "${logs[@]}" 2>/dev/null | grep -aqF -- "$expected"; then
+    # grep reads the files itself, not through `cat |`: under pipefail, grep -q leaving at its first
+    # match sent cat a SIGPIPE whenever cat had more to write, and the pipeline then read as "not
+    # found". P122 on CI logged "P122 PASS" and was failed as UNMET (run 45305533525); with small
+    # files it happened 5 times in 2000 here, with a 400 KB second file every time.
+    # 由 grep 自己讀檔，不經 `cat |`:在 pipefail 之下,grep -q 一找到就離開，若 cat 還有東西要寫就會收到 SIGPIPE,整條管線
+    # 便讀成「沒找到」。CI 上 P122 記下了「P122 PASS」卻被判 UNMET(run 45305533525);本機以小檔案 2000 次中出現 5 次，
+    # 第二個檔案 400 KB 時每次都出現。
+    if grep -saqF -- "$expected" "${logs[@]}"; then
         printf '==> expect: MET -- the run logged "%s"\n' "$expected"
     elif [ "$wrote" -eq 1 ]; then
         printf '!! expect: UNMET -- the run never logged "%s"\n' "$expected" >&2
