@@ -1,5 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P70 on Windows: does focus move, report, and refuse? (#122)
+# Re-measured 2026-11-25 from CI run 45403588284 (window 640 tall): frame points = capture pixels / 1.25. The old points were 39 pt high: "email" hit the name field and "ask both" the plain Text label.
 # expect: log-contains P70 CHECK PASS
 #
 # Coordinates measured off screen-20260916-113235.png, a wincap of the WinUI
@@ -69,15 +70,15 @@ action,x,y,origin,button,key,micros,note,platform
 # 對兩個**欄位**的點擊刻意排在最前面:那是**使用者**在移動焦點、而非 app 要求的,因此它們測的是
 # handler,不是 setter。程式方式的那幾個按鈕隨後才測 setter。
 sleep,,,,,,2500000,let the window settle and take the foreground,windows
-click,280,253,frame,left,,,click the email field -- the app did not ask for this,windows
+click,280,292,frame,left,,,click the email field -- the app did not ask for this,windows
 sleep,,,,,,800000,observe focused field = email and the counter increase,windows
-click,280,211,frame,left,,,and back to name,windows
+click,280,250,frame,left,,,and back to name,windows
 sleep,,,,,,800000,observe focused field = name and the counter increase again,windows
-click,66,294,frame,left,,,"focus name, this time programmatically",windows
+click,66,333,frame,left,,,"focus name, this time programmatically",windows
 sleep,,,,,,800000,observe focus(_:) moved it,windows
-click,164,294,frame,left,,,focus email programmatically,windows
+click,166,333,frame,left,,,focus email programmatically,windows
 sleep,,,,,,800000,observe focus(_:) moved it again,windows
-click,260,294,frame,left,,,clear focus -- unfocus(_:),windows
+click,263,333,frame,left,,,clear focus -- unfocus(_:),windows
 sleep,,,,,,800000,observe focused field returns to none,windows
-click,84,398,frame,left,,,ask both for focus -- the disabled button must be refused,windows
+click,86,437,frame,left,,,ask both for focus -- the disabled button must be refused,windows
 sleep,,,,,,1200000,let the refusal be reported,windows
