@@ -1433,6 +1433,17 @@ class AndroidBackendHelpers {
         HitTesting.setHitTesting(view, allowsHitTesting)
     }
 
+    // contentShape: delegates to the ContentShapes object. / contentShape:委派給 ContentShapes 物件。
+    fun setContentShape(
+        view: android.view.View,
+        points: FloatArray,
+        counts: IntArray,
+        evenOdd: Boolean,
+        clear: Boolean,
+    ) {
+        ContentShapes.set(view, points, counts, evenOdd, clear)
+    }
+
     fun launchFolderActivity(urlString: String?) {
         folderLauncher.launch(urlString?.let { Uri.parse(it) })
     }

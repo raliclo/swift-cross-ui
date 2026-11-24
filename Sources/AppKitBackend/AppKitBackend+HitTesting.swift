@@ -246,6 +246,14 @@ final class AppKitHitTestingContainer: NSView {
             return nil
         }
 
+        // This container's own content shape, for one that no parent container
+        // asks about -- a window's root. A parent asks in its own loop below.
+        // 此容器自己的 content shape,供沒有父容器會過問的情況——視窗的根。父容器則在下方自己的迴圈中過問。
+        if AppKitContentShapes.excludes(localPoint, of: self) {
+            Self.report("outside the container's contentShape at \(Self.describe(localPoint))")
+            return nil
+        }
+
         for child in subviewsFrontToBack {
             guard !child.isHidden, child.alphaValue > 0 else { continue }
             // No containment check of our own: `hitTest` already answers nil
@@ -254,6 +262,18 @@ final class AppKitHitTestingContainer: NSView {
             // 不再自行做 containment 檢查：對落在 child 之外的點，`hitTest` 本來就會回答 nil，
             // 而且它會把 child 自己的覆寫也算進去——那是在此處寫 `frame.contains` 做不到的。
             guard let candidate = child.hitTest(localPoint) else { continue }
+            // Outside a content shape on the way down to the candidate: this
+            // child is not there at this point, and the next one underneath is
+            // asked, as `contentShape` promises.
+            // 在通往候選者途中的 content shape 之外：此 child 在這一點上不存在，於是詢問下方的下一個,
+            // 正如 `contentShape` 所承諾的。
+            if AppKitContentShapes.excludes(localPoint, in: self, below: candidate) {
+                Self.report(
+                    "\(type(of: candidate)) answered at \(Self.describe(localPoint)) but "
+                        + "the point is outside its contentShape"
+                )
+                continue
+            }
 
             if !AppKitHitTestingRegistry.isDisabled(candidate, through: self) {
                 // `actionFileRect` as well as the local frame, because those two

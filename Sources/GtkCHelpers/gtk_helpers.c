@@ -112,3 +112,228 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     gtk_dialog_add_button(dialog, label, response_id);
 G_GNUC_END_IGNORE_DEPRECATIONS
 }
+
+// ---------------------------------------------------------------------------
+// contentShape(_:eoFill:)
+//
+// GTK picks the widget under the pointer by asking children before their
+// parent, and a widget's `contains` vfunc decides only for the widget itself
+// -- it cannot stop a child from being picked, and it is a class method, so a
+// widget this backend did not subclass has none of ours. What does exclude a
+// whole subtree from picking is `can-target`. So a shaped widget's
+// `can-target` follows the pointer: an emission hook on GdkSurface::event,
+// which runs before GTK's own handler and so before it picks, converts each
+// pointer position into every shaped widget's coordinates on that surface and
+// sets `can-target` to whether the point is inside the shape. The press that
+// follows is then picked through to whatever is underneath.
+//
+// `allowsHitTesting(false)` also sets `can-target`, so it is recorded here and
+// both are combined: a widget is targetable only when hit testing is allowed
+// and the pointer is inside its shape.
+//
+// GTK 以「先問子元件、再問父元件」的方式挑選指標下的 widget,而 widget 的 `contains` vfunc 只替該 widget
+// 自己作答——它無法阻止子元件被挑中，而且它是類別方法，本 backend 沒有建立 subclass 的 widget 就沒有我們的
+// 版本。真正能把一整棵子樹排除在挑選之外的是 `can-target`。因此有形狀的 widget 的 `can-target` 跟隨指標：
+// GdkSurface::event 上的 emission hook 在 GTK 自己的 handler 之前執行，也就在它挑選之前；它把每個指標位置
+// 換算到該 surface 上每個有形狀 widget 的座標，並把 `can-target` 設為「該點是否在形狀內」。接下來的按壓便會
+// 被挑選穿透到下方的東西。
+//
+// `allowsHitTesting(false)` 同樣設定 `can-target`,因此在此記錄並與之合併：只有在允許命中測試、且指標位於
+// 形狀內時，widget 才可被當作目標。
+
+typedef struct {
+    double *points;
+    int *counts;
+    int contours;
+    gboolean even_odd;
+    gboolean inside;
+} ScuiContentShape;
+
+static GPtrArray *scui_shaped_widgets = NULL;
+static gboolean scui_shape_hook_installed = FALSE;
+
+static GQuark scui_shape_quark(void) {
+    return g_quark_from_static_string("scui-content-shape");
+}
+
+static GQuark scui_hit_testing_disabled_quark(void) {
+    return g_quark_from_static_string("scui-hit-testing-disabled");
+}
+
+static void scui_shape_free(gpointer data) {
+    ScuiContentShape *shape = data;
+    g_free(shape->points);
+    g_free(shape->counts);
+    g_free(shape);
+}
+
+// The same rule as HitRegion.contains in SwiftCrossUI, so every backend agrees.
+// 與 SwiftCrossUI 的 HitRegion.contains 相同的規則，讓每個 backend 的答案一致。
+static gboolean scui_shape_region_contains(const ScuiContentShape *shape, double x, double y) {
+    int winding = 0;
+    int crossings = 0;
+    const double *contour = shape->points;
+    for (int c = 0; c < shape->contours; c++) {
+        int count = shape->counts[c];
+        if (count >= 3) {
+            double px = contour[2 * (count - 1)];
+            double py = contour[2 * (count - 1) + 1];
+            for (int i = 0; i < count; i++) {
+                double cx = contour[2 * i];
+                double cy = contour[2 * i + 1];
+                if ((py <= y) != (cy <= y)) {
+                    double t = (y - py) / (cy - py);
+                    if (px + t * (cx - px) > x) {
+                        crossings++;
+                        winding += cy > py ? 1 : -1;
+                    }
+                }
+                px = cx;
+                py = cy;
+            }
+        }
+        contour += 2 * count;
+    }
+    return shape->even_odd ? (crossings % 2 == 1) : (winding != 0);
+}
+
+static void scui_shape_apply_can_target(GtkWidget *widget, gboolean inside) {
+    gboolean disabled = GPOINTER_TO_INT(
+        g_object_get_qdata(G_OBJECT(widget), scui_hit_testing_disabled_quark()));
+    gboolean target = !disabled && inside;
+    if (gtk_widget_get_can_target(widget) != target) {
+        gtk_widget_set_can_target(widget, target);
+    }
+}
+
+static gboolean scui_shape_surface_event_hook(
+    GSignalInvocationHint *hint, guint n_params, const GValue *params, gpointer data
+) {
+    (void)hint;
+    (void)data;
+    if (scui_shaped_widgets == NULL || scui_shaped_widgets->len == 0 || n_params < 2) {
+        return TRUE;
+    }
+    GdkSurface *surface = g_value_get_object(&params[0]);
+    GdkEvent *event = g_value_peek_pointer(&params[1]);
+    if (surface == NULL || event == NULL) {
+        return TRUE;
+    }
+    switch (gdk_event_get_event_type(event)) {
+        case GDK_MOTION_NOTIFY:
+        case GDK_BUTTON_PRESS:
+        case GDK_ENTER_NOTIFY:
+        case GDK_TOUCH_BEGIN:
+        case GDK_TOUCH_UPDATE:
+            break;
+        default:
+            return TRUE;
+    }
+    double x, y;
+    if (!gdk_event_get_position(event, &x, &y)) {
+        return TRUE;
+    }
+    GtkNative *native = gtk_native_get_for_surface(surface);
+    if (native == NULL) {
+        return TRUE;
+    }
+    // Surface to native-widget coordinates, the conversion GTK makes before it
+    // picks. / 由 surface 座標換算到 native widget 座標，與 GTK 挑選前所做的換算相同。
+    double nx, ny;
+    gtk_native_get_surface_transform(native, &nx, &ny);
+    graphene_point_t point = GRAPHENE_POINT_INIT((float)(x - nx), (float)(y - ny));
+    for (guint i = 0; i < scui_shaped_widgets->len; i++) {
+        GtkWidget *widget = g_ptr_array_index(scui_shaped_widgets, i);
+        if (gtk_widget_get_native(widget) != native) {
+            continue;
+        }
+        ScuiContentShape *shape = g_object_get_qdata(G_OBJECT(widget), scui_shape_quark());
+        graphene_point_t local;
+        if (shape == NULL
+            || !gtk_widget_compute_point(GTK_WIDGET(native), widget, &point, &local)) {
+            continue;
+        }
+        shape->inside = scui_shape_region_contains(shape, local.x, local.y);
+        scui_shape_apply_can_target(widget, shape->inside);
+    }
+    return TRUE;
+}
+
+static void scui_shape_widget_finalized(gpointer data, GObject *where_the_object_was) {
+    (void)data;
+    if (scui_shaped_widgets != NULL) {
+        g_ptr_array_remove(scui_shaped_widgets, where_the_object_was);
+    }
+}
+
+void scui_content_shape_set(
+    GtkWidget *widget, const double *points, const int *counts, int contours, gboolean even_odd
+) {
+    if (widget == NULL) {
+        return;
+    }
+    if (scui_shaped_widgets == NULL) {
+        scui_shaped_widgets = g_ptr_array_new();
+    }
+    gboolean listed = g_ptr_array_find(scui_shaped_widgets, widget, NULL);
+
+    if (contours < 0) {
+        if (listed) {
+            g_ptr_array_remove(scui_shaped_widgets, widget);
+            g_object_weak_unref(G_OBJECT(widget), scui_shape_widget_finalized, NULL);
+        }
+        g_object_set_qdata(G_OBJECT(widget), scui_shape_quark(), NULL);
+        scui_shape_apply_can_target(widget, TRUE);
+        return;
+    }
+
+    if (!scui_shape_hook_installed) {
+        // The class has to exist before its signal can be looked up.
+        // 必須先有該類別，才能查到它的訊號。
+        gpointer klass = g_type_class_ref(GDK_TYPE_SURFACE);
+        guint signal_id = g_signal_lookup("event", GDK_TYPE_SURFACE);
+        if (signal_id != 0) {
+            g_signal_add_emission_hook(signal_id, 0, scui_shape_surface_event_hook, NULL, NULL);
+            scui_shape_hook_installed = TRUE;
+        }
+        g_type_class_unref(klass);
+    }
+
+    int total = 0;
+    for (int c = 0; c < contours; c++) {
+        total += counts[c];
+    }
+    ScuiContentShape *old = g_object_get_qdata(G_OBJECT(widget), scui_shape_quark());
+    ScuiContentShape *shape = g_new0(ScuiContentShape, 1);
+    shape->points = g_memdup2(points, sizeof(double) * 2 * (gsize)total);
+    shape->counts = g_memdup2(counts, sizeof(int) * (gsize)contours);
+    shape->contours = contours;
+    shape->even_odd = even_odd;
+    // Until the pointer moves, keep whatever the last move decided.
+    // 在指標移動之前，沿用上一次移動所決定的結果。
+    shape->inside = old != NULL ? old->inside : TRUE;
+    g_object_set_qdata_full(G_OBJECT(widget), scui_shape_quark(), shape, scui_shape_free);
+
+    if (!listed) {
+        g_ptr_array_add(scui_shaped_widgets, widget);
+        g_object_weak_ref(G_OBJECT(widget), scui_shape_widget_finalized, NULL);
+    }
+}
+
+gboolean scui_content_shape_contains(GtkWidget *widget, double x, double y) {
+    if (widget == NULL) {
+        return TRUE;
+    }
+    ScuiContentShape *shape = g_object_get_qdata(G_OBJECT(widget), scui_shape_quark());
+    return shape == NULL || scui_shape_region_contains(shape, x, y);
+}
+
+void scui_content_shape_set_hit_testing(GtkWidget *widget, gboolean allows) {
+    if (widget == NULL) {
+        return;
+    }
+    g_object_set_qdata(
+        G_OBJECT(widget), scui_hit_testing_disabled_quark(), GINT_TO_POINTER(!allows));
+    ScuiContentShape *shape = g_object_get_qdata(G_OBJECT(widget), scui_shape_quark());
+    scui_shape_apply_can_target(widget, shape == NULL || shape->inside);
+}

@@ -127,6 +127,17 @@ public struct PreferenceValues: Sendable {
     /// 所以 stack 不會把某個子元件的值當成自己的。
     var zIndex: Double = 0
 
+    /// The shape set by ``View/contentShape(_:eoFill:)``, unresolved.
+    ///
+    /// Kept through a wrapper with one child, like ``zIndex``, so that a tap
+    /// gesture applied around the shaped view can limit its own target to the
+    /// same shape; reset otherwise, so a stack does not take a child's shape.
+    ///
+    /// 由 ``View/contentShape(_:eoFill:)`` 設定、尚未解析的形狀。與 ``zIndex`` 相同，經過只有
+    /// 一個子元件的包裝層時保留，讓套用在該 view 外圍的點擊手勢能把自己的目標限制在同一形狀內；
+    /// 其餘情況重設，所以 stack 不會拿走子元件的形狀。
+    var contentShape: ContentShape? = nil
+
     /// One entry per ``GridRow``, in declaration order, each listing that row's
     /// cells.
     ///
@@ -205,10 +216,12 @@ extension PreferenceValues {
             layoutPriority = firstChild.layoutPriority
             gridCellColumns = firstChild.gridCellColumns
             zIndex = firstChild.zIndex
+            contentShape = firstChild.contentShape
         } else {
             layoutPriority = Self.defaultLayoutPriority
             gridCellColumns = Self.defaultGridCellColumns
             zIndex = 0
+            contentShape = nil
         }
     }
 }

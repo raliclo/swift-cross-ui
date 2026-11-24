@@ -742,6 +742,25 @@ void scui_calendar_set_date(GtkCalendar *calendar, GDateTime *date);
 // GtkMessageDialog(4.24.1),而且會讓多按鈕的 alert 被 Escape 關掉、失去隱藏再還原的堆疊。
 void scui_dialog_add_button(GtkDialog *dialog, const char *label, int response_id);
 
+// contentShape(_:eoFill:). `points` holds x, y pairs for `contours` polygons
+// whose point counts are in `counts`, in the widget's coordinates; a negative
+// `contours` removes the shape. While a widget has a shape, its `can-target`
+// follows the pointer so that presses outside the shape reach what is
+// underneath. See gtk_helpers.c.
+// contentShape(_:eoFill:)。`points` 以 x、y 成對存放 `contours` 個多邊形，各自的點數在 `counts`
+// 中，座標為該 widget 的座標;`contours` 為負時移除形狀。widget 有形狀期間，其 `can-target` 跟隨
+// 指標，讓形狀外的按壓抵達下方的東西。見 gtk_helpers.c。
+void scui_content_shape_set(
+    GtkWidget *widget, const double *points, const int *counts, int contours, gboolean even_odd);
+
+// TRUE when (x, y), in the widget's coordinates, is inside its content shape,
+// or when it has none. / (x, y)(widget 座標)位於其 content shape 之內、或它沒有形狀時為 TRUE。
+gboolean scui_content_shape_contains(GtkWidget *widget, double x, double y);
+
+// allowsHitTesting(_:), combined with the content shape's own use of
+// `can-target`. / allowsHitTesting(_:),與 content shape 本身對 `can-target` 的使用合併。
+void scui_content_shape_set_hit_testing(GtkWidget *widget, gboolean allows);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

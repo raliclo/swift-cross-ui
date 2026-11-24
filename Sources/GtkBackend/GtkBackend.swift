@@ -3779,7 +3779,9 @@ extension GtkBackend {
     /// 使用 `can-target`，GTK 對它的定義本就及於整個子樹：hit testing 會略過無法被指定為目標的
     /// widget，也不會往其內部遞迴。這正是 `allowsHitTesting` 的語意，因此無需任何模擬。
     public func setHitTesting(of widget: Widget, to allowsHitTesting: Bool) {
-        gtk_widget_set_can_target(widget.widgetPointer, allowsHitTesting ? 1 : 0)
+        // Through C, which combines it with a content shape's own use of `can-target`.
+        // 經由 C,與 content shape 本身對 `can-target` 的使用合併。
+        scui_content_shape_set_hit_testing(widget.widgetPointer, allowsHitTesting ? 1 : 0)
     }
 
     public func createCornerRadiusContainer(wrapping child: Widget) -> Widget {
@@ -5586,8 +5588,8 @@ extension GtkBackend {
                         $0 is GestureClick
                             && gtk_gesture_single_get_button($0.opaquePointer) == GDK_BUTTON_PRIMARY
                     } as! GestureClick
-                gesture.pressed = { _, nPress, _, _ in
-                    guard environment.isEnabled, nPress == 1 else {
+                gesture.pressed = { gesture, nPress, x, y in
+                    guard environment.isEnabled, nPress == 1, Self.pressIsInsideShape(gesture, x, y) else {
                         return
                     }
                     action()
@@ -5599,8 +5601,8 @@ extension GtkBackend {
                             (gtk_gesture_single_get_button($0.opaquePointer) ==
                                 GDK_BUTTON_SECONDARY)
                     } as! GestureClick
-                gesture.pressed = { _, nPress, _, _ in
-                    guard environment.isEnabled, nPress == 1 else {
+                gesture.pressed = { gesture, nPress, x, y in
+                    guard environment.isEnabled, nPress == 1, Self.pressIsInsideShape(gesture, x, y) else {
                         return
                     }
                     action()
@@ -5609,8 +5611,8 @@ extension GtkBackend {
                 let gesture =
                     tapGestureTarget.eventControllers.lazy.compactMap { $0 as? GestureLongPress }
                         .first!
-                gesture.pressed = { _, _, _ in
-                    guard environment.isEnabled else {
+                gesture.pressed = { gesture, x, y in
+                    guard environment.isEnabled, Self.pressIsInsideShape(gesture, x, y) else {
                         return
                     }
                     action()
