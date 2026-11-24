@@ -3028,8 +3028,9 @@ extension WinUIBackend {
 
         switch gesture.kind {
             case .primary:
-                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, _ in
+                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
+                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getCurrentPoint(tapGestureTarget)?.position) else { return }
                     tapGestureTarget.clickHandler?()
                 }
 
@@ -3042,8 +3043,9 @@ extension WinUIBackend {
                 // 用 `rightTapped`,而不是「`pointerPressed` 再判斷按鍵」。WinUI 會為右鍵點擊、
                 // 觸控筆側鍵以及觸控長按都發出這個事件,而那正是「次要」在各該裝置上的意義;
                 // 從原始 pointer 狀態自行重寫,會悄悄地只涵蓋到滑鼠。
-                tapGestureTarget.rightTapped.addHandler { [weak tapGestureTarget] _, _ in
+                tapGestureTarget.rightTapped.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
+                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getPosition(tapGestureTarget)) else { return }
                     tapGestureTarget.clickHandler?()
                 }
 
@@ -3067,8 +3069,9 @@ extension WinUIBackend {
                 //
                 // 因此時長在此自行計時。`pointerPressed` 推進一個 generation 並排程回呼;任何結束
                 // 該次按壓的事件都會再推進 generation,而已排程的 closure 便會發現那個數字不是自己的。
-                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, _ in
+                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
+                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getCurrentPoint(tapGestureTarget)?.position) else { return }
                     tapGestureTarget.pressGeneration += 1
                     let generation = tapGestureTarget.pressGeneration
                     DispatchQueue.main.asyncAfter(
@@ -4067,6 +4070,13 @@ public class CustomWindow: WinUI.Window {
         grid.children.append(toolbar)
         try! WinUI.Grid.setRow(toolbar, 1)
         self.content = grid
+        // contentShape: every pointer move re-decides which shaped widgets can be
+        // hit, before the press that follows is hit-tested. See WinUIContentShapes.
+        // contentShape:每次指標移動都重新決定哪些有形狀的 widget 可被命中，趕在其後的按壓被命中測試之前。
+        // 見 WinUIContentShapes。
+        grid.pointerMoved.addHandler { _, args in
+            WinUIContentShapes.pointerMoved(args)
+        }
         // Alt+Left, the Back key and the mouse's back button; see
         // WinUIBackend+BackNavigation.swift.
         // Alt+Left、返回鍵與滑鼠返回鍵；見 WinUIBackend+BackNavigation.swift。

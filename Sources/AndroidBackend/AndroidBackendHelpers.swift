@@ -136,6 +136,17 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func setHitTesting(_ view: AndroidKit.View?, _ allowsHitTesting: Bool)
 
+    /// contentShape: the region in pixels, flattened; `clear` removes it.
+    /// contentShape:以像素表示、已展平的區域;`clear` 移除它。
+    @JavaMethod
+    func setContentShape(
+        _ view: AndroidKit.View?,
+        _ points: [Float],
+        _ counts: [Int32],
+        _ evenOdd: Bool,
+        _ clear: Bool
+    )
+
     @JavaMethod
     func isNightMode(_ activity: Activity?) -> Bool
 

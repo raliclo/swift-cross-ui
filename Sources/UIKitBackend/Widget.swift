@@ -138,6 +138,11 @@ class BaseViewWidget: UIView, WidgetProtocolHelpers {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard !isHidden, alpha > 0.01, isUserInteractionEnabled else { return nil }
 
+        // Outside this view's content shape nothing in it can be hit, and the
+        // touch goes on to whatever is underneath.
+        // 在本 view 的 content shape 之外，其中任何東西都無法被觸及，觸控會繼續前往下方的東西。
+        if UIKitContentShapes.excludes(point, of: self) { return nil }
+
         // Clipping is honoured, and only clipping. A container that masks its
         // bounds does not draw what is outside them, so nothing out there can
         // be touched either -- `setCornerRadius` sets `masksToBounds`, and a
@@ -181,7 +186,11 @@ class BaseViewWidget: UIView, WidgetProtocolHelpers {
         //
         // 由最上層先問，使「被畫在另一個之上的兄弟元件」仍然先被詢問，讓人看得見的層序就是決定的層序。
         for child in subviewsFrontToBack {
-            if let hit = child.hitTest(convert(point, to: child), with: event) { return hit }
+            let childPoint = convert(point, to: child)
+            // A child outside its content shape is not there at this point.
+            // 在 content shape 之外的 child,在這一點上並不存在。
+            if UIKitContentShapes.excludes(childPoint, of: child) { continue }
+            if let hit = child.hitTest(childPoint, with: event) { return hit }
         }
 
         // A container is never the target of a touch; only its contents are.

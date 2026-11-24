@@ -221,6 +221,11 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         if (HitTesting.isDisabled(this)) {
             return false
         }
+        // Outside this container's own content shape a down is refused, so the parent offers it
+        // to the next child underneath. / 落在本容器自身 content shape 外的 down 會被拒收，讓父容器改交給下方的下一個子元件。
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN && !ContentShapes.contains(this, ev.x, ev.y)) {
+            return false
+        }
         val action = ev.actionMasked
         if (action == MotionEvent.ACTION_DOWN) {
             overflowTarget = null
@@ -244,6 +249,9 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
                 overflowTarget = null
             }
             return handled
+        }
+        if (action == MotionEvent.ACTION_DOWN) {
+            dispatchPastContentShapes(ev)?.let { return it }
         }
         if (super.dispatchTouchEvent(ev)) {
             return true
@@ -280,6 +288,48 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
     // 的順序繪製，並以其反序交出觸控，所以繪製與觸控一起跟著它走，而子元件保留它們的索引。此處自行為觸控挑選子
     // 元件的迴圈也經由 drawingIndex 走它。下方的 elevation 檢查沿著這個順序(而非索引)比較 Z,因為畫出來的
     // 就是這個順序。
+    // contentShape: a down that lands in a child's rectangle but outside its content shape must
+    // go on to the next child underneath. ViewGroup's own dispatch cannot skip a child, so when
+    // such a child exists the down is dispatched here, topmost first, passing it over; the child
+    // that takes it becomes `overflowTarget`, which the rest of the gesture already follows. Null
+    // when no child is passed over, so the ordinary dispatch runs unchanged. See ContentShapes.kt.
+    //
+    // contentShape:落在子元件矩形內、卻在其 content shape 外的 down,必須繼續交給下方的下一個子元件。
+    // ViewGroup 自己的分派無法略過子元件，因此存在這種子元件時，down 改由此處由最上層往下分派並略過它；接下它的
+    // 子元件成為 `overflowTarget`,手勢其餘部分本來就跟隨它。沒有子元件被略過時回傳 null,一般分派照常執行。
+    // 見 ContentShapes.kt。
+    private fun dispatchPastContentShapes(ev: MotionEvent): Boolean? {
+        if (ContentShapes.isEmpty()) return null
+        var passesOver = false
+        for (i in childCount - 1 downTo 0) {
+            val child = getChildAt(drawingIndex(i))
+            if (child.visibility != View.VISIBLE || !ContentShapes.hasShape(child)) continue
+            val x = ev.x + scrollX - child.x
+            val y = ev.y + scrollY - child.y
+            if (x >= 0 && y >= 0 && x < child.width && y < child.height &&
+                !ContentShapes.contains(child, x, y)) {
+                passesOver = true
+                break
+            }
+        }
+        if (!passesOver) return null
+        for (i in childCount - 1 downTo 0) {
+            val child = getChildAt(drawingIndex(i))
+            if (child.visibility != View.VISIBLE) continue
+            val x = ev.x + scrollX - child.x
+            val y = ev.y + scrollY - child.y
+            if (x < 0 || y < 0 || x >= child.width || y >= child.height) continue
+            if (!ContentShapes.contains(child, x, y)) continue
+            if (forward(child, ev)) {
+                overflowTarget = child
+                return true
+            }
+        }
+        // No child took it: this container itself, as ViewGroup does.
+        // 沒有子元件接下：交給本容器自己，與 ViewGroup 的做法相同。
+        return onTouchEvent(ev)
+    }
+
     private var drawingOrder: IntArray? = null
 
     fun setDrawingOrder(order: IntArray) {

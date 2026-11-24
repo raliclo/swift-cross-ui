@@ -218,6 +218,19 @@ final class TappableWidget: ContainerWidget, UIGestureRecognizerDelegate {
     ) -> Bool {
         gestureRecognizer === tapGestureRecognizer && otherGestureRecognizer === longPressGestureRecognizer
     }
+
+    // A touch outside a content shape -- on this wrapper or on the content the
+    // recogniser is attached to -- is not a tap. `BaseViewWidget.hitTest` already
+    // passes such a touch through; this covers content whose view is not one.
+    // content shape 之外的觸控——無論是在本包裝層上，或在辨識器所附著的內容上——都不是點按。
+    // `BaseViewWidget.hitTest` 已會讓這種觸控穿透；此處涵蓋 view 不是 BaseViewWidget 的內容。
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        !UIKitContentShapes.excludes(touch.location(in: child.view), of: child.view)
+            && !UIKitContentShapes.excludes(touch.location(in: view), of: view)
+    }
 }
 
 #if !os(tvOS)

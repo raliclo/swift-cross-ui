@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P131 taps three places. 130 points right of the "Gap left" label is the empty
+# gap of an HStack given contentShape(Rectangle()), which must register "gap".
+# 52 points up and left of "Circle target" is a corner of a square given
+# contentShape(Circle()): outside the circle, so the tap must pass through to the
+# grey square underneath ("under"). The label itself is the centre and must
+# register "circle".
+#
+# expect: log-contains P131 PASS
+#
+# P131 點擊三處。"Gap left" 標籤右方 130 點是加上 contentShape(Rectangle()) 的 HStack 的空隙，必須記為「gap」。
+# "Circle target" 左上方 52 點是加上 contentShape(Circle()) 的正方形的角落：在圓外，所以點擊必須穿透到下方的灰色
+# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。
+sleep,,,,,,1500000,let P131 render,android
+taplabel,130,0,,,Gap left,,the empty gap must register,android
+sleep,,,,,,800000,,android
+taplabel,-52,-52,,,Circle target,,corner outside the circle must reach grey,android
+sleep,,,,,,800000,,android
+taplabel,,,,,Circle target,,centre must reach the circle,android
+sleep,,,,,,2000000,let the verdict show,android

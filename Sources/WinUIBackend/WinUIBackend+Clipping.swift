@@ -14,7 +14,9 @@ extension WinUIBackend: BackendFeatures.HitTesting {
     /// That is the same rule SwiftUI applies, so nothing extra is needed to
     /// match it here.
     public func setHitTesting(of widget: Widget, to allowsHitTesting: Bool) {
-        widget.isHitTestVisible = allowsHitTesting
+        // Combined with a content shape, which uses the same flag; see WinUIContentShapes.
+        // 與使用同一旗標的 content shape 合併計算;見 WinUIContentShapes。
+        WinUIContentShapes.setAllowsHitTesting(allowsHitTesting, for: widget)
     }
 }
 

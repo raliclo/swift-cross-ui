@@ -54,6 +54,9 @@ public final class DummyBackend:
         public var tag: String?
         public var cornerRadius = 0
         public var size = SIMD2<Int>.zero
+        /// The region `setContentShape` last gave this widget; nil for its whole frame.
+        /// `setContentShape` 最後給此 widget 的區域;nil 表示整個 frame。
+        public var contentShape: HitRegion?
         public var naturalSize: SIMD2<Int> {
             SIMD2<Int>.zero
         }
