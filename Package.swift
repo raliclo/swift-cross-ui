@@ -320,7 +320,7 @@ let package = Package(
         // Use a tagged release so downstream packages can depend on a version
         // of SwiftCrossUI. Keep the tag and the submodule on the same commit.
         // 使用版本標籤，讓下游套件可依版本引用 SwiftCrossUI；標籤與子模組應指向同一提交。
-        .package(url: "https://github.com/raliclo/swift-winui.git", exact: "0.2.3"),
+        .package(url: "https://github.com/raliclo/swift-winui.git", exact: "0.2.4"),
         .package(
             url: "https://github.com/stackotter/swift-benchmark",
             .upToNextMinor(from: "0.2.0")

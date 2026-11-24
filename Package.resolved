@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/raliclo/swift-winui.git",
       "state" : {
-        "revision" : "c4225f8aef8f8dd27e2779552cc43c29df06f5a2",
-        "version" : "0.2.3"
+        "revision" : "7607ae887875e0b170f71a7ccbb1f47284e32738",
+        "version" : "0.2.4"
       }
     },
     {
