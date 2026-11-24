@@ -191,7 +191,8 @@ extension SwiftCrossUI.View {
 
 struct P127View: SwiftCrossUI.View {
     @SwiftCrossUI.Environment(\.backend) var backend
-    @FocusState var stop: P127Stop?
+    // Qualified: WinUI has a FocusState enum too. 加上模組名:WinUI 也有一個 FocusState 列舉。
+    @SwiftCrossUI.FocusState var stop: P127Stop?
     @State var text = ""
     @State var phase = "starting"
     @State var verdict = "P127 waiting"
