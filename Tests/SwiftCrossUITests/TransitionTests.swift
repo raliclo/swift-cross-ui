@@ -343,13 +343,18 @@ struct TransitionTests {
     }
 
     @Test("A container's child is its default fade's wrapper once it has one")
-    func outerWidget() {
+    func outerWidget() throws {
         let node = ViewGraphHelpers.committedNode(for: Plain())
         let erased = ErasedViewGraphNode(wrapping: node)
         #expect(TransitionLookup.outerWidget(of: erased).widget as AnyObject === node.widget)
-        // DummyBackend has no visual-effect container, so nothing wraps it.
-        // DummyBackend 沒有視覺效果容器，所以不會被包起來。
+        // DummyBackend has a (recording) visual-effect container, so the fade wraps
+        // the view once, the wrapper becomes the outer widget, and a second install
+        // leaves it as it is.
+        // DummyBackend 有(記錄用的)視覺效果容器，所以淡入淡出會把 view 包一次、包裝容器成為外層
+        // widget,而第二次放上則維持原樣。
+        let wrapper = try #require(node.installDefaultTransitionWrapper())
+        #expect(wrapper.widget is DummyBackend.VisualEffectContainer)
+        #expect(TransitionLookup.outerWidget(of: erased).widget as AnyObject === wrapper.widget as AnyObject)
         #expect(node.installDefaultTransitionWrapper() == nil)
-        #expect(TransitionLookup.outerWidget(of: erased).widget as AnyObject === node.widget)
     }
 }

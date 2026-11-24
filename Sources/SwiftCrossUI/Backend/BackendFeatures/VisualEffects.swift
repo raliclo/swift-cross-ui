@@ -7,20 +7,30 @@ extension BackendFeatures {
     /// ``View/grayscale(_:)`` and ``View/hueRotation(_:)``.
     ///
     /// A backend that can express only some of ``VisualEffect``'s fields should
-    /// still conform and apply what it can. Declining to conform is not a
-    /// graceful degradation here: ``CastBackend`` turns a missing conformance
-    /// into `fatalError`, so an app calling `.opacity(_:)` would abort rather
-    /// than render without the effect. Applying the subset and saying so is the
-    /// better failure -- see `testapp/gtk-silent-noops.md` for why "says so"
-    /// matters as much as "applies what it can".
+    /// still conform and apply what it can, and say what it leaves out -- see
+    /// `testapp/gtk-silent-noops.md` for why "says so" matters as much as
+    /// "applies what it can".
+    ///
+    /// A backend that does not conform at all is not aborted: the effect
+    /// modifiers warn once and show the view unmodified
+    /// (`VisualEffectModifier.asWidget`), and transitions and `scrollTransition`
+    /// draw without their visual part. That degraded path exists only for
+    /// backends outside the shipped set -- CursesBackend, LVGLBackend and
+    /// QtBackend. GtkBackend, WinUIBackend, AppKitBackend, UIKitBackend and
+    /// AndroidBackend must implement this protocol; an effect missing on one of
+    /// them is a bug, not a degradation.
     ///
     /// 用於合成效果的 backend 方法——不透明度、模糊與色彩調整。
     ///
-    /// 若某個 backend 只能表達 ``VisualEffect`` 的部分欄位，仍應宣告 conformance 並套用其做得到的
-    /// 部分。在此處「不宣告 conformance」並非優雅降級：``CastBackend`` 會把缺少的 conformance 轉為
-    /// `fatalError`，因此呼叫 `.opacity(_:)` 的 app 會直接中止，而不是「畫出來但沒有效果」。套用
-    /// 子集並明白告知才是較好的失敗方式——「明白告知」與「盡力套用」同等重要，理由見
+    /// 若某個 backend 只能表達 ``VisualEffect`` 的部分欄位，仍應宣告 conformance、套用其做得到的
+    /// 部分，並明白告知漏掉了什麼——「明白告知」與「盡力套用」同等重要，理由見
     /// `testapp/gtk-silent-noops.md`。
+    ///
+    /// 完全未宣告 conformance 的 backend 不會被中止：各效果 modifier 會警告一次並顯示未經修飾的
+    /// view(`VisualEffectModifier.asWidget`),transition 與 `scrollTransition` 則不畫其視覺部分。
+    /// 這條降級路徑只給已發布集合以外的 backend 使用——CursesBackend、LVGLBackend 與 QtBackend。
+    /// GtkBackend、WinUIBackend、AppKitBackend、UIKitBackend 與 AndroidBackend 必須實作本協定；
+    /// 在它們之中任何一個上缺少某個效果是 bug,不是降級。
     @MainActor
     public protocol VisualEffects: Core {
         /// Create a container capable of applying compositing effects to its

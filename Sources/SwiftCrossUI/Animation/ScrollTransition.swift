@@ -887,7 +887,23 @@ enum VisualEffectWidgets {
         guard let capable = backend as? any BackendFeatures.VisualEffects else { return nil }
         func open<B: BackendFeatures.VisualEffects>(_ backend: B) -> (VisualEffect) -> Void {
             let widget = widget as! B.Widget
-            return { backend.setVisualEffect($0, ofWidget: widget) }
+            // Clamped here, the one place every effect reaches a backend: the
+            // modifier's tween, transitions and scrollTransition all draw through
+            // this setter. A spring overshoots its target, so an animated opacity
+            // can leave 0...1, a blur springing back to 0 can go negative and a
+            // grayscale can pass 1, and backends pass those through as they are
+            // (an alpha above 1, a negative CIGaussianBlur radius or Win2D BlurAmount).
+            // 在此夾限：這是每個效果抵達 backend 的唯一入口——modifier 的補間、transition 與
+            // scrollTransition 都經由此 setter 繪製。彈簧動畫會越過目標，因此動畫中的 opacity 可能
+            // 離開 0...1、彈回 0 的模糊可能變成負值、grayscale 可能超過 1,而 backend 會原樣傳下去
+            // (大於 1 的 alpha、負的 CIGaussianBlur 半徑或 Win2D BlurAmount)。
+            return { effect in
+                var effect = effect
+                effect.opacity = min(max(effect.opacity, 0), 1)
+                effect.blurRadius = max(effect.blurRadius, 0)
+                effect.grayscale = min(max(effect.grayscale, 0), 1)
+                backend.setVisualEffect(effect, ofWidget: widget)
+            }
         }
         return open(capable)
     }
