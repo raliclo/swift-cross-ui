@@ -651,6 +651,12 @@ extension EnvironmentValues {
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button
 
+    /// The size of controls in this part of the hierarchy. Set with
+    /// ``View/controlSize(_:)``; `.regular` unless an ancestor set it.
+    ///
+    /// 此階層中控制項的尺寸。以 ``View/controlSize(_:)`` 設定；祖先沒有設定時為 `.regular`。
+    @Entry public var controlSize: ControlSize = .regular
+
     /// The style of text field to use. Set with ``View/textFieldStyle(_:)``.
     ///
     /// Read by ``TextField``, which routes its body through the style, as

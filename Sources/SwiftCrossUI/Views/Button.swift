@@ -288,7 +288,14 @@ extension Button: TypeSafeView {
         // 使用不同的名稱而非遮蔽參數，以免日後的讀者不小心用到未經調整的 `environment`：
         // 在這一行以下，每一處都必須用調整過的那一個。
         let styleEnvironment = buttonEnvironment(from: environment)
-        let buttonPadding = backend.buttonPadding(in: styleEnvironment)
+        // `controlSize(_:)` scales the padding and, below, the label
+        // font by one factor, so the button is the same proportion of its
+        // regular size in both directions and its text stays sharp.
+        // `controlSize(_:)` 以同一個倍率縮放 padding 與(下方的)標籤字型，因此按鈕在兩個方向上都是 regular
+        // 尺寸的同一比例，文字保持清晰。
+        let buttonPadding = styleEnvironment.scalingPaddingToControlSize(
+            backend.buttonPadding(in: styleEnvironment)
+        )
         // A destructive button's label takes the backend's destructive colour
         // unless the application named one; see `destructiveButtonLabelColor`.
         // Before the backend's own label rules, so a disabled destructive button
@@ -302,6 +309,7 @@ extension Button: TypeSafeView {
             labelSource = labelSource.with(\.foregroundColor, destructive)
         }
         let childEnvironment = backend.computeButtonLabelEnvironment(from: labelSource)
+            .scalingFontToControlSize
 
         var childProposal = proposedSize
         if let proposedWidth = proposedSize.width {

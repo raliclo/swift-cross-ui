@@ -376,15 +376,17 @@ public struct Slider<Label: View>: View {
         return copy
     }
 
+    // The control is drawn at `controlSize(_:)`; the label is text and is not.
+    // 控制項以 `controlSize(_:)` 繪製；標籤是文字，不受影響。
     public var body: some View {
         Group {
             if hasLabel {
                 HStack {
                     label
-                    control
+                    control.scaledToControlSize()
                 }
             } else {
-                control
+                control.scaledToControlSize()
             }
         }
     }

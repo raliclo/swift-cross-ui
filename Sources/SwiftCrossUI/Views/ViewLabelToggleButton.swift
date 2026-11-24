@@ -64,11 +64,15 @@ struct ViewLabelToggleButton<Label: View>: TypeSafeView, View {
         func layout<ToggleBackend: BaseAppBackend & BackendFeatures.ViewLabelToggleButtons>(
             _ backend: ToggleBackend
         ) -> ViewLayoutResult {
-            let padding = backend.toggleButtonPadding(in: environment)
+            // Scaled by `controlSize(_:)` as `Button` scales its padding and
+            // label. / 與 `Button` 縮放其 padding 與標籤相同，依 `controlSize(_:)` 縮放。
+            let padding = environment.scalingPaddingToControlSize(
+                backend.toggleButtonPadding(in: environment)
+            )
             let labelEnvironment = backend.computeToggleLabelEnvironment(
                 from: environment,
                 isOn: isOn.wrappedValue
-            )
+            ).scalingFontToControlSize
 
             // Proposed as `Button` proposes to its label: the space left after
             // the padding, with the height left free unless the window's size is

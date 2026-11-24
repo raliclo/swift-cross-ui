@@ -58,6 +58,12 @@ extension AppKitBackend {
         if #available(macOS 11, *) {
             button.button.hasDestructiveAction = environment.buttonRole == .destructive
         }
+        // The bezel drawn with the metrics of `controlSize(_:)` -- corner radius
+        // and shading. Its size is the label plus padding, both of which the
+        // core has already scaled by the same control size.
+        // 外框以 `controlSize(_:)` 的度量(圓角與陰影)繪製。它的大小是標籤加 padding,兩者都已由 core 依同一個
+        // 控制項尺寸縮放。
+        button.button.controlSize = environment.controlSize.nsControlSize
     }
 
     /// The system red, as AppKit draws a destructive action.
@@ -492,6 +498,22 @@ extension PrimitiveButtonStyle.Kind {
             case .plain, .borderless:
                 let maskPath = NSBezierPath(rect: button.bounds)
                 maskPath.fill()
+        }
+    }
+}
+
+extension ControlSize {
+    /// The AppKit size with the same name. `.extraLarge` exists from macOS 14;
+    /// before that the largest AppKit size, `.large`, is used.
+    /// 同名的 AppKit 尺寸。`.extraLarge` 自 macOS 14 起才有；在那之前使用 AppKit 最大的 `.large`。
+    var nsControlSize: NSControl.ControlSize {
+        switch self {
+            case .mini: return .mini
+            case .small: return .small
+            case .regular: return .regular
+            case .large: return .large
+            case .extraLarge:
+                if #available(macOS 14, *) { return .extraLarge } else { return .large }
         }
     }
 }
