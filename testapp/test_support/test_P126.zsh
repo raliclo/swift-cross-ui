@@ -15,7 +15,7 @@ fi
 support_dir="${0:a:h}"
 export TEST_APP="P126"
 export TEST_TITLE="P126 Color invert"
-export TEST_LOG_NAME="p123-debug-events.log"
+export TEST_LOG_NAME="p126-debug-events.log"
 export TEST_MARKER=""
 export TEST_SUMMARY_PATTERN="P126"
 export TEST_TARGET="both"
