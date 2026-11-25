@@ -4932,6 +4932,30 @@ extension GtkBackend {
         return spinner
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        let spinner = widget as! Spinner
+        // GtkSpinner draws a symbolic icon (`process-working-symbolic`), and
+        // GTK recolours a symbolic icon with the node's CSS `color`, so the
+        // tint is that property on the spinner's own class. The rule names no
+        // descendant, so the widget-scoped provider is enough. Without a tint
+        // the block loads alone and the theme's colour is back.
+        // GtkSpinner 繪製一個符號圖示(`process-working-symbolic`),而 GTK 以節點的 CSS `color` 重新替符號圖示上色，
+        // 所以 tint 就是轉圈自己 class 上的這個屬性。規則不指名任何後代，因此 widget 範圍的 provider 就夠了。沒有 tint 時
+        // 只載入該區塊，主題的顏色便回來。
+        let rule =
+            environment.tint.map { tint in
+                """
+                .\(spinner.css.cssClass) {
+                    color: \(CSSProperty.rgba(tint.resolve(in: environment).gtkColor));
+                }
+                """
+            } ?? ""
+        spinner.loadCSSText(from: spinner.css.stringRepresentation + "\n" + rule)
+    }
+
     public func createProgressBar() -> Widget {
         ProgressBar()
     }

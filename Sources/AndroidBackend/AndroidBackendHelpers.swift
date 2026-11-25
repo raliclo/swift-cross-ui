@@ -92,6 +92,11 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleProgressBar(_ bar: AndroidKit.ProgressBar?, _ tintColor: Int32)
 
+    /// An indeterminate spinner in the tint (0: the theme's); see the Kotlin side.
+    /// 以 tint(0:主題的顏色)繪製的不確定轉圈；見 Kotlin 端。
+    @JavaMethod
+    func styleSpinner(_ bar: AndroidKit.ProgressBar?, _ tintColor: Int32)
+
     /// Label colours for a button-style toggle; see the Kotlin side.
     @JavaMethod
     func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool, _ tint: Int32)

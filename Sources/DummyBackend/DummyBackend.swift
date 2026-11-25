@@ -153,6 +153,16 @@ public final class DummyBackend:
         }
     }
 
+    /// An indeterminate spinner; records the `tint` its last update carried.
+    /// 不確定進度的轉圈；記下上一次更新帶來的 `tint`。
+    public class ProgressSpinner: Widget {
+        public var tint: SwiftCrossUI.Color?
+
+        override public var naturalSize: SIMD2<Int> {
+            SIMD2(16, 16)
+        }
+    }
+
     public class TextField: Widget {
         public var isSecure: Bool
         public var value = ""
@@ -959,7 +969,14 @@ extension DummyBackend {
     }
 
     public func createProgressSpinner() -> Widget {
-        fatalError("\(Self.self): \(#function) not implemented")
+        ProgressSpinner()
+    }
+
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: SwiftCrossUI.EnvironmentValues
+    ) {
+        (widget as! ProgressSpinner).tint = environment.tint
     }
 
     public func createTextEditor() -> Widget {

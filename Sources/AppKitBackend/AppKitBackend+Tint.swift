@@ -99,4 +99,63 @@ extension AppKitBackend {
         control.layerUsesCoreImageFilters = true
         control.layer?.filters = [encode, matrix, decode]
     }
+
+    /// Paints a spinning NSProgressIndicator in the environment's tint.
+    ///
+    /// The spinner is not drawn in the accent: its spokes are one neutral grey
+    /// that fades by alpha, so the matrix above (which leaves every grey alone)
+    /// would not move it. This one discards the colour and keeps the alpha:
+    /// each RGB row is zero and the bias is the tint, so every pixel becomes the
+    /// tint at its own alpha, times the tint's opacity. `CIColorMatrix` runs on
+    /// unpremultiplied values (measured 2026-11-25: a 50% grey pixel came out as
+    /// the bias colour at 50%, a clear pixel stayed clear), so the transparent
+    /// background stays transparent. The bias is sRGB-encoded, and the decode
+    /// after it brings it into the linear working space, as in `applyTint`.
+    /// `nil` takes the filter off, and AppKit's grey is back.
+    ///
+    /// 以 environment 的 tint 繪製旋轉樣式的 NSProgressIndicator。
+    ///
+    /// 轉圈不是以強調色繪製：它的輻條是同一個中性灰，以 alpha 漸淡，所以上面那個(讓所有灰色維持不動的)矩陣移不動它。
+    /// 這個矩陣捨棄顏色、保留 alpha:每個 RGB 列都是零，偏移量是 tint,所以每個像素都變成 tint,保有自己的 alpha,
+    /// 再乘上 tint 的不透明度。`CIColorMatrix` 作用在未預乘的數值上(2026-11-25 量測:50% 的灰色像素輸出為 50% 的
+    /// 偏移色，透明像素仍是透明),所以透明背景維持透明。偏移量是 sRGB 編碼後的值，其後的解碼把它帶回線性工作色彩空間，
+    /// 與 `applyTint` 相同。`nil` 會移除濾鏡,AppKit 的灰色便回來。
+    func applySpinnerTint(of environment: EnvironmentValues, to spinner: NSView) {
+        guard let tint = environment.tint else {
+            // Only a spinner this tinted is touched. 只碰這裡加過 tint 的轉圈。
+            if spinner.layer?.filters != nil {
+                spinner.layer?.filters = nil
+                spinner.layerUsesCoreImageFilters = false
+            }
+            return
+        }
+        let target = tint.resolve(in: environment)
+        guard let matrix = CIFilter(name: "CIColorMatrix"),
+            let decode = CIFilter(name: "CISRGBToneCurveToLinear")
+        else {
+            spinner.layer?.filters = nil
+            spinner.layerUsesCoreImageFilters = false
+            return
+        }
+        let zero = CIVector(x: 0, y: 0, z: 0, w: 0)
+        matrix.setValue(zero, forKey: "inputRVector")
+        matrix.setValue(zero, forKey: "inputGVector")
+        matrix.setValue(zero, forKey: "inputBVector")
+        matrix.setValue(
+            CIVector(x: 0, y: 0, z: 0, w: CGFloat(target.opacity)),
+            forKey: "inputAVector"
+        )
+        matrix.setValue(
+            CIVector(
+                x: CGFloat(target.red),
+                y: CGFloat(target.green),
+                z: CGFloat(target.blue),
+                w: 0
+            ),
+            forKey: "inputBiasVector"
+        )
+        spinner.wantsLayer = true
+        spinner.layerUsesCoreImageFilters = true
+        spinner.layer?.filters = [matrix, decode]
+    }
 }

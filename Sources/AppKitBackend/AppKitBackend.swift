@@ -1908,6 +1908,16 @@ extension AppKitBackend {
         return container
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        // On the container, which outlives the indicator that
+        // `setSize(ofProgressSpinner:to:)` replaces; see AppKitBackend+Tint.swift.
+        // 加在容器上，容器比 `setSize(ofProgressSpinner:to:)` 換掉的指示器活得久；見 AppKitBackend+Tint.swift。
+        applySpinnerTint(of: environment, to: widget)
+    }
+
     public func setSize(
         ofProgressSpinner widget: Widget,
         to size: SIMD2<Int>

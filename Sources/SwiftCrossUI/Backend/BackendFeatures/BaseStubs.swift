@@ -415,6 +415,13 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        todo()
+    }
+
     public func createProgressBar() -> Widget {
         todo()
     }

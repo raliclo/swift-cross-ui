@@ -58,6 +58,16 @@ extension AndroidBackend {
         return widget.as(AndroidKit.View.self)!
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        // The spinner's indeterminateTintList in the tint, 0 for the theme's own
+        // colour; see styleSpinner in AndroidBackendHelpers.kt.
+        // 轉圈的 indeterminateTintList 用 tint,0 為主題自己的顏色；見 AndroidBackendHelpers.kt 的 styleSpinner。
+        helpers.styleSpinner(widget.as(AndroidKit.ProgressBar.self)!, tintColorInt(environment))
+    }
+
     public func setSize(ofProgressSpinner widget: Widget, to size: SIMD2<Int>) {
         setSize(of: widget, to: size)
     }

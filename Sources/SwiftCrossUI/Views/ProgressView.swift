@@ -201,6 +201,8 @@ struct ProgressSpinnerView: ElementaryView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
+        // The tint, or the platform's colour without one. tint,沒有時用平台的顏色。
+        backend.updateProgressSpinner(widget, environment: environment)
         // Doesn't change the rendered size of ProgressSpinner
         // on UIKitBackend, but still sets container size to
         // (width: n, height: n) n = min(proposedSize.x, proposedSize.y)

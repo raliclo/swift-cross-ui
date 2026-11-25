@@ -684,6 +684,37 @@ class AndroidBackendHelpers {
 
     private val progressBarStyles = java.util.WeakHashMap<android.view.View, Int>()
 
+    // An indeterminate spinner (Widget.ProgressBar.Small) in the SwiftCrossUI
+    // tint, 0 for the theme's own colour. The framework's spinner drawable
+    // tints itself colorControlActivated; indeterminateTintList replaces that
+    // tint and leaves the animation running. A spinner never tinted is not
+    // touched. Once tinted, 0 restores the list the bar had before, or, if it
+    // had none, colorControlActivated: a null list would drop
+    // the drawable's own tint as well.
+    // 以 SwiftCrossUI 的 tint 繪製不確定進度的轉圈(Widget.ProgressBar.Small),0 表示主題自己的顏色。框架的轉圈 drawable
+    // 自己以 colorControlActivated 上色;indeterminateTintList 取代那個顏色，動畫照常執行。從未加過 tint 的轉圈完全不碰。
+    // 加過之後，0 會還原進度條原本的 list;原本沒有時則用 colorControlActivated:null 的 list 連 drawable
+    // 自己的顏色也會一起丟掉。
+    fun styleSpinner(bar: android.widget.ProgressBar, tintColor: Int) {
+        val previous = spinnerStyles[bar]
+        if (previous == tintColor || (previous == null && tintColor == 0)) return
+        if (previous == null) bar.indeterminateTintList?.let { spinnerDefaults[bar] = it }
+        spinnerStyles[bar] = tintColor
+        bar.indeterminateTintList =
+            if (tintColor != 0) {
+                android.content.res.ColorStateList.valueOf(tintColor)
+            } else {
+                spinnerDefaults[bar]
+                    ?: android.content.res.ColorStateList.valueOf(
+                        themeColorOf(bar.context, android.R.attr.colorControlActivated)
+                    )
+            }
+    }
+
+    private val spinnerStyles = java.util.WeakHashMap<android.view.View, Int>()
+    private val spinnerDefaults =
+        java.util.WeakHashMap<android.view.View, android.content.res.ColorStateList>()
+
     // The indeterminate segment. ProgressBar starts an Animatable indeterminate
     // drawable while the bar is visible and stops it when it is not.
     // 不確定狀態的色段。ProgressBar 會在進度條可見時啟動 Animatable 的不確定 drawable,不可見時停止。
