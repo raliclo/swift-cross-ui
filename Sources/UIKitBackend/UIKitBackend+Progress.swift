@@ -74,6 +74,17 @@ extension UIKitBackend {
         ProgressSpinner()
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        let spinner = widget as! ProgressSpinner
+        // The spokes in the tint. UIActivityIndicatorView.color is
+        // null_resettable: nil gives the style's own grey back.
+        // 輻條用 tint。UIActivityIndicatorView.color 是 null_resettable:設為 nil 會還原樣式自己的灰色。
+        spinner.child.color = environment.tint?.resolve(in: environment).uiColor
+    }
+
     public func createProgressBar() -> Widget {
         let style: UIProgressView.Style
         #if os(tvOS)

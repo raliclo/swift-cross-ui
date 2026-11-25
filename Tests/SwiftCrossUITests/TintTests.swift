@@ -99,4 +99,25 @@ struct TintTests {
         let tinted = ViewGraphHelpers.computeLayout(of: controlStack.tint(.green)).size
         #expect(plain == tinted)
     }
+
+    @Test("A spinner's update carries the tint; nil without one or under tint(nil)")
+    func spinner() {
+        func tints<V: View>(_ view: V) -> [Color?] {
+            widgets(in: view).compactMap { $0 as? DummyBackend.ProgressSpinner }.map(\.tint)
+        }
+        #expect(tints(ProgressView()) == [nil])
+        #expect(tints(ProgressView().tint(.orange)) == [.orange])
+        let view = VStack {
+            ProgressView().tint(nil)
+            ProgressView()
+        }.tint(.orange)
+        #expect(tints(view) == [nil, .orange])
+    }
+
+    @Test("A spinner keeps its size under a tint")
+    func spinnerSizeUnchanged() {
+        let plain = ViewGraphHelpers.computeLayout(of: ProgressView()).size
+        let tinted = ViewGraphHelpers.computeLayout(of: ProgressView().tint(.orange)).size
+        #expect(plain == tinted)
+    }
 }

@@ -3162,6 +3162,23 @@ extension WinUIBackend {
         return spinner
     }
 
+    public func updateProgressSpinner(
+        _ widget: Widget,
+        environment: EnvironmentValues
+    ) {
+        let spinner = widget as! ProgressRing
+        // The arc in the tint, through the ring's own Foreground: ProgressRing
+        // colours its animated arc from Foreground, as ProgressBar fills with it;
+        // cleared, it is the theme's accent again.
+        // 弧線用 tint,經由環自身的 Foreground:ProgressRing 以 Foreground 替動畫弧線上色，如同 ProgressBar
+        // 以它填色；清除後又是主題的強調色。
+        if let tint = environment.tint {
+            spinner.foreground = SolidColorBrush(tint.resolve(in: environment).uwpColor)
+        } else {
+            try? spinner.clearValue(WinUI.Control.foregroundProperty)
+        }
+    }
+
     public func createProgressBar() -> Widget {
         let progressBar = ProgressBar()
         progressBar.maximum = 10_000

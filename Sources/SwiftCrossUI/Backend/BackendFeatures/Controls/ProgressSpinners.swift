@@ -10,6 +10,23 @@ extension BackendFeatures {
         /// - Returns: A progress spinner.
         func createProgressSpinner() -> Widget
 
+        /// Updates a progress spinner to reflect the current view environment.
+        ///
+        /// A backend paints the spinner in ``EnvironmentValues/tint`` when it is
+        /// set, and in the platform's own colour when it is `nil`, so a tint that
+        /// is removed gives the default back.
+        ///
+        /// 依目前的 view environment 更新進度轉圈。``EnvironmentValues/tint`` 有值時 backend 以它繪製轉圈，
+        /// 為 `nil` 時用平台自己的顏色，所以移除 tint 會還原預設。
+        ///
+        /// - Parameters:
+        ///   - widget: The progress spinner to update.
+        ///   - environment: The current environment.
+        func updateProgressSpinner(
+            _ widget: Widget,
+            environment: EnvironmentValues
+        )
+
         /// Sets the size of a progress spinner.
         ///
         /// This method exists because AppKitBackend requires special handling to resize progress spinners.
