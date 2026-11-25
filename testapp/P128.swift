@@ -118,11 +118,15 @@ struct P128Column: View {
             Text(name)
             Toggle("Switch", isOn: $isOn).toggleStyle(.switch)
             Toggle("Checkbox", isOn: $isChecked).toggleStyle(.checkbox)
-            Slider(value: $value, in: 0...1).frame(width: 160)
-            ProgressView(value: 0.6).frame(width: 160)
+            Slider(value: $value, in: 0...1).frame(width: 140)
+            ProgressView(value: 0.6).frame(width: 140)
             Button("Borderless") {}.buttonStyle(.borderless)
             P128TintProbe(name: name)
         }
+        // 150 points wide, so both columns fit a phone (a full-width toggle pushed the
+        // tinted column off an Android screen, CI run 45505727478).
+        // 150 點寬，讓兩欄都放得進手機(撐滿寬度的 toggle 曾把 tint 那一欄推出 Android 畫面，CI run 45505727478)。
+        .frame(width: 150, alignment: .leading)
         .background(
             GeometryReader { proxy in
                 P128Recorder(name: name, size: proxy.size)
@@ -139,7 +143,7 @@ struct P128View: View {
             Text(P128.title)
             Text(verdict)
             Text("left: no tint, right: .tint(.green)")
-            HStack(alignment: .top, spacing: 40) {
+            HStack(alignment: .top, spacing: 24) {
                 P128Column(name: "plain")
                 P128Column(name: "tinted").tint(.green)
             }
@@ -148,7 +152,7 @@ struct P128View: View {
             }
             .tint(.green)
         }
-        .padding(24)
+        .padding(16)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 let result = P128.verdict()

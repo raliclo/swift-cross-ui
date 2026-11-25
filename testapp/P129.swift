@@ -113,19 +113,20 @@ struct P129Recorder: View {
     }
 }
 
-/// One control at the three sizes, each in a column 200 points wide.
-/// 一種控制項的三種尺寸，各放在 200 點寬的欄中。
+/// One control at the three sizes, each in a column 90 points wide, so all three fit a
+/// phone (at 200 the large column ran off an Android screen, CI run 45505727478).
+/// 一種控制項的三種尺寸，各放在 90 點寬的欄中，讓三欄都放得進手機(200 點時 Android 的 large 欄超出畫面，CI run 45505727478)。
 struct P129Row<Content: View>: View {
     var name: String
     var content: Content
 
     var body: some View {
-        HStack(spacing: 16) {
-            Text(name).frame(width: 80, alignment: .leading)
+        HStack(spacing: 12) {
+            Text(name).frame(width: 64, alignment: .leading)
             ForEach(P129.sizes.map(\.0), id: \.self) { sizeName in
                 P129Measured(name: "\(name) \(sizeName)", content: content)
                     .controlSize(P129.sizes.first { $0.0 == sizeName }!.1)
-                    .frame(width: 200, alignment: .leading)
+                    .frame(width: 90, alignment: .leading)
             }
         }
     }
@@ -144,10 +145,10 @@ struct P129View: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(P129.title)
             Text(verdict)
-            HStack(spacing: 16) {
-                Text("").frame(width: 80, alignment: .leading)
+            HStack(spacing: 12) {
+                Text("").frame(width: 64, alignment: .leading)
                 ForEach(P129.sizes.map(\.0), id: \.self) { sizeName in
-                    Text(sizeName).frame(width: 200, alignment: .leading)
+                    Text(sizeName).frame(width: 90, alignment: .leading)
                 }
             }
             P129Row(name: "button", content: Button("Button") {})
@@ -170,7 +171,7 @@ struct P129View: View {
             P129Row(name: "bar", content: ProgressView(value: 0.6))
             P129Row(name: "spinner", content: ProgressView())
         }
-        .padding(24)
+        .padding(16)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 let result = P129.verdict()
