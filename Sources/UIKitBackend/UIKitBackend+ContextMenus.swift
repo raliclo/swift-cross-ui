@@ -61,7 +61,13 @@ extension ContextMenuWidget: UIContextMenuInteractionDelegate {
         _ interaction: UIContextMenuInteraction,
         configurationForMenuAtLocation location: CGPoint
     ) -> UIContextMenuConfiguration? {
-        UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+        // No menu outside the content shape. `hitTest` already keeps a touch
+        // there away from this view; a secondary click on iPadOS and Mac
+        // Catalyst is asked about a location, so it is checked here too.
+        // content shape 之外沒有選單。`hitTest` 已讓那裡的觸控碰不到本 view;iPadOS 與 Mac Catalyst
+        // 上的次要點擊是以位置詢問的，因此此處也檢查。
+        if UIKitContentShapes.excludes(location, from: view) { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
             guard let self else { return nil }
             return Self.uiMenu(for: self.menu)
         }

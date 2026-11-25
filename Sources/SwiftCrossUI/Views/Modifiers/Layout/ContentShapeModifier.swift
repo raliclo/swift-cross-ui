@@ -17,10 +17,17 @@ extension View {
     /// bounds, so a `.padding` or `.frame` between the two resolves the
     /// shape in the larger frame rather than the inner one.
     ///
-    /// Taps, clicks and touches follow the shape on AppKitBackend, UIKitBackend,
-    /// GtkBackend, WinUIBackend and AndroidBackend. Hover tracking is not
-    /// limited by it. A backend without ``BackendFeatures/ContentShapes``
-    /// shows the view with its whole frame hittable and logs a warning once.
+    /// Every other pointer modifier applied around the view takes the shape the
+    /// same way: long presses, drags, magnify and rotate gestures, context
+    /// menus, cursors, scrolling, drops, and hover -- `onHover` reports the
+    /// pointer as inside only while it is inside the shape. A geometric effect
+    /// between the two (`offset`, `rotationEffect`, `scaleEffect`) moves the
+    /// shape with the drawn view.
+    ///
+    /// Taps, clicks, touches and hover follow the shape on AppKitBackend,
+    /// UIKitBackend, GtkBackend, WinUIBackend and AndroidBackend. A backend
+    /// without ``BackendFeatures/ContentShapes`` shows the view with its whole
+    /// frame hittable and logs a warning once.
     ///
     /// 設定此 view 接收點擊與觸控的區域。
     ///
@@ -35,9 +42,13 @@ extension View {
     /// 形狀：它在點擊目標自己的 bounds 中重新解析，因此兩者之間若有 `.padding` 或 `.frame`，形狀會
     /// 在較大的 frame 中解析，而不是內層的。
     ///
-    /// 在 AppKitBackend、UIKitBackend、GtkBackend、WinUIBackend 與 AndroidBackend 上，點擊與
-    /// 觸控都依循該形狀。滑鼠懸停的追蹤不受它限制。不具 ``BackendFeatures/ContentShapes`` 的
-    /// backend 會以整個 frame 可被點中的方式顯示此 view，並記錄一次警告。
+    /// 套用在此 view 外圍的其他指標 modifier 也以同樣方式沿用該形狀：長按、拖曳、縮放與旋轉手勢、
+    /// context menu、游標、捲動、拖放與懸停——`onHover` 只在指標位於形狀內時回報其在內。兩者之間的
+    /// 幾何效果(`offset`、`rotationEffect`、`scaleEffect`)會讓形狀隨畫出的 view 一起移動。
+    ///
+    /// 在 AppKitBackend、UIKitBackend、GtkBackend、WinUIBackend 與 AndroidBackend 上，點擊、
+    /// 觸控與懸停都依循該形狀。不具 ``BackendFeatures/ContentShapes`` 的 backend 會以整個 frame
+    /// 可被點中的方式顯示此 view，並記錄一次警告。
     ///
     /// - Parameters:
     ///   - shape: The area that receives hits, in the view's bounds.
@@ -60,12 +71,34 @@ extension View {
 struct ContentShape: Sendable {
     var shape: any Shape
     var eoFill: Bool
+    /// The geometric effects (`offset`, `rotationEffect`, `scaleEffect`, ...)
+    /// the shape passed through on its way up, innermost first, each resolved
+    /// in the size of the view it was applied to. A wrapper outside them hits
+    /// the shape where it is drawn, not where it was laid out.
+    ///
+    /// 形狀向上傳遞途中經過的幾何效果(`offset`、`rotationEffect`、`scaleEffect`……),由內而外
+    /// 合成，各自依其所套用之 view 的尺寸解析。位於其外的包裝層會在形狀被畫出的位置命中它，而不是在
+    /// 它被排版的位置。
+    var transform: AffineTransform = .identity
+    /// ``transform`` without the outermost geometric effect, for a widget that
+    /// is that effect's own container. / 不含最外層幾何效果的 ``transform``,給本身就是該效果
+    /// 之容器的 widget 使用。
+    var transformInsideOutermostEffect: AffineTransform = .identity
 
-    /// The shape resolved in a frame of the given size.
-    /// 在給定尺寸的 frame 中解析後的形狀。
-    func region(in size: ViewSize) -> HitRegion {
+    /// Adds a geometric effect outside the ones already applied.
+    /// 在已套用的效果之外再加上一個幾何效果。
+    mutating func apply(_ effect: AffineTransform) {
+        transformInsideOutermostEffect = transform
+        transform = transform.followedBy(effect)
+    }
+
+    /// The shape resolved in a frame of the given size, with every geometric
+    /// effect it passed through, or all but the outermost.
+    /// 在給定尺寸的 frame 中解析後的形狀，套用途經的每個幾何效果，或除了最外層以外的全部。
+    func region(in size: ViewSize, outermostEffectApplied: Bool = true) -> HitRegion {
         let bounds = Path.Rect(x: 0, y: 0, width: size.width, height: size.height)
         return HitRegion(path: shape.path(in: bounds), evenOdd: eoFill)
+            .applying(outermostEffectApplied ? transform : transformInsideOutermostEffect)
     }
 }
 

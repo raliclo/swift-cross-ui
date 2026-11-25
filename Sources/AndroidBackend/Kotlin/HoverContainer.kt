@@ -106,8 +106,11 @@ class HoverContainer(activity: Activity) : FrameLayout(activity) {
     // ACTION_HOVER_ENTER，狀態就會在該手勢的其餘期間卡在 false。
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
+            // Inside only where the content shape is: a move from the shape to
+            // a corner of the frame is an exit, and back an entry.
+            // 只有在 content shape 之處才算在內：從形狀移到 frame 的角落即為離開，移回來則為進入。
             MotionEvent.ACTION_HOVER_ENTER,
-            MotionEvent.ACTION_HOVER_MOVE -> setHovering(true)
+            MotionEvent.ACTION_HOVER_MOVE -> setHovering(ContentShapes.contains(this, event.x, event.y))
 
             MotionEvent.ACTION_HOVER_EXIT -> setHovering(false)
         }

@@ -764,6 +764,32 @@ gboolean scui_content_shape_contains(GtkWidget *widget, double x, double y);
 // `can-target`. / allowsHitTesting(_:),與 content shape 本身對 `can-target` 的使用合併。
 void scui_content_shape_set_hit_testing(GtkWidget *widget, gboolean allows);
 
+// A button press that GTK delivers to the pointer focus of the last motion
+// while a fresh pick at the press position finds another widget -- a press
+// with no move before it, onto or off a content shape. See gtk_helpers.c.
+// GTK 把按鍵按下送往上一次移動時的 pointer focus,但在按下位置重新挑選卻找到另一個 widget——沒有先移動、
+// 落在 content shape 上或其外的按下。見 gtk_helpers.c。
+enum {
+    SCUI_PRESS_PRESSED = 0,
+    SCUI_PRESS_MOTION = 1,
+    SCUI_PRESS_RELEASED = 2,
+};
+
+// Receives such a press, its motions and its release for `target`, the widget
+// GTK should have picked, with (x, y) in `target`'s coordinates. `stale` is
+// the widget GTK delivers to, or NULL; its chain already gets the events.
+// 接收這樣的按下、其移動與放開，`target` 是 GTK 本應挑中的 widget,(x, y) 為 `target` 的座標。`stale`
+// 是 GTK 實際送往的 widget(或 NULL);它那條鏈本來就會收到事件。
+typedef void (*ScuiPressForwarder)(
+    GtkWidget *target, GtkWidget *stale, int phase, guint button, double x, double y);
+
+void scui_content_shape_set_press_forwarder(ScuiPressForwarder forwarder);
+
+// FALSE while a misdirected press is down and `widget` is not on the fresh
+// target's chain: its gestures must not take the press.
+// 被送錯的按下尚未放開、且 `widget` 不在新目標鏈上時為 FALSE:它的手勢不可接下這次按下。
+gboolean scui_content_shape_press_reaches(GtkWidget *widget);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

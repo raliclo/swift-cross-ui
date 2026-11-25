@@ -103,36 +103,57 @@ extension UIKitBackend: BackendFeatures.HitTesting {
             format(of: session) != nil
         }
 
+        /// Whether the drag is over this target, inside its content shape.
+        /// 拖曳是否位於本目標之上、且在其 content shape 之內。
+        private var isTargeted = false
+
+        // A session over a corner of the frame outside the content shape is
+        // not over this target: it is refused there, and `isTargeted` follows
+        // the shape as the drag moves.
+        // 位於 frame 角落、content shape 之外的 session 並不在本目標之上：在那裡被拒絕，且
+        // `isTargeted` 隨拖曳移動跟隨形狀。
+        private func isInside(_ session: UIDropSession) -> Bool {
+            !UIKitContentShapes.excludes(session.location(in: view), from: view)
+        }
+
+        private func setTargeted(_ targeted: Bool) {
+            guard targeted != isTargeted else { return }
+            isTargeted = targeted
+            onHover?(targeted)
+        }
+
         func dropInteraction(
             _ interaction: UIDropInteraction,
             sessionDidEnter session: UIDropSession
         ) {
-            onHover?(true)
+            setTargeted(isInside(session))
         }
 
         func dropInteraction(
             _ interaction: UIDropInteraction,
             sessionDidUpdate session: UIDropSession
         ) -> UIDropProposal {
-            UIDropProposal(operation: format(of: session) == nil ? .cancel : .copy)
+            let inside = isInside(session)
+            setTargeted(inside)
+            return UIDropProposal(operation: format(of: session) == nil || !inside ? .cancel : .copy)
         }
 
         func dropInteraction(
             _ interaction: UIDropInteraction,
             sessionDidExit session: UIDropSession
         ) {
-            onHover?(false)
+            setTargeted(false)
         }
 
         func dropInteraction(
             _ interaction: UIDropInteraction,
             sessionDidEnd session: UIDropSession
         ) {
-            onHover?(false)
+            setTargeted(false)
         }
 
         func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
-            onHover?(false)
+            setTargeted(false)
             guard let type = format(of: session) else { return }
 
             // `loadObjects` is asynchronous and `performDrop` returns nothing, so

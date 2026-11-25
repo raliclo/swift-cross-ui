@@ -256,11 +256,28 @@ final class TappableWidget: ContainerWidget, UIGestureRecognizerDelegate {
         // A hover the system cancels (the pointer leaves the app, a gesture takes
         // over) ends it as surely as `.ended` does, so it reports false too.
         // 被系統取消的懸停(指標離開 app、被別的手勢接手)與 `.ended` 一樣結束了懸停，因此同樣回報 false。
+        //
+        // While the recogniser runs, every move is checked against the content
+        // shape of this wrapper and of anything above it, so the pointer is
+        // inside only where the shape is: a move from the shape to a corner of
+        // the frame reports false, and back reports true.
+        // 辨識器執行期間，每次移動都會對照本包裝層及其上任何東西的 content shape,因此只有在形狀之內才算
+        // 在內：從形狀移到 frame 的角落回報 false,移回來回報 true。
+        private var isInside = false
+
         @objc
         func hoveringChanged(_ recognizer: UIHoverGestureRecognizer) {
             switch recognizer.state {
-                case .began: hoverChangesHandler?(true)
-                case .ended, .cancelled, .failed: hoverChangesHandler?(false)
+                case .began, .changed:
+                    let inside = !UIKitContentShapes.excludes(
+                        recognizer.location(in: view), from: view)
+                    guard inside != isInside else { return }
+                    isInside = inside
+                    hoverChangesHandler?(inside)
+                case .ended, .cancelled, .failed:
+                    guard isInside else { return }
+                    isInside = false
+                    hoverChangesHandler?(false)
                 default: break
             }
         }

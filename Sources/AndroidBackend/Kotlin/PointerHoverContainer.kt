@@ -46,7 +46,17 @@ class PointerHoverContainer(activity: Activity) : FrameLayout(activity) {
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
         val density = resources.displayMetrics.density
         when (event.actionMasked) {
-            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+            // Outside the content shape the pointer has left, even inside the
+            // frame; the change is reported once.
+            // 在 content shape 之外，即使仍在 frame 內，指標也算已經離開；只回報一次變化。
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> if (
+                !ContentShapes.contains(this, event.x, event.y)
+            ) {
+                if (inside) {
+                    inside = false
+                    changeAction?.call()
+                }
+            } else {
                 inside = true
                 pointX = event.x / density
                 pointY = event.y / density
@@ -90,7 +100,7 @@ class PointerHoverContainer(activity: Activity) : FrameLayout(activity) {
         }
         val density = resources.displayMetrics.density
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
+            MotionEvent.ACTION_DOWN -> if (ContentShapes.contains(this, event.x, event.y)) {
                 downX = event.x
                 downY = event.y
                 pointX = event.x / density
@@ -99,7 +109,13 @@ class PointerHoverContainer(activity: Activity) : FrameLayout(activity) {
                 postDelayed(beginHold, ViewConfiguration.getLongPressTimeout().toLong())
             }
             MotionEvent.ACTION_MOVE ->
-                if (holding) {
+                if (holding && !ContentShapes.contains(this, event.x, event.y)) {
+                    // A held finger that slides off the content shape stops hovering.
+                    // 按住的手指滑出 content shape 時，懸停即結束。
+                    holding = false
+                    inside = false
+                    changeAction?.call()
+                } else if (holding) {
                     pointX = event.x / density
                     pointY = event.y / density
                     metaState = event.metaState

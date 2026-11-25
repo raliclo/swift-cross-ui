@@ -4,17 +4,33 @@ action,x,y,origin,button,key,micros,note,platform
 # 52 points up and left of "Circle target" is a corner of a square given
 # contentShape(Circle()): outside the circle, so the tap must pass through to the
 # grey square underneath ("under"). The label itself is the centre and must
-# register "circle".
+# register "circle". Then the same two places of "Hold target" are long-pressed:
+# the corner must reach the grey square's long press ("lp-under"), the centre the
+# circle's ("lp-circle").
+# The long presses hold for 1.2 s at the place the tap row before has just put the
+# finger (a tap there does nothing). A touch screen has no hover, so the hover
+# part of P131 is checked on the desktops only.
 #
 # expect: log-contains P131 PASS
 #
 # P131 點擊三處。"Gap left" 標籤右方 130 點是加上 contentShape(Rectangle()) 的 HStack 的空隙，必須記為「gap」。
 # "Circle target" 左上方 52 點是加上 contentShape(Circle()) 的正方形的角落：在圓外，所以點擊必須穿透到下方的灰色
-# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。
+# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。接著對 "Hold target" 的同樣兩處長按：角落必須抵達灰色
+# 正方形的長按(「lp-under」),中心必須抵達圓的長按(「lp-circle」)。長按在前一列點擊剛放好手指之處按住 1.2 秒
+# (在那裡點一下什麼都不做)。觸控螢幕沒有懸停，因此 P131 的懸停部分只在桌面上檢查。
 sleep,,,,,,1500000,let P131 render,android
 taplabel,130,0,,,Gap left,,the empty gap must register,android
 sleep,,,,,,800000,,android
 taplabel,-52,-52,,,Circle target,,corner outside the circle must reach grey,android
 sleep,,,,,,800000,,android
 taplabel,,,,,Circle target,,centre must reach the circle,android
+sleep,,,,,,800000,,android
+taplabel,-52,-52,,,Hold target,,put the finger there; a tap does nothing,android
+sleep,,,,,,800000,,android
+longpress,,,,,,1200000,the long press at the corner must reach grey,android
+sleep,,,,,,800000,,android
+taplabel,,,,,Hold target,,put the finger there; a tap does nothing,android
+sleep,,,,,,800000,,android
+longpress,,,,,,1200000,the long press at the centre must reach the circle,android
+sleep,,,,,,800000,,android
 sleep,,,,,,2000000,let the verdict show,android

@@ -3040,8 +3040,16 @@ extension WinUIBackend {
             case .primary:
                 tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
-                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getCurrentPoint(tapGestureTarget)?.position) else { return }
+                    guard WinUIContentShapes.admits(tapGestureTarget, args) else { return }
                     tapGestureTarget.clickHandler?()
+                }
+                // A press XAML sent elsewhere because no move came before it
+                // reaches this tap through the root grid; see WinUIContentShapes.
+                // 因為之前沒有移動而被 XAML 送往別處的按壓，經由根 grid 抵達此點按；見 WinUIContentShapes。
+                WinUIContentShapes.setForwarded("tap-primary", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, _ in
+                    guard phase == .pressed else { return }
+                    tapGestureTarget?.clickHandler?()
                 }
 
             case .secondary:
@@ -3055,8 +3063,20 @@ extension WinUIBackend {
                 // 從原始 pointer 狀態自行重寫,會悄悄地只涵蓋到滑鼠。
                 tapGestureTarget.rightTapped.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
-                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getPosition(tapGestureTarget)) else { return }
+                    guard
+                        WinUIContentShapes.admits(
+                            tapGestureTarget, position: { try? args?.getPosition($0) })
+                    else { return }
                     tapGestureTarget.clickHandler?()
+                }
+                // A forwarded press has no right button; a touch held for the
+                // long-press time is the secondary interaction, as WinUI's own
+                // `rightTapped` makes it.
+                // 被轉交的按壓沒有右鍵；觸控按住長按時間即為次要互動，與 WinUI 自己的 `rightTapped` 相同。
+                let forwardedHold = WinUIContentShapes.LongPress()
+                WinUIContentShapes.setForwarded("tap-secondary", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, point in
+                    forwardedHold.handle(phase, point) { tapGestureTarget?.clickHandler?() }
                 }
 
             case .longPress:
@@ -3079,9 +3099,14 @@ extension WinUIBackend {
                 //
                 // 因此時長在此自行計時。`pointerPressed` 推進一個 generation 並排程回呼;任何結束
                 // 該次按壓的事件都會再推進 generation,而已排程的 closure 便會發現那個數字不是自己的。
+                let forwardedPress = WinUIContentShapes.LongPress()
+                WinUIContentShapes.setForwarded("tap-long-press", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, point in
+                    forwardedPress.handle(phase, point) { tapGestureTarget?.clickHandler?() }
+                }
                 tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, args in
                     guard let tapGestureTarget else { return }
-                    guard WinUIContentShapes.accepts(tapGestureTarget, at: try? args?.getCurrentPoint(tapGestureTarget)?.position) else { return }
+                    guard WinUIContentShapes.admits(tapGestureTarget, args) else { return }
                     tapGestureTarget.pressGeneration += 1
                     let generation = tapGestureTarget.pressGeneration
                     DispatchQueue.main.asyncAfter(
@@ -3135,12 +3160,32 @@ extension WinUIBackend {
         brush.color = UWP.Color(a: 0, r: 0, g: 0, b: 0)
         hoverTarget.background = brush
 
-        hoverTarget.pointerEntered.addHandler { [weak hoverTarget] _, _ in
+        // Inside only where the content shape is: entry and every move are
+        // checked against it, so a move from the shape to a corner of the
+        // frame reports an exit, and back an entry.
+        // 只有在 content shape 之處才算在內：進入與每次移動都對照它，因此從形狀移到 frame 的角落會回報
+        // 離開，移回來則回報進入。
+        let update: (HoverGestureTarget, PointerRoutedEventArgs?) -> Void = { hoverTarget, args in
+            let inside = WinUIContentShapes.contains(hoverTarget, args)
+            guard inside != hoverTarget.isInside else { return }
+            hoverTarget.isInside = inside
+            if inside {
+                hoverTarget.enterHandler?()
+            } else {
+                hoverTarget.exitHandler?()
+            }
+        }
+        hoverTarget.pointerEntered.addHandler { [weak hoverTarget] _, args in
             guard let hoverTarget else { return }
-            hoverTarget.enterHandler?()
+            update(hoverTarget, args)
+        }
+        hoverTarget.pointerMoved.addHandler { [weak hoverTarget] _, args in
+            guard let hoverTarget else { return }
+            update(hoverTarget, args)
         }
         hoverTarget.pointerExited.addHandler { [weak hoverTarget] _, _ in
-            guard let hoverTarget else { return }
+            guard let hoverTarget, hoverTarget.isInside else { return }
+            hoverTarget.isInside = false
             hoverTarget.exitHandler?()
         }
         return hoverTarget
@@ -3870,6 +3915,8 @@ final class TapGestureTarget: WinUI.Canvas {
 }
 
 final class HoverGestureTarget: WinUI.Canvas {
+    /// Whether the pointer was last inside the content shape. / 指標上次是否位於 content shape 之內。
+    var isInside = false
     var enterHandler: (() -> Void)?
     var exitHandler: (() -> Void)?
     var child: WinUI.FrameworkElement?
@@ -4103,6 +4150,18 @@ public class CustomWindow: WinUI.Window {
         // 見 WinUIContentShapes。
         grid.pointerMoved.addHandler { _, args in
             WinUIContentShapes.pointerMoved(args)
+            WinUIContentShapes.forwardMove(args)
+        }
+        // A press hit-tested with flags from an earlier position -- a touch
+        // landing with no move before it -- is forwarded from here to the
+        // gestures it should have reached, and its release after it.
+        // 以先前位置之旗標做命中測試的按壓——沒有先移動就落下的觸控——由此轉交給它本應抵達的手勢，其後的
+        // 放開亦然。
+        grid.pointerPressed.addHandler { _, args in
+            WinUIContentShapes.rootPointerPressed(args)
+        }
+        grid.pointerReleased.addHandler { _, args in
+            WinUIContentShapes.rootPointerReleased(args)
         }
         // Alt+Left, the Back key and the mouse's back button; see
         // WinUIBackend+BackNavigation.swift.

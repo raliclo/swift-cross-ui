@@ -94,8 +94,8 @@ struct OnTapGestureModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let result = children.child0.commit()
-        let size = result.size
+        let committed = children.child0.commit()
+        let size = committed.size
         backend.setSize(of: widget, to: size.vector)
         backend.updateTapGestureTarget(
             widget,
@@ -106,14 +106,11 @@ struct OnTapGestureModifier<Content: View>: TypeSafeView {
         // A content shape set on the tapped view limits this target too, so
         // `.contentShape(Circle()).onTapGesture { ... }` is hit only inside the
         // circle even where the target is a separate widget over the content
-        // (AppKit, WinUI). `nil` keeps the whole frame, and clears a shape a
-        // previous update set.
+        // (AppKit, WinUI). See `adoptContentShape(of:for:wrapping:)`.
         // 被點擊 view 上設定的 content shape 也限制此目標，因此即使目標是覆蓋在內容之上的獨立
         // widget(AppKit、WinUI),`.contentShape(Circle()).onTapGesture { ... }` 也只在圓內被
-        // 點中。`nil` 保留整個 frame,並清除先前更新所設的形狀。
-        backend.setContentShapeIfSupported(
-            of: widget,
-            to: result.preferences.contentShape?.region(in: size)
-        )
+        // 點中。見 `adoptContentShape(of:for:wrapping:)`。
+        backend.adoptContentShape(
+            of: committed, for: widget, wrapping: children.child0.widget.into())
     }
 }

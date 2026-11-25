@@ -151,7 +151,10 @@ final class NSCursorTarget: NSView {
         // `.mouseEnteredAndExited` 是為了下面的 `mouseExited` 而加的。
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.cursorUpdate, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            options: [
+                .cursorUpdate, .mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow,
+                .inVisibleRect,
+            ],
             owner: self,
             userInfo: nil
         )
@@ -193,7 +196,29 @@ final class NSCursorTarget: NSView {
     /// 錯誤讀數時,成因在測試工具而不在這個類別:一個跑在 `onMain` 裡的 hover 等待(`RunLoop.run(until:)`
     /// 不會把佇列中的事件交給 `sendEvent`),以及取自「相對於父 view」之 frame 的動作檔座標。兩者都記在
     /// 該檔案的檔頭。
+    /// Whether the pointer was last seen inside the content shape.
+    /// 上次看到指標時，它是否位於 content shape 之內。
+    private var isInsideShape = false
+
+    // The cursor is this target's only inside its content shape: a move from
+    // the shape to a corner of the frame gives the pointer back the arrow, and
+    // a move back sets it again.
+    // 只有在 content shape 之內，游標才屬於這個目標：從形狀移到 frame 的角落會把指標還原為箭頭，
+    // 移回來則再次設定。
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let inside = AppKitContentShapes.admits(windowPoint: event.locationInWindow, at: self)
+        guard inside != isInsideShape else { return }
+        isInsideShape = inside
+        (inside ? cursor : NSCursor.arrow).set()
+    }
+
     override func cursorUpdate(with event: NSEvent) {
+        isInsideShape = !AppKitContentShapes.excludes(windowPoint: event.locationInWindow, at: self)
+        guard isInsideShape else {
+            NSCursor.arrow.set()
+            return
+        }
         cursor.set()
         Self.report(
             "cursorUpdate on a \(bounds.width)x\(bounds.height) target at "

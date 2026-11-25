@@ -101,6 +101,24 @@ public struct HitRegion: Equatable, Sendable {
     /// The same region with every coordinate multiplied by `factor`, for a
     /// backend whose widgets measure in device pixels.
     /// 每個座標都乘上 `factor` 的同一區域，供 widget 以裝置像素為單位的 backend 使用。
+    /// The region with every point mapped through `transform`, the way a
+    /// geometric effect maps the view it is applied to.
+    ///
+    /// 每個點都經 `transform` 映射後的區域，與幾何效果映射其所套用之 view 的方式相同。
+    public func applying(_ transform: AffineTransform) -> HitRegion {
+        guard transform != .identity else { return self }
+        let m = transform.linearTransform
+        let t = transform.translation
+        return HitRegion(
+            contours: contours.map { contour in
+                contour.map { p in
+                    SIMD2(m.x * p.x + m.y * p.y + t.x, m.z * p.x + m.w * p.y + t.y)
+                }
+            },
+            evenOdd: evenOdd
+        )
+    }
+
     public func scaled(by factor: Double) -> HitRegion {
         HitRegion(
             contours: contours.map { $0.map { $0 * factor } },

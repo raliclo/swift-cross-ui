@@ -23,7 +23,12 @@ extension GtkBackend: BackendFeatures.DragGestures,
     public func createDragGestureTarget(wrapping child: Widget) -> Widget {
         let box = GestureBox(child)
         let gesture = GestureDrag()
-        gesture.dragBegin = { [weak box] _, x, y in
+        // A drag that starts outside the content shape, or on a press GTK sent
+        // here though the pointer is over another widget, is denied.
+        // 從 content shape 之外開始的拖曳，或始於「指標其實在另一個 widget 上、卻被 GTK 送到此處」之按壓的
+        // 拖曳，會被拒絕。
+        gesture.dragBegin = { [weak box] gesture, x, y in
+            guard GtkBackend.admitPress(gesture, x, y) else { return }
             box?.startX = x
             box?.startY = y
         }
@@ -36,6 +41,25 @@ extension GtkBackend: BackendFeatures.DragGestures,
             box.onDragEnd?(box.dragValue(dx: dx, dy: dy))
         }
         box.addEventController(gesture)
+        // A press GTK sent elsewhere because no motion came before it: the
+        // same drag, made of forwarded events.
+        // 因為之前沒有移動而被 GTK 送往別處的按壓：由轉交事件組成的同一個拖曳。
+        GtkPressForwarding.set("drag", on: box) { [weak box] phase, button, x, y in
+            guard let box, button == UInt32(GDK_BUTTON_PRIMARY) else { return }
+            switch phase {
+                case .pressed:
+                    box.forwardedDrag = GtkBackend.pointIsInsideShape(of: box.widgetPointer, x, y)
+                    box.startX = x
+                    box.startY = y
+                case .moved:
+                    guard box.forwardedDrag else { return }
+                    box.onDragChange?(box.dragValue(dx: x - box.startX, dy: y - box.startY))
+                case .released:
+                    guard box.forwardedDrag else { return }
+                    box.forwardedDrag = false
+                    box.onDragEnd?(box.dragValue(dx: x - box.startX, dy: y - box.startY))
+            }
+        }
         return box
     }
 
@@ -66,6 +90,9 @@ extension GtkBackend: BackendFeatures.DragGestures,
         // `GestureZoom` 自身沒有結束訊號——只有 `scale-changed`——因此最後一個值會在 `Gesture` 自身的
         // `end` 上再回報一次;那個訊號是每一個手勢控制器都繼承到的
         // (`Sources/Gtk/Generated/Gesture.swift:219`)。
+        gesture.begin = { gesture, _ in
+            _ = GtkBackend.admitTwoFingerGesture(gesture)
+        }
         gesture.end = { [weak box] _, _ in
             guard let box else { return }
             box.onMagnifyEnd?(MagnifyGestureValue(magnification: box.lastMagnification))
@@ -128,7 +155,8 @@ extension GtkBackend: BackendFeatures.DragGestures,
             box.lastRadians += step
             box.onRotateChange?(RotateGestureValue(radians: box.lastRadians))
         }
-        gesture.begin = { [weak box] _, _ in
+        gesture.begin = { [weak box] gesture, _ in
+            guard GtkBackend.admitTwoFingerGesture(gesture) else { return }
             box?.lastRadians = 0
             box?.lastRawAngleDelta = 0
         }
@@ -184,6 +212,9 @@ final class GestureBox: Box {
     /// unwrap the next one. See `createRotateGestureTarget`.
     /// 上一次 `angle-changed` 時 GTK 的 `angle_delta`,用來展開下一次。見 `createRotateGestureTarget`。
     var lastRawAngleDelta = 0.0
+    /// Whether a forwarded press began a drag here; see `GtkPressForwarding`.
+    /// 被轉交的按壓是否在此開始了拖曳；見 `GtkPressForwarding`。
+    var forwardedDrag = false
 
     var onDragChange: ((DragGestureValue) -> Void)?
     var onDragEnd: ((DragGestureValue) -> Void)?

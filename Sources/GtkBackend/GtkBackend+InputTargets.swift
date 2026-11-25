@@ -83,12 +83,29 @@ extension GtkBackend: BackendFeatures.ContextMenus {
                 }
             }
         }
+        // Only inside the content shape, and not for a press GTK sent here
+        // though the pointer is over another widget; such a press, sent
+        // elsewhere, arrives through GtkPressForwarding instead.
+        // 只在 content shape 之內，且不接受「指標其實在另一個 widget 上、卻被 GTK 送到此處」的按壓；這樣的
+        // 按壓若被送往別處，則改經由 GtkPressForwarding 抵達。
         for controller in target.eventControllers {
             if let click = controller as? GestureClick {
-                click.pressed = { _, _, x, y in show(x, y) }
+                click.pressed = { gesture, _, x, y in
+                    guard Self.admitPress(gesture, x, y) else { return }
+                    show(x, y)
+                }
             } else if let press = controller as? GestureLongPress {
-                press.pressed = { _, x, y in show(x, y) }
+                press.pressed = { gesture, x, y in
+                    guard Self.pressIsInsideShape(gesture, x, y) else { return }
+                    show(x, y)
+                }
             }
+        }
+        GtkPressForwarding.set("context-menu", on: target) { [weak target] phase, button, x, y in
+            guard let target, phase == .pressed, button == UInt32(GDK_BUTTON_SECONDARY),
+                Self.pointIsInsideShape(of: target.widgetPointer, x, y)
+            else { return }
+            show(x, y)
         }
     }
 }

@@ -95,6 +95,17 @@ final class CursorWidget: ContainerWidget {
 }
 
 extension CursorWidget: UIPointerInteractionDelegate {
+    // The cursor belongs to this target only inside its content shape: outside
+    // it there is no region, and the system pointer is left as it is.
+    // 游標只在 content shape 之內屬於本目標：在其外沒有 region,系統指標維持原樣。
+    func pointerInteraction(
+        _ interaction: UIPointerInteraction,
+        regionFor request: UIPointerRegionRequest,
+        defaultRegion: UIPointerRegion
+    ) -> UIPointerRegion? {
+        UIKitContentShapes.excludes(request.location, from: view) ? nil : defaultRegion
+    }
+
     func pointerInteraction(
         _ interaction: UIPointerInteraction,
         styleFor region: UIPointerRegion

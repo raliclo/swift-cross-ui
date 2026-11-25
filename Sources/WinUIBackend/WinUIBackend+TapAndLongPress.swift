@@ -23,8 +23,21 @@ extension WinUIBackend: BackendFeatures.TapAndLongPressGestures {
         brush.color = UWP.Color(a: 0, r: 0, g: 0, b: 0)
         target.background = brush
 
-        target.pointerPressed.addHandler { [weak target] _, _ in
-            guard let target else { return }
+        // A press outside the content shape, or one XAML hit-tested with flags
+        // from an earlier position, is not this target's; such a press sent
+        // elsewhere arrives through the root grid instead (WinUIContentShapes).
+        // content shape 之外的按壓，或以先前位置之旗標做命中測試的按壓，都不屬於本目標；這樣的按壓若被送往別處，
+        // 則改經由根 grid 抵達(WinUIContentShapes)。
+        let forwarded = WinUIContentShapes.LongPress()
+        WinUIContentShapes.setForwarded("tap-and-long-press", on: target) { [weak target] phase, point in
+            guard let target, phase == .pressed || forwarded.active else { return }
+            forwarded.handle(phase, point) { target.longPressHandler?() }
+            if phase == .released, !forwarded.fired {
+                target.tapHandler?()
+            }
+        }
+        target.pointerPressed.addHandler { [weak target] _, args in
+            guard let target, WinUIContentShapes.admits(target, args) else { return }
             target.pressGeneration += 1
             target.isPressed = true
             target.longPressFired = false

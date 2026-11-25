@@ -185,16 +185,46 @@ final class ManipulationTarget: WinUI.Grid {
         children.append(child)
         manipulationMode = mode
 
+        // A press outside the content shape, or one XAML hit-tested with flags
+        // from an earlier position, starts nothing here: the manipulation and
+        // the mouse drag it would begin are ignored until it is released. Such
+        // a press sent elsewhere drives the drag through the root grid instead
+        // (WinUIContentShapes).
+        // content shape 之外的按壓，或以先前位置之旗標做命中測試的按壓，在此不會開始任何事：它本會開始的
+        // manipulation 與滑鼠拖曳都會被忽略，直到放開為止。這樣的按壓若被送往別處，則改經由根 grid 驅動拖曳
+        // (WinUIContentShapes)。
+        WinUIContentShapes.setForwarded("drag", on: self) { [weak self] phase, point in
+            guard let self, let onMouseDrag = self.onMouseDrag else { return }
+            switch phase {
+                case .pressed:
+                    self.forwardedDragStart = point
+                case .moved:
+                    guard let start = self.forwardedDragStart, point != start else { return }
+                    onMouseDrag(start, point, false)
+                case .released:
+                    guard let start = self.forwardedDragStart else { return }
+                    self.forwardedDragStart = nil
+                    if point != start { onMouseDrag(start, point, true) }
+            }
+        }
         _ = manipulationStarted.addHandler { [weak self] _, args in
-            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
+            guard let self, let args, !self.refusedPress,
+                !self.isMouseHandledElsewhere(args.pointerDeviceType)
+            else { return }
             self.startLocation = SIMD2(Double(args.position.x), Double(args.position.y))
         }
         _ = manipulationDelta.addHandler { [weak self] _, args in
-            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
+            guard let self, let args, !self.refusedPress,
+                !self.isMouseHandledElsewhere(args.pointerDeviceType)
+            else { return }
             self.onDelta?(args.cumulative, self.startLocation)
         }
         _ = manipulationCompleted.addHandler { [weak self] _, args in
-            guard let self, let args, !self.isMouseHandledElsewhere(args.pointerDeviceType) else { return }
+            guard let self, let args else { return }
+            defer { self.refusedPress = false }
+            guard !self.refusedPress, !self.isMouseHandledElsewhere(args.pointerDeviceType) else {
+                return
+            }
             self.onCompleted?(args.cumulative, self.startLocation)
         }
         // A mouse drag goes through pointer events instead. A mouse does raise
@@ -209,7 +239,10 @@ final class ManipulationTarget: WinUI.Grid {
         // 計算速度，而那段時間沒有點到達(2026-10-19)。pointer 事件每次移動都會到。觸控與觸控筆仍走 manipulation,
         // 滑鼠不會兩條路都回報。
         _ = pointerPressed.addHandler { [weak self] _, args in
-            self?.mousePressed(args)
+            guard let self else { return }
+            self.refusedPress = !WinUIContentShapes.admits(self, args)
+            guard !self.refusedPress else { return }
+            self.mousePressed(args)
         }
         _ = pointerMoved.addHandler { [weak self] _, args in
             self?.mouseMoved(args)
@@ -234,6 +267,12 @@ final class ManipulationTarget: WinUI.Grid {
     }
 
     private var mouseDrag: MouseDrag?
+    /// Set by a press this target does not take; see `init`.
+    /// 由本目標不接下的按壓設定；見 `init`。
+    private var refusedPress = false
+    /// Where a forwarded press began a drag; see `init`.
+    /// 被轉交的按壓開始拖曳之處；見 `init`。
+    private var forwardedDragStart: SIMD2<Double>?
 
     /// Whether a mouse manipulation is left to the pointer path.
     /// 滑鼠的 manipulation 是否交給 pointer 路徑處理。

@@ -27,6 +27,10 @@ extension GtkBackend: BackendFeatures.PointerHover {
             }) as? EventControllerMotion
         else { return }
         let isEnabled = environment.isEnabled
+        // Active only inside the content shape: outside it the pointer has
+        // left, even inside the frame, and `.ended` is reported once.
+        // 只在 content shape 之內為 active:在其外，即使仍在 frame 內，指標也算已經離開，並回報一次 `.ended`。
+        let state = GtkHoverInside.of(motion)
         let report: (EventControllerMotion, Double, Double) -> Void = { controller, x, y in
             guard isEnabled else { return }
             #if os(Windows)
@@ -34,6 +38,12 @@ extension GtkBackend: BackendFeatures.PointerHover {
                 // 手指也會以模擬滑鼠的身分抵達;由 GtkTouchHold 回報它。
                 if GtkWindowsTouch.active { return }
             #endif
+            let widget = gtk_event_controller_get_widget(controller.opaquePointer)
+            guard Self.pointIsInsideShape(of: widget, x, y) else {
+                if state.update(false) { action(.ended) }
+                return
+            }
+            _ = state.update(true)
             // The modifiers held with this motion. / 這次移動時按住的修飾鍵。
             let state = gtk_event_controller_get_current_event_state(
                 controller.opaquePointer)
@@ -43,6 +53,7 @@ extension GtkBackend: BackendFeatures.PointerHover {
         motion.motion = report
         motion.leave = { _ in
             guard isEnabled else { return }
+            _ = state.update(false)
             action(.ended)
         }
         GtkTouchHold.setHandler(on: target) { phase in
@@ -94,7 +105,10 @@ private final class GtkTouchHold {
         let hold = GtkTouchHold(widget: child.widgetPointer)
 
         hold.longPress.touchOnly = true
-        hold.longPress.pressed = { [unowned hold] _, x, y in
+        hold.longPress.pressed = { [unowned hold] gesture, x, y in
+            // A finger held outside the content shape is not hovering here.
+            // 在 content shape 之外按住的手指並不在此懸停。
+            guard GtkBackend.pressIsInsideShape(gesture, x, y) else { return }
             hold.holding = true
             hold.handler?(.active(location: SIMD2(x, y), modifiers: []))
         }
@@ -148,9 +162,15 @@ private final class GtkTouchHold {
         guard holding else { return }
         switch gdk_event_get_event_type(event) {
             case GDK_TOUCH_UPDATE:
-                if let point = location(of: event) {
-                    handler?(.active(location: point, modifiers: []))
+                guard let point = location(of: event) else { break }
+                // A held finger that slides off the content shape stops hovering.
+                // 按住的手指滑出 content shape 時，懸停即結束。
+                guard GtkBackend.pointIsInsideShape(of: widget, point.x, point.y) else {
+                    holding = false
+                    handler?(.ended)
+                    break
                 }
+                handler?(.active(location: point, modifiers: []))
             case GDK_TOUCH_END, GDK_TOUCH_CANCEL:
                 holding = false
                 handler?(.ended)

@@ -206,6 +206,118 @@ static void scui_shape_apply_can_target(GtkWidget *widget, gboolean inside) {
     }
 }
 
+// A button press with no pointer move before it.
+//
+// GTK sends a button press to the pointer focus it picked at the last motion or
+// crossing; it does not pick again at the press (handle_pointing_event in
+// gtkmain.c). A shaped widget's `can-target` is updated for the press position
+// above, but too late for that press if the pointer got there without a
+// motion -- a touchscreen promoted to a mouse, a synthesised click, a layout or
+// shape change under a still pointer. GTK has no public way to re-pick nor to
+// make an event, so the hook works out both targets itself:
+//
+// - after every motion and crossing it records the widget GTK is about to pick
+//   (the same `gtk_widget_pick`, run after `can-target` was updated, so it is
+//   GTK's answer), and
+// - at a press it picks again at the press position. If the two differ, the
+//   press is misdirected: until its button is released, this backend's gesture
+//   handlers that are not on the fresh target's chain refuse it
+//   (scui_content_shape_press_reaches), and the press, the motions and the
+//   release are handed to the press forwarder, which runs the gestures of the
+//   widgets on the fresh target's chain that GTK will not deliver to.
+//
+// 沒有先移動指標就按下的按鍵。
+//
+// GTK 把按鍵按下送往它在上一次移動或 crossing 時挑選的 pointer focus;按下時並不重新挑選(gtkmain.c 的
+// handle_pointing_event)。上方已依按下的位置更新有形狀 widget 的 `can-target`,但若指標是在沒有移動事件的
+// 情況下抵達該處——觸控螢幕被提升為滑鼠、合成的點擊、指標靜止時版面或形狀改變——對這次按下就已太遲。GTK
+// 沒有公開的方式重新挑選，也無法建立事件，因此 hook 自己算出兩個目標：
+//
+// - 每次移動與 crossing 之後，記錄 GTK 即將挑中的 widget(同一個 `gtk_widget_pick`,在 `can-target` 更新後
+//   執行，所以就是 GTK 的答案);
+// - 按下時在按下的位置重新挑選。兩者不同時，這次按下就是被送錯的：直到該按鍵放開為止，本 backend 不在新
+//   目標鏈上的手勢 handler 都拒絕它(scui_content_shape_press_reaches),而按下、移動與放開都交給 press
+//   forwarder,由它執行新目標鏈上那些 GTK 不會送達之 widget 的手勢。
+
+typedef struct {
+    GWeakRef pick;
+    gboolean known;
+} ScuiNativePick;
+
+static GQuark scui_native_pick_quark(void) {
+    return g_quark_from_static_string("scui-content-shape-native-pick");
+}
+
+static void scui_native_pick_free(gpointer data) {
+    ScuiNativePick *record = data;
+    g_weak_ref_clear(&record->pick);
+    g_free(record);
+}
+
+static ScuiNativePick *scui_native_pick_record(GtkWidget *native) {
+    ScuiNativePick *record = g_object_get_qdata(G_OBJECT(native), scui_native_pick_quark());
+    if (record == NULL) {
+        record = g_new0(ScuiNativePick, 1);
+        g_weak_ref_init(&record->pick, NULL);
+        g_object_set_qdata_full(
+            G_OBJECT(native), scui_native_pick_quark(), record, scui_native_pick_free);
+    }
+    return record;
+}
+
+// Zero-filled statics are valid empty GWeakRefs. / 以零填滿的 static 即是有效的空 GWeakRef。
+static GWeakRef scui_misdirected_fresh;
+static GWeakRef scui_misdirected_stale;
+static GWeakRef scui_misdirected_native;
+static gboolean scui_misdirected_active = FALSE;
+static guint scui_misdirected_button = 0;
+static ScuiPressForwarder scui_press_forwarder = NULL;
+
+void scui_content_shape_set_press_forwarder(ScuiPressForwarder forwarder) {
+    scui_press_forwarder = forwarder;
+}
+
+gboolean scui_content_shape_press_reaches(GtkWidget *widget) {
+    if (!scui_misdirected_active || widget == NULL) {
+        return TRUE;
+    }
+    GtkWidget *fresh = g_weak_ref_get(&scui_misdirected_fresh);
+    gboolean reaches = fresh != NULL && (fresh == widget || gtk_widget_is_ancestor(fresh, widget));
+    if (fresh != NULL) {
+        g_object_unref(fresh);
+    }
+    return reaches;
+}
+
+static void scui_forward(int phase, GtkWidget *native, double nx, double ny) {
+    GtkWidget *fresh = g_weak_ref_get(&scui_misdirected_fresh);
+    GtkWidget *stale = g_weak_ref_get(&scui_misdirected_stale);
+    if (fresh != NULL && scui_press_forwarder != NULL) {
+        graphene_point_t point = GRAPHENE_POINT_INIT((float)nx, (float)ny);
+        graphene_point_t local;
+        if (gtk_widget_compute_point(native, fresh, &point, &local)) {
+            scui_press_forwarder(fresh, stale, phase, scui_misdirected_button, local.x, local.y);
+        }
+    }
+    if (fresh != NULL) {
+        g_object_unref(fresh);
+    }
+    if (stale != NULL) {
+        g_object_unref(stale);
+    }
+}
+
+static void scui_misdirected_clear(void) {
+    scui_misdirected_active = FALSE;
+    scui_misdirected_button = 0;
+    g_weak_ref_set(&scui_misdirected_fresh, NULL);
+    g_weak_ref_set(&scui_misdirected_stale, NULL);
+    g_weak_ref_set(&scui_misdirected_native, NULL);
+}
+
+static const GdkModifierType scui_button_masks =
+    GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK | GDK_BUTTON4_MASK | GDK_BUTTON5_MASK;
+
 static gboolean scui_shape_surface_event_hook(
     GSignalInvocationHint *hint, guint n_params, const GValue *params, gpointer data
 ) {
@@ -219,12 +331,19 @@ static gboolean scui_shape_surface_event_hook(
     if (surface == NULL || event == NULL) {
         return TRUE;
     }
-    switch (gdk_event_get_event_type(event)) {
+    GdkEventType type = gdk_event_get_event_type(event);
+    switch (type) {
         case GDK_MOTION_NOTIFY:
         case GDK_BUTTON_PRESS:
+        case GDK_BUTTON_RELEASE:
         case GDK_ENTER_NOTIFY:
         case GDK_TOUCH_BEGIN:
         case GDK_TOUCH_UPDATE:
+        // A drag over the window is picked afresh at every motion too, so a
+        // drop target follows its shape. / 拖放經過視窗時每次移動也都重新挑選，讓拖放目標依循形狀。
+        case GDK_DRAG_ENTER:
+        case GDK_DRAG_MOTION:
+        case GDK_DROP_START:
             break;
         default:
             return TRUE;
@@ -255,6 +374,76 @@ static gboolean scui_shape_surface_event_hook(
         }
         shape->inside = scui_shape_region_contains(shape, local.x, local.y);
         scui_shape_apply_can_target(widget, shape->inside);
+    }
+
+    // What GTK picks, and whether a press goes where it is seen; see above.
+    // GTK 挑選的對象，以及按下是否送往看得見的地方；見上方。
+    GtkWidget *native_widget = GTK_WIDGET(native);
+    GdkModifierType held = gdk_event_get_modifier_state(event) & scui_button_masks;
+    ScuiNativePick *record = scui_native_pick_record(native_widget);
+    switch (type) {
+        case GDK_MOTION_NOTIFY:
+        case GDK_ENTER_NOTIFY:
+            if (scui_misdirected_active && type == GDK_MOTION_NOTIFY) {
+                GtkWidget *forwarded = g_weak_ref_get(&scui_misdirected_native);
+                if (forwarded == native_widget) {
+                    scui_forward(SCUI_PRESS_MOTION, native_widget, point.x, point.y);
+                }
+                if (forwarded != NULL) {
+                    g_object_unref(forwarded);
+                }
+            }
+            // Under an implicit grab GTK keeps its target; it picks again only
+            // with no button held. / 在隱式 grab 之下 GTK 保留其目標；只有沒有按住按鍵時才重新挑選。
+            if (held == 0) {
+                GtkWidget *pick = gtk_widget_pick(native_widget, point.x, point.y, GTK_PICK_DEFAULT);
+                g_weak_ref_set(&record->pick, pick != NULL ? pick : native_widget);
+                record->known = TRUE;
+            }
+            break;
+        case GDK_BUTTON_PRESS: {
+            // A press with another button held goes to the grab, and one while a
+            // misdirected press is still down is part of it.
+            // 按住其他按鍵時的按下會送往 grab;被送錯的按下尚未放開時的按下則屬於它。
+            if (held != 0 || scui_misdirected_active || !record->known) {
+                break;
+            }
+            GtkWidget *fresh = gtk_widget_pick(native_widget, point.x, point.y, GTK_PICK_DEFAULT);
+            if (fresh == NULL) {
+                fresh = native_widget;
+            }
+            GtkWidget *stale = g_weak_ref_get(&record->pick);
+            // An unknown target (destroyed since) is left to GTK.
+            // 未知的目標(之後已被銷毀)交給 GTK 處理。
+            if (stale != NULL && stale != fresh) {
+                scui_misdirected_active = TRUE;
+                scui_misdirected_button = gdk_button_event_get_button(event);
+                g_weak_ref_set(&scui_misdirected_fresh, fresh);
+                g_weak_ref_set(&scui_misdirected_stale, stale);
+                g_weak_ref_set(&scui_misdirected_native, native_widget);
+                scui_forward(SCUI_PRESS_PRESSED, native_widget, point.x, point.y);
+            }
+            if (stale != NULL) {
+                g_object_unref(stale);
+            }
+            break;
+        }
+        case GDK_BUTTON_RELEASE:
+            if (scui_misdirected_active
+                && gdk_button_event_get_button(event) == scui_misdirected_button) {
+                scui_forward(SCUI_PRESS_RELEASED, native_widget, point.x, point.y);
+                scui_misdirected_clear();
+            }
+            // GTK picks again at a release of the only button held.
+            // 放開唯一按住的按鍵時，GTK 會重新挑選。
+            if (held != 0 && (held & (held - 1)) == 0) {
+                GtkWidget *pick = gtk_widget_pick(native_widget, point.x, point.y, GTK_PICK_DEFAULT);
+                g_weak_ref_set(&record->pick, pick != NULL ? pick : native_widget);
+                record->known = TRUE;
+            }
+            break;
+        default:
+            break;
     }
     return TRUE;
 }
