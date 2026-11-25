@@ -2,10 +2,7 @@ import DebugFeatures
 
 /// A control that displays an editable text interface, hiding characters
 /// as they're typed.
-public struct SecureField: ElementaryView, View {
-    /// The ideal width of a `SecureField`.
-    private static let idealWidth: Double = 100
-
+public struct SecureField: View {
     /// The label to show when the field is empty.
     private var placeholder: String
     /// The field's content.
@@ -20,6 +17,33 @@ public struct SecureField: ElementaryView, View {
         self.placeholder = placeholder
         self._text = text
     }
+
+    // The field is drawn at `controlSize(_:)`, as a built-in `TextField` style
+    // is. `SecureField` used to be the leaf view itself, and a leaf has no
+    // child to put `ControlSizeScaler` around; the widget now lives in
+    // `SecureFieldImplementation`, and this body wraps it in the scaler. The
+    // initializer and the `View` conformance are unchanged.
+    //
+    // 欄位以 `controlSize(_:)` 繪製，與內建 `TextField` style 相同。`SecureField` 過去本身就是葉節點
+    // view,而葉節點沒有 child 可以讓 `ControlSizeScaler` 包住；現在 widget 移到
+    // `SecureFieldImplementation`,由這個 body 把它包進 scaler。initializer 與 `View` conformance 不變。
+    public var body: some View {
+        SecureFieldImplementation(placeholder: placeholder, text: $text)
+            .scaledToControlSize()
+    }
+}
+
+/// The platform's secure field, laid out and updated for a ``SecureField``.
+///
+/// 平台的安全文字欄位，為 ``SecureField`` 排版與更新。
+struct SecureFieldImplementation: ElementaryView, View {
+    /// The ideal width of a `SecureField`.
+    private static let idealWidth: Double = 100
+
+    /// The label to show when the field is empty.
+    var placeholder: String
+    /// The field's content.
+    var text: Binding<String>
 
     func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
         return backend.createSecureField()
@@ -61,7 +85,7 @@ public struct SecureField: ElementaryView, View {
                 // 改以 `SCUI_DEBUG` 為條件、而非 `#if DEBUG`，理由詳見 `BuiltinTextFieldStyles.swift` 中對應
                 // 的檢查：每次按鍵都比較文字的代價，正是它必須帶條件的原因；而 `#if DEBUG` 讓它
                 // 取決於一個本專案從不建置的組態。
-                if DebugFeatures.isEnabled, self.text == newValue {
+                if DebugFeatures.isEnabled, self.text.wrappedValue == newValue {
                     logger.warning(
                         """
                         Unnecessary write to text Binding of SecureField detected, \
@@ -71,12 +95,12 @@ public struct SecureField: ElementaryView, View {
                     )
                 }
 
-                self.text = newValue
+                self.text.wrappedValue = newValue
             },
             onSubmit: environment.onSubmit ?? {}
         )
 
-        let text = text
+        let text = text.wrappedValue
         if text != backend.getContent(ofSecureField: widget) {
             backend.setContent(ofSecureField: widget, to: text)
         }

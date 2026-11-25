@@ -5,7 +5,7 @@ import SwiftCrossUI
 // P129 controlSize(_:): the same controls at .small, .regular and .large.
 //
 // Each row is one control -- a button, a stepper, a switch, a checkbox, a slider, a
-// menu picker, a text field, a progress bar and a spinner -- shown at the three
+// menu picker, a text field, a secure field, a progress bar and a spinner -- shown at the three
 // sizes side by side. A second after the window appears the app compares the sizes
 // each one was laid out at and logs "P129 PASS" when, for every control, small is
 // smaller than regular and regular smaller than large (no dimension shrinks and at
@@ -14,7 +14,7 @@ import SwiftCrossUI
 // controls drawn whole at each size.
 //
 // P129 controlSize(_:):同一組控制項分別以 .small、.regular、.large 顯示。
-// 每一列是一種控制項——按鈕、stepper、switch、checkbox、slider、選單 picker、文字欄位、進度條與轉圈——三種尺寸並排。
+// 每一列是一種控制項——按鈕、stepper、switch、checkbox、slider、選單 picker、文字欄位、安全文字欄位、進度條與轉圈——三種尺寸並排。
 // 視窗出現一秒後，app 比較每個控制項排版所得的尺寸：每一種都是 small 小於 regular、regular 小於 large(沒有任何
 // 維度變小，且至少一個維度變大)時，在 p129-debug-events.log(SCUI_DEBUG_EVENTS_DIR)與 stdout 記下「P129 PASS」,
 // 否則記下「P129 FAIL (...)」並列出不符合的控制項。截圖顯示各尺寸的控制項都完整畫出。
@@ -28,7 +28,7 @@ enum P129 {
     ]
     static let controls = [
         "button", "stepper", "switch", "checkbox", "slider", "picker", "textfield",
-        "bar", "spinner",
+        "secure", "bar", "spinner",
     ]
 
     @MainActor static var measured: [String: ViewSize] = [:]
@@ -140,6 +140,7 @@ struct P129View: View {
     @State var value = 0.5
     @State var fruit: String? = "Apple"
     @State var text = "Text"
+    @State var password = "Secret"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -168,6 +169,7 @@ struct P129View: View {
                     .pickerStyle(.menu)
             )
             P129Row(name: "textfield", content: TextField("Name", text: $text))
+            P129Row(name: "secure", content: SecureField("Password", text: $password))
             P129Row(name: "bar", content: ProgressView(value: 0.6))
             P129Row(name: "spinner", content: ProgressView())
         }
