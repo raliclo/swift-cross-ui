@@ -51,4 +51,29 @@ enum UIKitContentShapes {
         let y = point.y - view.bounds.minY
         return !box.region.contains([Double(x), Double(y)])
     }
+
+    /// Whether `point`, in `view`'s coordinates, is outside the shape of
+    /// `view` or of any view above it. For input that is not decided by
+    /// `hitTest` alone -- a hover recogniser keeps reporting while the pointer
+    /// is anywhere over its view, pointer styles and drop sessions ask about a
+    /// location -- and has to consult the shapes itself. `convert` carries
+    /// each view's transform, so a geometric effect on the way is respected.
+    ///
+    /// `point`(位於 `view` 座標)是否落在 `view` 或其上任何 view 的形狀之外。給不只由 `hitTest`
+    /// 決定的輸入使用——懸停辨識器只要指標在其 view 上任何位置就持續回報，指標樣式與拖放 session 會詢問
+    /// 某個位置——它們必須自己查詢形狀。`convert` 會帶上每個 view 的 transform,因此途中的幾何效果
+    /// 也會被考慮。
+    static func excludes(_ point: CGPoint, from view: UIView) -> Bool {
+        guard regions.count > 0 else { return false }
+        var current: UIView? = view
+        while let candidate = current {
+            if regions.object(forKey: candidate) != nil,
+                excludes(view.convert(point, to: candidate), of: candidate)
+            {
+                return true
+            }
+            current = candidate.superview
+        }
+        return false
+    }
 }

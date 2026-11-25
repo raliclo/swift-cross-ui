@@ -206,6 +206,10 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
             point[1] = y
             inverse.mapPoints(point)
             if (point[0] < 0 || point[1] < 0 || point[0] >= child.width || point[1] >= child.height) continue
+            // Outside a content shape on the container itself, mapped through
+            // its matrix as the bounds are: the next child underneath is asked.
+            // 落在容器本身的 content shape 之外(與邊界一樣經其矩陣換算):改問下方的下一個子元件。
+            if (!ContentShapes.contains(child, point[0], point[1])) continue
             transformedMapping.setTranslate(scrollX - child.x, scrollY - child.y)
             transformedMapping.postConcat(inverse)
             if (forwardTransformed(transformed, ev)) {

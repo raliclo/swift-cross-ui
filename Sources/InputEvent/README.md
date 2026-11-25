@@ -102,7 +102,7 @@ action,x,y,origin,button,key,micros,note,platform
 | `pinch` | `x` = scale × 100, `y` = velocity × 100 (0 = default) | two-finger pinch around the last pointer position; refused on Windows (use `testapp/touch_gesture.zsh`) and Linux |
 | `rotate` | `x` = degrees clockwise, `y` = degrees per second (0 = default) | two-finger rotation; same platforms as `pinch` |
 | `orient` | `key` = `portrait`, `portraitUpsideDown`, `landscapeLeft` or `landscapeRight` | turn the device; phone and tablet only |
-| `taplabel` | `key` = the text; `x,y` optional | tap the view showing that text, wherever it is laid out; with `x,y`, that many points from its centre (2026-10-29) |
+| `taplabel` | `key` = the text; `x,y` optional | tap the view showing that text, wherever it is laid out; with `x,y`, that many points from its centre (2026-10-29). The pointer (or finger) stays where it tapped, so a following `mousedown` or `longpress` with no position acts there (2026-11-25) |
 | `focus` | `target` = the window title, matched exactly | bring that window to the front; later coordinates resolve against it |
 
 ### `scroll` reads `x` and `y` as a delta, not a position

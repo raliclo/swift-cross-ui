@@ -92,27 +92,32 @@ final class DropTargetCanvas: WinUI.Canvas {
     private func installDropHandlers(on element: WinUI.FrameworkElement, label: String) {
         element.allowDrop = true
 
-        element.dragEnter.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
-            let accepted = self.answer(args)
+        // Over a corner of the frame outside the content shape the drag is not
+        // over this target: it is refused there, and the hover follows the
+        // shape as the drag moves.
+        // 在 frame 角落、content shape 之外時，拖曳並不在本目標之上：在那裡被拒絕，懸停狀態也隨拖曳移動跟隨形狀。
+        element.dragEnter.addHandler { [weak self, weak element] _, args in
+            guard let self, let element, let args else { return }
+            let accepted = self.answer(args, over: element)
+            // `answer` has reported the hover. / `answer` 已回報懸停狀態。
             self.debug("dragEnter \(label) accepted=\(accepted)")
-            if accepted {
-                self.onHover?(true)
-            }
         }
 
-        element.dragOver.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
-            _ = self.answer(args)
+        element.dragOver.addHandler { [weak self, weak element] _, args in
+            guard let self, let element, let args else { return }
+            _ = self.answer(args, over: element)
         }
 
         element.dragLeave.addHandler { [weak self] _, _ in
             self?.debug("dragLeave \(label)")
+            self?.isTargeted = false
             self?.onHover?(false)
         }
 
-        element.drop.addHandler { [weak self] _, args in
-            guard let self, let args else { return }
+        element.drop.addHandler { [weak self, weak element] _, args in
+            guard let self, let element, let args else { return }
+            guard self.answer(args, over: element) else { return }
+            self.isTargeted = false
             self.debug("drop \(label)")
             self.receive(args)
         }
@@ -138,10 +143,21 @@ final class DropTargetCanvas: WinUI.Canvas {
 
     /// Tells Windows whether this target will take the drag currently over it,
     /// and reports back whether it said yes.
-    private func answer(_ args: WinUI.DragEventArgs) -> Bool {
-        let accepted = format(of: args.dataView) != nil
+    /// Whether the drag is over this target, inside its content shape.
+    /// 拖曳是否位於本目標之上、且在其 content shape 之內。
+    private var isTargeted = false
+
+    private func answer(_ args: WinUI.DragEventArgs, over element: WinUI.UIElement) -> Bool {
+        let inside = WinUIContentShapes.admits(element) { try? args.getPosition($0) }
+        let accepted = inside && format(of: args.dataView) != nil
         args.acceptedOperation = accepted ? .copy : .none
         args.handled = true
+        if inside != isTargeted {
+            isTargeted = inside
+            // Entry, and every move across the shape's edge.
+            // 進入，以及每次跨越形狀邊緣的移動。
+            if !inside { onHover?(false) } else if accepted { onHover?(true) }
+        }
         return accepted
     }
 

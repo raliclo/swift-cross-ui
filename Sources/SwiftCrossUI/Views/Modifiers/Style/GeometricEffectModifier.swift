@@ -228,13 +228,23 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        body.computeLayout(
+        var result = body.computeLayout(
             widget,
             children: children,
             proposedSize: proposedSize,
             environment: environment,
             backend: backend
         )
+        // A content shape inside moves with the drawn view, so a tap or hover
+        // target outside this modifier hits it where it is seen.
+        // 內部的 content shape 隨畫出的 view 一起移動，讓本 modifier 之外的點按或懸停目標在看得見
+        // 的位置命中它。
+        if var shape = result.preferences.contentShape {
+            let size = SIMD2(Double(result.size.vector.x), Double(result.size.vector.y))
+            shape.apply(effect.resolved(in: size))
+            result.preferences.contentShape = shape
+        }
+        return result
     }
 
     // No warning here; `asWidget` has already reported it. See the note on

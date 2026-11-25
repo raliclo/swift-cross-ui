@@ -76,7 +76,12 @@ class DropListener(val activity: Activity) : View.OnDragListener {
         when (event.action) {
             DragEvent.ACTION_DRAG_STARTED -> return accepts(event.clipDescription)
 
-            DragEvent.ACTION_DRAG_ENTERED -> setHovering(true)
+            // Over a corner of the frame outside the content shape the drag is
+            // not over this target: the hover follows the shape, and a drop
+            // there is refused.
+            // 在 frame 角落、content shape 之外時，拖曳並不在本目標之上：懸停狀態跟隨形狀，在那裡放下會被拒絕。
+            DragEvent.ACTION_DRAG_ENTERED,
+            DragEvent.ACTION_DRAG_LOCATION -> setHovering(ContentShapes.contains(view, event.x, event.y))
 
             DragEvent.ACTION_DRAG_EXITED -> setHovering(false)
 
@@ -84,6 +89,7 @@ class DropListener(val activity: Activity) : View.OnDragListener {
 
             DragEvent.ACTION_DROP -> {
                 setHovering(false)
+                if (!ContentShapes.contains(view, event.x, event.y)) return false
                 return handleDrop(event)
             }
         }

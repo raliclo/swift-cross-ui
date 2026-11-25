@@ -36,6 +36,10 @@ final class NSPointerHoverContainer: NSView {
     var handler: ((PointerHoverPhase) -> Void)?
     private var trackingArea: NSTrackingArea?
     private var flagsMonitor: Any?
+    /// Whether the last report was `.active`, so leaving the content shape
+    /// inside the frame reports `.ended` once.
+    /// 上一次回報是否為 `.active`,讓在 frame 內離開 content shape 時只回報一次 `.ended`。
+    private var isInside = false
 
     override var isFlipped: Bool { true }
 
@@ -52,6 +56,16 @@ final class NSPointerHoverContainer: NSView {
 
     private func report(_ event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        // Only inside the content shape; outside it the pointer has left.
+        // 只在 content shape 之內回報；在其外，指標就算已經離開。
+        guard AppKitContentShapes.admits(windowPoint: event.locationInWindow, at: self) else {
+            if isInside {
+                isInside = false
+                handler?(.ended)
+            }
+            return
+        }
+        isInside = true
         handler?(
             .active(
                 location: SIMD2(Double(point.x), Double(point.y)),
@@ -68,7 +82,10 @@ final class NSPointerHoverContainer: NSView {
             [weak self] event in
             guard let self, let window = self.window else { return event }
             let point = self.convert(window.mouseLocationOutsideOfEventStream, from: nil)
-            if self.bounds.contains(point) {
+            if self.isInside, self.bounds.contains(point),
+                !AppKitContentShapes.excludes(
+                    windowPoint: window.mouseLocationOutsideOfEventStream, at: self)
+            {
                 self.handler?(
                     .active(
                         location: SIMD2(Double(point.x), Double(point.y)),
@@ -85,6 +102,7 @@ final class NSPointerHoverContainer: NSView {
 
     override func mouseExited(with event: NSEvent) {
         stopWatchingFlags()
+        isInside = false
         handler?(.ended)
     }
 

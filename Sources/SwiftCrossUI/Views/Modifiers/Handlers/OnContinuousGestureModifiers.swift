@@ -113,7 +113,8 @@ struct OnDragGestureModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size
+        let committed = children.child0.commit()
+        let size = committed.size
         backend.setSize(of: widget, to: size.vector)
         // Each value gets its velocity from the times the points arrived.
         // 每個值的速度由各點抵達的時間算出。
@@ -131,6 +132,11 @@ struct OnDragGestureModifier<Content: View>: TypeSafeView {
                 onEnd(children.tracker.ended(value, at: ProcessInfo.processInfo.systemUptime))
             }
         )
+        // A pointer target takes the content shape of the view it wraps; see
+        // `adoptContentShape(of:for:wrapping:)`.
+        // 指標目標沿用其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。
+        backend.adoptContentShape(
+            of: committed, for: widget, wrapping: children.child0.widget.into())
     }
 }
 
@@ -179,7 +185,8 @@ struct OnMagnifyGestureModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size
+        let committed = children.child0.commit()
+        let size = committed.size
         backend.setSize(of: widget, to: size.vector)
         backend.updateMagnifyGestureTarget(
             widget,
@@ -187,6 +194,11 @@ struct OnMagnifyGestureModifier<Content: View>: TypeSafeView {
             onChange: onChange,
             onEnd: onEnd
         )
+        // A pointer target takes the content shape of the view it wraps; see
+        // `adoptContentShape(of:for:wrapping:)`.
+        // 指標目標沿用其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。
+        backend.adoptContentShape(
+            of: committed, for: widget, wrapping: children.child0.widget.into())
     }
 }
 
@@ -235,7 +247,8 @@ struct OnRotateGestureModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size
+        let committed = children.child0.commit()
+        let size = committed.size
         backend.setSize(of: widget, to: size.vector)
         backend.updateRotateGestureTarget(
             widget,
@@ -243,5 +256,10 @@ struct OnRotateGestureModifier<Content: View>: TypeSafeView {
             onChange: onChange,
             onEnd: onEnd
         )
+        // A pointer target takes the content shape of the view it wraps; see
+        // `adoptContentShape(of:for:wrapping:)`.
+        // 指標目標沿用其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。
+        backend.adoptContentShape(
+            of: committed, for: widget, wrapping: children.child0.widget.into())
     }
 }

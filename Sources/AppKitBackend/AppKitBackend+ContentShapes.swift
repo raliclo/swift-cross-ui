@@ -70,4 +70,34 @@ enum AppKitContentShapes {
         }
         return false
     }
+
+    /// Whether `windowPoint`, in window coordinates, is outside the shape of
+    /// `view` or of any view above it. For the input that does not go through
+    /// `hitTest` -- tracking areas (hover, continuous hover, cursors) and drag
+    /// destinations -- which is told about a point by geometry alone and has to
+    /// ask the shapes itself.
+    ///
+    /// `windowPoint`(視窗座標)是否落在 `view` 或其上任何 view 的形狀之外。給不經過 `hitTest` 的輸入
+    /// 使用——tracking area(懸停、連續懸停、游標)與拖放目的地——它們只憑幾何範圍得知一個點，必須自己
+    /// 詢問形狀。
+    static func excludes(windowPoint: NSPoint, at view: NSView) -> Bool {
+        guard regions.count > 0 else { return false }
+        var current: NSView? = view
+        while let candidate = current {
+            if regions.object(forKey: candidate) != nil,
+                excludes(candidate.convert(windowPoint, from: nil), of: candidate)
+            {
+                return true
+            }
+            current = candidate.superview
+        }
+        return false
+    }
+
+    /// Whether `windowPoint` is inside `view`'s bounds and inside every shape
+    /// from `view` up. / `windowPoint` 是否位於 `view` 的 bounds 內，且在 `view` 以上的每個形狀之內。
+    static func admits(windowPoint: NSPoint, at view: NSView) -> Bool {
+        view.bounds.contains(view.convert(windowPoint, from: nil))
+            && !excludes(windowPoint: windowPoint, at: view)
+    }
 }

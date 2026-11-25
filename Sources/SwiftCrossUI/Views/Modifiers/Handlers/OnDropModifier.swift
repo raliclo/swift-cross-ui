@@ -107,7 +107,8 @@ struct OnDropModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size.vector
+        let committed = children.child0.commit()
+        let size = committed.size.vector
         backend.setSize(of: widget, to: size)
         let isTargeted = isTargeted
         backend.updateDropTarget(
@@ -119,5 +120,10 @@ struct OnDropModifier<Content: View>: TypeSafeView {
             },
             onDrop: action
         )
+        // A pointer target takes the content shape of the view it wraps; see
+        // `adoptContentShape(of:for:wrapping:)`.
+        // 指標目標沿用其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。
+        backend.adoptContentShape(
+            of: committed, for: widget, wrapping: children.child0.widget.into())
     }
 }

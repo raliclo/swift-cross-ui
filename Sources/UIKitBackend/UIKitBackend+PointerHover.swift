@@ -57,9 +57,22 @@ import UIKit
             }
         }
 
+        /// Whether the last report was `.active`. / 上一次回報是否為 `.active`。
+        private var isInside = false
+
         @objc func hovered(_ gesture: UIGestureRecognizer) {
             switch gesture.state {
                 case .began, .changed:
+                    // Outside the content shape the pointer has left, even
+                    // inside the frame. / 在 content shape 之外，即使仍在 frame 內，指標也算已經離開。
+                    guard !UIKitContentShapes.excludes(gesture.location(in: view), from: view) else {
+                        if isInside {
+                            isInside = false
+                            handler?(.ended)
+                        }
+                        return
+                    }
+                    isInside = true
                     let point = gesture.location(in: child.view)
                     var modifiers: EventModifiers = []
                     if #available(iOS 13.4, macCatalyst 13.4, *) {
@@ -69,6 +82,7 @@ import UIKit
                         .active(
                             location: SIMD2(Double(point.x), Double(point.y)), modifiers: modifiers))
                 case .ended, .cancelled, .failed:
+                    isInside = false
                     handler?(.ended)
                 default:
                     break

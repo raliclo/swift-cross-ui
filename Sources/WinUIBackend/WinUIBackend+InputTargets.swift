@@ -96,7 +96,40 @@ extension WinUIBackend: BackendFeatures.Cursors {
 
 extension WinUIBackend: BackendFeatures.ContextMenus {
     public func createContextMenuTarget(wrapping child: Widget) -> Widget {
-        featureTarget(wrapping: child)
+        let target = featureTarget(wrapping: child)
+        // No menu outside the content shape, nor for a hold XAML hit-tested
+        // with flags from an earlier position: the flyout is withheld for this
+        // request and put back on the next turn of the main loop. A request
+        // from the keyboard has no position and is always this target's.
+        // content shape 之外不開選單，以先前位置之旗標做命中測試的長按也不開：本次要求先撤下 flyout,在主迴圈
+        // 下一輪再放回。來自鍵盤的要求沒有位置，一律屬於本目標。
+        target.contextRequested.addHandler { [weak target] _, args in
+            guard let target, let args else { return }
+            let admitted = WinUIContentShapes.admits(target) { element in
+                var point = WindowsFoundation.Point(x: 0, y: 0)
+                return (try? args.tryGetPosition(element, &point)) == true ? point : nil
+            }
+            guard !admitted, let flyout = target.contextFlyout else { return }
+            target.contextFlyout = nil
+            DispatchQueue.main.async { [weak target] in
+                guard let target, target.contextFlyout == nil else { return }
+                target.contextFlyout = flyout
+            }
+        }
+        // A hold XAML sent elsewhere because no move came before it opens the
+        // menu here through the root grid (WinUIContentShapes).
+        // 因為之前沒有移動而被 XAML 送往別處的長按，經由根 grid 在此開啟選單(WinUIContentShapes)。
+        let forwardedHold = WinUIContentShapes.LongPress()
+        WinUIContentShapes.setForwarded("context-menu", on: target) { [weak target] phase, point in
+            forwardedHold.handle(phase, point) {
+                guard let target, target.contextFlyout != nil, let flyout = target.menuFlyout else {
+                    return
+                }
+                try? flyout.showAt(
+                    target, WindowsFoundation.Point(x: Float(point.x), y: Float(point.y)))
+            }
+        }
+        return target
     }
 
     public func updateContextMenuTarget(
@@ -380,6 +413,19 @@ extension WinUIBackend: BackendFeatures.PointerHover {
                 return
             }
             let location = SIMD2(Double(position.x), Double(position.y))
+            // Outside the content shape the pointer has left, even inside the
+            // frame; `.ended` is reported once.
+            // 在 content shape 之外，即使仍在 frame 內，指標也算已經離開；只回報一次 `.ended`。
+            guard WinUIContentShapes.contains(target, args) else {
+                if target.pointerHoverInside {
+                    target.pointerHoverInside = false
+                    target.touchHovering = false
+                    target.touchHoverPointer = nil
+                    action(.ended)
+                }
+                return
+            }
+            target.pointerHoverInside = true
             // A finger hovers only once it has rested; before that a move
             // past the slop makes it a drag, not a hover.
             // 手指要先靜止才算 hover;在那之前移動超過容許距離就是拖曳，不是 hover。
@@ -399,6 +445,7 @@ extension WinUIBackend: BackendFeatures.PointerHover {
         }
         target.pointerPressed.addHandler { [weak target] _, args in
             guard let target, let args, args.pointer.pointerDeviceType == .touch,
+                WinUIContentShapes.admits(target, args),
                 let position = try? args.getCurrentPoint(target)?.position
             else { return }
             Self.touchHoverPressed(
@@ -421,6 +468,7 @@ extension WinUIBackend: BackendFeatures.PointerHover {
             // A lifted finger exits too; touch ends through touchHoverLifted.
             // 抬起的手指也會觸發 exited;觸控改由 touchHoverLifted 結束。
             guard let target, args?.pointer.pointerDeviceType != .touch else { return }
+            target.pointerHoverInside = false
             target.onPointerHover?(.ended)
         }
         return target
@@ -751,6 +799,9 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var touchHoverStart = SIMD2<Double>(0, 0)
     var touchHovering = false
     var touchHoverGeneration = 0
+    /// Whether the last pointer-hover report was inside the content shape.
+    /// 上一次指標懸停回報是否位於 content shape 之內。
+    var pointerHoverInside = false
     /// Set by `createFocusableTarget`: whether this target is one, whether it
     /// may hold the focus now, and the ring drawn while it does.
     /// 由 `createFocusableTarget` 設定：本 target 是否為可聚焦 target、此刻能否持有焦點，以及持有時畫出的外框。

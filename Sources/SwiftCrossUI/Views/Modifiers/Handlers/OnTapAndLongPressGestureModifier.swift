@@ -100,7 +100,8 @@ struct OnTapAndLongPressGestureModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size
+        let committed = children.child0.commit()
+        let size = committed.size
         if let capable = backend as? any BackendFeatures.TapAndLongPressGestures {
             func update<B: BackendFeatures.TapAndLongPressGestures>(_ backend: B) {
                 let target = widget as! B.Widget
@@ -111,6 +112,11 @@ struct OnTapAndLongPressGestureModifier<Content: View>: TypeSafeView {
                     onTap: onTap,
                     onLongPress: onLongPress
                 )
+                // Both the tap and the long press follow the content shape of
+                // the view they wrap; see `adoptContentShape(of:for:wrapping:)`.
+                // 點按與長按都依循其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。
+                backend.adoptContentShape(
+                    of: committed, for: target, wrapping: children.child0.widget.into())
             }
             update(capable)
         } else if let tappable = backend as? any BackendFeatures.TapGestures {
@@ -123,6 +129,8 @@ struct OnTapAndLongPressGestureModifier<Content: View>: TypeSafeView {
                     environment: environment,
                     action: onTap
                 )
+                backend.adoptContentShape(
+                    of: committed, for: target, wrapping: children.child0.widget.into())
             }
             update(tappable)
         }

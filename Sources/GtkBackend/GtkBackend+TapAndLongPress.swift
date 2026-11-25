@@ -48,19 +48,52 @@ final class GtkTapAndLongPress {
         let recogniser = GtkTapAndLongPress()
 
         gtk_gesture_single_set_button(recogniser.click.opaquePointer, guint(GDK_BUTTON_PRIMARY))
-        recogniser.click.pressed = { [unowned recogniser] _, _, _, _ in
+        // A press outside the content shape, or one GTK sent here though the
+        // pointer is over another widget, is denied to both gestures.
+        // content shape 之外的按壓，或指標其實在另一個 widget 上、卻被 GTK 送到此處的按壓，兩個手勢都拒絕。
+        recogniser.click.pressed = { [unowned recogniser] gesture, _, x, y in
             recogniser.longPressFired = false
+            _ = GtkBackend.admitPress(gesture, x, y)
+        }
+        recogniser.longPress.begin = { gesture, _ in
+            var x = 0.0
+            var y = 0.0
+            let sequence = gtk_gesture_get_last_updated_sequence(gesture.opaquePointer)
+            guard gtk_gesture_get_point(gesture.opaquePointer, sequence, &x, &y) != 0 else {
+                return
+            }
+            _ = GtkBackend.admitPress(gesture, x, y)
         }
         recogniser.click.released = { [unowned recogniser] _, nPress, _, _ in
             guard nPress == 1, !recogniser.longPressFired else { return }
             recogniser.onTap?()
         }
-        recogniser.longPress.pressed = { [unowned recogniser] _, _, _ in
+        recogniser.longPress.pressed = { [unowned recogniser] gesture, x, y in
+            guard GtkBackend.pressIsInsideShape(gesture, x, y) else { return }
             recogniser.longPressFired = true
             recogniser.onLongPress?()
         }
         child.addEventController(recogniser.click)
         child.addEventController(recogniser.longPress)
+
+        // A press GTK sent elsewhere because no motion came before it: the
+        // same tap-or-long-press, made of forwarded events.
+        // 因為之前沒有移動而被 GTK 送往別處的按壓：由轉交事件組成的同一個「點按或長按」。
+        let forwarded = GtkPressForwarding.LongPress()
+        GtkPressForwarding.set("tap-and-long-press", on: child) {
+            [unowned recogniser, weak child] phase, button, x, y in
+            guard let child, button == UInt32(GDK_BUTTON_PRIMARY) else { return }
+            if phase == .pressed,
+                !GtkBackend.pointIsInsideShape(of: child.widgetPointer, x, y)
+            {
+                return
+            }
+            guard phase == .pressed || forwarded.active else { return }
+            forwarded.handle(phase, x, y) { recogniser.onLongPress?() }
+            if phase == .released, !forwarded.fired {
+                recogniser.onTap?()
+            }
+        }
 
         // +1 here, released by the destroy notify with the widget.
         // 此處 +1,由 widget 的 destroy notify 釋放。

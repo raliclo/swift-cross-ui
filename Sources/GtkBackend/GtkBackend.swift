@@ -5613,9 +5613,20 @@ extension GtkBackend {
                             && gtk_gesture_single_get_button($0.opaquePointer) == GDK_BUTTON_PRIMARY
                     } as! GestureClick
                 gesture.pressed = { gesture, nPress, x, y in
-                    guard environment.isEnabled, nPress == 1, Self.pressIsInsideShape(gesture, x, y) else {
+                    guard environment.isEnabled, nPress == 1, Self.admitPress(gesture, x, y) else {
                         return
                     }
+                    action()
+                }
+                // A press GTK sent elsewhere because no motion came before it
+                // reaches this tap through GtkPressForwarding.
+                // 因為之前沒有移動而被 GTK 送往別處的按壓，經由 GtkPressForwarding 抵達此點按。
+                GtkPressForwarding.set("tap-primary", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, button, x, y in
+                    guard let tapGestureTarget, environment.isEnabled, phase == .pressed,
+                        button == UInt32(GDK_BUTTON_PRIMARY),
+                        Self.pointIsInsideShape(of: tapGestureTarget.widgetPointer, x, y)
+                    else { return }
                     action()
                 }
             case .secondary:
@@ -5626,20 +5637,56 @@ extension GtkBackend {
                                 GDK_BUTTON_SECONDARY)
                     } as! GestureClick
                 gesture.pressed = { gesture, nPress, x, y in
-                    guard environment.isEnabled, nPress == 1, Self.pressIsInsideShape(gesture, x, y) else {
+                    guard environment.isEnabled, nPress == 1, Self.admitPress(gesture, x, y) else {
                         return
                     }
+                    action()
+                }
+                // A press GTK sent elsewhere because no motion came before it
+                // reaches this tap through GtkPressForwarding.
+                // 因為之前沒有移動而被 GTK 送往別處的按壓，經由 GtkPressForwarding 抵達此點按。
+                GtkPressForwarding.set("tap-secondary", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, button, x, y in
+                    guard let tapGestureTarget, environment.isEnabled, phase == .pressed,
+                        button == UInt32(GDK_BUTTON_SECONDARY),
+                        Self.pointIsInsideShape(of: tapGestureTarget.widgetPointer, x, y)
+                    else { return }
                     action()
                 }
             case .longPress:
                 let gesture =
                     tapGestureTarget.eventControllers.lazy.compactMap { $0 as? GestureLongPress }
                         .first!
+                // The long press is recognised at the timeout, so the begin of
+                // its sequence is where a press outside the shape is denied.
+                // 長按在逾時時才被辨識，因此在其序列的 begin 拒絕形狀外的按壓。
+                gesture.begin = { gesture, _ in
+                    var x = 0.0
+                    var y = 0.0
+                    let sequence = gtk_gesture_get_last_updated_sequence(gesture.opaquePointer)
+                    guard gtk_gesture_get_point(gesture.opaquePointer, sequence, &x, &y) != 0 else {
+                        return
+                    }
+                    _ = Self.admitPress(gesture, x, y)
+                }
                 gesture.pressed = { gesture, x, y in
                     guard environment.isEnabled, Self.pressIsInsideShape(gesture, x, y) else {
                         return
                     }
                     action()
+                }
+                // A press GTK sent elsewhere because no motion came before it
+                // reaches this tap through GtkPressForwarding.
+                // 因為之前沒有移動而被 GTK 送往別處的按壓，經由 GtkPressForwarding 抵達此點按。
+                let forwarded = GtkPressForwarding.LongPress()
+                GtkPressForwarding.set("tap-long-press", on: tapGestureTarget) {
+                    [weak tapGestureTarget] phase, button, x, y in
+                    guard let tapGestureTarget, environment.isEnabled,
+                        button == UInt32(GDK_BUTTON_PRIMARY),
+                        phase != .pressed
+                            || Self.pointIsInsideShape(of: tapGestureTarget.widgetPointer, x, y)
+                    else { return }
+                    forwarded.handle(phase, x, y, action: action)
                 }
         }
     }
@@ -5657,12 +5704,26 @@ extension GtkBackend {
         let gesture =
             hoverTarget.eventControllers.first { $0 is EventControllerMotion }
                 as! EventControllerMotion
-        gesture.enter = { _, _, _ in
+        // Inside only where the content shape is: entry and every move are
+        // checked against it, so moving from the shape to a corner of the
+        // frame reports false. `can-target` already makes GTK send a leave
+        // there for a shaped widget; the check also covers a shape set after
+        // the pointer came in, before it moves.
+        // 只有在 content shape 之處才算在內：進入與每次移動都對照它，因此從形狀移到 frame 的角落會回報
+        // false。對有形狀的 widget,`can-target` 已讓 GTK 在那裡送出 leave;此檢查也涵蓋指標進入之後、
+        // 移動之前才設定的形狀。
+        let state = GtkHoverInside.of(gesture)
+        let report: (EventControllerMotion, Double, Double) -> Void = { controller, x, y in
             guard environment.isEnabled else { return }
-            action(true)
+            let widget = gtk_event_controller_get_widget(controller.opaquePointer)
+            if state.update(Self.pointIsInsideShape(of: widget, x, y)) {
+                action(state.inside)
+            }
         }
+        gesture.enter = report
+        gesture.motion = report
         gesture.leave = { _ in
-            guard environment.isEnabled else { return }
+            guard environment.isEnabled, state.update(false) else { return }
             action(false)
         }
     }

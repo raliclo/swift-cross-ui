@@ -4,17 +4,45 @@ action,x,y,origin,button,key,micros,note,platform
 # 52 points up and left of "Circle target" is a corner of a square given
 # contentShape(Circle()): outside the circle, so the tap must pass through to the
 # grey square underneath ("under"). The label itself is the centre and must
-# register "circle".
+# register "circle". Then the same two places of "Hold target" are long-pressed:
+# the corner must reach the grey square's long press ("lp-under"), the centre the
+# circle's ("lp-circle").
+# The long presses are a press held for 1.2 s at the place a tap row has just put
+# the pointer (a tap there does nothing). Then the pointer moves to the corner of
+# the green square at client (16,16)-(116,116), outside its contentShape(Circle()),
+# "Hover mark" is tapped, and the pointer moves to the centre: onHover must start
+# there and not at the corner, so the hits after PASS are mark, hover-in.
 #
-# expect: log-contains P131 PASS
+# expect: log-contains P131 PASS WITH HOVER
 #
 # P131 點擊三處。"Gap left" 標籤右方 130 點是加上 contentShape(Rectangle()) 的 HStack 的空隙，必須記為「gap」。
 # "Circle target" 左上方 52 點是加上 contentShape(Circle()) 的正方形的角落：在圓外，所以點擊必須穿透到下方的灰色
-# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。
+# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。接著對 "Hold target" 的同樣兩處長按：角落必須抵達灰色
+# 正方形的長按(「lp-under」),中心必須抵達圓的長按(「lp-circle」)。長按是在前一列點擊剛放好指標之處按住 1.2 秒
+# (在那裡點一下什麼都不做)。然後指標移到 client (16,16)-(116,116) 綠色正方形的角落，在其 contentShape(Circle())
+# 之外，點「Hover mark」,再移到中心:onHover 必須在那裡、而不是在角落開始，因此 PASS 之後的命中是 mark、hover-in。
 sleep,,,,,,1500000,let P131 render,macos
 taplabel,130,0,,,Gap left,,the empty gap must register,macos
 sleep,,,,,,800000,,macos
 taplabel,-52,-52,,,Circle target,,corner outside the circle must reach grey,macos
 sleep,,,,,,800000,,macos
 taplabel,,,,,Circle target,,centre must reach the circle,macos
+sleep,,,,,,800000,,macos
+taplabel,-52,-52,,,Hold target,,put the pointer there; a tap does nothing,macos
+sleep,,,,,,800000,past the double-click time,macos
+mousedown,,,,left,,,press and hold there,macos
+sleep,,,,,,1200000,,macos
+mouseup,,,,left,,,the long press at the corner must reach grey,macos
+sleep,,,,,,800000,,macos
+taplabel,,,,,Hold target,,put the pointer there; a tap does nothing,macos
+sleep,,,,,,800000,past the double-click time,macos
+mousedown,,,,left,,,press and hold there,macos
+sleep,,,,,,1200000,,macos
+mouseup,,,,left,,,the long press at the centre must reach the circle,macos
+sleep,,,,,,800000,,macos
+move,22,22,,,,,corner of the green square: outside its circle,macos
+sleep,,,,,,600000,,macos
+taplabel,,,,,Hover mark,,mark: hover must not have started yet,macos
+sleep,,,,,,600000,,macos
+move,66,66,,,,,centre of the green square: hover starts here,macos
 sleep,,,,,,2000000,let the verdict show,macos

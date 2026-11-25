@@ -367,13 +367,19 @@ final class ActionFileUITests: XCTestCase {
                     // `x,y` given: that many points from the centre, as on the
                     // desktop and Android (P41-change-seconds, 2026-10-29).
                     // 有 `x,y` 時：自中心移動那麼多點，與桌面及 Android 相同(P41-change-seconds,2026-10-29)。
+                    let tapped = element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                        .withOffset(CGVector(dx: action.x, dy: action.y))
                     if action.x == 0 && action.y == 0 {
                         element.tap()
                     } else {
-                        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-                            .withOffset(CGVector(dx: action.x, dy: action.y))
-                            .tap()
+                        tapped.tap()
                     }
+                    // The finger's place for a following row without a position
+                    // -- `longpress`, `mousedown` -- as on the desktop and Android,
+                    // where a tapped label leaves the pointer there (P131, 2026-11-25).
+                    // 給後續沒有位置的列(`longpress`、`mousedown`)使用的手指位置，與桌面及 Android 相同：
+                    // 那裡點過的標籤會把指標留在原處(P131,2026-11-25)。
+                    pointer = tapped
                     FileHandle.standardError.write(
                         Data("-actionfile: tapped '\(action.key)'\n".utf8)
                     )

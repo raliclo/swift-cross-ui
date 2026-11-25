@@ -104,23 +104,50 @@ final class DropTargetView: NSView {
         return nil
     }
 
+    /// Whether the drag is over this target, inside its content shape.
+    /// 拖曳是否位於本目標之上、且在其 content shape 之內。
+    private var isTargeted = false
+
+    // A drag over a corner of the frame outside the content shape is not over
+    // this target: it is not offered, and `isTargeted` follows the shape as
+    // the drag moves. AppKit tells a destination about its frame, not its shape.
+    // 在 frame 角落、content shape 之外的拖曳並不在本目標之上：不予接受，且 `isTargeted` 隨拖曳移動
+    // 跟隨形狀。AppKit 只依 frame 通知拖放目的地，不看形狀。
+    private func offer(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let inside =
+            format(of: sender.draggingPasteboard) != nil
+            && !AppKitContentShapes.excludes(windowPoint: sender.draggingLocation, at: self)
+        if inside != isTargeted {
+            isTargeted = inside
+            onHover?(inside)
+        }
+        return inside ? .copy : []
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard format(of: sender.draggingPasteboard) != nil else { return [] }
-        onHover?(true)
-        return .copy
+        offer(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        offer(sender)
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
+        isTargeted = false
         onHover?(false)
     }
 
     override func draggingEnded(_ sender: NSDraggingInfo) {
         // Also fired when a drop is completed, which is what the protocol asks
         // for: hover ends when the drag leaves *or* lands.
+        isTargeted = false
         onHover?(false)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard !AppKitContentShapes.excludes(windowPoint: sender.draggingLocation, at: self) else {
+            return false
+        }
         let pasteboard = sender.draggingPasteboard
         guard let type = format(of: pasteboard) else { return false }
 

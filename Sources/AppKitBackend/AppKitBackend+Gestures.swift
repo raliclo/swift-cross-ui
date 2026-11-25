@@ -261,6 +261,9 @@ final class NSCustomHoverTarget: NSView {
     }
 
     private var trackingArea: NSTrackingArea?
+    /// What the handler was last told, so it hears only changes.
+    /// 上次告知 handler 的狀態，讓它只聽到變化。
+    private var isInside = false
 
     // Hover is geometry, not hit testing: the tracking area reports entry and
     // exit whatever `hitTest` answers. Returning nil keeps this overlay out of
@@ -281,17 +284,37 @@ final class NSCustomHoverTarget: NSView {
         setNewTrackingArea()
     }
 
+    // Entry and every move inside the frame are checked against the content
+    // shape of the wrapper and of anything above it, so the pointer is inside
+    // only where the shape is; moving from the shape to a corner of the frame
+    // reports an exit. See `AppKitContentShapes.admits(windowPoint:at:)`.
+    // 進入與 frame 內的每次移動都會對照包裝層及其上任何東西的 content shape,因此只有在形狀之內才算
+    // 在內；從形狀移到 frame 的角落會回報離開。見 `AppKitContentShapes.admits(windowPoint:at:)`。
     override func mouseEntered(with event: NSEvent) {
-        hoverChangesHandler?(true)
+        update(event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        update(event)
     }
 
     override func mouseExited(with event: NSEvent) {
+        guard isInside else { return }
+        isInside = false
         hoverChangesHandler?(false)
+    }
+
+    private func update(_ event: NSEvent) {
+        let inside = AppKitContentShapes.admits(windowPoint: event.locationInWindow, at: self)
+        guard inside != isInside else { return }
+        isInside = inside
+        hoverChangesHandler?(inside)
     }
 
     private func setNewTrackingArea() {
         let options: NSTrackingArea.Options = [
             .mouseEnteredAndExited,
+            .mouseMoved,
             .activeInKeyWindow,
         ]
         let area = NSTrackingArea(

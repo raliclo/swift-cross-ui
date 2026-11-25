@@ -85,18 +85,31 @@ struct OnContinuousHoverModifier<Content: View>: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let size = children.child0.commit().size
+        let committed = children.child0.commit()
+        let size = committed.size
         backend.setSize(of: widget, to: size.vector)
         guard let backend = backend as? any BaseAppBackend & BackendFeatures.PointerHover
         else { return }
-        update(backend, widget: widget, environment: environment)
+        update(
+            backend, widget: widget, environment: environment, committed: committed,
+            content: children.child0.widget.into() as Backend.Widget
+        )
     }
 
     private func update<Backend: BaseAppBackend & BackendFeatures.PointerHover>(
         _ backend: Backend,
         widget: Any,
-        environment: EnvironmentValues
+        environment: EnvironmentValues,
+        committed: ViewLayoutResult,
+        content: Any
     ) {
+        // A pointer target takes the content shape of the view it wraps; see
+        // `adoptContentShape(of:for:wrapping:)`. Here, where the backend is concrete and
+        // the widget is known to be this modifier's own wrapper.
+        // 指標目標沿用其包裝之 view 的 content shape;見 `adoptContentShape(of:for:wrapping:)`。放在此處，
+        // 因為這裡 backend 是具體型別，且 widget 確定是本 modifier 自己的包裝層。
+        backend.adoptContentShape(
+            of: committed, for: widget as! Backend.Widget, wrapping: content as! Backend.Widget)
         backend.updatePointerHoverTarget(
             widget as! Backend.Widget,
             environment: environment,
