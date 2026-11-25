@@ -51,6 +51,36 @@ struct ControlSizeTests {
         #expect(node.currentLayout?.size.width == 170)
     }
 
+    @Test("A secure field is drawn at the control size and fills its width")
+    func secureFieldScaled() throws {
+        for (controlSize, expectsContainer) in [
+            (ControlSize.small, true), (.regular, false), (.large, true),
+        ] {
+            let node = ViewGraphHelpers.committedNode(
+                for: SecureField("Password", text: .constant("")).controlSize(controlSize),
+                proposedSize: ProposedViewSize(90, nil)
+            )
+            // It fills the width it was given at every size, as a text field does.
+            // 與文字欄位相同，在每種尺寸下都填滿它被給定的寬度。
+            #expect(node.currentLayout?.size.width == 90)
+
+            let container = Self.first(DummyBackend.GeometricEffectContainer.self, in: node.widget)
+            #expect((container != nil) == expectsContainer)
+            if let container {
+                let scale = controlSize.scale
+                #expect(container.transform.linearTransform == SIMD4(scale, 0, 0, scale))
+            }
+
+            // The field itself is laid out at its regular size, 90 / scale wide.
+            // 欄位本身以 regular 尺寸排版，寬度為 90 / 倍率。
+            let field = try #require(
+                Self.first(DummyBackend.TextField.self, in: node.widget)
+            )
+            #expect(field.isSecure)
+            #expect(abs(Double(field.size.x) * controlSize.scale - 90) <= 1)
+        }
+    }
+
     @Test("A regular control gets no container")
     func regularUnwrapped() {
         let node = ViewGraphHelpers.committedNode(

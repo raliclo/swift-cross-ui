@@ -1,6 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
 # P129 measures a button, stepper, switch, checkbox, slider, menu picker, text
-# field, progress bar and spinner at .small, .regular and .large a second after it
+# field, secure field, progress bar and spinner at .small, .regular and .large a second after it
 # appears and logs its verdict; nothing is pressed. Every control must be smaller
 # at .small than at .regular and larger at .large. The screenshot shows each
 # control drawn whole at its size.
@@ -8,6 +8,6 @@ action,x,y,origin,button,key,micros,note,platform
 # expect: log-contains P129 PASS
 #
 # P129 在出現一秒後以 .small、.regular、.large 量測按鈕、stepper、switch、checkbox、slider、選單 picker、
-# 文字欄位、進度條與轉圈並記下結果，不按任何東西。每種控制項在 .small 都必須比 .regular 小，在 .large 都必須比
+# 文字欄位、安全文字欄位、進度條與轉圈並記下結果，不按任何東西。每種控制項在 .small 都必須比 .regular 小，在 .large 都必須比
 # .regular 大。截圖顯示每個控制項以其尺寸完整畫出。
 sleep,,,,,,4000000,let the measurement and the verdict show,macos

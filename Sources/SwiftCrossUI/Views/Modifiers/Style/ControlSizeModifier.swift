@@ -2,7 +2,7 @@ extension View {
     /// Sets the size of the controls within this view.
     ///
     /// Inherited through the environment, as SwiftUI's is: every button,
-    /// stepper, toggle, slider, picker, text field and progress view beneath
+    /// stepper, toggle, slider, picker, text field, secure field and progress view beneath
     /// this modifier takes the size, until a nearer `controlSize(_:)` replaces
     /// it. Text and other views that are not controls are left alone.
     ///
@@ -16,7 +16,7 @@ extension View {
     /// 設定此 view 之內控制項的尺寸。
     ///
     /// 與 SwiftUI 相同，經由 environment 繼承：此 modifier 之下的每個按鈕、stepper、toggle、slider、picker、
-    /// 文字欄位與進度指示都採用這個尺寸，直到更近的 `controlSize(_:)` 取代它。文字與其他不是控制項的 view 不受影響。
+    /// 文字欄位、安全文字欄位與進度指示都採用這個尺寸，直到更近的 `controlSize(_:)` 取代它。文字與其他不是控制項的 view 不受影響。
     ///
     /// 每一個 case 在每個 backend 上都會以同一個倍率(``ControlSize/scale``)改變尺寸：按鈕的標籤字型與 padding
     /// 被縮放，因此文字保持清晰、平台外框以新尺寸繪製；完全由平台繪製的控制項以 regular 尺寸排版，再經由 backend 的
