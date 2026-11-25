@@ -2,10 +2,13 @@ package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
 import android.graphics.BlendMode
+import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.RenderEffect
+import android.graphics.RenderNode
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.graphics.Xfermode
@@ -14,6 +17,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import kotlin.math.abs
 
 // Compositing effects, as one RenderEffect over the subtree.
 //
@@ -90,10 +94,17 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         // View.setAlpha 會把子樹當作一個群組來合成，那正是 SwiftUI 的 .opacity 的行為；若改用矩陣中
         // 的 alpha，每個後代會各自淡出，兩個半透明的同層元件會互相透出。AppKitBackend 基於同樣理由
         // 使用 NSView.alphaValue，GtkBackend 則使用 gtk_widget_set_opacity。
-        alpha = opacity
+        contentAlpha = opacity
         // Before the early return below, which compares the filters only.
         // 在下方只比較濾鏡的提前返回之前。
         applyBlendMode(blendMode)
+        // plusDarker below API 36 puts the opacity on its own node (dispatchDraw).
+        // API 36 以下的 plusDarker 把不透明度放在它自己的 node 上(dispatchDraw)。
+        if (plusDarkerByInversion) {
+            invalidate()
+        } else {
+            alpha = opacity
+        }
 
         // The direct path sets the effect every frame while opacity animates
         // (EffectAnimation.swift). When nothing but the opacity changed, the
@@ -192,7 +203,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
                 blurEffect != null -> blurEffect
                 else -> colourEffect
             }
-        setRenderEffect(
+        applyContentEffect(
             withShadow(content, shadowRed, shadowGreen, shadowBlue, shadowAlpha, shadowX, shadowY, shadowRadius)
         )
     }
@@ -201,6 +212,22 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
     /// 上次套用的混合模式序號;第一次之前為 0(normal)。
     private var blendModeOrdinal = 0
 
+    /// The RenderEffect the effects above build and the opacity, kept apart from the
+    /// view's own because plusDarker below API 36 draws them on a RenderNode of its
+    /// own (see dispatchDraw). / 上方各效果建出的 RenderEffect 與不透明度，與 view 自身的分開保存，
+    /// 因為 API 36 以下的 plusDarker 把它們畫在自己的 RenderNode 上(見 dispatchDraw)。
+    private var contentEffect: RenderEffect? = null
+    private var contentAlpha = 1f
+
+    /// Whether plusDarker is drawn by inverting what is behind (API 31 to 35).
+    /// plusDarker 是否以反轉後方內容的方式繪製(API 31 到 35)。
+    private var plusDarkerByInversion = false
+    private var plusDarkerNode: RenderNode? = null
+
+    /// How far a shadow reaches past the bounds, in pixels; the inverted area covers it.
+    /// 陰影超出範圍的距離(像素);反轉的區域把它涵蓋在內。
+    private var shadowReach = 0f
+
     // blendMode(_:) as a hardware layer whose paint carries the blend mode: the
     // container, effects and all, is drawn into its own layer, and the layer is
     // composited onto what the parent has drawn behind it with the paint's mode --
@@ -208,35 +235,60 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
     // the layer.
     //
     // plusDarker has no android.graphics.BlendMode. On API 36 it is a
-    // RuntimeXfermode with PLUS_DARKER_BLENDER's formula, made by reflection because this
-    // module compiles against API 35. Below API 36 Android has no public way to
-    // compute it, and it is drawn as MULTIPLY, the nearest mode that only darkens:
-    // the same where either colour is black or white, lighter than plusDarker in
-    // between.
+    // RuntimeXfermode with PLUS_DARKER_BLENDER's formula, made by reflection because
+    // this module compiles against API 35. On API 31 to 35 (minSdk is 31) it is
+    // drawn by three steps onto the parent's canvas, in dispatchDraw:
+    //
+    //   1. invert what is behind, by its alpha: white drawn under it (DST_OVER) and
+    //      then over it with DIFFERENCE turns D into Da - D, opaque -- its
+    //      "darkness" in PLUS_DARKER_BLENDER's terms;
+    //   2. add the content with its colours inverted: a RenderNode whose layer paint
+    //      is PLUS and whose RenderEffect ends in INVERT_COLOURS, which turns the
+    //      premultiplied S into Sa - S, so the sum is min(1, (Da - D) + (Sa - S));
+    //   3. invert again: 1 - min(1, (Da - D) + (Sa - S)).
+    //
+    // Wherever PLUS_DARKER_BLENDER's alpha Ra = min(1, Sa + Da) is 1 -- over an
+    // opaque backdrop (the window, and anything drawn on it) or under an opaque
+    // view -- that is its R exactly: max(0, 1 - (Sa - S) - (Da - D)), and over an
+    // opaque D max(0, S + D - Sa). Where both are translucent (inside an ancestor's
+    // offscreen layer) it is R + (1 - Ra): the exact result laid on white, opaque,
+    // since the backdrop's alpha cannot be read back after step 1. The container
+    // itself has no layer, effect or alpha then, so its canvas is the parent's; the
+    // effects and the opacity move onto the node.
     //
     // blendMode(_:) 以一個 hardware layer 實作，其 paint 帶有混合模式：容器(連同效果)畫進它自己的 layer,
     // 該 layer 再以 paint 的模式合成到父容器在其後方已畫好的內容上——即 View.setLayerPaint 文件所述 paint 混合模式的
     // 用途。normal 會移除該 layer。
     //
-    // plusDarker 沒有對應的 android.graphics.BlendMode。在 API 36 上它是使用 PLUS_DARKER_BLENDER 公式的 RuntimeXfermode,因為本模組
-    // 以 API 35 編譯，所以經由 reflection 建立。API 36 以下 Android 沒有公開的方式算出它，因此畫成 MULTIPLY——
-    // 只會變暗的模式中最接近的一個：任一方為黑或白時兩者相同，介於其間時比 plusDarker 亮。
+    // plusDarker 沒有對應的 android.graphics.BlendMode。在 API 36 上它是使用 PLUS_DARKER_BLENDER 公式的
+    // RuntimeXfermode,因為本模組以 API 35 編譯，所以經由 reflection 建立。在 API 31 到 35(minSdk 為 31)上，它在
+    // dispatchDraw 中以三個步驟畫在父容器的 canvas 上：
+    //
+    //   1. 依後方內容的 alpha 反轉它：先在其下方畫白色(DST_OVER),再以 DIFFERENCE 在其上畫白色，把 D 變成
+    //      Da - D、不透明——也就是 PLUS_DARKER_BLENDER 所說的「暗度」;
+    //   2. 加上顏色反轉後的內容：一個 RenderNode,其 layer paint 為 PLUS,RenderEffect 以 INVERT_COLOURS 結尾，
+    //      把預乘的 S 變成 Sa - S,因此總和為 min(1, (Da - D) + (Sa - S));
+    //   3. 再反轉一次:1 - min(1, (Da - D) + (Sa - S))。
+    //
+    // 凡是 PLUS_DARKER_BLENDER 的 alpha Ra = min(1, Sa + Da) 為 1 之處——背景不透明(視窗，以及畫在其上的一切)
+    // 或 view 不透明——這就精確等於它的 R:max(0, 1 - (Sa - S) - (Da - D)),D 不透明時即 max(0, S + D - Sa)。兩者
+    // 都半透明時(位於祖先的離屏 layer 內)結果是 R + (1 - Ra):精確的結果鋪在白色上、不透明，因為步驟 1 之後背景的
+    // alpha 已無法讀回。此時容器本身沒有 layer、效果或 alpha,所以它的 canvas 就是父容器的;效果與不透明度移到該
+    // node 上。
     private fun applyBlendMode(ordinal: Int) {
         if (ordinal == blendModeOrdinal) {
             return
         }
         blendModeOrdinal = ordinal
+        val inversion: Boolean
         if (ordinal <= 0 || ordinal >= BLEND_MODES.size) {
+            inversion = false
             setLayerType(View.LAYER_TYPE_NONE, null)
-            return
-        }
-        val paint = Paint()
-        val mode = BLEND_MODES[ordinal]
-        if (mode != null) {
-            paint.blendMode = mode
-        } else if (ordinal == PLUS_DARKER) {
+        } else {
+            val paint = Paint()
+            val mode = BLEND_MODES[ordinal]
             val runtime =
-                if (Build.VERSION.SDK_INT >= 36) {
+                if (mode == null && Build.VERSION.SDK_INT >= 36) {
                     try {
                         Class.forName("android.graphics.RuntimeXfermode")
                             .getConstructor(String::class.java)
@@ -245,13 +297,63 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
                         null
                     }
                 } else null
-            if (runtime != null) {
+            inversion = ordinal == PLUS_DARKER && runtime == null
+            if (mode != null) {
+                paint.blendMode = mode
+            } else if (runtime != null) {
                 paint.xfermode = runtime
-            } else {
-                paint.blendMode = BlendMode.MULTIPLY
             }
+            setLayerType(if (inversion) View.LAYER_TYPE_NONE else View.LAYER_TYPE_HARDWARE, if (inversion) null else paint)
         }
-        setLayerType(View.LAYER_TYPE_HARDWARE, paint)
+        if (inversion != plusDarkerByInversion) {
+            plusDarkerByInversion = inversion
+            setRenderEffect(if (inversion) null else contentEffect)
+            alpha = if (inversion) 1f else contentAlpha
+            invalidate()
+        }
+    }
+
+    // The content's RenderEffect, on this view or, while plusDarker is drawn by
+    // inversion, on the node dispatchDraw draws. / 內容的 RenderEffect:套在本 view 上，或在
+    // plusDarker 以反轉繪製期間，套在 dispatchDraw 所畫的 node 上。
+    private fun applyContentEffect(effect: RenderEffect?) {
+        contentEffect = effect
+        if (plusDarkerByInversion) {
+            invalidate()
+        } else {
+            setRenderEffect(effect)
+        }
+    }
+
+    // plusDarker below API 36, the three steps above applyBlendMode; otherwise the
+    // children as usual. / API 36 以下的 plusDarker,即 applyBlendMode 上方所述的三個步驟；其餘情況照常
+    // 繪製子元件。
+    override fun dispatchDraw(canvas: Canvas) {
+        if (!plusDarkerByInversion || !canvas.isHardwareAccelerated || width <= 0 || height <= 0) {
+            super.dispatchDraw(canvas)
+            return
+        }
+        val node = plusDarkerNode ?: RenderNode("plusDarker").also { plusDarkerNode = it }
+        node.setPosition(0, 0, width, height)
+        node.setClipToBounds(false)
+        node.setAlpha(contentAlpha)
+        val effect = contentEffect
+        node.setRenderEffect(
+            if (effect == null) RenderEffect.createColorFilterEffect(INVERT_COLOURS)
+            else RenderEffect.createColorFilterEffect(INVERT_COLOURS, effect)
+        )
+        node.setUseCompositingLayer(true, PLUS_LAYER)
+        val recording = node.beginRecording(width, height)
+        try {
+            super.dispatchDraw(recording)
+        } finally {
+            node.endRecording()
+        }
+        val area = RectF(-shadowReach, -shadowReach, width + shadowReach, height + shadowReach)
+        canvas.drawRect(area, WHITE_UNDER)
+        canvas.drawRect(area, INVERT_DESTINATION)
+        canvas.drawRenderNode(node)
+        canvas.drawRect(area, INVERT_DESTINATION)
     }
 
     // shadow(color:radius:x:y:) in pixels, kept for onAttachedToWindow. / 以像素表示的
@@ -275,6 +377,7 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         radius: Float,
     ): RenderEffect? {
         hasShadow = alpha > 0f
+        shadowReach = if (hasShadow) abs(dx) + abs(dy) + 3f * radius else 0f
         if (!hasShadow) {
             return content
         }
@@ -501,20 +604,53 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
             )
         private const val PLUS_DARKER = 19
 
-        // plusDarker on premultiplied colour: max(0, S + D - Sa Da) per channel, alpha
-        // Sa + Da - Sa Da. Where D is opaque this is max(0, S + D - Sa), Core
-        // Graphics' max(0, 1 - ((1 - D) + (1 - S))) for S over white -- what
-        // GtkBackend draws -- and a transparent S leaves D as it is.
-        // 預乘色彩上的 plusDarker:每個通道 max(0, S + D - Sa Da),alpha 為 Sa + Da - Sa Da。D 不透明時即
-        // max(0, S + D - Sa),也就是 S 疊在白色上時 Core Graphics 的 max(0, 1 - ((1 - D) + (1 - S)))
-        // ——GtkBackend 畫的就是這個——而透明的 S 讓 D 維持原樣。
+        // plusDarker on premultiplied colour, the mirror of PLUS (plusLighter): alpha
+        // Ra = min(1, Sa + Da), and the "darkness" Sa - S and Da - D adds up, so
+        // R = max(0, Ra - (Sa - S) - (Da - D)). Where D is opaque this is
+        // max(0, S + D - Sa), Core Graphics' max(0, 1 - ((1 - D) + (1 - S))) for S over
+        // white, as before; a transparent S leaves D as it is. GtkBackend draws the same
+        // formula (scui_plus_node), for any backdrop alpha.
+        // 預乘色彩上的 plusDarker,為 PLUS(plusLighter)的鏡像:alpha Ra = min(1, Sa + Da),「暗度」Sa - S 與
+        // Da - D 相加，因此 R = max(0, Ra - (Sa - S) - (Da - D))。D 不透明時即 max(0, S + D - Sa),也就是 S 疊在
+        // 白色上時 Core Graphics 的 max(0, 1 - ((1 - D) + (1 - S))),與先前相同；透明的 S 讓 D 維持原樣。
+        // GtkBackend 畫的是同一個公式(scui_plus_node),對任何背景 alpha 皆然。
         private const val PLUS_DARKER_BLENDER =
             """
             half4 main(half4 src, half4 dst) {
-                half both = src.a * dst.a;
-                return half4(max(half3(0.0), src.rgb + dst.rgb - half3(both)), src.a + dst.a - both);
+                half alpha = min(src.a + dst.a, 1.0);
+                half3 darkness = (half3(src.a) - src.rgb) + (half3(dst.a) - dst.rgb);
+                return half4(max(half3(0.0), half3(alpha) - darkness), alpha);
             }
             """
+
+        // plusDarker below API 36 (see applyBlendMode). White drawn under (DST_OVER)
+        // and then over with DIFFERENCE turns D into Da - D, opaque; the node's layer paint adds its
+        // content to what is behind; and 1 minus each colour channel, on
+        // un-premultiplied colour as ColorMatrixColorFilter works, turns the
+        // premultiplied S into Sa - S with its alpha kept.
+        // API 36 以下的 plusDarker(見 applyBlendMode)。先在下方(DST_OVER)、再以 DIFFERENCE 在上方畫白色，會把 D 變成不透明的 Da - D;node
+        // 的 layer paint 把其內容加到後方內容上；在未預乘的顏色上(ColorMatrixColorFilter 的運作方式)讓每個色彩通道
+        // 變為 1 減原值，把預乘的 S 變成 Sa - S,alpha 不變。
+        private val WHITE_UNDER =
+            Paint().apply {
+                color = -1
+                blendMode = BlendMode.DST_OVER
+            }
+        private val INVERT_DESTINATION =
+            Paint().apply {
+                color = -1
+                blendMode = BlendMode.DIFFERENCE
+            }
+        private val PLUS_LAYER = Paint().apply { blendMode = BlendMode.PLUS }
+        private val INVERT_COLOURS =
+            ColorMatrixColorFilter(
+                floatArrayOf(
+                    -1f, 0f, 0f, 0f, 255f,
+                    0f, -1f, 0f, 0f, 255f,
+                    0f, 0f, -1f, 0f, 255f,
+                    0f, 0f, 0f, 1f, 0f,
+                )
+            )
 
         // CIColorMonochrome as Core Image runs it in a linear working space:
         // decode sRGB, take luminance with its weights, overlay it against the

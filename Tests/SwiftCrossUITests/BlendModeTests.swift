@@ -50,4 +50,14 @@ struct BlendModeTests {
         #expect(quarter.blendMode == .difference)
         #expect(quarter.opacity == 0.25)
     }
+
+    @Test("Opacity and a blend mode in one container reach the backend together")
+    func opacityAndBlendModeInOneContainer() throws {
+        // P132's "op½ multiply": GtkBackend and WinUIBackend apply the opacity inside the
+        // blend for this. / P132 的「op½ multiply」:GtkBackend 與 WinUIBackend 為此在混合之內套用 opacity。
+        let view = Color.red.visualEffect(VisualEffect(opacity: 0.5, blendMode: .multiply))
+        let modifier = try #require(view as? VisualEffectModifier<Color>)
+        #expect(modifier.effect.opacity == 0.5)
+        #expect(modifier.effect.blendMode == .multiply)
+    }
 }

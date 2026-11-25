@@ -45,6 +45,10 @@ typedef struct _GtkPassthroughFixed {
     // blendMode(_:),為 SCUI_BLEND_* 之一(gtk_helpers.h);SCUI_BLEND_NORMAL(0)照舊繪製。由
     // gtk_passthrough_fixed_set_blend_mode 設定；見 scui_snapshot_blended。
     int blend_mode;
+    // The container's opacity while a blend mode is set, applied to the content before
+    // it is blended (the widget itself stays at 1); see scui_snapshot_blended.
+    // 設有混合模式時容器的 opacity,在混合前乘到內容上(widget 本身維持 1);見 scui_snapshot_blended。
+    float blend_opacity;
 
     // shadow(color:radius:x:y:), drawn beneath the (adjusted) children by
     // gtk_snapshot_push_shadow; set by gtk_passthrough_fixed_set_shadow.
@@ -363,73 +367,190 @@ static void scui_snapshot_content(GtkWidget *widget, GtkSnapshot *snapshot) {
     }
 }
 
-// blendMode(_:): the content (with its effect chain) combined with what has already
-// been drawn behind this container. GSK 4.22's copy node is what reaches those
-// pixels: gtk_snapshot_push_copy stores the render target as it stands -- the window
-// background and every widget drawn before this one, up to the nearest offscreen
-// group such as an opacity below 1 -- and gtk_snapshot_append_paste draws it again
-// inside the push. Each mode is drawn by the GSK node that computes it:
+// blendMode(_:): the content (with its effect chain, then the container's opacity)
+// combined with what has already been drawn behind this container. GSK 4.22's copy
+// node is what reaches those pixels: gtk_snapshot_push_copy stores the render target
+// as it stands -- the window background and every widget drawn before this one, up
+// to the nearest offscreen group such as an ancestor's opacity below 1 -- and a paste
+// node draws it again inside the push. Each mode is drawn by the GSK node that
+// computes it:
 //
 //   multiply ... luminosity   a blend node: bottom the pasted backdrop, top the
-//                             content. Its result covers the backdrop over `bounds`,
-//                             which matters only where the backdrop is translucent.
+//                             content. That is already the whole result of
+//                             compositing the content onto the backdrop (the W3C
+//                             formula, alpha included), so a composite node with
+//                             SOURCE puts it IN PLACE of the backdrop over the
+//                             bounds. Drawn over the backdrop instead, as before,
+//                             a translucent backdrop counted twice and came out
+//                             too opaque.
 //   sourceAtop, destinationOver, destinationOut
 //                             a composite node with that Porter-Duff operator,
 //                             which composites the content onto the backdrop
-//                             itself, restricted to `bounds` by its mask.
-//   plusLighter, plusDarker   no GSK node adds two images, so a cross-fade at 0.5
-//                             averages the backdrop with the content made opaque
-//                             (over black for plusLighter, over white for
-//                             plusDarker, where those leave the backdrop as it
-//                             is), and a colour matrix doubles it: 2x, clamped, is
-//                             min(1, S + D); 2x - 1 is max(0, S + D - 1). Exact
-//                             where the backdrop is opaque, as a window is.
+//                             itself, restricted to the bounds by its mask.
+//   plusLighter, plusDarker   see scui_plus_node: built from a cross-fade, colour
+//                             matrices, a lighten or darken blend and an alpha
+//                             mask, exact for any backdrop alpha, and put in place
+//                             of the backdrop by a SOURCE composite as above.
 //
-// blendMode(_:):內容(連同其效果鏈)與本容器後方已畫好的內容結合。取得那些像素靠的是 GSK 4.22 的 copy 節點:
-// gtk_snapshot_push_copy 把 render target 的現狀存下——視窗背景，以及在本元件之前畫好的每個 widget,直到最近的
-// 離屏群組(例如小於 1 的 opacity)為止——gtk_snapshot_append_paste 則在 push 之內把它再畫一次。每種模式都由能算出
-// 它的 GSK 節點繪製：
+// The container's opacity is applied here, to the content before it is blended,
+// and the widget itself stays at opacity 1 (GtkBackend+VisualEffects.swift): GTK
+// draws a widget below opacity 1 into an offscreen group, and a copy taken inside
+// it sees only that empty group, never the backdrop.
 //
-//   multiply ... luminosity   blend 節點：下層是貼上的背景，上層是內容。其結果覆蓋 `bounds` 內的背景，這只在
-//                             背景半透明之處有差別。
+// blendMode(_:):內容(連同其效果鏈，再乘上容器的 opacity)與本容器後方已畫好的內容結合。取得那些像素靠的是
+// GSK 4.22 的 copy 節點:gtk_snapshot_push_copy 把 render target 的現狀存下——視窗背景，以及在本元件之前
+// 畫好的每個 widget,直到最近的離屏群組(例如祖先小於 1 的 opacity)為止——paste 節點則在 push 之內把它
+// 再畫一次。每種模式都由能算出它的 GSK 節點繪製：
+//
+//   multiply ... luminosity   blend 節點：下層是貼上的背景，上層是內容。它本身就是「把內容合成到背景上」的
+//                             完整結果(W3C 公式，含 alpha),所以用 SOURCE 的 composite 節點在 bounds 內
+//                             「取代」背景。以前是畫在背景之上，半透明的背景因此被算了兩次，結果太不透明。
 //   sourceAtop、destinationOver、destinationOut
-//                             以該 Porter-Duff 運算子的 composite 節點，把內容直接合成到背景上，並以其遮罩限制在
-//                             `bounds` 之內。
-//   plusLighter、plusDarker   GSK 沒有把兩張影像相加的節點，因此以 0.5 的 cross-fade 平均背景與變為不透明的內容
-//                             (plusLighter 疊在黑色上、plusDarker 疊在白色上——這兩者會讓背景維持原樣),再以色彩
-//                             矩陣加倍:2 倍並箝制即 min(1, S + D);2 倍減 1 即 max(0, S + D - 1)。背景不透明時
-//                             (視窗即是)完全精確。
+//                             以該 Porter-Duff 運算子的 composite 節點，把內容直接合成到背景上，並以其遮罩
+//                             限制在 bounds 之內。
+//   plusLighter、plusDarker   見 scui_plus_node:由 cross-fade、色彩矩陣、lighten 或 darken 混合與 alpha
+//                             遮罩組成，對任何背景 alpha 都精確，再如上以 SOURCE composite 取代背景。
+//
+// 容器的 opacity 在此套用：先乘到內容上再混合，widget 本身維持 opacity 1(GtkBackend+VisualEffects.swift)。
+// GTK 會把 opacity 小於 1 的 widget 畫進離屏群組，在其中取的 copy 只看得到那個空的群組，看不到背景。
+
+// A colour matrix node in GTK's layout (m[input * 4 + output]) with a full offset.
+// GTK 排列(m[輸入 * 4 + 輸出])的色彩矩陣節點，帶完整的 offset。
+static GskRenderNode *scui_matrix_node(
+    GskRenderNode *child, const float m[16], float r, float g, float b, float a
+) {
+    graphene_matrix_t matrix;
+    graphene_vec4_t offset;
+    graphene_matrix_init_from_float(&matrix, m);
+    graphene_vec4_init(&offset, r, g, b, a);
+    return gsk_color_matrix_node_new(child, &matrix, &offset);
+}
+
+// plusLighter and plusDarker on premultiplied colour, S the content and D the
+// backdrop, with the result's alpha Ra = min(1, Sa + Da):
+//   plusLighter  R = min(1, S + D)                                (Core Animation's plusL)
+//   plusDarker   R = max(0, Ra - (Sa - S) - (Da - D))             (its mirror: the
+//                "darkness" Sa - S and Da - D adds up; over an opaque D it is
+//                max(0, S + D - Sa), Core Graphics' max(0, 1 - ((1 - D) + (1 - S)))
+//                for S over white, as before, and the same as AndroidBackend)
+//
+// GSK has no node that adds two images, and its colour matrix works on
+// un-premultiplied colour, so this goes through the average A = (S + D) / 2, a
+// cross-fade at 0.5 (premultiplied), whose alpha is a = (Sa + Da) / 2 and whose
+// un-premultiplied colour is c = (S + D) / (Sa + Da). Then, with s = Sa + Da:
+//   alpha        Ra = min(1, 2a): a matrix doubling alpha (GSK clamps).
+//   colour       R / Ra is c where s <= 1 (nothing is clamped). Where s > 1, Ra = 1
+//                and it is min(1, S + D) or max(0, S + D - (s - 1)): A over black,
+//                doubled, or A over white, doubled minus 1 -- call it O, opaque.
+//                For s <= 1 O is at most c (lighter) or at least c (darker), and
+//                for s > 1 the other way round, so the colour is max(c, O) for
+//                plusLighter and min(c, O) for plusDarker: a lighten or darken
+//                blend of two opaque images, which is exact per channel.
+//   result       that colour, opaque, masked by the alpha: colour x Ra.
+// The tree is built from nodes rather than a snapshot because A is used three
+// times; the paste in it refers to the nearest copy, the one around the result.
+//
+// 預乘色彩上的 plusLighter 與 plusDarker,S 為內容、D 為背景，結果的 alpha Ra = min(1, Sa + Da):
+//   plusLighter  R = min(1, S + D)                                (Core Animation 的 plusL)
+//   plusDarker   R = max(0, Ra - (Sa - S) - (Da - D))             (它的鏡像：「暗度」Sa - S 與 Da - D 相加；
+//                D 不透明時即 max(0, S + D - Sa),也就是 S 疊在白色上時 Core Graphics 的
+//                max(0, 1 - ((1 - D) + (1 - S))),與先前相同，也與 AndroidBackend 相同)
+//
+// GSK 沒有把兩張影像相加的節點，且其色彩矩陣作用於未預乘的顏色，因此經由平均值 A = (S + D) / 2——0.5 的
+// cross-fade(預乘)——其 alpha 為 a = (Sa + Da) / 2,未預乘顏色為 c = (S + D) / (Sa + Da)。令 s = Sa + Da:
+//   alpha        Ra = min(1, 2a):把 alpha 加倍的矩陣(GSK 會箝制)。
+//   顏色         s <= 1 時 R / Ra 就是 c(沒有任何箝制)。s > 1 時 Ra = 1,顏色為 min(1, S + D) 或
+//                max(0, S + D - (s - 1)):A 疊在黑色上再加倍，或 A 疊在白色上加倍減 1——記為 O,不透明。
+//                s <= 1 時 O 不大於 c(lighter)或不小於 c(darker),s > 1 時相反，因此顏色是 plusLighter 的
+//                max(c, O)、plusDarker 的 min(c, O):兩張不透明影像的 lighten 或 darken 混合，逐通道精確。
+//   結果         把該顏色(不透明)以 alpha 遮罩：顏色 x Ra。
+// 以節點而非 snapshot 建樹，因為 A 要用三次；其中的 paste 指向最近的 copy,即包住結果的那一個。
+static GskRenderNode *scui_plus_node(
+    GskRenderNode *content, const graphene_rect_t *bounds, gboolean lighter
+) {
+    GskRenderNode *paste = gsk_paste_node_new(bounds, 0);
+    GskRenderNode *average = gsk_cross_fade_node_new(paste, content, 0.5f);
+    gsk_render_node_unref(paste);
+
+    // c, opaque: the colour kept, alpha replaced by 1. / c,不透明：顏色不變,alpha 換成 1。
+    const float keep_colour[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
+    GskRenderNode *unpremultiplied = scui_matrix_node(average, keep_colour, 0, 0, 0, 1);
+
+    // O: A over black (or white), doubled (minus 1). / O:A 疊在黑(或白)上，加倍(減 1)。
+    const GdkRGBA under = lighter ? (GdkRGBA){0, 0, 0, 1} : (GdkRGBA){1, 1, 1, 1};
+    GskRenderNode *backing = gsk_color_node_new(&under, bounds);
+    GskRenderNode *layers[2] = {backing, average};
+    GskRenderNode *flattened = gsk_container_node_new(layers, 2);
+    gsk_render_node_unref(backing);
+    const float twice[16] = {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1};
+    float shift = lighter ? 0.0f : -1.0f;
+    GskRenderNode *opaque = scui_matrix_node(flattened, twice, shift, shift, shift, 0);
+    gsk_render_node_unref(flattened);
+
+    GskRenderNode *colour = gsk_blend_node_new(
+        unpremultiplied, opaque, lighter ? GSK_BLEND_MODE_LIGHTEN : GSK_BLEND_MODE_DARKEN
+    );
+    gsk_render_node_unref(unpremultiplied);
+    gsk_render_node_unref(opaque);
+
+    // Ra = min(1, 2a). / Ra = min(1, 2a)。
+    const float twice_alpha[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2};
+    GskRenderNode *alpha = scui_matrix_node(average, twice_alpha, 0, 0, 0, 0);
+    gsk_render_node_unref(average);
+
+    GskRenderNode *result = gsk_mask_node_new(colour, alpha, GSK_MASK_MODE_ALPHA);
+    gsk_render_node_unref(colour);
+    gsk_render_node_unref(alpha);
+    return result;
+}
+
 static void scui_snapshot_blended(GtkWidget *widget, GtkSnapshot *snapshot, int mode) {
+    GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
+
+    // The content as one node: the effect chain, then the container's opacity.
+    // 內容成為一個節點：效果鏈，再乘上容器的 opacity。
+    GtkSnapshot *inner = gtk_snapshot_new();
+    gboolean faded = self->blend_opacity < 1.0f;
+    if (faded) {
+        gtk_snapshot_push_opacity(inner, self->blend_opacity);
+    }
+    scui_snapshot_content(widget, inner);
+    if (faded) {
+        gtk_snapshot_pop(inner);
+    }
+    GskRenderNode *content = gtk_snapshot_free_to_node(inner);
+    if (content == NULL) {
+        // Nothing drawn: every mode leaves the backdrop as it is. / 什麼都沒畫：每種模式都讓背景維持原樣。
+        return;
+    }
+
+    // The widget's bounds, grown to the content's (a shadow reaches past them).
+    // widget 的範圍，擴大到內容的範圍(陰影會超出)。
     graphene_rect_t bounds = GRAPHENE_RECT_INIT(
         0, 0, (float)gtk_widget_get_width(widget), (float)gtk_widget_get_height(widget)
     );
+    graphene_rect_t content_bounds;
+    gsk_render_node_get_bounds(content, &content_bounds);
+    graphene_rect_union(&bounds, &content_bounds, &bounds);
+    const GdkRGBA mask = {1, 1, 1, 1};
+
     if (mode == SCUI_BLEND_SOURCE_ATOP || mode == SCUI_BLEND_DESTINATION_OVER ||
         mode == SCUI_BLEND_DESTINATION_OUT) {
         GskPorterDuff op = mode == SCUI_BLEND_SOURCE_ATOP ? GSK_PORTER_DUFF_SOURCE_ATOP_DEST
                            : mode == SCUI_BLEND_DESTINATION_OVER ? GSK_PORTER_DUFF_DEST_OVER_SOURCE
                                                                  : GSK_PORTER_DUFF_DEST_OUT_SOURCE;
-        const GdkRGBA mask = {1, 1, 1, 1};
         gtk_snapshot_push_composite(snapshot, op);
         gtk_snapshot_append_color(snapshot, &mask, &bounds);
         gtk_snapshot_pop(snapshot);
-        scui_snapshot_content(widget, snapshot);
+        gtk_snapshot_append_node(snapshot, content);
         gtk_snapshot_pop(snapshot);
+        gsk_render_node_unref(content);
         return;
     }
 
-    gtk_snapshot_push_copy(snapshot);
+    GskRenderNode *result;
     if (mode == SCUI_BLEND_PLUS_LIGHTER || mode == SCUI_BLEND_PLUS_DARKER) {
-        gboolean lighter = mode == SCUI_BLEND_PLUS_LIGHTER;
-        const float m[16] = {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1};
-        const GdkRGBA under = lighter ? (GdkRGBA){0, 0, 0, 1} : (GdkRGBA){1, 1, 1, 1};
-        scui_push_matrix(snapshot, m, lighter ? 0.0f : -1.0f);
-        gtk_snapshot_push_cross_fade(snapshot, 0.5);
-        gtk_snapshot_append_paste(snapshot, &bounds, 0);
-        gtk_snapshot_pop(snapshot);
-        gtk_snapshot_append_color(snapshot, &under, &bounds);
-        scui_snapshot_content(widget, snapshot);
-        gtk_snapshot_pop(snapshot);
-        gtk_snapshot_pop(snapshot);
+        result = scui_plus_node(content, &bounds, mode == SCUI_BLEND_PLUS_LIGHTER);
     } else {
         // SwiftUI's order from multiply to luminosity, as GSK names them.
         // SwiftUI 從 multiply 到 luminosity 的順序，以 GSK 的名稱表示。
@@ -450,13 +571,21 @@ static void scui_snapshot_blended(GtkWidget *widget, GtkSnapshot *snapshot, int 
             [SCUI_BLEND_COLOR] = GSK_BLEND_MODE_COLOR,
             [SCUI_BLEND_LUMINOSITY] = GSK_BLEND_MODE_LUMINOSITY,
         };
-        gtk_snapshot_push_blend(snapshot, modes[mode]);
-        gtk_snapshot_append_paste(snapshot, &bounds, 0);
-        gtk_snapshot_pop(snapshot);
-        scui_snapshot_content(widget, snapshot);
-        gtk_snapshot_pop(snapshot);
+        GskRenderNode *paste = gsk_paste_node_new(&bounds, 0);
+        result = gsk_blend_node_new(paste, content, modes[mode]);
+        gsk_render_node_unref(paste);
     }
+    gsk_render_node_unref(content);
+
+    // The result in place of the backdrop over the bounds. / 在 bounds 內以結果取代背景。
+    gtk_snapshot_push_copy(snapshot);
+    gtk_snapshot_push_composite(snapshot, GSK_PORTER_DUFF_SOURCE);
+    gtk_snapshot_append_color(snapshot, &mask, &bounds);
     gtk_snapshot_pop(snapshot);
+    gtk_snapshot_append_node(snapshot, result);
+    gtk_snapshot_pop(snapshot);
+    gtk_snapshot_pop(snapshot);
+    gsk_render_node_unref(result);
 }
 
 static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
@@ -468,13 +597,14 @@ static void gtk_passthrough_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snaps
     }
 }
 
-void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode) {
+void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode, float opacity) {
     if (widget == NULL || !GTK_IS_PASSTHROUGH_FIXED(widget)) {
         return;
     }
     GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
-    if (self->blend_mode != mode) {
+    if (self->blend_mode != mode || self->blend_opacity != opacity) {
         self->blend_mode = mode;
+        self->blend_opacity = opacity;
         gtk_widget_queue_draw(widget);
     }
 }

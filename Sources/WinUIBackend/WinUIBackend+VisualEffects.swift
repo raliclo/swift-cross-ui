@@ -66,6 +66,9 @@ private final class WinUIVisualEffectState: @unchecked Sendable {
     var effectBrush: WinAppSDK.CompositionEffectBrush
     var spriteVisual: WinAppSDK.SpriteVisual
     var effectObjects: [Any]
+    /// destinationOut's "base", the window background; nil for every other effect.
+    /// destinationOut 的 "base",即視窗背景；其他效果皆為 nil。
+    var baseBrush: WinAppSDK.CompositionColorBrush?
 
     init(
         sourceSurface: WinAppSDK.CompositionVisualSurface,
@@ -95,13 +98,27 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
     }
 
     public func setVisualEffect(_ effect: VisualEffect, ofWidget widget: Widget) {
-        widget.opacity = effect.opacity
+        // With a blend mode the opacity is part of the effect graph, applied to the view
+        // before the blend node (D2DEffectGraph), and the container stays at 1. The
+        // blend is computed against the backdrop inside the graph, so the view's
+        // opacity has to be in the source it blends -- `.opacity(0.5)` and a blend mode
+        // in one container -- not applied by XAML afterwards to the blended result,
+        // which differs wherever a mode clamps (plusLighter, plusDarker).
+        // 設有混合模式時，opacity 是效果圖的一部分，在混合節點之前套用到 view 上(D2DEffectGraph),容器則
+        // 維持 1。混合是在效果圖內對著背景算出的，所以 view 的 opacity 必須在被混合的來源中——同一容器中的
+        // `.opacity(0.5)` 與混合模式——而不是之後才由 XAML 套到混合結果上；在會箝制的模式(plusLighter、
+        // plusDarker)兩者不同。
+        let blends = effect.blendMode != .normal
+        widget.opacity = blends ? 1 : effect.opacity
 
         let key = winUIVisualEffectKey(widget)
         // shadow(color:radius:x:y:) is drawn by its own DropShadow beneath the child (see
         // applyShadow); the filter graph below never sees it. / shadow(color:radius:x:y:) 由它自己的
         // DropShadow 畫在子元件下方(見 applyShadow);下方的濾鏡圖不會看到它。
         applyShadow(effect.shadow, to: widget, key: key)
+        // The container no longer fades the shadow while blending, so its host does.
+        // 混合時容器不再讓陰影淡出，改由陰影的宿主自己淡出。
+        visualEffectShadows.withLock { $0[key] }?.host.opacity = blends ? effect.opacity : 1
         var effect = effect
         effect.shadow = nil
 
@@ -110,14 +127,22 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
         // built for the rest still holds: Opacity, set above, is all there is to do.
         // 直接路徑在 opacity 動畫期間每幀都設定效果(EffectAnimation.swift)。只有 opacity 改變時，為其餘
         // 部分建好的效果圖仍然適用：上面設好的 Opacity 就是全部要做的事。
+        // While blending the opacity is in the graph, so it is compared too.
+        // 混合時 opacity 在效果圖中，因此也要比較。
         var filters = effect
-        filters.opacity = 1
+        if !blends {
+            filters.opacity = 1
+        }
         let unchanged = visualEffectLastFilters.withLock { last in
             let same = !filters.needsOnlyOpacity && last[key] == filters
             last[key] = filters.needsOnlyOpacity ? nil : filters
             return same
         }
-        if unchanged, visualEffectStates.withLock({ $0[key] != nil }) {
+        if unchanged, let state = visualEffectStates.withLock({ $0[key] }) {
+            // destinationOut's base is the window background, which the colour scheme
+            // can change while the effect stays the same.
+            // destinationOut 的底色是視窗背景，色彩配置可能改變它，而效果本身不變。
+            state.baseBrush?.color = winUIWindowBackgroundColor(of: widget)
             return
         }
         if effect.needsOnlyOpacity {
@@ -167,6 +192,19 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
                 }
                 try effectBrush.setSourceParameter("backdrop", backdrop)
             }
+            // destinationOut's base: what is left once every visual under the sprite is
+            // erased, the window's own background. See `BlendMode.direct2D`.
+            // destinationOut 的底色：sprite 下方每個 visual 都被擦除之後剩下的，即視窗自己的背景。見
+            // `BlendMode.direct2D`。
+            var baseBrush: WinAppSDK.CompositionColorBrush?
+            if graph.usesBase {
+                guard let brush = try compositor.createColorBrush(winUIWindowBackgroundColor(of: widget))
+                else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                try effectBrush.setSourceParameter("base", brush)
+                baseBrush = brush
+            }
             guard let spriteVisual = try compositor.createSpriteVisual() else {
                 throw WinUIVisualEffectError.emptyEffectGraph
             }
@@ -186,6 +224,7 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
                     spriteVisual: spriteVisual,
                     effectObjects: graph.effectObjects
                 )
+                states[key]?.baseBrush = baseBrush
             }
             // The denominator. Logging only failures cannot distinguish "one
             // effect failed" from "only one effect was ever attempted", and a
@@ -216,6 +255,27 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
     }
 }
 
+/// The colour of the window background behind `widget`: the brush updateWindow puts on
+/// the window's root grid (ApplicationPageBackgroundThemeBrush), read from the widget's
+/// XAML root; the same resource looked up directly before the widget is in a window;
+/// white if neither is a solid colour.
+/// `widget` 後方視窗背景的顏色:updateWindow 放在視窗根 grid 上的筆刷(ApplicationPageBackgroundThemeBrush),
+/// 由 widget 的 XAML 根讀出;widget 尚未在視窗中時直接查同一個資源；兩者都不是純色時為白色。
+private func winUIWindowBackgroundColor(of widget: WinUI.FrameworkElement) -> UWP.Color {
+    if let root = widget.xamlRoot?.content as? WinUI.Panel,
+       let brush = root.background as? WinUI.SolidColorBrush
+    {
+        return brush.color
+    }
+    if let application = WinUI.Application.current,
+       let brush = application.resources.lookup("ApplicationPageBackgroundThemeBrush")
+           as? WinUI.SolidColorBrush
+    {
+        return brush.color
+    }
+    return UWP.Color(a: 255, r: 255, g: 255, b: 255)
+}
+
 private extension SwiftCrossUI.BlendMode {
     /// The Direct2D node that draws this mode -- the effect kind, its mode property
     /// and the mode -- or nil for normal, which needs none.
@@ -225,14 +285,25 @@ private extension SwiftCrossUI.BlendMode {
     /// max(0, S + D - 1). sourceAtop, destinationOver and destinationOut are
     /// Porter-Duff operators, drawn by Composite.
     ///
-    /// One gap, stated precisely: the result is a sprite drawn over the backdrop it
-    /// was computed from, and Composition cannot erase the visuals underneath it. So
-    /// destinationOut, which erases the backdrop where the view is opaque, computes
-    /// the erased backdrop and draws it over the untouched one -- the cell looks as
-    /// if nothing were drawn there, instead of showing what lies behind the
-    /// backdrop. Every other mode's result covers the backdrop where the view is and
-    /// equals it elsewhere, so drawing it over the backdrop is exact wherever the
-    /// backdrop is opaque.
+    /// The result is a sprite drawn over the backdrop it was computed from. Every
+    /// mode but destinationOut covers the backdrop where the view is and equals it
+    /// elsewhere, so drawing it over the backdrop is exact wherever the backdrop is
+    /// opaque, as a window is.
+    ///
+    /// destinationOut erases: where the view is opaque, the backdrop -- every visual
+    /// under the sprite -- is gone. Composition cannot clear the pixels under a
+    /// sprite (Visual.CompositeMode has SourceOver, DestinationInvert and MinBlend,
+    /// none of which removes them), so the sprite draws what an erased window shows
+    /// instead: the erased backdrop, backdrop x (1 - view alpha), composited over
+    /// the "base" parameter, a CompositionColorBrush of the window's own background
+    /// (the window grid's ApplicationPageBackgroundThemeBrush, the one surface no
+    /// view can erase). Where the view is opaque the sprite is the base, so the
+    /// hole shows the window background, as on AppKit; where it is transparent the
+    /// sprite equals the backdrop it covers; in between it is the backdrop faded
+    /// towards the base by the view's alpha, which is the partial erasure. The
+    /// sprite is opaque wherever the backdrop is, so it hides the visuals it stands
+    /// for exactly. Before this the erased backdrop was drawn over the untouched
+    /// one and the cell looked as if nothing had been drawn.
     ///
     /// 畫出此模式的 Direct2D 節點——效果種類、其模式屬性與模式值——normal 不需要節點，為 nil。
     ///
@@ -240,10 +311,17 @@ private extension SwiftCrossUI.BlendMode {
     /// 是它的 LINEAR_BURN,即 max(0, S + D - 1)。sourceAtop、destinationOver 與 destinationOut 是 Porter-Duff
     /// 運算子，由 Composite 繪製。
     ///
-    /// 唯一的缺口，明確說明如下：結果是一個畫在「用來計算它的背景」之上的 sprite,而 Composition 無法擦除其下方的
-    /// visual。因此 destinationOut(在 view 不透明處擦除背景)算出了擦除後的背景，卻把它畫在未被改動的背景上——
-    /// 該格看起來像什麼都沒畫，而不是露出背景後方的內容。其他每種模式的結果在 view 所在處覆蓋背景、其餘處等於背景，
-    /// 因此只要背景不透明，畫在背景之上就完全精確。
+    /// 結果是一個畫在「用來計算它的背景」之上的 sprite。除了 destinationOut,每種模式的結果在 view 所在處覆蓋背景、
+    /// 其餘處等於背景，因此只要背景不透明(視窗即是),畫在背景之上就完全精確。
+    ///
+    /// destinationOut 是擦除：在 view 不透明處，背景——sprite 下方的每個 visual——消失。Composition 無法清除 sprite
+    /// 下方的像素(Visual.CompositeMode 只有 SourceOver、DestinationInvert 與 MinBlend,沒有一個能移除它們),所以
+    /// sprite 改為畫出「被擦除的視窗」會顯示的內容：擦除後的背景，即 背景 x (1 - view 的 alpha),合成在 "base" 參數
+    /// 之上——那是視窗自己背景(視窗 grid 的 ApplicationPageBackgroundThemeBrush,沒有任何 view 能擦除的那一層)的
+    /// CompositionColorBrush。view 不透明處 sprite 就是底色，所以洞裡露出視窗背景，與 AppKit 相同;view 透明處
+    /// sprite 等於它所覆蓋的背景；介於其間時是依 view 的 alpha 朝底色淡化的背景，也就是部分擦除。凡是背景不透明之處
+    /// sprite 也不透明，因此能精確遮住它所代表的那些 visual。在此之前，擦除後的背景被畫在未改動的背景上，該格看起來
+    /// 像什麼都沒畫。
     var direct2D: (kind: Int, property: Int, mode: Int)? {
         let blend = { (mode: Int) in (SCUI_EFFECT_BLEND, SCUI_D2DBLEND_MODE, mode) }
         let composite = { (mode: Int) in (SCUI_EFFECT_COMPOSITE, SCUI_D2DCOMPOSITE_MODE, mode) }
@@ -318,6 +396,9 @@ private struct D2DEffectGraph {
     /// Whether the graph has a "backdrop" source to bind (blendMode(_:)).
     /// 效果圖是否有需要繫結的 "backdrop" 來源(blendMode(_:))。
     let usesBackdrop: Bool
+    /// Whether the graph has a "base" source to bind: destinationOut's window background.
+    /// 效果圖是否有需要繫結的 "base" 來源:destinationOut 的視窗背景。
+    let usesBase: Bool
 
     init(effect: VisualEffect) throws {
         let sourceParameter = WinAppSDK.CompositionEffectSourceParameter("source")
@@ -678,12 +759,50 @@ private struct D2DEffectGraph {
             // 模式都對調了:overlay 畫成 hardLight、color 畫成 luminosity,hue 與 saturation 在近白的視窗上變成灰色，與
             // AppKit 及 GTK 不同。對稱的模式(multiply、screen、difference…)看不出來。Composite 的順序是對的:
             // sourceAtop 與 destinationOver 與 AppKit 相符。
+            // The view's opacity, which setVisualEffect leaves to the graph while
+            // blending: alpha scaled, colour kept.
+            // view 的 opacity——混合時 setVisualEffect 把它交給效果圖:alpha 依比例縮放，顏色不變。
+            if effect.opacity != 1 {
+                let k = Float(min(max(effect.opacity, 0), 1))
+                _ = try colorMatrix(
+                    [
+                        1, 0, 0, 0,
+                        0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, k,
+                        0, 0, 0, 0,
+                    ],
+                    clamp: true,
+                    from: currentSource
+                )
+            }
             let inputs = blend.kind == SCUI_EFFECT_BLEND ? [currentSource, backdrop] : [backdrop, currentSource]
             let node = try D2DEffect(blend.kind, sources: inputs)
             try node.set(blend.property, .uint(blend.mode))
             try append(node)
+
+            // destinationOut: the erased backdrop over the window background, the
+            // "base" parameter, so the sprite shows the hole instead of the backdrop it
+            // stands over. See `BlendMode.direct2D`.
+            // destinationOut:把擦除後的背景合成在視窗背景("base" 參數)之上，讓 sprite 顯示出洞，而不是它所覆蓋的背景。
+            // 見 `BlendMode.direct2D`。
+            if effect.blendMode == .destinationOut {
+                let baseParameter = WinAppSDK.CompositionEffectSourceParameter("base")
+                guard let baseWrapper =
+                    __ABI_Windows_Graphics_Effects.IGraphicsEffectSourceWrapper(baseParameter)
+                else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                objects.append(baseWrapper)
+                var base: D2DSource = nil
+                try baseWrapper.toABI { base = $0 }
+                let over = try D2DEffect(SCUI_EFFECT_COMPOSITE, sources: [base, currentSource])
+                try over.set(SCUI_D2DCOMPOSITE_MODE, .uint(SCUI_D2DCOMPOSITE_SOURCE_OVER))
+                try append(over)
+            }
         }
         usesBackdrop = effect.blendMode.direct2D != nil
+        usesBase = effect.blendMode == .destinationOut
 
         guard let currentRoot else {
             throw WinUIVisualEffectError.emptyEffectGraph

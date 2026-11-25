@@ -100,7 +100,10 @@ enum {
     SCUI_BLEND_PLUS_DARKER,
     SCUI_BLEND_PLUS_LIGHTER,
 };
-void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode);
+// `opacity` is the container's own, applied to the content before blending while the
+// widget stays at 1: GTK would otherwise draw it offscreen, where the copy sees no backdrop.
+// `opacity` 是容器自己的不透明度，在混合前乘到內容上，widget 則維持 1:否則 GTK 會把它畫在離屏，copy 看不到背景。
+void gtk_passthrough_fixed_set_blend_mode(GtkWidget *widget, int mode, float opacity);
 
 // A GtkDrawingArea that does not claim pointer events for a path it did not
 // fill. Implemented in gtk_passthrough_drawing_area.c, which records the

@@ -203,6 +203,7 @@ enum {
     // Composite: input 0 is the destination, input 1 the source.
     // Composite:輸入 0 是目的地，輸入 1 是來源。
     SCUI_D2DCOMPOSITE_MODE = 0,       // UInt32, a D2D1_COMPOSITE_MODE
+    SCUI_D2DCOMPOSITE_SOURCE_OVER = 0,
     SCUI_D2DCOMPOSITE_DESTINATION_OVER = 1,
     SCUI_D2DCOMPOSITE_DESTINATION_OUT = 5,
     SCUI_D2DCOMPOSITE_SOURCE_ATOP = 6,
