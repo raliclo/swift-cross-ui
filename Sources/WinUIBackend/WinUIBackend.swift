@@ -3167,12 +3167,6 @@ extension WinUIBackend {
         // 離開，移回來則回報進入。
         let update: (HoverGestureTarget, PointerRoutedEventArgs?) -> Void = { hoverTarget, args in
             let inside = WinUIContentShapes.contains(hoverTarget, args)
-            WinUIContentShapes.diagnose(
-                "hover \(ObjectIdentifier(hoverTarget).hashValue) inside=\(inside) was=\(hoverTarget.isInside)"
-                    + " at=\(String(describing: args.flatMap { try? $0.getCurrentPoint(hoverTarget)?.position }))"
-                    + " own=\(WinUIContentShapes.describe(WinUIContentShapes.entries[ObjectIdentifier(hoverTarget)]?.region))"
-                    + " hitTestVisible=\(hoverTarget.isHitTestVisible) shaped=\(WinUIContentShapes.shapedCount)"
-            )
             guard inside != hoverTarget.isInside else { return }
             hoverTarget.isInside = inside
             if inside {
@@ -3190,7 +3184,6 @@ extension WinUIBackend {
             update(hoverTarget, args)
         }
         hoverTarget.pointerExited.addHandler { [weak hoverTarget] _, _ in
-            WinUIContentShapes.diagnose("hover exited \(hoverTarget.map { ObjectIdentifier($0).hashValue } ?? 0) was=\(hoverTarget?.isInside ?? false)")
             guard let hoverTarget, hoverTarget.isInside else { return }
             hoverTarget.isInside = false
             hoverTarget.exitHandler?()

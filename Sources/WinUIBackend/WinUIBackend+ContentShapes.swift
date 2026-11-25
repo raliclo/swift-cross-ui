@@ -1,4 +1,3 @@
-import DebugFeatures
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import WinUI
@@ -89,30 +88,10 @@ enum WinUIContentShapes {
 
     static func set(_ region: HitRegion?, for element: WinUI.UIElement) {
         let entry = entry(for: element)
-        diagnose("set \(type(of: element)) \(ObjectIdentifier(element).hashValue) region=\(describe(region))")
         entry.region = region
         if region == nil { entry.inside = true }
         entry.apply()
         recount()
-    }
-
-    /// TEMPORARY diagnostics for the WinUI hover-versus-content-shape failure (P131, CI
-    /// run 45561431566): which elements get a region, and what each hover event sees.
-    /// Written only by binaries built with SCUI_DEBUG, as CI's test apps are.
-    /// 暫時性診斷，追查 WinUI 懸停與 content shape 的失敗(P131,CI run 45561431566):哪些元素拿到形狀，以及每個
-    /// 懸停事件看到什麼。只有以 SCUI_DEBUG 建置的執行檔(如 CI 的測試 app)才會寫出。
-    static func diagnose(_ message: @autoclosure () -> String) {
-        guard DebugFeatures.isCompiledIn else { return }
-        FileHandle.standardError.write(Data(("-contentshape: " + message() + "\n").utf8))
-    }
-
-    static func describe(_ region: HitRegion?) -> String {
-        guard let region else { return "nil" }
-        let points = region.contours.flatMap { $0 }
-        guard let first = points.first else { return "empty" }
-        let low = points.reduce(first) { SIMD2(min($0.x, $1.x), min($0.y, $1.y)) }
-        let high = points.reduce(first) { SIMD2(max($0.x, $1.x), max($0.y, $1.y)) }
-        return "\(points.count)pts (\(Int(low.x)),\(Int(low.y)))-(\(Int(high.x)),\(Int(high.y)))"
     }
 
     static func setAllowsHitTesting(_ allowsHitTesting: Bool, for element: WinUI.UIElement) {
