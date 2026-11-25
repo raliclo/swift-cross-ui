@@ -294,6 +294,7 @@ struct P70RootView: View {
                 disabledFocused
                 ? "NOT refused -- a disabled control took focus (wrong)"
                 : "refused (correct)"
+            if !disabledFocused { reportCheck() }
         }
     }
 
@@ -350,15 +351,23 @@ struct P70RootView: View {
     /// 且停用的按鈕拒絕了。沒點中這顆按鈕就一行都不會有，同樣算失敗。
     func reportAfterAsking() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            MainActor.assumeIsolated {
-                let now = field.map(String.init(describing:)) ?? "none"
-                let disabled = disabledFocused ? "disabled focused" : "disabled refused"
-                report(
-                    changes >= 2 && !disabledFocused
-                        ? "P70 CHECK PASS (focused \(now), \(changes) changes, \(disabled))"
-                        : "P70 CHECK FAIL (focused \(now), \(changes) changes, \(disabled))"
-                )
-            }
+            MainActor.assumeIsolated { reportCheck() }
         }
+    }
+
+    /// The CHECK line itself. Logged as soon as the refusal is reported, and again by
+    /// reportAfterAsking's timer when no report comes: on a slow runner (CI macos-gtk,
+    /// 2026-11-25) the app was closed less than 0.5 s after the press, so a timer alone
+    /// lost a PASS that the capture showed.
+    /// CHECK 那一行本身。拒絕一回報就記下，沒有回報時由 reportAfterAsking 的計時器記下：較慢的 runner 上
+    /// (CI macos-gtk,2026-11-25)app 在按下後不到 0.5 秒就被關閉，只靠計時器會弄丟擷圖明明顯示的 PASS。
+    func reportCheck() {
+        let now = field.map(String.init(describing:)) ?? "none"
+        let disabled = disabledFocused ? "disabled focused" : "disabled refused"
+        report(
+            changes >= 2 && !disabledFocused
+                ? "P70 CHECK PASS (focused \(now), \(changes) changes, \(disabled))"
+                : "P70 CHECK FAIL (focused \(now), \(changes) changes, \(disabled))"
+        )
     }
 }
