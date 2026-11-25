@@ -211,6 +211,7 @@ fi
 # `--actionfile` 未帶路徑時使用 testapp/actions/<app>-*.actions：常見情況是每支 app 一個以其命名的
 # 檔案，而每次都手打路徑，只會招來「對正確的 app 重放了錯誤的檔案」。
 action_file="${TEST_ACTION_FILE:-}"
+action_file_default=0  # a bare --actionfile, looked up once the target is final / 不帶路徑的 --actionfile,target 確定後才查找
 actionfile_log="${app:l}-actionfile.log"
 renderer_log="${app:l}-renderer.log"
 
@@ -286,6 +287,19 @@ default_action_file() {
             [ "$claimed" -eq 0 ] && kept+=("$candidate")
         done
         [ "${#kept}" -gt 0 ] && candidates=($kept)
+    fi
+    # A `-gtk4` file is the GtkBackend twin of the file without the suffix (sweep_apple.zsh,
+    # sweep_desktop.zsh): TEST_BACKEND=gtk4 takes the twins, any other backend leaves them,
+    # so P91 on a Mac resolves to P91-focusable rather than "Several action files".
+    # `-gtk4` 檔是去掉該字尾那份檔案的 GtkBackend 版本：TEST_BACKEND=gtk4 取這些檔，其他 backend 不取，
+    # 所以 Mac 上的 P91 解析為 P91-focusable,而不是「Several action files」。
+    if [ "${#candidates}" -gt 1 ]; then
+        local twins=(${(M)candidates:#*-gtk4.actions}) plain=(${candidates:#*-gtk4.actions})
+        if [ "${TEST_BACKEND:-}" = "gtk4" ]; then
+            [ "${#twins}" -gt 0 ] && candidates=($twins)
+        else
+            [ "${#plain}" -gt 0 ] && candidates=($plain)
+        fi
     fi
     if [ "${#candidates}" -eq 0 ]; then
         printf 'No action file for %s in %s/actions/%s\n' "$app" "$script_dir" "$folder" >&2
@@ -394,7 +408,7 @@ while [ "$#" -gt 0 ]; do
                 action_file="$2"
                 shift 2
             else
-                action_file="$(default_action_file)"
+                action_file_default=1
                 shift
             fi
             ;;
@@ -497,6 +511,18 @@ if [ -n "$host_default" ] && [[ ! " ${host_targets[*]} " == *" $target "* ]]; th
     printf '==> %s defaults to "%s"; running "%s" on this host\n' \
         "$app" "$target" "$host_default"
     target="$host_default"
+fi
+
+# A bare `--actionfile` is looked up here, after the host replaced a declared target
+# it cannot drive: looked up while the options were read, a TEST_TARGET of `both` on a
+# Mac took the file from actions/wsl (2026-11-26), and a later --macos came too late
+# as well. `|| exit`: default_action_file exits when it finds no file, and inside $( )
+# that only left the subshell, so the run went on with no action file at all.
+# 不帶路徑的 `--actionfile` 在這裡才查找，也就是主機替換掉無法驅動的宣告 target 之後：在讀選項時就查找，
+# Mac 上 TEST_TARGET 為 `both` 會從 actions/wsl 取檔(2026-11-26),之後才出現的 --macos 也來不及。
+# `|| exit`:default_action_file 找不到檔案時會結束，但在 $( ) 裡只結束子 shell,執行便在沒有動作檔的情況下繼續。
+if [ "$action_file_default" -eq 1 ]; then
+    action_file="$(default_action_file)" || exit $?
 fi
 
 if [ "$render_explicit" -eq 1 ] && [[ "$target" != "wsl" && "$target" != "both" ]]; then
