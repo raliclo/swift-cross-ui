@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note,platform
+# GtkBackend on Windows: the taps aim at labels and are shared; the moves are GTK's own, read off CI run 45648679817's capture (green square x 30-130, y 67-167, below GTK's title bar), where the WinUI point (66,66) left the pointer on the square's top edge and hover never began.
+# P131 taps three places. 130 points right of the "Gap left" label is the empty
+# gap of an HStack given contentShape(Rectangle()), which must register "gap".
+# 52 points up and left of "Circle target" is a corner of a square given
+# contentShape(Circle()): outside the circle, so the tap must pass through to the
+# grey square underneath ("under"). The label itself is the centre and must
+# register "circle". Then the same two places of "Hold target" are long-pressed:
+# the corner must reach the grey square's long press ("lp-under"), the centre the
+# circle's ("lp-circle").
+# The long presses are a press held for 1.2 s at the place a tap row has just put
+# the pointer (a tap there does nothing). Then the pointer moves to the corner of
+# the green square at client (16,16)-(116,116), outside its contentShape(Circle()),
+# "Hover mark" is tapped, and the pointer moves to the centre: onHover must start
+# there and not at the corner, so the hits after PASS are mark, hover-in.
+# On WinUI a buttonless move is ten SendInput steps (Win32Synthesiser.move) along the straight line, so the moves from the hold target to the corner and from the corner to the mark crossed the circle and hover started twice, correctly (measured with the -contentshape diagnostics, 2026-11-25). The pointer therefore goes round the square along x 211 and y 4.
+#
+# expect: log-contains P131 PASS WITH HOVER
+#
+# P131 點擊三處。"Gap left" 標籤右方 130 點是加上 contentShape(Rectangle()) 的 HStack 的空隙，必須記為「gap」。
+# "Circle target" 左上方 52 點是加上 contentShape(Circle()) 的正方形的角落：在圓外，所以點擊必須穿透到下方的灰色
+# 正方形(「under」)。標籤本身就是中心，必須記為「circle」。接著對 "Hold target" 的同樣兩處長按：角落必須抵達灰色
+# 正方形的長按(「lp-under」),中心必須抵達圓的長按(「lp-circle」)。長按是在前一列點擊剛放好指標之處按住 1.2 秒
+# (在那裡點一下什麼都不做)。然後指標移到 client (16,16)-(116,116) 綠色正方形的角落，在其 contentShape(Circle())
+# 之外，點「Hover mark」,再移到中心:onHover 必須在那裡、而不是在角落開始，因此 PASS 之後的命中是 mark、hover-in。
+# 在 WinUI 上，沒按鍵的移動是 10 段 SendInput(Win32Synthesiser.move),會沿直線經過途中的點：從 Hold target 到角落、從角落到 mark 的直線都穿過圓，讓 hover 正確地開始了兩次(2026-11-25 以 -contentshape 診斷量得)。所以指標沿 x 211 與 y 4 繞過正方形。
+sleep,,,,,,1500000,let P131 render,windows
+taplabel,130,0,,,Gap left,,the empty gap must register,windows
+sleep,,,,,,800000,,windows
+taplabel,-52,-52,,,Circle target,,corner outside the circle must reach grey,windows
+sleep,,,,,,800000,,windows
+taplabel,,,,,Circle target,,centre must reach the circle,windows
+sleep,,,,,,800000,,windows
+taplabel,-52,-52,,,Hold target,,put the pointer there; a tap does nothing,windows
+sleep,,,,,,800000,past the double-click time,windows
+mousedown,,,,left,,,press and hold there,windows
+sleep,,,,,,1200000,,windows
+mouseup,,,,left,,,the long press at the corner must reach grey,windows
+sleep,,,,,,800000,,windows
+taplabel,,,,,Hold target,,put the pointer there; a tap does nothing,windows
+sleep,,,,,,800000,past the double-click time,windows
+mousedown,,,,left,,,press and hold there,windows
+sleep,,,,,,1200000,,windows
+mouseup,,,,left,,,the long press at the centre must reach the circle,windows
+sleep,,,,,,800000,,windows
+move,226,58,,,,,up from the hold target along x 226 to the band between the title bar and the green square,windows
+move,20,58,,,,,left along y 58 above the green square,windows
+move,36,73,,,,,corner of the green square: outside its circle,windows
+sleep,,,,,,600000,,windows
+move,36,58,,,,,up from the corner first so the way to the mark does not cross the circle,windows
+move,200,58,,,,,along y 58 above the square to its right,windows
+taplabel,,,,,Hover mark,,mark: hover must not have started yet,windows
+sleep,,,,,,600000,,windows
+move,80,117,,,,,centre of the green square: hover starts here,windows
+sleep,,,,,,2000000,let the verdict show,windows
