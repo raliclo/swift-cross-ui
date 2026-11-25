@@ -1638,6 +1638,16 @@ extension WinUIBackend {
                 // The default minimum picker height is 32 pixels
                 max(Int(labelSize.height) + 12, 32)
             )
+        } else if widget is ProgressBar {
+            // The template's ProgressBarMinHeight, 4. measure() reported 0 for a bar
+            // not yet in the visual tree, so every bar was laid out 0 tall and drew over
+            // its neighbours; P129 caught it when controlSize scaled 0 to 0 (CI run
+            // 45505727478, 2026-11-25). Only the height is used: a bar takes its width
+            // from the proposal.
+            // 範本的 ProgressBarMinHeight,4。對尚未放進視覺樹的 bar,measure() 回報 0,因此每個 bar 都以 0 高排版，畫在
+            // 鄰居上面;controlSize 把 0 縮放成 0 時被 P129 抓到(CI run 45505727478,2026-11-25)。只使用高度：bar 的寬度
+            // 取自提議。
+            return SIMD2(100, 4)
         } else if widget is ProgressRing {
             // ProgressRing appears to kind of grow to fill by default, but
             // SwiftCrossUI expects progress spinners to be fixed size, which
