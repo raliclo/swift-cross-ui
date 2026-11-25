@@ -12,6 +12,7 @@ action,x,y,origin,button,key,micros,note,platform
 # the green square at client (16,16)-(116,116), outside its contentShape(Circle()),
 # "Hover mark" is tapped, and the pointer moves to the centre: onHover must start
 # there and not at the corner, so the hits after PASS are mark, hover-in.
+# On WinUI a buttonless move is ten SendInput steps (Win32Synthesiser.move) along the straight line, so the moves from the hold target to the corner and from the corner to the mark crossed the circle and hover started twice, correctly (measured with the -contentshape diagnostics, 2026-11-25). The pointer therefore goes round the square along x 211 and y 4.
 #
 # expect: log-contains P131 PASS WITH HOVER
 #
@@ -21,6 +22,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 正方形的長按(「lp-under」),中心必須抵達圓的長按(「lp-circle」)。長按是在前一列點擊剛放好指標之處按住 1.2 秒
 # (在那裡點一下什麼都不做)。然後指標移到 client (16,16)-(116,116) 綠色正方形的角落，在其 contentShape(Circle())
 # 之外，點「Hover mark」,再移到中心:onHover 必須在那裡、而不是在角落開始，因此 PASS 之後的命中是 mark、hover-in。
+# 在 WinUI 上，沒按鍵的移動是 10 段 SendInput(Win32Synthesiser.move),會沿直線經過途中的點：從 Hold target 到角落、從角落到 mark 的直線都穿過圓，讓 hover 正確地開始了兩次(2026-11-25 以 -contentshape 診斷量得)。所以指標沿 x 211 與 y 4 繞過正方形。
 sleep,,,,,,1500000,let P131 render,windows
 taplabel,130,0,,,Gap left,,the empty gap must register,windows
 sleep,,,,,,800000,,windows
@@ -40,8 +42,12 @@ mousedown,,,,left,,,press and hold there,windows
 sleep,,,,,,1200000,,windows
 mouseup,,,,left,,,the long press at the centre must reach the circle,windows
 sleep,,,,,,800000,,windows
+move,211,4,,,,,up from the hold target along x 211: the straight line to the corner would cross the circle,windows
+move,8,4,,,,,left along y 4 above the green square,windows
 move,22,22,,,,,corner of the green square: outside its circle,windows
 sleep,,,,,,600000,,windows
+move,22,4,,,,,up from the corner first: WinUI moves are stepped and a straight line to the mark would cross the circle,windows
+move,170,4,,,,,along y 4 above the square to its right,windows
 taplabel,,,,,Hover mark,,mark: hover must not have started yet,windows
 sleep,,,,,,600000,,windows
 move,66,66,,,,,centre of the green square: hover starts here,windows
