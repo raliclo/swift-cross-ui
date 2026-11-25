@@ -1862,6 +1862,22 @@
                         + "placed the cursor at (\(landed.x), \(landed.y)) as asked"
                 )
             }
+            // Then the same place again as INPUT, one pixel aside and back. SetCursorPos only
+            // places the cursor; on a machine with no pointing device (CI's Windows runner)
+            // it appears to raise no WM_MOUSEMOVE, so GTK never learns the pointer is over a button:
+            // a text field, which takes the focus on the press, still worked, but a GtkButton,
+            // which checks the release is inside, never emitted clicked -- P30, P70, P120 and
+            // P125 failed only on the windows-gtk job (run 45555941348). Not stepped: stepped
+            // SendInput moves in place of SetCursorPos broke P92's menu on Windows GTK.
+            // 接著以「輸入」再到同一點一次(偏一個像素再回來)。SetCursorPos 只擺放游標；在沒有指標裝置的機器上
+            // (CI 的 Windows runner)它不產生 WM_MOUSEMOVE,GTK 因此不知道指標在按鈕上：按下就取得焦點的文字欄位仍可用，
+            // 但要確認放開在範圍內的 GtkButton 從不發出 clicked——P30、P70、P120、P125 只在 windows-gtk 工作失敗
+            // (run 45555941348)。不分段：以分段 SendInput 取代 SetCursorPos 曾弄壞 Windows GTK 上 P92 的選單。
+            if let window = try? ownWindow(), className(of: window) != "WinUIDesktopWin32WindowClass" {
+                sendAbsoluteMouseMove(to: (x: position.x + 1, y: position.y))
+                sendAbsoluteMouseMove(to: position)
+                Thread.sleep(forTimeInterval: 0.02)
+            }
             reportMouseMove(point: point, screen: position)
             // After the report, so the failing move is in the log with its full hit
             // dump rather than only in the exception. The two are read together.
