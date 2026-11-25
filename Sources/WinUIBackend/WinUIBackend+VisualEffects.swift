@@ -650,14 +650,14 @@ private struct D2DEffectGraph {
         }
 
         // blendMode(_:) last, after every other effect, on what the effects produced:
-        // a Direct2D Blend or Composite node whose destination (input 0) is the
+        // a Direct2D Blend or Composite node whose destination is the
         // "backdrop" parameter, which setVisualEffect binds to a CompositionBackdropBrush
         // -- the pixels the compositor has drawn behind this container's sprite -- and
-        // whose source (input 1) is the view. See `BlendMode.direct2D` for the node
+        // whose source is the view (the input order differs; see below). See `BlendMode.direct2D` for the node
         // each mode uses.
         // blendMode(_:) 排在最後，在其他所有效果之後，作用於效果產出的結果:Direct2D 的 Blend 或 Composite 節點，
-        // 其目的地(輸入 0)是 "backdrop" 參數——setVisualEffect 把它繫結到 CompositionBackdropBrush,也就是合成器在
-        // 本容器 sprite 後方已畫好的像素——來源(輸入 1)則是 view。每種模式用哪個節點，見 `BlendMode.direct2D`。
+        // 其目的地是 "backdrop" 參數——setVisualEffect 把它繫結到 CompositionBackdropBrush,也就是合成器在
+        // 本容器 sprite 後方已畫好的像素——來源則是 view(兩種節點的輸入順序不同，見下方)。每種模式用哪個節點，見 `BlendMode.direct2D`。
         if let blend = effect.blendMode.direct2D {
             let backdropParameter = WinAppSDK.CompositionEffectSourceParameter("backdrop")
             guard let backdropWrapper =
@@ -668,7 +668,18 @@ private struct D2DEffectGraph {
             objects.append(backdropWrapper)
             var backdrop: D2DSource = nil
             try backdropWrapper.toABI { backdrop = $0 }
-            let node = try D2DEffect(blend.kind, sources: [backdrop, currentSource])
+            // Blend takes the view first and the backdrop second; Composite the other way
+            // round. With the backdrop first, Blend swapped every asymmetric mode on CI
+            // (run 45505727478): overlay drew as hardLight, color as luminosity, hue and
+            // saturation grey over a near-white window, against AppKit and GTK. The
+            // symmetric ones (multiply, screen, difference...) hid it. Composite's order
+            // was right: sourceAtop and destinationOver matched AppKit.
+            // Blend 先取 view、再取背景;Composite 則相反。背景放在前面時，Blend 在 CI(run 45505727478)上把每個不對稱的
+            // 模式都對調了:overlay 畫成 hardLight、color 畫成 luminosity,hue 與 saturation 在近白的視窗上變成灰色，與
+            // AppKit 及 GTK 不同。對稱的模式(multiply、screen、difference…)看不出來。Composite 的順序是對的:
+            // sourceAtop 與 destinationOver 與 AppKit 相符。
+            let inputs = blend.kind == SCUI_EFFECT_BLEND ? [currentSource, backdrop] : [backdrop, currentSource]
+            let node = try D2DEffect(blend.kind, sources: inputs)
             try node.set(blend.property, .uint(blend.mode))
             try append(node)
         }

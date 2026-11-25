@@ -72,7 +72,7 @@ struct P132App: App {
         WindowGroup(P132.title) {
             P132View()
         }
-        .defaultSize(width: 860, height: 560)
+        .defaultSize(width: 420, height: 660)
     }
 }
 
@@ -102,33 +102,35 @@ struct P132Cell: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .frame(width: 90, height: 50)
+                .frame(width: 64, height: 36)
                 Color(red: 0.9, green: 0.2, blue: 0.5)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 36, height: 36)
                     .blendMode(mode)
                     .background(
                         GeometryReader { proxy in
                             P132Recorder(name: "\(mode)", size: proxy.size)
                         }
                     )
-                    .padding(.leading, 50)
-                    .padding(.top, 20)
+                    .padding(.leading, 36)
+                    .padding(.top, 14)
             }
-            .frame(width: 100, height: 70, alignment: .topLeading)
-            Text("\(mode)")
+            .frame(width: 72, height: 50, alignment: .topLeading)
+            Text("\(mode)").font(.caption)
         }
-        .frame(width: 110, alignment: .leading)
+        .frame(width: 80, alignment: .leading)
     }
 }
 
 struct P132View: View {
     @State var verdict = "Measuring"
 
-    /// Seven modes to a row, in BlendMode's order. / 每列七種模式，依 BlendMode 的順序。
+    /// Four modes to a row, in BlendMode's order, so a phone shows all 21 at once (seven
+    /// ran off an Android screen after the third, CI run 45505727478).
+    /// 每列四種模式，依 BlendMode 的順序，讓手機一次顯示全部 21 種(七種時 Android 畫面在第三種之後就超出，CI run 45505727478)。
     var rows: [[BlendMode]] {
         let modes = BlendMode.allCases
-        return stride(from: 0, to: modes.count, by: 7).map {
-            Array(modes[$0..<min($0 + 7, modes.count)])
+        return stride(from: 0, to: modes.count, by: 4).map {
+            Array(modes[$0..<min($0 + 4, modes.count)])
         }
     }
 
