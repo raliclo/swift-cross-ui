@@ -32,7 +32,16 @@ extension GtkBackend: BackendFeatures.VisualEffects {
         // `gtk_widget_set_opacity` 會把該 widget 及其之下的所有內容當成一個群組來合成，這正是
         // SwiftUI 的 `.opacity(_:)` 所做的事。而 CSS 的 `opacity` 屬性則會由每個子元件各自的繪製
         // 繼承，於是兩個重疊、各為 0.5 的子元件會互相透出——外觀明顯不同，而且是錯的。
-        widget.opacity = effect.opacity
+        //
+        // With a blend mode the widget stays at 1 and the container applies the opacity
+        // to its content before blending (gtk_passthrough_fixed_set_blend_mode below):
+        // below 1 GTK draws the widget into an offscreen group, and the copy of the
+        // backdrop taken inside it would hold nothing, so `.opacity(0.5)` and a blend
+        // mode in one container blended with transparency.
+        // 設有混合模式時 widget 維持 1,由容器在混合前把 opacity 乘到內容上(見下方的
+        // gtk_passthrough_fixed_set_blend_mode):小於 1 時 GTK 會把 widget 畫進離屏群組，在其中取得的背景副本
+        // 是空的，於是同一容器中的 `.opacity(0.5)` 與混合模式會跟透明混合。
+        widget.opacity = effect.blendMode == .normal ? effect.opacity : 1
 
         // Everything else is drawn by the container itself, in its snapshot
         // (gtk_passthrough_fixed.c): blur, saturation, brightness, contrast,
@@ -76,7 +85,7 @@ extension GtkBackend: BackendFeatures.VisualEffects {
         // GSK route there, so none is approximated.
         // blendMode(_:),由容器對著其後方已畫好內容的副本繪製(gtk_passthrough_fixed.c 的
         // scui_snapshot_blended)。每種模式在那裡都有 GSK 的畫法，因此沒有近似。
-        gtk_passthrough_fixed_set_blend_mode(widget.widgetPointer, effect.blendMode.gtkHelperValue)
+        gtk_passthrough_fixed_set_blend_mode(widget.widgetPointer, effect.blendMode.gtkHelperValue, Float(effect.opacity))
     }
 }
 

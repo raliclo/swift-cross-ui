@@ -34,6 +34,21 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # expect: log-contains P132 PASS
 #
+# The last row (P132Extra). In the three "½" cells the gradient is half
+# transparent and the cell is drawn as a group, so the square blends with a
+# translucent backdrop; where the square sticks out past the gradient there is no
+# backdrop and it is drawn as it is. Where it covers the bluish part:
+#   ½ multiply       the square is half transparent too: about three quarters
+#                    opaque, a mix of pink, the gradient and their product, with
+#                    a quarter of the window background showing through -- not
+#                    the almost opaque patch a backdrop counted twice gives
+#   ½ plusLighter    opaque, about (255, 105, 221): the square plus half the
+#                    gradient, clamped
+#   ½ plusDarker     opaque, about (140, 0, 93)
+#   op½ multiply     opacity 0.5 and multiply in one container over the opaque
+#                    gradient: halfway between the gradient and multiply, about
+#                    (72, 64, 139) -- not a plain half-transparent pink square
+#
 # P132 在出現一秒後把每個混合後的方塊與一般方塊比較尺寸並記下結果，不按任何東西。混合模式不可改變任何尺寸。
 # 截圖顯示顏色：每格是黃到藍的漸層，其右半部上方有一個粉紅方塊(230, 51, 128),方塊的右緣與下緣超出漸層，落在
 # 視窗背景上。方塊覆蓋漸層偏藍處(約 (76, 107, 185))時：normal 為原樣的粉紅方塊(對照組);multiply 深紫約
@@ -44,4 +59,10 @@ action,x,y,origin,button,key,micros,note,platform
 # 色相配方塊的亮度;sourceAtop 與 normal 相同(後方包括視窗背景都不透明，所以處處畫出);destinationOver 完全看不到方塊
 # (漸層與不透明的視窗背景都在它上面);destinationOut 方塊處挖出一個洞(macOS 上為白色，2026-11-25),方塊本身不畫;plusDarker 近黑約 (50, 0, 57);plusLighter
 # 淡粉洋紅約 (255, 158, 255)。
+#
+# 最後一列(P132Extra):三個「½」格的漸層半透明，且整格以群組繪製，所以方塊與半透明的背景混合；方塊超出漸層的部分
+# 沒有背景，照原樣畫出。方塊覆蓋偏藍處時:½ multiply 的方塊本身也半透明，約四分之三不透明，為粉紅、漸層與兩者乘積的
+# 混合，透出四分之一的視窗背景——而不是背景被算兩次時那種幾乎不透明的色塊;½ plusLighter 不透明，約 (255, 105, 221),
+# 即方塊加上一半的漸層並箝制;½ plusDarker 不透明，約 (140, 0, 93);op½ multiply 為同一容器中的 opacity 0.5 與
+# multiply,畫在不透明的漸層上：介於漸層與 multiply 之間，約 (72, 64, 139)——而不是單純半透明的粉紅方塊。
 sleep,,,,,,4000000,let the measurement and the verdict show,macos
