@@ -14,6 +14,6 @@ sleep,,,,,,800000,let the window settle,android
 click,216,291,,left,,,the email field -- the app did not ask for this,android
 sleep,,,,,,600000,,android
 click,216,260,,left,,,and back to name,android
-sleep,,,,,,600000,,android
+sleep,,,,,,2000000,let the keyboard finish opening -- 0.6 s missed "ask both" on CI (run 45555941348),android
 click,88,416,,left,,,ask both for focus -- the disabled button must be refused,android
-sleep,,,,,,800000,let the refusal be reported,android
+sleep,,,,,,1500000,let the refusal be reported,android
