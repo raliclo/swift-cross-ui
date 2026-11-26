@@ -4163,6 +4163,12 @@ public class CustomWindow: WinUI.Window {
         grid.pointerReleased.addHandler { _, args in
             WinUIContentShapes.rootPointerReleased(args)
         }
+        grid.pointerCanceled.addHandler { _, args in
+            WinUIContentShapes.rootPointerCancelled(args)
+        }
+        grid.pointerCaptureLost.addHandler { _, args in
+            WinUIContentShapes.rootPointerCancelled(args)
+        }
         // Alt+Left, the Back key and the mouse's back button; see
         // WinUIBackend+BackNavigation.swift.
         // Alt+Left、返回鍵與滑鼠返回鍵；見 WinUIBackend+BackNavigation.swift。
@@ -4190,6 +4196,7 @@ public class CustomWindow: WinUI.Window {
         self.closed.addHandler { [weak self] _, _ in
             guard let self else { return }
             self.isClosed = true
+            WinUIContentShapes.windowClosed(root: self.grid)
             self.environmentActivationCleanup?.dispose()
             self.environmentActivationCleanup = nil
             self.environmentAction = nil

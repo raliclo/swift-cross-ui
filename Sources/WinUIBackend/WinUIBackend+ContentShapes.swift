@@ -151,6 +151,7 @@ extension WinUIContentShapes {
         case pressed
         case moved
         case released
+        case cancelled
     }
 
     /// Runs for a forwarded event with the point in the element's coordinates.
@@ -169,11 +170,14 @@ extension WinUIContentShapes {
     final class Misdirected {
         weak var fresh: WinUI.UIElement?
         weak var stale: WinUI.UIElement?
+        weak var root: WinUI.UIElement?
         let pointerId: UInt32
+        var cancellations: [ObjectIdentifier: () -> Void] = [:]
 
         init(fresh: WinUI.UIElement, stale: WinUI.UIElement, pointerId: UInt32) {
             self.fresh = fresh
             self.stale = stale
+            self.root = stale.xamlRoot?.content
             self.pointerId = pointerId
         }
     }
@@ -281,6 +285,9 @@ extension WinUIContentShapes {
     /// earlier position is forwarded to the chain it should have reached.
     /// 根 grid 的按壓：以先前位置之旗標做命中測試的按壓，會被轉交給它本應抵達的那條鏈。
     static func rootPointerPressed(_ args: PointerRoutedEventArgs?) {
+        if let record = misdirected, record.fresh == nil || record.root == nil {
+            cancelForwarding()
+        }
         guard shapedCount > 0, misdirected == nil, let args,
             let stale = args.originalSource as? WinUI.UIElement
         else { return }
@@ -299,6 +306,24 @@ extension WinUIContentShapes {
         }
         forward(.released, args)
         misdirected = nil
+    }
+
+    static func rootPointerCancelled(_ args: PointerRoutedEventArgs?) {
+        guard let args, misdirected?.pointerId == args.pointer.pointerId else { return }
+        cancelForwarding()
+    }
+
+    static func windowClosed(root: WinUI.UIElement) {
+        guard misdirected?.root === root else { return }
+        cancelForwarding()
+    }
+
+    private static func cancelForwarding() {
+        guard let record = misdirected else { return }
+        misdirected = nil
+        for cancel in record.cancellations.values {
+            cancel()
+        }
     }
 
     static func forwardMove(_ args: PointerRoutedEventArgs?) {
@@ -324,7 +349,11 @@ extension WinUIContentShapes {
                 let point = try? args.getCurrentPoint(ui)?.position
             {
                 let local = SIMD2(Double(point.x), Double(point.y))
-                for handler in Array(entry.handlers.values) {
+                let handlers = Array(entry.handlers.values)
+                record.cancellations[ObjectIdentifier(ui)] = {
+                    for handler in handlers { handler(.cancelled, local) }
+                }
+                for handler in handlers {
                     handler(phase, local)
                 }
             }
@@ -363,7 +392,7 @@ extension WinUIContentShapes {
                 case .moved:
                     let moved = point - start
                     if (moved * moved).sum() > 8 * 8 { generation += 1 }
-                case .released:
+                case .released, .cancelled:
                     generation += 1
                     active = false
             }

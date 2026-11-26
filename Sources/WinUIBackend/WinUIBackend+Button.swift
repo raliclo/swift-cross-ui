@@ -231,6 +231,9 @@ private final class ViewLabelCustomButton: WinUI.Button {
                     self.isPointerCaptured = false
                     self.isHighlighted = false
                     if activate { self.action?() }
+                case .cancelled:
+                    self.isPointerCaptured = false
+                    self.isHighlighted = false
             }
         }
     }

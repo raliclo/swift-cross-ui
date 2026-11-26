@@ -205,6 +205,8 @@ final class ManipulationTarget: WinUI.Grid {
                     guard let start = self.forwardedDragStart else { return }
                     self.forwardedDragStart = nil
                     if point != start { onMouseDrag(start, point, true) }
+                case .cancelled:
+                    self.forwardedDragStart = nil
             }
         }
         _ = manipulationStarted.addHandler { [weak self] _, args in
