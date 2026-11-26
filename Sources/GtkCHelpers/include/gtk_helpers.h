@@ -785,9 +785,9 @@ typedef void (*ScuiPressForwarder)(
 
 void scui_content_shape_set_press_forwarder(ScuiPressForwarder forwarder);
 
-// FALSE while a misdirected press is down and `widget` is not on the fresh
-// target's chain: its gestures must not take the press.
-// 被送錯的按下尚未放開、且 `widget` 不在新目標鏈上時為 FALSE:它的手勢不可接下這次按下。
+// FALSE while a misdirected press is down and `widget` is not on both the fresh
+// and the stale target's chains: the forwarder delivers to the fresh chain below them.
+// 被送錯的按下尚未放開、且 `widget` 不同時在新舊目標兩條鏈上時為 FALSE:其下的新鏈部分由轉交遞送。
 gboolean scui_content_shape_press_reaches(GtkWidget *widget);
 
 #ifdef __cplusplus

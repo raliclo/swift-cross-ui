@@ -281,10 +281,23 @@ gboolean scui_content_shape_press_reaches(GtkWidget *widget) {
     if (!scui_misdirected_active || widget == NULL) {
         return TRUE;
     }
+    // Natively only where the forwarder stops: widgets on both chains. Below that, on
+    // the fresh chain, the forwarder alone delivers, so a GTK that re-picked and sent the
+    // press to the fresh widget itself cannot double a tap -- macOS GTK did, and P131
+    // logged "mark, mark" (develop CI for 77ee838b, 2026-11-26).
+    // 只有轉交停下之處(兩條鏈上都有的 widget)以原生方式接下。其下、新鏈上的部分只由轉交遞送，因此 GTK 若重新挑選、
+    // 把按下直接送到新 widget,也不會讓點按觸發兩次——macOS GTK 就是如此，P131 記下「mark, mark」
+    // (develop CI,77ee838b,2026-11-26)。
     GtkWidget *fresh = g_weak_ref_get(&scui_misdirected_fresh);
-    gboolean reaches = fresh != NULL && (fresh == widget || gtk_widget_is_ancestor(fresh, widget));
+    GtkWidget *stale = g_weak_ref_get(&scui_misdirected_stale);
+    gboolean reaches = fresh != NULL && stale != NULL
+                       && (fresh == widget || gtk_widget_is_ancestor(fresh, widget))
+                       && (stale == widget || gtk_widget_is_ancestor(stale, widget));
     if (fresh != NULL) {
         g_object_unref(fresh);
+    }
+    if (stale != NULL) {
+        g_object_unref(stale);
     }
     return reaches;
 }
