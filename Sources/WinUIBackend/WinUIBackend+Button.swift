@@ -215,9 +215,28 @@ private final class ViewLabelCustomButton: WinUI.Button {
             guard let self else { return }
             self.action?()
         }
+        WinUIContentShapes.setForwarded("button", on: self) { [weak self] phase, point in
+            guard let self else { return }
+            let inside = (0..<self.actualWidth).contains(point.x)
+                && (0..<self.actualHeight).contains(point.y)
+                && (WinUIContentShapes.entries[ObjectIdentifier(self)]?.region?.contains(point) ?? true)
+            switch phase {
+                case .pressed:
+                    self.isPointerCaptured = self.enabled && inside
+                    self.isHighlighted = self.isPointerCaptured
+                case .moved:
+                    self.isHighlighted = self.isPointerCaptured && inside
+                case .released:
+                    let activate = self.isPointerCaptured && self.enabled && inside
+                    self.isPointerCaptured = false
+                    self.isHighlighted = false
+                    if activate { self.action?() }
+            }
+        }
     }
 
     override func onPointerPressed(_ e: PointerRoutedEventArgs!) throws {
+        guard enabled, WinUIContentShapes.admits(self, e) else { return }
         try super.onPointerPressed(e)
         isPointerCaptured = true
         isHighlighted = true
